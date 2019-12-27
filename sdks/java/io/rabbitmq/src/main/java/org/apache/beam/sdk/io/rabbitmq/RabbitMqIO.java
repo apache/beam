@@ -21,9 +21,9 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
-import java.util.Optional;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.UUID;
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
@@ -142,13 +142,11 @@ import org.joda.time.Instant;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class RabbitMqIO {
-  public static Read read(String uri) {
+  public static Read read() {
     return new AutoValue_RabbitMqIO_Read.Builder()
-        // until a queue is specified, this will have to be ephemeral
-        .setQueueDeclare(false)
-        // default exchange
-        .setExchange("")
-        .setExchangeType("direct")
+        // should force the user to define this, as this queue won't already exist
+        .setReadParadigm(
+            ReadParadigm.ExistingQueue.of("beam-unconfigured-read-queue-" + UUID.randomUUID()))
         // this policy is only appropriate for pipelines with at-least-once semantics
         // and capable of handling potentially a large number of repeatedly-delivered messages
         .setRecordIdPolicy(RecordIdPolicy.alwaysUnique())
@@ -157,7 +155,9 @@ public class RabbitMqIO {
         .setMaxNumRecords(Long.MAX_VALUE)
         // processing-time only policy by default; often not a great choice
         .setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime())
-        .setConnectionHandlerProviderFn(new ConnectionProviderFromUri(uri))
+        // only reasonable for local development
+        .setConnectionHandlerProviderFn(
+            new ConnectionProviderFromUri("amqp://guest:guest@localhost:5672/"))
         .build();
   }
 
@@ -173,17 +173,7 @@ public class RabbitMqIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<RabbitMqMessage>> {
 
-    @Nullable
-    abstract String queue();
-
-    abstract boolean queueDeclare();
-
-    abstract String exchange();
-
-    abstract String exchangeType();
-
-    @Nullable
-    abstract String routingKey();
+    abstract ReadParadigm readParadigm();
 
     abstract RecordIdPolicy recordIdPolicy();
 
@@ -200,15 +190,7 @@ public class RabbitMqIO {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setQueue(String queue);
-
-      abstract Builder setQueueDeclare(boolean queueDeclare);
-
-      abstract Builder setExchange(String exchange);
-
-      abstract Builder setExchangeType(String exchangeType);
-
-      abstract Builder setRoutingKey(String routingKey);
+      abstract Builder setReadParadigm(ReadParadigm paradigm);
 
       abstract Builder setRecordIdPolicy(RecordIdPolicy recordIdPolicy);
 
@@ -221,7 +203,21 @@ public class RabbitMqIO {
       abstract Builder setConnectionHandlerProviderFn(
           SerializableFunction<Void, ConnectionHandler> connectionHandlerProviderFn);
 
-      abstract Read build();
+      abstract Read autoBuild();
+
+      public Read build() {
+        Read built = autoBuild();
+
+        // validation
+
+        ReadParadigm paradigm = built.readParadigm();
+        checkArgument(
+            paradigm instanceof ReadParadigm.ExistingQueue
+                || paradigm instanceof ReadParadigm.NewQueue,
+            "Illegal instance of ReadParadigm given. Must be a non-null instance of NewQueue or ExistingQueue");
+
+        return built;
+      }
     }
 
     /**
@@ -235,6 +231,12 @@ public class RabbitMqIO {
      */
     public Read withUri(String uri) {
       checkArgument(uri != null, "uri can not be null");
+      try {
+        new URI(uri);
+      } catch (URISyntaxException e) {
+        throw new IllegalArgumentException(
+            "Malformed rabbit mq supplied (omitted here lest it contain username/password)");
+      }
       return withConnectionHandlerProviderFn(new ConnectionProviderFromUri(uri));
     }
 
@@ -251,106 +253,8 @@ public class RabbitMqIO {
       return builder().setConnectionHandlerProviderFn(connectionHandlerProviderFn).build();
     }
 
-    /**
-     * Reads messages from the specified queue. If {@code declareQueue} is {@code true} then an
-     * attempt will be made to declare this queue when connecting to Rabbit. If using a non-direct
-     * or non-default exchange type, you must specify an appropriate routing key when specifying the
-     * exchange.
-     *
-     * <p>NOTE: When declaring a queue or exchange that already exists, the properties specified in
-     * the declaration must match those of the existing queue or exchange. That is, if you declare a
-     * queue to be non-durable but a durable queue already exists with the same name, the
-     * declaration will fail. When declaring a queue, RabbitMqIO will declare it to be non-durable.
-     *
-     * @param queue the name of the queue to bind this reader to
-     * @param declareQueue If {@code true}, {@link RabbitMqIO} will declare a durable,
-     *     non-auto-deleted queue. If another application created the queue, this is not required
-     *     and should be set to {@code false}
-     */
-    public Read withQueue(String queue, boolean declareQueue) {
-      checkArgument(queue != null, "queue name can not be null");
-      return builder().setQueue(queue).setQueueDeclare(declareQueue).build();
-    }
-
-    /**
-     * Configures this Reader to use an anonymously-named, non-durable queue that will be
-     * automatically deleted upon disconnect. This is not a useful setting in production when any
-     * individual reader node may disconnect at any time, but can be useful for testing.
-     */
-    public Read withEphemeralQueue() {
-      return builder().setQueue(null).setQueueDeclare(false).build();
-    }
-
-    /**
-     * In AMQP, messages are published to an exchange and routed to queues based on the exchange
-     * type and a queue binding. Most exchange types utilize the routingKey to determine which
-     * queues to deliver messages to. It is incumbent upon the developer to understand the paradigm
-     * in place to determine whether to declare a queue, what the appropriate binding should be, and
-     * what routingKey will be in use.
-     *
-     * @see <a
-     *     href="https://www.cloudamqp.com/blog/2015-09-03-part4-rabbitmq-for-beginners-exchanges-routing-keys-bindings.html"/>
-     *     for a write-up on exchange types and routing semantics
-     */
-    private Read.Builder withExchange(String name, String type, @Nullable String routingKey) {
-      checkArgument(name != null, "exchange name can not be null");
-      checkArgument(type != null, "exchange type can not be null");
-      return builder().setExchange(name).setExchangeType(type).setRoutingKey(routingKey);
-    }
-
-    /**
-     * Declares the use of a fanout exchange with the given name.
-     *
-     * <p>Routing key is not accepted as all messages are published to all bound queues when using a
-     * fanout exchange.
-     *
-     * @param name the name of the exchange
-     */
-    public Read withFanoutExchange(String name) {
-      return withExchange(name, "fanout", null).build();
-    }
-
-    /**
-     * Declares the use of a topic exchange with the given name and mandatory routing key.
-     *
-     * @param name the name of the topic exchange to use
-     * @param routingKey the routing key / pattern to be used for routing incoming messages to the
-     *     bound queue.
-     */
-    public Read withTopicExchange(String name, @Nonnull String routingKey) {
-      String key =
-          Optional.ofNullable(routingKey).map(String::trim).filter(s -> !s.isEmpty()).orElse(null);
-      checkArgument(key != null, "routing key must be defined when using a topic exchange");
-
-      return withExchange(name, "topic", key).build();
-    }
-
-    /**
-     * Declares the use of a non-default direct exchange with the given name.
-     *
-     * <p>Routing key is not supplied here as the routing key used must exactly match the queue name
-     * specified in {@link #withQueue(String, boolean)}
-     *
-     * @param name the name of the direct exchange to use. If the desired exchange is the default
-     *     exchange, use {@link #withDefaultExchange()} instead.
-     */
-    public Read withDirectExchange(String name) {
-      checkArgument(
-          name != null && !"".equals(name.trim()),
-          "Direct exchange requires a name. If the default exchange was intended, use withDefaultExchange()");
-
-      return withExchange(name, "direct", null).build();
-    }
-
-    /**
-     * In RabbitMQ, there is a pre-defined instance of a direct exchange known as the 'default
-     * exchange', whose name is the empty string. Calling this specifies that this exchange should
-     * be used. Note that when using a direct exchange, you'll most likely want to set {@link
-     * #withQueue(String, boolean)} as messages will only be delivered to a queue read by Beam if
-     * they were published with a routing key whose name matches the queue name.
-     */
-    public Read withDefaultExchange() {
-      return builder().setExchange("").setExchangeType("direct").setRoutingKey(null).build();
+    public Read withReadParadigm(ReadParadigm paradigm) {
+      return builder().setReadParadigm(paradigm).build();
     }
 
     /**

@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.rabbitmq;
 
 import com.rabbitmq.client.GetResponse;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -108,38 +110,31 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
     try {
       checkpointMark.startReading();
 
-      // TODO: rework all of this
-      queueName = source.spec.queue();
-
-      ChannelLeaser.UseChannelFunction<Void> setupFn =
+      ChannelLeaser.UseChannelFunction<String> setupFn =
           channel -> {
-            if (source.spec.queueDeclare()) {
-              // declare the queue (if not done by another application)
-              // channel.queueDeclare(queueName, durable, exclusive, autoDelete, arguments);
-              channel.queueDeclare(queueName, true, false, false, null);
-            }
+            ReadParadigm paradigm = source.spec.readParadigm();
+            String queueName = paradigm.queueName();
+            if (paradigm instanceof ReadParadigm.NewQueue) {
+              ReadParadigm.NewQueue newQueue = (ReadParadigm.NewQueue) paradigm;
 
-            if (queueName == null) {
-              queueName = channel.queueDeclare().getQueue();
-            }
+              final boolean durable = true;
+              final boolean autoDelete = false;
+              final boolean exclusive = false;
+              final Map<String, Object> arguments = Collections.emptyMap();
 
-            if (!"".equalsIgnoreCase(source.spec.exchange())) {
+              // this may fail if the queue isn't actually new and has different properties
+              channel.queueDeclare(queueName, durable, exclusive, autoDelete, arguments);
+
               // the default exchange does not allow for explicitly binding a queue
-              String routingKey = source.spec.routingKey();
-              if ("direct".equalsIgnoreCase(source.spec.exchangeType())
-                  || "fanout".equalsIgnoreCase(source.spec.exchangeType())) {
-                // pubsub and direct exchanges do not require a routing key to be defined as the
-                // exchange type
-                // dictates the routing semantics
-                routingKey = "";
+              if (!"".equalsIgnoreCase(newQueue.getExchange())) {
+                channel.queueBind(queueName, newQueue.getExchange(), newQueue.getRoutingKey());
               }
-              channel.queueBind(queueName, source.spec.exchange(), routingKey);
             }
 
-            return null;
+            return queueName;
           };
 
-      connectionHandler.useChannel(checkpointMark.getCheckpointId(), setupFn);
+      queueName = connectionHandler.useChannel(checkpointMark.getCheckpointId(), setupFn);
     } catch (IOException e) {
       checkpointMark.stopReading();
       throw e;

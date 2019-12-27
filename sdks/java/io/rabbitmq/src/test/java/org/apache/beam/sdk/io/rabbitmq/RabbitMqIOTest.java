@@ -19,15 +19,12 @@ package org.apache.beam.sdk.io.rabbitmq;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.Consumer;
-import com.rabbitmq.client.Method;
-import com.rabbitmq.client.ShutdownSignalException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URL;
@@ -51,7 +48,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.qpid.server.SystemLauncher;
 import org.apache.qpid.server.model.SystemConfig;
 import org.junit.AfterClass;
@@ -130,9 +126,9 @@ public class RabbitMqIOTest implements Serializable {
     final int maxNumRecords = 10;
     final String queueName = "READ";
     RabbitMqIO.Read spec =
-        RabbitMqIO.read(uri)
-            .withDefaultExchange()
-            .withQueue(queueName, false)
+        RabbitMqIO.read()
+            .withUri(uri)
+            .withReadParadigm(ReadParadigm.ExistingQueue.of(queueName))
             .withMaxNumRecords(maxNumRecords);
 
     PCollection<RabbitMqMessage> raw = p.apply(spec);
@@ -151,12 +147,14 @@ public class RabbitMqIOTest implements Serializable {
     PAssert.that(output).containsInAnyOrder(expected);
 
     try {
-      connectionHandler.useChannel(testId, channel -> {
-        RabbitMqTestUtils.createExchange(spec).apply(channel);
-        channel.queueDeclare(queueName, false, false, false, Collections.emptyMap());
-        RabbitMqTestUtils.publishMessages(spec, messages).apply(channel);
-        return null;
-      });
+      connectionHandler.useChannel(
+          testId,
+          channel -> {
+            RabbitMqTestUtils.createExchange(spec).apply(channel);
+            channel.queueDeclare(queueName, false, false, false, Collections.emptyMap());
+            RabbitMqTestUtils.publishMessages(spec, messages).apply(channel);
+            return null;
+          });
       p.run();
     } finally {
       connectionHandler.closeChannel(testId);
@@ -186,9 +184,15 @@ public class RabbitMqIOTest implements Serializable {
 
     // on UUID fallback: tests appear to execute concurrently in jenkins, so
     // exchanges and queues between tests must be distinct
+
+    ReadParadigm paradigm = read.readParadigm();
+    if (!(paradigm instanceof ReadParadigm.NewQueue)) {
+      throw new IllegalArgumentException("ExchangeTest only supported for NewQueue");
+    }
+    ReadParadigm.NewQueue newQueue = (ReadParadigm.NewQueue) paradigm;
     String exchange =
-        Optional.ofNullable(read.exchange()).orElseGet(() -> UUID.randomUUID().toString());
-    String exchangeType = Optional.ofNullable(read.exchangeType()).orElse("fanout");
+        Optional.ofNullable(newQueue.getExchange()).orElseGet(() -> UUID.randomUUID().toString());
+    String exchangeType = Optional.ofNullable(newQueue.getExchangeType()).orElse("fanout");
     if (simulateIncompatibleExchange) {
       // Rabbit will fail when attempting to declare an existing exchange that
       // has different properties (e.g. declaring a non-durable exchange if
@@ -265,16 +269,23 @@ public class RabbitMqIOTest implements Serializable {
   public void testReadDeclaredFanoutExchange() throws Exception {
     doExchangeTest(
         new ExchangeTestPlan(
-            RabbitMqIO.read(uri).withFanoutExchange("DeclaredFanoutExchange"), 10));
+            RabbitMqIO.read()
+                .withUri(uri)
+                .withReadParadigm(
+                    ReadParadigm.NewQueue.fanoutExchange(
+                        "DeclaredFanoutExchange", "declaredFanoutQueue")),
+            10));
   }
 
   @Test(timeout = ONE_MINUTE_MS)
   public void testReadDeclaredTopicExchangeWithQueueDeclare() throws Exception {
     doExchangeTest(
         new ExchangeTestPlan(
-            RabbitMqIO.read(uri)
-                .withTopicExchange("DeclaredTopicExchangeWithQueueDeclare", "#")
-                .withQueue("declared-queue", true),
+            RabbitMqIO.read()
+                .withUri(uri)
+                .withReadParadigm(
+                    ReadParadigm.NewQueue.topicExchange(
+                        "DeclaredTopicExchangeWithQueueDeclare", "declaredTopicQueue", "#")),
             10));
   }
 
@@ -282,7 +293,11 @@ public class RabbitMqIOTest implements Serializable {
   public void testReadDeclaredTopicExchange() throws Exception {
     final int numRecords = 10;
     RabbitMqIO.Read read =
-        RabbitMqIO.read(uri).withTopicExchange("DeclaredTopicExchange", "user.create.#");
+        RabbitMqIO.read()
+            .withUri(uri)
+            .withReadParadigm(
+                ReadParadigm.NewQueue.topicExchange(
+                    "DeclaredTopicExchange", "declaredTopicQueue2", "user.create.#"));
 
     final Supplier<String> publishRoutingKeyGen =
         new Supplier<String>() {
@@ -319,40 +334,17 @@ public class RabbitMqIOTest implements Serializable {
   }
 
   @Test(timeout = ONE_MINUTE_MS)
-  public void testDeclareIncompatibleExchangeFails() throws Exception {
-    RabbitMqIO.Read read = RabbitMqIO.read(uri).withDirectExchange("IncompatibleExchange");
-    try {
-      doExchangeTest(new ExchangeTestPlan(read, 1), true);
-      fail("Expected to have failed to declare an incompatible exchange");
-    } catch (Exception e) {
-      Throwable cause = Throwables.getRootCause(e);
-      if (cause instanceof ShutdownSignalException) {
-        ShutdownSignalException sse = (ShutdownSignalException) cause;
-        Method reason = sse.getReason();
-        if (reason instanceof com.rabbitmq.client.AMQP.Connection.Close) {
-          com.rabbitmq.client.AMQP.Connection.Close close =
-              (com.rabbitmq.client.AMQP.Connection.Close) reason;
-          assertEquals("Expected failure is 530: not-allowed", 530, close.getReplyCode());
-        } else {
-          fail(
-              "Unexpected ShutdownSignalException reason. Expected Connection.Close. Got: "
-                  + reason);
-        }
-      } else {
-        fail("Expected to fail with ShutdownSignalException. Instead failed with " + cause);
-      }
-    }
-  }
-
-  @Test(timeout = ONE_MINUTE_MS)
   public void testUseCorrelationIdSucceedsWhenIdsPresent() throws Exception {
     int messageCount = 1;
     AMQP.BasicProperties publishProps =
         new AMQP.BasicProperties().builder().correlationId("123").build();
     doExchangeTest(
         new ExchangeTestPlan(
-            RabbitMqIO.read(uri)
-                .withFanoutExchange("CorrelationIdSuccess")
+            RabbitMqIO.read()
+                .withUri(uri)
+                .withReadParadigm(
+                    ReadParadigm.NewQueue.fanoutExchange(
+                        "CorrelationIdSuccess", "correlationIdTestSuccess"))
                 .withRecordIdPolicy(RecordIdPolicy.correlationId()),
             messageCount,
             messageCount,
@@ -365,8 +357,11 @@ public class RabbitMqIOTest implements Serializable {
     AMQP.BasicProperties publishProps = null;
     doExchangeTest(
         new ExchangeTestPlan(
-            RabbitMqIO.read(uri)
-                .withFanoutExchange("CorrelationIdFailure")
+            RabbitMqIO.read()
+                .withUri(uri)
+                .withReadParadigm(
+                    ReadParadigm.NewQueue.fanoutExchange(
+                        "CorrelationIdFailure", "correlationIdTestFailure"))
                 .withRecordIdPolicy(RecordIdPolicy.messageId()),
             messageCount,
             messageCount,

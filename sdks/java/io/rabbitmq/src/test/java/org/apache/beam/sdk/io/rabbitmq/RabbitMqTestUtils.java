@@ -80,47 +80,81 @@ public class RabbitMqTestUtils {
   }
 
   public static ChannelLeaser.UseChannelFunction<Void> createExchange(RabbitMqIO.Read spec) {
-    boolean isDefaultExchange = "".equals(spec.exchange());
-    if (isDefaultExchange) {
+    ReadParadigm paradigm = spec.readParadigm();
+
+    boolean isDefaultExchange = false;
+    if (paradigm instanceof ReadParadigm.NewQueue) {
+      isDefaultExchange = "".equals(((ReadParadigm.NewQueue) paradigm).getExchange());
+    }
+
+    if (isDefaultExchange || !(paradigm instanceof ReadParadigm.NewQueue)) {
       return channel -> null;
     }
+
+    final ReadParadigm.NewQueue newQueue = (ReadParadigm.NewQueue) paradigm;
     return channel -> {
-      boolean durable = false;
-      boolean autoDelete = false;
-      Map<String, Object> arguments = Collections.emptyMap();
-      channel.exchangeDeclare(spec.exchange(), spec.exchangeType(), durable, autoDelete, arguments);
+      final boolean durable = false;
+      final boolean autoDelete = false;
+      final Map<String, Object> arguments = Collections.emptyMap();
+      channel.exchangeDeclare(
+          newQueue.getExchange(), newQueue.getExchangeType(), durable, autoDelete, arguments);
       return null;
     };
   }
 
   public static ChannelLeaser.UseChannelFunction<Void> deleteExchange(RabbitMqIO.Read spec) {
-    boolean isDefaultExchange = "".equals(spec.exchange());
+    ReadParadigm paradigm = spec.readParadigm();
+
+    boolean isDefaultExchange = false;
+    if (paradigm instanceof ReadParadigm.NewQueue) {
+      isDefaultExchange = "".equals(((ReadParadigm.NewQueue) paradigm).getExchange());
+    }
+
     if (isDefaultExchange) {
       return channel -> null;
     }
+
+    final ReadParadigm.NewQueue newQueue = (ReadParadigm.NewQueue) paradigm;
+
     return channel -> {
-      channel.exchangeDelete(spec.exchange());
+      channel.exchangeDelete(newQueue.getExchange());
       return null;
     };
   }
 
   public static ChannelLeaser.UseChannelFunction<Void> publishMessages(
       final RabbitMqIO.Read spec, final Iterable<RabbitMqMessage> messages) {
-    final String exchangeType = spec.exchangeType();
+    ReadParadigm paradigm = spec.readParadigm();
+
+    // it should always work to directly publish to the queue name via the default exchange
+    String exchange = "";
+    String exchangeType = "direct";
+    String routingKey = paradigm.queueName();
+
+    if (paradigm instanceof ReadParadigm.NewQueue) {
+      // ... however applying defined routing rules make for a more real-world test
+      ReadParadigm.NewQueue newQueue = (ReadParadigm.NewQueue) paradigm;
+      exchange = newQueue.getExchange();
+      exchangeType = newQueue.getExchangeType();
+      routingKey = newQueue.getRoutingKey();
+    }
+
+    final String finalExchange = exchange;
+    final String finalExchangeType = exchangeType;
+    final String finalRoutingKey = routingKey;
 
     return channel -> {
       messages.forEach(
           message -> {
-            String routingKey = message.routingKey();
-            if ("direct".equalsIgnoreCase(exchangeType)) {
-              routingKey = spec.queue();
-            } else if ("fanout".equalsIgnoreCase(exchangeType)) {
-              routingKey = "ignored";
+            String messageRoutingKey = message.routingKey();
+            if ("direct".equalsIgnoreCase(finalExchangeType)
+                || "fanout".equalsIgnoreCase(finalExchangeType)) {
+              messageRoutingKey = finalRoutingKey;
             }
 
             try {
               channel.basicPublish(
-                  spec.exchange(), routingKey, message.createProperties(), message.body());
+                  finalExchange, messageRoutingKey, message.createProperties(), message.body());
             } catch (IOException e) {
               throw new RuntimeException(e);
             }
