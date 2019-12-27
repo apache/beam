@@ -171,7 +171,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   final KeySelector<WindowedValue<InputT>, ?> keySelector;
 
-  private final TimerInternals.TimerDataCoder timerCoder;
+  private final TimerInternals.TimerDataCoderV2 timerCoder;
 
   /** Max number of elements to include in a bundle. */
   private final long maxBundleSize;
@@ -244,7 +244,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     this.keySelector = keySelector;
 
     this.timerCoder =
-        TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
+        TimerInternals.TimerDataCoderV2.of(windowingStrategy.getWindowFn().windowCoder());
 
     FlinkPipelineOptions flinkOptions = options.as(FlinkPipelineOptions.class);
 

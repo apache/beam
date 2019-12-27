@@ -170,12 +170,12 @@ public class SparkTimerInternals implements TimerInternals {
   }
 
   public static Collection<byte[]> serializeTimers(
-      Collection<TimerData> timers, TimerDataCoder timerDataCoder) {
+      Collection<TimerData> timers, TimerDataCoderV2 timerDataCoder) {
     return CoderHelpers.toByteArrays(timers, timerDataCoder);
   }
 
   public static Iterator<TimerData> deserializeTimers(
-      Collection<byte[]> serTimers, TimerDataCoder timerDataCoder) {
+      Collection<byte[]> serTimers, TimerDataCoderV2 timerDataCoder) {
     return CoderHelpers.fromByteArrays(serTimers, timerDataCoder).iterator();
   }
 

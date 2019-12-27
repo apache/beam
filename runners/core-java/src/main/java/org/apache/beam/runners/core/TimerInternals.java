@@ -255,16 +255,16 @@ public interface TimerInternals {
   }
 
   /** A {@link Coder} for {@link TimerData}. */
-  class TimerDataCoder extends StructuredCoder<TimerData> {
+  class TimerDataCoderV2 extends StructuredCoder<TimerData> {
     private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
     private static final InstantCoder INSTANT_CODER = InstantCoder.of();
     private final Coder<? extends BoundedWindow> windowCoder;
 
-    public static TimerDataCoder of(Coder<? extends BoundedWindow> windowCoder) {
-      return new TimerDataCoder(windowCoder);
+    public static TimerDataCoderV2 of(Coder<? extends BoundedWindow> windowCoder) {
+      return new TimerDataCoderV2(windowCoder);
     }
 
-    private TimerDataCoder(Coder<? extends BoundedWindow> windowCoder) {
+    private TimerDataCoderV2(Coder<? extends BoundedWindow> windowCoder) {
       this.windowCoder = windowCoder;
     }
 
@@ -305,7 +305,7 @@ public interface TimerInternals {
    * A {@link Coder} for {@link TimerData}. To make it encoding and decoding backward compatible for
    * DataFlow
    */
-  class OldTimerDataCoder extends StructuredCoder<TimerData> {
+  class TimerDataCoder extends StructuredCoder<TimerData> {
     private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
     private static final InstantCoder INSTANT_CODER = InstantCoder.of();
     private final Coder<? extends BoundedWindow> windowCoder;
@@ -314,7 +314,7 @@ public interface TimerInternals {
       return new TimerDataCoder(windowCoder);
     }
 
-    private OldTimerDataCoder(Coder<? extends BoundedWindow> windowCoder) {
+    private TimerDataCoder(Coder<? extends BoundedWindow> windowCoder) {
       this.windowCoder = windowCoder;
     }
 

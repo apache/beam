@@ -30,9 +30,9 @@ import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
-import org.apache.beam.runners.core.TimerInternals.OldTimerDataCoder;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.TimerInternals.TimerDataCoder;
+import org.apache.beam.runners.core.TimerInternals.TimerDataCoderV2;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -88,11 +88,10 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
         StateTags.makeSystemTagInternal(
             StateTags.bag("elem", WindowedValue.getFullCoder(inputCoder, mainWindowCoder)));
     this.oldTimersAddr =
-        StateTags.makeSystemTagInternal(
-            StateTags.bag("timer", OldTimerDataCoder.of(mainWindowCoder)));
+        StateTags.makeSystemTagInternal(StateTags.bag("timer", TimerDataCoder.of(mainWindowCoder)));
     this.timersAddr =
         StateTags.makeSystemTagInternal(
-            StateTags.bag("newTimer", TimerDataCoder.of(mainWindowCoder)));
+            StateTags.bag("timerV2", TimerDataCoderV2.of(mainWindowCoder)));
     StateTag<WatermarkHoldState> watermarkTag =
         StateTags.watermarkStateInternal(
             "holdForSideinput", windowingStrategy.getTimestampCombiner());

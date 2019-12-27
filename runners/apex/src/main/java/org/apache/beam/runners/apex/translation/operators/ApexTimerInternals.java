@@ -57,7 +57,7 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
   private transient Instant currentOutputWatermark;
   private transient Coder<K> keyCoder;
 
-  public ApexTimerInternals(TimerDataCoder timerDataCoder) {
+  public ApexTimerInternals(TimerDataCoderV2 timerDataCoder) {
     this.eventTimeTimeTimers = new TimerSet(timerDataCoder);
     this.processingTimeTimers = new TimerSet(timerDataCoder);
   }
@@ -202,10 +202,10 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
 
   protected static class TimerSet implements Serializable {
     private final Map<Slice, Set<Slice>> activeTimers = new HashMap<>();
-    private final TimerDataCoder timerDataCoder;
+    private final TimerDataCoderV2 timerDataCoder;
     private long minTimestamp = Long.MAX_VALUE;
 
-    protected TimerSet(TimerDataCoder timerDataCoder) {
+    protected TimerSet(TimerDataCoderV2 timerDataCoder) {
       this.timerDataCoder = timerDataCoder;
     }
 
