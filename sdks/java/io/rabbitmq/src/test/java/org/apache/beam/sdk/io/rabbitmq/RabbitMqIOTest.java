@@ -119,8 +119,8 @@ public class RabbitMqIOTest implements Serializable {
     }
   }
 
-  @Test(timeout = ONE_MINUTE_MS * 100L)
-  public void testReadDefaultExchange() throws Exception {
+  @Test(timeout = ONE_MINUTE_MS)
+  public void testReadDefaultExchangeExistingQueue() throws Exception {
     UUID testId = UUID.randomUUID();
 
     final int maxNumRecords = 10;
@@ -150,7 +150,6 @@ public class RabbitMqIOTest implements Serializable {
       connectionHandler.useChannel(
           testId,
           channel -> {
-            RabbitMqTestUtils.createExchange(spec).apply(channel);
             channel.queueDeclare(queueName, false, false, false, Collections.emptyMap());
             RabbitMqTestUtils.publishMessages(spec, messages).apply(channel);
             return null;
