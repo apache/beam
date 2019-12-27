@@ -3660,6 +3660,7 @@ trigger stops executing</li>
     <span class="n">FixedWindows</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="mi">60</span><span class="p">),</span>
     <span class="n">trigger</span><span class="o">=</span><span class="n">AfterWatermark</span><span class="p">(</span>
         <span class="n">late</span><span class="o">=</span><span class="n">AfterProcessingTime</span><span class="p">(</span><span class="mi">10</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)),</span>
+    <span class="n">allowed_lateness</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
     <span class="n">accumulation_mode</span><span class="o">=</span><span class="n">AccumulationMode</span><span class="o">.</span><span class="n">DISCARDING</span><span class="p">)</span>
 </code></pre></div></div>
 
