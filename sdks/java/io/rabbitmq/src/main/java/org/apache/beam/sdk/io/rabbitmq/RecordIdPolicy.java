@@ -98,42 +98,42 @@ public interface RecordIdPolicy extends Function<RabbitMqMessage, byte[]> {
   class CorrelationIdPropertyPolicy extends StringPolicy {
     @Override
     protected String extractString(RabbitMqMessage rabbitMqMessage) {
-      return rabbitMqMessage.getCorrelationId();
+      return rabbitMqMessage.correlationId();
     }
   }
 
   class MessageIdPropertyPolicy extends StringPolicy {
     @Override
     protected String extractString(RabbitMqMessage rabbitMqMessage) {
-      return rabbitMqMessage.getMessageId();
+      return rabbitMqMessage.messageId();
     }
   }
 
   class BodyPolicy implements RecordIdPolicy {
     @Override
     public byte[] apply(RabbitMqMessage rabbitMqMessage) {
-      return rabbitMqMessage.getBody();
+      return rabbitMqMessage.body();
     }
   }
 
   class BodySha256Policy implements RecordIdPolicy {
     @Override
     public byte[] apply(RabbitMqMessage rabbitMqMessage) {
-      return Hashing.sha256().hashBytes(rabbitMqMessage.getBody()).asBytes();
+      return Hashing.sha256().hashBytes(rabbitMqMessage.body()).asBytes();
     }
   }
 
   class BodyWithTimestampPolicy implements RecordIdPolicy {
     @Override
     public byte[] apply(RabbitMqMessage rabbitMqMessage) {
-      Date timestamp = rabbitMqMessage.getTimestamp();
+      Date timestamp = rabbitMqMessage.timestamp();
       if (timestamp == null) {
         throw new IllegalArgumentException("Rabbit message's Timestamp property is null");
       }
       try (ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
           DataOutputStream outStream = new DataOutputStream(bytesOut)) {
         outStream.writeLong(timestamp.getTime());
-        outStream.write(rabbitMqMessage.getBody());
+        outStream.write(rabbitMqMessage.body());
         return Hashing.sha256().hashBytes(bytesOut.toByteArray()).asBytes();
       } catch (IOException e) {
         throw new RuntimeException(e);

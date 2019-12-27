@@ -51,7 +51,7 @@ public class CustomTimestampPolicyWithLimitedDelay extends TimestampPolicy {
   public static SerializableFunction<RabbitMqMessage, Instant>
       RABBITMQ_MESSAGE_TIMESTAMP_PLUGIN_FORMAT =
           record -> {
-            Object rawTimestampMillis = record.getHeaders().get("timestamp_in_ms");
+            Object rawTimestampMillis = record.headers().get("timestamp_in_ms");
             if (rawTimestampMillis != null) {
               try {
                 return Instant.ofEpochMilli(Long.parseLong(rawTimestampMillis.toString()));
@@ -59,7 +59,7 @@ public class CustomTimestampPolicyWithLimitedDelay extends TimestampPolicy {
                 /* ignored */
               }
             }
-            Date timestamp = record.getTimestamp();
+            Date timestamp = record.timestamp();
             if (timestamp == null) {
               throw new IllegalArgumentException(
                   "Neither timestamp_in_ms header nor timestamp property contain a valid timestamp value");

@@ -110,13 +110,6 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
 
       ChannelLeaser.UseChannelFunction<Void> setupFn =
           channel -> {
-            if (source.spec.exchangeDeclare()) {
-              if ("".equals(source.spec.exchange())) {
-                throw new IllegalArgumentException("Cannot declare default exchange");
-              }
-              channel.exchangeDeclare(source.spec.exchange(), source.spec.exchangeType());
-            }
-
             if (source.spec.queueDeclare()) {
               // declare the queue (if not done by another application)
               // channel.queueDeclare(queueName, durable, exclusive, autoDelete, arguments);
@@ -167,7 +160,7 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
         return false;
       }
 
-      currentRecord = new RabbitMqMessage(delivery);
+      currentRecord = RabbitMqMessage.fromGetResponse(delivery);
       context = new TimestampPolicyContext(delivery.getMessageCount(), Instant.now());
       long deliveryTag = delivery.getEnvelope().getDeliveryTag();
       checkpointMark.appendDeliveryTag(deliveryTag);
