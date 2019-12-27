@@ -374,7 +374,7 @@ public class RabbitMqIOTest implements Serializable {
         RabbitMqTestUtils.generateRecords(maxNumRecords).stream()
             .map(msg -> msg.toBuilder().setRoutingKey("TEST").build())
             .collect(Collectors.toList());
-    p.apply(Create.of(data)).apply(RabbitMqIO.write(uri));
+    p.apply(Create.of(data)).apply(RabbitMqIO.write().withUri(uri));
 
     final List<String> received = new ArrayList<>();
     ConnectionFactory connectionFactory = new ConnectionFactory();

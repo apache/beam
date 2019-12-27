@@ -176,9 +176,10 @@ public class RabbitMqIO {
         .build();
   }
 
-  public static Write write(String uri) {
+  public static Write write() {
     return new AutoValue_RabbitMqIO_Write.Builder()
-        .setConnectionHandlerProviderFn(new ConnectionProviderFromUri(uri))
+        .setConnectionHandlerProviderFn(
+            new ConnectionProviderFromUri("amqp://guest:guest@localhost:5672/"))
         .build();
   }
 
