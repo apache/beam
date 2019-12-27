@@ -44,10 +44,11 @@ public class DataStoreReadWriteIT {
       Schema.builder().addNullableField("content", STRING).build();
   private static final String KIND = "writereadtest";
 
-  @Rule public transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public final TestPipeline writePipeline = TestPipeline.create();
+  @Rule public transient TestPipeline readPipeline = TestPipeline.create();
 
   @Test
-  public void testDataStoreV1SqlRead() {
+  public void testDataStoreV1SqlWriteRead() {
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new DataStoreV1TableProvider());
     String projectId = options.getProject();
 
@@ -63,13 +64,18 @@ public class DataStoreReadWriteIT {
             + "'";
     sqlEnv.executeDdl(createTableStatement);
 
+    String insertStatement = "INSERT INTO TEST VALUES (" + "'varchar'" + ")";
+
+    BeamSqlRelUtils.toPCollection(writePipeline, sqlEnv.parseQuery(insertStatement));
+    writePipeline.run().waitUntilFinish();
+
     String selectTableStatement = "SELECT * FROM TEST";
     PCollection<Row> output =
-        BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(selectTableStatement));
+        BeamSqlRelUtils.toPCollection(readPipeline, sqlEnv.parseQuery(selectTableStatement));
 
     assertThat(output.getSchema(), equalTo(SOURCE_SCHEMA));
 
-    PipelineResult.State state = pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
+    PipelineResult.State state = readPipeline.run().waitUntilFinish(Duration.standardMinutes(5));
     assertThat(state, equalTo(State.DONE));
   }
 }

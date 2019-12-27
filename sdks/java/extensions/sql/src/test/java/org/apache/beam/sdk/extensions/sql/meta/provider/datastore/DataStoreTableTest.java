@@ -26,6 +26,7 @@ import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
 import com.google.datastore.v1.Entity;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.datastore.DataStoreV1Table.EntityToRowConverter;
+import org.apache.beam.sdk.extensions.sql.meta.provider.datastore.DataStoreV1Table.RowToEntityConverter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -40,7 +41,7 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class DataStoreTableTest {
-
+  private static final String KIND = "kind";
   private static final Schema SCHEMA =
       Schema.builder()
           .addNullableField("long", INT64)
@@ -50,26 +51,38 @@ public class DataStoreTableTest {
           .build();
   private static final Entity ENTITY =
       Entity.newBuilder()
-          .setKey(makeKey("key1"))
+          .setKey(makeKey(KIND))
           .putProperties("long", makeValue(Long.MAX_VALUE).build())
           .putProperties("bool", makeValue(true).build())
           .putProperties("double", makeValue(Double.MAX_VALUE).build())
           .putProperties("string", makeValue("string").build())
           .build();
+  private static final Row ROW = row(SCHEMA, Long.MAX_VALUE, true, Double.MAX_VALUE, "string");
+
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
   public void testEntityToRowConverter() {
-    Row expected = row(SCHEMA, Long.MAX_VALUE, true, Double.MAX_VALUE, "string");
-
     PCollection<Row> result =
         pipeline.apply(Create.of(ENTITY)).apply(ParDo.of(EntityToRowConverter.create(SCHEMA)));
-    PAssert.that(result).containsInAnyOrder(expected);
+    PAssert.that(result).containsInAnyOrder(ROW);
 
     pipeline.run().waitUntilFinish();
   }
 
-  private Row row(Schema schema, Object... values) {
+  @Test
+  public void testRowToEntityConverter() {
+    // TODO: test with more FieldTypes.
+    PCollection<Entity> result =
+        pipeline
+            .apply(Create.of(ROW))
+            .apply(ParDo.of(RowToEntityConverter.createTest(SCHEMA, KIND)));
+    PAssert.that(result).containsInAnyOrder(ENTITY);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  private static Row row(Schema schema, Object... values) {
     return Row.withSchema(schema).addValues(values).build();
   }
 }
