@@ -28,6 +28,7 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowWithGetters;
@@ -80,13 +81,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
       FieldValueTypeInformation typeInformation = checkNotNull(typeInformations.get(i));
       params[i] =
           fromValue(
-              type,
-              row.getValue(i),
-              typeInformation.getRawType(),
-              typeInformation.getElementType(),
-              typeInformation.getMapKeyType(),
-              typeInformation.getMapValueType(),
-              typeFactory);
+              type, row.getValue(i), typeInformation.getRawType(), typeInformation, typeFactory);
     }
 
     SchemaUserTypeCreator creator = schemaTypeCreatorFactory.create(clazz, schema);
@@ -99,10 +94,11 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
       FieldType type,
       ValueT value,
       Type fieldType,
-      FieldValueTypeInformation elementType,
-      FieldValueTypeInformation keyType,
-      FieldValueTypeInformation valueType,
+      FieldValueTypeInformation fieldValueTypeInformation,
       Factory<List<FieldValueTypeInformation>> typeFactory) {
+    FieldValueTypeInformation elementType = fieldValueTypeInformation.getElementType();
+    FieldValueTypeInformation keyType = fieldValueTypeInformation.getMapKeyType();
+    FieldValueTypeInformation valueType = fieldValueTypeInformation.getMapValueType();
     if (value == null) {
       return null;
     }
@@ -127,6 +123,22 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
               valueType,
               typeFactory);
     } else {
+      if (type.getTypeName().isLogicalType()
+          && OneOfType.IDENTIFIER.equals(type.getLogicalType().getIdentifier())) {
+        OneOfType oneOfType = type.getLogicalType(OneOfType.class);
+        OneOfType.Value oneOfValue = oneOfType.toInputType((Row) value);
+        FieldValueTypeInformation oneOfFieldValueTypeInformation =
+            checkNotNull(
+                fieldValueTypeInformation.getOneOfTypes().get(oneOfValue.getCaseType().toString()));
+        Object fromValue =
+            fromValue(
+                oneOfValue.getFieldType(),
+                oneOfValue.getValue(),
+                oneOfFieldValueTypeInformation.getRawType(),
+                oneOfFieldValueTypeInformation,
+                typeFactory);
+        return (ValueT) oneOfType.createValue(oneOfValue.getCaseType(), fromValue);
+      }
       return value;
     }
   }
@@ -156,9 +168,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
                 elementType,
                 element,
                 elementTypeInformation.getType().getType(),
-                elementTypeInformation.getElementType(),
-                elementTypeInformation.getMapKeyType(),
-                elementTypeInformation.getMapValueType(),
+                elementTypeInformation,
                 typeFactory));
   }
 
@@ -175,9 +185,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
                 elementType,
                 element,
                 elementTypeInformation.getType().getType(),
-                elementTypeInformation.getElementType(),
-                elementTypeInformation.getMapKeyType(),
-                elementTypeInformation.getMapValueType(),
+                elementTypeInformation,
                 typeFactory));
   }
 
@@ -196,18 +204,14 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
               keyType,
               entry.getKey(),
               keyTypeInformation.getType().getType(),
-              keyTypeInformation.getElementType(),
-              keyTypeInformation.getMapKeyType(),
-              keyTypeInformation.getMapValueType(),
+              keyTypeInformation,
               typeFactory);
       Object value =
           fromValue(
               valueType,
               entry.getValue(),
               valueTypeInformation.getType().getType(),
-              valueTypeInformation.getElementType(),
-              valueTypeInformation.getMapKeyType(),
-              valueTypeInformation.getMapValueType(),
+              valueTypeInformation,
               typeFactory);
       newMap.put(key, value);
     }

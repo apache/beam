@@ -41,6 +41,8 @@ from apache_beam.transforms.window import IntervalWindow
 from apache_beam.typehints import schemas
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import Timestamp
+from apache_beam.utils.windowed_value import PaneInfo
+from apache_beam.utils.windowed_value import PaneInfoTiming
 
 STANDARD_CODERS_YAML = os.path.normpath(os.path.join(
     os.path.dirname(__file__), '../portability/api/standard_coders.yaml'))
@@ -125,6 +127,16 @@ class StandardCodersTest(unittest.TestCase):
           lambda x, value_parser, window_parser: windowed_value.create(
               value_parser(x['value']), x['timestamp'] * 1000,
               tuple([window_parser(w) for w in x['windows']])),
+      'beam:coder:param_windowed_value:v1':
+          lambda x, value_parser, window_parser: windowed_value.create(
+              value_parser(x['value']), x['timestamp'] * 1000,
+              tuple([window_parser(w) for w in x['windows']]),
+              PaneInfo(
+                  x['pane']['is_first'],
+                  x['pane']['is_last'],
+                  PaneInfoTiming.from_string(x['pane']['timing']),
+                  x['pane']['index'],
+                  x['pane']['on_time_index'])),
       'beam:coder:timer:v1':
           lambda x, payload_parser: dict(
               payload=payload_parser(x['payload']),

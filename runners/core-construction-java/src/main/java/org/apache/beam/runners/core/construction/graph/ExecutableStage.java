@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
+import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -31,6 +33,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
+import org.apache.beam.model.pipeline.v1.RunnerApi.WireCoderSetting;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 
@@ -68,6 +71,14 @@ public interface ExecutableStage {
    * runner-side processing.
    */
   Environment getEnvironment();
+
+  /**
+   * Returns the {@link WireCoderSetting} this stage executes in.
+   *
+   * <p>A {@link WireCoderSetting} consists of settings which is used to configure the type of the
+   * wire coder.
+   */
+  WireCoderSetting getWireCoderSetting();
 
   /**
    * Returns the root {@link PCollectionNode} of this {@link ExecutableStage}. This {@link
@@ -134,6 +145,7 @@ public interface ExecutableStage {
     ExecutableStagePayload.Builder payload = ExecutableStagePayload.newBuilder();
 
     payload.setEnvironment(getEnvironment());
+    payload.setWireCoderSetting(getWireCoderSetting());
 
     // Populate inputs and outputs of the stage payload and outer PTransform simultaneously.
     PCollectionNode input = getInputPCollection();
@@ -208,6 +220,7 @@ public interface ExecutableStage {
   static ExecutableStage fromPayload(ExecutableStagePayload payload) {
     Components components = payload.getComponents();
     Environment environment = payload.getEnvironment();
+    WireCoderSetting wireCoderSetting = payload.getWireCoderSetting();
 
     PCollectionNode input =
         PipelineNode.pCollection(
@@ -233,6 +246,20 @@ public interface ExecutableStage {
             .map(id -> PipelineNode.pCollection(id, components.getPcollectionsOrThrow(id)))
             .collect(Collectors.toList());
     return ImmutableExecutableStage.of(
-        components, environment, input, sideInputs, userStates, timers, transforms, outputs);
+        components,
+        environment,
+        input,
+        sideInputs,
+        userStates,
+        timers,
+        transforms,
+        outputs,
+        wireCoderSetting);
   }
+
+  /** The default wire coder, i.e., WINDOWED_VALUE coder. */
+  WireCoderSetting DEFAULT_WIRE_CODER_SETTING =
+      WireCoderSetting.newBuilder()
+          .setUrn(getUrn(RunnerApi.StandardCoders.Enum.WINDOWED_VALUE))
+          .build();
 }

@@ -165,6 +165,9 @@ message PTransform {
   // then it may be omitted.
   DisplayData display_data = 6;
 
+  // (Optional) Environment where the current PTransform should be executed in.
+  // Runner that executes the pipeline may choose to override this if needed. If
+  // not specified, environment will be decided by the runner.
   string environment_id = 7;
 }
 
@@ -674,6 +677,16 @@ message StandardCoders {
     // Components: The element coder and the window coder, in that order
     WINDOWED_VALUE = 8 [(beam_urn) = "beam:coder:windowed_value:v1"];
 
+    // A windowed value coder with parameterized timestamp, windows and pane info.
+    // Encodes an element with only the value of the windowed value.
+    // Decodes the value and assign the parameterized timestamp, windows and PaneInfo to the
+    // windowed value
+    // Components: The element coder and the window coder, in that order
+    // The payload of this coder is an encoded windowed value using the
+    // beam:coder:windowed_value:v1 coder parameterized by beam:coder:bytes:v1
+    // elements coder and the window coder that this param_windowed_value uses.
+    PARAM_WINDOWED_VALUE = 14 [(beam_urn) = "beam:coder:param_windowed_value:v1"];
+
     // Encodes an iterable of elements, some of which may be stored elsewhere.
     //
     // The encoding for a state-backed iterable is the same as that for
@@ -790,6 +803,9 @@ message WindowingStrategy {
   // This knowledge is required for some optimizations
   bool assigns_to_one_window = 10;
 
+  // (Optional) Environment where the current window_fn should be applied in.
+  // Runner that executes the pipeline may choose to override this if needed.
+  // If not specified, environment will be decided by the runner.
   string environment_id = 11;
 }
 
@@ -1063,6 +1079,21 @@ message SideInput {
   FunctionSpec window_mapping_fn = 3;
 }
 
+// Settings that decide the coder type of wire coder.
+message WireCoderSetting {
+  // (Required) The URN of the wire coder.
+  // Note that only windowed value coder or parameterized windowed value coder are supported.
+  string urn = 1;
+
+  // (Optional) The data specifying any parameters to the URN. If
+  // the URN is beam:coder:windowed_value:v1, this may be omitted. If the URN is
+  // beam:coder:param_windowed_value:v1, the payload is an encoded windowed
+  // value using the beam:coder:windowed_value:v1 coder parameterized by
+  // beam:coder:bytes:v1 elements coder and the window coder that this
+  // param_windowed_value uses.
+  bytes payload = 2;
+}
+
 // An environment for executing UDFs. By default, an SDK container URL, but
 // can also be a process forked by a command, or an externally managed process.
 message Environment {
@@ -1270,6 +1301,9 @@ message ExecutableStagePayload {
   // We use an environment rather than environment id
   // because ExecutableStages use environments directly. This may change in the future.
   Environment environment = 1;
+
+  // set the wire coder of this executable stage
+  WireCoderSetting wire_coder_setting = 9;
 
   // (Required) Input PCollection id. This must be present as a value in the inputs of any
   // PTransform the ExecutableStagePayload is the payload of.

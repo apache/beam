@@ -195,6 +195,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 	// allPIds tracks additional PTransformIDs generated for the pipeline
 	var allPIds []string
 	var spec *pb.FunctionSpec
+	var transformEnvID = ""
 	switch edge.Edge.Op {
 	case graph.Impulse:
 		// TODO(herohde) 7/18/2018: Encode data?
@@ -231,8 +232,8 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 						Urn:     URNParDo,
 						Payload: protox.MustEncode(payload),
 					},
-					Inputs:  map[string]string{"i0": nodeID(in.From)},
-					Outputs: map[string]string{"i0": out},
+					Inputs:        map[string]string{"i0": nodeID(in.From)},
+					Outputs:       map[string]string{"i0": out},
 					EnvironmentId: m.addDefaultEnv(),
 				}
 				m.transforms[keyedID] = keyed
@@ -268,6 +269,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 			},
 			SideInputs: si,
 		}
+		transformEnvID = m.addDefaultEnv()
 		spec = &pb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 
 	case graph.Combine:
@@ -277,6 +279,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 				Payload: []byte(mustEncodeMultiEdgeBase64(edge.Edge)),
 			},
 		}
+		transformEnvID = m.addDefaultEnv()
 		spec = &pb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 
 	case graph.Flatten:
@@ -299,10 +302,11 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 	}
 
 	transform := &pb.PTransform{
-		UniqueName: edge.Name,
-		Spec:       spec,
-		Inputs:     inputs,
-		Outputs:    outputs,
+		UniqueName:    edge.Name,
+		Spec:          spec,
+		Inputs:        inputs,
+		Outputs:       outputs,
+		EnvironmentId: transformEnvID,
 	}
 	m.transforms[id] = transform
 	allPIds = append(allPIds, id)
@@ -344,8 +348,8 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 				Urn:     URNParDo,
 				Payload: protox.MustEncode(payload),
 			},
-			Inputs:  map[string]string{"i0": nodeID(in.From)},
-			Outputs: map[string]string{"i0": out},
+			Inputs:        map[string]string{"i0": nodeID(in.From)},
+			Outputs:       map[string]string{"i0": out},
 			EnvironmentId: m.addDefaultEnv(),
 		}
 		m.transforms[injectID] = inject
@@ -405,8 +409,8 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 			Urn:     URNParDo,
 			Payload: protox.MustEncode(payload),
 		},
-		Inputs:  map[string]string{"i0": gbkOut},
-		Outputs: map[string]string{"i0": nodeID(outNode)},
+		Inputs:        map[string]string{"i0": gbkOut},
+		Outputs:       map[string]string{"i0": nodeID(outNode)},
 		EnvironmentId: m.addDefaultEnv(),
 	}
 	m.transforms[id] = expand
@@ -459,6 +463,7 @@ func (m *marshaller) addDefaultEnv() string {
 
 func (m *marshaller) addWindowingStrategy(w *window.WindowingStrategy) string {
 	ws := marshalWindowingStrategy(m.coders, w)
+	ws.EnvironmentId = m.addDefaultEnv()
 	return m.internWindowingStrategy(ws)
 }
 
@@ -478,7 +483,7 @@ func (m *marshaller) internWindowingStrategy(w *pb.WindowingStrategy) string {
 // the given coder context.
 func marshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) *pb.WindowingStrategy {
 	ws := &pb.WindowingStrategy{
-		WindowFn: makeWindowFn(w.Fn),
+		WindowFn:         makeWindowFn(w.Fn),
 		MergeStatus:      pb.MergeStatus_NON_MERGING,
 		AccumulationMode: pb.AccumulationMode_DISCARDING,
 		WindowCoderId:    c.AddWindowCoder(makeWindowCoder(w.Fn)),

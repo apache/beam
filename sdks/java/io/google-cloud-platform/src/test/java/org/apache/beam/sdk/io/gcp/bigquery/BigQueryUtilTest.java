@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -208,8 +208,8 @@ public class BigQueryUtilTest {
               ref, rows, ids, InsertRetryPolicy.alwaysRetry(), null, null, false, false);
     } finally {
       verifyInsertAll(5);
-      // Each of the 25 rows is 23 bytes: "{f=[{v=foo}, {v=1234}]}"
-      assertEquals("Incorrect byte count", 25L * 23L, totalBytes);
+      // Each of the 25 rows has 1 byte for length and 30 bytes: '{"f":[{"v":"foo"},{"v":1234}]}'
+      assertEquals("Incorrect byte count", 25L * 31L, totalBytes);
     }
   }
 }

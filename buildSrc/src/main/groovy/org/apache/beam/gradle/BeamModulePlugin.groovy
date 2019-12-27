@@ -366,7 +366,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def classgraph_version = "4.8.56"
     def gax_version = "1.52.0"
     def generated_grpc_beta_version = "0.44.0"
-    def generated_grpc_ga_version = "1.43.0"
+    def generated_grpc_ga_version = "1.83.0"
     def generated_grpc_dc_beta_version = "0.27.0-alpha"
     def google_auth_version = "0.12.0"
     def google_clients_version = "1.28.0"
@@ -385,7 +385,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def postgres_version = "42.2.2"
     def powermock_version = "2.0.2"
     def proto_google_common_protos_version = "1.17.0"
-    def protobuf_version = "3.6.0"
+    def protobuf_version = "3.11.0"
     def quickcheck_version = "0.8"
     def spark_version = "2.4.4"
     def spark_structured_streaming_version = "2.4.0"
@@ -447,7 +447,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20181114-$google_clients_version",
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20181015-$google_clients_version",
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20190927-$google_clients_version",
-        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20181213-$google_clients_version",
+        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20191111-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20181109-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials:$google_auth_version",
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http:$google_auth_version",
@@ -494,6 +494,7 @@ class BeamModulePlugin implements Plugin<Project> {
         jackson_module_scala                        : "com.fasterxml.jackson.module:jackson-module-scala_2.11:$jackson_version",
         jaxb_api                                    : "javax.xml.bind:jaxb-api:$jaxb_api_version",
         joda_time                                   : "joda-time:joda-time:2.10.3",
+        jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
         jsr305                                      : "com.google.code.findbugs:jsr305:3.0.2",
         junit                                       : "junit:junit:4.13-beta-3",
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",

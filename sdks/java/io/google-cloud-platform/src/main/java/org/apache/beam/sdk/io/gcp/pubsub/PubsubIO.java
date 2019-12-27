@@ -1303,7 +1303,14 @@ public class PubsubIO {
         }
 
         // NOTE: The record id is always null.
-        output.add(new OutgoingMessage(payload, attributes, c.timestamp().getMillis(), null));
+        output.add(
+            OutgoingMessage.of(
+                com.google.pubsub.v1.PubsubMessage.newBuilder()
+                    .setData(ByteString.copyFrom(payload))
+                    .putAllAttributes(attributes)
+                    .build(),
+                c.timestamp().getMillis(),
+                null));
         currentOutputBytes += payload.length;
       }
 

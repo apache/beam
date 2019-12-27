@@ -350,7 +350,7 @@ You can monitor a running Flink job using the Flink JobManager Dashboard or its 
 
 ### Streaming Execution
 
-If your pipeline uses an unbounded data source or sink, the Flink Runner will automatically switch to streaming mode. You can enforce streaming mode by using the `streaming` setting mentioned below.
+If your pipeline uses an unbounded data source or sink, the Flink Runner will automatically switch to streaming mode. You can enforce streaming mode by using the `--streaming` flag.
 
 Note: The Runner will print a warning message when unbounded sources are used and checkpointing is not enabled.
 Many sources like `PubSubIO` rely on their checkpoints to be acknowledged which can only be done when checkpointing is enabled for the `FlinkRunner`. To enable checkpointing, please set <span class="language-java">`checkpointingInterval`</span><span class="language-py">`checkpointing_interval`</span> to the desired checkpointing interval in milliseconds.
@@ -359,11 +359,9 @@ Many sources like `PubSubIO` rely on their checkpoints to be acknowledged which 
 
 When executing your pipeline with the Flink Runner, you can set these pipeline options.
 
-See the reference documentation for the<span class="language-java">
+The following list of Flink-specific pipeline options is generated automatically from the
 [FlinkPipelineOptions](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/runners/flink/FlinkPipelineOptions.html)
-</span><span class="language-py">
-[PipelineOptions](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/options/pipeline_options.py)
-</span>interface (and its subinterfaces) for the complete list of pipeline configuration options.
+reference class:
 
 <!-- Java Options -->
 <div class="language-java">
@@ -373,6 +371,10 @@ See the reference documentation for the<span class="language-java">
 <div class="language-py">
 {% include flink_python_pipeline_options.html %}
 </div>
+
+For general Beam pipeline options see the
+[PipelineOptions](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/options/PipelineOptions.html)
+reference.
 
 ## Capability
 

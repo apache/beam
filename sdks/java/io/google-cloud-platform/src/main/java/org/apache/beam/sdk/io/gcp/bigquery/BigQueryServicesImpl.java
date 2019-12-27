@@ -741,7 +741,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         int strideIndex = 0;
         // Upload in batches.
         List<TableDataInsertAllRequest.Rows> rows = new ArrayList<>();
-        int dataSize = 0;
+        long dataSize = 0L;
 
         List<Future<List<TableDataInsertAllResponse.InsertErrors>>> futures = new ArrayList<>();
         List<Integer> strideIndices = new ArrayList<>();
@@ -755,7 +755,12 @@ class BigQueryServicesImpl implements BigQueryServices {
           out.setJson(row.getUnknownKeys());
           rows.add(out);
 
-          dataSize += row.toString().length();
+          try {
+            dataSize += TableRowJsonCoder.of().getEncodedElementByteSize(row);
+          } catch (Exception ex) {
+            throw new RuntimeException("Failed to convert the row to JSON", ex);
+          }
+
           if (dataSize >= maxRowBatchSize
               || rows.size() >= maxRowsPerBatch
               || i == rowsToPublish.size() - 1) {
@@ -796,7 +801,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
             retTotalDataSize += dataSize;
 
-            dataSize = 0;
+            dataSize = 0L;
             strideIndex = i + 1;
             rows = new ArrayList<>();
           }

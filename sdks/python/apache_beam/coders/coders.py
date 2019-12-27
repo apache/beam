@@ -80,7 +80,7 @@ __all__ = [
     'FastPrimitivesCoder', 'FloatCoder', 'IterableCoder', 'PickleCoder',
     'ProtoCoder', 'SingletonCoder', 'StrUtf8Coder', 'TimestampCoder',
     'TupleCoder', 'TupleSequenceCoder', 'VarIntCoder',
-    'WindowedValueCoder'
+    'WindowedValueCoder', 'ParamWindowedValueCoder'
 ]
 
 T = TypeVar('T')
@@ -1232,6 +1232,50 @@ class WindowedValueCoder(FastCoder):
 
 Coder.register_structured_urn(
     common_urns.coders.WINDOWED_VALUE.urn, WindowedValueCoder)
+
+
+class ParamWindowedValueCoder(WindowedValueCoder):
+  """A coder used for parameterized windowed values."""
+
+  def __init__(self, payload, components):
+    super(ParamWindowedValueCoder, self).__init__(components[0], components[1])
+    self.payload = payload
+
+  def _create_impl(self):
+    return coder_impl.ParamWindowedValueCoderImpl(
+        self.wrapped_value_coder.get_impl(),
+        self.window_coder.get_impl(),
+        self.payload)
+
+  def is_deterministic(self):
+    return self.wrapped_value_coder.is_deterministic()
+
+  def as_cloud_object(self, coders_context=None):
+    raise NotImplementedError(
+        "as_cloud_object not supported for ParamWindowedValueCoder")
+
+  def __repr__(self):
+    return 'ParamWindowedValueCoder[%s]' % self.wrapped_value_coder
+
+  def __eq__(self, other):
+    return (type(self) == type(other)
+            and self.wrapped_value_coder == other.wrapped_value_coder
+            and self.window_coder == other.window_coder
+            and self.payload == other.payload)
+
+  def __hash__(self):
+    return hash((self.wrapped_value_coder,
+                 self.window_coder,
+                 self.payload))
+
+  @Coder.register_urn(common_urns.coders.PARAM_WINDOWED_VALUE.urn, bytes)
+  def from_runner_api_parameter(payload, components, unused_context):
+    return ParamWindowedValueCoder(payload, components)
+
+  def to_runner_api_parameter(self, context):
+    return (common_urns.coders.PARAM_WINDOWED_VALUE.urn,
+            self.payload,
+            (self.wrapped_value_coder, self.window_coder))
 
 
 class LengthPrefixCoder(FastCoder):
