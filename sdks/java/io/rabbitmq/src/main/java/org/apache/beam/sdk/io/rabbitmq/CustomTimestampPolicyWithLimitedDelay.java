@@ -62,12 +62,6 @@ public class CustomTimestampPolicyWithLimitedDelay extends TimestampPolicy {
     maxEventTimestamp = previousWatermark.orElse(BoundedWindow.TIMESTAMP_MIN_VALUE).plus(maxDelay);
   }
 
-  /**
-   * Determines
-   *
-   * @param record
-   * @return
-   */
   @Override
   public Instant getTimestampForRecord(RabbitMqMessage record) {
     Instant ts = timestampFunction.apply(record);

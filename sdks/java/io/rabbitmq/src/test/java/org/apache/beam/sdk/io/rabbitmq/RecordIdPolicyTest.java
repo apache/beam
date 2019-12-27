@@ -43,6 +43,8 @@ public class RecordIdPolicyTest {
 
   @Test
   public void testCorrelationIdPropertyPolicy() {
+    final RecordIdPolicy policy = RecordIdPolicy.correlationId();
+
     int id1 = uniqueId.incrementAndGet();
     RabbitMqMessage msg1 =
         newMessage(
@@ -51,7 +53,7 @@ public class RecordIdPolicyTest {
     RabbitMqMessage msg2 =
         newMessage(
             id2, new AMQP.BasicProperties().builder().correlationId("correlationId" + id2).build());
-    RecordIdPolicy policy = RecordIdPolicy.correlationId();
+
     byte[] result1 = policy.apply(msg1);
     byte[] result1Again = policy.apply(msg1);
     byte[] result2 = policy.apply(msg2);
@@ -61,13 +63,15 @@ public class RecordIdPolicyTest {
 
   @Test
   public void testMessageIdPropertyPolicy() {
+    final RecordIdPolicy policy = RecordIdPolicy.messageId();
+
     int id1 = uniqueId.incrementAndGet();
     RabbitMqMessage msg1 =
         newMessage(id1, new AMQP.BasicProperties().builder().messageId("messageId" + id1).build());
     int id2 = uniqueId.incrementAndGet();
     RabbitMqMessage msg2 =
         newMessage(id2, new AMQP.BasicProperties().builder().messageId("messageId" + id2).build());
-    RecordIdPolicy policy = RecordIdPolicy.messageId();
+
     byte[] result1 = policy.apply(msg1);
     byte[] result1Again = policy.apply(msg1);
     byte[] result2 = policy.apply(msg2);
@@ -77,12 +81,13 @@ public class RecordIdPolicyTest {
 
   @Test
   public void testBodySha256PropertyPolicy() {
+    final RecordIdPolicy policy = RecordIdPolicy.bodySha256();
+
     RabbitMqMessage msg1 =
         RabbitMqMessage.builder().setBody("body1".getBytes(StandardCharsets.UTF_8)).build();
     RabbitMqMessage msg2 =
         RabbitMqMessage.builder().setBody("body2".getBytes(StandardCharsets.UTF_8)).build();
 
-    RecordIdPolicy policy = RecordIdPolicy.bodySha256();
     byte[] result1 = policy.apply(msg1);
     byte[] result1Again = policy.apply(msg1);
     byte[] result2 = policy.apply(msg2);
@@ -92,7 +97,7 @@ public class RecordIdPolicyTest {
 
   @Test
   public void testBodyWithTimestampPolicy() {
-    final RecordIdPolicy policy = RecordIdPolicy.bodySha256();
+    final RecordIdPolicy policy = RecordIdPolicy.bodyWithTimestamp();
 
     Instant start = Instant.now();
     Instant startPlusOneSec = start.plus(Duration.standardSeconds(1L));
@@ -130,7 +135,8 @@ public class RecordIdPolicyTest {
 
   @Test
   public void testAlwaysUniquePropertyPolicy() {
-    RecordIdPolicy policy = RecordIdPolicy.alwaysUnique();
+    final RecordIdPolicy policy = RecordIdPolicy.alwaysUnique();
+
     RabbitMqMessage msg =
         RabbitMqMessage.builder().setBody("body".getBytes(StandardCharsets.UTF_8)).build();
     byte[] prev = policy.apply(msg);

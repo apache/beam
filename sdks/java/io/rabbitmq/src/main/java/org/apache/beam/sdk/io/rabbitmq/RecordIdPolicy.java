@@ -65,7 +65,12 @@ public interface RecordIdPolicy extends Function<RabbitMqMessage, byte[]> {
    * @return a policy that defines the message id by a hash of a combination of the body and the
    *     amqp Timestamp property. This is a reasonable choice in environments where messages are not
    *     always unique but are unique within any given 1-second time window, yet a messageId amqp
-   *     property cannot be supplied. This requires the timestamp amqp property to be set.
+   *     property cannot be supplied. This requires the timestamp amqp property to be set. Note,
+   *     this implementation utilizes {@link
+   *     TimestampPolicy#RABBITMQ_MESSAGE_TIMESTAMP_PLUGIN_FORMAT} to extract a timestamp compatible
+   *     with the RabbitMQ Message Timestamp plugin. The value will be accurate to the nearest ms if
+   *     the header value is read, or only to the nearest second if the amqp Timestamp property is
+   *     used.
    * @see <a href="https://github.com/rabbitmq/rabbitmq-message-timestamp">the RabbitMq Message
    *     Timestamp Plugin</a> for a consistent means of setting this property within the RabbitMq
    *     broker.
@@ -119,10 +124,8 @@ public interface RecordIdPolicy extends Function<RabbitMqMessage, byte[]> {
   class BodyWithTimestampPolicy implements RecordIdPolicy {
     @Override
     public byte[] apply(RabbitMqMessage rabbitMqMessage) {
-      Date timestamp = rabbitMqMessage.timestamp();
-      if (timestamp == null) {
-        throw new IllegalArgumentException("Rabbit message's Timestamp property is null");
-      }
+      Date timestamp =
+          TimestampPolicy.RABBITMQ_MESSAGE_TIMESTAMP_PLUGIN_FORMAT.apply(rabbitMqMessage).toDate();
       try (ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
           DataOutputStream outStream = new DataOutputStream(bytesOut)) {
         outStream.writeLong(timestamp.getTime());
