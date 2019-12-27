@@ -90,7 +90,14 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
 
   @Override
   public BeamTableStatistics getTableStatistics(PipelineOptions options) {
-    return BeamTableStatistics.BOUNDED_UNKNOWN;
+    long count =
+        DatastoreIO.v1().read().withProjectId(projectId).getNumEntities(options, kind, null);
+
+    if (count < 0) {
+      return BeamTableStatistics.BOUNDED_UNKNOWN;
+    }
+
+    return BeamTableStatistics.createBoundedTableStatistics((double) count);
   }
 
   @VisibleForTesting
