@@ -29,7 +29,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
 import com.google.api.client.util.Clock;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
@@ -392,10 +391,9 @@ public class PubsubIOTest {
                 })
             .map(
                 ba ->
-                    IncomingMessage.of(
-                        com.google.pubsub.v1.PubsubMessage.newBuilder()
-                            .setData(ByteString.copyFrom(ba))
-                            .build(),
+                    new IncomingMessage(
+                        ba,
+                        null,
                         1234L,
                         0,
                         UUID.randomUUID().toString(),

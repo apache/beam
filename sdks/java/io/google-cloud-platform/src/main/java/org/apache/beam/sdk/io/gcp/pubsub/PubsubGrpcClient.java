@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auth.Credentials;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import com.google.pubsub.v1.AcknowledgeRequest;
 import com.google.pubsub.v1.DeleteSubscriptionRequest;
@@ -212,15 +213,21 @@ public class PubsubGrpcClient extends PubsubClient {
   public int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages) throws IOException {
     PublishRequest.Builder request = PublishRequest.newBuilder().setTopic(topic.getPath());
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
-      PubsubMessage.Builder message = outgoingMessage.message().toBuilder();
+      PubsubMessage.Builder message =
+          PubsubMessage.newBuilder().setData(ByteString.copyFrom(outgoingMessage.elementBytes));
 
-      if (timestampAttribute != null) {
-        message.putAttributes(
-            timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch()));
+      if (outgoingMessage.attributes != null) {
+        message.putAllAttributes(outgoingMessage.attributes);
       }
 
-      if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId())) {
-        message.putAttributes(idAttribute, outgoingMessage.recordId());
+      if (timestampAttribute != null) {
+        message
+            .getMutableAttributes()
+            .put(timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch));
+      }
+
+      if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId)) {
+        message.getMutableAttributes().put(idAttribute, outgoingMessage.recordId);
       }
 
       request.addMessages(message);
@@ -252,6 +259,9 @@ public class PubsubGrpcClient extends PubsubClient {
       PubsubMessage pubsubMessage = message.getMessage();
       @Nullable Map<String, String> attributes = pubsubMessage.getAttributes();
 
+      // Payload.
+      byte[] elementBytes = pubsubMessage.getData().toByteArray();
+
       // Timestamp.
       String pubsubTimestampString = null;
       Timestamp timestampProto = pubsubMessage.getPublishTime();
@@ -277,8 +287,13 @@ public class PubsubGrpcClient extends PubsubClient {
       }
 
       incomingMessages.add(
-          IncomingMessage.of(
-              pubsubMessage, timestampMsSinceEpoch, requestTimeMsSinceEpoch, ackId, recordId));
+          new IncomingMessage(
+              elementBytes,
+              attributes,
+              timestampMsSinceEpoch,
+              requestTimeMsSinceEpoch,
+              ackId,
+              recordId));
     }
     return incomingMessages;
   }

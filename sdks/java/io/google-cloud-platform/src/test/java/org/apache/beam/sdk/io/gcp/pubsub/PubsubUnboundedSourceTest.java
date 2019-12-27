@@ -31,7 +31,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.api.client.util.Clock;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -101,14 +100,8 @@ public class PubsubUnboundedSourceTest {
   private void setupOneMessage() {
     setupOneMessage(
         ImmutableList.of(
-            IncomingMessage.of(
-                com.google.pubsub.v1.PubsubMessage.newBuilder()
-                    .setData(ByteString.copyFromUtf8(DATA))
-                    .build(),
-                TIMESTAMP,
-                0,
-                ACK_ID,
-                RECORD_ID)));
+            new IncomingMessage(
+                DATA.getBytes(StandardCharsets.UTF_8), null, TIMESTAMP, 0, ACK_ID, RECORD_ID)));
   }
 
   @After
@@ -226,14 +219,8 @@ public class PubsubUnboundedSourceTest {
       String data = String.format("data_%d", i);
       String ackid = String.format("ackid_%d", i);
       incoming.add(
-          IncomingMessage.of(
-              com.google.pubsub.v1.PubsubMessage.newBuilder()
-                  .setData(ByteString.copyFromUtf8(data))
-                  .build(),
-              TIMESTAMP,
-              0,
-              ackid,
-              RECORD_ID));
+          new IncomingMessage(
+              data.getBytes(StandardCharsets.UTF_8), null, TIMESTAMP, 0, ackid, RECORD_ID));
     }
     setupOneMessage(incoming);
     PubsubReader reader = primSource.createReader(p.getOptions(), null);
@@ -292,10 +279,9 @@ public class PubsubUnboundedSourceTest {
       String recid = String.format("recordid_%d", messageNum);
       String ackId = String.format("ackid_%d", messageNum);
       incoming.add(
-          IncomingMessage.of(
-              com.google.pubsub.v1.PubsubMessage.newBuilder()
-                  .setData(ByteString.copyFromUtf8(data))
-                  .build(),
+          new IncomingMessage(
+              data.getBytes(StandardCharsets.UTF_8),
+              null,
               messageNumToTimestamp(messageNum),
               0,
               ackId,
