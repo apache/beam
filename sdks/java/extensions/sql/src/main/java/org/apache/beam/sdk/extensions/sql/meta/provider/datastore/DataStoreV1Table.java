@@ -17,13 +17,19 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.datastore;
 
+import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
+import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.datastore.v1.Entity;
+import com.google.datastore.v1.Key;
 import com.google.datastore.v1.Query;
 import com.google.datastore.v1.Value;
+import com.google.protobuf.ByteString;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.Map;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
@@ -33,6 +39,7 @@ import org.apache.beam.sdk.io.gcp.datastore.DatastoreIO;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
@@ -80,7 +87,9 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
 
   @Override
   public POutput buildIOWriter(PCollection<Row> input) {
-    throw new RuntimeException("Writing to DataStoreV1 via SQL is unimplemented at the moment.");
+    return input
+        .apply(ParDo.of(RowToEntityConverter.create(getSchema(), kind)))
+        .apply(DatastoreIO.v1().write().withProjectId(projectId));
   }
 
   @Override
@@ -168,6 +177,92 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
         }
       }
       context.output(builder.build());
+    }
+  }
+
+  @VisibleForTesting
+  static class RowToEntityConverter extends DoFn<Row, Entity> {
+    private final boolean randomName;
+    private final Schema schema;
+    private final String kind;
+
+    private RowToEntityConverter(boolean randomName, Schema schema, String kind) {
+      this.randomName = randomName;
+      this.schema = schema;
+      this.kind = kind;
+    }
+
+    public static RowToEntityConverter create(Schema schema, String kind) {
+      return new RowToEntityConverter(true, schema, kind);
+    }
+
+    static RowToEntityConverter createTest(Schema schema, String kind) {
+      return new RowToEntityConverter(false, schema, kind);
+    }
+
+    @DoFn.ProcessElement
+    public void processElement(ProcessContext context) {
+      Row row = context.element();
+
+      Entity.Builder entityBuilder = Entity.newBuilder();
+      // TODO: some entities might want a non random, meaningful key.
+      Key key;
+      if (randomName) {
+        key = makeKey(kind, UUID.randomUUID().toString()).build();
+      } else {
+        key = makeKey(kind).build();
+      }
+      entityBuilder.setKey(key);
+
+      for (Schema.Field field : schema.getFields()) {
+        Value.Builder valBuilder;
+        switch (field.getType().getTypeName()) {
+          case BOOLEAN:
+            valBuilder = makeValue((boolean) row.getValue(field.getName()));
+            break;
+          case BYTE:
+            valBuilder = makeValue((byte) row.getValue(field.getName()));
+            break;
+          case BYTES:
+            valBuilder = makeValue((ByteString) row.getValue(field.getName()));
+            break;
+          case DECIMAL:
+            valBuilder = makeValue(((BigDecimal) row.getValue(field.getName())).longValue());
+            break;
+          case FLOAT:
+          case DOUBLE:
+            valBuilder = makeValue(((double) row.getValue(field.getName())));
+            break;
+          case INT16:
+            valBuilder = makeValue((short) row.getValue(field.getName()));
+            break;
+          case INT32:
+            valBuilder = makeValue((int) row.getValue(field.getName()));
+            break;
+          case INT64:
+            valBuilder = makeValue((long) row.getValue(field.getName()));
+            break;
+            /*case STRING:
+            valBuilder = makeValue((String) row.getValue(field.getName()));
+            break;*/
+          case LOGICAL_TYPE:
+            Schema.FieldType logicalBaseType = field.getType().getLogicalType().getBaseType();
+            // TODO: make this recursive.
+            if (logicalBaseType.getTypeName().equals(TypeName.STRING)) {
+              valBuilder = makeValue((String) row.getValue(field.getName()));
+            } else {
+              throw new IllegalStateException(
+                  "Unexpected logical FieldType: " + logicalBaseType.getTypeName());
+            }
+            break;
+          default:
+            throw new IllegalStateException(
+                "Unexpected FieldType: " + field.getType().getTypeName());
+        }
+        entityBuilder.putProperties(field.getName(), valBuilder.build());
+      }
+
+      context.output(entityBuilder.build());
     }
   }
 }
