@@ -110,20 +110,33 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
 
       ChannelLeaser.UseChannelFunction<Void> setupFn =
           channel -> {
+            if (source.spec.exchangeDeclare()) {
+              if ("".equals(source.spec.exchange())) {
+                throw new IllegalArgumentException("Cannot declare default exchange");
+              }
+              channel.exchangeDeclare(source.spec.exchange(), source.spec.exchangeType());
+            }
+
             if (source.spec.queueDeclare()) {
               // declare the queue (if not done by another application)
               // channel.queueDeclare(queueName, durable, exclusive, autoDelete, arguments);
-              channel.queueDeclare(queueName, false, false, false, null);
+              channel.queueDeclare(queueName, true, false, false, null);
             }
-            if (source.spec.exchange() != null) {
-              if (source.spec.exchangeDeclare()) {
-                channel.exchangeDeclare(source.spec.exchange(), source.spec.exchangeType());
-              }
-              if (queueName == null) {
-                queueName = channel.queueDeclare().getQueue();
-              }
-              channel.queueBind(queueName, source.spec.exchange(), source.spec.routingKey());
+
+            if (queueName == null) {
+              queueName = channel.queueDeclare().getQueue();
             }
+
+            String routingKey = source.spec.routingKey();
+            if ("direct".equalsIgnoreCase(source.spec.exchangeType())
+                || "fanout".equalsIgnoreCase(source.spec.exchangeType())) {
+              // pubsub and direct exchanges do not require a routing key to be defined as the
+              // exchange type
+              // dictates the routing semantics
+              routingKey = null;
+            }
+            channel.queueBind(queueName, source.spec.exchange(), routingKey);
+
             return null;
           };
 
