@@ -119,12 +119,8 @@ class Pipeline(object):
             frozenset([common_urns.primitives.ASSIGN_WINDOWS.urn])]
     return frozenset().union(*sets)
 
-  def __init__(self,
-               runner=None,
-               options=None,
-               argv=None
-              ):
-    # type: (Optional[Union[str, PipelineRunner]], Optional[PipelineOptions], type: Optional[List[str]]) -> None
+  def __init__(self, runner=None, options=None, argv=None):
+    # type: (Optional[Union[str, PipelineRunner]], Optional[PipelineOptions], Optional[List[str]]) -> None
     """Initialize a pipeline object.
 
     Args:
