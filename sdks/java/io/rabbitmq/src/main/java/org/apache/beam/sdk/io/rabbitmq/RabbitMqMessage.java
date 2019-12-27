@@ -45,6 +45,7 @@ abstract class RabbitMqMessage implements Serializable {
   @Nullable
   abstract String routingKey();
 
+  @SuppressWarnings("mutable")
   abstract byte[] body();
 
   @Nullable
@@ -87,6 +88,8 @@ abstract class RabbitMqMessage implements Serializable {
 
   @Nullable
   abstract String clusterId();
+
+  public abstract Builder toBuilder();
 
   public static Builder builder() {
     return new AutoValue_RabbitMqMessage.Builder()
@@ -171,7 +174,7 @@ abstract class RabbitMqMessage implements Serializable {
 
     public RabbitMqMessage build() {
       Date timestamp = timestamp();
-      if (null != timestamp) {
+      if (timestamp != null) {
         setTimestamp(
             new Date(timestamp.toInstant().truncatedTo(ChronoUnit.SECONDS).toEpochMilli()));
       }

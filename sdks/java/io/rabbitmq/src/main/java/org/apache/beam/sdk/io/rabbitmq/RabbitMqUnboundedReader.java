@@ -23,6 +23,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Instant;
 
 class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMessage> {
@@ -36,6 +37,7 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
   private String queueName;
   private final RabbitMqCheckpointMark checkpointMark;
   private final ConnectionHandler connectionHandler;
+  private final MovingAvg averageRecordSize;
 
   RabbitMqUnboundedReader(RabbitMqSource source, RabbitMqCheckpointMark checkpointMark) {
     this.source = source;
@@ -46,6 +48,7 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
             Long.valueOf(UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN).intValue(),
             BoundedWindow.TIMESTAMP_MIN_VALUE);
     this.connectionHandler = this.source.spec.connectionHandlerProviderFn().apply(null);
+    this.averageRecordSize = new MovingAvg();
 
     RabbitMqCheckpointMark cpMark = checkpointMark;
     if (cpMark == null) {
@@ -67,7 +70,7 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
 
   @Override
   public Instant getWatermark() {
-    Instant watermark = timestampPolicy.getWatermark(context, currentRecord);
+    Instant watermark = timestampPolicy.getWatermark(context);
     checkpointMark.setWatermark(watermark);
     return watermark;
   }
@@ -161,6 +164,8 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
       }
 
       currentRecord = RabbitMqMessage.fromGetResponse(delivery);
+      // counting 'size' in terms of raw bytes of the body only
+      averageRecordSize.update(currentRecord.body().length);
       context = new TimestampPolicyContext(delivery.getMessageCount(), Instant.now());
       long deliveryTag = delivery.getEnvelope().getDeliveryTag();
       checkpointMark.appendDeliveryTag(deliveryTag);
@@ -177,7 +182,35 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
     checkpointMark.stopReading();
   }
 
-  private static class TimestampPolicyContext extends TimestampPolicy.LastRead {
+  @Override
+  public long getTotalBacklogBytes() {
+    long backlogMessageCount = context.getMessageBacklog();
+    if (backlogMessageCount == BACKLOG_UNKNOWN) {
+      return BACKLOG_UNKNOWN;
+    }
+
+    return (long) (backlogMessageCount * averageRecordSize.get());
+  }
+
+  // Maintains approximate average over last 1000 elements
+  // (Note: lifted directly from KafkaIO. Should consolidate.)
+  private static class MovingAvg {
+    private static final int MOVING_AVG_WINDOW = 1000;
+    private double avg = 0;
+    private long numUpdates = 0;
+
+    void update(double quantity) {
+      numUpdates++;
+      avg += (quantity - avg) / Math.min(MOVING_AVG_WINDOW, numUpdates);
+    }
+
+    double get() {
+      return avg;
+    }
+  }
+
+  @VisibleForTesting
+  static class TimestampPolicyContext extends TimestampPolicy.LastRead {
     private final int messageBacklog;
     private final Instant backlogCheckTime;
 

@@ -25,6 +25,8 @@ import com.rabbitmq.client.GetResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -36,7 +38,7 @@ public class RecordIdPolicyTest {
   RabbitMqMessage newMessage(int id, AMQP.BasicProperties properties) {
     byte[] body = ("body" + id).getBytes(StandardCharsets.UTF_8);
     GetResponse resp = new GetResponse(null, properties, body, 0);
-    return new RabbitMqMessage(resp);
+    return RabbitMqMessage.fromGetResponse(resp);
   }
 
   @Test
@@ -74,36 +76,63 @@ public class RecordIdPolicyTest {
   }
 
   @Test
-  public void testBodyPropertyPolicy() {
-    RabbitMqMessage msg1 = new RabbitMqMessage("body1".getBytes(StandardCharsets.UTF_8));
-    RabbitMqMessage msg2 = new RabbitMqMessage("body2".getBytes(StandardCharsets.UTF_8));
+  public void testBodySha256PropertyPolicy() {
+    RabbitMqMessage msg1 =
+        RabbitMqMessage.builder().setBody("body1".getBytes(StandardCharsets.UTF_8)).build();
+    RabbitMqMessage msg2 =
+        RabbitMqMessage.builder().setBody("body2".getBytes(StandardCharsets.UTF_8)).build();
 
-    RecordIdPolicy policy = RecordIdPolicy.body();
+    RecordIdPolicy policy = RecordIdPolicy.bodySha256();
     byte[] result1 = policy.apply(msg1);
     byte[] result1Again = policy.apply(msg1);
     byte[] result2 = policy.apply(msg2);
     assertFalse(Arrays.equals(result1, result2));
     assertArrayEquals(result1, result1Again);
-    assertArrayEquals(result1, msg1.getBody());
   }
 
   @Test
-  public void testBodySha256PropertyPolicy() {
-    RabbitMqMessage msg1 = new RabbitMqMessage("body1".getBytes(StandardCharsets.UTF_8));
-    RabbitMqMessage msg2 = new RabbitMqMessage("body2".getBytes(StandardCharsets.UTF_8));
+  public void testBodyWithTimestampPolicy() {
+    final RecordIdPolicy policy = RecordIdPolicy.bodySha256();
 
-    RecordIdPolicy policy = RecordIdPolicy.body();
+    Instant start = Instant.now();
+    Instant startPlusOneSec = start.plus(Duration.standardSeconds(1L));
+
+    // test 1: same body, different timestamps
+    RabbitMqMessage msg1 =
+        RabbitMqMessage.builder()
+            .setBody("body1".getBytes(StandardCharsets.UTF_8))
+            .setTimestamp(start.toDate())
+            .build();
+    RabbitMqMessage msg2 = msg1.toBuilder().setTimestamp(startPlusOneSec.toDate()).build();
+
+    // result 1: idempotent on same record, different messages don't match
     byte[] result1 = policy.apply(msg1);
     byte[] result1Again = policy.apply(msg1);
     byte[] result2 = policy.apply(msg2);
     assertFalse(Arrays.equals(result1, result2));
     assertArrayEquals(result1, result1Again);
+
+    // test 2: different bodies, same timestamps
+    msg1 =
+        RabbitMqMessage.builder()
+            .setBody("body1".getBytes(StandardCharsets.UTF_8))
+            .setTimestamp(start.toDate())
+            .build();
+    msg2 =
+        RabbitMqMessage.builder()
+            .setBody("body2".getBytes(StandardCharsets.UTF_8))
+            .setTimestamp(start.toDate())
+            .build();
+    result1 = policy.apply(msg1);
+    result2 = policy.apply(msg2);
+    assertFalse(Arrays.equals(result1, result2));
   }
 
   @Test
   public void testAlwaysUniquePropertyPolicy() {
-    RecordIdPolicy policy = RecordIdPolicy.body();
-    RabbitMqMessage msg = new RabbitMqMessage("body".getBytes(StandardCharsets.UTF_8));
+    RecordIdPolicy policy = RecordIdPolicy.alwaysUnique();
+    RabbitMqMessage msg =
+        RabbitMqMessage.builder().setBody("body".getBytes(StandardCharsets.UTF_8)).build();
     byte[] prev = policy.apply(msg);
     for (int i = 0; i < 1000; i++) {
       byte[] current = policy.apply(msg);

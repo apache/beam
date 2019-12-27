@@ -123,8 +123,7 @@ public class RabbitMqIOTest implements Serializable {
         raw.apply(
             MapElements.into(TypeDescriptors.strings())
                 .via(
-                    (RabbitMqMessage message) ->
-                        RabbitMqTestUtils.recordToString(message.body())));
+                    (RabbitMqMessage message) -> RabbitMqTestUtils.recordToString(message.body())));
 
     List<String> records =
         RabbitMqTestUtils.generateRecords(maxNumRecords).stream()
@@ -172,8 +171,7 @@ public class RabbitMqIOTest implements Serializable {
         raw.apply(
             MapElements.into(TypeDescriptors.strings())
                 .via(
-                    (RabbitMqMessage message) ->
-                        RabbitMqTestUtils.recordToString(message.body())));
+                    (RabbitMqMessage message) -> RabbitMqTestUtils.recordToString(message.body())));
 
     List<String> expected = testPlan.expectedResults();
 
@@ -259,8 +257,7 @@ public class RabbitMqIOTest implements Serializable {
   @Test(timeout = ONE_MINUTE_MS)
   public void testReadDeclaredFanoutExchange() throws Exception {
     doExchangeTest(
-        new ExchangeTestPlan(
-            RabbitMqIO.read().withFanoutExchange("DeclaredFanoutExchange"), 10));
+        new ExchangeTestPlan(RabbitMqIO.read().withFanoutExchange("DeclaredFanoutExchange"), 10));
   }
 
   @Test(timeout = ONE_MINUTE_MS)
@@ -315,8 +312,7 @@ public class RabbitMqIOTest implements Serializable {
 
   @Test(timeout = ONE_MINUTE_MS)
   public void testDeclareIncompatibleExchangeFails() throws Exception {
-    RabbitMqIO.Read read =
-        RabbitMqIO.read().withDirectExchange("IncompatibleExchange");
+    RabbitMqIO.Read read = RabbitMqIO.read().withDirectExchange("IncompatibleExchange");
     try {
       doExchangeTest(new ExchangeTestPlan(read, 1), true);
       fail("Expected to have failed to declare an incompatible exchange");
@@ -377,8 +373,7 @@ public class RabbitMqIOTest implements Serializable {
             .map(body -> RabbitMqMessage.builder().setBody(body).setRoutingKey("TEST").build())
             .collect(Collectors.toList());
     p.apply(Create.of(data))
-        .apply(
-            RabbitMqIO.write().withUri("amqp://guest:guest@localhost:" + port));
+        .apply(RabbitMqIO.write().withUri("amqp://guest:guest@localhost:" + port));
 
     final List<String> received = new ArrayList<>();
     ConnectionFactory connectionFactory = new ConnectionFactory();

@@ -109,13 +109,6 @@ public interface RecordIdPolicy extends Function<RabbitMqMessage, byte[]> {
     }
   }
 
-  class BodyPolicy implements RecordIdPolicy {
-    @Override
-    public byte[] apply(RabbitMqMessage rabbitMqMessage) {
-      return rabbitMqMessage.body();
-    }
-  }
-
   class BodySha256Policy implements RecordIdPolicy {
     @Override
     public byte[] apply(RabbitMqMessage rabbitMqMessage) {

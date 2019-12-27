@@ -37,8 +37,8 @@ public interface TimestampPolicyFactory extends Serializable {
    *
    * @param previousWatermark The latest check-pointed watermark. This is set when the reader is
    *     resuming from a checkpoint. This is a good value to return by implementations of {@link
-   *     TimestampPolicy#getWatermark(TimestampPolicy.LastRead, RabbitMqMessage)} until a better
-   *     watermark can be established as more records are read.
+   *     TimestampPolicy#getWatermark(TimestampPolicy.LastRead)} until a better watermark can be
+   *     established as more records are read.
    */
   TimestampPolicy createTimestampPolicy(Optional<Instant> previousWatermark);
 
@@ -68,8 +68,7 @@ public interface TimestampPolicyFactory extends Serializable {
    *     queue before considering a message a late arrival.
    */
   static TimestampPolicyFactory withTimestampPluginCompat(Duration maxDelay) {
-    return withTimestamp(
-        maxDelay, CustomTimestampPolicyWithLimitedDelay.RABBITMQ_MESSAGE_TIMESTAMP_PLUGIN_FORMAT);
+    return withTimestamp(maxDelay, TimestampPolicy.RABBITMQ_MESSAGE_TIMESTAMP_PLUGIN_FORMAT);
   }
 
   /**
@@ -79,7 +78,7 @@ public interface TimestampPolicyFactory extends Serializable {
    * <p>To use an implementation compatible with the <a
    * href="https://github.com/rabbitmq/rabbitmq-message-timestamp">RabbitMQ Message Timestamp
    * plugin</a>, use {@link #withTimestampPluginCompat(Duration)} or provide argument {@link
-   * CustomTimestampPolicyWithLimitedDelay#RABBITMQ_MESSAGE_TIMESTAMP_PLUGIN_FORMAT}.
+   * TimestampPolicy#RABBITMQ_MESSAGE_TIMESTAMP_PLUGIN_FORMAT}.
    *
    * @param maxDelay maxDelay For any record in the mostly-monotonically-increasing queue, the
    *     timestamp of any subsequent record is expected to be after {@code current record timestamp
@@ -105,7 +104,7 @@ public interface TimestampPolicyFactory extends Serializable {
     }
 
     @Override
-    public Instant getWatermark(LastRead context, RabbitMqMessage record) {
+    public Instant getWatermark(LastRead context) {
       return Instant.now();
     }
   }

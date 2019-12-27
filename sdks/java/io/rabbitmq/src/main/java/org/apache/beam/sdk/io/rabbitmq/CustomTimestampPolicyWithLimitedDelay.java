@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.rabbitmq;
 
-import java.util.Date;
 import java.util.Optional;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -43,31 +42,6 @@ public class CustomTimestampPolicyWithLimitedDelay extends TimestampPolicy {
   private Instant maxEventTimestamp;
 
   /**
-   * A timestamp extractor compatible with the <a
-   * href="https://github.com/rabbitmq/rabbitmq-message-timestamp">RabbitMQ Message Timestamp
-   * plugin</a>, which first looks for header {@code timestamp_in_ms} then falls back to amqp
-   * message property {@code timestamp}
-   */
-  public static SerializableFunction<RabbitMqMessage, Instant>
-      RABBITMQ_MESSAGE_TIMESTAMP_PLUGIN_FORMAT =
-          record -> {
-            Object rawTimestampMillis = record.headers().get("timestamp_in_ms");
-            if (rawTimestampMillis != null) {
-              try {
-                return Instant.ofEpochMilli(Long.parseLong(rawTimestampMillis.toString()));
-              } catch (NumberFormatException | NullPointerException e) {
-                /* ignored */
-              }
-            }
-            Date timestamp = record.timestamp();
-            if (timestamp == null) {
-              throw new IllegalArgumentException(
-                  "Neither timestamp_in_ms header nor timestamp property contain a valid timestamp value");
-            }
-            return new Instant(timestamp);
-          };
-
-  /**
    * A policy for custom record timestamps where timestamps are expected to be roughly monotonically
    * increasing with out of order event delays less than {@code maxDelay}. The watermark at any time
    * is {@code earliest(now(), latest(event timestamp so far)) - maxDelay}.
@@ -88,6 +62,12 @@ public class CustomTimestampPolicyWithLimitedDelay extends TimestampPolicy {
     maxEventTimestamp = previousWatermark.orElse(BoundedWindow.TIMESTAMP_MIN_VALUE).plus(maxDelay);
   }
 
+  /**
+   * Determines
+   *
+   * @param record
+   * @return
+   */
   @Override
   public Instant getTimestampForRecord(RabbitMqMessage record) {
     Instant ts = timestampFunction.apply(record);
@@ -98,7 +78,7 @@ public class CustomTimestampPolicyWithLimitedDelay extends TimestampPolicy {
   }
 
   @Override
-  public Instant getWatermark(LastRead ctx, RabbitMqMessage record) {
+  public Instant getWatermark(LastRead ctx) {
     // Watermark == maxEventTime - maxDelay, except in two special cases:
     //   a) maxEventTime in future : probably due to incorrect timestamps. Cap it to 'now'.
     //   b) queue is empty : Need to advance watermark if there are no records in the queue.
@@ -112,12 +92,15 @@ public class CustomTimestampPolicyWithLimitedDelay extends TimestampPolicy {
 
   @VisibleForTesting
   Instant getWatermark(LastRead ctx, Instant now) {
+    Instant backlogCheckTime = ctx.getBacklogCheckTime();
+    int backlogSize = ctx.getMessageBacklog();
+
     if (maxEventTimestamp.isAfter(now)) {
       return now.minus(maxDelay); // (a) above.
-    } else if (ctx.getMessageBacklog() == 0
-        && ctx.getBacklogCheckTime().minus(maxDelay).isAfter(maxEventTimestamp) // Idle
+    } else if (backlogSize == 0
+        && backlogCheckTime.minus(maxDelay).isAfter(maxEventTimestamp) // Idle
         && maxEventTimestamp.getMillis() > 0) { // Read at least one record with positive timestamp.
-      return ctx.getBacklogCheckTime().minus(maxDelay);
+      return backlogCheckTime.minus(maxDelay);
     } else {
       return maxEventTimestamp.minus(maxDelay);
     }
