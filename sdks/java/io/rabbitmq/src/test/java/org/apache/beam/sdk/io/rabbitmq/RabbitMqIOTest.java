@@ -117,14 +117,14 @@ public class RabbitMqIOTest implements Serializable {
         p.apply(
             RabbitMqIO.read()
                 .withUri("amqp://guest:guest@localhost:" + port)
-                .withQueue("READ")
+                .withQueue("READ", true)
                 .withMaxNumRecords(maxNumRecords));
     PCollection<String> output =
         raw.apply(
             MapElements.into(TypeDescriptors.strings())
                 .via(
                     (RabbitMqMessage message) ->
-                        RabbitMqTestUtils.recordToString(message.getBody())));
+                        RabbitMqTestUtils.recordToString(message.body())));
 
     List<String> records =
         RabbitMqTestUtils.generateRecords(maxNumRecords).stream()
@@ -173,7 +173,7 @@ public class RabbitMqIOTest implements Serializable {
             MapElements.into(TypeDescriptors.strings())
                 .via(
                     (RabbitMqMessage message) ->
-                        RabbitMqTestUtils.recordToString(message.getBody())));
+                        RabbitMqTestUtils.recordToString(message.body())));
 
     List<String> expected = testPlan.expectedResults();
 
@@ -260,7 +260,7 @@ public class RabbitMqIOTest implements Serializable {
   public void testReadDeclaredFanoutExchange() throws Exception {
     doExchangeTest(
         new ExchangeTestPlan(
-            RabbitMqIO.read().withExchange("DeclaredFanoutExchange", "fanout", "ignored"), 10));
+            RabbitMqIO.read().withFanoutExchange("DeclaredFanoutExchange"), 10));
   }
 
   @Test(timeout = ONE_MINUTE_MS)
@@ -268,9 +268,8 @@ public class RabbitMqIOTest implements Serializable {
     doExchangeTest(
         new ExchangeTestPlan(
             RabbitMqIO.read()
-                .withExchange("DeclaredTopicExchangeWithQueueDeclare", "topic", "#")
-                .withQueue("declared-queue")
-                .withQueueDeclare(true),
+                .withTopicExchange("DeclaredTopicExchangeWithQueueDeclare", "#")
+                .withQueue("declared-queue", true),
             10));
   }
 
@@ -278,7 +277,7 @@ public class RabbitMqIOTest implements Serializable {
   public void testReadDeclaredTopicExchange() throws Exception {
     final int numRecords = 10;
     RabbitMqIO.Read read =
-        RabbitMqIO.read().withExchange("DeclaredTopicExchange", "topic", "user.create.#");
+        RabbitMqIO.read().withTopicExchange("DeclaredTopicExchange", "user.create.#");
 
     final Supplier<String> publishRoutingKeyGen =
         new Supplier<String>() {
@@ -317,7 +316,7 @@ public class RabbitMqIOTest implements Serializable {
   @Test(timeout = ONE_MINUTE_MS)
   public void testDeclareIncompatibleExchangeFails() throws Exception {
     RabbitMqIO.Read read =
-        RabbitMqIO.read().withExchange("IncompatibleExchange", "direct", "unused");
+        RabbitMqIO.read().withDirectExchange("IncompatibleExchange");
     try {
       doExchangeTest(new ExchangeTestPlan(read, 1), true);
       fail("Expected to have failed to declare an incompatible exchange");
@@ -349,7 +348,7 @@ public class RabbitMqIOTest implements Serializable {
     doExchangeTest(
         new ExchangeTestPlan(
             RabbitMqIO.read()
-                .withExchange("CorrelationIdSuccess", "fanout")
+                .withFanoutExchange("CorrelationIdSuccess")
                 .withRecordIdPolicy(RecordIdPolicy.correlationId()),
             messageCount,
             messageCount,
@@ -363,17 +362,11 @@ public class RabbitMqIOTest implements Serializable {
     doExchangeTest(
         new ExchangeTestPlan(
             RabbitMqIO.read()
-                .withExchange("CorrelationIdFailure", "fanout")
+                .withFanoutExchange("CorrelationIdFailure")
                 .withRecordIdPolicy(RecordIdPolicy.messageId()),
             messageCount,
             messageCount,
             publishProps));
-  }
-
-  @Test(expected = Pipeline.PipelineExecutionException.class)
-  public void testQueueDeclareWithoutQueueNameFails() throws Exception {
-    RabbitMqIO.Read read = RabbitMqIO.read().withQueueDeclare(true);
-    doExchangeTest(new ExchangeTestPlan(read, 1));
   }
 
   @Test
@@ -381,11 +374,11 @@ public class RabbitMqIOTest implements Serializable {
     final int maxNumRecords = 1000;
     List<RabbitMqMessage> data =
         RabbitMqTestUtils.generateRecords(maxNumRecords).stream()
-            .map(RabbitMqMessage::new)
+            .map(body -> RabbitMqMessage.builder().setBody(body).setRoutingKey("TEST").build())
             .collect(Collectors.toList());
     p.apply(Create.of(data))
         .apply(
-            RabbitMqIO.write().withUri("amqp://guest:guest@localhost:" + port).withQueue("TEST"));
+            RabbitMqIO.write().withUri("amqp://guest:guest@localhost:" + port));
 
     final List<String> received = new ArrayList<>();
     ConnectionFactory connectionFactory = new ConnectionFactory();
@@ -424,13 +417,13 @@ public class RabbitMqIOTest implements Serializable {
     final int maxNumRecords = 1000;
     List<RabbitMqMessage> data =
         RabbitMqTestUtils.generateRecords(maxNumRecords).stream()
-            .map(RabbitMqMessage::new)
+            .map(body -> RabbitMqMessage.builder().setBody(body).build())
             .collect(Collectors.toList());
     p.apply(Create.of(data))
         .apply(
             RabbitMqIO.write()
                 .withUri("amqp://guest:guest@localhost:" + port)
-                .withExchange("WRITE", "fanout"));
+                .withExchange("WRITE"));
 
     final List<String> received = new ArrayList<>();
     ConnectionFactory connectionFactory = new ConnectionFactory();
