@@ -83,7 +83,7 @@ public class PubsubIO {
   private static final Logger LOG = LoggerFactory.getLogger(PubsubIO.class);
 
   /** Factory for creating pubsub client to manage transport. */
-  private static final PubsubClient.PubsubClientFactory FACTORY = PubsubJsonClient.FACTORY;
+  private static final PubsubClient.PubsubClientFactory FACTORY = PubsubGrpcClient.FACTORY;
 
   /**
    * Project IDs must contain 6-63 lowercase letters, digits, or dashes. IDs must start with a
