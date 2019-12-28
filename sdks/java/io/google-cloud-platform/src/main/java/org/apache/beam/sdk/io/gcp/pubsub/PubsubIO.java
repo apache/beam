@@ -17,22 +17,15 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
-
 import com.google.api.client.util.Clock;
 import com.google.auto.value.AutoValue;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
-import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
-import javax.naming.SizeLimitExceededException;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.beam.sdk.PipelineRunner;
@@ -43,7 +36,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -52,7 +44,6 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -587,10 +578,10 @@ public class PubsubIO {
     @Nullable
     abstract ValueProvider<PubsubTopic> getTopicProvider();
 
-    abstract PubsubClient.PubsubClientFactory getPubsubClientFactory();
-
     @Nullable
     abstract ValueProvider<PubsubSubscription> getSubscriptionProvider();
+
+    abstract PubsubClient.PubsubClientFactory getPubsubClientFactory();
 
     /** The name of the message attribute to read timestamps from. */
     @Nullable
@@ -858,14 +849,6 @@ public class PubsubIO {
   /** Implementation of write methods. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
-    /**
-     * Max batch byte size. Messages are base64 encoded which encodes each set of three bytes into
-     * four bytes.
-     */
-    private static final int MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT = ((10 * 1000 * 1000) / 4) * 3;
-
-    private static final int MAX_PUBLISH_BATCH_SIZE = 100;
-
     @Nullable
     abstract ValueProvider<PubsubTopic> getTopicProvider();
 
@@ -998,15 +981,6 @@ public class PubsubIO {
       return toBuilder().setIdAttribute(idAttribute).build();
     }
 
-    /**
-     * Used to write a PubSub message together with PubSub attributes. The user-supplied format
-     * function translates the input type T to a PubsubMessage object, which is used by the sink to
-     * separately set the PubSub message's payload and attributes.
-     */
-    private Write<T> withFormatFn(SimpleFunction<T, PubsubMessage> formatFn) {
-      return toBuilder().setFormatFn(formatFn).build();
-    }
-
     @Override
     public PDone expand(PCollection<T> input) {
       if (getTopicProvider() == null) {
@@ -1015,12 +989,8 @@ public class PubsubIO {
 
       switch (input.isBounded()) {
         case BOUNDED:
-          input.apply(
-              ParDo.of(
-                  new PubsubBoundedWriter(
-                      MoreObjects.firstNonNull(getMaxBatchSize(), MAX_PUBLISH_BATCH_SIZE),
-                      MoreObjects.firstNonNull(
-                          getMaxBatchBytesSize(), MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT))));
+          // NOTE: idAttribute is ignored.
+          input.apply(ParDo.of(PubsubBoundedWriter.of(this)));
           return PDone.in(input.getPipeline());
         case UNBOUNDED:
           return input
@@ -1046,101 +1016,6 @@ public class PubsubIO {
       super.populateDisplayData(builder);
       populateCommonDisplayData(
           builder, getTimestampAttribute(), getIdAttribute(), getTopicProvider());
-    }
-
-    /**
-     * Writer to Pubsub which batches messages from bounded collections.
-     *
-     * <p>Public so can be suppressed by runners.
-     */
-    public class PubsubBoundedWriter extends DoFn<T, Void> {
-      private transient List<OutgoingMessage> output;
-      private transient PubsubClient pubsubClient;
-      private transient int currentOutputBytes;
-
-      private int maxPublishBatchByteSize;
-      private int maxPublishBatchSize;
-
-      PubsubBoundedWriter(int maxPublishBatchSize, int maxPublishBatchByteSize) {
-        this.maxPublishBatchSize = maxPublishBatchSize;
-        this.maxPublishBatchByteSize = maxPublishBatchByteSize;
-      }
-
-      PubsubBoundedWriter() {
-        this(MAX_PUBLISH_BATCH_SIZE, MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT);
-      }
-
-      @StartBundle
-      public void startBundle(StartBundleContext c) throws IOException {
-        this.output = new ArrayList<>();
-        this.currentOutputBytes = 0;
-
-        // NOTE: idAttribute is ignored.
-        this.pubsubClient =
-            getPubsubClientFactory()
-                .newClient(
-                    getTimestampAttribute(), null, c.getPipelineOptions().as(PubsubOptions.class));
-      }
-
-      @ProcessElement
-      public void processElement(ProcessContext c) throws IOException, SizeLimitExceededException {
-        byte[] payload;
-        PubsubMessage message = getFormatFn().apply(c.element());
-        payload = message.getPayload();
-        Map<String, String> attributes = message.getAttributeMap();
-
-        if (payload.length > maxPublishBatchByteSize) {
-          String msg =
-              String.format(
-                  "Pub/Sub message size (%d) exceeded maximum batch size (%d)",
-                  payload.length, maxPublishBatchByteSize);
-          throw new SizeLimitExceededException(msg);
-        }
-
-        // Checking before adding the message stops us from violating the max bytes
-        if (((currentOutputBytes + payload.length) >= maxPublishBatchByteSize)
-            || (output.size() >= maxPublishBatchSize)) {
-          publish();
-        }
-
-        // NOTE: The record id is always null.
-        output.add(
-            OutgoingMessage.of(
-                com.google.pubsub.v1.PubsubMessage.newBuilder()
-                    .setData(ByteString.copyFrom(payload))
-                    .putAllAttributes(attributes)
-                    .build(),
-                c.timestamp().getMillis(),
-                null));
-        currentOutputBytes += payload.length;
-      }
-
-      @FinishBundle
-      public void finishBundle() throws IOException {
-        if (!output.isEmpty()) {
-          publish();
-        }
-        output = null;
-        currentOutputBytes = 0;
-        pubsubClient.close();
-        pubsubClient = null;
-      }
-
-      private void publish() throws IOException {
-        PubsubTopic topic = getTopicProvider().get();
-        int n =
-            pubsubClient.publish(
-                PubsubClient.topicPathFromName(topic.project, topic.topic), output);
-        checkState(n == output.size());
-        output.clear();
-        currentOutputBytes = 0;
-      }
-
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        super.populateDisplayData(builder);
-        builder.delegate(Write.this);
-      }
     }
   }
 
