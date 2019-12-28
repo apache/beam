@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.datastore;
 
+import static org.apache.beam.sdk.schemas.Schema.FieldType.BOOLEAN;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.DATETIME;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.DOUBLE;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -27,6 +31,7 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -43,6 +48,7 @@ public class DataStoreReadWriteIT {
   private static final Schema SOURCE_SCHEMA =
       Schema.builder().addNullableField("content", STRING).build();
   private static final String KIND = "writereadtest";
+  private static final String KIND_ALL_TYPES = "writereadalltypestest";
 
   @Rule public final TestPipeline writePipeline = TestPipeline.create();
   @Rule public transient TestPipeline readPipeline = TestPipeline.create();
@@ -74,6 +80,57 @@ public class DataStoreReadWriteIT {
         BeamSqlRelUtils.toPCollection(readPipeline, sqlEnv.parseQuery(selectTableStatement));
 
     assertThat(output.getSchema(), equalTo(SOURCE_SCHEMA));
+
+    PipelineResult.State state = readPipeline.run().waitUntilFinish(Duration.standardMinutes(5));
+    assertThat(state, equalTo(State.DONE));
+  }
+
+  @Test
+  public void testReadAllSupportedTypes() {
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new DataStoreV1TableProvider());
+    String projectId = options.getProject();
+
+    final Schema expectedSchema =
+        Schema.builder()
+            .addNullableField("boolean", BOOLEAN)
+            .addNullableField("datetime", DATETIME)
+            // TODO: flattening of nested fields by Calcite causes some issues.
+            /*.addRowField("embeddedentity",
+            Schema.builder()
+                .addNullableField("property1", STRING)
+                .addNullableField("property2", INT64)
+                .build())*/
+            .addNullableField("floatingnumber", DOUBLE)
+            .addNullableField("integer", INT64)
+            .addNullableField("primitivearray", FieldType.array(STRING))
+            .addNullableField("string", STRING)
+            .addNullableField("text", STRING)
+            .build();
+
+    String createTableStatement =
+        "CREATE EXTERNAL TABLE TEST( \n"
+            + "   `boolean` BOOLEAN, \n"
+            + "   `datetime` TIMESTAMP, \n"
+            // + "   `embeddedentity` ROW(`property1` VARCHAR, `property2` BIGINT), \n"
+            + "   `floatingnumber` DOUBLE, \n"
+            + "   `integer` BIGINT, \n"
+            + "   `primitivearray` ARRAY<VARCHAR>, \n"
+            + "   `string` VARCHAR, \n"
+            + "   `text` VARCHAR"
+            + ") \n"
+            + "TYPE 'datastoreV1' \n"
+            + "LOCATION '"
+            + projectId
+            + "/"
+            + KIND_ALL_TYPES
+            + "'";
+    sqlEnv.executeDdl(createTableStatement);
+
+    String selectTableStatement = "SELECT * FROM TEST";
+    PCollection<Row> output =
+        BeamSqlRelUtils.toPCollection(readPipeline, sqlEnv.parseQuery(selectTableStatement));
+
+    assertThat(output.getSchema(), equalTo(expectedSchema));
 
     PipelineResult.State state = readPipeline.run().waitUntilFinish(Duration.standardMinutes(5));
     assertThat(state, equalTo(State.DONE));
