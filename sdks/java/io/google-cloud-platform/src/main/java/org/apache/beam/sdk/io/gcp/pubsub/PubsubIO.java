@@ -59,7 +59,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -540,7 +539,16 @@ public class PubsubIO {
 
   /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */
   public static Write<PubsubMessage> writeMessages() {
-    return Write.newBuilder().build();
+    return Write.newBuilder(PubsubMessage::toProto).build();
+  }
+
+  /**
+   * Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream.
+   *
+   * <p>The publish_time and message_id fields will be dropped if present.
+   */
+  public static Write<PubsubMessage> writeWireMessages() {
+    return Write.newBuilder(PubsubMessage::toProto).build();
   }
 
   /**
@@ -550,7 +558,9 @@ public class PubsubIO {
   public static Write<String> writeStrings() {
     return Write.newBuilder(
             (String string) ->
-                new PubsubMessage(string.getBytes(StandardCharsets.UTF_8), ImmutableMap.of()))
+                com.google.pubsub.v1.PubsubMessage.newBuilder()
+                    .setData(ByteString.copyFromUtf8(string))
+                    .build())
         .build();
   }
 
@@ -871,19 +881,16 @@ public class PubsubIO {
     abstract String getIdAttribute();
 
     /** The format function for input PubsubMessage objects. */
-    abstract SerializableFunction<T, PubsubMessage> getFormatFn();
+    abstract SerializableFunction<T, com.google.pubsub.v1.PubsubMessage> getFormatFn();
 
     abstract Builder<T> toBuilder();
 
-    static <T> Builder<T> newBuilder(SerializableFunction<T, PubsubMessage> formatFn) {
+    static <T> Builder<T> newBuilder(
+        SerializableFunction<T, com.google.pubsub.v1.PubsubMessage> formatFn) {
       Builder<T> builder = new AutoValue_PubsubIO_Write.Builder<T>();
       builder.setPubsubClientFactory(FACTORY);
       builder.setFormatFn(formatFn);
       return builder;
-    }
-
-    static Builder<PubsubMessage> newBuilder() {
-      return newBuilder(x -> x);
     }
 
     @AutoValue.Builder
@@ -900,7 +907,8 @@ public class PubsubIO {
 
       abstract Builder<T> setIdAttribute(String idAttribute);
 
-      abstract Builder<T> setFormatFn(SerializableFunction<T, PubsubMessage> formatFn);
+      abstract Builder<T> setFormatFn(
+          SerializableFunction<T, com.google.pubsub.v1.PubsubMessage> formatFn);
 
       abstract Write<T> build();
     }
@@ -987,26 +995,37 @@ public class PubsubIO {
         throw new IllegalStateException("need to set the topic of a PubsubIO.Write transform");
       }
 
+      PCollection<com.google.pubsub.v1.PubsubMessage> preprocessed =
+          input
+              .apply(
+                  "Convert to proto",
+                  MapElements.into(new TypeDescriptor<com.google.pubsub.v1.PubsubMessage>() {})
+                      .via(getFormatFn()))
+              .setCoder(ProtoCoder.of(com.google.pubsub.v1.PubsubMessage.class))
+              .apply(
+                  "Strip id and publish time",
+                  MapElements.into(new TypeDescriptor<com.google.pubsub.v1.PubsubMessage>() {})
+                      .via(
+                          message ->
+                              message.toBuilder().clearMessageId().clearPublishTime().build()));
+
       switch (input.isBounded()) {
         case BOUNDED:
           // NOTE: idAttribute is ignored.
-          input.apply(ParDo.of(PubsubBoundedWriter.of(this)));
+          preprocessed.apply(ParDo.of(PubsubBoundedWriter.of(this)));
           return PDone.in(input.getPipeline());
         case UNBOUNDED:
-          return input
-              .apply(MapElements.into(new TypeDescriptor<PubsubMessage>() {}).via(getFormatFn()))
-              .apply(
-                  new PubsubUnboundedSink(
-                      getPubsubClientFactory(),
-                      NestedValueProvider.of(getTopicProvider(), new TopicPathTranslator()),
-                      getTimestampAttribute(),
-                      getIdAttribute(),
-                      100 /* numShards */,
-                      MoreObjects.firstNonNull(
-                          getMaxBatchSize(), PubsubUnboundedSink.DEFAULT_PUBLISH_BATCH_SIZE),
-                      MoreObjects.firstNonNull(
-                          getMaxBatchBytesSize(),
-                          PubsubUnboundedSink.DEFAULT_PUBLISH_BATCH_BYTES)));
+          return preprocessed.apply(
+              new PubsubUnboundedSink(
+                  getPubsubClientFactory(),
+                  NestedValueProvider.of(getTopicProvider(), new TopicPathTranslator()),
+                  getTimestampAttribute(),
+                  getIdAttribute(),
+                  100 /* numShards */,
+                  MoreObjects.firstNonNull(
+                      getMaxBatchSize(), PubsubUnboundedSink.DEFAULT_PUBLISH_BATCH_SIZE),
+                  MoreObjects.firstNonNull(
+                      getMaxBatchBytesSize(), PubsubUnboundedSink.DEFAULT_PUBLISH_BATCH_BYTES)));
       }
       throw new RuntimeException(); // cases are exhaustive.
     }
@@ -1029,11 +1048,14 @@ public class PubsubIO {
     };
   }
 
-  private static <T> SerializableFunction<T, PubsubMessage> formatPayloadUsingCoder(
-      Coder<T> coder) {
+  private static <T>
+      SerializableFunction<T, com.google.pubsub.v1.PubsubMessage> formatPayloadUsingCoder(
+          Coder<T> coder) {
     return input -> {
       try {
-        return new PubsubMessage(CoderUtils.encodeToByteArray(coder, input), ImmutableMap.of());
+        return com.google.pubsub.v1.PubsubMessage.newBuilder()
+            .setData(ByteString.copyFrom(CoderUtils.encodeToByteArray(coder, input)))
+            .build();
       } catch (CoderException e) {
         throw new RuntimeException("Could not encode Pubsub message", e);
       }

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.protobuf.ByteString;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
@@ -43,6 +44,18 @@ public class PubsubMessage {
     this.message = payload;
     this.attributes = attributes;
     this.messageId = messageId;
+  }
+
+  com.google.pubsub.v1.PubsubMessage toProto() {
+    com.google.pubsub.v1.PubsubMessage.Builder builder =
+        com.google.pubsub.v1.PubsubMessage.newBuilder().setData(ByteString.copyFrom(getPayload()));
+    if (getAttributeMap() != null) {
+      builder.putAllAttributes(getAttributeMap());
+    }
+    if (getMessageId() != null) {
+      builder.setMessageId(messageId);
+    }
+    return builder.build();
   }
 
   /** Returns the main PubSub message. */

@@ -19,25 +19,13 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.pubsub.v1.PubsubMessage;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.AtomicCoder;
-import org.apache.beam.sdk.coders.BigEndianLongCoder;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.MapCoder;
-import org.apache.beam.sdk.coders.NullableCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.PubsubClientFactory;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.metrics.Counter;
@@ -90,33 +78,6 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
   /** Default longest delay between receiving a message and pushing it to Pubsub. */
   private static final Duration DEFAULT_MAX_LATENCY = Duration.standardSeconds(2);
 
-  /** Coder for conveying outgoing messages between internal stages. */
-  private static class OutgoingMessageCoder extends AtomicCoder<OutgoingMessage> {
-    private static final NullableCoder<String> RECORD_ID_CODER =
-        NullableCoder.of(StringUtf8Coder.of());
-    private static final NullableCoder<Map<String, String>> ATTRIBUTES_CODER =
-        NullableCoder.of(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
-
-    @Override
-    public void encode(OutgoingMessage value, OutputStream outStream)
-        throws CoderException, IOException {
-      ProtoCoder.of(com.google.pubsub.v1.PubsubMessage.class).encode(value.message(), outStream);
-      BigEndianLongCoder.of().encode(value.timestampMsSinceEpoch(), outStream);
-      RECORD_ID_CODER.encode(value.recordId(), outStream);
-    }
-
-    @Override
-    public OutgoingMessage decode(InputStream inStream) throws CoderException, IOException {
-      com.google.pubsub.v1.PubsubMessage message =
-          ProtoCoder.of(com.google.pubsub.v1.PubsubMessage.class).decode(inStream);
-      long timestampMsSinceEpoch = BigEndianLongCoder.of().decode(inStream);
-      @Nullable String recordId = RECORD_ID_CODER.decode(inStream);
-      return OutgoingMessage.of(message, timestampMsSinceEpoch, recordId);
-    }
-  }
-
-  @VisibleForTesting static final Coder<OutgoingMessage> CODER = new OutgoingMessageCoder();
-
   // ================================================================================
   // RecordIdMethod
   // ================================================================================
@@ -151,7 +112,6 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     public void processElement(ProcessContext c) throws Exception {
       elementCounter.inc();
       PubsubMessage message = c.element();
-      byte[] elementBytes = message.getPayload();
 
       long timestampMsSinceEpoch = c.timestamp().getMillis();
       @Nullable String recordId = null;
@@ -159,7 +119,8 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         case NONE:
           break;
         case DETERMINISTIC:
-          recordId = Hashing.murmur3_128().hashBytes(elementBytes).toString();
+          recordId =
+              Hashing.murmur3_128().hashBytes(message.getData().asReadOnlyByteBuffer()).toString();
           break;
         case RANDOM:
           // Since these elements go through a GroupByKey, any  failures while sending to
@@ -418,7 +379,6 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
                             AfterProcessingTime.pastFirstElementInPane().plusDelayOf(maxLatency))))
                 .discardingFiredPanes())
         .apply("PubsubUnboundedSink.Shard", ParDo.of(new ShardFn(numShards, recordIdMethod)))
-        .setCoder(KvCoder.of(VarIntCoder.of(), CODER))
         .apply(GroupByKey.create())
         .apply(
             "PubsubUnboundedSink.Writer",

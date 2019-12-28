@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import com.google.auto.value.AutoValue;
-import com.google.protobuf.ByteString;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.DefaultCoder;
 
@@ -49,12 +48,6 @@ abstract class OutgoingMessage {
 
   public static OutgoingMessage of(
       PubsubMessage message, long timestampMsSinceEpoch, @Nullable String recordId) {
-    com.google.pubsub.v1.PubsubMessage.Builder builder =
-        com.google.pubsub.v1.PubsubMessage.newBuilder()
-            .setData(ByteString.copyFrom(message.getPayload()));
-    if (message.getAttributeMap() != null) {
-      builder.putAllAttributes(message.getAttributeMap());
-    }
-    return of(builder.build(), timestampMsSinceEpoch, recordId);
+    return of(message.toProto(), timestampMsSinceEpoch, recordId);
   }
 }

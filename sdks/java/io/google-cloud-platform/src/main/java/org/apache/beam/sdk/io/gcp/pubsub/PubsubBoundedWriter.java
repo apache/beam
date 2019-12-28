@@ -19,11 +19,10 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import com.google.protobuf.ByteString;
+import com.google.pubsub.v1.PubsubMessage;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import javax.naming.SizeLimitExceededException;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.PubsubTopic;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -32,7 +31,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 /** Writer to Pubsub which batches messages from bounded collections. */
-class PubsubBoundedWriter<T> extends DoFn<T, Void> {
+class PubsubBoundedWriter extends DoFn<PubsubMessage, Void> {
   /**
    * Max batch byte size. Messages are base64 encoded which encodes each set of three bytes into
    * four bytes.
@@ -47,9 +46,9 @@ class PubsubBoundedWriter<T> extends DoFn<T, Void> {
 
   private final int maxPublishBatchByteSize;
   private final int maxPublishBatchSize;
-  private final PubsubIO.Write<T> write;
+  private final PubsubIO.Write<?> write;
 
-  private PubsubBoundedWriter(PubsubIO.Write<T> write) {
+  private PubsubBoundedWriter(PubsubIO.Write<?> write) {
     Preconditions.checkNotNull(write.getTopicProvider());
     this.maxPublishBatchSize =
         MoreObjects.firstNonNull(write.getMaxBatchSize(), MAX_PUBLISH_BATCH_SIZE);
@@ -58,8 +57,8 @@ class PubsubBoundedWriter<T> extends DoFn<T, Void> {
     this.write = write;
   }
 
-  static <T> PubsubBoundedWriter<T> of(PubsubIO.Write<T> write) {
-    return new PubsubBoundedWriter<>(write);
+  static <T> PubsubBoundedWriter of(PubsubIO.Write<T> write) {
+    return new PubsubBoundedWriter(write);
   }
 
   @StartBundle
@@ -78,36 +77,25 @@ class PubsubBoundedWriter<T> extends DoFn<T, Void> {
   }
 
   @ProcessElement
-  public void processElement(ProcessContext c) throws IOException, SizeLimitExceededException {
-    byte[] payload;
-    PubsubMessage message = write.getFormatFn().apply(c.element());
-    payload = message.getPayload();
-    Map<String, String> attributes = message.getAttributeMap();
-
-    if (payload.length > maxPublishBatchByteSize) {
+  public void processElement(@Element PubsubMessage message, ProcessContext c)
+      throws IOException, SizeLimitExceededException {
+    if (message.getData().size() > maxPublishBatchByteSize) {
       String msg =
           String.format(
               "Pub/Sub message size (%d) exceeded maximum batch size (%d)",
-              payload.length, maxPublishBatchByteSize);
+              message.getData().size(), maxPublishBatchByteSize);
       throw new SizeLimitExceededException(msg);
     }
 
     // Checking before adding the message stops us from violating the max bytes
-    if (((currentOutputBytes + payload.length) >= maxPublishBatchByteSize)
+    if (((currentOutputBytes + message.getData().size()) >= maxPublishBatchByteSize)
         || (output.size() >= maxPublishBatchSize)) {
       publish();
     }
 
     // NOTE: The record id is always null.
-    output.add(
-        OutgoingMessage.of(
-            com.google.pubsub.v1.PubsubMessage.newBuilder()
-                .setData(ByteString.copyFrom(payload))
-                .putAllAttributes(attributes)
-                .build(),
-            c.timestamp().getMillis(),
-            null));
-    currentOutputBytes += payload.length;
+    output.add(OutgoingMessage.of(message, c.timestamp().getMillis(), null));
+    currentOutputBytes += message.getData().size();
   }
 
   @FinishBundle

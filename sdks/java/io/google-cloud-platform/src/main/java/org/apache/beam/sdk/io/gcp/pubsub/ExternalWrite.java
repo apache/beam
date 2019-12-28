@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 import com.google.auto.service.AutoService;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.pubsub.v1.PubsubMessage;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -90,9 +91,7 @@ public final class ExternalWrite implements ExternalTransformRegistrar {
     @Override
     public PubsubMessage apply(byte[] input) {
       try {
-        com.google.pubsub.v1.PubsubMessage message =
-            com.google.pubsub.v1.PubsubMessage.parseFrom(input);
-        return new PubsubMessage(message.getData().toByteArray(), message.getAttributesMap());
+        return PubsubMessage.parseFrom(input);
       } catch (InvalidProtocolBufferException e) {
         throw new RuntimeException("Could not decode Pubsub message", e);
       }

@@ -173,15 +173,16 @@ public class PubsubIOExternalTest {
 
     RunnerApi.PTransform transform = result.getTransform();
     assertThat(
-        transform.getSubtransformsList(),
-        Matchers.contains(
-            "test_namespacetest/MapElements", "test_namespacetest/PubsubUnboundedSink"));
+        Iterables.getLast(transform.getSubtransformsList()),
+        Matchers.is("test_namespacetest/PubsubUnboundedSink"));
     assertThat(transform.getInputsCount(), Matchers.is(1));
     assertThat(transform.getOutputsCount(), Matchers.is(0));
 
     // test_namespacetest/PubsubUnboundedSink
     RunnerApi.PTransform writeComposite =
-        result.getComponents().getTransformsOrThrow(transform.getSubtransforms(1));
+        result
+            .getComponents()
+            .getTransformsOrThrow(Iterables.getLast(transform.getSubtransformsList()));
 
     // test_namespacetest/PubsubUnboundedSink/PubsubUnboundedSink.Writer
     RunnerApi.PTransform writeComposite2 =

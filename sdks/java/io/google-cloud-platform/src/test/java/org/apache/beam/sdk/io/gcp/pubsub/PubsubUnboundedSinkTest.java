@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import com.google.protobuf.ByteString;
+import com.google.pubsub.v1.PubsubMessage;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
@@ -28,7 +29,6 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubTestClient.PubsubTestClientFactory;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink.RecordIdMethod;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -67,9 +67,12 @@ public class PubsubUnboundedSinkTest implements Serializable {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
+    public void processElement(@Element String element, ProcessContext c) {
       c.outputWithTimestamp(
-          new PubsubMessage(c.element().getBytes(StandardCharsets.UTF_8), attributes),
+          PubsubMessage.newBuilder()
+              .setData(ByteString.copyFromUtf8(element))
+              .putAllAttributes(attributes)
+              .build(),
           new Instant(TIMESTAMP));
     }
   }
@@ -79,19 +82,6 @@ public class PubsubUnboundedSinkTest implements Serializable {
   }
 
   @Rule public transient TestPipeline p = TestPipeline.create();
-
-  @Test
-  public void saneCoder() throws Exception {
-    OutgoingMessage message =
-        OutgoingMessage.of(
-            com.google.pubsub.v1.PubsubMessage.newBuilder()
-                .setData(ByteString.copyFromUtf8(DATA))
-                .build(),
-            TIMESTAMP,
-            getRecordId(DATA));
-    CoderProperties.coderDecodeEncodeEqual(PubsubUnboundedSink.CODER, message);
-    CoderProperties.coderSerializable(PubsubUnboundedSink.CODER);
-  }
 
   @Test
   public void sendOneMessage() throws IOException {
@@ -149,9 +139,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
               1 /* batchBytes */,
               Duration.standardSeconds(2),
               RecordIdMethod.DETERMINISTIC);
-      p.apply(Create.of(ImmutableList.of(DATA)))
-          .apply(ParDo.of(new Stamp(null /* attributes */)))
-          .apply(sink);
+      p.apply(Create.of(ImmutableList.of(DATA))).apply(ParDo.of(new Stamp())).apply(sink);
       p.run();
     }
     // The PubsubTestClientFactory will assert fail on close if the actual published
