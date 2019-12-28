@@ -19,19 +19,29 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.datastore;
 
 import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
+import static org.apache.beam.sdk.schemas.Schema.TypeName.ARRAY;
+import static org.apache.beam.sdk.schemas.Schema.TypeName.ITERABLE;
+import static org.apache.beam.sdk.schemas.Schema.TypeName.LOGICAL_TYPE;
+import static org.apache.beam.sdk.schemas.Schema.TypeName.MAP;
+import static org.apache.beam.sdk.schemas.Schema.TypeName.ROW;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.Key;
 import com.google.datastore.v1.Query;
 import com.google.datastore.v1.Value;
 import com.google.protobuf.ByteString;
 import java.io.Serializable;
-import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -39,7 +49,7 @@ import org.apache.beam.sdk.io.gcp.datastore.DatastoreIO;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
@@ -59,7 +69,9 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
   public DataStoreV1Table(Table table) {
     super(table.getSchema());
 
+    // TODO: allow users to specify a namespace in a location string.
     String location = table.getLocation();
+    assert location != null;
     Matcher matcher = locationPattern.matcher(location);
     checkArgument(
         matcher.matches(),
@@ -126,6 +138,10 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
       Entity entity = context.element();
       Map<String, Value> values = entity.getPropertiesMap();
 
+      context.output(extractRowFromProperties(schema, values));
+    }
+
+    private Row extractRowFromProperties(Schema schema, Map<String, Value> values) {
       Row.Builder builder = Row.withSchema(schema);
       // It is not a guarantee that the values will be in the same order as the schema.
       // TODO: figure out in what order the elements are in (without relying on Beam schema).
@@ -145,124 +161,142 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
             builder.addValue(val.getDoubleValue());
             break;
           case TIMESTAMP_VALUE:
-            builder.addValue(
-                Instant.ofEpochSecond(val.getTimestampValue().getSeconds()).toDateTime());
+            // TODO: DataStore may not support milliseconds.
+            com.google.protobuf.Timestamp time = val.getTimestampValue();
+            long millis = time.getSeconds() * 1000 + time.getNanos() / 1000;
+            builder.addValue(Instant.ofEpochMilli(millis).toDateTime());
             break;
           case KEY_VALUE:
             // Key is not a Beam type.
-            builder.addValue(val.getKeyValue());
-            break;
+            // TODO: Convert to some Beam type (ex: String or Row)
+            //  More information about keys can be found here:
+            // https://cloud.google.com/datastore/docs/concepts/entities.
+            Key key = val.getKeyValue();
+            // builder.addValue(null);
+            throw new IllegalStateException("Unsupported ValueType: " + val.getValueTypeCase());
           case STRING_VALUE:
             builder.addValue(val.getStringValue());
             break;
           case BLOB_VALUE:
             // ByteString is not a Beam type. Can be converted to byte array.
-            builder.addValue(val.getBlobValue());
-            break;
-          case GEO_POINT_VALUE:
-            // LatLng is not a Beam type.
-            builder.addValue(val.getGeoPointValue());
+            builder.addValue(val.getBlobValue().toByteArray());
             break;
           case ENTITY_VALUE:
             // Entity is not a Beam type. Used for nested fields.
-            builder.addValue(val.getEntityValue());
+            Schema entitySchema = schema.getField(fieldName).getType().getRowSchema();
+            assert entitySchema != null;
+            Entity childEntity = val.getEntityValue();
+            builder.addValue(
+                extractRowFromProperties(entitySchema, childEntity.getPropertiesMap()));
             break;
           case ARRAY_VALUE:
-            // ArrayValue is not a Beam type.
-            builder.addValue(val.getArrayValue());
+            // TODO: Support non-primitive types. Make this recursive.
+            FieldType elementType = schema.getField(fieldName).getType().getCollectionElementType();
+            assert elementType != null;
+            if (elementType.equals(FieldType.of(ARRAY))
+                || elementType.equals(FieldType.of(ITERABLE))
+                || elementType.equals(FieldType.of(MAP))
+                || elementType.equals(FieldType.of(ROW))
+                || elementType.equals(FieldType.of(LOGICAL_TYPE))) {
+              throw new IllegalStateException(
+                  "Arrays support only primitive types, but received: " + elementType.toString());
+            }
+            List<Value> valueList = val.getArrayValue().getValuesList();
+            List<Object> array =
+                valueList.stream()
+                    .flatMap(v -> v.getAllFields().values().stream())
+                    .collect(Collectors.toList());
+            builder.addValue(array);
             break;
           case VALUETYPE_NOT_SET:
             builder.addValue(null);
             break;
+          default:
+            throw new IllegalStateException("Unexpected ValueType: " + val.getValueTypeCase());
         }
       }
-      context.output(builder.build());
+      return builder.build();
     }
   }
 
   @VisibleForTesting
   static class RowToEntityConverter extends DoFn<Row, Entity> {
-    private final boolean randomName;
+    private static final Function<Long, Void> MAPPING_NOT_FOUND = v -> { throw new IllegalStateException("No conversion exists for primitive type: " + v.getClass()); };
+    private static final ImmutableMap<Object, Object> MAPPING_FUNCTIONS = ImmutableMap.builder()
+        .put(Boolean.class, (Function<Boolean, Value>) v -> makeValue(v).build())
+        .put(Byte.class, (Function<Byte, Value>) v -> makeValue(v).build())
+        .put(Long.class, (Function<Long, Value>) v -> makeValue(v).build())
+        .put(Short.class, (Function<Short, Value>) v -> makeValue(v).build())
+        .put(Integer.class, (Function<Integer, Value>) v -> makeValue(v).build())
+        .put(Double.class, (Function<Double, Value>) v -> makeValue(v).build())
+        .put(Float.class, (Function<Float, Value>) v -> makeValue(v).build())
+        .put(String.class, (Function<String, Value>) v -> makeValue(v).build())
+        .put(Instant.class, (Function<Instant, Value>) v -> makeValue(v.toDate()).build())
+        .put(byte[].class, (Function<byte[], Value>) v -> makeValue(ByteString.copyFrom(v)).build())
+        .build();
+    private final Supplier<String> randomKeySupplier;
     private final Schema schema;
     private final String kind;
 
-    private RowToEntityConverter(boolean randomName, Schema schema, String kind) {
-      this.randomName = randomName;
+    private RowToEntityConverter(Supplier<String> randomKeySupplier, Schema schema, String kind) {
+      this.randomKeySupplier = randomKeySupplier;
       this.schema = schema;
       this.kind = kind;
     }
 
     public static RowToEntityConverter create(Schema schema, String kind) {
-      return new RowToEntityConverter(true, schema, kind);
+      return new RowToEntityConverter(
+          (Supplier<String> & Serializable) () -> UUID.randomUUID().toString(), schema, kind);
     }
 
-    static RowToEntityConverter createTest(Schema schema, String kind) {
-      return new RowToEntityConverter(false, schema, kind);
+    @VisibleForTesting
+    static RowToEntityConverter createTest(String randomKey, Schema schema, String kind) {
+      return new RowToEntityConverter(
+          (Supplier<String> & Serializable) () -> randomKey, schema, kind);
     }
 
     @DoFn.ProcessElement
     public void processElement(ProcessContext context) {
       Row row = context.element();
 
-      Entity.Builder entityBuilder = Entity.newBuilder();
+      Entity.Builder entityBuilder = constructEntityFromRow(schema, row);
       // TODO: some entities might want a non random, meaningful key.
-      Key key;
-      if (randomName) {
-        key = makeKey(kind, UUID.randomUUID().toString()).build();
-      } else {
-        key = makeKey(kind).build();
-      }
+      Key key = makeKey(kind, randomKeySupplier.get()).build();
       entityBuilder.setKey(key);
 
-      for (Schema.Field field : schema.getFields()) {
-        Value.Builder valBuilder;
-        switch (field.getType().getTypeName()) {
-          case BOOLEAN:
-            valBuilder = makeValue((boolean) row.getValue(field.getName()));
-            break;
-          case BYTE:
-            valBuilder = makeValue((byte) row.getValue(field.getName()));
-            break;
-          case BYTES:
-            valBuilder = makeValue((ByteString) row.getValue(field.getName()));
-            break;
-          case DECIMAL:
-            valBuilder = makeValue(((BigDecimal) row.getValue(field.getName())).longValue());
-            break;
-          case FLOAT:
-          case DOUBLE:
-            valBuilder = makeValue(((double) row.getValue(field.getName())));
-            break;
-          case INT16:
-            valBuilder = makeValue((short) row.getValue(field.getName()));
-            break;
-          case INT32:
-            valBuilder = makeValue((int) row.getValue(field.getName()));
-            break;
-          case INT64:
-            valBuilder = makeValue((long) row.getValue(field.getName()));
-            break;
-            /*case STRING:
-            valBuilder = makeValue((String) row.getValue(field.getName()));
-            break;*/
-          case LOGICAL_TYPE:
-            Schema.FieldType logicalBaseType = field.getType().getLogicalType().getBaseType();
-            // TODO: make this recursive.
-            if (logicalBaseType.getTypeName().equals(TypeName.STRING)) {
-              valBuilder = makeValue((String) row.getValue(field.getName()));
-            } else {
-              throw new IllegalStateException(
-                  "Unexpected logical FieldType: " + logicalBaseType.getTypeName());
-            }
-            break;
-          default:
-            throw new IllegalStateException(
-                "Unexpected FieldType: " + field.getType().getTypeName());
-        }
-        entityBuilder.putProperties(field.getName(), valBuilder.build());
-      }
-
       context.output(entityBuilder.build());
+    }
+
+    private static Value mapObjectToValue(Object value) {
+      return ((Function<Object, Value>) MAPPING_FUNCTIONS.getOrDefault(value.getClass(), MAPPING_NOT_FOUND)).apply(value);
+    }
+
+    private Entity.Builder constructEntityFromRow(Schema schema, Row row) {
+      Entity.Builder entityBuilder = Entity.newBuilder();
+      for (Schema.Field field : schema.getFields()) {
+        Value valBuilder;
+
+        Object value = row.getValue(field.getName());
+        Schema.TypeName typeName = field.getType().getTypeName();
+
+        // TODO: add support for nested rows `typeName.isCompositeType()`.
+        if (value == null) {
+          valBuilder = Value.newBuilder().build();
+        } else if (typeName.isPrimitiveType() || value instanceof String) {
+          valBuilder = mapObjectToValue(value);
+        } else if (typeName.isCollectionType()) {
+          // TODO: support collections of complex types (ex: Rows, Arrays).
+          Collection<Object> collection = (Collection<Object>) value;
+          List<Value> arrayValues =
+              collection.stream().map(RowToEntityConverter::mapObjectToValue).collect(Collectors.toList());
+          valBuilder = makeValue(arrayValues).build();
+        } else {
+          throw new IllegalStateException("Unsupported row type: " + typeName.toString());
+        }
+
+        entityBuilder.putProperties(field.getName(), valBuilder);
+      }
+      return entityBuilder;
     }
   }
 }
