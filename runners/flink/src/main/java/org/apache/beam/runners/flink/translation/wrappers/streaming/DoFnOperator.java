@@ -171,7 +171,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   final KeySelector<WindowedValue<InputT>, ?> keySelector;
 
-  private final TimerInternals.TimerDataCoder timerCoder;
+  private final TimerInternals.TimerDataCoderV2 timerCoder;
 
   /** Max number of elements to include in a bundle. */
   private final long maxBundleSize;
@@ -244,7 +244,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     this.keySelector = keySelector;
 
     this.timerCoder =
-        TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
+        TimerInternals.TimerDataCoderV2.of(windowingStrategy.getWindowFn().windowCoder());
 
     FlinkPipelineOptions flinkOptions = options.as(FlinkPipelineOptions.class);
 
@@ -1088,11 +1088,20 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     @Override
     public void setTimer(
-        StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
-      setTimer(TimerData.of(timerId, namespace, target, timeDomain));
+        StateNamespace namespace,
+        String timerId,
+        String timerFamilyId,
+        Instant target,
+        Instant outputTimestamp,
+        TimeDomain timeDomain) {
+      setTimer(
+          TimerData.of(timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain));
     }
 
-    /** @deprecated use {@link #setTimer(StateNamespace, String, Instant, TimeDomain)}. */
+    /**
+     * @deprecated use {@link #setTimer(StateNamespace, String, String, Instant, Instant,
+     *     TimeDomain)}.
+     */
     @Deprecated
     @Override
     public void setTimer(TimerData timer) {
