@@ -72,7 +72,9 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
   private final Map<TupleTag<?>, Coder<?>> outputCoderMap;
   private final DoFnSchemaInformation doFnSchemaInformation;
   private final Map<String, PCollectionView<?>> sideInputMapping;
+
   private transient DoFnInvoker doFnInvoker;
+  private transient FlinkMetricContainer metricContainer;
 
   public FlinkStatefulDoFnFunction(
       DoFn<KV<K, V>, OutputT> dofn,
@@ -159,12 +161,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
 
     FlinkPipelineOptions pipelineOptions = serializedOptions.get().as(FlinkPipelineOptions.class);
     if (!pipelineOptions.getDisableMetrics()) {
-      doFnRunner =
-          new DoFnRunnerWithMetricsUpdate<>(
-              stepName,
-              doFnRunner,
-              new FlinkMetricContainer(
-                  getRuntimeContext(), pipelineOptions.getDisableMetricAccumulator()));
+      doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, metricContainer);
     }
 
     doFnRunner.startBundle();
@@ -227,12 +224,14 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
     // deserialization method. However, this is a hack, and we want to properly initialize the
     // options where they are needed.
     FileSystems.setDefaultPipelineOptions(serializedOptions.get());
+    metricContainer = new FlinkMetricContainer(getRuntimeContext());
     doFnInvoker = DoFnInvokers.tryInvokeSetupFor(dofn);
   }
 
   @Override
   public void close() throws Exception {
     try {
+      metricContainer.registerMetricsForPipelineResult();
       Optional.ofNullable(doFnInvoker).ifPresent(DoFnInvoker::invokeTeardown);
     } finally {
       FlinkClassloading.deleteStaticCaches();

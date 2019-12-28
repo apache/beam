@@ -61,42 +61,43 @@ public class FlinkMetricContainer {
   private static final String METRIC_KEY_SEPARATOR =
       GlobalConfiguration.loadConfiguration().getString(MetricOptions.SCOPE_DELIMITER);
 
+  private final MetricsContainerStepMap metricsContainers;
   private final RuntimeContext runtimeContext;
   private final Map<String, Counter> flinkCounterCache;
   private final Map<String, FlinkDistributionGauge> flinkDistributionGaugeCache;
   private final Map<String, FlinkGauge> flinkGaugeCache;
-  private final MetricsAccumulator metricsAccumulator;
 
-  public FlinkMetricContainer(RuntimeContext runtimeContext, boolean accumulatorDisabled) {
+  public FlinkMetricContainer(RuntimeContext runtimeContext) {
     this.runtimeContext = runtimeContext;
     this.flinkCounterCache = new HashMap<>();
     this.flinkDistributionGaugeCache = new HashMap<>();
     this.flinkGaugeCache = new HashMap<>();
-
-    Accumulator<MetricsContainerStepMap, MetricsContainerStepMap> metricsAccumulator;
-    if (accumulatorDisabled) {
-      // Do not register the accumulator with Flink
-      metricsAccumulator = new MetricsAccumulator();
-    } else {
-      metricsAccumulator = runtimeContext.getAccumulator(ACCUMULATOR_NAME);
-      if (metricsAccumulator == null) {
-        metricsAccumulator = new MetricsAccumulator();
-        try {
-          runtimeContext.addAccumulator(ACCUMULATOR_NAME, metricsAccumulator);
-        } catch (UnsupportedOperationException e) {
-          // Not supported in all environments, e.g. tests
-        } catch (Exception e) {
-          LOG.error("Failed to create metrics accumulator.", e);
-        }
-      }
-    }
-    this.metricsAccumulator = (MetricsAccumulator) metricsAccumulator;
+    this.metricsContainers = new MetricsContainerStepMap();
   }
 
   public MetricsContainerImpl getMetricsContainer(String stepName) {
-    return metricsAccumulator != null
-        ? metricsAccumulator.getLocalValue().getContainer(stepName)
-        : null;
+    return metricsContainers.getContainer(stepName);
+  }
+
+  /**
+   * This should be called at the end of the Flink job and sets up an accumulator to push the
+   * metrics to the PipelineResult. This should not be called beforehand, to avoid the overhead
+   * which accumulators cause at runtime.
+   */
+  public void registerMetricsForPipelineResult() {
+    Accumulator<MetricsContainerStepMap, MetricsContainerStepMap> metricsAccumulator =
+        runtimeContext.getAccumulator(ACCUMULATOR_NAME);
+    if (metricsAccumulator == null) {
+      metricsAccumulator = new MetricsAccumulator();
+      try {
+        runtimeContext.addAccumulator(ACCUMULATOR_NAME, metricsAccumulator);
+      } catch (UnsupportedOperationException e) {
+        // Not supported in all environments, e.g. tests
+      } catch (Exception e) {
+        LOG.error("Failed to create metrics accumulator.", e);
+      }
+    }
+    metricsAccumulator.add(metricsContainers);
   }
 
   /**
@@ -113,7 +114,7 @@ public class FlinkMetricContainer {
    * given step.
    */
   void updateMetrics(String stepName) {
-    MetricResults metricResults = asAttemptedOnlyMetricResults(metricsAccumulator.getLocalValue());
+    MetricResults metricResults = asAttemptedOnlyMetricResults(metricsContainers);
     MetricQueryResults metricQueryResults =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(stepName).build());
     updateCounters(metricQueryResults.getCounters());

@@ -20,7 +20,6 @@ package org.apache.beam.runners.flink.translation.wrappers;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
-import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -53,6 +52,7 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
   private boolean inputAvailable = false;
 
   private transient ReaderInvocationUtil<T, BoundedSource.BoundedReader<T>> readerInvoker;
+  private transient FlinkMetricContainer metricContainer;
 
   public SourceInputFormat(
       String stepName, BoundedSource<T> initialSource, PipelineOptions options) {
@@ -68,10 +68,7 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
 
   @Override
   public void open(SourceInputSplit<T> sourceInputSplit) throws IOException {
-    FlinkMetricContainer metricContainer =
-        new FlinkMetricContainer(
-            getRuntimeContext(),
-            options.as(FlinkPipelineOptions.class).getDisableMetricAccumulator());
+    metricContainer = new FlinkMetricContainer(getRuntimeContext());
 
     readerInvoker = new ReaderInvocationUtil<>(stepName, serializedOptions.get(), metricContainer);
 
@@ -149,6 +146,7 @@ public class SourceInputFormat<T> extends RichInputFormat<WindowedValue<T>, Sour
 
   @Override
   public void close() throws IOException {
+    metricContainer.registerMetricsForPipelineResult();
     // TODO null check can be removed once FLINK-3796 is fixed
     if (reader != null) {
       reader.close();
