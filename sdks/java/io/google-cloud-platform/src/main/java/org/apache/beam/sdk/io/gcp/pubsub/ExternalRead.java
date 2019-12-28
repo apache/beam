@@ -30,7 +30,7 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -85,7 +85,13 @@ public final class ExternalRead implements ExternalTransformRegistrar {
 
     @Override
     public PTransform<PBegin, PCollection<byte[]>> buildExternal(Configuration config) {
-      PubsubIO.Read.Builder<byte[]> readBuilder = new AutoValue_PubsubIO_Read.Builder<>();
+      PubsubIO.Read.Builder<byte[]> readBuilder;
+      if (config.needsAttributes) {
+        readBuilder = PubsubIO.Read.newBuilder(new ParsePayloadAsPubsubMessageProto());
+        readBuilder.setNeedsAttributes(true);
+      } else {
+        readBuilder = PubsubIO.Read.newBuilder(PubsubMessage::getPayload);
+      }
       readBuilder.setCoder(ByteArrayCoder.of());
       if (config.topic != null) {
         StaticValueProvider<String> topic = StaticValueProvider.of(config.topic);
@@ -102,26 +108,13 @@ public final class ExternalRead implements ExternalTransformRegistrar {
       if (config.timestampAttribute != null) {
         readBuilder.setTimestampAttribute(config.timestampAttribute);
       }
-      readBuilder.setNeedsAttributes(config.needsAttributes);
-      if (config.needsAttributes) {
-        readBuilder.setParseFn(new ParsePayloadAsPubsubMessageProto());
-      } else {
-        readBuilder.setParseFn(
-            new SimpleFunction<PubsubMessage, byte[]>() {
-              @Override
-              public byte[] apply(PubsubMessage input) {
-                return input.getPayload();
-              }
-            });
-      }
-      readBuilder.setNeedsMessageId(false);
       return readBuilder.build();
     }
   }
 
   // Convert the PubsubMessage to a PubsubMessage proto, then return its serialized representation.
   private static class ParsePayloadAsPubsubMessageProto
-      extends SimpleFunction<PubsubMessage, byte[]> {
+      implements SerializableFunction<PubsubMessage, byte[]> {
     @Override
     public byte[] apply(PubsubMessage input) {
       Map<String, String> attributes = input.getAttributeMap();
