@@ -384,7 +384,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
      * Messages we have received from Pubsub and not yet delivered downstream. We preserve their
      * order.
      */
-    private final Queue<PubsubClient.IncomingMessage> notYetRead;
+    private final Queue<IncomingMessage> notYetRead;
 
     private static class InFlightState {
       /** When request which yielded message was issues. */
@@ -438,7 +438,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     private long lastWatermarkMsSinceEpoch;
 
     /** The current message, or {@literal null} if none. */
-    @Nullable private PubsubClient.IncomingMessage current;
+    @Nullable private IncomingMessage current;
 
     /** Stats only: System time (ms since epoch) we last logs stats, or -1 if never. */
     private long lastLogTimestampMsSinceEpoch;
@@ -715,7 +715,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
       // Pull the next batch.
       // BLOCKs until received.
-      Collection<PubsubClient.IncomingMessage> receivedMessages =
+      Collection<IncomingMessage> receivedMessages =
           pubsubClient.get().pull(requestTimeMsSinceEpoch, subscription, PULL_BATCH_SIZE, true);
       if (receivedMessages.isEmpty()) {
         // Nothing available yet. Try again later.
@@ -725,7 +725,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       lastReceivedMsSinceEpoch = requestTimeMsSinceEpoch;
 
       // Capture the received messages.
-      for (PubsubClient.IncomingMessage incomingMessage : receivedMessages) {
+      for (IncomingMessage incomingMessage : receivedMessages) {
         notYetRead.add(incomingMessage);
         notYetReadBytes += incomingMessage.message().getData().size();
         inFlight.put(
@@ -986,7 +986,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       // in which case we'll double ACK messages to Pubsub. However Pubsub is fine with that.
       List<String> snapshotSafeToAckIds = Lists.newArrayList(safeToAckIds);
       List<String> snapshotNotYetReadIds = new ArrayList<>(notYetRead.size());
-      for (PubsubClient.IncomingMessage incomingMessage : notYetRead) {
+      for (IncomingMessage incomingMessage : notYetRead) {
         snapshotNotYetReadIds.add(incomingMessage.ackId());
       }
       if (outer.subscriptionPath == null) {
