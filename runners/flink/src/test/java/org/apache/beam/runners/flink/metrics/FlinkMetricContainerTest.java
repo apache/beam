@@ -21,8 +21,6 @@ import static org.apache.beam.runners.flink.metrics.FlinkMetricContainer.getFlin
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.runners.Parameterized.Parameter;
-import static org.junit.runners.Parameterized.Parameters;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.argThat;
@@ -59,27 +57,17 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link FlinkMetricContainer}. */
-@RunWith(Parameterized.class)
 public class FlinkMetricContainerTest {
-
-  @Parameter public boolean useMetricAccumulator;
 
   @Mock private RuntimeContext runtimeContext;
   @Mock private MetricGroup metricGroup;
 
   FlinkMetricContainer container;
-
-  @Parameters(name = "useMetricAccumulator: {0}")
-  public static Object[] data() {
-    return new Object[] {true, false};
-  }
 
   @Before
   public void beforeTest() {
@@ -88,7 +76,7 @@ public class FlinkMetricContainerTest {
             anyString()))
         .thenReturn(new MetricsAccumulator());
     when(runtimeContext.getMetricGroup()).thenReturn(metricGroup);
-    container = new FlinkMetricContainer(runtimeContext, !useMetricAccumulator);
+    container = new FlinkMetricContainer(runtimeContext);
   }
 
   @Test
