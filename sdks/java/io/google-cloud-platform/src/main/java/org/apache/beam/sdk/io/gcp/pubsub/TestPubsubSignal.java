@@ -29,7 +29,6 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.state.BagState;
@@ -247,7 +246,7 @@ public class TestPubsubSignal implements TestRule {
   private String pollForResultForDuration(
       SubscriptionPath signalSubscriptionPath, Duration duration) throws IOException {
 
-    List<PubsubClient.IncomingMessage> signal = null;
+    List<IncomingMessage> signal = null;
     DateTime endPolling = DateTime.now().plus(duration.getMillis());
 
     do {

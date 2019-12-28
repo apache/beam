@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
@@ -190,7 +189,7 @@ public class TestPubsub implements TestRule {
 
   /** Publish messages to {@link #topicPath()}. */
   public void publish(List<PubsubMessage> messages) throws IOException {
-    List<PubsubClient.OutgoingMessage> outgoingMessages =
+    List<OutgoingMessage> outgoingMessages =
         messages.stream().map(this::toOutgoingMessage).collect(toList());
     pubsub.publish(eventsTopicPath, outgoingMessages);
   }
@@ -202,8 +201,7 @@ public class TestPubsub implements TestRule {
 
   /** Pull up to {@code maxBatchSize} messages from {@link #subscriptionPath()}. */
   public List<PubsubMessage> pull(int maxBatchSize) throws IOException {
-    List<PubsubClient.IncomingMessage> messages =
-        pubsub.pull(0, subscriptionPath, maxBatchSize, true);
+    List<IncomingMessage> messages = pubsub.pull(0, subscriptionPath, maxBatchSize, true);
     if (!messages.isEmpty()) {
       pubsub.acknowledge(
           subscriptionPath,
@@ -298,8 +296,8 @@ public class TestPubsub implements TestRule {
     }
   }
 
-  private PubsubClient.OutgoingMessage toOutgoingMessage(PubsubMessage message) {
-    return PubsubClient.OutgoingMessage.of(
+  private OutgoingMessage toOutgoingMessage(PubsubMessage message) {
+    return OutgoingMessage.of(
         com.google.pubsub.v1.PubsubMessage.newBuilder()
             .setData(ByteString.copyFrom(message.getPayload()))
             .putAllAttributes(message.getAttributeMap())
