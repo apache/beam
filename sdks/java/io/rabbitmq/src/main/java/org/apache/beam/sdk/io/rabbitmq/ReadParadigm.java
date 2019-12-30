@@ -170,9 +170,6 @@ public abstract class ReadParadigm implements Serializable {
      * @param queueName the name of the queue to read from
      */
     public static NewQueue directExchange(String exchangeName, String queueName) {
-      checkArgument(
-          queueName != null && !queueName.trim().isEmpty(),
-          "Queue name is mandatory when using a direct exchange");
       return new NewQueue(exchangeName, BuiltinExchangeType.DIRECT, queueName, queueName);
     }
 
