@@ -34,29 +34,30 @@ public class GenericJsonMatcherTest {
 
   @Test
   public void testMatch() {
-    GenericJson genericJson1 = new GenericJson();
-    genericJson1.set("foo", "bar");
-    GenericJson genericJson2 = new GenericJson();
-    genericJson2.set("foo", "bar");
+    GenericJson expected = new GenericJson();
+    expected.set("foo", "bar");
+    GenericJson actual = new GenericJson();
+    actual.set("foo", "bar");
 
-    assertThat(genericJson1, is(jsonOf(genericJson2)));
+    assertThat(expected, is(jsonOf(actual)));
   }
 
   @Test
   public void testMatchFailure() {
-
-    GenericJson genericJson1 = new GenericJson();
-    genericJson1.set("foo", "bar");
-    GenericJson genericJson2 = new GenericJson();
-    genericJson2.set("foo", "baz");
+    GenericJson expected = new GenericJson();
+    expected.set("foo", "expected");
+    GenericJson actual = new GenericJson();
+    actual.set("foo", "actual");
 
     try {
-      assertThat(genericJson1, is(jsonOf(genericJson2)));
+      assertThat(actual, is(jsonOf(expected)));
     } catch (AssertionError ex) {
+      assertEquals(
+          "\nExpected: is {\"foo\":\"expected\"}\n     but: was <{foo=actual}>", ex.getMessage());
+
       // pass
-      assertEquals("\nExpected: is {\"foo\":\"baz\"}\n     but: was <{foo=bar}>", ex.getMessage());
       return;
     }
-    fail();
+    fail("The difference in JSON should raise AssertionError");
   }
 }

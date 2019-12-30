@@ -29,7 +29,7 @@ import org.skyscreamer.jsonassert.JSONCompareResult;
 
 /**
  * Matcher to compare {@link GenericJson}s using JSONassert's {@link JSONCompare}. This matcher does
- * not rely on {@link GenericJson#equals(Object)}.
+ * not rely on {@link GenericJson#equals(Object)}, which may use fields irrelevant to JSON values.
  */
 public final class GenericJsonMatcher extends TypeSafeMatcher<GenericJson> {
 
@@ -53,7 +53,6 @@ public final class GenericJsonMatcher extends TypeSafeMatcher<GenericJson> {
   protected boolean matchesSafely(GenericJson actual) {
     try {
       String actualJsonText = jacksonFactory.toString(actual);
-
       JSONCompareResult result =
           JSONCompare.compareJSON(expectedJsonText, actualJsonText, JSONCompareMode.STRICT);
       return result.passed();
