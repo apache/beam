@@ -120,10 +120,12 @@ class KeyedInternals<K> {
     public void setTimer(
         StateNamespace namespace,
         String timerId,
+        String timerFamilyId,
         Instant target,
-        Instant targetOutput,
+        Instant outputTimestamp,
         TimeDomain timeDomain) {
-      getInternals().setTimer(namespace, timerId, target, targetOutput, timeDomain);
+      getInternals()
+          .setTimer(namespace, timerId, timerFamilyId, target, outputTimestamp, timeDomain);
     }
 
     @Override

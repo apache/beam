@@ -1,0 +1,69 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(
+    publish: false,
+    archivesBaseName: 'beam-sdks-java-io-elasticsearch-tests-7'
+)
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
+
+description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: 7.x"
+ext.summary = "Tests of ElasticsearchIO on Elasticsearch 7.x"
+
+test {
+  // needed for ESIntegTestCase
+  systemProperty "tests.security.manager", "false"
+}
+
+def jna_version = "4.1.0"
+def log4j_version = "2.11.1"
+def elastic_search_version = "7.5.0"
+
+configurations.all {
+  resolutionStrategy {
+    // Make sure the log4j versions for api and core match instead of taking the default
+    // Gradle rule of using the latest.
+    force "org.apache.logging.log4j:log4j-api:$log4j_version"
+    force "org.apache.logging.log4j:log4j-core:$log4j_version"
+  }
+}
+
+dependencies {
+  testCompile project(path: ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common", configuration: "testRuntime")
+  testCompile "org.elasticsearch.test:framework:$elastic_search_version"
+  testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
+  testCompile "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.7.5"
+  testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
+
+  testCompile project(path: ":sdks:java:core", configuration: "shadow")
+  testCompile project(":sdks:java:io:elasticsearch")
+  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
+  testCompile "org.apache.logging.log4j:log4j-api:$log4j_version"
+  testCompile library.java.slf4j_api
+  testCompile "net.java.dev.jna:jna:$jna_version"
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  testCompile library.java.commons_io_1x
+  testCompile library.java.junit
+  testCompile "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(":runners:direct-java")
+}

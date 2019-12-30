@@ -627,7 +627,11 @@ public class BigQueryIOReadTest implements Serializable {
             .toSource(stepUuid, TableRowJsonCoder.of(), BigQueryIO.TableRowParser.INSTANCE);
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    assertEquals(108, bqSource.getEstimatedSizeBytes(options));
+
+    // Each row should have 24 bytes (See StringUtf8Coder in detail):
+    //   first 1 byte indicating length and following 23 bytes: {"name":"a","number":1}
+    long expectedSize = 24L * data.size();
+    assertEquals(expectedSize, bqSource.getEstimatedSizeBytes(options));
   }
 
   @Test
@@ -661,7 +665,12 @@ public class BigQueryIOReadTest implements Serializable {
             .toSource(stepUuid, TableRowJsonCoder.of(), BigQueryIO.TableRowParser.INSTANCE);
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    assertEquals(118, bqSource.getEstimatedSizeBytes(options));
+
+    // Each row should have 24 bytes (See StringUtf8Coder in detail):
+    //   first 1 byte indicating length and following 23 bytes: {"name":"a","number":1}
+    // 10 bytes comes from the estimated bytes of the Streamingbuffer
+    long expectedSize = 24L * data.size() + 10;
+    assertEquals(expectedSize, bqSource.getEstimatedSizeBytes(options));
   }
 
   @Test

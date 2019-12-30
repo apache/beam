@@ -36,6 +36,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.stream.LongStream;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.streaming.StreamSources;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.CountingSource;
@@ -71,6 +72,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 import org.mockito.Mockito;
+import org.powermock.reflect.Whitebox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -774,6 +776,34 @@ public class UnboundedSourceWrapperTest {
               LongStream.concat(LongStream.range(0, 250), LongStream.range(500, 750))
                   .boxed()
                   .toArray()));
+    }
+
+    @Test
+    public void testAccumulatorRegistrationOnOperatorClose() throws Exception {
+      FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+
+      TestCountingSource source = new TestCountingSource(20).withoutSplitting();
+
+      UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> sourceWrapper =
+          new UnboundedSourceWrapper<>("noReader", options, source, 2);
+
+      StreamingRuntimeContext mock = Mockito.mock(StreamingRuntimeContext.class);
+      Mockito.when(mock.getNumberOfParallelSubtasks()).thenReturn(1);
+      Mockito.when(mock.getExecutionConfig()).thenReturn(new ExecutionConfig());
+      Mockito.when(mock.getIndexOfThisSubtask()).thenReturn(0);
+      sourceWrapper.setRuntimeContext(mock);
+
+      sourceWrapper.open(new Configuration());
+
+      String metricContainerFieldName = "metricContainer";
+      FlinkMetricContainer monitoredContainer =
+          Mockito.spy(
+              (FlinkMetricContainer)
+                  Whitebox.getInternalState(sourceWrapper, metricContainerFieldName));
+      Whitebox.setInternalState(sourceWrapper, metricContainerFieldName, monitoredContainer);
+
+      sourceWrapper.close();
+      Mockito.verify(monitoredContainer).registerMetricsForPipelineResult();
     }
   }
 

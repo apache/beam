@@ -120,7 +120,7 @@ public class TimerReceiver {
 
         TimerInternals timerInternals = stepContext.namespacedToUser().timerInternals();
         timerInternals.setTimer(
-            namespace, timerId, timer.getTimestamp(), timer.getOutputTimestamp(), timeDomain);
+            namespace, timerId, "", timer.getTimestamp(), timer.getOutputTimestamp(), timeDomain);
 
         timerIdToKey.put(timerId, windowedValue.getValue().getKey());
         timerIdToPayload.put(timerId, timer.getPayload());

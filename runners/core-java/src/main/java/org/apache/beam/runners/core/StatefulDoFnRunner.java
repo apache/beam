@@ -214,6 +214,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
       timerInternals.setTimer(
           StateNamespaces.window(windowCoder, window),
           GC_TIMER_ID,
+          "",
           gcTime,
           window.maxTimestamp(),
           TimeDomain.EVENT_TIME);
