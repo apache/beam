@@ -65,7 +65,7 @@ abstract class RabbitMqMessage implements Serializable {
   abstract Map<String, Object> headers();
 
   /**
-   * Defaults to "non-durable"
+   * Defaults to "non-durable".
    *
    * @see #DELIVERY_MODE_DURABLE
    * @see #DELIVERY_MODE_NON_DURABLE
@@ -74,7 +74,7 @@ abstract class RabbitMqMessage implements Serializable {
   abstract Integer deliveryMode();
 
   /**
-   * Defaults to "lowest priority"
+   * Defaults to "lowest priority".
    *
    * @see #PRIORITY_LOWEST
    */

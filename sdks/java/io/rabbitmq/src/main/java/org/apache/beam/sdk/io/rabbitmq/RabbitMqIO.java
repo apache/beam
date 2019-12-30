@@ -134,12 +134,18 @@ import org.joda.time.Instant;
  *
  * <h3>Publishing messages to RabbitMQ server</h3>
  *
- * <p>{@link RabbitMqIO} {@link Write} can send {@link RabbitMqMessage} to a RabbitMQ server queue
- * or exchange.
+ * <p>{@link RabbitMqIO} {@link Write} can send {@link RabbitMqMessage} to a RabbitMQ exchange.
  *
  * <p>As for the {@link Read}, the {@link Write} is configured with a RabbitMQ URI. Unlike reading,
  * however, writing is not really multi-paradigm; all that's required is the name of an exchange and
- * the routing key of the message.
+ * the routing key of the message. A few rules to follow:
+ *
+ * <ul>
+ *   <li>When publishing to a fanout exchange, the routing key is optional and will be ignored.
+ *   <li>When publishing to a direct exchange, including the default exchange, the routing key must
+ *       be specified and must be equal to the name of the queue to deliver the message to.
+ *   <li>When publishing to a topic exchange, a routing key *must* be specified.
+ * </ul>
  *
  * <p>Example
  *
@@ -153,7 +159,13 @@ import org.joda.time.Instant;
  *       .withExchange("EXCHANGE"));
  * }</pre>
  *
- * NOTE: "headers" exchanges are not currently supported by this IO.
+ * <h3>Limitations of RabbitMqIO</h3>
+ *
+ * <p>Reading from a "Headers" exchange is not currently supported.
+ *
+ * <p>Priority queues are not directly supported as they would not play nicely with watermarking.
+ * However, it is possible to define or implement a usable timestamp policy that would allow a
+ * priority queue to function. This is likely not a great fit for Beam.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class RabbitMqIO {
@@ -473,17 +485,17 @@ public class RabbitMqIO {
       public void processElement(ProcessContext c) throws IOException {
         RabbitMqMessage message = c.element();
 
-          ChannelLeaser.UseChannelFunction<Void> basicPublishFn =
-              channel -> {
-                channel.basicPublish(
-                    spec.exchange(),
-                    message.routingKey(),
-                    message.createProperties(),
-                    message.body());
-                return null;
-              };
+        ChannelLeaser.UseChannelFunction<Void> basicPublishFn =
+            channel -> {
+              channel.basicPublish(
+                  spec.exchange(),
+                  message.routingKey(),
+                  message.createProperties(),
+                  message.body());
+              return null;
+            };
 
-          channelLeaser.useChannel(writerId, basicPublishFn);
+        channelLeaser.useChannel(writerId, basicPublishFn);
       }
 
       @Teardown

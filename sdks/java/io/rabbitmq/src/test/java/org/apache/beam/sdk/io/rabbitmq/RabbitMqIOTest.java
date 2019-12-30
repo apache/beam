@@ -198,7 +198,9 @@ public class RabbitMqIOTest implements Serializable {
 
     try {
       if (!newQueue.isDefaultExchange()) {
-        connectionHandler.useChannel(testId, channel -> channel.exchangeDeclare(newQueue.getExchange(), newQueue.getExchangeType()));
+        connectionHandler.useChannel(
+            testId,
+            channel -> channel.exchangeDeclare(newQueue.getExchange(), newQueue.getExchangeType()));
       }
       Thread publisher =
           RabbitMqTestUtils.publishMessagesThread(
@@ -357,18 +359,20 @@ public class RabbitMqIOTest implements Serializable {
 
       p.run();
 
-      connectionHandler.useChannel(testId, channel -> {
-        Consumer consumer = new RabbitMqTestUtils.TestConsumer(channel, received);
-        channel.basicConsume(queueName, /* auto-ack */ true, consumer);
-        while (received.size() < maxNumRecords) {
-          try {
-            Thread.sleep(250);
-          } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-          }
-        }
-        return null;
-      });
+      connectionHandler.useChannel(
+          testId,
+          channel -> {
+            Consumer consumer = new RabbitMqTestUtils.TestConsumer(channel, received);
+            channel.basicConsume(queueName, /* auto-ack */ true, consumer);
+            while (received.size() < maxNumRecords) {
+              try {
+                Thread.sleep(250);
+              } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+              }
+            }
+            return null;
+          });
 
       assertEquals(maxNumRecords, received.size());
       for (int i = 0; i < maxNumRecords; i++) {

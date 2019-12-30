@@ -89,8 +89,12 @@ public abstract class ReadParadigm implements Serializable {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       ExistingQueue that = (ExistingQueue) o;
       return queueName.equals(that.queueName);
     }
@@ -212,8 +216,12 @@ public abstract class ReadParadigm implements Serializable {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       NewQueue newQueue = (NewQueue) o;
       return exchange.equals(newQueue.exchange)
           && exchangeType.equals(newQueue.exchangeType)

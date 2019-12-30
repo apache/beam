@@ -34,9 +34,9 @@ public abstract class TimestampPolicy {
    * A timestamp extractor compatible with the <a
    * href="https://github.com/rabbitmq/rabbitmq-message-timestamp">RabbitMQ Message Timestamp
    * plugin</a>, which first looks for header {@code timestamp_in_ms} then falls back to amqp
-   * message property {@code timestamp}
+   * message property {@code timestamp}.
    */
-  public static SerializableFunction<RabbitMqMessage, Instant>
+  public static final SerializableFunction<RabbitMqMessage, Instant>
       RABBITMQ_MESSAGE_TIMESTAMP_PLUGIN_FORMAT =
           record -> {
             Object rawTimestampMillis = record.headers().get("timestamp_in_ms");
