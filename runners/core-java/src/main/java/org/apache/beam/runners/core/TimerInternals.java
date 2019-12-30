@@ -21,9 +21,7 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.Serializable;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
@@ -197,7 +195,7 @@ public interface TimerInternals {
         Instant outputTimestamp,
         TimeDomain domain) {
       return new AutoValue_TimerInternals_TimerData(
-          timerId, namespace, timestamp, outputTimestamp, domain);
+          timerId, timerId, namespace, timestamp, outputTimestamp, domain);
     }
 
     /**
