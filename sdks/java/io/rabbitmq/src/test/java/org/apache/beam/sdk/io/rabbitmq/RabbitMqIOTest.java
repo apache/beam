@@ -20,10 +20,7 @@ package org.apache.beam.sdk.io.rabbitmq;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.rabbitmq.client.AMQP;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.BuiltinExchangeType;
 import com.rabbitmq.client.Consumer;
 import java.io.IOException;
 import java.io.Serializable;
@@ -33,13 +30,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.testing.PAssert;
@@ -150,7 +143,8 @@ public class RabbitMqIOTest implements Serializable {
     try {
       RabbitMqTestUtils.createQueue(testId, connectionHandler, spec.readParadigm().queueName());
       Thread publisher =
-          RabbitMqTestUtils.publishMessagesThread(connectionHandler, testId, spec, messages, Duration.millis(250));
+          RabbitMqTestUtils.publishMessagesThread(
+              connectionHandler, testId, spec, messages, Duration.millis(250));
       publisher.start();
       p.run();
       publisher.join();
@@ -165,285 +159,224 @@ public class RabbitMqIOTest implements Serializable {
    * <p>This function will automatically specify (and overwrite) the uri and numRecords values of
    * the Read definition.
    */
-  private void doExchangeTest(ExchangeTestPlan testPlan, boolean simulateIncompatibleExchange)
+  private void doNewQueueTest(
+      RabbitMqIO.Read read,
+      int expectedRecords,
+      List<RabbitMqMessage> toPublishMatches,
+      List<RabbitMqMessage> toPublishIgnored)
       throws Exception {
-    RabbitMqIO.Read read = testPlan.getRead();
+    final UUID testId = UUID.randomUUID();
+
+    ReadParadigm paradigm = read.readParadigm();
+    if (!(paradigm instanceof ReadParadigm.NewQueue)) {
+      throw new IllegalArgumentException(
+          "ExchangeTest only supported for ReadParadigm.NewQueue. '" + paradigm + "' given.");
+    }
+    ReadParadigm.NewQueue newQueue = (ReadParadigm.NewQueue) paradigm;
+
     PCollection<RabbitMqMessage> raw =
-        p.apply(read.withUri(uri).withMaxNumRecords(testPlan.getNumRecords()));
+        p.apply(read.withUri(uri).withMaxNumRecords(expectedRecords));
 
     PCollection<String> result =
         raw.apply(
             MapElements.into(TypeDescriptors.strings())
                 .via((RabbitMqMessage message) -> RabbitMqTestUtils.bodyToString(message.body())));
 
-    List<String> expected = testPlan.expectedResults();
+    final List<String> expectedBodies =
+        toPublishMatches.stream()
+            .map(RabbitMqMessage::body)
+            .map(RabbitMqTestUtils::bodyToString)
+            .collect(Collectors.toList());
 
-    PAssert.that(result).containsInAnyOrder(expected);
+    PAssert.that(result).containsInAnyOrder(expectedBodies);
 
-    // on UUID fallback: tests appear to execute concurrently in jenkins, so
-    // exchanges and queues between tests must be distinct
-
-    ReadParadigm paradigm = read.readParadigm();
-    if (!(paradigm instanceof ReadParadigm.NewQueue)) {
-      throw new IllegalArgumentException("ExchangeTest only supported for NewQueue");
-    }
-    ReadParadigm.NewQueue newQueue = (ReadParadigm.NewQueue) paradigm;
-    String exchange =
-        Optional.ofNullable(newQueue.getExchange()).orElseGet(() -> UUID.randomUUID().toString());
-    String exchangeType = Optional.ofNullable(newQueue.getExchangeType()).orElse("fanout");
-    if (simulateIncompatibleExchange) {
-      // Rabbit will fail when attempting to declare an existing exchange that
-      // has different properties (e.g. declaring a non-durable exchange if
-      // an existing one is durable). QPid does not exhibit this behavior. To
-      // simulate the error condition where RabbitMqIO attempts to declare an
-      // incompatible exchange, we instead declare an exchange with the same
-      // name but of a different type. Both Rabbit and QPid will fail this.
-      if ("fanout".equalsIgnoreCase(exchangeType)) {
-        exchangeType = "direct";
-      } else {
-        exchangeType = "fanout";
-      }
-    }
-
-    ConnectionFactory connectionFactory = new ConnectionFactory();
-    connectionFactory.setAutomaticRecoveryEnabled(false);
-    connectionFactory.setUri(uri);
-    Connection connection = null;
-    Channel channel = null;
+    final Duration initialDelay = Duration.standardSeconds(5);
+    List<RabbitMqMessage> toPublish = new ArrayList<>();
+    toPublish.addAll(toPublishMatches);
+    toPublish.addAll(toPublishIgnored);
+    final List<RabbitMqMessage> finalToPublish = Collections.unmodifiableList(toPublish);
 
     try {
-      connection = connectionFactory.newConnection();
-      channel = connection.createChannel();
-      channel.exchangeDeclare(exchange, exchangeType);
-      final Channel finalChannel = channel;
+      if (!newQueue.isDefaultExchange()) {
+        connectionHandler.useChannel(testId, channel -> channel.exchangeDeclare(newQueue.getExchange(), newQueue.getExchangeType()));
+      }
       Thread publisher =
-          new Thread(
-              () -> {
-                try {
-                  Thread.sleep(5000);
-                } catch (Exception e) {
-                  LOG.error(e.getMessage(), e);
-                }
-                for (int i = 0; i < testPlan.getNumRecordsToPublish(); i++) {
-                  try {
-                    finalChannel.basicPublish(
-                        exchange,
-                        testPlan.publishRoutingKeyGen().get(),
-                        testPlan.getPublishProperties(),
-                        RabbitMqTestUtils.generateRecord(i).body());
-                  } catch (Exception e) {
-                    LOG.error(e.getMessage(), e);
-                  }
-                }
-              });
+          RabbitMqTestUtils.publishMessagesThread(
+              connectionHandler, testId, read, finalToPublish, initialDelay);
       publisher.start();
       p.run();
       publisher.join();
     } finally {
-      if (channel != null) {
-        // channel may have already been closed automatically due to protocol failure
-        try {
-          channel.close();
-        } catch (Exception e) {
-          /* ignored */
-        }
+      if (!newQueue.isDefaultExchange()) {
+        boolean ifUnused = false;
+        connectionHandler.useChannel(
+            testId,
+            channel -> {
+              try {
+                channel.exchangeDeleteNoWait(newQueue.getExchange(), ifUnused);
+              } catch (IOException e) {
+                /* muted */
+              }
+              return null;
+            });
       }
-      if (connection != null) {
-        // connection may have already been closed automatically due to protocol failure
-        try {
-          connection.close();
-        } catch (Exception e) {
-          /* ignored */
-        }
-      }
+      connectionHandler.closeChannel(testId);
     }
   }
 
-  private void doExchangeTest(ExchangeTestPlan testPlan) throws Exception {
-    doExchangeTest(testPlan, false);
+  @Test(timeout = ONE_MINUTE_MS)
+  public void testReadFanoutExchange() throws Exception {
+    final int expectedRecords = 10;
+    final String uniqueId = RabbitMqTestUtils.mkUniqueSuffix();
+    doNewQueueTest(
+        RabbitMqIO.read()
+            .withUri(uri)
+            .withReadParadigm(
+                ReadParadigm.NewQueue.fanoutExchange("exchange" + uniqueId, "queue" + uniqueId)),
+        expectedRecords,
+        RabbitMqTestUtils.generateRecords(expectedRecords),
+        Collections.emptyList());
   }
 
   @Test(timeout = ONE_MINUTE_MS)
-  public void testReadDeclaredFanoutExchange() throws Exception {
-    doExchangeTest(
-        new ExchangeTestPlan(
-            RabbitMqIO.read()
-                .withUri(uri)
-                .withReadParadigm(
-                    ReadParadigm.NewQueue.fanoutExchange(
-                        "DeclaredFanoutExchange", "declaredFanoutQueue")),
-            10));
-  }
+  public void testReadWildcardTopicExchange() throws Exception {
+    final int expectedRecords = 10;
+    final String uniqueId = RabbitMqTestUtils.mkUniqueSuffix();
 
-  @Test(timeout = ONE_MINUTE_MS)
-  public void testReadDeclaredTopicExchangeWithQueueDeclare() throws Exception {
-    doExchangeTest(
-        new ExchangeTestPlan(
-            RabbitMqIO.read()
-                .withUri(uri)
-                .withReadParadigm(
-                    ReadParadigm.NewQueue.topicExchange(
-                        "DeclaredTopicExchangeWithQueueDeclare", "declaredTopicQueue", "#")),
-            10));
-  }
-
-  @Test(timeout = ONE_MINUTE_MS)
-  public void testReadDeclaredTopicExchange() throws Exception {
-    final int numRecords = 10;
-    RabbitMqIO.Read read =
+    final List<RabbitMqMessage> expected = RabbitMqTestUtils.generateRecords(expectedRecords);
+    doNewQueueTest(
         RabbitMqIO.read()
             .withUri(uri)
             .withReadParadigm(
                 ReadParadigm.NewQueue.topicExchange(
-                    "DeclaredTopicExchange", "declaredTopicQueue2", "user.create.#"));
-
-    final Supplier<String> publishRoutingKeyGen =
-        new Supplier<String>() {
-          private AtomicInteger counter = new AtomicInteger(0);
-
-          @Override
-          public String get() {
-            int count = counter.getAndIncrement();
-            if (count % 2 == 0) {
-              return "user.create." + count;
-            }
-            return "user.delete." + count;
-          }
-        };
-
-    ExchangeTestPlan plan =
-        new ExchangeTestPlan(read, numRecords / 2, numRecords) {
-          @Override
-          public Supplier<String> publishRoutingKeyGen() {
-            return publishRoutingKeyGen;
-          }
-
-          @Override
-          public List<String> expectedResults() {
-            return IntStream.range(0, numRecords)
-                .filter(i -> i % 2 == 0)
-                .mapToObj(RabbitMqTestUtils::generateRecord)
-                .map(RabbitMqTestUtils::messageToString)
-                .collect(Collectors.toList());
-          }
-        };
-
-    doExchangeTest(plan);
+                    "exchange" + uniqueId, "queue" + uniqueId, "#")),
+        expectedRecords,
+        expected,
+        Collections.emptyList());
   }
 
   @Test(timeout = ONE_MINUTE_MS)
-  public void testUseCorrelationIdSucceedsWhenIdsPresent() throws Exception {
-    int messageCount = 1;
-    AMQP.BasicProperties publishProps =
-        new AMQP.BasicProperties().builder().correlationId("123").build();
-    doExchangeTest(
-        new ExchangeTestPlan(
-            RabbitMqIO.read()
-                .withUri(uri)
-                .withReadParadigm(
-                    ReadParadigm.NewQueue.fanoutExchange(
-                        "CorrelationIdSuccess", "correlationIdTestSuccess"))
-                .withRecordIdPolicy(RecordIdPolicy.correlationId()),
-            messageCount,
-            messageCount,
-            publishProps));
+  public void testReadSpecificTopics() throws Exception {
+    final int expectedRecords = 10;
+    final String uniqueId = RabbitMqTestUtils.mkUniqueSuffix();
+
+    final List<RabbitMqMessage> toPublishMatches =
+        RabbitMqTestUtils.generateRecords(expectedRecords).stream()
+            .map(
+                msg ->
+                    msg.toBuilder()
+                        .setRoutingKey("prd." + RabbitMqTestUtils.mkUniqueSuffix())
+                        .build())
+            .collect(Collectors.toList());
+    final List<RabbitMqMessage> toPublishIgnored =
+        RabbitMqTestUtils.generateRecords(expectedRecords).stream()
+            .map(
+                msg ->
+                    msg.toBuilder()
+                        .setRoutingKey("dev." + RabbitMqTestUtils.mkUniqueSuffix())
+                        .build())
+            .collect(Collectors.toList());
+
+    doNewQueueTest(
+        RabbitMqIO.read()
+            .withUri(uri)
+            .withReadParadigm(
+                ReadParadigm.NewQueue.topicExchange(
+                    "exchange" + uniqueId, "queue" + uniqueId, "prd.*")),
+        expectedRecords,
+        toPublishMatches,
+        toPublishIgnored);
+  }
+
+  @Test(timeout = ONE_MINUTE_MS)
+  public void testRecordIdDeduplicationHonored() throws Exception {
+    final int expectedRecords = 1;
+    final String uniqueId = RabbitMqTestUtils.mkUniqueSuffix();
+
+    final RabbitMqMessage msg =
+        RabbitMqTestUtils.generateRecord(1).toBuilder().setMessageId(uniqueId).build();
+
+    doNewQueueTest(
+        RabbitMqIO.read()
+            .withUri(uri)
+            .withReadParadigm(
+                ReadParadigm.NewQueue.fanoutExchange("exchange" + uniqueId, "queue" + uniqueId))
+            .withRecordIdPolicy(RecordIdPolicy.messageId()),
+        expectedRecords,
+        Collections.singletonList(msg),
+        Collections.singletonList(msg));
   }
 
   @Test(expected = Pipeline.PipelineExecutionException.class)
   public void testUseRecordIdFailsWhenIdsMissing() throws Exception {
-    int messageCount = 1;
-    AMQP.BasicProperties publishProps = null;
-    doExchangeTest(
-        new ExchangeTestPlan(
-            RabbitMqIO.read()
-                .withUri(uri)
-                .withReadParadigm(
-                    ReadParadigm.NewQueue.fanoutExchange(
-                        "CorrelationIdFailure", "correlationIdTestFailure"))
-                .withRecordIdPolicy(RecordIdPolicy.messageId()),
-            messageCount,
-            messageCount,
-            publishProps));
+    final int expectedRecords = 1;
+    final String uniqueId = RabbitMqTestUtils.mkUniqueSuffix();
+
+    final RabbitMqMessage msg =
+        RabbitMqTestUtils.generateRecord(1).toBuilder().setMessageId(null).build();
+
+    doNewQueueTest(
+        RabbitMqIO.read()
+            .withUri(uri)
+            .withReadParadigm(
+                ReadParadigm.NewQueue.fanoutExchange("exchange" + uniqueId, "queue" + uniqueId))
+            .withRecordIdPolicy(RecordIdPolicy.messageId()),
+        expectedRecords,
+        Collections.singletonList(msg),
+        Collections.emptyList());
   }
 
   @Test
-  public void testWriteQueue() throws Exception {
+  public void testWrite() throws Exception {
+    final UUID testId = UUID.randomUUID();
+
+    final String suffix = RabbitMqTestUtils.mkUniqueSuffix();
+    final String queueName = "queue" + suffix;
+    final String exchangeName = "exchange" + suffix;
+
     final int maxNumRecords = 1000;
     List<RabbitMqMessage> data =
         RabbitMqTestUtils.generateRecords(maxNumRecords).stream()
-            .map(msg -> msg.toBuilder().setRoutingKey("TEST").build())
+            .map(
+                msg ->
+                    msg.toBuilder()
+                        .setRoutingKey("test." + RabbitMqTestUtils.mkUniqueSuffix())
+                        .build())
             .collect(Collectors.toList());
-    p.apply(Create.of(data)).apply(RabbitMqIO.write().withUri(uri));
+    p.apply(Create.of(data)).apply(RabbitMqIO.write().withUri(uri).withExchange(exchangeName));
 
     final List<String> received = new ArrayList<>();
-    ConnectionFactory connectionFactory = new ConnectionFactory();
-    connectionFactory.setUri("amqp://guest:guest@localhost:" + port);
-    Connection connection = null;
-    Channel channel = null;
     try {
-      connection = connectionFactory.newConnection();
-      channel = connection.createChannel();
-      channel.queueDeclare("TEST", true, false, false, null);
-      Consumer consumer = new RabbitMqTestUtils.TestConsumer(channel, received);
-      channel.basicConsume("TEST", true, consumer);
+      connectionHandler.useChannel(
+          testId,
+          channel -> {
+            channel.exchangeDeclare(exchangeName, BuiltinExchangeType.TOPIC);
+            channel.queueDeclare(queueName, true, false, false, null);
+            return channel.queueBind(queueName, exchangeName, "test.*");
+          });
 
       p.run();
 
-      while (received.size() < maxNumRecords) {
-        Thread.sleep(500);
-      }
+      connectionHandler.useChannel(testId, channel -> {
+        Consumer consumer = new RabbitMqTestUtils.TestConsumer(channel, received);
+        channel.basicConsume(queueName, /* auto-ack */ true, consumer);
+        while (received.size() < maxNumRecords) {
+          try {
+            Thread.sleep(250);
+          } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+          }
+        }
+        return null;
+      });
 
       assertEquals(maxNumRecords, received.size());
       for (int i = 0; i < maxNumRecords; i++) {
         assertTrue(received.contains("Test " + i));
       }
+
     } finally {
-      if (channel != null) {
-        channel.close();
-      }
-      if (connection != null) {
-        connection.close();
-      }
-    }
-  }
-
-  @Test
-  public void testWriteExchange() throws Exception {
-    final int maxNumRecords = 1000;
-    List<RabbitMqMessage> data = RabbitMqTestUtils.generateRecords(maxNumRecords);
-    p.apply(Create.of(data)).apply(RabbitMqIO.write().withUri(uri).withExchange("WRITE"));
-
-    final List<String> received = new ArrayList<>();
-    ConnectionFactory connectionFactory = new ConnectionFactory();
-    connectionFactory.setUri("amqp://guest:guest@localhost:" + port);
-    Connection connection = null;
-    Channel channel = null;
-    try {
-      connection = connectionFactory.newConnection();
-      channel = connection.createChannel();
-      channel.exchangeDeclare("WRITE", "fanout");
-      String queueName = channel.queueDeclare().getQueue();
-      channel.queueBind(queueName, "WRITE", "");
-      Consumer consumer = new RabbitMqTestUtils.TestConsumer(channel, received);
-      channel.basicConsume(queueName, true, consumer);
-
-      p.run();
-
-      while (received.size() < maxNumRecords) {
-        Thread.sleep(500);
-      }
-
-      assertEquals(maxNumRecords, received.size());
-      for (int i = 0; i < maxNumRecords; i++) {
-        assertTrue(received.contains("Test " + i));
-      }
-    } finally {
-      if (channel != null) {
-        channel.close();
-      }
-      if (connection != null) {
-        connection.close();
-      }
+      connectionHandler.closeChannel(testId);
     }
   }
 }

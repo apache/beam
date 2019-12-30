@@ -126,7 +126,7 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
               channel.queueDeclare(queueName, durable, exclusive, autoDelete, arguments);
 
               // the default exchange does not allow for explicitly binding a queue
-              if (!"".equalsIgnoreCase(newQueue.getExchange())) {
+              if (!newQueue.isDefaultExchange()) {
                 channel.queueBind(queueName, newQueue.getExchange(), newQueue.getRoutingKey());
               }
             }
@@ -180,6 +180,15 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
     checkpointMark.stopReading();
   }
 
+  /**
+   * {@inheritDoc}.
+   *
+   * <p>This implementation produces an estimate of the total backlog by taking the average size in
+   * bytes of the past 1,000 messages seen by this reader and multiplying by the number of estimated
+   * messages remaining in the queue as returned by {@link GetResponse#getMessageCount()}. If no
+   * messages have been seen, {@link #BACKLOG_UNKNOWN} is returned. Note that amqp headers and
+   * properties are not incorporated into the size estimate.
+   */
   @Override
   public long getTotalBacklogBytes() {
     long backlogMessageCount = context.getMessageBacklog();

@@ -180,6 +180,7 @@ public class RabbitMqIO {
     return new AutoValue_RabbitMqIO_Write.Builder()
         .setConnectionHandlerProviderFn(
             new ConnectionProviderFromUri("amqp://guest:guest@localhost:5672/"))
+        .setExchange("")
         .build();
   }
 
@@ -251,7 +252,7 @@ public class RabbitMqIO {
         new URI(uri);
       } catch (URISyntaxException e) {
         throw new IllegalArgumentException(
-            "Malformed rabbit mq supplied (omitted here lest it contain username/password)");
+            "Malformed amqp uri supplied (omitted here lest it contain username/password)", e);
       }
       return withConnectionHandlerProviderFn(new ConnectionProviderFromUri(uri));
     }
@@ -300,7 +301,7 @@ public class RabbitMqIO {
     /**
      * Sets {@link TimestampPolicy} to {@link TimestampPolicyFactory.ProcessingTimePolicy}. This is
      * the default timestamp policy. It assigns processing time to each record. Specifically, this
-     * is the timestamp when the record becomes 'current' in the reader. The watermark aways
+     * is the timestamp when the record becomes 'current' in the reader. The watermark always
      * advances to current time. If messages are delivered to the rabbit queue with the Timestamp
      * property set, {@link #withTimestampPluginCompatPolicyFactory(Duration)}} is recommended over
      * this.
@@ -313,14 +314,14 @@ public class RabbitMqIO {
      * Sets the timestamps policy based on an <a href
      * ="https://github.com/rabbitmq/rabbitmq-message-timestamp">RabbitMQ Message Timestamp
      * Plugin</a>-compatible message. It is an error if a record's {@code timestamp} property is not
-     * populated and the {@code timestamp_in_ms} header is missing or malformed . The timestamps
+     * populated and the {@code timestamp_in_ms} header is missing or malformed. The timestamps
      * within a queue are expected to be roughly monotonically increasing with a cap on out of order
      * delays (e.g. 'max delay' of 1 minute). The watermark at any time is '({@code earliest(now(),
      * latest(event timestamps seen so far)) - max delay})'.
      *
      * <p>However, the watermark is never set to a timestamp in the future and is capped to 'now -
-     * max delay'. In addition, the watermark * is advanced to 'now - max delay' when the queue has
-     * caught up (previous read attempt returned no * message and/or estimated backlog per {@code
+     * max delay'. In addition, the watermark is advanced to 'now - max delay' when the queue has
+     * caught up (previous read attempt returned no message and/or estimated backlog per {@code
      * GetResult} is zero)
      *
      * @param maxDelay For any record in the queue partition, the timestamp of any subsequent record
@@ -337,14 +338,14 @@ public class RabbitMqIO {
     }
 
     /**
-     * Sets a timestamp policy based on a custom timestamp extration strategy where the timestamps
+     * Sets a timestamp policy based on a custom timestamp extraction strategy where the timestamps
      * within a queue are expected to be roughly monotonically increasing with a cap on out of order
      * delays (e.g. 'max delay' of 1 minute). The watermark at any time is '({@code earliest(now(),
      * latest(event timestamps seen so far)) - max delay})'.
      *
      * <p>However, the watermark is never set to a timestamp in the future and is capped to 'now -
-     * max delay'. In addition, the watermark * is advanced to 'now - max delay' when the queue has
-     * caught up (previous read attempt returned no * message and/or estimated backlog per {@code
+     * max delay'. In addition, the watermark is advanced to 'now - max delay' when the queue has
+     * caught up (previous read attempt returned no message and/or estimated backlog per {@code
      * GetResult} is zero).
      *
      * <p>If your timestamp approach is compatible with the <a href
@@ -387,7 +388,6 @@ public class RabbitMqIO {
   public abstract static class Write
       extends PTransform<PCollection<RabbitMqMessage>, PCollection<?>> {
 
-    @Nullable
     abstract String exchange();
 
     abstract SerializableFunction<Void, ConnectionHandler> connectionHandlerProviderFn();
@@ -465,14 +465,14 @@ public class RabbitMqIO {
           channelLeaser = spec.connectionHandlerProviderFn().apply(null);
         }
 
-        channelLeaser.useChannel(writerId, ch -> null);
+        // establishes a channel (verifies uri, credentials, connectivity, etc.)
+        channelLeaser.useChannel(writerId, ignored -> null);
       }
 
       @ProcessElement
       public void processElement(ProcessContext c) throws IOException {
         RabbitMqMessage message = c.element();
 
-        if (spec.exchange() != null) {
           ChannelLeaser.UseChannelFunction<Void> basicPublishFn =
               channel -> {
                 channel.basicPublish(
@@ -484,7 +484,6 @@ public class RabbitMqIO {
               };
 
           channelLeaser.useChannel(writerId, basicPublishFn);
-        }
       }
 
       @Teardown

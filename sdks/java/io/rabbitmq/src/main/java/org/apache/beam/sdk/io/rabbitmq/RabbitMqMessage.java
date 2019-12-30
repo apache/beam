@@ -25,6 +25,7 @@ import com.rabbitmq.client.GetResponse;
 import com.rabbitmq.client.LongString;
 import java.io.Serializable;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
@@ -41,7 +42,15 @@ import javax.annotation.Nullable;
  */
 @AutoValue
 abstract class RabbitMqMessage implements Serializable {
+  public static final int DELIVERY_MODE_NON_DURABLE = 1;
+  public static final int DELIVERY_MODE_DURABLE = 2;
 
+  public static final int PRIORITY_LOWEST = 1;
+
+  /**
+   * Defaults to the empty string. When publishing messages to an exchange type other than fanout,
+   * this should be specified.
+   */
   abstract String routingKey();
 
   @SuppressWarnings("mutable")
@@ -55,9 +64,20 @@ abstract class RabbitMqMessage implements Serializable {
 
   abstract Map<String, Object> headers();
 
+  /**
+   * Defaults to "non-durable"
+   *
+   * @see #DELIVERY_MODE_DURABLE
+   * @see #DELIVERY_MODE_NON_DURABLE
+   */
   @Nullable
   abstract Integer deliveryMode();
 
+  /**
+   * Defaults to "lowest priority"
+   *
+   * @see #PRIORITY_LOWEST
+   */
   @Nullable
   abstract Integer priority();
 
@@ -92,23 +112,20 @@ abstract class RabbitMqMessage implements Serializable {
 
   public static Builder builder() {
     return new AutoValue_RabbitMqMessage.Builder()
-        .setDeliveryMode(1) // non-durable
-        .setPriority(1) // lowest priority
+        .setDeliveryMode(DELIVERY_MODE_NON_DURABLE)
+        .setPriority(PRIORITY_LOWEST)
         .setRoutingKey("")
-        .setTimestamp(
-            new Date(java.time.Instant.now().truncatedTo(ChronoUnit.SECONDS).toEpochMilli()))
-        .setHeaders(new HashMap<String, Object>());
+        .setTimestamp(new Date())
+        .setHeaders(Collections.emptyMap());
   }
 
   public static RabbitMqMessage fromGetResponse(GetResponse delivery) {
     delivery = serializableDeliveryOf(delivery);
     BasicProperties props = delivery.getProps();
-    Map<String, Object> headers = new HashMap<>();
-    if (headers == null) {
-      Map<String, Object> incomingHeaders = props.getHeaders();
-      if (null != incomingHeaders) {
-        headers.putAll(incomingHeaders);
-      }
+    Map<String, Object> headers = Collections.emptyMap();
+    Map<String, Object> incomingHeaders = props.getHeaders();
+    if (null != incomingHeaders) {
+      headers = Collections.unmodifiableMap(new HashMap<>(incomingHeaders));
     }
 
     return builder()
@@ -174,6 +191,8 @@ abstract class RabbitMqMessage implements Serializable {
     public RabbitMqMessage build() {
       Date timestamp = timestamp();
       if (timestamp != null) {
+        // amqp timestamp property is unix timestamp ('seconds since epoch'), so
+        // truncating to latest second
         setTimestamp(
             new Date(timestamp.toInstant().truncatedTo(ChronoUnit.SECONDS).toEpochMilli()));
       }
@@ -183,10 +202,12 @@ abstract class RabbitMqMessage implements Serializable {
 
   /**
    * Make delivery serializable by cloning all non-serializable values into serializable ones. If it
-   * is not possible, initial delivery is returned and error message is logged
+   * is not possible, initial delivery is returned and error message is logged.
    *
-   * @param processed
-   * @return
+   * @param processed a direct response from amqp
+   * @return an instance of GetResponse where headers have been 'cast' or otherwise normalized to
+   *     esrializable values
+   * @throws UnsupportedOperationException if some values could not be made serializable
    */
   private static GetResponse serializableDeliveryOf(GetResponse processed) {
     // All content of envelope is serializable, so no problem there

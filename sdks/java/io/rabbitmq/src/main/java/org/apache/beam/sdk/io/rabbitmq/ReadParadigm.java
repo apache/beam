@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.rabbitmq;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.rabbitmq.client.BuiltinExchangeType;
 import java.io.Serializable;
 import java.util.Objects;
 import java.util.Optional;
@@ -113,12 +114,15 @@ public abstract class ReadParadigm implements Serializable {
    */
   public static class NewQueue extends ReadParadigm {
     private final String exchange;
-    private final String exchangeType;
+    private final BuiltinExchangeType exchangeType;
     private final String queueName;
     private final String routingKey;
 
     private NewQueue(
-        String exchange, String exchangeType, String queueName, @Nullable String routingKey) {
+        String exchange,
+        BuiltinExchangeType exchangeType,
+        String queueName,
+        @Nullable String routingKey) {
       checkArgument(
           queueName != null && !queueName.trim().isEmpty(), "A queue name must be provided");
       this.exchange = exchange;
@@ -138,7 +142,7 @@ public abstract class ReadParadigm implements Serializable {
      *     specified queue
      */
     public static NewQueue topicExchange(String exchangeName, String queueName, String routingKey) {
-      return new NewQueue(exchangeName, "topic", queueName, routingKey);
+      return new NewQueue(exchangeName, BuiltinExchangeType.TOPIC, queueName, routingKey);
     }
 
     /**
@@ -151,7 +155,7 @@ public abstract class ReadParadigm implements Serializable {
      *     to
      */
     public static NewQueue fanoutExchange(String exchangeName, String queueName) {
-      return new NewQueue(exchangeName, "fanout", queueName, "");
+      return new NewQueue(exchangeName, BuiltinExchangeType.FANOUT, queueName, "");
     }
 
     /**
@@ -169,7 +173,7 @@ public abstract class ReadParadigm implements Serializable {
       checkArgument(
           queueName != null && !queueName.trim().isEmpty(),
           "Queue name is mandatory when using a direct exchange");
-      return new NewQueue(exchangeName, "direct", queueName, queueName);
+      return new NewQueue(exchangeName, BuiltinExchangeType.DIRECT, queueName, queueName);
     }
 
     /**
@@ -188,7 +192,7 @@ public abstract class ReadParadigm implements Serializable {
       return exchange;
     }
 
-    public String getExchangeType() {
+    public BuiltinExchangeType getExchangeType() {
       return exchangeType;
     }
 
@@ -203,6 +207,10 @@ public abstract class ReadParadigm implements Serializable {
     @Override
     public String queueName() {
       return getQueueName();
+    }
+
+    public boolean isDefaultExchange() {
+      return "".equals(exchange);
     }
 
     @Override

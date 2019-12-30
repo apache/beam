@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.rabbitmq;
 
 import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.BuiltinExchangeType;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.DefaultConsumer;
 import com.rabbitmq.client.Envelope;
@@ -27,8 +28,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.joda.time.Duration;
 
 public class RabbitMqTestUtils {
@@ -124,14 +127,15 @@ public class RabbitMqTestUtils {
     };
   }
 
+  public static String mkUniqueSuffix() {
+    return UUID.randomUUID().toString().replaceAll(Pattern.quote("-"), "");
+  }
+
   public static void createQueue(UUID testId, ChannelLeaser channelLeaser, final String queueName) {
     try {
-      channelLeaser.useChannel(testId, channel -> channel.queueDeclare(
-              queueName,
-              false,
-              false,
-              false,
-              Collections.emptyMap()));
+      channelLeaser.useChannel(
+          testId,
+          channel -> channel.queueDeclare(queueName, false, false, false, Collections.emptyMap()));
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -142,11 +146,11 @@ public class RabbitMqTestUtils {
       final UUID testId,
       final RabbitMqIO.Read spec,
       final Iterable<RabbitMqMessage> messages,
-      final Duration perMessageDelay) {
+      final Duration initialDelay) {
     return new Thread(
         () -> {
           try {
-            channelLeaser.useChannel(testId, publishMessages(spec, messages, perMessageDelay));
+            channelLeaser.useChannel(testId, publishMessages(spec, messages, initialDelay));
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
@@ -156,12 +160,12 @@ public class RabbitMqTestUtils {
   public static ChannelLeaser.UseChannelFunction<Void> publishMessages(
       final RabbitMqIO.Read spec,
       final Iterable<RabbitMqMessage> messages,
-      final Duration perMessageDelay) {
+      final Duration initialDelay) {
     ReadParadigm paradigm = spec.readParadigm();
 
     // it should always work to directly publish to the queue name via the default exchange
     String exchange = "";
-    String exchangeType = "direct";
+    BuiltinExchangeType exchangeType = BuiltinExchangeType.DIRECT;
     String routingKey = paradigm.queueName();
 
     if (paradigm instanceof ReadParadigm.NewQueue) {
@@ -173,25 +177,27 @@ public class RabbitMqTestUtils {
     }
 
     final String finalExchange = exchange;
-    final String finalExchangeType = exchangeType;
+    final BuiltinExchangeType finalExchangeType = exchangeType;
     final String finalRoutingKey = routingKey;
 
     return channel -> {
+      try {
+        Thread.sleep(initialDelay.getMillis());
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
       messages.forEach(
           message -> {
             String messageRoutingKey = message.routingKey();
-            if ("direct".equalsIgnoreCase(finalExchangeType)
-                || "fanout".equalsIgnoreCase(finalExchangeType)) {
+            if (Sets.immutableEnumSet(BuiltinExchangeType.DIRECT, BuiltinExchangeType.FANOUT)
+                .contains(finalExchangeType)) {
               messageRoutingKey = finalRoutingKey;
             }
 
             try {
-              if (perMessageDelay.isLongerThan(Duration.ZERO)) {
-                Thread.sleep(perMessageDelay.getMillis());
-              }
               channel.basicPublish(
                   finalExchange, messageRoutingKey, message.createProperties(), message.body());
-            } catch (IOException | InterruptedException e) {
+            } catch (IOException e) {
               throw new RuntimeException(e);
             }
           });

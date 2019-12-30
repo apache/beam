@@ -31,10 +31,12 @@ import java.net.URISyntaxException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 
 /**
  * RabbitMQ multiplexes over a single Connection using Channels so it should not be necessary to
@@ -71,11 +73,16 @@ class ConnectionHandler implements ChannelLeaser, Closeable {
       throw e;
     } catch (RuntimeException e) {
       // may have been wrapped
-      Throwable cause = e.getCause();
-      if (cause instanceof ShutdownSignalException) {
-        ShutdownSignalException cast = (ShutdownSignalException) cause;
-        handleShutdownSignalException(cast, lesseeId);
-        throw cast;
+      Optional<ShutdownSignalException> maybeSse =
+          Throwables.getCausalChain(e).stream()
+              .filter(t -> t instanceof ShutdownSignalException)
+              .findFirst()
+              .map(t -> (ShutdownSignalException) t);
+
+      if (maybeSse.isPresent()) {
+        ShutdownSignalException sse = maybeSse.get();
+        handleShutdownSignalException(sse, lesseeId);
+        throw sse;
       }
       throw e;
     }
@@ -143,7 +150,7 @@ class ConnectionHandler implements ChannelLeaser, Closeable {
                 .openChannel()
                 .orElseThrow(() -> new RuntimeException("No RabbitMQ channel available"));
           } catch (IOException e) {
-            throw new RuntimeException("No RabbitMQ channel available");
+            throw new RuntimeException("No RabbitMQ channel available", e);
           }
         });
   }
