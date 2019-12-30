@@ -89,6 +89,13 @@ sudo apt-get install \
 
 You also need to [install Go](https://golang.org/doc/install]).
 
+Once Go is installed, install goavro:
+
+```
+$ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
+$ go get github.com/linkedin/goavro
+```
+
 gLinux users should configure their machines for sudoless Docker.
 
 ### Connect With the Beam community
