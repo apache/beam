@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.WorkerStatusRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.WorkerStatusResponse;
 import org.apache.beam.sdk.fn.IdGenerator;
@@ -44,6 +45,7 @@ class WorkerStatusClient implements Closeable {
   private final Map<String, CompletableFuture<WorkerStatusResponse>> responseQueue =
       new ConcurrentHashMap<>();
   private final String workerId;
+  private Consumer<String> deregisterCallback;
   private AtomicBoolean isClosed = new AtomicBoolean(false);
 
   private WorkerStatusClient(String workerId, StreamObserver<WorkerStatusRequest> requestReceiver) {
@@ -89,6 +91,16 @@ class WorkerStatusClient implements Closeable {
     return future;
   }
 
+  /**
+   * Set up a deregister call back function for cleaning up connected client cache.
+   *
+   * @param deregisterCallback Consumer that takes worker id as param for deregister itself from
+   *     connected client cache when close is called.
+   */
+  public void setDeregisterCallback(Consumer<String> deregisterCallback) {
+    this.deregisterCallback = deregisterCallback;
+  }
+
   @Override
   public void close() throws IOException {
     if (isClosed.getAndSet(true)) {
@@ -100,6 +112,9 @@ class WorkerStatusClient implements Closeable {
     }
     responseQueue.clear();
     requestReceiver.onCompleted();
+    if (deregisterCallback != null) {
+      deregisterCallback.accept(workerId);
+    }
   }
 
   /** Check if the client connection has already been closed. */
@@ -135,6 +150,7 @@ class WorkerStatusClient implements Closeable {
     @Override
     public void onError(Throwable throwable) {
       LOG.error("{} received error {}", WorkerStatusClient.class.getSimpleName(), throwable);
+      onCompleted();
     }
 
     @Override

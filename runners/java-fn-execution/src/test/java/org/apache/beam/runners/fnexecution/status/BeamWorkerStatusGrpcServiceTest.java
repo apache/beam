@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.fnexecution.status;
 
-import static org.apache.beam.runners.fnexecution.status.BeamWorkerStatusGrpcService.DEFAULT_ERROR_RESPONSE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -98,8 +97,7 @@ public class BeamWorkerStatusGrpcServiceTest {
   @Test(expected = TimeoutException.class)
   public void testGetWorkerStatusTimeout() throws Exception {
     StreamObserver<WorkerStatusResponse> unused = stub.workerStatus(mockObserver);
-    String response = service.getWorkerStatus("id").get(1, TimeUnit.MILLISECONDS);
-    assertEquals(DEFAULT_ERROR_RESPONSE, response);
+    WorkerStatusResponse response = service.getWorkerStatus("id").get(1, TimeUnit.MILLISECONDS);
   }
 
   @Test
@@ -120,10 +118,10 @@ public class BeamWorkerStatusGrpcServiceTest {
         .when(mockObserver)
         .onNext(any());
 
-    CompletableFuture<String> future = service.getWorkerStatus("id");
+    CompletableFuture<WorkerStatusResponse> future = service.getWorkerStatus("id");
     // wait for request to be sent.
     requestCompleted.await();
-    String response = future.get(5, TimeUnit.SECONDS);
+    String response = future.get(5, TimeUnit.SECONDS).getStatusInfo();
     assertEquals("status", response);
   }
 
@@ -145,10 +143,10 @@ public class BeamWorkerStatusGrpcServiceTest {
         .when(mockObserver)
         .onNext(any());
 
-    CompletableFuture<String> future = service.getWorkerStatus("id");
+    CompletableFuture<WorkerStatusResponse> future = service.getWorkerStatus("id");
     // wait for request to be sent.
     requestCompleted.await();
-    String response = future.get(5, TimeUnit.SECONDS);
+    String response = future.get(5, TimeUnit.SECONDS).getError();
     assertEquals("error", response);
   }
 
