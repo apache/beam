@@ -161,7 +161,12 @@ public class SDFFeederViaStateAndTimers<InputT, RestrictionT> {
 
     // Set a timer to continue processing this element.
     timerInternals.setTimer(
-        stateNamespace, "sdfContinuation", wakeupTime, wakeupTime, TimeDomain.PROCESSING_TIME);
+        stateNamespace,
+        "sdfContinuation",
+        "sdfContinuation",
+        wakeupTime,
+        wakeupTime,
+        TimeDomain.PROCESSING_TIME);
   }
 
   /** Signals that a split happened. */

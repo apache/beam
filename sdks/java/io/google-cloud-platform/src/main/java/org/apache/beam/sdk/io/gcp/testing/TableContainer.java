@@ -21,6 +21,7 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 
 /** Encapsulates a BigQuery Table, and it's contents. */
 class TableContainer {
@@ -40,14 +41,14 @@ class TableContainer {
   long addRow(TableRow row, String id) {
     rows.add(row);
     ids.add(id);
-    long rowSize = row.toString().length();
-    Long tableSize = table.getNumBytes();
-    if (tableSize == null) {
-      table.setNumBytes(rowSize);
-    } else {
+    long tableSize = table.getNumBytes() == null ? 0L : table.getNumBytes();
+    try {
+      long rowSize = TableRowJsonCoder.of().getEncodedElementByteSize(row);
       table.setNumBytes(tableSize + rowSize);
+      return rowSize;
+    } catch (Exception ex) {
+      throw new RuntimeException("Failed to convert the row to JSON", ex);
     }
-    return rowSize;
   }
 
   Table getTable() {

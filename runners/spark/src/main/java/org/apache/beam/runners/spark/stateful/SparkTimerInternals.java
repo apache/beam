@@ -157,8 +157,9 @@ public class SparkTimerInternals implements TimerInternals {
   public void setTimer(
       StateNamespace namespace,
       String timerId,
+      String timerFamilyId,
       Instant target,
-      Instant targetOutput,
+      Instant outputTimestamp,
       TimeDomain timeDomain) {
     throw new UnsupportedOperationException("Setting a timer by ID not yet supported.");
   }
@@ -169,12 +170,12 @@ public class SparkTimerInternals implements TimerInternals {
   }
 
   public static Collection<byte[]> serializeTimers(
-      Collection<TimerData> timers, TimerDataCoder timerDataCoder) {
+      Collection<TimerData> timers, TimerDataCoderV2 timerDataCoder) {
     return CoderHelpers.toByteArrays(timers, timerDataCoder);
   }
 
   public static Iterator<TimerData> deserializeTimers(
-      Collection<byte[]> serTimers, TimerDataCoder timerDataCoder) {
+      Collection<byte[]> serTimers, TimerDataCoderV2 timerDataCoder) {
     return CoderHelpers.fromByteArrays(serTimers, timerDataCoder).iterator();
   }
 

@@ -32,6 +32,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
@@ -246,6 +247,21 @@ public class FlinkExecutableStageFunctionTest {
     verify(stageBundleFactory).getProcessBundleDescriptor();
     verify(stageBundleFactory).close();
     verifyNoMoreInteractions(stageBundleFactory);
+  }
+
+  @Test
+  public void testAccumulatorRegistrationOnOperatorClose() throws Exception {
+    FlinkExecutableStageFunction<Integer> function = getFunction(Collections.emptyMap());
+    function.open(new Configuration());
+
+    String metricContainerFieldName = "metricContainer";
+    FlinkMetricContainer monitoredContainer =
+        Mockito.spy(
+            (FlinkMetricContainer) Whitebox.getInternalState(function, metricContainerFieldName));
+    Whitebox.setInternalState(function, metricContainerFieldName, monitoredContainer);
+
+    function.close();
+    Mockito.verify(monitoredContainer).registerMetricsForPipelineResult();
   }
 
   /**
