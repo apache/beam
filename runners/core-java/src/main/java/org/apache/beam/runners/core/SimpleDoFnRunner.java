@@ -992,7 +992,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
      * user has no way to compute a good choice of time.
      */
     private void setUnderlyingTimer(Instant target) {
-      timerInternals.setTimer(namespace, timerId, target, spec.getTimeDomain());
+      timerInternals.setTimer(namespace, timerId, "", target, target, spec.getTimeDomain());
     }
 
     private Instant getCurrentTime() {
