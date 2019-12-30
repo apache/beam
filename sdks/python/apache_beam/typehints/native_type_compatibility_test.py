@@ -102,6 +102,11 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         typehints.Iterator[int],
         convert_to_beam_type(typing.Generator[int, None, None]))
 
+  def test_string_literal_converted_to_any(self):
+    self.assertEqual(
+        typehints.Any,
+        convert_to_beam_type('typing.List[int]'))
+
   def test_convert_nested_to_beam_type(self):
     self.assertEqual(
         typehints.List[typing.Any],
