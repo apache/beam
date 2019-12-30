@@ -231,6 +231,7 @@ public class ProcessBundleHandler {
     BundleProcessor bundleProcessor =
         bundleProcessorCache.get(
             request.getProcessBundle().getProcessBundleDescriptorId(),
+            request.getInstructionId(),
             () -> {
               try {
                 return createBundleProcessor(
@@ -240,7 +241,6 @@ public class ProcessBundleHandler {
                 throw new RuntimeException(e);
               }
             });
-    bundleProcessor.setInstructionId(request.getInstructionId());
     PTransformFunctionRegistry startFunctionRegistry = bundleProcessor.getStartFunctionRegistry();
     PTransformFunctionRegistry finishFunctionRegistry = bundleProcessor.getFinishFunctionRegistry();
     Multimap<String, DelayedBundleApplication> allResiduals = bundleProcessor.getAllResiduals();
@@ -292,6 +292,19 @@ public class ProcessBundleHandler {
           request.getProcessBundle().getProcessBundleDescriptorId(), bundleProcessor);
     }
     return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
+  }
+
+  /** Splits an active bundle. */
+  public BeamFnApi.InstructionResponse.Builder split(BeamFnApi.InstructionRequest request) {
+    BundleProcessor bundleProcessor =
+        bundleProcessorCache.find(request.getProcessBundleSplit().getInstructionId());
+    if (bundleProcessor == null) {
+      throw new IllegalStateException(
+          String.format(
+              "Unable to find active bundle for instruction id %s.",
+              request.getProcessBundleSplit().getInstructionId()));
+    }
+    throw new UnsupportedOperationException("TODO: BEAM-3836, support splitting within SDK.");
   }
 
   /** Shutdown the bundles, running the tearDown() functions. */
@@ -406,9 +419,11 @@ public class ProcessBundleHandler {
   public static class BundleProcessorCache {
 
     private final Map<String, ConcurrentLinkedQueue<BundleProcessor>> cachedBundleProcessors;
+    private final Map<String, BundleProcessor> activeBundleProcessors;
 
     BundleProcessorCache() {
       this.cachedBundleProcessors = Maps.newConcurrentMap();
+      this.activeBundleProcessors = Maps.newConcurrentMap();
     }
 
     Map<String, ConcurrentLinkedQueue<BundleProcessor>> getCachedBundleProcessors() {
@@ -417,19 +432,31 @@ public class ProcessBundleHandler {
 
     /**
      * Get a {@link BundleProcessor} from the cache if it's available. Otherwise, create one using
-     * the specified bundleProcessorSupplier.
+     * the specified {@code bundleProcessorSupplier}.
      */
     BundleProcessor get(
-        String bundleDescriptorId, Supplier<BundleProcessor> bundleProcessorSupplier) {
+        String bundleDescriptorId,
+        String instructionId,
+        Supplier<BundleProcessor> bundleProcessorSupplier) {
       ConcurrentLinkedQueue<BundleProcessor> bundleProcessors =
           cachedBundleProcessors.computeIfAbsent(
               bundleDescriptorId, descriptorId -> new ConcurrentLinkedQueue<>());
       BundleProcessor bundleProcessor = bundleProcessors.poll();
-      if (bundleProcessor != null) {
-        return bundleProcessor;
+      if (bundleProcessor == null) {
+        bundleProcessor = bundleProcessorSupplier.get();
       }
 
-      return bundleProcessorSupplier.get();
+      bundleProcessor.setInstructionId(instructionId);
+      activeBundleProcessors.put(instructionId, bundleProcessor);
+      return bundleProcessor;
+    }
+
+    /**
+     * Returns an active bundle processor for the specified {@code instructionId} or null if one
+     * could not be found.
+     */
+    BundleProcessor find(String instructionId) {
+      return activeBundleProcessors.get(instructionId);
     }
 
     /**
@@ -437,6 +464,7 @@ public class ProcessBundleHandler {
      * being added to the cache.
      */
     void release(String bundleDescriptorId, BundleProcessor bundleProcessor) {
+      activeBundleProcessors.remove(bundleProcessor.getInstructionId());
       bundleProcessor.reset();
       cachedBundleProcessors.get(bundleDescriptorId).add(bundleProcessor);
     }
