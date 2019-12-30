@@ -50,6 +50,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.qpid.server.SystemLauncher;
 import org.apache.qpid.server.model.SystemConfig;
+import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -120,7 +121,7 @@ public class RabbitMqIOTest implements Serializable {
   }
 
   @Test(timeout = ONE_MINUTE_MS)
-  public void testReadDefaultExchangeExistingQueue() throws Exception {
+  public void testReadFromExistingQueue() throws Exception {
     UUID testId = UUID.randomUUID();
 
     final int maxNumRecords = 10;
@@ -147,14 +148,12 @@ public class RabbitMqIOTest implements Serializable {
     PAssert.that(output).containsInAnyOrder(expected);
 
     try {
-      connectionHandler.useChannel(
-          testId,
-          channel -> {
-            channel.queueDeclare(queueName, false, false, false, Collections.emptyMap());
-            RabbitMqTestUtils.publishMessages(spec, messages).apply(channel);
-            return null;
-          });
+      RabbitMqTestUtils.createQueue(testId, connectionHandler, spec.readParadigm().queueName());
+      Thread publisher =
+          RabbitMqTestUtils.publishMessagesThread(connectionHandler, testId, spec, messages, Duration.millis(250));
+      publisher.start();
       p.run();
+      publisher.join();
     } finally {
       connectionHandler.closeChannel(testId);
     }
@@ -412,7 +411,7 @@ public class RabbitMqIOTest implements Serializable {
   public void testWriteExchange() throws Exception {
     final int maxNumRecords = 1000;
     List<RabbitMqMessage> data = RabbitMqTestUtils.generateRecords(maxNumRecords);
-    p.apply(Create.of(data)).apply(RabbitMqIO.write(uri).withExchange("WRITE"));
+    p.apply(Create.of(data)).apply(RabbitMqIO.write().withUri(uri).withExchange("WRITE"));
 
     final List<String> received = new ArrayList<>();
     ConnectionFactory connectionFactory = new ConnectionFactory();

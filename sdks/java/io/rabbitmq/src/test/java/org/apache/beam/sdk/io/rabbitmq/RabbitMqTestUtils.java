@@ -26,8 +26,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.joda.time.Duration;
 
 public class RabbitMqTestUtils {
   private RabbitMqTestUtils() {
@@ -122,8 +124,39 @@ public class RabbitMqTestUtils {
     };
   }
 
+  public static void createQueue(UUID testId, ChannelLeaser channelLeaser, final String queueName) {
+    try {
+      channelLeaser.useChannel(testId, channel -> channel.queueDeclare(
+              queueName,
+              false,
+              false,
+              false,
+              Collections.emptyMap()));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static Thread publishMessagesThread(
+      ChannelLeaser channelLeaser,
+      final UUID testId,
+      final RabbitMqIO.Read spec,
+      final Iterable<RabbitMqMessage> messages,
+      final Duration perMessageDelay) {
+    return new Thread(
+        () -> {
+          try {
+            channelLeaser.useChannel(testId, publishMessages(spec, messages, perMessageDelay));
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        });
+  }
+
   public static ChannelLeaser.UseChannelFunction<Void> publishMessages(
-      final RabbitMqIO.Read spec, final Iterable<RabbitMqMessage> messages) {
+      final RabbitMqIO.Read spec,
+      final Iterable<RabbitMqMessage> messages,
+      final Duration perMessageDelay) {
     ReadParadigm paradigm = spec.readParadigm();
 
     // it should always work to directly publish to the queue name via the default exchange
@@ -153,9 +186,12 @@ public class RabbitMqTestUtils {
             }
 
             try {
+              if (perMessageDelay.isLongerThan(Duration.ZERO)) {
+                Thread.sleep(perMessageDelay.getMillis());
+              }
               channel.basicPublish(
                   finalExchange, messageRoutingKey, message.createProperties(), message.body());
-            } catch (IOException e) {
+            } catch (IOException | InterruptedException e) {
               throw new RuntimeException(e);
             }
           });
@@ -165,7 +201,7 @@ public class RabbitMqTestUtils {
 
   public static ChannelLeaser.UseChannelFunction<Void> publishMessages(
       RabbitMqIO.Read spec, RabbitMqMessage message) {
-    return publishMessages(spec, Collections.singleton(message));
+    return publishMessages(spec, Collections.singleton(message), Duration.ZERO);
   }
 
   /**
