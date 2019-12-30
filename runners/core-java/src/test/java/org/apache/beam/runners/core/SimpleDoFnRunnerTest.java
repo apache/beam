@@ -160,7 +160,8 @@ public class SimpleDoFnRunnerTest {
         .setTimer(
             StateNamespaces.window(new GlobalWindows().windowCoder(), GlobalWindow.INSTANCE),
             DoFnWithTimers.TIMER_ID,
-            DoFnWithTimers.TIMER_ID,
+            "",
+            currentTime.plus(DoFnWithTimers.TIMER_OFFSET),
             currentTime.plus(DoFnWithTimers.TIMER_OFFSET),
             TimeDomain.EVENT_TIME);
   }

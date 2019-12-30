@@ -39,6 +39,11 @@ __all__ = ['Environment',
            'SubprocessSDKEnvironment', 'RunnerAPIEnvironmentHolder']
 
 
+def looks_like_json(s):
+  import re
+  return re.match(r'\s*\{.*\}\s*$', s)
+
+
 class Environment(object):
   """Abstract base class for environments.
 
@@ -263,10 +268,6 @@ class ExternalEnvironment(Environment):
 
   @classmethod
   def from_options(cls, options):
-    def looks_like_json(environment_config):
-      import re
-      return re.match(r'\s*\{.*\}\s*$', environment_config)
-
     if looks_like_json(options.environment_config):
       config = json.loads(options.environment_config)
       url = config.get('url')
@@ -308,49 +309,76 @@ class EmbeddedPythonEnvironment(Environment):
 @Environment.register_urn(python_urns.EMBEDDED_PYTHON_GRPC, bytes)
 class EmbeddedPythonGrpcEnvironment(Environment):
 
-  def __init__(self, state_cache_size=None):
+  def __init__(self, state_cache_size=None, data_buffer_time_limit_ms=None):
     self.state_cache_size = state_cache_size
+    self.data_buffer_time_limit_ms = data_buffer_time_limit_ms
 
   def __eq__(self, other):
     return self.__class__ == other.__class__ \
-           and self.state_cache_size == other.state_cache_size
+           and self.state_cache_size == other.state_cache_size \
+           and self.data_buffer_time_limit_ms == other.data_buffer_time_limit_ms
 
   def __ne__(self, other):
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
   def __hash__(self):
-    return hash((self.__class__, self.state_cache_size))
+    return hash((self.__class__, self.state_cache_size,
+                 self.data_buffer_time_limit_ms))
 
   def __repr__(self):
     repr_parts = []
     if not self.state_cache_size is None:
       repr_parts.append('state_cache_size=%d' % self.state_cache_size)
+    if not self.data_buffer_time_limit_ms is None:
+      repr_parts.append(
+          'data_buffer_time_limit_ms=%d' % self.data_buffer_time_limit_ms)
     return 'EmbeddedPythonGrpcEnvironment(%s)' % ','.join(repr_parts)
 
   def to_runner_api_parameter(self, context):
-    if self.state_cache_size is None:
-      payload = b''
-    else:
-      payload = b'%d' % self.state_cache_size
+    params = {}
+    if self.state_cache_size is not None:
+      params['state_cache_size'] = self.state_cache_size
+    if self.data_buffer_time_limit_ms is not None:
+      params['data_buffer_time_limit_ms'] = self.data_buffer_time_limit_ms
+    payload = json.dumps(params).encode('utf-8')
     return python_urns.EMBEDDED_PYTHON_GRPC, payload
 
   @staticmethod
   def from_runner_api_parameter(payload, context):
     if payload:
-      state_cache_size = payload.decode('utf-8')
+      config = EmbeddedPythonGrpcEnvironment.parse_config(
+          payload.decode('utf-8'))
       return EmbeddedPythonGrpcEnvironment(
-          state_cache_size=int(state_cache_size))
+          state_cache_size=config.get('state_cache_size'),
+          data_buffer_time_limit_ms=config.get('data_buffer_time_limit_ms'))
     else:
       return EmbeddedPythonGrpcEnvironment()
 
   @classmethod
   def from_options(cls, options):
     if options.environment_config:
-      state_cache_size = options.environment_config
-      return cls(state_cache_size=state_cache_size)
+      config = EmbeddedPythonGrpcEnvironment.parse_config(
+          options.environment_config)
+      return cls(state_cache_size=config.get('state_cache_size'),
+                 data_buffer_time_limit_ms=config.get(
+                     'data_buffer_time_limit_ms'))
     else:
       return cls()
+
+  @staticmethod
+  def parse_config(s):
+    if looks_like_json(s):
+      config_dict = json.loads(s)
+      if 'state_cache_size' in config_dict:
+        config_dict['state_cache_size'] = int(config_dict['state_cache_size'])
+
+      if 'data_buffer_time_limit_ms' in config_dict:
+        config_dict['data_buffer_time_limit_ms'] = \
+          int(config_dict['data_buffer_time_limit_ms'])
+      return config_dict
+    else:
+      return {'state_cache_size': int(s)}
 
 
 @Environment.register_urn(python_urns.SUBPROCESS_SDK, bytes)

@@ -81,7 +81,7 @@ public class POJOUtils {
   public static List<FieldValueTypeInformation> getFieldTypes(
       Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
     return CACHED_FIELD_TYPES.computeIfAbsent(
-        new ClassWithSchema(clazz, schema), c -> fieldValueTypeSupplier.get(clazz, schema));
+        ClassWithSchema.create(clazz, schema), c -> fieldValueTypeSupplier.get(clazz, schema));
   }
 
   // The list of getters for a class is cached, so we only create the classes the first time
@@ -96,7 +96,7 @@ public class POJOUtils {
       TypeConversionsFactory typeConversionsFactory) {
     // Return the getters ordered by their position in the schema.
     return CACHED_GETTERS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema),
+        ClassWithSchema.create(clazz, schema),
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
           List<FieldValueGetter> getters =
@@ -122,7 +122,7 @@ public class POJOUtils {
       FieldValueTypeSupplier fieldValueTypeSupplier,
       TypeConversionsFactory typeConversionsFactory) {
     return CACHED_CREATORS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema),
+        ClassWithSchema.create(clazz, schema),
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
           return createSetFieldCreator(clazz, schema, types, typeConversionsFactory);
@@ -169,7 +169,7 @@ public class POJOUtils {
       FieldValueTypeSupplier fieldValueTypeSupplier,
       TypeConversionsFactory typeConversionsFactory) {
     return CACHED_CREATORS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema),
+        ClassWithSchema.create(clazz, schema),
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
           return createConstructorCreator(
@@ -217,7 +217,7 @@ public class POJOUtils {
       FieldValueTypeSupplier fieldValueTypeSupplier,
       TypeConversionsFactory typeConversionsFactory) {
     return CACHED_CREATORS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema),
+        ClassWithSchema.create(clazz, schema),
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
           return createStaticCreator(clazz, creator, schema, types, typeConversionsFactory);
@@ -323,7 +323,7 @@ public class POJOUtils {
       TypeConversionsFactory typeConversionsFactory) {
     // Return the setters, ordered by their position in the schema.
     return CACHED_SETTERS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema),
+        ClassWithSchema.create(clazz, schema),
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
           return types.stream()

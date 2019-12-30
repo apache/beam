@@ -171,7 +171,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   final KeySelector<WindowedValue<InputT>, ?> keySelector;
 
-  private final TimerInternals.TimerDataCoder timerCoder;
+  private final TimerInternals.TimerDataCoderV2 timerCoder;
 
   /** Max number of elements to include in a bundle. */
   private final long maxBundleSize;
@@ -244,7 +244,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     this.keySelector = keySelector;
 
     this.timerCoder =
-        TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
+        TimerInternals.TimerDataCoderV2.of(windowingStrategy.getWindowFn().windowCoder());
 
     FlinkPipelineOptions flinkOptions = options.as(FlinkPipelineOptions.class);
 
@@ -439,8 +439,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     doFnRunner = createWrappingDoFnRunner(doFnRunner);
 
     if (!options.getDisableMetrics()) {
-      flinkMetricContainer =
-          new FlinkMetricContainer(getRuntimeContext(), options.getDisableMetricAccumulator());
+      flinkMetricContainer = new FlinkMetricContainer(getRuntimeContext());
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, flinkMetricContainer);
     }
 
@@ -481,6 +480,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   @Override
   public void close() throws Exception {
     try {
+      flinkMetricContainer.registerMetricsForPipelineResult();
       // This is our last change to block shutdown of this operator while
       // there are still remaining processing-time timers. Flink will ignore pending
       // processing-time timers when upstream operators have shut down and will also
@@ -1096,11 +1096,16 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
         String timerId,
         String timerFamilyId,
         Instant target,
+        Instant outputTimestamp,
         TimeDomain timeDomain) {
-      setTimer(TimerData.of(timerId, timerFamilyId, namespace, target, timeDomain));
+      setTimer(
+          TimerData.of(timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain));
     }
 
-    /** @deprecated use {@link #setTimer(StateNamespace, String, String, Instant, TimeDomain)}. */
+    /**
+     * @deprecated use {@link #setTimer(StateNamespace, String, String, Instant, Instant,
+     *     TimeDomain)}.
+     */
     @Deprecated
     @Override
     public void setTimer(TimerData timer) {

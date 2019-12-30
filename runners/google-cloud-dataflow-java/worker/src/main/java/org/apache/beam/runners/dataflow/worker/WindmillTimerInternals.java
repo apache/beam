@@ -98,9 +98,12 @@ class WindmillTimerInternals implements TimerInternals {
       String timerId,
       String timerFamilyId,
       Instant timestamp,
+      Instant outputTimestamp,
       TimeDomain timeDomain) {
     timers.put(
-        timerId, namespace, TimerData.of(timerId, timerFamilyId, namespace, timestamp, timeDomain));
+        timerId,
+        namespace,
+        TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, timeDomain));
     timerStillPresent.put(timerId, namespace, true);
   }
 

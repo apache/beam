@@ -36,6 +36,7 @@ import apache_beam as beam
 from apache_beam import coders
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.portability import common_urns
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.direct.clock import TestClock
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -66,6 +67,7 @@ from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.windowed_value import PaneInfoTiming
 
 
@@ -118,8 +120,11 @@ class TriggerTest(unittest.TestCase):
                   bundles, late_bundles,
                   expected_panes):
     actual_panes = collections.defaultdict(list)
+    allowed_lateness = Duration(micros=int(
+        common_urns.constants.MAX_TIMESTAMP_MILLIS.constant)*1000)
     driver = GeneralTriggerDriver(
-        Windowing(window_fn, trigger_fn, accumulation_mode), TestClock())
+        Windowing(window_fn, trigger_fn, accumulation_mode,
+                  allowed_lateness=allowed_lateness), TestClock())
     state = InMemoryUnmergedState()
 
     for bundle in bundles:
@@ -590,6 +595,7 @@ class TranscriptTest(unittest.TestCase):
     timestamp_combiner = getattr(
         TimestampCombiner,
         spec.get('timestamp_combiner', 'OUTPUT_AT_EOW').upper())
+    allowed_lateness = spec.get('allowed_lateness', 0.000)
 
     def only_element(xs):
       x, = list(xs)
@@ -599,7 +605,7 @@ class TranscriptTest(unittest.TestCase):
 
     self._execute(
         window_fn, trigger_fn, accumulation_mode, timestamp_combiner,
-        transcript, spec)
+        allowed_lateness, transcript, spec)
 
 
 def _windowed_value_info(windowed_value):
@@ -676,11 +682,11 @@ class TriggerDriverTranscriptTest(TranscriptTest):
 
   def _execute(
       self, window_fn, trigger_fn, accumulation_mode, timestamp_combiner,
-      transcript, unused_spec):
+      allowed_lateness, transcript, unused_spec):
 
     driver = GeneralTriggerDriver(
-        Windowing(window_fn, trigger_fn, accumulation_mode, timestamp_combiner),
-        TestClock())
+        Windowing(window_fn, trigger_fn, accumulation_mode,
+                  timestamp_combiner, allowed_lateness), TestClock())
     state = InMemoryUnmergedState()
     output = []
     watermark = MIN_TIMESTAMP
@@ -708,7 +714,8 @@ class TriggerDriverTranscriptTest(TranscriptTest):
             for t in params]
         output = [
             _windowed_value_info(wv)
-            for wv in driver.process_elements(state, bundle, watermark)]
+            for wv in driver.process_elements(state, bundle, watermark,
+                                              watermark)]
         fire_timers()
 
       elif action == 'watermark':
@@ -742,7 +749,7 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
 
   def _execute(
       self, window_fn, trigger_fn, accumulation_mode, timestamp_combiner,
-      transcript, spec):
+      allowed_lateness, transcript, spec):
 
     runner_name = TestPipeline().runner.__class__.__name__
     if runner_name in spec.get('broken_on', ()):
@@ -881,7 +888,8 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
               window_fn,
               trigger=trigger_fn,
               accumulation_mode=accumulation_mode,
-              timestamp_combiner=timestamp_combiner)
+              timestamp_combiner=timestamp_combiner,
+              allowed_lateness=allowed_lateness)
           | aggregation
           | beam.MapTuple(_windowed_value_info_map_fn)
           # Place outputs back into the global window to allow flattening
@@ -921,7 +929,7 @@ class BatchTranscriptTest(TranscriptTest):
 
   def _execute(
       self, window_fn, trigger_fn, accumulation_mode, timestamp_combiner,
-      transcript, spec):
+      allowed_lateness, transcript, spec):
     if timestamp_combiner == TimestampCombiner.OUTPUT_AT_EARLIEST_TRANSFORMED:
       self.skipTest(
           'Non-fnapi timestamp combiner: %s' % spec.get('timestamp_combiner'))
@@ -971,7 +979,8 @@ class BatchTranscriptTest(TranscriptTest):
               window_fn,
               trigger=trigger_fn,
               accumulation_mode=accumulation_mode,
-              timestamp_combiner=timestamp_combiner))
+              timestamp_combiner=timestamp_combiner,
+              allowed_lateness=allowed_lateness))
 
       grouped = input_pc | 'Grouped' >> (
           beam.GroupByKey()

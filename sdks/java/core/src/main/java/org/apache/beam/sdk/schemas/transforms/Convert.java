@@ -40,7 +40,7 @@ public class Convert {
    * Convert a {@link PCollection}{@literal <InputT>} into a {@link PCollection}{@literal <Row>}.
    *
    * <p>The input {@link PCollection} must have a schema attached. The output collection will have
-   * the same schema as the iput.
+   * the same schema as the input.
    */
   public static <InputT> PTransform<PCollection<InputT>, PCollection<Row>> toRows() {
     return to(Row.class);

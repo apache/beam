@@ -122,8 +122,10 @@ class KeyedInternals<K> {
         String timerId,
         String timerFamilyId,
         Instant target,
+        Instant outputTimestamp,
         TimeDomain timeDomain) {
-      getInternals().setTimer(namespace, timerId, timerFamilyId, target, timeDomain);
+      getInternals()
+          .setTimer(namespace, timerId, timerFamilyId, target, outputTimestamp, timeDomain);
     }
 
     @Override

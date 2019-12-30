@@ -165,6 +165,7 @@ public class SDFFeederViaStateAndTimers<InputT, RestrictionT> {
         "sdfContinuation",
         "sdfContinuation",
         wakeupTime,
+        wakeupTime,
         TimeDomain.PROCESSING_TIME);
   }
 

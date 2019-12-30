@@ -48,11 +48,6 @@ which should be called before running the tests.
   <td>Default: <code>EXACTLY_ONCE</code></td>
 </tr>
 <tr>
-  <td><code>disable_metric_accumulator</code></td>
-  <td>By default, uses Flink accumulators to store the metrics which allows to query metrics from the PipelineResult. If set to true, metrics will still be reported but can't be queried via PipelineResult. This saves network and memory.</td>
-  <td>Default: <code>false</code></td>
-</tr>
-<tr>
   <td><code>disable_metrics</code></td>
   <td>Disable Beam metrics in Flink Runner</td>
   <td>Default: <code>false</code></td>

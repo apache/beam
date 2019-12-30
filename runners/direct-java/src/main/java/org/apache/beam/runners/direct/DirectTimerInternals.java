@@ -51,12 +51,16 @@ class DirectTimerInternals implements TimerInternals {
       String timerId,
       String timerFamilyId,
       Instant target,
+      Instant outputTimestamp,
       TimeDomain timeDomain) {
     timerUpdateBuilder.setTimer(
-        TimerData.of(timerId, timerFamilyId, namespace, target, timeDomain));
+        TimerData.of(timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain));
   }
 
-  /** @deprecated use {@link #setTimer(StateNamespace, String, String, Instant, TimeDomain)}. */
+  /**
+   * @deprecated use {@link #setTimer(StateNamespace, String, String, Instant, Instant,
+   *     TimeDomain)}.
+   */
   @Deprecated
   @Override
   public void setTimer(TimerData timerData) {

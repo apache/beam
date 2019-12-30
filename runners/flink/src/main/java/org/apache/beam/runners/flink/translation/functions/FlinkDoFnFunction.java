@@ -72,6 +72,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
   private final Map<String, PCollectionView<?>> sideInputMapping;
 
   private transient DoFnInvoker<InputT, OutputT> doFnInvoker;
+  private transient FlinkMetricContainer metricContainer;
 
   public FlinkDoFnFunction(
       DoFn<InputT, OutputT> doFn,
@@ -133,12 +134,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
 
     FlinkPipelineOptions pipelineOptions = serializedOptions.get().as(FlinkPipelineOptions.class);
     if (!pipelineOptions.getDisableMetrics()) {
-      doFnRunner =
-          new DoFnRunnerWithMetricsUpdate<>(
-              stepName,
-              doFnRunner,
-              new FlinkMetricContainer(
-                  getRuntimeContext(), pipelineOptions.getDisableMetricAccumulator()));
+      doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, metricContainer);
     }
 
     doFnRunner.startBundle();
@@ -157,11 +153,13 @@ public class FlinkDoFnFunction<InputT, OutputT>
     // options where they are needed.
     FileSystems.setDefaultPipelineOptions(serializedOptions.get());
     doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn);
+    metricContainer = new FlinkMetricContainer(getRuntimeContext());
   }
 
   @Override
   public void close() throws Exception {
     try {
+      metricContainer.registerMetricsForPipelineResult();
       Optional.ofNullable(doFnInvoker).ifPresent(DoFnInvoker::invokeTeardown);
     } finally {
       FlinkClassloading.deleteStaticCaches();
