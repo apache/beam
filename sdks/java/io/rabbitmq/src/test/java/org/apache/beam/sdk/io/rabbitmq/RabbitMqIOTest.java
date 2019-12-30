@@ -141,7 +141,18 @@ public class RabbitMqIOTest implements Serializable {
     PAssert.that(output).containsInAnyOrder(expected);
 
     try {
-      RabbitMqTestUtils.createQueue(testId, connectionHandler, spec.readParadigm().queueName());
+      final boolean durable = false;
+      final boolean exclusive = false;
+      final boolean autoDelete = false;
+      final Map<String, Object> arguments = Collections.emptyMap();
+      connectionHandler.useChannel(
+          testId,
+          channel -> channel.queueDeclare(queueName, durable, exclusive, autoDelete, arguments));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    try {
       Thread publisher =
           RabbitMqTestUtils.publishMessagesThread(
               connectionHandler, testId, spec, messages, Duration.millis(250));
@@ -154,10 +165,15 @@ public class RabbitMqIOTest implements Serializable {
   }
 
   /**
-   * Helper for running tests against an exchange.
+   * Helper for running {@link ReadParadigm.NewQueue} tests.
    *
-   * <p>This function will automatically specify (and overwrite) the uri and numRecords values of
-   * the Read definition.
+   * <p>This test will ensure the given exchange exists, messages are published, and appropriate
+   * assertions are made. It also automatically handles connection/channel management.
+   *
+   * @param read reader specifications
+   * @param expectedRecords max number of records to be read by the Reader
+   * @param toPublishMatches messages to be published that are meant to be seen by the Reader
+   * @param toPublishMatches messages to be published that are *not* meant to be seen by the Reader
    */
   private void doNewQueueTest(
       RabbitMqIO.Read read,

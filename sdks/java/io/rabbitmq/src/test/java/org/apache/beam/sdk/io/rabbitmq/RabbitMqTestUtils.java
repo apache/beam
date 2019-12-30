@@ -24,9 +24,8 @@ import com.rabbitmq.client.DefaultConsumer;
 import com.rabbitmq.client.Envelope;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
+import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -53,6 +52,8 @@ public class RabbitMqTestUtils {
   public static RabbitMqMessage generateRecord(int recordNum) {
     return RabbitMqMessage.builder()
         .setBody(("Test " + recordNum).getBytes(StandardCharsets.UTF_8))
+        .setMessageId("" + recordNum)
+        .setTimestamp(new Date())
         .build();
   }
 
@@ -84,63 +85,24 @@ public class RabbitMqTestUtils {
     return bodyToString(message.body());
   }
 
-  public static ChannelLeaser.UseChannelFunction<Void> createExchange(RabbitMqIO.Read spec) {
-    ReadParadigm paradigm = spec.readParadigm();
-
-    boolean isDefaultExchange = false;
-    if (paradigm instanceof ReadParadigm.NewQueue) {
-      isDefaultExchange = "".equals(((ReadParadigm.NewQueue) paradigm).getExchange());
-    }
-
-    if (isDefaultExchange || !(paradigm instanceof ReadParadigm.NewQueue)) {
-      return channel -> null;
-    }
-
-    final ReadParadigm.NewQueue newQueue = (ReadParadigm.NewQueue) paradigm;
-    return channel -> {
-      final boolean durable = false;
-      final boolean autoDelete = false;
-      final Map<String, Object> arguments = Collections.emptyMap();
-      channel.exchangeDeclare(
-          newQueue.getExchange(), newQueue.getExchangeType(), durable, autoDelete, arguments);
-      return null;
-    };
-  }
-
-  public static ChannelLeaser.UseChannelFunction<Void> deleteExchange(RabbitMqIO.Read spec) {
-    ReadParadigm paradigm = spec.readParadigm();
-
-    boolean isDefaultExchange = false;
-    if (paradigm instanceof ReadParadigm.NewQueue) {
-      isDefaultExchange = "".equals(((ReadParadigm.NewQueue) paradigm).getExchange());
-    }
-
-    if (isDefaultExchange) {
-      return channel -> null;
-    }
-
-    final ReadParadigm.NewQueue newQueue = (ReadParadigm.NewQueue) paradigm;
-
-    return channel -> {
-      channel.exchangeDelete(newQueue.getExchange());
-      return null;
-    };
-  }
-
+  /**
+   * @return a random, unique string usable as an amqp identifier. A typical use case might be
+   *     {@code String queueName = "queue" + mkUniqueSuffix()}.
+   */
   public static String mkUniqueSuffix() {
     return UUID.randomUUID().toString().replaceAll(Pattern.quote("-"), "");
   }
 
-  public static void createQueue(UUID testId, ChannelLeaser channelLeaser, final String queueName) {
-    try {
-      channelLeaser.useChannel(
-          testId,
-          channel -> channel.queueDeclare(queueName, false, false, false, Collections.emptyMap()));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
+  /**
+   * Creates a Thread that will publish messages within a Thread.
+   *
+   * @param channelLeaser a means of obtaining a Channel.
+   * @param testId a unique id for the test utilizing this Thread.
+   * @param spec the RabbitMQIO.Read definition.
+   * @param messages the messages to publish.
+   * @param initialDelay how long to wait before publishing messages. used to ensure some pipeline
+   *     has already declared a queue and is listening for these messages.
+   */
   public static Thread publishMessagesThread(
       ChannelLeaser channelLeaser,
       final UUID testId,
@@ -157,6 +119,14 @@ public class RabbitMqTestUtils {
         });
   }
 
+  /**
+   * Function for publishing messages using an existing Channel.
+   *
+   * @param spec the RabbitMQIO.Read definition.
+   * @param messages the messages to publish.
+   * @param initialDelay how long to wait before publishing messages. used to ensure some pipeline
+   *     has already declared a queue and is listening for these messages.
+   */
   public static ChannelLeaser.UseChannelFunction<Void> publishMessages(
       final RabbitMqIO.Read spec,
       final Iterable<RabbitMqMessage> messages,
@@ -203,11 +173,6 @@ public class RabbitMqTestUtils {
           });
       return null;
     };
-  }
-
-  public static ChannelLeaser.UseChannelFunction<Void> publishMessages(
-      RabbitMqIO.Read spec, RabbitMqMessage message) {
-    return publishMessages(spec, Collections.singleton(message), Duration.ZERO);
   }
 
   /**
