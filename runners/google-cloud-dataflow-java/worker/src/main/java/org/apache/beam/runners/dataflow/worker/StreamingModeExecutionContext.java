@@ -605,7 +605,6 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               "",
               cleanupTime,
               cleanupTime,
-              cleanupTime,
               TimeDomain.EVENT_TIME);
     }
 
