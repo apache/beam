@@ -24,6 +24,9 @@ import static org.apache.beam.runners.dataflow.worker.graph.LengthPrefixUnknownC
 import static org.apache.beam.runners.dataflow.worker.graph.LengthPrefixUnknownCoders.forInstructionOutputNode;
 import static org.apache.beam.runners.dataflow.worker.graph.LengthPrefixUnknownCoders.forParallelInstruction;
 import static org.apache.beam.runners.dataflow.worker.testing.GenericJsonAssert.assertEqualsAsJson;
+import static org.apache.beam.runners.dataflow.worker.testing.GenericJsonMatcher.jsonOf;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 
@@ -226,7 +229,7 @@ public class LengthPrefixUnknownCodersTest {
   }
 
   @Test
-  public void testLengthPrefixAndReplaceForRunnerNetwork() {
+  public void testLengthPrefixAndReplaceForRunnerNetwork() throws Exception {
     Node readNode = createReadNode("Read", "Source", windowedValueCoder);
     Edge readNodeEdge = DefaultEdge.create();
     Node readNodeOut = createInstructionOutputNode("Read.out", windowedValueCoder);
@@ -243,7 +246,6 @@ public class LengthPrefixUnknownCodersTest {
 
     MutableNetwork<Node, Edge> prefixedNetwork = andReplaceForRunnerNetwork(network);
 
-    // ImmutableSet keeps ordering
     ImmutableSet.Builder<GenericJson> prefixedInstructions = ImmutableSet.builder();
     for (Node node : prefixedNetwork.nodes()) {
       if (node instanceof ParallelInstructionNode) {
@@ -253,11 +255,11 @@ public class LengthPrefixUnknownCodersTest {
       }
     }
 
-    ImmutableSet<GenericJson> expectedInstructions =
-        ImmutableSet.of(
-            prefixedReadNodeOut.getInstructionOutput(), prefixedReadNode.getParallelInstruction());
-
-    assertEqualsAsJson(expectedInstructions, prefixedInstructions.build());
+    assertThat(
+        prefixedInstructions.build(),
+        containsInAnyOrder(
+            jsonOf(prefixedReadNodeOut.getInstructionOutput()),
+            jsonOf(prefixedReadNode.getParallelInstruction())));
   }
 
   @Test
