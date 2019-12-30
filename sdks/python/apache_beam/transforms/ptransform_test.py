@@ -353,7 +353,7 @@ class PTransformTest(unittest.TestCase):
               | 'create tuple' >> beam.Map(
                   lambda v, t=beam.DoFn.TimestampParam, w=beam.DoFn.WindowParam:
                   (v, t, w.start, w.end)))
-    expected_process = [('process'+ str(1), Timestamp(5), Timestamp(4),
+    expected_process = [('process1', Timestamp(5), Timestamp(4),
                          Timestamp(6))]
     expected_finish = [('finish', Timestamp(1), Timestamp(0), Timestamp(2))]
 
