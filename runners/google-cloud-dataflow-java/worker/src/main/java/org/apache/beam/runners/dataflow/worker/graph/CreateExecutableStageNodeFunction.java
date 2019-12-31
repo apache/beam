@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.graph;
 
-import static org.apache.beam.runners.core.construction.graph.ExecutableStage.DEFAULT_WIRE_CODER_SETTING;
+import static org.apache.beam.runners.core.construction.graph.ExecutableStage.DEFAULT_WIRE_CODER_SETTINGS;
 import static org.apache.beam.runners.dataflow.util.Structs.getBytes;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.runners.dataflow.worker.graph.LengthPrefixUnknownCoders.forSideInputInfos;
@@ -487,7 +487,7 @@ public class CreateExecutableStageNodeFunction
             executableStageTimers,
             executableStageTransforms,
             executableStageOutputs,
-            DEFAULT_WIRE_CODER_SETTING);
+            DEFAULT_WIRE_CODER_SETTINGS);
     return ExecutableStageNode.create(
         executableStage,
         ptransformIdToNameContexts.build(),
