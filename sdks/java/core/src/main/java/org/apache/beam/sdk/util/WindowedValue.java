@@ -648,7 +648,7 @@ public abstract class WindowedValue<T> {
    * <p>A {@code ValueOnlyWindowedValueCoder} only encodes and decodes the value. It drops timestamp
    * and windows for encoding, and uses defaults timestamp, and windows for decoding.
    *
-   * @deprecated Use ParamWindowedValueCoder instead it is general purpose implementation of the
+   * @deprecated Use ParamWindowedValueCoder instead, it is a general purpose implementation of the
    *     same concept but makes timestamp, windows and pane info configurable.
    */
   @Deprecated
@@ -709,7 +709,7 @@ public abstract class WindowedValue<T> {
   }
 
   /**
-   * A parameterized Coder for {@code WindowedValue}.
+   * A parameterized coder for {@code WindowedValue}.
    *
    * <p>A {@code ParamWindowedValueCoder} only encodes and decodes the value. It drops timestamp,
    * windows, and pane info during encoding, and uses the supplied parameterized timestamp, windows
@@ -726,8 +726,8 @@ public abstract class WindowedValue<T> {
     private static final byte[] EMPTY_BYTES = new byte[0];
 
     /**
-     * Returns the {@link ParamWindowedValueCoder} from the given valueCoder, windowCoder and the
-     * supplied parameterized timestamp, windows and pane info for {@link WindowedValue}.
+     * Returns the {@link ParamWindowedValueCoder} for the given valueCoder and windowCoder using
+     * the supplied parameterized timestamp, windows and pane info for {@link WindowedValue}.
      */
     public static <T> ParamWindowedValueCoder<T> of(
         Coder<T> valueCoder,
@@ -739,9 +739,9 @@ public abstract class WindowedValue<T> {
     }
 
     /**
-     * Returns the {@link ParamWindowedValueCoder} from the given valueCoder, windowCoder and the
-     * supplied parameterized {@link BoundedWindow#TIMESTAMP_MIN_VALUE}, {@link #GLOBAL_WINDOWS} and
-     * {@link PaneInfo#NO_FIRING} for {@link WindowedValue}.
+     * Returns the {@link ParamWindowedValueCoder} for the given valueCoder and windowCoder using
+     * {@link BoundedWindow#TIMESTAMP_MIN_VALUE} as the timestamp, {@link #GLOBAL_WINDOWS} as the
+     * window and {@link PaneInfo#NO_FIRING} as the pane info for parameters.
      */
     public static <T> ParamWindowedValueCoder<T> of(
         Coder<T> valueCoder, Coder<? extends BoundedWindow> windowCoder) {
@@ -754,10 +754,10 @@ public abstract class WindowedValue<T> {
     }
 
     /**
-     * Returns the {@link ParamWindowedValueCoder} from the given valueCoder, {@link
-     * GlobalWindow.Coder#INSTANCE} and the supplied parameterized {@link
-     * BoundedWindow#TIMESTAMP_MIN_VALUE}, {@link #GLOBAL_WINDOWS} and {@link PaneInfo#NO_FIRING}
-     * for {@link WindowedValue}.
+     * Returns the {@link ParamWindowedValueCoder} for the given valueCoder and {@link
+     * GlobalWindow.Coder#INSTANCE} using {@link BoundedWindow#TIMESTAMP_MIN_VALUE} as the
+     * timestamp, {@link #GLOBAL_WINDOWS} as the window and {@link PaneInfo#NO_FIRING} as the pane
+     * info for parameters.
      */
     public static <T> ParamWindowedValueCoder<T> of(Coder<T> valueCoder) {
       return ParamWindowedValueCoder.of(valueCoder, GlobalWindow.Coder.INSTANCE);
