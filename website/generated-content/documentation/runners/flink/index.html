@@ -547,7 +547,7 @@ plus the optional <code class="highlighter-rouge">flink_version</code> and <code
     <span class="s">"--flink_master=localhost:8081"</span><span class="p">,</span>
     <span class="s">"--environment_type=LOOPBACK"</span>
 <span class="p">])</span>
-<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
     <span class="o">...</span>
 </code></pre></div></div>
 
