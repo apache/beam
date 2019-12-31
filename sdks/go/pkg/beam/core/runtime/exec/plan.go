@@ -201,7 +201,7 @@ func (p *Plan) Metrics() *fnpb.Metrics {
 type SplitPoints struct {
 	// Splits is a list of desired split indices.
 	Splits []int64
-	Frac   float32
+	Frac   float64
 }
 
 // Split takes a set of potential split indexes, and if successful returns
