@@ -41,7 +41,7 @@ import javax.annotation.Nullable;
  * with AutoValue makes this a bit easier to work with.
  */
 @AutoValue
-abstract class RabbitMqMessage implements Serializable {
+public abstract class RabbitMqMessage implements Serializable {
   public static final int DELIVERY_MODE_NON_DURABLE = 1;
   public static final int DELIVERY_MODE_DURABLE = 2;
 

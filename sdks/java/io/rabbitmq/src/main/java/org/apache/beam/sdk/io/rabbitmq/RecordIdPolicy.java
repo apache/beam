@@ -71,9 +71,8 @@ public interface RecordIdPolicy extends SerializableFunction<RabbitMqMessage, by
    *     with the RabbitMQ Message Timestamp plugin. The value will be accurate to the nearest ms if
    *     the header value is read, or only to the nearest second if the amqp Timestamp property is
    *     used.
-   * @see <a href="https://github.com/rabbitmq/rabbitmq-message-timestamp">the RabbitMq Message
-   *     Timestamp Plugin</a> for a consistent means of setting this property within the RabbitMq
-   *     broker.
+   * @see "https://github.com/rabbitmq/rabbitmq-message-timestamp, the RabbitMq Message Timestamp
+   *     Plugin, for a consistent means of setting this property within the RabbitMq broker."
    */
   static RecordIdPolicy bodyWithTimestamp() {
     return new BodyWithTimestampPolicy();
