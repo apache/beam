@@ -27,7 +27,7 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryTableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubJsonTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubTableProvider;
 import org.apache.beam.sdk.io.gcp.bigquery.TestBigQuery;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
@@ -55,8 +55,7 @@ public class PubsubToBigqueryIT implements Serializable {
 
   @Test
   public void testSimpleInsert() throws Exception {
-    BeamSqlEnv sqlEnv =
-        BeamSqlEnv.inMemory(new PubsubJsonTableProvider(), new BigQueryTableProvider());
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubTableProvider(), new BigQueryTableProvider());
 
     String createTableString =
         "CREATE EXTERNAL TABLE pubsub_topic (\n"
@@ -113,8 +112,7 @@ public class PubsubToBigqueryIT implements Serializable {
 
   @Test
   public void testSimpleInsertFlat() throws Exception {
-    BeamSqlEnv sqlEnv =
-        BeamSqlEnv.inMemory(new PubsubJsonTableProvider(), new BigQueryTableProvider());
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubTableProvider(), new BigQueryTableProvider());
 
     String createTableString =
         "CREATE EXTERNAL TABLE pubsub_topic (\n"

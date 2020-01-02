@@ -59,7 +59,7 @@ public abstract class GenericRecordWriteConverter
   }
 
   @AutoValue.Builder
-  abstract static class Builder {
+  public abstract static class Builder {
     public abstract Builder beamSchema(Schema beamSchema);
 
     public abstract GenericRecordWriteConverter build();

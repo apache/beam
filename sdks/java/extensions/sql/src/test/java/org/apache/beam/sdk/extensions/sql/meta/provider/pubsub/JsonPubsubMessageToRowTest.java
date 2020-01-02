@@ -49,7 +49,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /** Unit tests for {@link PubsubMessageToRow}. */
-public class PubsubMessageToRowTest implements Serializable {
+public class JsonPubsubMessageToRowTest implements Serializable {
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
@@ -80,7 +80,7 @@ public class PubsubMessageToRowTest implements Serializable {
                     message(4, map("dttr", "vdl"), "{ \"name\" : null, \"id\" : null }")))
             .apply(
                 "convert",
-                PubsubMessageToRow.builder()
+                JsonPubsubMessageToRow.builder()
                     .messageSchema(messageSchema)
                     .useDlq(false)
                     .useFlatSchema(false)
@@ -129,7 +129,7 @@ public class PubsubMessageToRowTest implements Serializable {
                     message(4, map("bttr", "vbl"), "{ \"name\" : \"baz\", \"id\" : 5 }")))
             .apply(
                 "convert",
-                PubsubMessageToRow.builder()
+                JsonPubsubMessageToRow.builder()
                     .messageSchema(messageSchema)
                     .useDlq(true)
                     .useFlatSchema(false)
@@ -185,7 +185,7 @@ public class PubsubMessageToRowTest implements Serializable {
                     message(4, map("dttr", "vdl"), "{ \"name\" : null, \"id\" : null }")))
             .apply(
                 "convert",
-                PubsubMessageToRow.builder()
+                JsonPubsubMessageToRow.builder()
                     .messageSchema(messageSchema)
                     .useDlq(false)
                     .useFlatSchema(true)
@@ -232,7 +232,7 @@ public class PubsubMessageToRowTest implements Serializable {
                     message(4, map("bttr", "vbl"), "{ \"name\" : \"baz\", \"id\" : 5 }")))
             .apply(
                 "convert",
-                PubsubMessageToRow.builder()
+                JsonPubsubMessageToRow.builder()
                     .messageSchema(messageSchema)
                     .useDlq(true)
                     .useFlatSchema(true)
@@ -284,7 +284,7 @@ public class PubsubMessageToRowTest implements Serializable {
                 message(2, map("attr1", "val1"), "{ \"invalid1\" : \"sdfsd\" }")))
         .apply(
             "convert",
-            PubsubMessageToRow.builder()
+            JsonPubsubMessageToRow.builder()
                 .messageSchema(messageSchema)
                 .useDlq(false)
                 .useFlatSchema(true)
@@ -313,7 +313,7 @@ public class PubsubMessageToRowTest implements Serializable {
                 message(2, map("attr1", "val1"), "{ \"invalid1\" : \"sdfsd\" }")))
         .apply(
             "convert",
-            PubsubMessageToRow.builder()
+            JsonPubsubMessageToRow.builder()
                 .messageSchema(messageSchema)
                 .useDlq(false)
                 .useFlatSchema(false)

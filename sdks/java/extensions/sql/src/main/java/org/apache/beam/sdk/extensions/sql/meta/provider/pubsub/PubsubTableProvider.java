@@ -38,15 +38,19 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.InvalidTableException;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /**
- * {@link TableProvider} for {@link PubsubIOJsonTable} which wraps {@link PubsubIO} for consumption
- * by Beam SQL.
+ * {@link TableProvider} for {@link PubsubIOJsonTable} and {@link PubsubIOAvroTable} which wraps
+ * {@link PubsubIO} for consumption by Beam SQL.
  */
 @Internal
 @Experimental
 @AutoService(TableProvider.class)
-public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
+public class PubsubTableProvider extends InMemoryMetaTableProvider {
+
+  private static final String JSON_FORMAT = "json";
+  private static final String AVRO_FORMAT = "avro";
 
   @Override
   public String getTableType() {
@@ -54,13 +58,14 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
   }
 
   @Override
-  public BeamSqlTable buildBeamSqlTable(Table tableDefintion) {
-    JSONObject tableProperties = tableDefintion.getProperties();
+  public BeamSqlTable buildBeamSqlTable(Table tableDefinition) {
+    JSONObject tableProperties = tableDefinition.getProperties();
     String timestampAttributeKey = tableProperties.getString("timestampAttributeKey");
     String deadLetterQueue = tableProperties.getString("deadLetterQueue");
+    String format = MoreObjects.firstNonNull(tableProperties.getString("format"), JSON_FORMAT);
     validateDlq(deadLetterQueue);
 
-    Schema schema = tableDefintion.getSchema();
+    Schema schema = tableDefinition.getSchema();
     validateEventTimestamp(schema);
 
     PubsubIOTableConfiguration config =
@@ -68,11 +73,22 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
             .setSchema(schema)
             .setTimestampAttribute(timestampAttributeKey)
             .setDeadLetterQueue(deadLetterQueue)
-            .setTopic(tableDefintion.getLocation())
+            .setTopic(tableDefinition.getLocation())
             .setUseFlatSchema(!definesAttributeAndPayload(schema))
             .build();
 
-    return PubsubIOJsonTable.withConfiguration(config);
+    switch (format) {
+      case JSON_FORMAT:
+        return PubsubIOJsonTable.withConfiguration(config);
+      case AVRO_FORMAT:
+        validateAvroFlatSchema(config.getUseFlatSchema());
+        return PubsubIOAvroTable.withConfiguration(config);
+      default:
+        throw new IllegalArgumentException(
+            String.format(
+                "PubsubTable doesn't support %s format. Supported formats are avro and json",
+                format));
+    }
   }
 
   private void validateEventTimestamp(Schema schema) {
@@ -81,6 +97,14 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
           "Unsupported schema specified for Pubsub source in CREATE TABLE."
               + "CREATE TABLE for Pubsub topic must include at least 'event_timestamp' field of "
               + "type 'TIMESTAMP'");
+    }
+  }
+
+  private void validateAvroFlatSchema(boolean useFlatSchema) {
+    if (!useFlatSchema) {
+      throw new InvalidTableException(
+          "Unsupported schema specified for Pubsub source in CREATE TABLE."
+              + "CREATE TABLE for Pubsub doesn't support nested schema for Avro format");
     }
   }
 
@@ -157,7 +181,7 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
     public abstract Schema getSchema();
 
     static Builder builder() {
-      return new AutoValue_PubsubJsonTableProvider_PubsubIOTableConfiguration.Builder();
+      return new AutoValue_PubsubTableProvider_PubsubIOTableConfiguration.Builder();
     }
 
     @AutoValue.Builder

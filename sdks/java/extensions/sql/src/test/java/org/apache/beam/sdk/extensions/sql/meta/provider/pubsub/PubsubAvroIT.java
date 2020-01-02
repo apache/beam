@@ -44,14 +44,12 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
@@ -59,8 +57,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.ToJson;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -80,21 +76,16 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Integration tests for querying Pubsub JSON messages with SQL. */
+/** Integration tests for querying Pubsub Avro messages with SQL. */
 @RunWith(JUnit4.class)
-public class PubsubJsonIT implements Serializable {
-  private static final Logger LOG = LoggerFactory.getLogger(PubsubJsonIT.class);
+public class PubsubAvroIT implements Serializable {
+  private static final Logger LOG = LoggerFactory.getLogger(PubsubAvroIT.class);
 
   private static final Schema PAYLOAD_SCHEMA =
       Schema.builder()
           .addNullableField("id", Schema.FieldType.INT32)
           .addNullableField("name", Schema.FieldType.STRING)
           .build();
-
-  private static final String CONNECT_STRING_PREFIX = "jdbc:beam:";
-  private static final String BEAM_CALCITE_SCHEMA = "beamCalciteSchema";
-  private static final JdbcDriver INSTANCE = new JdbcDriver();
-  private static volatile Boolean checked = false;
 
   @Rule public transient TestPubsub eventsTopic = TestPubsub.create();
   @Rule public transient TestPubsub filteredEventsTopic = TestPubsub.create();
@@ -126,7 +117,7 @@ public class PubsubJsonIT implements Serializable {
             + "LOCATION '"
             + eventsTopic.topicPath()
             + "' \n"
-            + "TBLPROPERTIES '{ \"timestampAttributeKey\" : \"ts\" }'";
+            + "TBLPROPERTIES '{ \"timestampAttributeKey\" : \"ts\" , \"format\" : \"avro\"}'";
 
     String queryString = "SELECT message.payload.id, message.payload.name from message";
 
@@ -190,6 +181,7 @@ public class PubsubJsonIT implements Serializable {
             + "TBLPROPERTIES "
             + "    '{ "
             + "       \"timestampAttributeKey\" : \"ts\", "
+            + "       \"format\" : \"avro\", "
             + "       \"deadLetterQueue\" : \""
             + dlqTopic.topicPath()
             + "\""
@@ -264,6 +256,7 @@ public class PubsubJsonIT implements Serializable {
             + "TBLPROPERTIES "
             + "    '{ "
             + "       \"timestampAttributeKey\" : \"ts\", "
+            + "       \"format\" : \"avro\", "
             + "       \"deadLetterQueue\" : \""
             + dlqTopic.topicPath()
             + "\""
@@ -312,41 +305,6 @@ public class PubsubJsonIT implements Serializable {
   }
 
   @Test
-  public void testWritesJsonRowsToPubsub() throws Exception {
-    Schema personSchema =
-        Schema.builder()
-            .addStringField("name")
-            .addInt32Field("height")
-            .addBooleanField("knowsJavascript")
-            .build();
-    PCollection<Row> rows =
-        pipeline
-            .apply(
-                Create.of(
-                    row(personSchema, "person1", 80, true),
-                    row(personSchema, "person2", 70, false),
-                    row(personSchema, "person3", 60, true),
-                    row(personSchema, "person4", 50, false),
-                    row(personSchema, "person5", 40, true)))
-            .setRowSchema(personSchema)
-            .apply(
-                SqlTransform.query(
-                    "SELECT name FROM PCOLLECTION AS person WHERE person.knowsJavascript"));
-
-    // Convert rows to JSON and write to pubsub
-    rows.apply(ToJson.of()).apply(PubsubIO.writeStrings().to(eventsTopic.topicPath().getPath()));
-
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
-
-    eventsTopic
-        .assertThatTopicEventuallyReceives(
-            messageLike("{\"name\":\"person1\"}"),
-            messageLike("{\"name\":\"person3\"}"),
-            messageLike("{\"name\":\"person5\"}"))
-        .waitForUpTo(Duration.standardSeconds(20));
-  }
-
-  @Test
   public void testSQLSelectsPayloadContentFlat() throws Exception {
     String createTableString =
         "CREATE EXTERNAL TABLE message (\n"
@@ -358,7 +316,7 @@ public class PubsubJsonIT implements Serializable {
             + "LOCATION '"
             + eventsTopic.topicPath()
             + "' \n"
-            + "TBLPROPERTIES '{ \"timestampAttributeKey\" : \"ts\" }'";
+            + "TBLPROPERTIES '{ \"timestampAttributeKey\" : \"ts\" , \"format\" : \"avro\"}'";
 
     String queryString = "SELECT message.id, message.name from message";
 
@@ -418,6 +376,7 @@ public class PubsubJsonIT implements Serializable {
             + "' \n"
             + "TBLPROPERTIES "
             + "    '{ "
+            + "        \"format\" : \"avro\" ,"
             + "       \"deadLetterQueue\" : \""
             + dlqTopic.topicPath()
             + "\""
@@ -465,7 +424,8 @@ public class PubsubJsonIT implements Serializable {
             + "     \"deadLetterQueue\" : \""
             + dlqTopic.topicPath()
             + "\","
-            + "     \"timestampAttributeKey\" : \"ts\""
+            + "     \"timestampAttributeKey\" : \"ts\" , "
+            + "     \"format\" : \"avro\""
             + "   }'";
 
     // Initialize SQL environment and create the pubsub table
@@ -508,7 +468,9 @@ public class PubsubJsonIT implements Serializable {
             + "TYPE 'pubsub' \n"
             + "LOCATION '"
             + eventsTopic.topicPath()
-            + "' \n";
+            + "' \n"
+            + "TBLPROPERTIES "
+            + "  '{ \"format\" : \"avro\"}'";
 
     String createFilteredTableString =
         "CREATE EXTERNAL TABLE javascript_people (\n"
@@ -519,7 +481,9 @@ public class PubsubJsonIT implements Serializable {
             + "TYPE 'pubsub' \n"
             + "LOCATION '"
             + filteredEventsTopic.topicPath()
-            + "' \n";
+            + "' \n"
+            + "TBLPROPERTIES "
+            + "  '{ \"format\" : \"avro\"}'";
 
     // Initialize SQL environment and create the pubsub table
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubTableProvider());

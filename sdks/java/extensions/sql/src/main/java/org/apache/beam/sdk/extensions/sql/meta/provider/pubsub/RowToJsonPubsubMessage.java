@@ -38,23 +38,23 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * <p>Currently only supports writing a flat schema into a JSON payload. This means that all Row
  * field values are written to the {@link PubsubMessage} JSON payload, except for {@code
  * event_timestamp}, which is either ignored or written to the message attributes, depending on
- * whether {@link PubsubJsonTableProvider.PubsubIOTableConfiguration#getTimestampAttribute()} is
- * set.
+ * whether {@link PubsubTableProvider.PubsubIOTableConfiguration#getTimestampAttribute()} is set.
  */
 @Experimental
-public class RowToPubsubMessage extends PTransform<PCollection<Row>, PCollection<PubsubMessage>> {
-  private final PubsubJsonTableProvider.PubsubIOTableConfiguration config;
+public class RowToJsonPubsubMessage
+    extends PTransform<PCollection<Row>, PCollection<PubsubMessage>> {
+  private final PubsubTableProvider.PubsubIOTableConfiguration config;
 
-  private RowToPubsubMessage(PubsubJsonTableProvider.PubsubIOTableConfiguration config) {
+  private RowToJsonPubsubMessage(PubsubTableProvider.PubsubIOTableConfiguration config) {
     checkArgument(
         config.getUseFlatSchema(), "RowToPubsubMessage is only supported for flattened schemas.");
 
     this.config = config;
   }
 
-  public static RowToPubsubMessage fromTableConfig(
-      PubsubJsonTableProvider.PubsubIOTableConfiguration config) {
-    return new RowToPubsubMessage(config);
+  public static RowToJsonPubsubMessage fromTableConfig(
+      PubsubTableProvider.PubsubIOTableConfiguration config) {
+    return new RowToJsonPubsubMessage(config);
   }
 
   @Override

@@ -20,7 +20,9 @@ package org.apache.beam.sdk.schemas.utils;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.Method;
@@ -38,10 +40,19 @@ import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema.Type;
+import org.apache.avro.file.SeekableByteArrayInput;
 import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.avro.io.DatumReader;
+import org.apache.avro.io.DatumWriter;
+import org.apache.avro.io.Decoder;
+import org.apache.avro.io.DecoderFactory;
+import org.apache.avro.io.Encoder;
+import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.reflect.AvroIgnore;
 import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.ReflectData;
@@ -338,6 +349,35 @@ public class AvroUtils {
 
   public static org.apache.avro.Schema toAvroSchema(Schema beamSchema) {
     return toAvroSchema(beamSchema, null, null);
+  }
+
+  /** Convert a {@link GenericRecord} to an corresponding array of bytes. */
+  public static byte[] toBytes(GenericRecord record) {
+    org.apache.avro.Schema schema = record.getSchema();
+    DatumWriter<GenericRecord> datumWriter = new GenericDatumWriter<>(schema);
+    try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+      Encoder encoder = EncoderFactory.get().binaryEncoder(outputStream, null);
+      datumWriter.write(record, encoder);
+      encoder.flush();
+      return outputStream.toByteArray();
+    } catch (IOException exception) {
+      throw new RuntimeException("Fail to parse generic record", exception);
+    }
+  }
+
+  /** Convert an array to bytes to a {@link GenericRecord} with the target schema. */
+  public static GenericRecord toGenericRecord(byte[] bytes, org.apache.avro.Schema schema) {
+    DatumReader<GenericRecord> datumReader = new GenericDatumReader<>(schema);
+    try (InputStream inputStream = new SeekableByteArrayInput(bytes)) {
+      Decoder decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
+      GenericRecord record = datumReader.read(null, decoder);
+      if (record != null) {
+        return record;
+      }
+    } catch (IOException exception) {
+      throw new RuntimeException("Failed to extract the record from the payload.", exception);
+    }
+    throw new RuntimeException("No record is extracted from the payload");
   }
 
   /**

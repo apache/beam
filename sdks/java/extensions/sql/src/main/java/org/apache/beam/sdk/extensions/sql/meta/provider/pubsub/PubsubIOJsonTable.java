@@ -23,13 +23,9 @@ import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMess
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
-import org.apache.beam.sdk.extensions.sql.meta.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubJsonTableProvider.PubsubIOTableConfiguration;
+import org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubTableProvider.PubsubIOTableConfiguration;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -120,7 +116,7 @@ import org.apache.beam.sdk.values.Row;
  */
 @Internal
 @Experimental
-class PubsubIOJsonTable extends BaseBeamTable implements Serializable {
+final class PubsubIOJsonTable extends PubsubIOTable implements Serializable {
 
   protected final PubsubIOTableConfiguration config;
 
@@ -133,8 +129,8 @@ class PubsubIOJsonTable extends BaseBeamTable implements Serializable {
   }
 
   @Override
-  public PCollection.IsBounded isBounded() {
-    return PCollection.IsBounded.UNBOUNDED;
+  public PubsubIOTableConfiguration getConfig() {
+    return config;
   }
 
   @Override
@@ -148,8 +144,8 @@ class PubsubIOJsonTable extends BaseBeamTable implements Serializable {
         begin
             .apply("ReadFromPubsub", readMessagesWithAttributes())
             .apply(
-                "PubsubMessageToRow",
-                PubsubMessageToRow.builder()
+                "JsonPubsubMessageToRow",
+                JsonPubsubMessageToRow.builder()
                     .messageSchema(getSchema())
                     .useDlq(config.useDlq())
                     .useFlatSchema(config.getUseFlatSchema())
@@ -163,23 +159,6 @@ class PubsubIOJsonTable extends BaseBeamTable implements Serializable {
     return rowsWithDlq.get(MAIN_TAG);
   }
 
-  private PubsubIO.Read<PubsubMessage> readMessagesWithAttributes() {
-    PubsubIO.Read<PubsubMessage> read =
-        PubsubIO.readMessagesWithAttributes().fromTopic(config.getTopic());
-
-    return config.useTimestampAttribute()
-        ? read.withTimestampAttribute(config.getTimestampAttribute())
-        : read;
-  }
-
-  private PubsubIO.Write<PubsubMessage> writeMessagesToDlq() {
-    PubsubIO.Write<PubsubMessage> write = PubsubIO.writeMessages().to(config.getDeadLetterQueue());
-
-    return config.useTimestampAttribute()
-        ? write.withTimestampAttribute(config.getTimestampAttribute())
-        : write;
-  }
-
   @Override
   public POutput buildIOWriter(PCollection<Row> input) {
     if (!config.getUseFlatSchema()) {
@@ -188,20 +167,7 @@ class PubsubIOJsonTable extends BaseBeamTable implements Serializable {
     }
 
     return input
-        .apply(RowToPubsubMessage.fromTableConfig(config))
+        .apply(RowToJsonPubsubMessage.fromTableConfig(config))
         .apply(createPubsubMessageWrite());
-  }
-
-  private PubsubIO.Write<PubsubMessage> createPubsubMessageWrite() {
-    PubsubIO.Write<PubsubMessage> write = PubsubIO.writeMessages().to(config.getTopic());
-    if (config.useTimestampAttribute()) {
-      write = write.withTimestampAttribute(config.getTimestampAttribute());
-    }
-    return write;
-  }
-
-  @Override
-  public BeamTableStatistics getTableStatistics(PipelineOptions options) {
-    return BeamTableStatistics.UNBOUNDED_UNKNOWN;
   }
 }
