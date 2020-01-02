@@ -79,12 +79,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Processes {@link BeamFnApi.ProcessBundleRequest}s by materializing the set of required runners
- * for each {@link RunnerApi.FunctionSpec}, wiring them together based upon the {@code input} and
- * {@code output} map definitions.
+ * Processes {@link BeamFnApi.ProcessBundleRequest}s and {@link
+ * BeamFnApi.ProcessBundleSplitRequest}s.
  *
- * <p>Finally executes the DAG based graph by starting all runners in reverse topological order, and
- * finishing all runners in forward topological order.
+ * <p>{@link BeamFnApi.ProcessBundleSplitRequest}s use a {@link BundleProcessorCache cache} to
+ * find/create a {@link BundleProcessor}. The creation of a {@link BundleProcessor} uses the
+ * associated {@link BeamFnApi.ProcessBundleDescriptor} definition; creating runners for each {@link
+ * RunnerApi.FunctionSpec}; wiring them together based upon the {@code input} and {@code output} map
+ * definitions. The {@link BundleProcessor} executes the DAG based graph by starting all runners in
+ * reverse topological order, and finishing all runners in forward topological order.
+ *
+ * <p>{@link BeamFnApi.ProcessBundleSplitRequest}s finds an {@code active} {@link BundleProcessor}
+ * associated with a currently processing {@link BeamFnApi.ProcessBundleRequest} and uses it to
+ * perform a split request. See <a href="https://s.apache.org/beam-breaking-fusion">breaking the
+ * fusion barrier</a> for further details.
  */
 public class ProcessBundleHandler {
 
