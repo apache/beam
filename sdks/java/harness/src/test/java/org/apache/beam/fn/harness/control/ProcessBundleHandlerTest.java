@@ -490,14 +490,15 @@ public class ProcessBundleHandlerTest {
   @Test
   public void testBundleProcessorIsFoundWhenActive() {
     BundleProcessor bundleProcessor = mock(BundleProcessor.class);
+    when(bundleProcessor.getInstructionId()).thenReturn("known");
     BundleProcessorCache cache = new BundleProcessorCache();
 
     // Check that an unknown bundle processor is not found
     assertNull(cache.find("unknown"));
 
     // Once it is active, ensure the bundle processor is found
-    assertSame(bundleProcessor, cache.find("known"));
     cache.get("descriptorId", "known", () -> bundleProcessor);
+    assertSame(bundleProcessor, cache.find("known"));
 
     // After it is released, ensure the bundle processor is no longer found
     cache.release("descriptorId", bundleProcessor);

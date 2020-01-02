@@ -21,11 +21,13 @@ import com.google.auto.value.AutoValue;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Phaser;
@@ -421,9 +423,16 @@ public class ProcessBundleHandler {
     private final Map<String, ConcurrentLinkedQueue<BundleProcessor>> cachedBundleProcessors;
     private final Map<String, BundleProcessor> activeBundleProcessors;
 
+    @Override
+    public int hashCode() {
+      return super.hashCode();
+    }
+
     BundleProcessorCache() {
       this.cachedBundleProcessors = Maps.newConcurrentMap();
-      this.activeBundleProcessors = Maps.newConcurrentMap();
+      // We specifically use a weak hash map so that references will automatically go out of scope
+      // and not need to be freed explicitly from the cache.
+      this.activeBundleProcessors = Collections.synchronizedMap(new WeakHashMap<>());
     }
 
     Map<String, ConcurrentLinkedQueue<BundleProcessor>> getCachedBundleProcessors() {
@@ -432,7 +441,11 @@ public class ProcessBundleHandler {
 
     /**
      * Get a {@link BundleProcessor} from the cache if it's available. Otherwise, create one using
-     * the specified {@code bundleProcessorSupplier}.
+     * the specified {@code bundleProcessorSupplier}. The {@link BundleProcessor} that is returned
+     * can be {@link #find found} using the specified method.
+     *
+     * <p>The caller is responsible for calling {@link #release} to return the bundle processor back
+     * to this cache if and only if the bundle processor successfully processed a bundle.
      */
     BundleProcessor get(
         String bundleDescriptorId,
@@ -452,8 +465,8 @@ public class ProcessBundleHandler {
     }
 
     /**
-     * Returns an active bundle processor for the specified {@code instructionId} or null if one
-     * could not be found.
+     * Finds an active bundle processor for the specified {@code instructionId} or null if one could
+     * not be found.
      */
     BundleProcessor find(String instructionId) {
       return activeBundleProcessors.get(instructionId);
@@ -461,7 +474,7 @@ public class ProcessBundleHandler {
 
     /**
      * Add a {@link BundleProcessor} to cache. The {@link BundleProcessor} will be reset before
-     * being added to the cache.
+     * being added to the cache and will be marked as inactive.
      */
     void release(String bundleDescriptorId, BundleProcessor bundleProcessor) {
       activeBundleProcessors.remove(bundleProcessor.getInstructionId());
