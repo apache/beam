@@ -24,13 +24,14 @@ import com.rabbitmq.client.Envelope;
 import com.rabbitmq.client.GetResponse;
 import com.rabbitmq.client.LongString;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
-import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import javax.annotation.Nullable;
 
 /**
@@ -51,18 +52,18 @@ public abstract class RabbitMqMessage implements Serializable {
    * Defaults to the empty string. When publishing messages to an exchange type other than fanout,
    * this should be specified.
    */
-  abstract String routingKey();
+  public abstract String routingKey();
 
   @SuppressWarnings("mutable")
-  abstract byte[] body();
+  public abstract byte[] body();
 
   @Nullable
-  abstract String contentType();
+  public abstract String contentType();
 
   @Nullable
-  abstract String contentEncoding();
+  public abstract String contentEncoding();
 
-  abstract Map<String, Object> headers();
+  public abstract Map<String, Object> headers();
 
   /**
    * Defaults to "non-durable".
@@ -71,7 +72,7 @@ public abstract class RabbitMqMessage implements Serializable {
    * @see #DELIVERY_MODE_NON_DURABLE
    */
   @Nullable
-  abstract Integer deliveryMode();
+  public abstract Integer deliveryMode();
 
   /**
    * Defaults to "lowest priority".
@@ -79,40 +80,47 @@ public abstract class RabbitMqMessage implements Serializable {
    * @see #PRIORITY_LOWEST
    */
   @Nullable
-  abstract Integer priority();
+  public abstract Integer priority();
 
   @Nullable
-  abstract String correlationId();
+  public abstract String correlationId();
 
   @Nullable
-  abstract String replyTo();
+  public abstract String replyTo();
 
   @Nullable
-  abstract String expiration();
+  public abstract String expiration();
 
   @Nullable
-  abstract String messageId();
+  public abstract String messageId();
 
   @Nullable
-  abstract Date timestamp();
+  public abstract Date timestamp();
 
   @Nullable
-  abstract String type();
+  public abstract String type();
 
   @Nullable
-  abstract String userId();
+  public abstract String userId();
 
   @Nullable
-  abstract String appId();
+  public abstract String appId();
 
   @Nullable
-  abstract String clusterId();
+  public abstract String clusterId();
+
+  @Override
+  public abstract int hashCode();
+
+  @Override
+  public abstract boolean equals(Object other);
 
   public abstract Builder toBuilder();
 
   public static Builder builder() {
     return new AutoValue_RabbitMqMessage.Builder()
         .setDeliveryMode(DELIVERY_MODE_NON_DURABLE)
+        .setMessageId(UUID.randomUUID().toString())
         .setPriority(PRIORITY_LOWEST)
         .setRoutingKey("")
         .setTimestamp(new Date())
@@ -150,39 +158,39 @@ public abstract class RabbitMqMessage implements Serializable {
   }
 
   @AutoValue.Builder
-  abstract static class Builder {
+  public abstract static class Builder {
 
-    abstract Builder setRoutingKey(String routingKey);
+    public abstract Builder setRoutingKey(String routingKey);
 
-    abstract Builder setBody(byte[] body);
+    public abstract Builder setBody(byte[] body);
 
-    abstract Builder setContentType(String contentType);
+    public abstract Builder setContentType(String contentType);
 
-    abstract Builder setContentEncoding(String contentEncoding);
+    public abstract Builder setContentEncoding(String contentEncoding);
 
-    abstract Builder setHeaders(Map<String, Object> headers);
+    public abstract Builder setHeaders(Map<String, Object> headers);
 
-    abstract Builder setDeliveryMode(Integer deliveryMode);
+    public abstract Builder setDeliveryMode(Integer deliveryMode);
 
-    abstract Builder setPriority(Integer priority);
+    public abstract Builder setPriority(Integer priority);
 
-    abstract Builder setCorrelationId(String correlationId);
+    public abstract Builder setCorrelationId(String correlationId);
 
-    abstract Builder setReplyTo(String replyTo);
+    public abstract Builder setReplyTo(String replyTo);
 
-    abstract Builder setExpiration(String expiration);
+    public abstract Builder setExpiration(String expiration);
 
-    abstract Builder setMessageId(String messageId);
+    public abstract Builder setMessageId(String messageId);
 
     abstract Date timestamp();
 
-    abstract Builder setTimestamp(Date timestamp);
+    public abstract Builder setTimestamp(Date timestamp);
 
-    abstract Builder setType(String type);
+    public abstract Builder setType(String type);
 
-    abstract Builder setUserId(String userId);
+    public abstract Builder setUserId(String userId);
 
-    abstract Builder setAppId(String appId);
+    public abstract Builder setAppId(String appId);
 
     abstract Builder setClusterId(String clusterId);
 
@@ -245,8 +253,7 @@ public abstract class RabbitMqMessage implements Serializable {
             if (value instanceof LongString) {
               LongString longString = (LongString) value;
               byte[] bytes = longString.getBytes();
-              String s = new String(bytes, StandardCharsets.UTF_8);
-              value = s;
+              value = new String(bytes, StandardCharsets.UTF_8);
             } else {
               throw new RuntimeException(String.format("no transformation defined for %s", value));
             }
