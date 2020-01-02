@@ -40,6 +40,7 @@ description = "Apache Beam :: Runners :: Flink $flink_version"
  */
 evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":runners:core-java")
+evaluationDependsOn(":runners:core-construction-java")
 
 /*
  * Copy & merge source overrides into build directory.
@@ -154,6 +155,7 @@ dependencies {
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   // FlinkStateInternalsTest extends abstract StateInternalsTest
   testCompile project(path: ":runners:core-java", configuration: "testRuntime")
+  testCompile project(path: ":runners:core-construction-java", configuration: "testRuntime")
   testCompile library.java.commons_lang3
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
@@ -170,7 +172,9 @@ dependencies {
   testRuntimeOnly library.java.slf4j_simple
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
+  validatesRunner project(path: ":runners:core-construction-java", configuration: "testRuntime")
   validatesRunner project(project.path)
+  validatesRunner project(path: project.path, configuration: "testRuntime")
   miniCluster "org.apache.flink:flink-runtime-web_2.11:$flink_version"
 }
 
@@ -192,7 +196,11 @@ def createValidatesRunnerTask(Map m) {
         ])
     systemProperty "beamTestPipelineOptions", pipelineOptions
     classpath = configurations.validatesRunner
-    testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs, project(":runners:core-java").sourceSets.test.output.classesDirs)
+    testClassesDirs = files(
+      project(":sdks:java:core").sourceSets.test.output.classesDirs,
+      project(":runners:core-java").sourceSets.test.output.classesDirs,
+      project(":runners:core-construction-java").sourceSets.test.output.classesDirs
+    )
     // maxParallelForks decreased from 4 in order to avoid OOM errors
     maxParallelForks 2
     useJUnit {
