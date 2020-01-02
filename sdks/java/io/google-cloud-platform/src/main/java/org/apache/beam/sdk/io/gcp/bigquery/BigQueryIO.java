@@ -2247,8 +2247,9 @@ public class BigQueryIO {
     }
 
     /**
-     * Setting this option to true disables insertId based data deduplication offered by BigQuery. For more information,
-     * please see https://cloud.google.com/bigquery/streaming-data-into-bigquery#disabling_best_effort_de-duplication.
+     * Setting this option to true disables insertId based data deduplication offered by BigQuery.
+     * For more information, please see
+     * https://cloud.google.com/bigquery/streaming-data-into-bigquery#disabling_best_effort_de-duplication.
      */
     public Write<T> ignoreInsertIds() {
       return toBuilder().setIgnoreInsertIds(true).build();
