@@ -53,8 +53,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.fnexecution.EmbeddedSdkHarness;
-import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.ActiveBundle;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
+import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor.ActiveBundle;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
 import org.apache.beam.runners.fnexecution.data.RemoteInputDestination;
 import org.apache.beam.runners.fnexecution.state.StateDelegator;
@@ -228,7 +228,7 @@ public class SdkHarnessClientTest {
                     (FullWindowedValueCoder) coder, SDK_GRPC_READ_TRANSFORM)));
     when(dataService.send(any(), eq(coder))).thenReturn(mock(CloseableFnDataReceiver.class));
 
-    try (ActiveBundle activeBundle =
+    try (RemoteBundle activeBundle =
         processor.newBundle(Collections.emptyMap(), BundleProgressHandler.ignored())) {
       // Correlating the ProcessBundleRequest and ProcessBundleResponse is owned by the underlying
       // FnApiControlClient. The SdkHarnessClient owns just wrapping the request and unwrapping
@@ -256,7 +256,7 @@ public class SdkHarnessClientTest {
                     SDK_GRPC_READ_TRANSFORM)));
 
     Collection<WindowedValue<String>> outputs = new ArrayList<>();
-    try (ActiveBundle activeBundle =
+    try (RemoteBundle activeBundle =
         processor.newBundle(
             Collections.singletonMap(
                 SDK_GRPC_WRITE_TRANSFORM,
@@ -311,7 +311,7 @@ public class SdkHarnessClientTest {
     BundleProgressHandler mockProgressHandler = mock(BundleProgressHandler.class);
 
     try {
-      try (ActiveBundle activeBundle =
+      try (RemoteBundle activeBundle =
           processor.newBundle(
               ImmutableMap.of(SDK_GRPC_WRITE_TRANSFORM, mockRemoteOutputReceiver),
               mockProgressHandler)) {
@@ -363,7 +363,7 @@ public class SdkHarnessClientTest {
     RemoteOutputReceiver mockRemoteOutputReceiver = mock(RemoteOutputReceiver.class);
 
     try {
-      try (ActiveBundle activeBundle =
+      try (RemoteBundle activeBundle =
           processor.newBundle(
               ImmutableMap.of(SDK_GRPC_WRITE_TRANSFORM, mockRemoteOutputReceiver),
               mockStateHandler,
@@ -408,7 +408,7 @@ public class SdkHarnessClientTest {
     BundleProgressHandler mockProgressHandler = mock(BundleProgressHandler.class);
 
     try {
-      try (ActiveBundle activeBundle =
+      try (RemoteBundle activeBundle =
           processor.newBundle(
               ImmutableMap.of(SDK_GRPC_WRITE_TRANSFORM, mockRemoteOutputReceiver),
               mockProgressHandler)) {
@@ -457,7 +457,7 @@ public class SdkHarnessClientTest {
     RemoteOutputReceiver mockRemoteOutputReceiver = mock(RemoteOutputReceiver.class);
 
     try {
-      try (ActiveBundle activeBundle =
+      try (RemoteBundle activeBundle =
           processor.newBundle(
               ImmutableMap.of(SDK_GRPC_WRITE_TRANSFORM, mockRemoteOutputReceiver),
               mockStateHandler,
@@ -503,7 +503,7 @@ public class SdkHarnessClientTest {
     BundleProgressHandler mockProgressHandler = mock(BundleProgressHandler.class);
 
     try {
-      try (ActiveBundle activeBundle =
+      try (RemoteBundle activeBundle =
           processor.newBundle(
               ImmutableMap.of(SDK_GRPC_WRITE_TRANSFORM, mockRemoteOutputReceiver),
               mockProgressHandler)) {
@@ -559,7 +559,7 @@ public class SdkHarnessClientTest {
     RemoteOutputReceiver mockRemoteOutputReceiver = mock(RemoteOutputReceiver.class);
 
     try {
-      try (ActiveBundle activeBundle =
+      try (RemoteBundle activeBundle =
           processor.newBundle(
               ImmutableMap.of(SDK_GRPC_WRITE_TRANSFORM, mockRemoteOutputReceiver),
               mockStateHandler,
@@ -649,6 +649,7 @@ public class SdkHarnessClientTest {
 
     RemoteOutputReceiver mockRemoteOutputReceiver = mock(RemoteOutputReceiver.class);
     BundleProgressHandler mockProgressHandler = mock(BundleProgressHandler.class);
+    BundleSplitHandler mockSplitHandler = mock(BundleSplitHandler.class);
     BundleCheckpointHandler mockCheckpointHandler = mock(BundleCheckpointHandler.class);
     BundleFinalizationHandler mockFinalizationHandler = mock(BundleFinalizationHandler.class);
 
@@ -663,6 +664,7 @@ public class SdkHarnessClientTest {
               throw new UnsupportedOperationException();
             },
             mockProgressHandler,
+            mockSplitHandler,
             mockCheckpointHandler,
             mockFinalizationHandler)) {
       processBundleResponseFuture.complete(
@@ -671,7 +673,7 @@ public class SdkHarnessClientTest {
 
     verify(mockProgressHandler).onCompleted(response);
     verify(mockCheckpointHandler).onCheckpoint(response);
-    verifyZeroInteractions(mockFinalizationHandler);
+    verifyZeroInteractions(mockFinalizationHandler, mockSplitHandler);
   }
 
   @Test
@@ -698,6 +700,7 @@ public class SdkHarnessClientTest {
 
     RemoteOutputReceiver mockRemoteOutputReceiver = mock(RemoteOutputReceiver.class);
     BundleProgressHandler mockProgressHandler = mock(BundleProgressHandler.class);
+    BundleSplitHandler mockSplitHandler = mock(BundleSplitHandler.class);
     BundleCheckpointHandler mockCheckpointHandler = mock(BundleCheckpointHandler.class);
     BundleFinalizationHandler mockFinalizationHandler = mock(BundleFinalizationHandler.class);
 
@@ -711,6 +714,7 @@ public class SdkHarnessClientTest {
               throw new UnsupportedOperationException();
             },
             mockProgressHandler,
+            mockSplitHandler,
             mockCheckpointHandler,
             mockFinalizationHandler)) {
       bundleId = activeBundle.getId();
@@ -720,7 +724,7 @@ public class SdkHarnessClientTest {
 
     verify(mockProgressHandler).onCompleted(response);
     verify(mockFinalizationHandler).requestsFinalization(bundleId);
-    verifyZeroInteractions(mockCheckpointHandler);
+    verifyZeroInteractions(mockCheckpointHandler, mockSplitHandler);
   }
 
   private CompletableFuture<InstructionResponse> createRegisterResponse() {
