@@ -45,8 +45,17 @@ import org.junit.runners.JUnit4;
 public class DataStoreReadWriteIT {
   private static final BigQueryOptions options =
       TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
+  private static final Schema KEY_ROW_SCHEMA =
+      Schema.builder()
+          .addNullableField("kind", STRING)
+          .addNullableField("id", INT64)
+          .addNullableField("name", STRING)
+          .build();
   private static final Schema SOURCE_SCHEMA =
-      Schema.builder().addNullableField("content", STRING).build();
+      Schema.builder()
+          .addNullableField("__key__", FieldType.array(FieldType.row(KEY_ROW_SCHEMA)))
+          .addNullableField("content", STRING)
+          .build();
   private static final String KIND = "writereadtest";
   private static final String KIND_ALL_TYPES = "writereadalltypestest";
 
@@ -60,6 +69,7 @@ public class DataStoreReadWriteIT {
 
     String createTableStatement =
         "CREATE EXTERNAL TABLE TEST( \n"
+            + "   `__key__` ARRAY<ROW(`kind` VARCHAR, `id` BIGINT, `name` VARCHAR)>, \n"
             + "   `content` VARCHAR \n"
             + ") \n"
             + "TYPE 'datastoreV1' \n"
@@ -70,10 +80,18 @@ public class DataStoreReadWriteIT {
             + "'";
     sqlEnv.executeDdl(createTableStatement);
 
-    String insertStatement = "INSERT INTO TEST VALUES (" + "'varchar'" + ")";
+    // TODO: need a consistent way to insert keys with ancestors.
+    //  ex: ARRAY[ROW(cast('writereadalltypestest' as VARCHAR), 5742621615980544, cast('' as
+    // VARCHAR))].
+    String insertStatement =
+        "INSERT INTO TEST VALUES ( \n"
+            // + "ARRAY[ROW(cast('writereadalltypestest' as VARCHAR), 5742621615980544, cast('' as
+            // VARCHAR))], \n"
+            + "'varchar' \n"
+            + ")";
 
-    BeamSqlRelUtils.toPCollection(writePipeline, sqlEnv.parseQuery(insertStatement));
-    writePipeline.run().waitUntilFinish();
+    // BeamSqlRelUtils.toPCollection(writePipeline, sqlEnv.parseQuery(insertStatement));
+    // writePipeline.run().waitUntilFinish();
 
     String selectTableStatement = "SELECT * FROM TEST";
     PCollection<Row> output =
@@ -92,6 +110,7 @@ public class DataStoreReadWriteIT {
 
     final Schema expectedSchema =
         Schema.builder()
+            .addNullableField("__key__", FieldType.map(STRING, STRING))
             .addNullableField("boolean", BOOLEAN)
             .addNullableField("datetime", DATETIME)
             // TODO: flattening of nested fields by Calcite causes some issues.
@@ -109,6 +128,7 @@ public class DataStoreReadWriteIT {
 
     String createTableStatement =
         "CREATE EXTERNAL TABLE TEST( \n"
+            + "   `__key__` MAP<VARCHAR, VARCHAR>, \n"
             + "   `boolean` BOOLEAN, \n"
             + "   `datetime` TIMESTAMP, \n"
             // + "   `embeddedentity` ROW(`property1` VARCHAR, `property2` BIGINT), \n"
