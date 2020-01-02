@@ -522,7 +522,7 @@ class CombineTest(unittest.TestCase):
 
   # Test that three different kinds of metrics work with a customized
   # CounterIncrememtingCombineFn.
-  def test_simple_combine(self):
+  def test_custormized_counters_in_combine_fn(self):
     p = TestPipeline()
     input = (p
              | beam.Create([('c', 'i'),
@@ -534,11 +534,13 @@ class CombineTest(unittest.TestCase):
     # The result of concatenating all values regardless of key.
     global_concat = (input
                      | beam.Values()
-                     | beam.CombineGlobally(CounterIncrememtingCombineFn()))
+                     | beam.CombineGlobally(CounterIncrememtingCombineFn())
+                     | "sort global result" >> _SortLists)
 
     # The (key, concatenated_string) pairs for all keys.
     concat_per_key = (input | beam.CombinePerKey(
-        CounterIncrememtingCombineFn()))
+        CounterIncrememtingCombineFn())
+        | "sort per key result" >> _SortLists)
 
     result = p.run()
     result.wait_until_finish()
@@ -549,6 +551,9 @@ class CombineTest(unittest.TestCase):
                 label='global concat')
     assert_that(concat_per_key, equal_to(expected_concat_per_key),
                 label='concat per key')
+
+    result = p.run()
+    result.wait_until_finish()
 
     # Verify the values of metrics are correct.
     word_counter_filter = MetricsFilter().with_name('word_counter')
@@ -577,7 +582,7 @@ class CombineTest(unittest.TestCase):
 
   # Test that three different kinds of metrics work with the customized
   # CounterIncrememtingCombineFn when the PCollection is empty.
-  def test_simple_combine_empty(self):
+  def test_custormized_counters_in_combine_fn_empty(self):
     p = TestPipeline()
     input = p | beam.Create([])
 
@@ -590,12 +595,12 @@ class CombineTest(unittest.TestCase):
     concat_per_key = (input | beam.CombinePerKey(
         CounterIncrememtingCombineFn()))
 
-    result = p.run()
-    result.wait_until_finish()
-
     # Verify the concatenated strings are correct.
     assert_that(global_concat, equal_to(['']), label='global concat')
     assert_that(concat_per_key, equal_to([]), label='concat per key')
+
+    result = p.run()
+    result.wait_until_finish()
 
     # Verify the values of metrics are correct.
     word_counter_filter = MetricsFilter().with_name('word_counter')
@@ -776,6 +781,18 @@ class TimestampCombinerTest(unittest.TestCase):
           equal_to_per_window(expected_window_to_elements),
           use_global_window=False,
           label='assert per window')
+
+def _sort_lists(result):
+    if isinstance(result, list):
+      return sorted(result)
+    elif isinstance(result, tuple):
+      return tuple(_sort_lists(e) for e in result)
+    elif isinstance(result, dict):
+      return {k: _sort_lists(v) for k, v in result.items()}
+    else:
+      return result
+
+_SortLists = beam.Map(_sort_lists)
 
 if __name__ == '__main__':
   unittest.main()
