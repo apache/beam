@@ -34,11 +34,13 @@ import com.google.datastore.v1.Value;
 import com.google.protobuf.ByteString;
 import java.nio.charset.Charset;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.UUID;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.datastore.DataStoreV1Table.EntityToRowConverter;
 import org.apache.beam.sdk.extensions.sql.meta.provider.datastore.DataStoreV1Table.RowToEntityConverter;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -58,17 +60,29 @@ public class DataStoreTableTest {
   private static final Key.Builder KEY = makeKey(KIND, UUID_VALUE);
   private static final DateTime DATE_TIME = parseTimestampWithUTCTimeZone("2018-05-28 20:17:40");
 
+  private static final Schema NESTED_ROW_SCHEMA =
+      Schema.builder().addNullableField("nestedLong", INT64).build();
+  private static final Schema KEY_ROW_SCHEMA =
+      Schema.builder()
+          .addNullableField("kind", STRING)
+          .addNullableField("id", INT64)
+          .addNullableField("name", STRING)
+          .build();
   private static final Schema SCHEMA =
       Schema.builder()
+          .addNullableField("__key__", array(FieldType.row(KEY_ROW_SCHEMA)))
           .addNullableField("long", INT64)
           .addNullableField("bool", BOOLEAN)
           .addNullableField("datetime", DATETIME)
           .addNullableField("array", array(STRING))
+          .addNullableField("rowArray", array(FieldType.row(NESTED_ROW_SCHEMA)))
           .addNullableField("double", DOUBLE)
           .addNullableField("bytes", BYTES)
           .addNullableField("string", CalciteUtils.CHAR)
           .addNullableField("nullable", INT64)
           .build();
+  private static final Entity NESTED_ENTITY =
+      Entity.newBuilder().putProperties("nestedLong", makeValue(Long.MIN_VALUE).build()).build();
   private static final Entity ENTITY =
       Entity.newBuilder()
           .setKey(KEY)
@@ -76,6 +90,9 @@ public class DataStoreTableTest {
           .putProperties("bool", makeValue(true).build())
           .putProperties("datetime", makeValue(DATE_TIME.toDate()).build())
           .putProperties("array", makeValue(makeValue("string1"), makeValue("string2")).build())
+          .putProperties(
+              "rowArray",
+              makeValue(Collections.singletonList(makeValue(NESTED_ENTITY).build())).build())
           .putProperties("double", makeValue(Double.MAX_VALUE).build())
           .putProperties(
               "bytes", makeValue(ByteString.copyFrom("hello", Charset.defaultCharset())).build())
@@ -85,10 +102,12 @@ public class DataStoreTableTest {
   private static final Row ROW =
       row(
           SCHEMA,
+          Collections.singletonList(row(KEY_ROW_SCHEMA, KIND, 0L, UUID_VALUE)),
           Long.MAX_VALUE,
           true,
           DATE_TIME,
           Arrays.asList("string1", "string2"),
+          Collections.singletonList(row(NESTED_ROW_SCHEMA, Long.MIN_VALUE)),
           Double.MAX_VALUE,
           "hello".getBytes(Charset.defaultCharset()),
           "string",
@@ -107,7 +126,6 @@ public class DataStoreTableTest {
 
   @Test
   public void testRowToEntityConverter() {
-    // TODO: test with more FieldTypes.
     PCollection<Entity> result =
         pipeline
             .apply(Create.of(ROW))
