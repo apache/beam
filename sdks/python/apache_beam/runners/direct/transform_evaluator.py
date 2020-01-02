@@ -55,15 +55,12 @@ from apache_beam.runners.direct.util import TransformResult
 from apache_beam.runners.direct.watermark_manager import WatermarkManager
 from apache_beam.testing.test_stream import ElementEvent
 from apache_beam.testing.test_stream import ProcessingTimeEvent
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.test_stream import WatermarkEvent
-from apache_beam.testing.test_stream import _TestStream
-from apache_beam.testing.test_stream import _WatermarkController
 from apache_beam.transforms import core
-from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.transforms.trigger import TimeDomain
 from apache_beam.transforms.trigger import _CombiningValueStateTag
 from apache_beam.transforms.trigger import _ListStateTag
-from apache_beam.transforms.trigger import _ValueStateTag
 from apache_beam.transforms.trigger import create_trigger_driver
 from apache_beam.transforms.userstate import get_dofn_specs
 from apache_beam.transforms.userstate import is_stateful_dofn
@@ -105,14 +102,13 @@ class TransformEvaluatorRegistry(object):
         _StreamingGroupByKeyOnly: _StreamingGroupByKeyOnlyEvaluator,
         _StreamingGroupAlsoByWindow: _StreamingGroupAlsoByWindowEvaluator,
         _NativeWrite: _NativeWriteEvaluator,
-        _TestStream: _TestStreamEvaluator,
-        ProcessElements: _ProcessElementsEvaluator,
-        _WatermarkController: _WatermarkControllerEvaluator,
+        TestStream: _TestStreamEvaluator,
+        ProcessElements: _ProcessElementsEvaluator
     }  # type: Dict[Type[core.PTransform], Type[_TransformEvaluator]]
     self._evaluators.update(self._test_evaluators_overrides)
     self._root_bundle_providers = {
         core.PTransform: DefaultRootBundleProvider,
-        _TestStream: _TestStreamRootBundleProvider,
+        TestStream: _TestStreamRootBundleProvider,
     }
 
   def get_evaluator(
@@ -201,21 +197,20 @@ class DefaultRootBundleProvider(RootBundleProvider):
 
 
 class _TestStreamRootBundleProvider(RootBundleProvider):
-  """Provides an initial bundle for the TestStream evaluator.
-
-  This bundle is used as the initial state to the TestStream. Each unprocessed
-  bundle emitted from the TestStream afterwards is its state: index into the
-  stream, and the watermark.
-  """
+  """Provides an initial bundle for the TestStream evaluator."""
 
   def get_root_bundles(self):
     test_stream = self._applied_ptransform.transform
-    bundle = self._evaluation_context.create_bundle(
-        pvalue.PBegin(self._applied_ptransform.transform.pipeline))
-    bundle.add(GlobalWindows.windowed_value(test_stream.begin(),
-                                            timestamp=MIN_TIMESTAMP))
-    bundle.commit(None)
-    return [bundle]
+    bundles = []
+    if len(test_stream.events) > 0:
+      bundle = self._evaluation_context.create_bundle(
+          pvalue.PBegin(self._applied_ptransform.transform.pipeline))
+      # Explicitly set timestamp to MIN_TIMESTAMP to ensure that we hold the
+      # watermark.
+      bundle.add(GlobalWindows.windowed_value(0, timestamp=MIN_TIMESTAMP))
+      bundle.commit(None)
+      bundles.append(bundle)
+    return bundles
 
 
 class _TransformEvaluator(object):
@@ -348,79 +343,8 @@ class _BoundedReadEvaluator(_TransformEvaluator):
     return TransformResult(self, bundles, [], None, None)
 
 
-class _WatermarkControllerEvaluator(_TransformEvaluator):
-  """TransformEvaluator for the _WatermarkController transform.
-
-  This is used to enable multiple output watermarks for the TestStream.
-  """
-
-  # The state tag used to store the watermark.
-  WATERMARK_TAG = _ValueStateTag('_WatermarkControllerEvaluator_Watermark_Tag')
-
-  def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs):
-    assert not side_inputs
-    self.transform = applied_ptransform.transform
-    super(_WatermarkControllerEvaluator, self).__init__(
-        evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs)
-    self._init_state()
-
-  def _init_state(self):
-    """Gets and sets the initial state.
-
-    This is used to keep track of the watermark hold between calls.
-    """
-    transform_states = self._evaluation_context._transform_keyed_states
-    state = transform_states[self._applied_ptransform]
-    if self.WATERMARK_TAG not in state:
-      watermark_state = InMemoryUnmergedState()
-      watermark_state.set_global_state(self.WATERMARK_TAG, MIN_TIMESTAMP)
-      state[self.WATERMARK_TAG] = watermark_state
-    self._state = state[self.WATERMARK_TAG]
-
-  @property
-  def _watermark(self):
-    return self._state.get_global_state(self.WATERMARK_TAG)
-
-  @_watermark.setter
-  def _watermark(self, watermark):
-    self._state.set_global_state(self.WATERMARK_TAG, watermark)
-
-  def start_bundle(self):
-    self.bundles = []
-
-  def process_element(self, element):
-    # In order to keep the order of the elements between the script and what
-    # flows through the pipeline the same, emit the elements here.
-    event = element.value
-    if isinstance(event, WatermarkEvent):
-      self._watermark = event.new_watermark
-    elif isinstance(event, ElementEvent):
-      main_output = list(self._outputs)[0]
-      bundle = self._evaluation_context.create_bundle(main_output)
-      for tv in event.timestamped_values:
-        bundle.output(
-            GlobalWindows.windowed_value(tv.value, timestamp=tv.timestamp))
-      self.bundles.append(bundle)
-
-  def finish_bundle(self):
-    # The watermark hold we set here is the way we allow the TestStream events
-    # to control the output watermark.
-    return TransformResult(
-        self, self.bundles, [], None, {None: self._watermark})
-
-
 class _TestStreamEvaluator(_TransformEvaluator):
-  """TransformEvaluator for the TestStream transform.
-
-  This evaluator's responsibility is to retrieve the next event from the
-  _TestStream and either: advance the clock, advance the _TestStream watermark,
-  or pass the event to the _WatermarkController.
-
-  The _WatermarkController is in charge of emitting the elements to the
-  downstream consumers and setting its own output watermark.
-  """
+  """TransformEvaluator for the TestStream transform."""
 
   def __init__(self, evaluation_context, applied_ptransform,
                input_committed_bundle, side_inputs):
@@ -431,52 +355,47 @@ class _TestStreamEvaluator(_TransformEvaluator):
         side_inputs)
 
   def start_bundle(self):
-    self.current_index = 0
-    self.bundles = []
+    self.current_index = -1
     self.watermark = MIN_TIMESTAMP
+    self.bundles = []
 
   def process_element(self, element):
-    # The index into the TestStream list of events.
-    self.current_index = element.value
-
-    # The watermark of the _TestStream transform itself.
+    index = element.value
     self.watermark = element.timestamp
-
-    # We can either have the _TestStream or the _WatermarkController to emit
-    # the elements. We chose to emit in the _WatermarkController so that the
-    # element is emitted at the correct watermark value.
-    for event in self.test_stream.events(self.current_index):
-      if isinstance(event, (ElementEvent, WatermarkEvent)):
-        # The WATERMARK_CONTROL_TAG is used to hold the _TestStream's
-        # watermark to -inf, then +inf-1, then +inf. This watermark progression
-        # is ultimately used to set up the proper holds to allow the
-        # _WatermarkControllers to control their own output watermarks.
-        if event.tag == _TestStream.WATERMARK_CONTROL_TAG:
-          self.watermark = event.new_watermark
-        else:
-          main_output = list(self._outputs)[0]
-          bundle = self._evaluation_context.create_bundle(main_output)
-          bundle.output(GlobalWindows.windowed_value(event))
-          self.bundles.append(bundle)
-      elif isinstance(event, ProcessingTimeEvent):
-        self._evaluation_context._watermark_manager._clock.advance_time(
-            event.advance_by)
-      else:
-        raise ValueError('Invalid TestStream event: %s.' % event)
+    assert isinstance(index, int)
+    assert 0 <= index <= len(self.test_stream.events)
+    self.current_index = index
+    event = self.test_stream.events[self.current_index]
+    if isinstance(event, ElementEvent):
+      assert len(self._outputs) == 1
+      output_pcollection = list(self._outputs)[0]
+      bundle = self._evaluation_context.create_bundle(output_pcollection)
+      for tv in event.timestamped_values:
+        bundle.output(
+            GlobalWindows.windowed_value(tv.value, timestamp=tv.timestamp))
+      self.bundles.append(bundle)
+    elif isinstance(event, WatermarkEvent):
+      assert event.new_watermark >= self.watermark
+      self.watermark = event.new_watermark
+    elif isinstance(event, ProcessingTimeEvent):
+      self._evaluation_context._watermark_manager._clock.advance_time(
+          event.advance_by)
+    else:
+      raise ValueError('Invalid TestStream event: %s.' % event)
 
   def finish_bundle(self):
     unprocessed_bundles = []
-    next_index = self.test_stream.next(self.current_index)
-    if not self.test_stream.end(next_index):
+    hold = None
+    if self.current_index < len(self.test_stream.events) - 1:
       unprocessed_bundle = self._evaluation_context.create_bundle(
           pvalue.PBegin(self._applied_ptransform.transform.pipeline))
       unprocessed_bundle.add(GlobalWindows.windowed_value(
-          next_index, timestamp=self.watermark))
+          self.current_index + 1, timestamp=self.watermark))
       unprocessed_bundles.append(unprocessed_bundle)
+      hold = self.watermark
 
-    # Returning the watermark in the dict here is used as a watermark hold.
     return TransformResult(
-        self, self.bundles, unprocessed_bundles, None, {None: self.watermark})
+        self, self.bundles, unprocessed_bundles, None, {None: hold})
 
 
 class _PubSubReadEvaluator(_TransformEvaluator):
