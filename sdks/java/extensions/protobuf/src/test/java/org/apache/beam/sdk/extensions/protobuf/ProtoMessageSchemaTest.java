@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.protobuf;
 
-import static org.apache.beam.sdk.extensions.protobuf.ProtoSchemaTranslator.withFieldNumber;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.MAP_PRIMITIVE_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.MAP_PRIMITIVE_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.MAP_PRIMITIVE_SCHEMA;
@@ -55,6 +54,8 @@ import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REQUIRED_
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.WKT_MESSAGE_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.WKT_MESSAGE_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.WKT_MESSAGE_SCHEMA;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.withFieldNumber;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.withTypeName;
 import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.extensions.protobuf.Proto2SchemaMessages.OptionalPrimitive;
@@ -281,7 +282,8 @@ public class ProtoMessageSchemaTest {
       EnumerationType.create(ImmutableMap.of("ZERO", 0, "TWO", 2, "THREE", 3));
   private static final Schema ENUM_SCHEMA =
       Schema.builder()
-          .addField("enum", withFieldNumber(FieldType.logicalType(ENUM_TYPE), 1))
+          .addField(withFieldNumber("enum", FieldType.logicalType(ENUM_TYPE), 1))
+          .setOptions(withTypeName("proto3_schema_messages.EnumMessage"))
           .build();
   private static final Row ENUM_ROW =
       Row.withSchema(ENUM_SCHEMA).addValues(ENUM_TYPE.valueOf("TWO")).build();

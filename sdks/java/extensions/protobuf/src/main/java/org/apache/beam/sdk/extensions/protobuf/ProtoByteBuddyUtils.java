@@ -922,7 +922,7 @@ class ProtoByteBuddyUtils {
           fieldValueTypeSupplier.get(clazz, oneOfType.getOneOfSchema()).stream()
               .collect(Collectors.toMap(FieldValueTypeInformation::getName, f -> f));
       for (Field oneOfField : oneOfType.getOneOfSchema().getFields()) {
-        int protoFieldIndex = getFieldNumber(oneOfField.getType());
+        int protoFieldIndex = getFieldNumber(oneOfField);
         FieldValueGetter oneOfFieldGetter =
             createGetter(
                 oneOfFieldTypes.get(oneOfField.getName()),
@@ -993,7 +993,7 @@ class ProtoByteBuddyUtils {
       TreeMap<Integer, FieldValueSetter<ProtoBuilderT, Object>> oneOfSetters = Maps.newTreeMap();
       for (Field oneOfField : oneOfType.getOneOfSchema().getFields()) {
         FieldValueSetter setter = getProtoFieldValueSetter(oneOfField, methods, builderClass);
-        oneOfSetters.put(getFieldNumber(oneOfField.getType()), setter);
+        oneOfSetters.put(getFieldNumber(oneOfField), setter);
       }
       return createOneOfSetter(field.getName(), oneOfSetters, builderClass);
     } else {
