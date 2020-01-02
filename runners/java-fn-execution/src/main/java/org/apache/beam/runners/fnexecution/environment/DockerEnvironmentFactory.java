@@ -159,25 +159,31 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       containerId = docker.runImage(containerImage, dockerOptsBuilder.build(), argsBuilder.build());
       LOG.debug("Created Docker Container with Container ID {}", containerId);
       // Wait on a client from the gRPC server.
-      try {
-        instructionHandler = clientSource.take(workerId, Duration.ofMinutes(1));
-      } catch (TimeoutException timeoutEx) {
-        RuntimeException runtimeException =
-            new RuntimeException(
-                String.format(
-                    "Docker container %s failed to start up successfully within 1 minute.",
-                    containerImage),
-                timeoutEx);
+      while (instructionHandler == null) {
         try {
-          String containerLogs = docker.getContainerLogs(containerId);
-          LOG.error("Docker container {} logs:\n{}", containerId, containerLogs);
-        } catch (Exception getLogsException) {
-          runtimeException.addSuppressed(getLogsException);
+          // If the docker is not alive anymore, we abort.
+          if (!docker.isContainerRunning(containerId)) {
+            IllegalStateException illegalStateException =
+                new IllegalStateException(
+                    String.format("No container running for id %s", containerId));
+            try {
+              String containerLogs = docker.getContainerLogs(containerId);
+              LOG.error("Docker container {} logs:\n{}", containerId, containerLogs);
+            } catch (Exception getLogsException) {
+              illegalStateException.addSuppressed(getLogsException);
+            }
+            throw illegalStateException;
+          }
+          instructionHandler = clientSource.take(workerId, Duration.ofSeconds(5));
+        } catch (TimeoutException timeoutEx) {
+          LOG.info(
+              "Still waiting for startup of environment {} for worker id {}",
+              dockerPayload.getContainerImage(),
+              workerId);
+        } catch (InterruptedException interruptEx) {
+          Thread.currentThread().interrupt();
+          throw new RuntimeException(interruptEx);
         }
-        throw runtimeException;
-      } catch (InterruptedException interruptEx) {
-        Thread.currentThread().interrupt();
-        throw new RuntimeException(interruptEx);
       }
     } catch (Exception e) {
       if (containerId != null) {
