@@ -958,6 +958,7 @@ class SnippetsTest(unittest.TestCase):
                 | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
                 | WindowInto(FixedWindows(15),
                              trigger=trigger,
+                             allowed_lateness=20,
                              accumulation_mode=AccumulationMode.DISCARDING)
                 | 'group' >> beam.GroupByKey()
                 | 'count' >> beam.Map(
@@ -1014,6 +1015,7 @@ class SnippetsTest(unittest.TestCase):
               FixedWindows(1 * 60),
               trigger=AfterWatermark(
                   late=AfterProcessingTime(10 * 60)),
+              allowed_lateness=10,
               accumulation_mode=AccumulationMode.DISCARDING)
           # [END model_composite_triggers]
           | 'group' >> beam.GroupByKey()

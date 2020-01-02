@@ -29,7 +29,7 @@ import java.util.Set;
 import org.apache.beam.runners.apex.translation.operators.ApexTimerInternals.TimerProcessor;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.core.TimerInternals.TimerDataCoder;
+import org.apache.beam.runners.core.TimerInternals.TimerDataCoderV2;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -46,7 +46,7 @@ public class ApexTimerInternalsTest {
     final Map<String, Collection<TimerData>> firedTimers = new HashMap<>();
     TimerProcessor<String> timerProcessor = firedTimers::put;
 
-    TimerDataCoder timerDataCoder = TimerDataCoder.of(GlobalWindow.Coder.INSTANCE);
+    TimerDataCoderV2 timerDataCoder = TimerDataCoderV2.of(GlobalWindow.Coder.INSTANCE);
     String key1 = "key1";
     Instant instant0 = new Instant(0);
     Instant instant1 = new Instant(1);
@@ -85,7 +85,7 @@ public class ApexTimerInternalsTest {
 
   @Test
   public void testDeleteTimer() {
-    TimerDataCoder timerDataCoder = TimerDataCoder.of(GlobalWindow.Coder.INSTANCE);
+    TimerDataCoderV2 timerDataCoder = TimerDataCoderV2.of(GlobalWindow.Coder.INSTANCE);
     String key1 = "key1";
     Instant instant0 = new Instant(0);
     Instant instant1 = new Instant(1);
@@ -121,7 +121,7 @@ public class ApexTimerInternalsTest {
 
   @Test
   public void testSerialization() {
-    TimerDataCoder timerDataCoder = TimerDataCoder.of(GlobalWindow.Coder.INSTANCE);
+    TimerDataCoderV2 timerDataCoder = TimerDataCoderV2.of(GlobalWindow.Coder.INSTANCE);
     TimerData timerData =
         TimerData.of(
             "arbitrary-id", StateNamespaces.global(), new Instant(0), TimeDomain.EVENT_TIME);

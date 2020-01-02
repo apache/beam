@@ -208,7 +208,12 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
       // make sure this fires after any window.maxTimestamp() timers
       gcTime = gcTime.plus(GC_DELAY_MS);
       timerInternals.setTimer(
-          StateNamespaces.window(windowCoder, window), GC_TIMER_ID, gcTime, TimeDomain.EVENT_TIME);
+          StateNamespaces.window(windowCoder, window),
+          GC_TIMER_ID,
+          "",
+          gcTime,
+          window.maxTimestamp(),
+          TimeDomain.EVENT_TIME);
     }
 
     @Override

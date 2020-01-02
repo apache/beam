@@ -187,8 +187,8 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
     this.inputCoder = inputCoder;
     this.outputCoders = outputCoders;
 
-    TimerInternals.TimerDataCoder timerCoder =
-        TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
+    TimerInternals.TimerDataCoderV2 timerCoder =
+        TimerInternals.TimerDataCoderV2.of(windowingStrategy.getWindowFn().windowCoder());
     this.currentKeyTimerInternals = new ApexTimerInternals<>(timerCoder);
     this.doFnSchemaInformation = doFnSchemaInformation;
     this.sideInputMapping = sideInputMapping;
