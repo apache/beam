@@ -91,24 +91,24 @@ class PipelineGraphTest(unittest.TestCase):
          '}\n'),
         pipeline_graph.PipelineGraph(p).get_dot())
 
-  @patch('IPython.get_ipython', mock_get_ipython)
-  def test_get_dot_within_notebook(self):
+  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
+  def test_get_dot_within_notebook(self, cell):
     # Assume a mocked ipython kernel and notebook frontend have been set up.
     ie.current_env()._is_in_ipython = True
     ie.current_env()._is_in_notebook = True
-    with mock_get_ipython():  # Cell 1
+    with cell:  # Cell 1
       p = beam.Pipeline(ir.InteractiveRunner())
       # Immediately track this local pipeline so that ipython prompts when
       # applying transforms will be tracked and used for labels.
       ib.watch(locals())
 
-    with mock_get_ipython():  # Cell 2
+    with cell:  # Cell 2
       init_pcoll = p | 'Init' >> beam.Create(range(10))
 
-    with mock_get_ipython():  # Cell 3
+    with cell:  # Cell 3
       squares = init_pcoll | 'Square' >> beam.Map(lambda x: x * x)
 
-    with mock_get_ipython():  # Cell 4
+    with cell:  # Cell 4
       cubes = init_pcoll | 'Cube' >> beam.Map(lambda x: x ** 3)
 
     # Tracks all PCollections defined so far.
