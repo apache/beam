@@ -44,15 +44,15 @@ class SparkRunner(portable_runner.PortableRunner):
 
   def default_job_server(self, options):
     spark_options = options.view_as(pipeline_options.SparkRunnerOptions)
-    if (spark_options.spark_submit_uber_jar
-        and not re.match(LOCAL_MASTER_PATTERN, spark_options.spark_master_url)):
+    if spark_options.spark_submit_uber_jar:
       if sys.version_info < (3, 6):
         raise ValueError(
             'spark_submit_uber_jar requires Python 3.6+, current version %s'
             % sys.version)
+      if not spark_options.spark_rest_url:
+        raise ValueError('Option spark_rest_url must be set.')
       return spark_uber_jar_job_server.SparkUberJarJobServer(
-          re.sub('^spark://', 'http://', spark_options.spark_master_url),
-          options)
+          spark_options.spark_rest_url, options)
     return job_server.StopOnExitJobServer(SparkJarJobServer(options))
 
 

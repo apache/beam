@@ -44,9 +44,9 @@ class SparkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
   the pipeline artifacts.
   """
 
-  def __init__(self, master_url, options):
+  def __init__(self, rest_url, options):
     super(SparkUberJarJobServer, self).__init__()
-    self._master_url = master_url
+    self._rest_url = rest_url
     self._executable_jar = (options.view_as(pipeline_options.SparkRunnerOptions)
                             .spark_job_server_jar)
     self._artifact_port = (options.view_as(pipeline_options.JobServerOptions)
@@ -67,7 +67,7 @@ class SparkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
 
   def create_beam_job(self, job_id, job_name, pipeline, options):
     return SparkBeamJob(
-        self._master_url,
+        self._rest_url,
         self.executable_jar(),
         job_id,
         job_name,
@@ -84,17 +84,17 @@ class SparkBeamJob(abstract_job_service.UberJarBeamJob):
   setting the configuration property spark.master.rest.enabled to true."""
 
   def __init__(
-      self, master_url, executable_jar, job_id, job_name, pipeline, options,
+      self, rest_url, executable_jar, job_id, job_name, pipeline, options,
       artifact_port=0):
     super(SparkBeamJob, self).__init__(
         executable_jar, job_id, job_name, pipeline, options,
         artifact_port=artifact_port)
-    self._master_url = master_url
+    self._rest_url = rest_url
     # Message history is a superset of state history.
     self._message_history = self._state_history[:]
 
   def request(self, method, path, expected_status=200, **kwargs):
-    url = '%s/%s' % (self._master_url, path)
+    url = '%s/%s' % (self._rest_url, path)
     response = method(url, **kwargs)
     if response.status_code != expected_status:
       raise RuntimeError("Request to %s failed with status %d: %s" %

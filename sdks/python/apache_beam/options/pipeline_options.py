@@ -1005,10 +1005,12 @@ class SparkRunnerOptions(PipelineOptions):
     parser.add_argument('--spark_submit_uber_jar',
                         default=False,
                         action='store_true',
-                        help='Create and upload an uber jar to the Spark master'
-                             ' directly, rather than starting up a job server.'
-                             ' Only applies when Spark master is set to a'
-                             ' cluster address. Requires Python 3.6+.')
+                        help='Create and upload an uber jar to the Spark REST'
+                             ' endpoint, rather than starting up a job server.'
+                             ' Requires Python 3.6+.')
+    parser.add_argument('--spark_rest_url',
+                        help='URL for the Spark REST endpoint. '
+                             'Only required when using spark_submit_uber_jar.')
 
 
 class TestOptions(PipelineOptions):
