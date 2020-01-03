@@ -206,6 +206,21 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
 
   void setSaveHeapDumpsToGcsPath(String gcsPath);
 
+  /**
+   * If {@literal true}, shut down the JVM when sustained periods of GC thrashing are detected. If
+   * {@link #getDumpHeapOnOOM} is also set a heap dump will be saved before shutting down due to
+   * thrashing.
+   *
+   * <p>CAUTION: Enabling this feature can cause a pipeline that would otherwise succeed to fail
+   * when multiple workers are shut down due to thrashing while working on the same work item.
+   */
+  @Description(
+      "If true, shut down the JVM when sustained periods of GC thrashing are detected. If "
+          + "--dumpHeapOnOOM is also set a heap dump will be saved before shutting down due to thrashing.")
+  boolean getShutDownOnThrashing();
+
+  void setShutDownOnThrashing(boolean shutDownOnThrashing);
+
   /** Creates a {@link Stager} object using the class specified in {@link #getStagerClass()}. */
   class StagerFactory implements DefaultValueFactory<Stager> {
     @Override

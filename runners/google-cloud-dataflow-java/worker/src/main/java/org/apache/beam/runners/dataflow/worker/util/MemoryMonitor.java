@@ -199,10 +199,13 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
     DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
     String uploadToGCSPath = debugOptions.getSaveHeapDumpsToGcsPath();
     boolean canDumpHeap = uploadToGCSPath != null || debugOptions.getDumpHeapOnOOM();
+
+    int shutDownAfterNumGCThrashing =
+        debugOptions.getShutDownOnThrashing() ? DEFAULT_SHUT_DOWN_AFTER_NUM_GCTHRASHING : 0;
     return new MemoryMonitor(
         new SystemGCStatsProvider(),
         DEFAULT_SLEEP_TIME_MILLIS,
-        DEFAULT_SHUT_DOWN_AFTER_NUM_GCTHRASHING,
+        shutDownAfterNumGCThrashing,
         canDumpHeap,
         uploadToGCSPath,
         getLoggingDir());
