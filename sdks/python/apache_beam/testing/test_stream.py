@@ -228,7 +228,7 @@ class TestStream(PTransform):
     self._add(ElementEvent(timestamped_values))
     return self
 
-  def advance_watermark_to(self, new_watermark):
+  def advance_watermark_to(self, new_watermark, tag=None):
     """Advance the watermark to a given Unix timestamp.
 
     The Unix timestamp value used must be later than the previous watermark
@@ -238,9 +238,9 @@ class TestStream(PTransform):
     self._add(WatermarkEvent(new_watermark))
     return self
 
-  def advance_watermark_to_infinity(self):
+  def advance_watermark_to_infinity(self, tag=None):
     """Advance the watermark to the end of time, completing this TestStream."""
-    self.advance_watermark_to(timestamp.MAX_TIMESTAMP)
+    self.advance_watermark_to(timestamp.MAX_TIMESTAMP, tag)
     return self
 
   def advance_processing_time(self, advance_by):
