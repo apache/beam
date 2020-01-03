@@ -104,22 +104,3 @@ class JrhReadPTransformOverride(PTransformOverride):
 
     return JrhRead().with_output_types(
         ptransform.get_type_hints().simple_output_type('Read'))
-
-
-class WatermarkControllerOverride(PTransformOverride):
-  def matches(self, applied_ptransform):
-    from apache_beam.testing.test_stream import _WatermarkController
-    return isinstance(applied_ptransform.transform, _WatermarkController)
-
-  def get_replacement_transform(self, ptransform):
-    from apache_beam import Map
-    return Map(lambda _: _)
-
-
-class TestStreamOverride(PTransformOverride):
-  def matches(self, applied_ptransform):
-    from apache_beam.testing.test_stream import _TestStream
-    return isinstance(applied_ptransform.transform, _TestStream)
-
-  def get_replacement_transform(self, test_stream):
-    return test_stream.to_deprecated_test_stream()
