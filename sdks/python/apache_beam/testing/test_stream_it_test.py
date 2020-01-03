@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Unit tests for the test_stream module."""
+"""Integration tests for the test_stream module."""
 
 from __future__ import absolute_import
 
