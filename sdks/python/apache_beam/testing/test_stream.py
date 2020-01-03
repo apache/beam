@@ -201,7 +201,7 @@ class TestStream(PTransform):
       raise ValueError('Unknown event: %s' % event)
     self.events.append(event)
 
-  def add_elements(self, elements):
+  def add_elements(self, elements, tag=None, event_timestamp=None):
     """Add elements to the TestStream.
 
     Elements added to the TestStream will be produced during pipeline execution.
