@@ -255,7 +255,7 @@ class PipelineOptions(HasDisplayData):
 
   def get_all_options(self,
                       drop_default=False,
-                      add_extra_args_fn=None  # type: Optional[Callable[[_BeamArgumentParser], None]]
+                      add_extra_args_fn=None  # type: Union[Callable[[_BeamArgumentParser], None], None]
                      ):
     # type: (...) -> Dict[str, Any]
     """Returns a dictionary of all defined arguments.
