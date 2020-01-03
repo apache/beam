@@ -22,6 +22,7 @@ import tensorflow_model_analysis as tfma
 from tensorflow_model_analysis.evaluators import evaluator
 
 import apache_beam as beam
+from apache_beam.io.gcp.bigquery import _ReadFromBigQuery as ReadFromBigQuery
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
@@ -93,8 +94,8 @@ def process_tfma(schema_file,
   raw_feature_spec = taxi.get_raw_feature_spec(schema)
   raw_data = (
       pipeline
-      | 'ReadBigQuery' >> beam.io.Read(
-          beam.io.BigQuerySource(query=query, use_standard_sql=True))
+      | 'ReadBigQuery' >> ReadFromBigQuery(query=query, project=project,
+                                           use_standard_sql=True)
       | 'Measure time: Start' >> beam.ParDo(MeasureTime(metrics_namespace))
       | 'CleanData' >> beam.Map(lambda x: (
           taxi.clean_raw_data_dict(x, raw_feature_spec))))
