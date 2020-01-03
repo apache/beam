@@ -1238,7 +1238,7 @@ class DataflowRunner(PipelineRunner):
     # TestStream source doesn't do any decoding of elements,
     # so we won't set test_stream_payload.coder_id.
     output_coder = transform._infer_output_coder()  # pylint: disable=protected-access
-    for event in transform.events:
+    for event in transform._events:
       new_event = test_stream_payload.events.add()
       if isinstance(event, ElementEvent):
         for tv in event.timestamped_values:
