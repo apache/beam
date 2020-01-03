@@ -173,6 +173,7 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
   ]
 
 REQUIRED_TEST_PACKAGES = [
+    'freezegun>=0.3.12',
     'nose>=1.3.7',
     'nose_xunitmp>=0.4.1',
     'pandas>=0.23.4,<0.25',
