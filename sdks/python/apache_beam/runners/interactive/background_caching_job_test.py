@@ -21,6 +21,7 @@ from __future__ import absolute_import
 import unittest
 
 import apache_beam as beam
+from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners import runner
 from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_beam as ib
@@ -152,8 +153,7 @@ class BackgroundCachingJobTest(unittest.TestCase):
   def test_source_to_cache_changed_when_source_is_altered(self, cell):
     with cell:  # Cell 1
       pipeline = _build_an_empty_stream_pipeline()
-      transform = beam.io.ReadFromPubSub(
-          subscription=_FOO_PUBSUB_SUB)
+      transform = beam.io.ReadFromPubSub(subscription=_FOO_PUBSUB_SUB)
       read_foo = pipeline | 'Read' >> transform
       ib.watch({'read_foo': read_foo})
 
@@ -172,8 +172,7 @@ class BackgroundCachingJobTest(unittest.TestCase):
   def test_source_to_cache_not_changed_for_same_source(self, cell):
     with cell:  # Cell 1
       pipeline = _build_an_empty_stream_pipeline()
-      transform = beam.io.ReadFromPubSub(
-          subscription='projects/test-project/subscriptions/dummy')
+      transform = beam.io.ReadFromPubSub(subscription=_FOO_PUBSUB_SUB)
 
     with cell:  # Cell 2
       read_foo_1 = pipeline | 'Read' >> transform
@@ -195,9 +194,53 @@ class BackgroundCachingJobTest(unittest.TestCase):
       # The signature representing the urn and payload is still the same, so it
       # is not treated as a new unbounded source.
       read_foo_3 = pipeline | 'Read' >> beam.io.ReadFromPubSub(
-          subscription='projects/test-project/subscriptions/dummy')
+          subscription=_FOO_PUBSUB_SUB)
       ib.watch({'read_foo_3': read_foo_3})
 
+    self.assertFalse(bcj.is_source_to_cache_changed(pipeline))
+
+  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
+  def test_source_to_cache_not_changed_when_source_is_removed(self, cell):
+    with cell:  # Cell 1
+      pipeline = _build_an_empty_stream_pipeline()
+      foo_transform = beam.io.ReadFromPubSub(subscription=_FOO_PUBSUB_SUB)
+      bar_transform = beam.io.ReadFromPubSub(subscription=_BAR_PUBSUB_SUB)
+
+    with cell:  # Cell 2
+      read_foo = pipeline | 'Read' >> foo_transform
+      ib.watch({'read_foo': read_foo})
+
+    signature_with_only_foo = bcj.extract_source_to_cache_signature(pipeline)
+
+    with cell:  # Cell 3
+      read_bar = pipeline | 'Read' >> bar_transform
+      ib.watch({'read_bar': read_bar})
+
+    self.assertTrue(bcj.is_source_to_cache_changed(pipeline))
+    signature_with_foo_bar = ie.current_env().get_cached_source_signature(
+        pipeline)
+    self.assertNotEqual(signature_with_only_foo, signature_with_foo_bar)
+
+    class BarPruneVisitor(PipelineVisitor):
+
+      def enter_composite_transform(self, transform_node):
+        pruned_parts = list(transform_node.parts)
+        for part in transform_node.parts:
+          if part.transform is bar_transform:
+            pruned_parts.remove(part)
+        transform_node.parts = tuple(pruned_parts)
+        self.visit_transform(transform_node)
+
+      def visit_transform(self, transform_node):
+        if transform_node.transform is bar_transform:
+          transform_node.parent = None
+
+    v = BarPruneVisitor()
+    pipeline.visit(v)
+
+    signature_after_pruning_bar = bcj.extract_source_to_cache_signature(
+        pipeline)
+    self.assertEqual(signature_with_only_foo, signature_after_pruning_bar)
     self.assertFalse(bcj.is_source_to_cache_changed(pipeline))
 
 

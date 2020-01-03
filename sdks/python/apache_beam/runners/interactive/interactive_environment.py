@@ -244,7 +244,7 @@ class InteractiveEnvironment(object):
   def set_cached_source_signature(self, pipeline, signature):
     self._cached_source_signature[pipeline] = signature
 
-  def cached_source_signature(self, pipeline):
+  def get_cached_source_signature(self, pipeline):
     return self._cached_source_signature.get(pipeline, set())
 
   def track_user_pipelines(self):

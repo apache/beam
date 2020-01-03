@@ -125,7 +125,8 @@ def is_source_to_cache_changed(user_pipeline):
   """
   # By default gets empty set if the user_pipeline is first time seen because
   # we can treat it as adding transforms.
-  recorded_signature = ie.current_env().cached_source_signature(user_pipeline)
+  recorded_signature = ie.current_env().get_cached_source_signature(
+      user_pipeline)
   current_signature = extract_source_to_cache_signature(user_pipeline)
   is_changed = not current_signature.issubset(recorded_signature)
   # The computation of extract_unbounded_source_signature is expensive, track on
