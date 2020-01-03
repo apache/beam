@@ -74,7 +74,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
         i ->
             new SqlIdentifier(
                 getProgram().getInputRowType().getFieldList().get(i).getName(), SqlParserPos.ZERO);
-    context = new BeamSqlUnparseContext(DIALECT, fn);
+    context = new BeamSqlUnparseContext(fn);
   }
 
   @Override

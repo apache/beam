@@ -24,7 +24,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rel2sql.Sql
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexProgram;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlDialect;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
@@ -37,8 +36,8 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.commons.lang.StringEsca
 
 public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
 
-  public BeamSqlUnparseContext(SqlDialect dialect, IntFunction<SqlNode> field) {
-    super(dialect, field);
+  public BeamSqlUnparseContext(IntFunction<SqlNode> field) {
+    super(BeamBigQuerySqlDialect.DEFAULT, field);
   }
 
   @Override
@@ -46,14 +45,12 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
     if (rex.getKind().equals(SqlKind.LITERAL)) {
       final RexLiteral literal = (RexLiteral) rex;
       SqlTypeFamily family = literal.getTypeName().getFamily();
-      if (family != null) {
-        if (family.equals(SqlTypeFamily.BINARY)) {
-          BitString bitString = BitString.createFromBytes(literal.getValueAs(byte[].class));
-          return new SqlByteStringLiteral(bitString, POS);
-        } else if (family.equals(SqlTypeFamily.CHARACTER)) {
-          String escaped = StringEscapeUtils.escapeJava(literal.getValueAs(String.class));
-          return SqlLiteral.createCharString(escaped, POS);
-        }
+      if (SqlTypeFamily.BINARY.equals(family)) {
+        BitString bitString = BitString.createFromBytes(literal.getValueAs(byte[].class));
+        return new SqlByteStringLiteral(bitString, POS);
+      } else if (SqlTypeFamily.CHARACTER.equals(family)) {
+        String escaped = StringEscapeUtils.escapeJava(literal.getValueAs(String.class));
+        return SqlLiteral.createCharString(escaped, POS);
       }
     }
 
