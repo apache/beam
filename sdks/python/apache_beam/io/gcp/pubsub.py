@@ -141,11 +141,11 @@ class ReadFromPubSub(PTransform):
   # Implementation note: This ``PTransform`` is overridden by Directrunner.
 
   def __init__(self,
-               topic=None,  # type: Optional[str]
-               subscription=None,  # type: Optional[str]
-               id_label=None,  # type: Optional[str]
+               topic=None,  # type: Union[str, None]
+               subscription=None,  # type: Union[str, None]
+               id_label=None,  # type: Union[str, None]
                with_attributes=False,  # type: bool
-               timestamp_attribute=None  # type: Optional[str]
+               timestamp_attribute=None  # type: Union[str, None]
               ):
     # type: (...) -> None
     """Initializes ``ReadFromPubSub``.
@@ -257,8 +257,8 @@ class WriteToPubSub(PTransform):
   def __init__(self,
                topic,  # type: str
                with_attributes=False,  # type: bool
-               id_label=None,  # type: Optional[str]
-               timestamp_attribute=None  # type: Optional[str]
+               id_label=None,  # type: Union[str, None]
+               timestamp_attribute=None  # type: Union[str, None]
               ):
     # type: (...) -> None
     """Initializes ``WriteToPubSub``.
