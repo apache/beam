@@ -188,8 +188,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
 
     // TODO: BigQuerySqlDialectWithTypeTranslation can be replaced with BigQuerySqlDialect after
     // updating vendor Calcite version.
-    SqlImplementor.SimpleContext context =
-        new SqlImplementor.SimpleContext(BeamBigQuerySqlDialect.DEFAULT, field);
+    SqlImplementor.Context context = new BeamSqlUnparseContext(field);
 
     // Create a single SqlNode from a list of RexNodes
     SqlNode andSqlNode = null;
