@@ -20,25 +20,17 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import json
 import logging
 import os
-import shutil
 import tempfile
 import time
 import zipfile
-from concurrent import futures
 
-import grpc
 import requests
-from google.protobuf import json_format
 
 from apache_beam.options import pipeline_options
-from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
-from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import abstract_job_service
-from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import job_server
 
 _LOGGER = logging.getLogger(__name__)
@@ -89,72 +81,17 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
         artifact_port=self._artifact_port)
 
 
-class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
+class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
   """Runs a single Beam job on Flink by staging all contents into a Jar
   and uploading it via the Flink Rest API."""
-
-  # These must agree with those defined in PortablePipelineJarUtils.java.
-  PIPELINE_FOLDER = 'BEAM-PIPELINE'
-  PIPELINE_MANIFEST = PIPELINE_FOLDER + '/pipeline-manifest.json'
-
-  # We only stage a single pipeline in the jar.
-  PIPELINE_NAME = 'pipeline'
-  PIPELINE_PATH = '/'.join(
-      [PIPELINE_FOLDER, PIPELINE_NAME, "pipeline.json"])
-  PIPELINE_OPTIONS_PATH = '/'.join(
-      [PIPELINE_FOLDER, PIPELINE_NAME, 'pipeline-options.json'])
-  ARTIFACT_MANIFEST_PATH = '/'.join(
-      [PIPELINE_FOLDER, PIPELINE_NAME, 'artifact-manifest.json'])
-  ARTIFACT_FOLDER = '/'.join([PIPELINE_FOLDER, PIPELINE_NAME, 'artifacts'])
 
   def __init__(
       self, master_url, executable_jar, job_id, job_name, pipeline, options,
       artifact_port=0):
-    super(FlinkBeamJob, self).__init__(job_id, job_name, pipeline, options)
+    super(FlinkBeamJob, self).__init__(
+        executable_jar, job_id, job_name, pipeline, options,
+        artifact_port=artifact_port)
     self._master_url = master_url
-    self._executable_jar = executable_jar
-    self._jar_uploaded = False
-    self._artifact_port = artifact_port
-
-  def prepare(self):
-    # Copy the executable jar, injecting the pipeline and options as resources.
-    with tempfile.NamedTemporaryFile(suffix='.jar') as tout:
-      self._jar = tout.name
-    shutil.copy(self._executable_jar, self._jar)
-    with zipfile.ZipFile(self._jar, 'a', compression=zipfile.ZIP_DEFLATED) as z:
-      with z.open(self.PIPELINE_PATH, 'w') as fout:
-        fout.write(json_format.MessageToJson(
-            self._pipeline_proto).encode('utf-8'))
-      with z.open(self.PIPELINE_OPTIONS_PATH, 'w') as fout:
-        fout.write(json_format.MessageToJson(
-            self._pipeline_options).encode('utf-8'))
-      with z.open(self.PIPELINE_MANIFEST, 'w') as fout:
-        fout.write(json.dumps(
-            {'defaultJobName': self.PIPELINE_NAME}).encode('utf-8'))
-    self._start_artifact_service(self._jar, self._artifact_port)
-
-  def _start_artifact_service(self, jar, requested_port):
-    self._artifact_staging_service = artifact_service.ZipFileArtifactService(
-        jar, self.ARTIFACT_FOLDER)
-    self._artifact_staging_server = grpc.server(futures.ThreadPoolExecutor())
-    port = self._artifact_staging_server.add_insecure_port(
-        '[::]:%s' % requested_port)
-    beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
-        self._artifact_staging_service, self._artifact_staging_server)
-    self._artifact_staging_endpoint = endpoints_pb2.ApiServiceDescriptor(
-        url='localhost:%d' % port)
-    self._artifact_staging_server.start()
-    _LOGGER.info('Artifact server started on port %s', port)
-    return port
-
-  def _stop_artifact_service(self):
-    self._artifact_staging_server.stop(1)
-    self._artifact_staging_service.close()
-    self._artifact_manifest_location = (
-        self._artifact_staging_service.retrieval_token(self._job_id))
-
-  def artifact_staging_endpoint(self):
-    return self._artifact_staging_endpoint
 
   def request(self, method, path, expected_status=200, **kwargs):
     url = '%s/%s' % (self._master_url, path)

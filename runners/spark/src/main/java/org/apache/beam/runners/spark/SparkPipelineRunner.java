@@ -169,6 +169,10 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     SparkPipelineOptions sparkOptions = portablePipelineOptions.as(SparkPipelineOptions.class);
     String invocationId =
         String.format("%s_%s", sparkOptions.getJobName(), UUID.randomUUID().toString());
+    if (sparkOptions.getAppName() == null) {
+      LOG.debug("App name was null. Using invocationId {}", invocationId);
+      sparkOptions.setAppName(invocationId);
+    }
 
     SparkPipelineRunner runner = new SparkPipelineRunner(sparkOptions);
     JobInfo jobInfo =
