@@ -47,8 +47,8 @@ def supported(runners):
     @wraps(fn)
     def wrapped(self):
       if self.runner_name not in runners:
-        self.skipTest('The "{}", does not support the TestStream transform. Supported runners: {}'.format(
-            self.runner_name, runners))
+        self.skipTest('The "{}", does not support the TestStream transform. '
+                      'Supported runners: {}'.format(self.runner_name, runners))
       else:
         return fn(self)
     return wrapped
