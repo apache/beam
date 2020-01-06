@@ -1497,7 +1497,7 @@ class BeamModulePlugin implements Plugin<Project> {
               archivesBaseName: configuration.archivesBaseName,
               automaticModuleName: configuration.automaticModuleName,
               shadowJarValidationExcludes: it.shadowJarValidationExcludes,
-              shadowClosure: GrpcVendoringOld.shadowClosure() << {
+              shadowClosure: GrpcVendoring_1_21_0.shadowClosure() << {
                 // We perform all the code relocations but don't include
                 // any of the actual dependencies since they will be supplied
                 // by org.apache.beam:beam-vendor-grpc-v1p21p0:0.1
@@ -1538,7 +1538,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      project.dependencies GrpcVendoringOld.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_21_0 }
+      project.dependencies GrpcVendoring_1_21_0.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_21_0 }
     }
 
     /** ***********************************************************************************************/

@@ -51,6 +51,7 @@ class VendorJavaPlugin implements Plugin<Project> {
   static class VendorJavaPluginConfig {
     List<String> dependencies
     List<String> runtimeDependencies
+    List<String> testDependencies
     Map<String, String> relocations
     List<String> exclusions
     String groupId
@@ -97,6 +98,7 @@ class VendorJavaPlugin implements Plugin<Project> {
       project.dependencies {
         config.dependencies.each { compile it }
         config.runtimeDependencies.each { runtime it }
+        config.testDependencies.each { testImplementation it}
       }
 
       // Create a task which emulates the maven-archiver plugin in generating a
