@@ -384,7 +384,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def postgres_version = "42.2.2"
     def powermock_version = "2.0.2"
     def proto_google_common_protos_version = "1.17.0"
-    def protobuf_version = "3.6.0"
+    def protobuf_version = "3.11.1"
     def quickcheck_version = "0.8"
     def spark_version = "2.4.4"
     def spark_structured_streaming_version = "2.4.0"
