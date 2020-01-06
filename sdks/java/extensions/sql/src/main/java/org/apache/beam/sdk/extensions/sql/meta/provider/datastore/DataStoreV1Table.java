@@ -30,19 +30,16 @@ import static com.google.datastore.v1.Value.ValueTypeCase.TIMESTAMP_VALUE;
 import static com.google.datastore.v1.Value.ValueTypeCase.VALUETYPE_NOT_SET;
 import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
-import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
-import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.Key;
-import com.google.datastore.v1.Key.PathElement;
 import com.google.datastore.v1.Query;
 import com.google.datastore.v1.Value;
 import com.google.datastore.v1.Value.ValueTypeCase;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -63,6 +60,7 @@ import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
@@ -82,12 +80,6 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
   private static final String DEFAULT_KEY_FIELD = "__key__";
   // Should match: `projectId/kind`.
   private static final Pattern locationPattern = Pattern.compile("(?<projectId>.+)/(?<kind>.+)");
-  private static final Schema KEY_ROW_SCHEMA =
-      Schema.builder()
-          .addNullableField("kind", STRING)
-          .addNullableField("id", INT64)
-          .addNullableField("name", STRING)
-          .build();
   @VisibleForTesting final String projectId;
   @VisibleForTesting final String kind;
 
@@ -164,6 +156,8 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
                   return Instant.ofEpochMilli(millis).toDateTime();
                 })
             .put(STRING_VALUE, Value::getStringValue)
+            // https://cloud.google.com/datastore/docs/concepts/entities.
+            .put(KEY_VALUE, v -> v.getKeyValue().toByteArray())
             .put(BLOB_VALUE, v -> v.getBlobValue().toByteArray())
             .put(VALUETYPE_NOT_SET, v -> null)
             .build();
@@ -183,22 +177,17 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
       this.keyField = keyField;
 
       if (schema.getFieldNames().contains(keyField)
-          && (!schema.getField(keyField).getType().getTypeName().isCollectionType()
-              || !schema
-                  .getField(keyField)
-                  .getType()
-                  .getCollectionElementType()
-                  .equals(FieldType.row(KEY_ROW_SCHEMA)))) {
+          && !schema.getField(keyField).getType().getTypeName().equals(TypeName.BYTES)) {
         throw new IllegalStateException(
             "Field `"
                 + keyField
-                + "` should of type `ARRAY<ROW(`kind` VARCHAR, `id` BIGINT, `name` VARCHAR)>`. Please change the type or specify a field to store the KEY value in via TableProperties.");
+                + "` should of type `VARBINARY`. Please change the type or specify a field to store the KEY value in via TableProperties.");
       }
     }
 
     public static EntityToRowConverter create(Schema schema) {
       LOGGER.info(
-          "ARRAY<ROW(`kind` VARCHAR, `id` BIGINT, `name` VARCHAR)> field to store KEY was not specified, using default value: `"
+          "VARBINARY field to store KEY was not specified, using default value: `"
               + DEFAULT_KEY_FIELD
               + "`.");
       return new EntityToRowConverter(schema, DEFAULT_KEY_FIELD);
@@ -229,17 +218,6 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
         return valueList.stream()
             .map(v -> convertValueToObject(elementType, v))
             .collect(Collectors.toList());
-      } else if (typeCase.equals(KEY_VALUE)) {
-        // More information about keys can be found here:
-        // https://cloud.google.com/datastore/docs/concepts/entities.
-        ImmutableList.Builder<Row> pathBuilder = ImmutableList.builder();
-        for (PathElement path : val.getKeyValue().getPathList()) {
-          pathBuilder.add(
-              Row.withSchema(KEY_ROW_SCHEMA)
-                  .addValues(path.getKind(), path.getId(), path.getName())
-                  .build());
-        }
-        return pathBuilder.build();
       }
 
       // Mapping for primitive types.
@@ -301,22 +279,17 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
       this.keyField = keyField;
 
       if (schema.getFieldNames().contains(keyField)
-          && (!schema.getField(keyField).getType().getTypeName().isCollectionType()
-              || !schema
-                  .getField(keyField)
-                  .getType()
-                  .getCollectionElementType()
-                  .equals(FieldType.row(KEY_ROW_SCHEMA)))) {
+          && !schema.getField(keyField).getType().getTypeName().equals(TypeName.BYTES)) {
         throw new IllegalStateException(
             "Field `"
                 + keyField
-                + "` should of type `ARRAY<ROW(`kind` VARCHAR, `id` BIGINT, `name` VARCHAR)>`. Please change the type or specify a field to write the KEY value from via TableProperties.");
+                + "` should of type `VARBINARY`. Please change the type or specify a field to write the KEY value from via TableProperties.");
       }
     }
 
     public static RowToEntityConverter create(Schema schema, String kind) {
       LOGGER.info(
-          "ARRAY<ROW(`kind` VARCHAR, `id` BIGINT, `name` VARCHAR)> field with the KEY was not specified, using default value: `"
+          "VARBINARY field with the KEY was not specified, using default value: `"
               + DEFAULT_KEY_FIELD
               + "`.");
       return new RowToEntityConverter(
@@ -354,28 +327,12 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
         // When key field is not present - use key supplier to generate a random one.
         return makeKey(kind, keySupplier.get()).build();
       }
-      Collection<Row> keyPathList = row.getValue(keyField);
-      assert keyPathList != null;
-      ImmutableList.Builder<PathElement> pathList = ImmutableList.builder();
-      for (Row keyRowElement : keyPathList) {
-        String pathKind = keyRowElement.getString("kind");
-        checkArgument(pathKind != null, "PathElement Row must have `kind VARCHAR` field set.");
-        String pathName = keyRowElement.getString("name");
-        Long pathId = keyRowElement.getInt64("id");
-
-        PathElement.Builder pathBuilder = PathElement.newBuilder().setKind(pathKind);
-        if (pathName != null && !pathName.equals("")) {
-          pathBuilder.setName(pathName);
-        } else if (pathId != null && pathId != 0) {
-          pathBuilder.setId(pathId);
-        } else {
-          throw new IllegalStateException(
-              "One of the fields (`name` VARCHAR or `id` INT64) must be set.");
-        }
-        pathList.add(pathBuilder.build());
+      byte[] keyBytes = row.getBytes(keyField);
+      try {
+        return Key.parseFrom(keyBytes);
+      } catch (InvalidProtocolBufferException e) {
+        throw new IllegalStateException("Failed to parse DataStore key from bytes.");
       }
-
-      return Key.newBuilder().addAllPath(pathList.build()).build();
     }
 
     /**
