@@ -19,7 +19,10 @@ package org.apache.beam.runners.flink.translation.types;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -33,10 +36,18 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 public class CoderTypeInformation<T> extends TypeInformation<T> implements AtomicType<T> {
 
   private final Coder<T> coder;
+  @Nullable private final SerializablePipelineOptions pipelineOptions;
 
   public CoderTypeInformation(Coder<T> coder) {
     checkNotNull(coder);
     this.coder = coder;
+    this.pipelineOptions = null;
+  }
+
+  private CoderTypeInformation(Coder<T> coder, PipelineOptions pipelineOptions) {
+    checkNotNull(coder);
+    this.coder = coder;
+    this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
   }
 
   public Coder<T> getCoder() {
@@ -70,14 +81,25 @@ public class CoderTypeInformation<T> extends TypeInformation<T> implements Atomi
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public TypeSerializer<T> createSerializer(ExecutionConfig config) {
-    return new CoderTypeSerializer<>(coder);
+    return new CoderTypeSerializer<>(coder, pipelineOptions);
   }
 
   @Override
   public int getTotalFields() {
     return 2;
+  }
+
+  /**
+   * Creates a new {@link CoderTypeInformation} with {@link PipelineOptions}, that can be used for
+   * {@link org.apache.beam.sdk.io.FileSystems} registration.
+   *
+   * @see <a href="https://issues.apache.org/jira/browse/BEAM-8577">Jira issue.</a>
+   * @param pipelineOptions Options of current pipeline.
+   * @return New type information.
+   */
+  public CoderTypeInformation<T> withPipelineOptions(PipelineOptions pipelineOptions) {
+    return new CoderTypeInformation<>(getCoder(), pipelineOptions);
   }
 
   @Override
