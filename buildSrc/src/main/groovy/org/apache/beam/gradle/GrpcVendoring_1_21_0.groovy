@@ -23,7 +23,7 @@ import org.gradle.api.Project
 /**
  * Utilities for working with our vendored version of gRPC.
  */
-class GrpcVendoringOld {
+class GrpcVendoring_1_21_0 {
   /** Returns the list of compile time dependencies. */
   static List<String> dependencies() {
     return [
