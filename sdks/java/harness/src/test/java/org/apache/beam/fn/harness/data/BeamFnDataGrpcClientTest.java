@@ -292,7 +292,7 @@ public class BeamFnDataGrpcClientTest {
       BeamFnDataGrpcClient clientFactory =
           new BeamFnDataGrpcClient(
               PipelineOptionsFactory.fromArgs(
-                      new String[] {"--experiments=beam_fn_api_data_buffer_size_limit=20"})
+                      new String[] {"--experiments=data_buffer_size_limit=20"})
                   .create(),
               (Endpoints.ApiServiceDescriptor descriptor) -> channel,
               OutboundObserverFactory.trivial());

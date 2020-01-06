@@ -54,7 +54,7 @@ public class BeamFnDataTimeBasedBufferingOutboundObserverTest {
     PipelineOptions options = PipelineOptionsFactory.create();
     options
         .as(ExperimentalOptions.class)
-        .setExperiments(Arrays.asList("beam_fn_api_data_buffer_time_limit=1"));
+        .setExperiments(Arrays.asList("data_buffer_time_limit_ms=1"));
     final CountDownLatch waitForFlush = new CountDownLatch(1);
     CloseableFnDataReceiver<WindowedValue<byte[]>> consumer =
         BeamFnDataBufferingOutboundObserver.forLocation(
@@ -80,7 +80,7 @@ public class BeamFnDataTimeBasedBufferingOutboundObserverTest {
     PipelineOptions options = PipelineOptionsFactory.create();
     options
         .as(ExperimentalOptions.class)
-        .setExperiments(Arrays.asList("beam_fn_api_data_buffer_time_limit=1"));
+        .setExperiments(Arrays.asList("data_buffer_time_limit_ms=1"));
     BeamFnDataTimeBasedBufferingOutboundObserver<WindowedValue<byte[]>> consumer =
         (BeamFnDataTimeBasedBufferingOutboundObserver<WindowedValue<byte[]>>)
             BeamFnDataBufferingOutboundObserver.forLocation(
