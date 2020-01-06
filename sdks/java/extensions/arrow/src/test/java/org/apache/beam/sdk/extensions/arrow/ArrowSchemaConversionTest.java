@@ -72,13 +72,13 @@ public class ArrowSchemaConversionTest {
     Schema expected =
         Schema.of(Field.of("int8", FieldType.BYTE), Field.of("int16", FieldType.INT16));
 
-    org.apache.arrow.vector.types.pojo.Schema arrow_schema =
+    org.apache.arrow.vector.types.pojo.Schema arrowSchema =
         new org.apache.arrow.vector.types.pojo.Schema(
             ImmutableList.of(
                 field("int8", new ArrowType.Int(8, true)),
                 field("int16", new ArrowType.Int(16, true))));
 
-    assertThat(ArrowSchemaConversion.toBeamSchema(arrow_schema), equalTo(expected));
+    assertThat(ArrowSchemaConversion.toBeamSchema(arrowSchema), equalTo(expected));
   }
 
   @Test
