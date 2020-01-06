@@ -179,11 +179,12 @@ def equal_to(expected):
           expected_list.remove(element)
         except ValueError:
           raise BeamAssertException(
-              'Failed assert: %r == %r, expected missing element %r' %
+              'Failed assert: %r == %r, right side missing at least element %r' %
               (expected, actual, element))
       if expected_list:
-        raise BeamAssertException('Failed assert: %r == %r, actual missing %r' %
-                                  (expected, actual, expected_list))
+        raise BeamAssertException(
+            'Failed assert: %r == %r, left side missing elements %r' %
+            (expected, actual, expected_list))
 
   return _equal
 
