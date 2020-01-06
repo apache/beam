@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.datastore;
 
 import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
+import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARBINARY;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.BOOLEAN;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.BYTES;
@@ -36,6 +37,7 @@ import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.datastore.DataStoreV1Table.EntityToRowConverter;
 import org.apache.beam.sdk.extensions.sql.meta.provider.datastore.DataStoreV1Table.RowToEntityConverter;
@@ -62,15 +64,9 @@ public class DataStoreTableTest {
 
   private static final Schema NESTED_ROW_SCHEMA =
       Schema.builder().addNullableField("nestedLong", INT64).build();
-  private static final Schema KEY_ROW_SCHEMA =
-      Schema.builder()
-          .addNullableField("kind", STRING)
-          .addNullableField("id", INT64)
-          .addNullableField("name", STRING)
-          .build();
   private static final Schema SCHEMA =
       Schema.builder()
-          .addNullableField("__key__", array(FieldType.row(KEY_ROW_SCHEMA)))
+          .addNullableField("__key__", VARBINARY)
           .addNullableField("long", INT64)
           .addNullableField("bool", BOOLEAN)
           .addNullableField("datetime", DATETIME)
@@ -102,7 +98,7 @@ public class DataStoreTableTest {
   private static final Row ROW =
       row(
           SCHEMA,
-          Collections.singletonList(row(KEY_ROW_SCHEMA, KIND, 0L, UUID_VALUE)),
+          KEY.build().toByteArray(),
           Long.MAX_VALUE,
           true,
           DATE_TIME,
@@ -125,11 +121,62 @@ public class DataStoreTableTest {
   }
 
   @Test
+  public void testEntityToRowConverterWithoutKey() {
+    Schema schemaWithoutKey =
+        Schema.builder()
+            .addFields(
+                SCHEMA.getFields().stream()
+                    .filter(f -> !f.getName().equals("__key__"))
+                    .collect(Collectors.toList()))
+            .build();
+    Row rowWithoutKey =
+        Row.withSchema(schemaWithoutKey)
+            .addValues(
+                schemaWithoutKey.getFieldNames().stream()
+                    .map(ROW::getValue)
+                    .collect(Collectors.toList()))
+            .build();
+    PCollection<Row> result =
+        pipeline
+            .apply(Create.of(ENTITY))
+            .apply(ParDo.of(EntityToRowConverter.create(schemaWithoutKey)));
+    PAssert.that(result).containsInAnyOrder(rowWithoutKey);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
   public void testRowToEntityConverter() {
     PCollection<Entity> result =
         pipeline
             .apply(Create.of(ROW))
             .apply(ParDo.of(RowToEntityConverter.createTest(UUID_VALUE, SCHEMA, KIND)));
+    PAssert.that(result).containsInAnyOrder(ENTITY);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testRowToEntityConverterWithoutKey() {
+    Schema schemaWithoutKey =
+        Schema.builder()
+            .addFields(
+                SCHEMA.getFields().stream()
+                    .filter(f -> !f.getName().equals("__key__"))
+                    .collect(Collectors.toList()))
+            .build();
+    Row rowWithoutKey =
+        Row.withSchema(schemaWithoutKey)
+            .addValues(
+                schemaWithoutKey.getFieldNames().stream()
+                    .map(ROW::getValue)
+                    .collect(Collectors.toList()))
+            .build();
+    PCollection<Entity> result =
+        pipeline
+            .apply(Create.of(rowWithoutKey))
+            .apply(ParDo.of(RowToEntityConverter.createTest(UUID_VALUE, SCHEMA, KIND)));
+
     PAssert.that(result).containsInAnyOrder(ENTITY);
 
     pipeline.run().waitUntilFinish();

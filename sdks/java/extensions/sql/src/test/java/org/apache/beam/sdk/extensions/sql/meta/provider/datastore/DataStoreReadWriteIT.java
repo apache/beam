@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.datastore;
 
+import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
+import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARBINARY;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.BOOLEAN;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.DATETIME;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.DOUBLE;
@@ -25,6 +27,8 @@ import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
+import com.google.datastore.v1.Key;
+import java.util.UUID;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
@@ -35,6 +39,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,15 +50,9 @@ import org.junit.runners.JUnit4;
 public class DataStoreReadWriteIT {
   private static final BigQueryOptions options =
       TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-  private static final Schema KEY_ROW_SCHEMA =
-      Schema.builder()
-          .addNullableField("kind", STRING)
-          .addNullableField("id", INT64)
-          .addNullableField("name", STRING)
-          .build();
   private static final Schema SOURCE_SCHEMA =
       Schema.builder()
-          .addNullableField("__key__", FieldType.array(FieldType.row(KEY_ROW_SCHEMA)))
+          .addNullableField("__key__", VARBINARY)
           .addNullableField("content", STRING)
           .build();
   private static final String KIND = "writereadtest";
@@ -69,7 +68,7 @@ public class DataStoreReadWriteIT {
 
     String createTableStatement =
         "CREATE EXTERNAL TABLE TEST( \n"
-            + "   `__key__` ARRAY<ROW(`kind` VARCHAR, `id` BIGINT, `name` VARCHAR)>, \n"
+            + "   `__key__` VARBINARY, \n"
             + "   `content` VARCHAR \n"
             + ") \n"
             + "TYPE 'datastoreV1' \n"
@@ -80,18 +79,13 @@ public class DataStoreReadWriteIT {
             + "'";
     sqlEnv.executeDdl(createTableStatement);
 
-    // TODO: need a consistent way to insert keys with ancestors.
-    //  ex: ARRAY[ROW(cast('writereadalltypestest' as VARCHAR), 5742621615980544, cast('' as
-    // VARCHAR))].
+    Key ancestor = makeKey(KIND, UUID.randomUUID().toString()).build();
+    Key itemKey = makeKey(ancestor, KIND, UUID.randomUUID().toString()).build();
     String insertStatement =
-        "INSERT INTO TEST VALUES ( \n"
-            // + "ARRAY[ROW(cast('writereadalltypestest' as VARCHAR), 5742621615980544, cast('' as
-            // VARCHAR))], \n"
-            + "'varchar' \n"
-            + ")";
+        "INSERT INTO TEST VALUES ( \n" + keyToSqlByteString(itemKey) + ", \n" + "'2000' \n" + ")";
 
-    // BeamSqlRelUtils.toPCollection(writePipeline, sqlEnv.parseQuery(insertStatement));
-    // writePipeline.run().waitUntilFinish();
+    BeamSqlRelUtils.toPCollection(writePipeline, sqlEnv.parseQuery(insertStatement));
+    writePipeline.run().waitUntilFinish();
 
     String selectTableStatement = "SELECT * FROM TEST";
     PCollection<Row> output =
@@ -110,7 +104,7 @@ public class DataStoreReadWriteIT {
 
     final Schema expectedSchema =
         Schema.builder()
-            .addNullableField("__key__", FieldType.map(STRING, STRING))
+            .addNullableField("__key__", VARBINARY)
             .addNullableField("boolean", BOOLEAN)
             .addNullableField("datetime", DATETIME)
             // TODO: flattening of nested fields by Calcite causes some issues.
@@ -128,7 +122,7 @@ public class DataStoreReadWriteIT {
 
     String createTableStatement =
         "CREATE EXTERNAL TABLE TEST( \n"
-            + "   `__key__` MAP<VARCHAR, VARCHAR>, \n"
+            + "   `__key__` VARBINARY, \n"
             + "   `boolean` BOOLEAN, \n"
             + "   `datetime` TIMESTAMP, \n"
             // + "   `embeddedentity` ROW(`property1` VARCHAR, `property2` BIGINT), \n"
@@ -154,5 +148,9 @@ public class DataStoreReadWriteIT {
 
     PipelineResult.State state = readPipeline.run().waitUntilFinish(Duration.standardMinutes(5));
     assertThat(state, equalTo(State.DONE));
+  }
+
+  private static String keyToSqlByteString(Key key) {
+    return "X'" + ByteString.toString(key.toByteArray(), 16) + "'";
   }
 }
