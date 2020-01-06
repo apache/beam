@@ -33,6 +33,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 
 /**
  * Serializable wrapper around rabbitmq's {@link GetResponse}.
@@ -42,6 +44,7 @@ import javax.annotation.Nullable;
  * with AutoValue makes this a bit easier to work with.
  */
 @AutoValue
+@DefaultCoder(SerializableCoder.class)
 public abstract class RabbitMqMessage implements Serializable {
   public static final int DELIVERY_MODE_NON_DURABLE = 1;
   public static final int DELIVERY_MODE_DURABLE = 2;

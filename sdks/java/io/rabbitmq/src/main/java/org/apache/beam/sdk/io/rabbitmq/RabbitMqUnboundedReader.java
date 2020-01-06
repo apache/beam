@@ -41,7 +41,7 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
   private final ConnectionHandler connectionHandler;
   private final MovingAvg averageRecordSize;
 
-  RabbitMqUnboundedReader(RabbitMqSource source, RabbitMqCheckpointMark checkpointMark) {
+  RabbitMqUnboundedReader(RabbitMqSource source) {
     this.source = source;
     this.currentRecord = null;
     this.recordIdPolicy = source.spec.recordIdPolicy();
@@ -51,16 +51,8 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
             BoundedWindow.TIMESTAMP_MIN_VALUE);
     this.connectionHandler = this.source.spec.connectionHandlerProviderFn().apply(null);
     this.averageRecordSize = new MovingAvg();
-
-    RabbitMqCheckpointMark cpMark = checkpointMark;
-    if (cpMark == null) {
-      cpMark = new RabbitMqCheckpointMark(this.connectionHandler);
-    } else {
-      cpMark.setChannelLeaser(this.connectionHandler);
-    }
-    this.checkpointMark = cpMark;
-    ensureTimestampPolicySet(
-        Optional.ofNullable(checkpointMark).map(RabbitMqCheckpointMark::getWatermark));
+    this.checkpointMark = new RabbitMqCheckpointMark(this.connectionHandler);
+    ensureTimestampPolicySet(Optional.ofNullable(this.checkpointMark.getWatermark()));
   }
 
   private void ensureTimestampPolicySet(Optional<Instant> prevWatermark) {

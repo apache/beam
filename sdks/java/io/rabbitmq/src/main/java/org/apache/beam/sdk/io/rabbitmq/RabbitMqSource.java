@@ -50,7 +50,11 @@ class RabbitMqSource extends UnboundedSource<RabbitMqMessage, RabbitMqCheckpoint
   @Override
   public UnboundedReader<RabbitMqMessage> createReader(
       PipelineOptions options, RabbitMqCheckpointMark checkpointMark) throws IOException {
-    return new RabbitMqUnboundedReader(this, checkpointMark);
+    // per conversation in Beam Dev DL, an 'ack'-style CheckpointMark cannot safely
+    // be re-used so can and should be ignored during construction
+    // see
+    // http://mail-archives.apache.org/mod_mbox/beam-dev/201911.mbox/%3cCAFmTo4_cw6xqLw+8VpJEL0fwFY3M4HS173KKmQLs-KPAkh+Bvg@mail.gmail.com%3e
+    return new RabbitMqUnboundedReader(this);
   }
 
   @Override
