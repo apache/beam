@@ -46,7 +46,7 @@ import org.joda.time.DateTimeZone;
  * batches.
  */
 @Experimental(Experimental.Kind.SCHEMAS)
-public class ArrowSchemaConversion {
+public class ArrowConversion {
   /** Converts Arrow schema to Beam row schema. */
   public static Schema toBeamSchema(org.apache.arrow.vector.types.pojo.Schema schema) {
     return toBeamSchema(schema.getFields());
@@ -420,9 +420,10 @@ public class ArrowSchemaConversion {
 
     @Override
     public Row next() {
-      Row result = Row.withSchema(schema)
-          .withFieldValueGetters(this.fieldValueGetters, this.currRowIndex)
-          .build();
+      Row result =
+          Row.withSchema(schema)
+              .withFieldValueGetters(this.fieldValueGetters, this.currRowIndex)
+              .build();
       this.currRowIndex += 1;
       return result;
     }
@@ -443,5 +444,5 @@ public class ArrowSchemaConversion {
     }
   }
 
-  private ArrowSchemaConversion() {}
+  private ArrowConversion() {}
 }
