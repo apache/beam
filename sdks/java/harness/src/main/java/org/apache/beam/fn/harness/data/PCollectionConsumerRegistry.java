@@ -18,7 +18,6 @@
 package org.apache.beam.fn.harness.data;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.Lists;
 import java.io.Closeable;
 import java.util.HashMap;
 import java.util.List;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
 /**
  * The {@code PCollectionConsumerRegistry} is used to maintain a collection of consuming

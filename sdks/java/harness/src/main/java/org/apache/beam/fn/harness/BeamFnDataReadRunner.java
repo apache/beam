@@ -229,8 +229,8 @@ public class BeamFnDataReadRunner<OutputT> {
       // If we have started processing at least one element, attempt to get the downstream
       // progress defaulting to 0.5 if no progress was able to get fetched.
       if (index >= 0) {
-        if (consumer instanceof HandlesSplits) {
-          currentElementProgress = ((HandlesSplits) consumer).getProgress();
+        if (splittingConsumer != null) {
+          currentElementProgress = splittingConsumer.getProgress();
         } else {
           currentElementProgress = 0.5;
         }
@@ -258,9 +258,7 @@ public class BeamFnDataReadRunner<OutputT> {
         double keepOfElementRemainder = keep / (1 - currentElementProgress);
         if (keepOfElementRemainder < 1) {
           SplitResult splitResult =
-              consumer instanceof HandlesSplits
-                  ? ((HandlesSplits) consumer).trySplit(keepOfElementRemainder)
-                  : null;
+              splittingConsumer != null ? splittingConsumer.trySplit(keepOfElementRemainder) : null;
           if (splitResult != null) {
             stopIndex = index + 1;
             response
