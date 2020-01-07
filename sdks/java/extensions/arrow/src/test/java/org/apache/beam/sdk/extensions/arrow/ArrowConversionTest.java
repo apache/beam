@@ -53,7 +53,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class ArrowSchemaConversionTest {
+public class ArrowConversionTest {
 
   private BufferAllocator allocator;
 
@@ -78,7 +78,7 @@ public class ArrowSchemaConversionTest {
                 field("int8", new ArrowType.Int(8, true)),
                 field("int16", new ArrowType.Int(16, true))));
 
-    assertThat(ArrowSchemaConversion.toBeamSchema(arrowSchema), equalTo(expected));
+    assertThat(ArrowConversion.toBeamSchema(arrowSchema), equalTo(expected));
   }
 
   @Test
@@ -98,7 +98,7 @@ public class ArrowSchemaConversionTest {
                 field("boolean", new ArrowType.Bool()),
                 field("fixed_size_binary", new ArrowType.FixedSizeBinary(3))));
 
-    Schema beamSchema = ArrowSchemaConversion.toBeamSchema(schema);
+    Schema beamSchema = ArrowConversion.toBeamSchema(schema);
 
     VectorSchemaRoot expectedSchemaRoot = VectorSchemaRoot.create(schema, allocator);
     expectedSchemaRoot.setRowCount(16);
@@ -152,7 +152,7 @@ public class ArrowSchemaConversionTest {
     }
 
     assertThat(
-        ArrowSchemaConversion.rowsFromRecordBatch(beamSchema, expectedSchemaRoot),
+        ArrowConversion.rowsFromRecordBatch(beamSchema, expectedSchemaRoot),
         IsIterableContainingInOrder.contains(
             expectedRows.stream()
                 .map((row) -> equalTo(row))
