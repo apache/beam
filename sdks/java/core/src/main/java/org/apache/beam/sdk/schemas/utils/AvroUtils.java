@@ -20,6 +20,9 @@ package org.apache.beam.sdk.schemas.utils;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -466,7 +469,7 @@ public class AvroUtils {
   }
 
   private static class RowToGenericRecordFn implements SerializableFunction<Row, GenericRecord> {
-    private final org.apache.avro.Schema avroSchema;
+    private transient org.apache.avro.Schema avroSchema;
 
     RowToGenericRecordFn(@Nullable org.apache.avro.Schema avroSchema) {
       this.avroSchema = avroSchema;
@@ -492,6 +495,16 @@ public class AvroUtils {
     @Override
     public int hashCode() {
       return Objects.hash(avroSchema);
+    }
+
+    private void writeObject(ObjectOutputStream out) throws IOException {
+      final String avroSchemaAsString = (avroSchema == null) ? null : avroSchema.toString();
+      out.writeObject(avroSchemaAsString);
+    }
+
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+      final String avroSchemaAsString = (String) in.readObject();
+      avroSchema = new org.apache.avro.Schema.Parser().parse(avroSchemaAsString);
     }
   }
 

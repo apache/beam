@@ -48,6 +48,7 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.utils.AvroGenerators.RecordSchemaGenerator;
 import org.apache.beam.sdk.schemas.utils.AvroUtils.TypeWithNullability;
+import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -533,6 +534,7 @@ public class AvroUtilsTest {
     assertFalse(records.hasSchema());
     records.setCoder(AvroUtils.schemaCoder(schema));
     assertTrue(records.hasSchema());
+    CoderProperties.coderSerializable(records.getCoder());
 
     AvroGeneratedUser user = new AvroGeneratedUser("foo", 42, "green");
     PCollection<AvroGeneratedUser> users =
@@ -540,6 +542,7 @@ public class AvroUtilsTest {
     assertFalse(users.hasSchema());
     users.setCoder(AvroUtils.schemaCoder((AvroCoder<AvroGeneratedUser>) users.getCoder()));
     assertTrue(users.hasSchema());
+    CoderProperties.coderSerializable(users.getCoder());
   }
 
   public static ContainsField containsField(Function<org.apache.avro.Schema, Boolean> predicate) {
