@@ -69,20 +69,20 @@ class UtilTest(unittest.TestCase):
 
   def test_assert_missing(self):
     with self.assertRaisesRegexp(Exception,
-                                 "missing elements \['c'\]"):
+                                 r"missing elements \['c'\]"):
       with TestPipeline() as p:
         assert_that(p | Create(['a', 'b']), equal_to(['a', 'b', 'c']))
 
   def test_assert_unexpected(self):
     with self.assertRaisesRegexp(Exception,
-                                 "unexpected elements \['c', 'd'\]"):
+                                 r"unexpected elements \['c', 'd'\]"):
       with TestPipeline() as p:
         assert_that(p | Create(['a', 'b', 'c', 'd']), equal_to(['a', 'b']))
 
-  def test_assert_missing_missing_and_unexpected(self):
+  def test_assert_missing_and_unexpected(self):
     with self.assertRaisesRegexp(
         Exception,
-        "unexpected elements \['c'\].*missing elements \['d'\]"):
+        r"unexpected elements \['c'\].*missing elements \['d'\]"):
       with TestPipeline() as p:
         assert_that(p | Create(['a', 'b', 'c']),
                     equal_to(['a', 'b', 'd']))
