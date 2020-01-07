@@ -68,8 +68,8 @@ class ClientErrorTest(unittest.TestCase):
     # Test nonexistent object
     object = self.test_path + 'nonexistent_file_doesnt_exist'
     request = messages.GetRequest(self.test_bucket, object)
-    self.assertRaises(messages.S3ClientError, 
-                      self.client.get_range, 
+    self.assertRaises(messages.S3ClientError,
+                      self.client.get_range,
                       request, 0, 10)
 
     try:
@@ -128,9 +128,9 @@ class ClientErrorTest(unittest.TestCase):
     src_key = self.test_path + 'not_a_real_file_does_not_exist'
     dest_key = self.test_path + 'destination_file_location'
 
-    request = messages.CopyRequest(self.test_bucket, 
-                                   src_key, 
-                                   self.test_bucket, 
+    request = messages.CopyRequest(self.test_bucket,
+                                   src_key,
+                                   self.test_bucket,
                                    dest_key)
 
     with self.assertRaises(messages.S3ClientError) as e:
@@ -150,14 +150,14 @@ class ClientErrorTest(unittest.TestCase):
     upload_id = response.upload_id
 
     part_number = 0.5
-    request = messages.UploadPartRequest(self.test_bucket, 
-                                         object, 
-                                         upload_id, 
-                                         part_number, 
+    request = messages.UploadPartRequest(self.test_bucket,
+                                         object,
+                                         upload_id,
+                                         part_number,
                                          contents)
 
     self.assertRaises(messages.S3ClientError,
-                      self.client.upload_part, 
+                      self.client.upload_part,
                       request)
 
     try:

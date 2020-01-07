@@ -288,7 +288,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     ib.watch({'irrelevant_user_pipeline': irrelevant_user_pipeline})
     # Build instrument from the runner pipeline.
     pipeline_instrument = instr.pin(runner_pipeline)
-    self.assertTrue(pipeline_instrument.user_pipeline is user_pipeline)
+    self.assertIs(pipeline_instrument.user_pipeline, user_pipeline)
 
 
 if __name__ == '__main__':
