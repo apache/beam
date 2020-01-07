@@ -504,7 +504,10 @@ public class AvroUtils {
 
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
       final String avroSchemaAsString = (String) in.readObject();
-      avroSchema = new org.apache.avro.Schema.Parser().parse(avroSchemaAsString);
+      avroSchema =
+          (avroSchemaAsString == null)
+              ? null
+              : new org.apache.avro.Schema.Parser().parse(avroSchemaAsString);
     }
   }
 
