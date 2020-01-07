@@ -144,7 +144,9 @@ public class DataStoreTableTest {
   @Test
   public void testRowToEntityConverter() {
     PCollection<Entity> result =
-        pipeline.apply(Create.of(ROW)).apply(RowToEntity.createTest(UUID_VALUE, SCHEMA, KIND));
+        pipeline
+            .apply(Create.of(ROW))
+            .apply(RowToEntity.createTest(UUID_VALUE, SCHEMA, "__key__", KIND));
     PAssert.that(result).containsInAnyOrder(ENTITY);
 
     pipeline.run().waitUntilFinish();
@@ -169,7 +171,7 @@ public class DataStoreTableTest {
     PCollection<Entity> result =
         pipeline
             .apply(Create.of(rowWithoutKey))
-            .apply(RowToEntity.createTest(UUID_VALUE, SCHEMA, KIND));
+            .apply(RowToEntity.createTest(UUID_VALUE, SCHEMA, "__key__", KIND));
 
     PAssert.that(result).containsInAnyOrder(ENTITY);
 
