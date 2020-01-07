@@ -46,7 +46,6 @@ JOB_TRIGGER_PHRASES=(
   # To run all PostCommit jobs
   "Run Go PostCommit"
   "Run Java PostCommit"
-  "Run Java PostCommit"
   "Run Java PortabilityApi PostCommit"
   "Run Java Flink PortableValidatesRunner Batch"
   "Run Java Flink PortableValidatesRunner Streaming"
@@ -152,7 +151,7 @@ echo "After PR created, you need to comment phrases listed in description in the
 
 if [[ ! -z `which hub` ]]; then
   git checkout -b ${WORKING_BRANCH} origin/${RELEASE_BRANCH} --quiet
-  touch empty_file.txt
+  touch empty_file.json
   git add .
   git commit -m "Add empty file in order to create a test PR" --quiet
   git push -f ${GITHUB_USERNAME} --quiet
