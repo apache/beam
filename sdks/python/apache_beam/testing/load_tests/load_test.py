@@ -33,8 +33,8 @@ class LoadTest(object):
     self.project_id = self.pipeline.get_option('project')
     self.metrics_namespace = self.pipeline.get_option('metrics_table')
     self._metrics_monitor = MetricsReader(
-        publish_to_bq=self.pipeline.get_option('publish_to_big_query') ==
-        'true',
+        publish_to_bq=self.pipeline.get_option('publish_to_big_query')
+        .lower() == 'true',
         project_name=self.project_id,
         bq_table=self.metrics_namespace,
         bq_dataset=self.pipeline.get_option('metrics_dataset'),

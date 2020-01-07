@@ -49,18 +49,18 @@ python -m apache_beam.testing.load_tests.group_by_key_test \
 
 or:
 
-./gradlew -PloadTest.args='
+./gradlew -PloadTest.args="
     --publish_to_big_query=true
     --project=...
     --metrics_dataset=python_load_tests
     --metrics_table=gbk
     --fanout=1
     --iterations=1
-    --input_options=\'
-      {"num_records": 1,
-      "key_size": 1,
-      "value_size": 1}\'
-    --runner=DirectRunner' \
+    --input_options='{
+      \"num_records\": 1,
+      \"key_size\": 1,
+      \"value_size\": 1}'
+    --runner=DirectRunner" \
 -PloadTest.mainClass=apache_beam.testing.load_tests.group_by_key_test \
 -Prunner=DirectRunner :sdks:python:apache_beam:testing:load_tests:run
 """
