@@ -43,10 +43,10 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 class UtilTest(unittest.TestCase):
 
   def setUp(self):
-    try:                    # Python 2
+    try:                    # Python 3
+      _ = self.assertRaisesRegex
+    except AttributeError:  # Python 2
       self.assertRaisesRegex = self.assertRaisesRegexp
-    except AttributeError:  # Python 3
-      pass
 
   def test_assert_that_passes(self):
     with TestPipeline() as p:
@@ -81,7 +81,8 @@ class UtilTest(unittest.TestCase):
 
   def test_assert_unexpected(self):
     with self.assertRaisesRegex(BeamAssertException,
-                                r"unexpected elements \['c', 'd'\]"):
+                                r"unexpected elements \['c', 'd'\]|"
+                                r"unexpected elements \['d', 'c'\]"):
       with TestPipeline() as p:
         assert_that(p | Create(['a', 'b', 'c', 'd']), equal_to(['a', 'b']))
 
