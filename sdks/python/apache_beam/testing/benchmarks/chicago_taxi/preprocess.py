@@ -125,6 +125,7 @@ def transform_data(input_handle,
   metrics_monitor = None
   if publish_to_bq:
     metrics_monitor = MetricsReader(
+        publish_to_bq=publish_to_bq,
         project_name=project,
         bq_table=metrics_table,
         bq_dataset=metrics_dataset,
