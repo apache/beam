@@ -22,25 +22,28 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 
 import com.alibaba.fastjson.JSON;
-import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
+import java.util.Arrays;
+import java.util.Collection;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.mongodb.MongoDbTable.MongoDbFilter;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider.PushDownOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 public class MongoDbFilterTest {
   private static final Schema BASIC_SCHEMA =
       Schema.builder()
@@ -50,8 +53,31 @@ public class MongoDbFilterTest {
           .addInt16Field("unused2")
           .addBooleanField("b")
           .build();
-
   private BeamSqlEnv sqlEnv;
+
+  @Parameters
+  public static Collection<Object[]> data() {
+    return Arrays.asList(
+        new Object[][] {
+          {"select * from TEST where unused1=100", true},
+          {"select * from TEST where unused1 in (100, 200)", true},
+          {"select * from TEST where b", true},
+          {"select * from TEST where not b", true},
+          {
+            "select * from TEST where unused1>100 and unused1<=200 and id<>1 and (name='two' or id=2)",
+            true
+          },
+          {"select * from TEST where name like 'o%e'", false},
+          {"select * from TEST where unused1+10=110", false},
+          {"select * from TEST where unused1=unused2 and id=2", false},
+          {"select * from TEST where unused1+unused2=10", false}
+        });
+  }
+
+  @Parameter public String query;
+
+  @Parameter(1)
+  public boolean isSupported;
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
@@ -73,41 +99,14 @@ public class MongoDbFilterTest {
 
   @Test
   public void testIsSupported() {
-    ImmutableList<Pair<String, Boolean>> sqlQueries =
-        ImmutableList.of(
-            Pair.of("select * from TEST where unused1=100", true),
-            Pair.of("select * from TEST where unused1 in (100, 200)", true),
-            Pair.of("select * from TEST where b", true),
-            Pair.of("select * from TEST where not b", true),
-            // Nested conjunction and disjunction is supported as long as child operations are
-            // supported.
-            Pair.of(
-                "select * from TEST where unused1>100 and unused1<=200 and id<>1 and (name='two' or id=2)",
-                true),
-            // RegEx matching push-down is not implemented at the moment.
-            Pair.of("select * from TEST where name like 'o%e'", false),
-            // Complex operations, which modify a field before a comparison are not supported.
-            Pair.of("select * from TEST where unused1+10=110", false),
-            // Since unused2 is of type `short`, it will be cast to int32, making this a complex
-            // operation.
-            Pair.of("select * from TEST where unused2=200", false),
-            // Operations involving more than one column are not supported yet.
-            Pair.of("select * from TEST where unused1=unused2 and id=2", false),
-            Pair.of("select * from TEST where unused1+unused2=10", false));
+    BeamRelNode beamRelNode = sqlEnv.parseQuery(query);
+    assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
+    MongoDbFilter filter =
+        MongoDbFilter.create(((BeamCalcRel) beamRelNode).getProgram().split().right);
 
-    for (Pair<String, Boolean> query : sqlQueries) {
-      String sql = query.getLeft();
-      Boolean isSupported = query.getRight();
-
-      BeamRelNode beamRelNode = sqlEnv.parseQuery(sql);
-      assertThat(beamRelNode, instanceOf(BeamCalcRel.class));
-      MongoDbFilter filter =
-          new MongoDbFilter(((BeamCalcRel) beamRelNode).getProgram().split().right);
-
-      assertThat(
-          "Query: '" + sql + "' is expected to be " + (isSupported ? "supported." : "unsupported."),
-          filter.getNotSupported().isEmpty() == isSupported);
-    }
+    assertThat(
+        "Query: '" + query + "' is expected to be " + (isSupported ? "supported." : "unsupported."),
+        filter.getNotSupported().isEmpty() == isSupported);
   }
 
   private static Table getTable(String name, PushDownOptions options) {

@@ -17,8 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.mongodb;
 
+import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.AND;
+import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.COMPARISON;
+import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.OR;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.collect.ImmutableList;
 import com.mongodb.client.model.Filters;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -153,7 +157,7 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
 
   @Override
   public BeamSqlTableFilter constructFilter(List<RexNode> filter) {
-    return new MongoDbFilter(filter);
+    return MongoDbFilter.create(filter);
   }
 
   /**
@@ -353,6 +357,119 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
       public Document apply(String input) {
         return Document.parse(input);
       }
+    }
+  }
+
+  static class MongoDbFilter implements BeamSqlTableFilter {
+    private List<RexNode> supported;
+    private List<RexNode> unsupported;
+
+    public MongoDbFilter(List<RexNode> supported, List<RexNode> unsupported) {
+      this.supported = supported;
+      this.unsupported = unsupported;
+    }
+
+    @Override
+    public List<RexNode> getNotSupported() {
+      return unsupported;
+    }
+
+    @Override
+    public int numSupported() {
+      return BeamSqlTableFilter.expressionsInFilter(supported);
+    }
+
+    public List<RexNode> getSupported() {
+      return supported;
+    }
+
+    @Override
+    public String toString() {
+      String supStr =
+          "supported{"
+              + supported.stream().map(RexNode::toString).collect(Collectors.joining())
+              + "}";
+      String unsupStr =
+          "unsupported{"
+              + unsupported.stream().map(RexNode::toString).collect(Collectors.joining())
+              + "}";
+
+      return "[" + supStr + ", " + unsupStr + "]";
+    }
+
+    public static MongoDbFilter create(List<RexNode> predicateCNF) {
+      ImmutableList.Builder<RexNode> supported = ImmutableList.builder();
+      ImmutableList.Builder<RexNode> unsupported = ImmutableList.builder();
+
+      for (RexNode node : predicateCNF) {
+        if (!node.getType().getSqlTypeName().equals(SqlTypeName.BOOLEAN)) {
+          throw new RuntimeException(
+              "Predicate node '"
+                  + node.getClass().getSimpleName()
+                  + "' should be a boolean expression, but was: "
+                  + node.getType().getSqlTypeName());
+        }
+
+        if (isSupported(node)) {
+          supported.add(node);
+        } else {
+          unsupported.add(node);
+        }
+      }
+
+      return new MongoDbFilter(supported.build(), unsupported.build());
+    }
+
+    /**
+     * Check whether a {@code RexNode} is supported. To keep things simple:<br>
+     * 1. Support comparison operations in predicate, which compare a single field to literal
+     * values. 2. Support nested Conjunction (AND), Disjunction (OR) as long as child operations are
+     * supported.<br>
+     * 3. Support boolean fields.
+     *
+     * @param node A node to check for predicate push-down support.
+     * @return A boolean whether an expression is supported.
+     */
+    private static boolean isSupported(RexNode node) {
+      if (node instanceof RexCall) {
+        RexCall compositeNode = (RexCall) node;
+
+        if (node.getKind().belongsTo(COMPARISON) || node.getKind().equals(SqlKind.NOT)) {
+          int fields = 0;
+          for (RexNode operand : compositeNode.getOperands()) {
+            if (operand instanceof RexInputRef) {
+              fields++;
+            } else if (operand instanceof RexLiteral) {
+              // RexLiterals are expected, but no action is needed.
+            } else {
+              // Complex predicates are not supported. Ex: `field1+5 == 10`.
+              return false;
+            }
+          }
+          // All comparison operations should have exactly one field reference.
+          // Ex: `field1 == field2` is not supported.
+          // TODO: Can be supported via Filters#where.
+          if (fields == 1) {
+            return true;
+          }
+        } else if (node.getKind().equals(AND) || node.getKind().equals(OR)) {
+          // Nested ANDs and ORs are supported as long as all operands are supported.
+          for (RexNode operand : compositeNode.getOperands()) {
+            if (!isSupported(operand)) {
+              return false;
+            }
+          }
+          return true;
+        }
+      } else if (node instanceof RexInputRef) {
+        // When field is a boolean.
+        return true;
+      } else {
+        throw new RuntimeException(
+            "Encountered an unexpected node type: " + node.getClass().getSimpleName());
+      }
+
+      return false;
     }
   }
 }
