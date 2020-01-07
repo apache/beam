@@ -362,7 +362,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def apex_malhar_version = "3.4.0"
     def aws_java_sdk_version = "1.11.519"
     def aws_java_sdk2_version = "2.5.71"
-    def cassandra_driver_version = "3.6.0"
+    def cassandra_driver_version = "3.8.0"
     def classgraph_version = "4.8.56"
     def generated_grpc_beta_version = "0.44.0"
     def generated_grpc_ga_version = "1.43.0"
