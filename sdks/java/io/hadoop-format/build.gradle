@@ -75,6 +75,7 @@ dependencies {
   }
   // elasticsearch-hadoop 5.0.0 uses commons-httpclient's URIException
   testCompile "commons-httpclient:commons-httpclient:3.1"
+  testCompile library.java.commons_io
   testCompile library.java.cassandra_driver_core
   testCompile library.java.cassandra_driver_mapping
   testCompile "org.apache.cassandra:cassandra-all:3.11.3"
@@ -85,7 +86,6 @@ dependencies {
   testCompile library.java.hamcrest_library
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-  compile library.java.commons_io_2x
 
   delegate.add("sparkRunner", project(":sdks:java:io:hadoop-format"))
   delegate.add("sparkRunner", project(path: ":sdks:java:io:hadoop-format", configuration: "testRuntime"))
