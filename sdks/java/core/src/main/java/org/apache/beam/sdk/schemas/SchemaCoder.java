@@ -102,7 +102,8 @@ public class SchemaCoder<T> extends CustomCoder<T> {
 
   /**
    * Returns a {@link SchemaCoder} for the specified class. If no schema is registered for this
-   * class, then throws {@link NoSuchSchemaException}.
+   * class, then throws {@link NoSuchSchemaException}. The parameter functions to convert from and
+   * to Rows <b>must</b> implement the equals contract.
    */
   public static <T> SchemaCoder<T> of(
       Schema schema,
