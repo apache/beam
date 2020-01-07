@@ -19,11 +19,11 @@ package org.apache.beam.runners.fnexecution.status;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.WorkerStatusRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.WorkerStatusResponse;
 import org.apache.beam.sdk.fn.IdGenerator;
@@ -35,17 +35,16 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Client for handling requests and responses over Fn Worker Status Api between runner and SDK
- * Harness.
+ * harness.
  */
 class WorkerStatusClient implements Closeable {
 
   public static final Logger LOG = LoggerFactory.getLogger(WorkerStatusClient.class);
   private final IdGenerator idGenerator = IdGenerators.incrementingLongs();
   private final StreamObserver<WorkerStatusRequest> requestReceiver;
-  private final Map<String, CompletableFuture<WorkerStatusResponse>> responseQueue =
-      new ConcurrentHashMap<>();
+  private final Map<String, CompletableFuture<WorkerStatusResponse>> pendingResponses =
+      Collections.synchronizedMap(new HashMap<>());
   private final String workerId;
-  private Consumer<String> deregisterCallback;
   private AtomicBoolean isClosed = new AtomicBoolean(false);
 
   private WorkerStatusClient(String workerId, StreamObserver<WorkerStatusRequest> requestReceiver) {
@@ -54,11 +53,11 @@ class WorkerStatusClient implements Closeable {
   }
 
   /**
-   * Create new status api client with SDK Harness worker id and request observer.
+   * Create new status api client with SDK harness worker id and request observer.
    *
-   * @param workerId SDK Harness worker id.
+   * @param workerId SDK harness worker id.
    * @param requestObserver The outbound request observer this client uses to send new status
-   *     requests to its corresponding SDK Harness.
+   *     requests to its corresponding SDK harness.
    * @return {@link WorkerStatusClient}
    */
   public static WorkerStatusClient forRequestObserver(
@@ -67,10 +66,10 @@ class WorkerStatusClient implements Closeable {
   }
 
   /**
-   * Get the latest sdk worker status from the client's corresponding SDK Harness. A random id will
+   * Get the latest sdk worker status from the client's corresponding SDK harness. A random id will
    * be used to specify the request_id field.
    *
-   * @return {@link CompletableFuture} of the SDK Harness status response.
+   * @return {@link CompletableFuture} of the SDK harness status response.
    */
   public CompletableFuture<WorkerStatusResponse> getWorkerStatus() {
     WorkerStatusRequest request =
@@ -79,26 +78,20 @@ class WorkerStatusClient implements Closeable {
   }
 
   /**
-   * Get the latest sdk worker status from the client's corresponding SDK Harness with request.
+   * Get the latest sdk worker status from the client's corresponding SDK harness with request.
    *
-   * @param request WorkerStatusRequest to be sent to SDK Harness.
-   * @return {@link CompletableFuture} of the SDK Harness status response.
+   * @param request WorkerStatusRequest to be sent to SDK harness.
+   * @return {@link CompletableFuture} of the SDK harness status response.
    */
   CompletableFuture<WorkerStatusResponse> getWorkerStatus(WorkerStatusRequest request) {
     CompletableFuture<WorkerStatusResponse> future = new CompletableFuture<>();
-    this.responseQueue.put(request.getId(), future);
+    if (isClosed.get()) {
+      future.completeExceptionally(new RuntimeException("Worker status client already closed."));
+      return future;
+    }
+    this.pendingResponses.put(request.getId(), future);
     this.requestReceiver.onNext(request);
     return future;
-  }
-
-  /**
-   * Set up a deregister call back function for cleaning up connected client cache.
-   *
-   * @param deregisterCallback Consumer that takes worker id as param for deregister itself from
-   *     connected client cache when close is called.
-   */
-  public void setDeregisterCallback(Consumer<String> deregisterCallback) {
-    this.deregisterCallback = deregisterCallback;
   }
 
   @Override
@@ -106,15 +99,14 @@ class WorkerStatusClient implements Closeable {
     if (isClosed.getAndSet(true)) {
       return;
     }
-    for (CompletableFuture<WorkerStatusResponse> pendingResponse : responseQueue.values()) {
-      pendingResponse.completeExceptionally(
-          new RuntimeException("Fn Status Api client shut down while waiting for the request"));
+    synchronized (pendingResponses) {
+      for (CompletableFuture<WorkerStatusResponse> pendingResponse : pendingResponses.values()) {
+        pendingResponse.completeExceptionally(
+            new RuntimeException("Fn Status Api client shut down while waiting for the request"));
+      }
+      pendingResponses.clear();
     }
-    responseQueue.clear();
     requestReceiver.onCompleted();
-    if (deregisterCallback != null) {
-      deregisterCallback.accept(workerId);
-    }
   }
 
   /** Check if the client connection has already been closed. */
@@ -122,7 +114,7 @@ class WorkerStatusClient implements Closeable {
     return isClosed.get();
   }
 
-  /** Get the worker id for the client's corresponding SDK Harness. */
+  /** Get the worker id for the client's corresponding SDK harness. */
   public String getWorkerId() {
     return this.workerId;
   }
@@ -134,17 +126,25 @@ class WorkerStatusClient implements Closeable {
 
   /**
    * ResponseObserver for handling status responses. Each request will be cached with it's
-   * request_id. Upon receiving response from SDK Harness with this StreamObserver, the future
+   * request_id. Upon receiving response from SDK harness with this StreamObserver, the future
    * mapped to same request_id will be finished accordingly.
    */
   private class ResponseStreamObserver implements StreamObserver<WorkerStatusResponse> {
 
     @Override
     public void onNext(WorkerStatusResponse response) {
-      if (!responseQueue.containsKey(response.getId())) {
+      if (isClosed.get()) {
         return;
       }
-      responseQueue.remove(response.getId()).complete(response);
+      CompletableFuture<WorkerStatusResponse> future = pendingResponses.remove(response.getId());
+      if (future != null) {
+        future.complete(response);
+      } else {
+        LOG.warn(
+            String.format(
+                "Received response for status with unknown response id %s and status %s",
+                response.getId(), response.getStatusInfo()));
+      }
     }
 
     @Override

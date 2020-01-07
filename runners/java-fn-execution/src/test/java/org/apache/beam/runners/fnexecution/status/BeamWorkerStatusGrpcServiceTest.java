@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
@@ -57,6 +57,7 @@ import org.mockito.MockitoAnnotations;
 public class BeamWorkerStatusGrpcServiceTest {
 
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
+  private static final String ID = "id";
   private BeamWorkerStatusGrpcService service;
   private GrpcFnServer<BeamWorkerStatusGrpcService> server;
   private ManagedChannel channel;
@@ -74,7 +75,7 @@ public class BeamWorkerStatusGrpcServiceTest {
     channel = InProcessChannelBuilder.forName(server.getApiServiceDescriptor().getUrl()).build();
     stub =
         BeamFnWorkerStatusGrpc.newStub(channel)
-            .withInterceptors(AddHarnessIdInterceptor.create("id"));
+            .withInterceptors(AddHarnessIdInterceptor.create(ID));
     grpcCleanup.register(server.getServer());
     grpcCleanup.register(channel);
   }
@@ -90,20 +91,24 @@ public class BeamWorkerStatusGrpcServiceTest {
   public void testClientConnected() throws Exception {
     StreamObserver<WorkerStatusResponse> workerStatusResponseStreamObserver =
         stub.workerStatus(mockObserver);
-    WorkerStatusClient client = service.getStatusClient("id");
+    WorkerStatusClient client = waitAndGetStatusClient(ID);
     assertNotNull(client);
   }
 
-  @Test(expected = TimeoutException.class)
-  public void testGetWorkerStatusTimeout() throws Exception {
+  @Test
+  public void testGetWorkerStatusNoResponse() throws Exception {
     StreamObserver<WorkerStatusResponse> unused = stub.workerStatus(mockObserver);
-    WorkerStatusResponse response = service.getWorkerStatus("id").get(1, TimeUnit.MILLISECONDS);
+    waitAndGetStatusClient(ID);
+    String response = service.getSingleWorkerStatus("id", 1, TimeUnit.MILLISECONDS);
+    assertEquals(
+        "Error: exception encountered getting status from SDK harness:java.util.concurrent.TimeoutException",
+        response);
   }
 
   @Test
   public void testGetWorkerStatusSuccess() throws Exception {
-    CountDownLatch requestCompleted = new CountDownLatch(1);
     StreamObserver<WorkerStatusResponse> observer = stub.workerStatus(mockObserver);
+    waitAndGetStatusClient(ID);
     doAnswer(
             (invocation) -> {
               WorkerStatusRequest request = (WorkerStatusRequest) invocation.getArguments()[0];
@@ -112,23 +117,20 @@ public class BeamWorkerStatusGrpcServiceTest {
                       .setId(request.getId())
                       .setStatusInfo("status")
                       .build());
-              requestCompleted.countDown();
               return null;
             })
         .when(mockObserver)
         .onNext(any());
 
-    CompletableFuture<WorkerStatusResponse> future = service.getWorkerStatus("id");
-    // wait for request to be sent.
-    requestCompleted.await();
-    String response = future.get(5, TimeUnit.SECONDS).getStatusInfo();
+    CompletableFuture<String> future = service.getWorkerStatus(ID);
+    String response = future.get(5, TimeUnit.SECONDS);
     assertEquals("status", response);
   }
 
   @Test
   public void testGetWorkerStatusReturnError() throws Exception {
-    CountDownLatch requestCompleted = new CountDownLatch(1);
     StreamObserver<WorkerStatusResponse> observer = stub.workerStatus(mockObserver);
+    waitAndGetStatusClient(ID);
     doAnswer(
             (invocation) -> {
               WorkerStatusRequest request = (WorkerStatusRequest) invocation.getArguments()[0];
@@ -137,16 +139,13 @@ public class BeamWorkerStatusGrpcServiceTest {
                       .setId(request.getId())
                       .setError("error")
                       .build());
-              requestCompleted.countDown();
               return null;
             })
         .when(mockObserver)
         .onNext(any());
 
-    CompletableFuture<WorkerStatusResponse> future = service.getWorkerStatus("id");
-    // wait for request to be sent.
-    requestCompleted.await();
-    String response = future.get(5, TimeUnit.SECONDS).getError();
+    CompletableFuture<String> future = service.getWorkerStatus(ID);
+    String response = future.get(5, TimeUnit.SECONDS);
     assertEquals("error", response);
   }
 
@@ -160,6 +159,8 @@ public class BeamWorkerStatusGrpcServiceTest {
               .withInterceptors(AddHarnessIdInterceptor.create(id));
       StreamObserver<WorkerStatusResponse> observer =
           workerStatusStub.workerStatus(requestObserverMock);
+      // wait for connection before proceeding to avoid race condition.
+      waitAndGetStatusClient(id);
       doAnswer(
               (invocation) -> {
                 WorkerStatusRequest request = (WorkerStatusRequest) invocation.getArguments()[0];
@@ -173,14 +174,19 @@ public class BeamWorkerStatusGrpcServiceTest {
           .when(requestObserverMock)
           .onNext(any());
     }
-
     Map<String, String> allWorkerStatuses = service.getAllWorkerStatuses(5, TimeUnit.SECONDS);
 
     assertEquals(ids, allWorkerStatuses.keySet());
 
     for (String id : ids) {
       assertEquals("status", allWorkerStatuses.get(id));
-      service.getStatusClient(id).close();
     }
+  }
+
+  private WorkerStatusClient waitAndGetStatusClient(String id)
+      throws InterruptedException, ExecutionException, TimeoutException {
+    // wait for status client connection, and get the corresponding client.
+    CompletableFuture<WorkerStatusClient> clientFuture = service.getStatusClient(id);
+    return clientFuture.get(1, TimeUnit.SECONDS);
   }
 }

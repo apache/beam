@@ -18,12 +18,11 @@
 package org.apache.beam.runners.fnexecution.status;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -34,7 +33,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnWorkerStatusGrpc.BeamFnWorkerS
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.runners.fnexecution.HeaderAccessor;
-import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
@@ -42,18 +40,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A Fn Status service which can collect run-time status information from SDK Harnesses for
+ * A Fn Status service which can collect run-time status information from SDK harnesses for
  * debugging purpose.
  */
 public class BeamWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase implements FnService {
 
-  static final String DEFAULT_ERROR_RESPONSE = "Error getting status from SDK harness";
-
   private static final Logger LOG = LoggerFactory.getLogger(BeamWorkerStatusGrpcService.class);
-  private static final long DEFAULT_CLIENT_CONNECTION_WAIT_TIME_SECONDS = 5;
+  private static final String DEFAULT_EXCEPTION_RESPONSE =
+      "Error: exception encountered getting status from SDK harness";
+
   private final HeaderAccessor headerAccessor;
   private final Map<String, CompletableFuture<WorkerStatusClient>> connectedClient =
-      new ConcurrentHashMap<>();
+      Collections.synchronizedMap(new HashMap<>());
 
   private BeamWorkerStatusGrpcService(
       ApiServiceDescriptor apiServiceDescriptor, HeaderAccessor headerAccessor) {
@@ -76,12 +74,14 @@ public class BeamWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase impl
 
   @Override
   public void close() throws Exception {
-    for (CompletableFuture<WorkerStatusClient> clientFuture : connectedClient.values()) {
-      if (clientFuture.isDone()) {
-        clientFuture.get().close();
+    synchronized (connectedClient) {
+      for (CompletableFuture<WorkerStatusClient> clientFuture : connectedClient.values()) {
+        if (clientFuture.isDone()) {
+          clientFuture.get().close();
+        }
       }
+      connectedClient.clear();
     }
-    connectedClient.clear();
   }
 
   @Override
@@ -92,90 +92,97 @@ public class BeamWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase impl
 
     WorkerStatusClient fnApiStatusClient =
         WorkerStatusClient.forRequestObserver(workerId, requestObserver);
-    fnApiStatusClient.setDeregisterCallback(this.connectedClient::remove);
-    if (connectedClient.containsKey(workerId) && connectedClient.get(workerId).isDone()) {
-      LOG.info(
-          "SDK Worker {} was connected to status server previously, disconnecting the old client",
-          workerId);
-      try {
-        WorkerStatusClient oldClient = connectedClient.get(workerId).get();
-        oldClient.close();
-      } catch (IOException | InterruptedException | ExecutionException e) {
-        LOG.warn("Error closing worker status client", e);
-      }
-    }
-    connectedClient
-        .computeIfAbsent(workerId, k -> new CompletableFuture<>())
-        .complete(fnApiStatusClient);
+    connectedClient.compute(
+        workerId,
+        (k, existingClientFuture) -> {
+          if (existingClientFuture != null) {
+            try {
+              if (existingClientFuture.isDone()) {
+                LOG.info(
+                    "SDK Worker {} was connected to status server previously, disconnecting old client",
+                    workerId);
+                existingClientFuture.get().close();
+              } else {
+                existingClientFuture.complete(fnApiStatusClient);
+                return existingClientFuture;
+              }
+            } catch (IOException | InterruptedException | ExecutionException e) {
+              LOG.warn("Error closing worker status client", e);
+            }
+          }
+          return CompletableFuture.completedFuture(fnApiStatusClient);
+        });
     return fnApiStatusClient.getResponseObserver();
   }
 
   /**
-   * Get the latest SDK worker status from the client's corresponding SDK Harness.
+   * Get the latest SDK worker status from the client's corresponding SDK harness.
    *
    * @param workerId worker id of the SDK harness.
    * @return {@link CompletableFuture} of WorkerStatusResponse from SDK harness.
    */
-  public CompletableFuture<WorkerStatusResponse> getWorkerStatus(String workerId) {
+  public String getSingleWorkerStatus(String workerId, long timeout, TimeUnit timeUnit) {
+    if (!connectedClient.containsKey(workerId)) {
+      return "Error: Not connected.";
+    }
     try {
-      return getStatusClient(workerId).getWorkerStatus();
+      return getWorkerStatus(workerId).get(timeout, timeUnit);
     } catch (InterruptedException | ExecutionException | TimeoutException e) {
-      if (e instanceof InterruptedException) {
-        Thread.currentThread().interrupt();
-      }
-      CompletableFuture<WorkerStatusResponse> error = new CompletableFuture<>();
-      error.completeExceptionally(e);
-      return error;
+      return handleAndReturnExceptionResponse(e);
     }
   }
 
   /**
-   * Get all the statuses from all connected SDK harnesses within specified timeout.
+   * Get all the statuses from all connected SDK harnesses within specified timeout. Any errors
+   * getting status from the SDK harnesses will be returned in the map.
    *
-   * @param timeout max time waiting for the response from all SDK harness.
+   * @param timeout max time waiting for the response from each SDK harness.
    * @param timeUnit timeout time unit.
-   * @return All the statuses in a Map which key is the SDK harness id and value is the status
-   *     content.
+   * @return All the statuses in a map keyed by the SDK harness id.
    */
   public Map<String, String> getAllWorkerStatuses(long timeout, TimeUnit timeUnit) {
     // return result in worker id sorted map.
     Map<String, String> allStatuses = new ConcurrentSkipListMap<>(Comparator.naturalOrder());
 
-    List<CompletableFuture<WorkerStatusResponse>> responses = new ArrayList<>();
-    for (String id : connectedClient.keySet()) {
-      responses.add(
-          getWorkerStatus(id)
-              .whenComplete(
-                  (response, ex) -> {
-                    allStatuses.put(
-                        id, ex != null ? DEFAULT_ERROR_RESPONSE : getStatusErrorOrInfo(response));
-                  }));
-    }
-
-    try {
-      MoreFutures.allAsList(responses).toCompletableFuture().get(timeout, timeUnit);
-    } catch (ExecutionException | TimeoutException | InterruptedException e) {
-      if (e instanceof InterruptedException) {
-        Thread.currentThread().interrupt();
-      }
-      LOG.warn("Error encountered while waiting for worker statuses of all SDK harnesses", e);
-    }
+    connectedClient
+        .keySet()
+        .parallelStream()
+        .forEach(
+            workerId -> {
+              try {
+                allStatuses.put(workerId, getWorkerStatus(workerId).get(timeout, timeUnit));
+              } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                allStatuses.put(workerId, handleAndReturnExceptionResponse(e));
+              }
+            });
 
     return allStatuses;
+  }
+
+  @VisibleForTesting
+  CompletableFuture<String> getWorkerStatus(String workerId) {
+    CompletableFuture<WorkerStatusClient> statusClient;
+    try {
+      statusClient = getStatusClient(workerId);
+      if (statusClient == null) {
+        return CompletableFuture.completedFuture("Error: Not connected.");
+      }
+      CompletableFuture<WorkerStatusResponse> future = statusClient.get().getWorkerStatus();
+      return future.thenApply(this::getStatusErrorOrInfo);
+    } catch (ExecutionException | InterruptedException e) {
+      return CompletableFuture.completedFuture(handleAndReturnExceptionResponse(e));
+    }
   }
 
   /**
    * Get the status api client connected to the SDK harness with specified workerId.
    *
-   * @param workerId worker id of the SDK Harness.
-   * @return {@link WorkerStatusClient} if SDK harness with the specified workerId.
+   * @param workerId worker id of the SDK harness.
+   * @return CompletableFuture of {@link WorkerStatusClient}.
    */
   @VisibleForTesting
-  WorkerStatusClient getStatusClient(String workerId)
-      throws InterruptedException, ExecutionException, TimeoutException {
-    CompletableFuture<WorkerStatusClient> clientFuture =
-        connectedClient.computeIfAbsent(workerId, k -> new CompletableFuture<>());
-    return clientFuture.get(DEFAULT_CLIENT_CONNECTION_WAIT_TIME_SECONDS, TimeUnit.SECONDS);
+  CompletableFuture<WorkerStatusClient> getStatusClient(String workerId) {
+    return connectedClient.computeIfAbsent(workerId, k -> new CompletableFuture<>());
   }
 
   /**
@@ -186,5 +193,18 @@ public class BeamWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase impl
     return !Strings.isNullOrEmpty(response.getError())
         ? response.getError()
         : response.getStatusInfo();
+  }
+
+  private String handleAndReturnExceptionResponse(Exception e) {
+    LOG.warn(DEFAULT_EXCEPTION_RESPONSE, e);
+    if (e instanceof InterruptedException) {
+      Thread.currentThread().interrupt();
+    }
+    StringBuilder response = new StringBuilder();
+    response.append(DEFAULT_EXCEPTION_RESPONSE).append(":").append(e.getClass().getCanonicalName());
+    if (e.getMessage() != null) {
+      response.append(":").append(e.getMessage());
+    }
+    return response.toString();
   }
 }
