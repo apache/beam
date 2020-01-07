@@ -19,8 +19,9 @@ package org.apache.beam.runners.flink.translation.utils;
 
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
-/** Utilities for dealing with classloading. */
-public class FlinkClassloading {
+
+/** Workarounds for dealing with limitations of Flink or its libraries. */
+public class Workarounds {
 
   public static void deleteStaticCaches() {
     // Clear cache to get rid of any references to the Flink Classloader
