@@ -42,6 +42,12 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 class UtilTest(unittest.TestCase):
 
+  def setUp(self):
+    try:                    # Python 3
+      _ = self.assertRaisesRegex
+    except AttributeError:  # Python 2
+      self.assertRaisesRegex = self.assertRaisesRegexp
+
   def test_assert_that_passes(self):
     with TestPipeline() as p:
       assert_that(p | Create([1, 2, 3]), equal_to([1, 2, 3]))
@@ -66,6 +72,27 @@ class UtilTest(unittest.TestCase):
     with self.assertRaises(Exception):
       with TestPipeline() as p:
         assert_that(p | Create([1, 10, 100]), equal_to([1, 2, 3]))
+
+  def test_assert_missing(self):
+    with self.assertRaisesRegex(BeamAssertException,
+                                r"missing elements \['c'\]"):
+      with TestPipeline() as p:
+        assert_that(p | Create(['a', 'b']), equal_to(['a', 'b', 'c']))
+
+  def test_assert_unexpected(self):
+    with self.assertRaisesRegex(BeamAssertException,
+                                r"unexpected elements \['c', 'd'\]|"
+                                r"unexpected elements \['d', 'c'\]"):
+      with TestPipeline() as p:
+        assert_that(p | Create(['a', 'b', 'c', 'd']), equal_to(['a', 'b']))
+
+  def test_assert_missing_and_unexpected(self):
+    with self.assertRaisesRegex(
+        BeamAssertException,
+        r"unexpected elements \['c'\].*missing elements \['d'\]"):
+      with TestPipeline() as p:
+        assert_that(p | Create(['a', 'b', 'c']),
+                    equal_to(['a', 'b', 'd']))
 
   def test_reified_value_passes(self):
     expected = [TestWindowedValue(v, MIN_TIMESTAMP, [GlobalWindow()])
