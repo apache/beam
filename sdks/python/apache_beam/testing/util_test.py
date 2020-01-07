@@ -67,6 +67,21 @@ class UtilTest(unittest.TestCase):
       with TestPipeline() as p:
         assert_that(p | Create([1, 10, 100]), equal_to([1, 2, 3]))
 
+  def test_assert_that_produces_correct_error_messages(self):
+    with self.assertRaisesRegex(
+        Exception,
+        r"Failed assert: \[1\] == \[1, 2\], left side missing elements "
+        r"\[2\].*"):
+      with TestPipeline() as p:
+        assert_that(p | Create([1]), equal_to([1, 2]))
+
+    with self.assertRaisesRegex(
+        Exception,
+        r"Failed assert: \[1, 2\] == \[1\], right side missing at least "
+        r"element 2.*"):
+      with TestPipeline() as p:
+        assert_that(p | Create([1, 2]), equal_to([1]))
+
   def test_reified_value_passes(self):
     expected = [TestWindowedValue(v, MIN_TIMESTAMP, [GlobalWindow()])
                 for v in [1, 2, 3]]
