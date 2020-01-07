@@ -432,7 +432,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_compress                            : "org.apache.commons:commons-compress:1.19",
         commons_csv                                 : "org.apache.commons:commons-csv:1.4",
         commons_io                                  : "commons-io:commons-io:2.6",
-        commons_lang3                               : "org.apache.commons:commons-lang3:3.6",
+        commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.0.15",
         gax_grpc                                    : "com.google.api:gax-grpc:1.38.0",
