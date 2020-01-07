@@ -32,6 +32,7 @@ import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.ImmutableMap;
 import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.Key;
@@ -77,10 +78,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
+  public static final String KEY_FIELD_PROPERTY = "keyField";
+  @VisibleForTesting static final String DEFAULT_KEY_FIELD = "__key__";
   private static final Logger LOGGER = LoggerFactory.getLogger(DataStoreV1Table.class);
-  private static final String DEFAULT_KEY_FIELD = "__key__";
   // Should match: `projectId/kind`.
   private static final Pattern locationPattern = Pattern.compile("(?<projectId>.+)/(?<kind>.+)");
+  @VisibleForTesting final String keyField;
   @VisibleForTesting final String projectId;
   @VisibleForTesting final String kind;
 
@@ -88,6 +91,15 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
     super(table.getSchema());
 
     // TODO: allow users to specify a name of the field to store a key value via TableProperties.
+    JSONObject properties = table.getProperties();
+    if (properties.containsKey(KEY_FIELD_PROPERTY)) {
+      String field = properties.getString(KEY_FIELD_PROPERTY);
+      checkArgument(
+          field != null && !field.isEmpty(), "'%s' property cannot be null.", KEY_FIELD_PROPERTY);
+      keyField = field;
+    } else {
+      keyField = DEFAULT_KEY_FIELD;
+    }
     // TODO: allow users to specify a namespace in a location string.
     String location = table.getLocation();
     assert location != null;
@@ -111,13 +123,13 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
 
     PCollection<Entity> readEntities = readInstance.expand(begin);
 
-    return readEntities.apply(EntityToRow.create(getSchema())).setRowSchema(schema);
+    return readEntities.apply(EntityToRow.create(getSchema(), keyField)).setRowSchema(schema);
   }
 
   @Override
   public POutput buildIOWriter(PCollection<Row> input) {
     return input
-        .apply(RowToEntity.create(getSchema(), kind))
+        .apply(RowToEntity.create(getSchema(), keyField, kind))
         .apply(DatastoreIO.v1().write().withProjectId(projectId));
   }
 
@@ -282,7 +294,7 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
       return input.apply(ParDo.of(new RowToEntityConverter()));
     }
 
-    public static RowToEntity create(Schema schema, String kind) {
+    public static RowToEntity create(Schema schema, String keyField, String kind) {
       LOGGER.info(
           "VARBINARY field with the KEY was not specified, using default value: `"
               + DEFAULT_KEY_FIELD
@@ -291,7 +303,7 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
           (Supplier<String> & Serializable) () -> UUID.randomUUID().toString(),
           schema,
           kind,
-          DEFAULT_KEY_FIELD);
+          keyField);
     }
 
     @VisibleForTesting

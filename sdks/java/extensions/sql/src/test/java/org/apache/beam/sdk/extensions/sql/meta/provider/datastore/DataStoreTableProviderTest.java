@@ -17,11 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.datastore;
 
+import static org.apache.beam.sdk.extensions.sql.meta.provider.datastore.DataStoreV1Table.DEFAULT_KEY_FIELD;
+import static org.apache.beam.sdk.extensions.sql.meta.provider.datastore.DataStoreV1Table.KEY_FIELD_PROPERTY;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import com.alibaba.fastjson.JSON;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -51,6 +55,30 @@ public class DataStoreTableProviderTest {
     DataStoreV1Table datastoreTable = (DataStoreV1Table) sqlTable;
     assertEquals("projectId", datastoreTable.projectId);
     assertEquals("batch_kind", datastoreTable.kind);
+    assertEquals(DEFAULT_KEY_FIELD, datastoreTable.keyField);
+  }
+
+  @Test
+  public void testTableProperty() {
+    final String location = "projectId/batch_kind";
+    Table table =
+        fakeTableWithProperties("TEST", location, "{ " + KEY_FIELD_PROPERTY + ": \"field_name\" }");
+    BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
+
+    assertNotNull(sqlTable);
+    assertTrue(sqlTable instanceof DataStoreV1Table);
+
+    DataStoreV1Table datastoreTable = (DataStoreV1Table) sqlTable;
+    assertEquals("projectId", datastoreTable.projectId);
+    assertEquals("batch_kind", datastoreTable.kind);
+    assertEquals("field_name", datastoreTable.keyField);
+  }
+
+  @Test
+  public void testTableProperty_nullValue_throwsException() {
+    final String location = "projectId/batch_kind";
+    Table table = fakeTableWithProperties("TEST", location, "{ " + KEY_FIELD_PROPERTY + ": \"\" }");
+    assertThrows(IllegalArgumentException.class, () -> provider.buildBeamSqlTable(table));
   }
 
   private static Table fakeTable(String name, String location) {
@@ -64,6 +92,21 @@ public class DataStoreTableProviderTest {
                     Schema.Field.nullable("name", Schema.FieldType.STRING))
                 .collect(toSchema()))
         .type("datastoreV1")
+        .build();
+  }
+
+  private static Table fakeTableWithProperties(String name, String location, String properties) {
+    return Table.builder()
+        .name(name)
+        .comment(name + " table")
+        .location(location)
+        .schema(
+            Stream.of(
+                    Schema.Field.nullable("id", Schema.FieldType.INT32),
+                    Schema.Field.nullable("name", Schema.FieldType.STRING))
+                .collect(toSchema()))
+        .type("datastoreV1")
+        .properties(JSON.parseObject(properties))
         .build();
   }
 }
