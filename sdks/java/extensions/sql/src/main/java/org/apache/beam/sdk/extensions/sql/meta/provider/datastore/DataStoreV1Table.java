@@ -150,6 +150,10 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
     return BeamTableStatistics.createBoundedTableStatistics((double) count);
   }
 
+  /**
+   * A {@code PTransform} to perform a conversion of {@code PCollection<Entity>} to {@code
+   * PCollection<Row>}.
+   */
   public static class EntityToRow extends PTransform<PCollection<Entity>, PCollection<Row>> {
     private final Schema schema;
     private final String keyField;
@@ -167,6 +171,12 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
       }
     }
 
+    /**
+     * Create a PTransform instance.
+     *
+     * @param schema {@code Schema} of the target row.
+     * @return {@code PTransform} instance for Entity to Row conversion.
+     */
     public static EntityToRow create(Schema schema) {
       LOGGER.info(
           "VARBINARY field to store KEY was not specified, using default value: `"
@@ -175,6 +185,13 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
       return new EntityToRow(schema, DEFAULT_KEY_FIELD);
     }
 
+    /**
+     * Create a PTransform instance.
+     *
+     * @param schema {@code Schema} of the target row.
+     * @param keyField A name of the row field to store the {@code Key} in.
+     * @return {@code PTransform} instance for Entity to Row conversion.
+     */
     public static EntityToRow create(Schema schema, String keyField) {
       LOGGER.info("VARBINARY field to store KEY was specified, using value: `" + keyField + "`.");
       return new EntityToRow(schema, keyField);
@@ -232,6 +249,14 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
         context.output(extractRowFromProperties(schema, mapBuilder.build()));
       }
 
+      /**
+       * Convert DataStore {@code Value} to Beam type.
+       *
+       * @param currentFieldType Beam {@code Schema.FieldType} to convert to (used for {@code Row}
+       *     and {@code Array}).
+       * @param val DataStore {@code Value}.
+       * @return resulting Beam type.
+       */
       private Object convertValueToObject(FieldType currentFieldType, Value val) {
         ValueTypeCase typeCase = val.getValueTypeCase();
         if (typeCase.equals(ENTITY_VALUE)) {
@@ -253,6 +278,13 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
         return MAPPING_FUNCTIONS.getOrDefault(typeCase, MAPPING_NOT_FOUND).apply(val);
       }
 
+      /**
+       * Converts all properties of an {@code Entity} to Beam {@code Row}.
+       *
+       * @param schema Target row {@code Schema}.
+       * @param values A map of property names and values.
+       * @return resulting Beam {@code Row}.
+       */
       private Row extractRowFromProperties(Schema schema, Map<String, Value> values) {
         Row.Builder builder = Row.withSchema(schema);
         // It is not a guarantee that the values will be in the same order as the schema.
@@ -268,6 +300,10 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
     }
   }
 
+  /**
+   * A {@code PTransform} to perform a conversion of {@code PCollection<Row>} to {@code
+   * PCollection<Entity>}.
+   */
   public static class RowToEntity extends PTransform<PCollection<Row>, PCollection<Entity>> {
     private final Supplier<String> keySupplier;
     private final Schema schema;
@@ -294,6 +330,16 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
       return input.apply(ParDo.of(new RowToEntityConverter()));
     }
 
+    /**
+     * Create a PTransform instance.
+     *
+     * @param schema Source row schema.
+     * @param keyField Row field containing a serialized {@code Key}, must be set when using user
+     *     specified keys.
+     * @param kind DataStore `Kind` data will be written to (required when generating random {@code
+     *     Key}s).
+     * @return {@code PTransform} instance for Row to Entity conversion.
+     */
     public static RowToEntity create(Schema schema, String keyField, String kind) {
       LOGGER.info(
           "VARBINARY field with the KEY was not specified, using default value: `"
@@ -307,9 +353,9 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
     }
 
     @VisibleForTesting
-    static RowToEntity createTest(String keyString, Schema schema, String kind) {
+    static RowToEntity createTest(String keyString, Schema schema, String keyField, String kind) {
       return new RowToEntity(
-          (Supplier<String> & Serializable) () -> keyString, schema, kind, DEFAULT_KEY_FIELD);
+          (Supplier<String> & Serializable) () -> keyString, schema, kind, keyField);
     }
 
     @VisibleForTesting
