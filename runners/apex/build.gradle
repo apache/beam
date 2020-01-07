@@ -42,7 +42,6 @@ dependencies {
   compile library.java.apex_common
   compile library.java.malhar_library
   compile library.java.apex_engine
-  compile library.java.commons_lang3
   compile library.java.apex_engine
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   // ApexStateInternalsTest extends abstract StateInternalsTest
