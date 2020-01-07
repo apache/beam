@@ -178,7 +178,8 @@ REQUIRED_TEST_PACKAGES = [
     'nose_xunitmp>=0.4.1',
     'pandas>=0.23.4,<0.25',
     'parameterized>=0.6.0,<0.8.0',
-    'pyhamcrest>=1.9,<2.0',
+    # pyhamcrest==1.10.0 requires Py3. Beam still supports Py2.
+    'pyhamcrest>=1.9,<1.10.0',
     'pyyaml>=3.12,<6.0.0',
     'requests_mock>=1.7,<2.0',
     'tenacity>=5.0.2,<6.0',
