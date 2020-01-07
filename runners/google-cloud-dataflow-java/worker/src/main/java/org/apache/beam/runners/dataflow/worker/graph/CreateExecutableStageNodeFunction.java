@@ -45,7 +45,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.UserStateId;
-import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
 import org.apache.beam.runners.core.construction.*;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.ImmutableExecutableStage;
@@ -101,15 +100,15 @@ public class CreateExecutableStageNodeFunction
   private static final String JAVA_SOURCE_URN = "beam:source:java:0.1";
 
   public static final String COMBINE_PER_KEY_URN =
-      BeamUrns.getUrn(StandardPTransforms.Composites.COMBINE_PER_KEY);
+      PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN;
   public static final String COMBINE_PRECOMBINE_URN =
-      BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_PER_KEY_PRECOMBINE);
+      PTransformTranslation.COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN;
   public static final String COMBINE_MERGE_URN =
-      BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_PER_KEY_MERGE_ACCUMULATORS);
+      PTransformTranslation.COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN;
   public static final String COMBINE_EXTRACT_URN =
-      BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_PER_KEY_EXTRACT_OUTPUTS);
+      PTransformTranslation.COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN;
   public static final String COMBINE_GROUPED_VALUES_URN =
-      BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_GROUPED_VALUES);
+      PTransformTranslation.COMBINE_GROUPED_VALUES_TRANSFORM_URN;
 
   private static final String SERIALIZED_SOURCE = "serialized_source";
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
