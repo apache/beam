@@ -420,9 +420,11 @@ public class ArrowSchemaConversion {
 
     @Override
     public Row next() {
-      return Row.withSchema(schema)
-          .withFieldValueGetters(this.fieldValueGetters, currRowIndex++)
+      Row result = Row.withSchema(schema)
+          .withFieldValueGetters(this.fieldValueGetters, this.currRowIndex)
           .build();
+      this.currRowIndex += 1;
+      return result;
     }
   }
 
