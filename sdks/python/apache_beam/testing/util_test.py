@@ -67,23 +67,22 @@ class UtilTest(unittest.TestCase):
       with TestPipeline() as p:
         assert_that(p | Create([1, 10, 100]), equal_to([1, 2, 3]))
 
-  def test_assert_missing_right(self):
+  def test_assert_missing(self):
     with self.assertRaisesRegexp(Exception,
-                                 "right side missing elements \['c'\]"):
+                                 "missing elements \['c'\]"):
       with TestPipeline() as p:
         assert_that(p | Create(['a', 'b']), equal_to(['a', 'b', 'c']))
 
-  def test_assert_missing_left(self):
+  def test_assert_unexpected(self):
     with self.assertRaisesRegexp(Exception,
-                                 "left side missing elements \['c'\]"):
+                                 "unexpected elements \['c', 'd'\]"):
       with TestPipeline() as p:
-        assert_that(p | Create(['a', 'b', 'c']), equal_to(['a', 'b']))
+        assert_that(p | Create(['a', 'b', 'c', 'd']), equal_to(['a', 'b']))
 
-  def test_assert_missing_left_and_right(self):
+  def test_assert_missing_missing_and_unexpected(self):
     with self.assertRaisesRegexp(
         Exception,
-        "left side missing elements \['c'\].*"
-        "right side missing elements \['d'\]"):
+        "unexpected elements \['c'\].*missing elements \['d'\]"):
       with TestPipeline() as p:
         assert_that(p | Create(['a', 'b', 'c']),
                     equal_to(['a', 'b', 'd']))

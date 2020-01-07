@@ -166,7 +166,7 @@ def equal_to(expected):
       sorted_actual = sorted(actual)
       if sorted_expected != sorted_actual:
         raise BeamAssertException(
-            'Failed assert: %r == %r' % (sorted_actual, sorted_expected))
+            'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
     # Slower method, used in two cases:
     # 1) If sorted expected != actual, use this method to verify the inequality.
     #    This ensures we don't raise any false negatives for types that don't
@@ -174,18 +174,18 @@ def equal_to(expected):
     # 2) As a fallback if we encounter a TypeError in python 3. this method
     #    works on collections that have different types.
     except (BeamAssertException, TypeError):
-      left_missing = []
+      unexpected = []
       for element in actual:
         try:
           expected_list.remove(element)
         except ValueError:
-          left_missing.append(element)
-      if left_missing or expected_list:
-        msg = 'Failed assert: %r == %r' % (actual, expected)
-        if left_missing:
-          msg = msg + ', left side missing elements %r' % left_missing
+          unexpected.append(element)
+      if unexpected or expected_list:
+        msg = 'Failed assert: %r == %r' % (expected, actual)
+        if unexpected:
+          msg = msg + ', unexpected elements %r' % unexpected
         if expected_list:
-          msg = msg + ', right side missing elements %r' % expected_list
+          msg = msg + ', missing elements %r' % expected_list
         raise BeamAssertException(msg)
 
   return _equal
