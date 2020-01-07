@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -421,7 +422,37 @@ public class AvroUtils {
    */
   public static SerializableFunction<GenericRecord, Row> getGenericRecordToRowFunction(
       @Nullable Schema schema) {
-    return g -> toBeamRowStrict(g, schema);
+    return new GenericRecordToRowFn(schema);
+  }
+
+  private static class GenericRecordToRowFn implements SerializableFunction<GenericRecord, Row> {
+    private final Schema schema;
+
+    GenericRecordToRowFn(Schema schema) {
+      this.schema = schema;
+    }
+
+    @Override
+    public Row apply(GenericRecord input) {
+      return toBeamRowStrict(input, schema);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (this == other) {
+        return true;
+      }
+      if (other == null || getClass() != other.getClass()) {
+        return false;
+      }
+      GenericRecordToRowFn that = (GenericRecordToRowFn) other;
+      return schema.equals(that.schema);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(schema);
+    }
   }
 
   /**
@@ -430,7 +461,37 @@ public class AvroUtils {
    */
   public static SerializableFunction<Row, GenericRecord> getRowToGenericRecordFunction(
       @Nullable org.apache.avro.Schema avroSchema) {
-    return g -> toGenericRecord(g, avroSchema);
+    return new RowToGenericRecordFn(avroSchema);
+  }
+
+  private static class RowToGenericRecordFn implements SerializableFunction<Row, GenericRecord> {
+    private final org.apache.avro.Schema avroSchema;
+
+    RowToGenericRecordFn(@Nullable org.apache.avro.Schema avroSchema) {
+      this.avroSchema = avroSchema;
+    }
+
+    @Override
+    public GenericRecord apply(Row input) {
+      return toGenericRecord(input, avroSchema);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (this == other) {
+        return true;
+      }
+      if (other == null || getClass() != other.getClass()) {
+        return false;
+      }
+      RowToGenericRecordFn that = (RowToGenericRecordFn) other;
+      return avroSchema.equals(that.avroSchema);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(avroSchema);
+    }
   }
 
   /**
