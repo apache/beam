@@ -141,6 +141,23 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testByteLiterals() {
+    String sql = "SELECT b'abc'";
+
+    byte[] byteString = new byte[] {'a', 'b', 'c'};
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addNullableField("ColA", FieldType.BYTES).build();
+
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(byteString).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testByteString() {
     String sql = "SELECT @p0 IS NULL AS ColA";
 

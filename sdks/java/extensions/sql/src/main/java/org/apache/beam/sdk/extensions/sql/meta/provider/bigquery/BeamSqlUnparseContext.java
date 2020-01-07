@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rel2sql.SqlImplementor.POS;
 
 import java.util.function.IntFunction;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rel2sql.SqlImplementor;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
@@ -46,7 +47,8 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
       final RexLiteral literal = (RexLiteral) rex;
       SqlTypeFamily family = literal.getTypeName().getFamily();
       if (SqlTypeFamily.BINARY.equals(family)) {
-        BitString bitString = BitString.createFromBytes(literal.getValueAs(byte[].class));
+        ByteString byteString = literal.getValueAs(ByteString.class);
+        BitString bitString = BitString.createFromHexString(byteString.toString(16));
         return new SqlByteStringLiteral(bitString, POS);
       } else if (SqlTypeFamily.CHARACTER.equals(family)) {
         String escaped = StringEscapeUtils.escapeJava(literal.getValueAs(String.class));
