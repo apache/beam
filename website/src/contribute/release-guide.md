@@ -1259,9 +1259,7 @@ __NOTE__: Only PMC members have permissions to do it, ping [dev@](mailto:dev@bea
 Make sure the download address for last release version is upldaed, [example PR](https://github.com/apache/beam-site/pull/478).
 
 ### Deploy SDK docker images to DockerHub
-TODO(hannahjiang): change link to master branch after #9560 is merged.
-
-* Script: [publish_docker_images.sh](https://github.com/Hannah-Jiang/beam/blob/release_script_for_containers/release/src/main/scripts/publish_docker_images.sh)
+* Script: [publish_docker_images.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/publish_docker_images.sh)
 * Usage
 ```
 ./beam/release/src/main/scripts/publish_docker_images.sh
