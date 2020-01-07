@@ -62,6 +62,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -110,15 +111,13 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
 
     PCollection<Entity> readEntities = readInstance.expand(begin);
 
-    return readEntities
-        .apply(ParDo.of(EntityToRowConverter.create(getSchema())))
-        .setRowSchema(schema);
+    return readEntities.apply(EntityToRow.create(getSchema())).setRowSchema(schema);
   }
 
   @Override
   public POutput buildIOWriter(PCollection<Row> input) {
     return input
-        .apply(ParDo.of(RowToEntityConverter.create(getSchema(), kind)))
+        .apply(RowToEntity.create(getSchema(), kind))
         .apply(DatastoreIO.v1().write().withProjectId(projectId));
   }
 
@@ -139,40 +138,11 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
     return BeamTableStatistics.createBoundedTableStatistics((double) count);
   }
 
-  @VisibleForTesting
-  static class EntityToRowConverter extends DoFn<Entity, Row> {
-    private static final ImmutableMap<ValueTypeCase, Function<Value, Object>> MAPPING_FUNCTIONS =
-        ImmutableMap.<ValueTypeCase, Function<Value, Object>>builder()
-            .put(NULL_VALUE, Value::getNullValue)
-            .put(BOOLEAN_VALUE, Value::getBooleanValue)
-            .put(INTEGER_VALUE, Value::getIntegerValue)
-            .put(DOUBLE_VALUE, Value::getDoubleValue)
-            .put(
-                TIMESTAMP_VALUE,
-                v -> {
-                  // TODO: DataStore may not support milliseconds.
-                  com.google.protobuf.Timestamp time = v.getTimestampValue();
-                  long millis = time.getSeconds() * 1000 + time.getNanos() / 1000;
-                  return Instant.ofEpochMilli(millis).toDateTime();
-                })
-            .put(STRING_VALUE, Value::getStringValue)
-            // https://cloud.google.com/datastore/docs/concepts/entities.
-            .put(KEY_VALUE, v -> v.getKeyValue().toByteArray())
-            .put(BLOB_VALUE, v -> v.getBlobValue().toByteArray())
-            .put(VALUETYPE_NOT_SET, v -> null)
-            .build();
-    private static final Function<Value, Object> MAPPING_NOT_FOUND =
-        v -> {
-          throw new IllegalStateException(
-              "No conversion exists from type: "
-                  + v.getValueTypeCase().name()
-                  + " to Beam type. Supported types are: "
-                  + Arrays.toString(MAPPING_FUNCTIONS.keySet().toArray()));
-        };
+  public static class EntityToRow extends PTransform<PCollection<Entity>, PCollection<Row>> {
     private final Schema schema;
     private final String keyField;
 
-    private EntityToRowConverter(Schema schema, String keyField) {
+    private EntityToRow(Schema schema, String keyField) {
       this.schema = schema;
       this.keyField = keyField;
 
@@ -185,94 +155,114 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
       }
     }
 
-    public static EntityToRowConverter create(Schema schema) {
+    public static EntityToRow create(Schema schema) {
       LOGGER.info(
           "VARBINARY field to store KEY was not specified, using default value: `"
               + DEFAULT_KEY_FIELD
               + "`.");
-      return new EntityToRowConverter(schema, DEFAULT_KEY_FIELD);
+      return new EntityToRow(schema, DEFAULT_KEY_FIELD);
     }
 
-    @DoFn.ProcessElement
-    public void processElement(ProcessContext context) {
-      Entity entity = context.element();
-      ImmutableMap.Builder<String, Value> mapBuilder = ImmutableMap.builder();
-      mapBuilder.put(this.keyField, makeValue(entity.getKey()).build());
-      mapBuilder.putAll(entity.getPropertiesMap());
-
-      context.output(extractRowFromProperties(schema, mapBuilder.build()));
+    public static EntityToRow create(Schema schema, String keyField) {
+      LOGGER.info("VARBINARY field to store KEY was specified, using value: `" + keyField + "`.");
+      return new EntityToRow(schema, keyField);
     }
 
-    private static Object convertValueToObject(FieldType currentFieldType, Value val) {
-      ValueTypeCase typeCase = val.getValueTypeCase();
-      if (typeCase.equals(ENTITY_VALUE)) {
-        // Recursive mapping for row type.
-        Schema rowSchema = currentFieldType.getRowSchema();
-        assert rowSchema != null;
-        Entity entity = val.getEntityValue();
-        return extractRowFromProperties(rowSchema, entity.getPropertiesMap());
-      } else if (typeCase.equals(ARRAY_VALUE)) {
-        // Recursive mapping for collection type.
-        FieldType elementType = currentFieldType.getCollectionElementType();
-        List<Value> valueList = val.getArrayValue().getValuesList();
-        return valueList.stream()
-            .map(v -> convertValueToObject(elementType, v))
-            .collect(Collectors.toList());
+    @Override
+    public PCollection<Row> expand(PCollection<Entity> input) {
+      return input.apply(ParDo.of(new EntityToRowConverter()));
+    }
+
+    @VisibleForTesting
+    class EntityToRowConverter extends DoFn<Entity, Row> {
+      private final ImmutableMap<ValueTypeCase, Function<Value, Object>> MAPPING_FUNCTIONS =
+          ImmutableMap.<ValueTypeCase, Function<Value, Object>>builder()
+              .put(NULL_VALUE, (Function<Value, Object> & Serializable) v -> null)
+              .put(BOOLEAN_VALUE, (Function<Value, Object> & Serializable) Value::getBooleanValue)
+              .put(INTEGER_VALUE, (Function<Value, Object> & Serializable) Value::getIntegerValue)
+              .put(DOUBLE_VALUE, (Function<Value, Object> & Serializable) Value::getDoubleValue)
+              .put(
+                  TIMESTAMP_VALUE,
+                  (Function<Value, Object> & Serializable)
+                      v -> {
+                        // TODO: DataStore may not support milliseconds.
+                        com.google.protobuf.Timestamp time = v.getTimestampValue();
+                        long millis = time.getSeconds() * 1000 + time.getNanos() / 1000;
+                        return Instant.ofEpochMilli(millis).toDateTime();
+                      })
+              .put(STRING_VALUE, (Function<Value, Object> & Serializable) Value::getStringValue)
+              // https://cloud.google.com/datastore/docs/concepts/entities.
+              .put(
+                  KEY_VALUE,
+                  (Function<Value, Object> & Serializable) v -> v.getKeyValue().toByteArray())
+              .put(
+                  BLOB_VALUE,
+                  (Function<Value, Object> & Serializable) v -> v.getBlobValue().toByteArray())
+              .put(VALUETYPE_NOT_SET, (Function<Value, Object> & Serializable) v -> null)
+              .build();
+      private final Function<Value, Object> MAPPING_NOT_FOUND =
+          (Function<Value, Object> & Serializable)
+              v -> {
+                throw new IllegalStateException(
+                    "No conversion exists from type: "
+                        + v.getValueTypeCase().name()
+                        + " to Beam type. Supported types are: "
+                        + Arrays.toString(MAPPING_FUNCTIONS.keySet().toArray()));
+              };
+
+      @DoFn.ProcessElement
+      public void processElement(ProcessContext context) {
+        Entity entity = context.element();
+        ImmutableMap.Builder<String, Value> mapBuilder = ImmutableMap.builder();
+        mapBuilder.put(keyField, makeValue(entity.getKey()).build());
+        mapBuilder.putAll(entity.getPropertiesMap());
+
+        context.output(extractRowFromProperties(schema, mapBuilder.build()));
       }
 
-      // Mapping for primitive types.
-      return MAPPING_FUNCTIONS.getOrDefault(typeCase, MAPPING_NOT_FOUND).apply(val);
-    }
+      private Object convertValueToObject(FieldType currentFieldType, Value val) {
+        ValueTypeCase typeCase = val.getValueTypeCase();
+        if (typeCase.equals(ENTITY_VALUE)) {
+          // Recursive mapping for row type.
+          Schema rowSchema = currentFieldType.getRowSchema();
+          assert rowSchema != null;
+          Entity entity = val.getEntityValue();
+          return extractRowFromProperties(rowSchema, entity.getPropertiesMap());
+        } else if (typeCase.equals(ARRAY_VALUE)) {
+          // Recursive mapping for collection type.
+          FieldType elementType = currentFieldType.getCollectionElementType();
+          List<Value> valueList = val.getArrayValue().getValuesList();
+          return valueList.stream()
+              .map(v -> convertValueToObject(elementType, v))
+              .collect(Collectors.toList());
+        }
 
-    private static Row extractRowFromProperties(Schema schema, Map<String, Value> values) {
-      Row.Builder builder = Row.withSchema(schema);
-      // It is not a guarantee that the values will be in the same order as the schema.
-      // TODO: figure out in what order the elements are in (without relying on Beam schema).
-      for (Schema.Field field : schema.getFields()) {
-        Value val = values.get(field.getName());
-        builder.addValue(convertValueToObject(field.getType(), val));
+        // Mapping for primitive types.
+        return MAPPING_FUNCTIONS.getOrDefault(typeCase, MAPPING_NOT_FOUND).apply(val);
       }
-      return builder.build();
+
+      private Row extractRowFromProperties(Schema schema, Map<String, Value> values) {
+        Row.Builder builder = Row.withSchema(schema);
+        // It is not a guarantee that the values will be in the same order as the schema.
+        // Maybe metadata:
+        // https://cloud.google.com/appengine/docs/standard/python/datastore/metadataqueries
+        // TODO: figure out in what order the elements are in (without relying on Beam schema).
+        for (Schema.Field field : schema.getFields()) {
+          Value val = values.get(field.getName());
+          builder.addValue(convertValueToObject(field.getType(), val));
+        }
+        return builder.build();
+      }
     }
   }
 
-  @VisibleForTesting
-  static class RowToEntityConverter extends DoFn<Row, Entity> {
-    private static final ImmutableMap<Class, Function<?, Value>> MAPPING_FUNCTIONS =
-        ImmutableMap.<Class, Function<?, Value>>builder()
-            .put(Boolean.class, (Function<Boolean, Value>) v -> makeValue(v).build())
-            .put(Byte.class, (Function<Byte, Value>) v -> makeValue(v).build())
-            .put(Long.class, (Function<Long, Value>) v -> makeValue(v).build())
-            .put(Short.class, (Function<Short, Value>) v -> makeValue(v).build())
-            .put(Integer.class, (Function<Integer, Value>) v -> makeValue(v).build())
-            .put(Double.class, (Function<Double, Value>) v -> makeValue(v).build())
-            .put(Float.class, (Function<Float, Value>) v -> makeValue(v).build())
-            .put(String.class, (Function<String, Value>) v -> makeValue(v).build())
-            .put(Instant.class, (Function<Instant, Value>) v -> makeValue(v.toDate()).build())
-            .put(
-                byte[].class,
-                (Function<byte[], Value>) v -> makeValue(ByteString.copyFrom(v)).build())
-            .put(RowWithStorage.class, (Function<Row, Value>) RowToEntityConverter::mapRowToValue)
-            .put(RowWithGetters.class, (Function<Row, Value>) RowToEntityConverter::mapRowToValue)
-            .put(
-                ArrayList.class,
-                (Function<Collection<Object>, Value>) RowToEntityConverter::mapCollectionToValue)
-            .build();
-    private static final Function<Object, Value> MAPPING_NOT_FOUND =
-        v -> {
-          throw new IllegalStateException(
-              "No conversion exists from type: "
-                  + v.getClass()
-                  + " to DataStove Value. Supported types are: "
-                  + Arrays.toString(MAPPING_FUNCTIONS.keySet().toArray()));
-        };
+  public static class RowToEntity extends PTransform<PCollection<Row>, PCollection<Entity>> {
     private final Supplier<String> keySupplier;
     private final Schema schema;
     private final String kind;
     private final String keyField;
 
-    private RowToEntityConverter(
-        Supplier<String> keySupplier, Schema schema, String kind, String keyField) {
+    private RowToEntity(Supplier<String> keySupplier, Schema schema, String kind, String keyField) {
       this.keySupplier = keySupplier;
       this.schema = schema;
       this.kind = kind;
@@ -287,12 +277,17 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
       }
     }
 
-    public static RowToEntityConverter create(Schema schema, String kind) {
+    @Override
+    public PCollection<Entity> expand(PCollection<Row> input) {
+      return input.apply(ParDo.of(new RowToEntityConverter()));
+    }
+
+    public static RowToEntity create(Schema schema, String kind) {
       LOGGER.info(
           "VARBINARY field with the KEY was not specified, using default value: `"
               + DEFAULT_KEY_FIELD
               + "`.");
-      return new RowToEntityConverter(
+      return new RowToEntity(
           (Supplier<String> & Serializable) () -> UUID.randomUUID().toString(),
           schema,
           kind,
@@ -300,95 +295,140 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
     }
 
     @VisibleForTesting
-    static RowToEntityConverter createTest(String keyString, Schema schema, String kind) {
-      return new RowToEntityConverter(
+    static RowToEntity createTest(String keyString, Schema schema, String kind) {
+      return new RowToEntity(
           (Supplier<String> & Serializable) () -> keyString, schema, kind, DEFAULT_KEY_FIELD);
     }
 
-    @DoFn.ProcessElement
-    public void processElement(ProcessContext context) {
-      Row row = context.element();
-
-      Schema schemaWithoutKeyField =
-          Schema.builder()
-              .addFields(
-                  schema.getFields().stream()
-                      .filter(field -> !field.getName().equals(this.keyField))
-                      .collect(Collectors.toList()))
+    @VisibleForTesting
+    class RowToEntityConverter extends DoFn<Row, Entity> {
+      private final ImmutableMap<Class, Function<?, Value>> MAPPING_FUNCTIONS =
+          ImmutableMap.<Class, Function<?, Value>>builder()
+              .put(
+                  Boolean.class,
+                  (Function<Boolean, Value> & Serializable) v -> makeValue(v).build())
+              .put(Byte.class, (Function<Byte, Value> & Serializable) v -> makeValue(v).build())
+              .put(Long.class, (Function<Long, Value> & Serializable) v -> makeValue(v).build())
+              .put(Short.class, (Function<Short, Value> & Serializable) v -> makeValue(v).build())
+              .put(
+                  Integer.class,
+                  (Function<Integer, Value> & Serializable) v -> makeValue(v).build())
+              .put(Double.class, (Function<Double, Value> & Serializable) v -> makeValue(v).build())
+              .put(Float.class, (Function<Float, Value> & Serializable) v -> makeValue(v).build())
+              .put(String.class, (Function<String, Value> & Serializable) v -> makeValue(v).build())
+              .put(
+                  Instant.class,
+                  (Function<Instant, Value> & Serializable) v -> makeValue(v.toDate()).build())
+              .put(
+                  byte[].class,
+                  (Function<byte[], Value> & Serializable)
+                      v -> makeValue(ByteString.copyFrom(v)).build())
+              .put(RowWithStorage.class, (Function<Row, Value> & Serializable) this::mapRowToValue)
+              .put(RowWithGetters.class, (Function<Row, Value> & Serializable) this::mapRowToValue)
+              .put(
+                  ArrayList.class,
+                  (Function<Collection<Object>, Value> & Serializable) this::mapCollectionToValue)
               .build();
-      Entity.Builder entityBuilder = constructEntityFromRow(schemaWithoutKeyField, row);
-      entityBuilder.setKey(constructKeyFromRow(row));
+      private final Function<Object, Value> MAPPING_NOT_FOUND =
+          (Function<Object, Value> & Serializable)
+              v -> {
+                throw new IllegalStateException(
+                    "No conversion exists from type: "
+                        + v.getClass()
+                        + " to DataStove Value. Supported types are: "
+                        + Arrays.toString(MAPPING_FUNCTIONS.keySet().toArray()));
+              };
 
-      context.output(entityBuilder.build());
-    }
+      @DoFn.ProcessElement
+      public void processElement(ProcessContext context) {
+        Row row = context.element();
 
-    private Key constructKeyFromRow(Row row) {
-      if (!row.getSchema().getFieldNames().contains(keyField)) {
-        // When key field is not present - use key supplier to generate a random one.
-        return makeKey(kind, keySupplier.get()).build();
+        Schema schemaWithoutKeyField =
+            Schema.builder()
+                .addFields(
+                    schema.getFields().stream()
+                        .filter(field -> !field.getName().equals(keyField))
+                        .collect(Collectors.toList()))
+                .build();
+        Entity.Builder entityBuilder = constructEntityFromRow(schemaWithoutKeyField, row);
+        entityBuilder.setKey(constructKeyFromRow(row));
+
+        context.output(entityBuilder.build());
       }
-      byte[] keyBytes = row.getBytes(keyField);
-      try {
-        return Key.parseFrom(keyBytes);
-      } catch (InvalidProtocolBufferException e) {
-        throw new IllegalStateException("Failed to parse DataStore key from bytes.");
+
+      /**
+       * Converts an entire {@code Row} to an appropriate DataStore {@code Entity.Builder}.
+       *
+       * @param row {@code Row} to convert.
+       * @return resulting {@code Entity.Builder}.
+       */
+      private Entity.Builder constructEntityFromRow(Schema schema, Row row) {
+        Entity.Builder entityBuilder = Entity.newBuilder();
+        for (Schema.Field field : schema.getFields()) {
+          Value val = mapObjectToValue(row.getValue(field.getName()));
+          entityBuilder.putProperties(field.getName(), val);
+        }
+        return entityBuilder;
       }
-    }
 
-    /**
-     * A mapping function to handle conversion of Collections (such as {@code ArrayList}) to
-     * DataStore {@code Value}.
-     *
-     * @param collection {@code Collection} to convert.
-     * @return resulting {@code Value}.
-     */
-    private static Value mapCollectionToValue(Collection<Object> collection) {
-      List<Value> arrayValues =
-          collection.stream()
-              .map(RowToEntityConverter::mapObjectToValue)
-              .collect(Collectors.toList());
-      return makeValue(arrayValues).build();
-    }
-
-    /**
-     * A mapping function to handle conversion of nested {@code Row} to DataStore {@code Value}.
-     *
-     * @param row {@code Row} to convert.
-     * @return resulting {@code Value}.
-     */
-    private static Value mapRowToValue(Row row) {
-      return makeValue(constructEntityFromRow(row.getSchema(), row)).build();
-    }
-
-    /**
-     * Converts a {@code Row} value to an appropriate DataStore {@code Value} object.
-     *
-     * @param value {@code Row} value to convert.
-     * @throws IllegalStateException when no mapping function for object of given type exists.
-     * @return resulting {@code Value}.
-     */
-    private static Value mapObjectToValue(Object value) {
-      if (value == null) {
-        return Value.newBuilder().build();
+      /**
+       * Create a random key for a {@code Row} without a keyField or use a user-specified key by
+       * parsing it from byte array when keyField is set.
+       *
+       * @param row {@code Row} to construct a key for.
+       * @return resulting {@code Key}.
+       */
+      private Key constructKeyFromRow(Row row) {
+        if (!row.getSchema().getFieldNames().contains(keyField)) {
+          // When key field is not present - use key supplier to generate a random one.
+          return makeKey(kind, keySupplier.get()).build();
+        }
+        byte[] keyBytes = row.getBytes(keyField);
+        try {
+          return Key.parseFrom(keyBytes);
+        } catch (InvalidProtocolBufferException e) {
+          throw new IllegalStateException("Failed to parse DataStore key from bytes.");
+        }
       }
-      return ((Function<Object, Value>)
-              MAPPING_FUNCTIONS.getOrDefault(value.getClass(), MAPPING_NOT_FOUND))
-          .apply(value);
-    }
 
-    /**
-     * Converts an entire {@code Row} to an appropriate DataStore {@code Entity.Builder}.
-     *
-     * @param row {@code Row} to convert
-     * @return resulting {@code Entity.Builder}.
-     */
-    private static Entity.Builder constructEntityFromRow(Schema schema, Row row) {
-      Entity.Builder entityBuilder = Entity.newBuilder();
-      for (Schema.Field field : schema.getFields()) {
-        Value val = mapObjectToValue(row.getValue(field.getName()));
-        entityBuilder.putProperties(field.getName(), val);
+      /**
+       * A mapping function to handle conversion of Collections (such as {@code ArrayList}) to
+       * DataStore {@code Value}.
+       *
+       * @param collection {@code Collection} to convert.
+       * @return resulting {@code Value}.
+       */
+      private Value mapCollectionToValue(Collection<Object> collection) {
+        List<Value> arrayValues =
+            collection.stream().map(this::mapObjectToValue).collect(Collectors.toList());
+        return makeValue(arrayValues).build();
       }
-      return entityBuilder;
+
+      /**
+       * A mapping function to handle conversion of nested {@code Row} to DataStore {@code Value}.
+       *
+       * @param row {@code Row} to convert.
+       * @return resulting {@code Value}.
+       */
+      private Value mapRowToValue(Row row) {
+        return makeValue(constructEntityFromRow(row.getSchema(), row)).build();
+      }
+
+      /**
+       * Converts a {@code Row} value to an appropriate DataStore {@code Value} object.
+       *
+       * @param value {@code Row} value to convert.
+       * @throws IllegalStateException when no mapping function for object of given type exists.
+       * @return resulting {@code Value}.
+       */
+      private Value mapObjectToValue(Object value) {
+        if (value == null) {
+          return Value.newBuilder().build();
+        }
+        return ((Function<Object, Value>)
+                MAPPING_FUNCTIONS.getOrDefault(value.getClass(), MAPPING_NOT_FOUND))
+            .apply(value);
+      }
     }
   }
 }

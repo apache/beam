@@ -39,14 +39,13 @@ import java.util.Collections;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.extensions.sql.meta.provider.datastore.DataStoreV1Table.EntityToRowConverter;
-import org.apache.beam.sdk.extensions.sql.meta.provider.datastore.DataStoreV1Table.RowToEntityConverter;
+import org.apache.beam.sdk.extensions.sql.meta.provider.datastore.DataStoreV1Table.EntityToRow;
+import org.apache.beam.sdk.extensions.sql.meta.provider.datastore.DataStoreV1Table.RowToEntity;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
@@ -113,8 +112,7 @@ public class DataStoreTableTest {
 
   @Test
   public void testEntityToRowConverter() {
-    PCollection<Row> result =
-        pipeline.apply(Create.of(ENTITY)).apply(ParDo.of(EntityToRowConverter.create(SCHEMA)));
+    PCollection<Row> result = pipeline.apply(Create.of(ENTITY)).apply(EntityToRow.create(SCHEMA));
     PAssert.that(result).containsInAnyOrder(ROW);
 
     pipeline.run().waitUntilFinish();
@@ -137,9 +135,7 @@ public class DataStoreTableTest {
                     .collect(Collectors.toList()))
             .build();
     PCollection<Row> result =
-        pipeline
-            .apply(Create.of(ENTITY))
-            .apply(ParDo.of(EntityToRowConverter.create(schemaWithoutKey)));
+        pipeline.apply(Create.of(ENTITY)).apply(EntityToRow.create(schemaWithoutKey));
     PAssert.that(result).containsInAnyOrder(rowWithoutKey);
 
     pipeline.run().waitUntilFinish();
@@ -148,9 +144,7 @@ public class DataStoreTableTest {
   @Test
   public void testRowToEntityConverter() {
     PCollection<Entity> result =
-        pipeline
-            .apply(Create.of(ROW))
-            .apply(ParDo.of(RowToEntityConverter.createTest(UUID_VALUE, SCHEMA, KIND)));
+        pipeline.apply(Create.of(ROW)).apply(RowToEntity.createTest(UUID_VALUE, SCHEMA, KIND));
     PAssert.that(result).containsInAnyOrder(ENTITY);
 
     pipeline.run().waitUntilFinish();
@@ -175,7 +169,7 @@ public class DataStoreTableTest {
     PCollection<Entity> result =
         pipeline
             .apply(Create.of(rowWithoutKey))
-            .apply(ParDo.of(RowToEntityConverter.createTest(UUID_VALUE, SCHEMA, KIND)));
+            .apply(RowToEntity.createTest(UUID_VALUE, SCHEMA, KIND));
 
     PAssert.that(result).containsInAnyOrder(ENTITY);
 

@@ -55,6 +55,8 @@ public class DataStoreReadWriteIT {
           .addNullableField("__key__", VARBINARY)
           .addNullableField("content", STRING)
           .build();
+  private static final Schema SOURCE_SCHEMA_WITHOUT_KEY =
+      Schema.builder().addNullableField("content", STRING).build();
   private static final String KIND = "writereadtest";
   private static final String KIND_ALL_TYPES = "writereadalltypestest";
 
@@ -92,6 +94,33 @@ public class DataStoreReadWriteIT {
         BeamSqlRelUtils.toPCollection(readPipeline, sqlEnv.parseQuery(selectTableStatement));
 
     assertThat(output.getSchema(), equalTo(SOURCE_SCHEMA));
+
+    PipelineResult.State state = readPipeline.run().waitUntilFinish(Duration.standardMinutes(5));
+    assertThat(state, equalTo(State.DONE));
+  }
+
+  @Test
+  public void testDataStoreV1SqlRead_withoutKey() {
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new DataStoreV1TableProvider());
+    String projectId = options.getProject();
+
+    String createTableStatement =
+        "CREATE EXTERNAL TABLE TEST( \n"
+            + "   `content` VARCHAR \n"
+            + ") \n"
+            + "TYPE 'datastoreV1' \n"
+            + "LOCATION '"
+            + projectId
+            + "/"
+            + KIND
+            + "'";
+    sqlEnv.executeDdl(createTableStatement);
+
+    String selectTableStatement = "SELECT * FROM TEST";
+    PCollection<Row> output =
+        BeamSqlRelUtils.toPCollection(readPipeline, sqlEnv.parseQuery(selectTableStatement));
+
+    assertThat(output.getSchema(), equalTo(SOURCE_SCHEMA_WITHOUT_KEY));
 
     PipelineResult.State state = readPipeline.run().waitUntilFinish(Duration.standardMinutes(5));
     assertThat(state, equalTo(State.DONE));
