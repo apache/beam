@@ -67,6 +67,27 @@ class UtilTest(unittest.TestCase):
       with TestPipeline() as p:
         assert_that(p | Create([1, 10, 100]), equal_to([1, 2, 3]))
 
+  def test_assert_missing_right(self):
+    with self.assertRaisesRegexp(Exception,
+                                 "right side missing elements \['c'\]"):
+      with TestPipeline() as p:
+        assert_that(p | Create(['a', 'b']), equal_to(['a', 'b', 'c']))
+
+  def test_assert_missing_left(self):
+    with self.assertRaisesRegexp(Exception,
+                                 "left side missing elements \['c'\]"):
+      with TestPipeline() as p:
+        assert_that(p | Create(['a', 'b', 'c']), equal_to(['a', 'b']))
+
+  def test_assert_missing_left_and_right(self):
+    with self.assertRaisesRegexp(
+        Exception,
+        "left side missing elements \['c'\].*"
+        "right side missing elements \['d'\]"):
+      with TestPipeline() as p:
+        assert_that(p | Create(['a', 'b', 'c']),
+                    equal_to(['a', 'b', 'd']))
+
   def test_reified_value_passes(self):
     expected = [TestWindowedValue(v, MIN_TIMESTAMP, [GlobalWindow()])
                 for v in [1, 2, 3]]
