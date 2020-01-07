@@ -138,7 +138,10 @@ REQUIRED_PACKAGES = [
     'avro>=1.8.1,<2.0.0; python_version < "3.0"',
     'avro-python3>=1.8.1,<2.0.0; python_version >= "3.0"',
     'crcmod>=1.7,<2.0',
-    # Dill doesn't guarantee compatibility between releases within minor version.
+    # Dill doesn't have forwards-compatibility guarantees within minor version.
+    # Pickles created with a new version of dill may not unpickle using older
+    # version of dill. It is best to use the same version of dill on client and
+    # server, therefore list of allowed versions is very narrow.
     # See: https://github.com/uqfoundation/dill/issues/341.
     'dill>=0.3.1.1,<0.3.2',
     'fastavro>=0.21.4,<0.22',

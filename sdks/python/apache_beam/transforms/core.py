@@ -1304,7 +1304,9 @@ class ParDo(PTransformWithSideInputs):
     return (
         common_urns.primitives.PAR_DO.urn,
         beam_runner_api_pb2.ParDoPayload(
-            do_fn=beam_runner_api_pb2.FunctionSpec(urn=python_urns.PICKLED_DOFN_INFO, payload=picked_pardo_fn_data),
+            do_fn=beam_runner_api_pb2.FunctionSpec(
+                urn=python_urns.PICKLED_DOFN_INFO,
+                payload=picked_pardo_fn_data),
             splittable=is_splittable,
             restriction_coder_id=restriction_coder_id,
             state_specs={spec.name: spec.to_runner_api(context)
@@ -2268,8 +2270,8 @@ class Windowing(object):
   def __init__(self,
                windowfn,  # type: WindowFn
                triggerfn=None,  # type: typing.Optional[TriggerFn]
-               accumulation_mode=None,  # typing.Optional[beam_runner_api_pb2.AccumulationMode]
-               timestamp_combiner=None,  # typing.Optional[beam_runner_api_pb2.OutputTime]
+               accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode]
+               timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime]
                allowed_lateness=0, # type: typing.Union[int, float]
                ):
     """Class representing the window strategy.
