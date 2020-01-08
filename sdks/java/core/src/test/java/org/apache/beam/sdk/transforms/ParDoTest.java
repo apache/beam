@@ -3771,7 +3771,7 @@ public class ParDoTest implements Serializable {
                 @TimerId(timerId) Timer timer,
                 @StateId("timerFired") ValueState<Boolean> timerFiredState) {
               Boolean timerFired = timerFiredState.read();
-              assertTrue(timerFired == null || timerFired == false);
+              assertTrue(timerFired == null || !timerFired);
               // Set a timer to 8. This is earlier than the previous DoFn's timer, but after the
               // previous
               // DoFn timer's watermark hold. This timer should not fire until the previous timer
