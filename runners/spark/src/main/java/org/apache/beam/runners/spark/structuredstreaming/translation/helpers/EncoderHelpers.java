@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.structuredstreaming.translation.SchemaHelpers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.sql.Encoder;
@@ -98,19 +99,17 @@ public class EncoderHelpers {
       List<String> parts = new ArrayList<>();
       List<Object> args = new ArrayList<>();
       /*
-            CODE GENERATED
-            final ${javaType} ${ev.value} = (${input.isNull})
-                ? null
-                : org.apache.beam.runners.spark.structuredstreaming.translation.helpers.CoderHelpers.toByteArray(${input.value}, ${coder});
+        CODE GENERATED
+        final ${javaType} ${ev.value} = org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.EncodeUsingBeamCoder.encode(${input.value}, ${coder});
       */
       parts.add("final ");
       args.add(javaType);
       parts.add(" ");
       args.add(ev.value());
-      parts.add(" = (");
-      args.add(input.isNull());
       parts.add(
-          ") ? null : org.apache.beam.runners.spark.structuredstreaming.translation.helpers.CoderHelpers.toByteArray(");
+          " = org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.EncodeUsingBeamCoder.encode(");
+      args.add(input.isNull());
+      parts.add(", ");
       args.add(input.value());
       parts.add(", ");
       args.add(accessCode);
@@ -167,6 +166,14 @@ public class EncoderHelpers {
     public int hashCode() {
       return Objects.hash(super.hashCode(), child, coder);
     }
+
+    /**
+     * Convert value to byte array (invoked by generated code in {@link #doGenCode(CodegenContext,
+     * ExprCode)}).
+     */
+    public static <T> byte[] encode(boolean isNull, @Nullable T value, Coder<T> coder) {
+      return isNull ? null : CoderHelpers.toByteArray(value, coder);
+    }
   }
 
   /**
@@ -201,21 +208,19 @@ public class EncoderHelpers {
       List<String> parts = new ArrayList<>();
       List<Object> args = new ArrayList<>();
       /*
-            CODE GENERATED:
-            final ${javaType} ${ev.value} = (${input.isNull})
-                ? null
-                : (${javaType}) org.apache.beam.runners.spark.structuredstreaming.translation.helpers.CoderHelpers.fromByteArray(${input.value}, ${coder});
+        CODE GENERATED:
+        final ${javaType} ${ev.value} = (${javaType}) org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.DecodeUsingBeamCoder.decode(${input.value}, ${coder});
       */
       parts.add("final ");
       args.add(javaType);
       parts.add(" ");
       args.add(ev.value());
       parts.add(" = (");
-      args.add(input.isNull());
-      parts.add(") ? null : (");
       args.add(javaType);
       parts.add(
-          ") org.apache.beam.runners.spark.structuredstreaming.translation.helpers.CoderHelpers.fromByteArray(");
+          ") org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.DecodeUsingBeamCoder.decode(");
+      args.add(input.isNull());
+      parts.add(", ");
       args.add(input.value());
       parts.add(", ");
       args.add(accessCode);
@@ -272,6 +277,14 @@ public class EncoderHelpers {
     @Override
     public int hashCode() {
       return Objects.hash(super.hashCode(), child, classTag, coder);
+    }
+
+    /**
+     * Convert value from byte array (invoked by generated code in {@link #doGenCode(CodegenContext,
+     * ExprCode)}).
+     */
+    public static <T> T decode(boolean isNull, @Nullable byte[] serialized, Coder<T> coder) {
+      return isNull ? null : CoderHelpers.fromByteArray(serialized, coder);
     }
   }
 }
