@@ -56,11 +56,13 @@ public class ApexTimerInternalsTest {
     timerInternals.setContext(key1, StringUtf8Coder.of(), Instant.now(), null);
 
     TimerData timerData0 =
-        TimerData.of("timerData0", StateNamespaces.global(), instant0, TimeDomain.EVENT_TIME);
+        TimerData.of(
+            "timerData0", StateNamespaces.global(), instant0, instant0, TimeDomain.EVENT_TIME);
     timerInternals.setTimer(timerData0);
 
     TimerData timerData1 =
-        TimerData.of("timerData1", StateNamespaces.global(), instant1, TimeDomain.EVENT_TIME);
+        TimerData.of(
+            "timerData1", StateNamespaces.global(), instant1, instant1, TimeDomain.EVENT_TIME);
     timerInternals.setTimer(timerData1);
 
     timerInternals.fireReadyTimers(instant0.getMillis(), timerProcessor, TimeDomain.EVENT_TIME);
@@ -94,11 +96,13 @@ public class ApexTimerInternalsTest {
     timerInternals.setContext(key1, StringUtf8Coder.of(), Instant.now(), null);
 
     TimerData timerData0 =
-        TimerData.of("timerData0", StateNamespaces.global(), instant0, TimeDomain.EVENT_TIME);
+        TimerData.of(
+            "timerData0", StateNamespaces.global(), instant0, instant0, TimeDomain.EVENT_TIME);
     timerInternals.setTimer(timerData0);
 
     TimerData timerData1 =
-        TimerData.of("timerData1", StateNamespaces.global(), instant1, TimeDomain.EVENT_TIME);
+        TimerData.of(
+            "timerData1", StateNamespaces.global(), instant1, instant1, TimeDomain.EVENT_TIME);
     timerInternals.setTimer(timerData1);
 
     Map<?, Set<Slice>> timerMap = timerInternals.getTimerSet(TimeDomain.EVENT_TIME).getMap();
