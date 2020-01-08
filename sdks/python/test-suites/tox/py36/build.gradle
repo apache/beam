@@ -26,34 +26,20 @@ applyPythonNature()
 // Required to setup a Python 3 virtualenv.
 pythonVersion = '3.6'
 
+// TODO(BEAM-3713): Migrate to -pytest env variant.
 toxTask "testPython36", "py36"
 test.dependsOn testPython36
 
-toxTask "testPy36Gcp", "py36-gcp"
+toxTask "testPy36Gcp", "py36-gcp-pytest"
 test.dependsOn testPy36Gcp
 
-toxTask "testPy36Cython", "py36-cython"
+toxTask "testPy36Cython", "py36-cython-pytest"
 test.dependsOn testPy36Cython
 
-// Ensure that testPy36Cython runs exclusively to other tests. This line is not
-// actually required, since gradle doesn't do parallel execution within a
-// project.
+// TODO(BEAM-8954): Remove this once tox uses isolated builds.
 testPy36Cython.mustRunAfter testPython36, testPy36Gcp
-
-// TODO(BEAM-3713): Temporary pytest tasks that should eventually replace
-//  nose-based test tasks.
-toxTask "testPy36GcpPytest", "py36-gcp-pytest"
-toxTask "testPython36Pytest", "py36-pytest"
-toxTask "testPy36CythonPytest", "py36-cython-pytest"
-// Ensure that cython tests run exclusively to other tests.
-testPy36CythonPytest.mustRunAfter testPython36Pytest, testPy36GcpPytest
 
 task preCommitPy36() {
     dependsOn "testPy36Gcp"
     dependsOn "testPy36Cython"
-}
-
-task preCommitPy36Pytest {
-  dependsOn "testPy36GcpPytest"
-  dependsOn "testPy36CythonPytest"
 }

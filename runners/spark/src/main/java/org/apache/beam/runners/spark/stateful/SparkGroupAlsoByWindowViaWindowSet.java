@@ -368,7 +368,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
     private final FullWindowedValueCoder<InputT> wvCoder;
     private final Coder<K> keyCoder;
     private final List<Integer> sourceIds;
-    private final TimerInternals.TimerDataCoder timerDataCoder;
+    private final TimerInternals.TimerDataCoderV2 timerDataCoder;
     private final WindowingStrategy<?, W> windowingStrategy;
     private final SerializablePipelineOptions options;
     private final IterableCoder<WindowedValue<InputT>> itrWvCoder;
@@ -461,9 +461,9 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
     return FullWindowedValueCoder.of(KvCoder.of(keyCoder, IterableCoder.of(iCoder)), wCoder);
   }
 
-  private static <W extends BoundedWindow> TimerInternals.TimerDataCoder timerDataCoderOf(
+  private static <W extends BoundedWindow> TimerInternals.TimerDataCoderV2 timerDataCoderOf(
       final WindowingStrategy<?, W> windowingStrategy) {
-    return TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
+    return TimerInternals.TimerDataCoderV2.of(windowingStrategy.getWindowFn().windowCoder());
   }
 
   private static void checkpointIfNeeded(

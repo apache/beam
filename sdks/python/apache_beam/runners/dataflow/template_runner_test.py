@@ -33,7 +33,7 @@ from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
 try:
   from apache_beam.runners.dataflow.internal import apiclient
 except ImportError:
-  apiclient = None
+  apiclient = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 

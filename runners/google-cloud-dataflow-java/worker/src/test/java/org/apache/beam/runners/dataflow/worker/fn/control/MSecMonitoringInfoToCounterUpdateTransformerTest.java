@@ -17,8 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
+import static org.apache.beam.runners.dataflow.worker.testing.GenericJsonAssert.assertEqualsAsJson;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -68,7 +70,7 @@ public class MSecMonitoringInfoToCounterUpdateTransformerTest {
         MonitoringInfo.newBuilder()
             .setUrn("beam:metric:pardo_execution_time:start_bundle_msecs:v1:invalid")
             .build();
-    assertEquals(null, testObject.transform(monitoringInfo));
+    assertNull(testObject.transform(monitoringInfo));
   }
 
   @Test
@@ -142,14 +144,13 @@ public class MSecMonitoringInfoToCounterUpdateTransformerTest {
     CounterUpdate result = testObject.transform(monitoringInfo);
 
     // Validate
-    assertNotEquals(null, result);
-
-    assertEquals(
-        "{cumulative=true, integer={highBits=0, lowBits=0}, "
-            + "structuredNameAndMetadata={metadata={kind=SUM}, "
-            + "name={executionStepName=anyStageName, name=supportedCounter, origin=SYSTEM, "
-            + "originalStepName=anyOriginalName}}}",
-        result.toString());
+    assertNotNull(result);
+    assertEqualsAsJson(
+        "{cumulative:true, integer:{highBits:0, lowBits:0}, "
+            + "structuredNameAndMetadata:{metadata:{kind:'SUM'}, "
+            + "name:{executionStepName:'anyStageName', name:'supportedCounter', origin:'SYSTEM', "
+            + "originalStepName:'anyOriginalName'}}}",
+        result);
   }
 
   @Test

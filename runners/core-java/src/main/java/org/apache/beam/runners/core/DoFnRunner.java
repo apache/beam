@@ -38,7 +38,13 @@ public interface DoFnRunner<InputT, OutputT> {
    * Calls a {@link DoFn DoFn's} {@link DoFn.OnTimer @OnTimer} method for the given timer in the
    * given window.
    */
-  void onTimer(String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain);
+  void onTimer(
+      String timerId,
+      String timerFamilyId,
+      BoundedWindow window,
+      Instant timestamp,
+      Instant outputTimestamp,
+      TimeDomain timeDomain);
 
   /**
    * Calls a {@link DoFn DoFn's} {@link DoFn.FinishBundle @FinishBundle} method and performs

@@ -26,6 +26,8 @@ from __future__ import absolute_import
 
 import re
 from builtins import object
+from typing import Any
+from typing import Optional
 
 from future.utils import iteritems
 from past.builtins import unicode
@@ -87,6 +89,7 @@ class PubsubMessage(object):
 
   @staticmethod
   def _from_proto_str(proto_msg):
+    # type: (bytes) -> PubsubMessage
     """Construct from serialized form of ``PubsubMessage``.
 
     Args:
@@ -121,6 +124,7 @@ class PubsubMessage(object):
 
   @staticmethod
   def _from_message(msg):
+    # type: (Any) -> PubsubMessage
     """Construct from ``google.cloud.pubsub_v1.subscriber.message.Message``.
 
     https://googleapis.github.io/google-cloud-python/latest/pubsub/subscriber/api/message.html
@@ -134,8 +138,14 @@ class ReadFromPubSub(PTransform):
   """A ``PTransform`` for reading from Cloud Pub/Sub."""
   # Implementation note: This ``PTransform`` is overridden by Directrunner.
 
-  def __init__(self, topic=None, subscription=None, id_label=None,
-               with_attributes=False, timestamp_attribute=None):
+  def __init__(self,
+               topic=None,  # type: Optional[str]
+               subscription=None,  # type: Optional[str]
+               id_label=None,  # type: Optional[str]
+               with_attributes=False,  # type: bool
+               timestamp_attribute=None  # type: Optional[str]
+              ):
+    # type: (...) -> None
     """Initializes ``ReadFromPubSub``.
 
     Args:
@@ -242,8 +252,13 @@ class WriteToPubSub(PTransform):
   """A ``PTransform`` for writing messages to Cloud Pub/Sub."""
   # Implementation note: This ``PTransform`` is overridden by Directrunner.
 
-  def __init__(self, topic, with_attributes=False, id_label=None,
-               timestamp_attribute=None):
+  def __init__(self,
+               topic,  # type: str
+               with_attributes=False,  # type: bool
+               id_label=None,  # type: Optional[str]
+               timestamp_attribute=None  # type: Optional[str]
+              ):
+    # type: (...) -> None
     """Initializes ``WriteToPubSub``.
 
     Args:
@@ -267,6 +282,7 @@ class WriteToPubSub(PTransform):
 
   @staticmethod
   def to_proto_str(element):
+    # type: (PubsubMessage) -> bytes
     if not isinstance(element, PubsubMessage):
       raise TypeError('Unexpected element. Type: %s (expected: PubsubMessage), '
                       'value: %r' % (type(element), element))
@@ -327,8 +343,13 @@ class _PubSubSource(dataflow_io.NativeSource):
       fetches ``PubsubMessage`` protobufs.
   """
 
-  def __init__(self, topic=None, subscription=None, id_label=None,
-               with_attributes=False, timestamp_attribute=None):
+  def __init__(self,
+               topic=None,  # type: Optional[str]
+               subscription=None,  # type: Optional[str]
+               id_label=None,  # type: Optional[str]
+               with_attributes=False,  # type: bool
+               timestamp_attribute=None  # type: Optional[str]
+              ):
     self.coder = coders.BytesCoder()
     self.full_topic = topic
     self.full_subscription = subscription
@@ -385,7 +406,12 @@ class _PubSubSink(dataflow_io.NativeSink):
   This ``NativeSource`` is overridden by a native Pubsub implementation.
   """
 
-  def __init__(self, topic, id_label, with_attributes, timestamp_attribute):
+  def __init__(self,
+               topic,  # type: str
+               id_label,  # type: Optional[str]
+               with_attributes,  # type: bool
+               timestamp_attribute  # type: Optional[str]
+              ):
     self.coder = coders.BytesCoder()
     self.full_topic = topic
     self.id_label = id_label

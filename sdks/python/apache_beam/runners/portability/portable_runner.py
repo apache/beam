@@ -22,6 +22,8 @@ import itertools
 import logging
 import threading
 import time
+from typing import TYPE_CHECKING
+from typing import Optional
 
 import grpc
 
@@ -42,6 +44,10 @@ from apache_beam.runners.portability import portable_stager
 from apache_beam.runners.worker import sdk_worker_main
 from apache_beam.runners.worker import worker_pool_main
 from apache_beam.transforms import environments
+
+if TYPE_CHECKING:
+  from apache_beam.options.pipeline_options import PipelineOptions
+  from apache_beam.pipeline import Pipeline
 
 __all__ = ['PortableRunner']
 
@@ -76,10 +82,11 @@ class PortableRunner(runner.PipelineRunner):
     running and managing the job lies with the job service used.
   """
   def __init__(self):
-    self._dockerized_job_server = None
+    self._dockerized_job_server = None  # type: Optional[job_server.JobServer]
 
   @staticmethod
   def _create_environment(options):
+    # type: (PipelineOptions) -> beam_runner_api_pb2.Environment
     portable_options = options.view_as(PortableOptions)
     # Do not set a Runner. Otherwise this can cause problems in Java's
     # PipelineOptions, i.e. ClassNotFoundException, if the corresponding Runner
@@ -106,6 +113,7 @@ class PortableRunner(runner.PipelineRunner):
     return env_class.from_options(portable_options)
 
   def default_job_server(self, portable_options):
+    # type: (...) -> job_server.JobServer
     # TODO Provide a way to specify a container Docker URL
     # https://issues.apache.org/jira/browse/BEAM-6328
     if not self._dockerized_job_server:
@@ -126,6 +134,7 @@ class PortableRunner(runner.PipelineRunner):
     return server.start()
 
   def run_pipeline(self, pipeline, options):
+    # type: (Pipeline, PipelineOptions) -> PipelineResult
     portable_options = options.view_as(PortableOptions)
 
     # TODO: https://issues.apache.org/jira/browse/BEAM-5525
@@ -142,6 +151,8 @@ class PortableRunner(runner.PipelineRunner):
       portable_options.environment_config, server = (
           worker_pool_main.BeamFnExternalWorkerPoolServicer.start(
               state_cache_size=sdk_worker_main._get_state_cache_size(options),
+              data_buffer_time_limit_ms=
+              sdk_worker_main._get_data_buffer_time_limit_ms(options),
               use_process=use_loopback_process_worker))
       cleanup_callbacks = [functools.partial(server.stop, 1)]
     else:
@@ -209,6 +220,7 @@ class PortableRunner(runner.PipelineRunner):
     # fetch runner options from job service
     # retries in case the channel is not ready
     def send_options_request(max_retries=5):
+      # type: (int) -> beam_job_api_pb2.DescribePipelineOptionsResponse
       num_retries = 0
       while True:
         try:
@@ -407,6 +419,7 @@ class PipelineResult(runner.PipelineResult):
   def wait_until_finish(self):
 
     def read_messages():
+      previous_state = -1
       for message in self._message_stream:
         if message.HasField('message_response'):
           logging.log(
@@ -414,10 +427,12 @@ class PipelineResult(runner.PipelineResult):
               "%s",
               message.message_response.message_text)
         else:
-          _LOGGER.info(
-              "Job state changed to %s",
-              self._runner_api_state_to_pipeline_state(
-                  message.state_response.state))
+          current_state = message.state_response.state
+          if current_state != previous_state:
+            _LOGGER.info(
+                "Job state changed to %s",
+                self._runner_api_state_to_pipeline_state(current_state))
+            previous_state = current_state
         self._messages.append(message)
 
     t = threading.Thread(target=read_messages, name='wait_until_finish_read')

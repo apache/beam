@@ -134,13 +134,8 @@ task validatesRunnerStreamingTests {
   }
 }
 
-task dataflowChicagoTaxiExample {
+task installChicagoTaxiExampleRequirements {
   dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
-
-  def gcsRoot = findProperty('gcsRoot')
-  def runner = findProperty('runner')
-  def cliArgs = "${gcsRoot} ${runner} ${files(configurations.distTarBall.files).singleFile}"
 
   doLast {
     exec {
@@ -148,6 +143,17 @@ task dataflowChicagoTaxiExample {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && pip install -r requirements.txt"
     }
+  }
+}
+
+task dataflowChicagoTaxiExample {
+  dependsOn 'installChicagoTaxiExampleRequirements'
+  dependsOn ':sdks:python:sdist'
+
+  def gcsRoot = findProperty('gcsRoot')
+  def cliArgs = "${gcsRoot} DataflowRunner ${files(configurations.distTarBall.files).singleFile}"
+
+  doLast {
     exec {
       workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
       executable 'sh'

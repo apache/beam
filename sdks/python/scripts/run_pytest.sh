@@ -28,11 +28,11 @@ envname=${1?First argument required: suite base name}
 posargs=$2
 
 # Run with pytest-xdist and without.
-python setup.py pytest --addopts="-o junit_suite_name=${envname} \
-  --junitxml=pytest_${envname}.xml -m 'not no_xdist' -n 6 --pyargs ${posargs}"
+pytest -o junit_suite_name=${envname} \
+  --junitxml=pytest_${envname}.xml -m 'not no_xdist' -n 6 --pyargs ${posargs}
 status1=$?
-python setup.py pytest --addopts="-o junit_suite_name=${envname}_no_xdist \
-  --junitxml=pytest_${envname}_no_xdist.xml -m 'no_xdist' --pyargs ${posargs}"
+pytest -o junit_suite_name=${envname}_no_xdist \
+  --junitxml=pytest_${envname}_no_xdist.xml -m 'no_xdist' --pyargs ${posargs}
 status2=$?
 
 # Exit with error if no tests were run (status code 5).

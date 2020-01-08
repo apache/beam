@@ -20,6 +20,8 @@ from __future__ import absolute_import
 
 import logging
 import unittest
+from typing import List
+from typing import Optional
 
 from apache_beam.coders import observable
 
@@ -27,7 +29,7 @@ from apache_beam.coders import observable
 class ObservableMixinTest(unittest.TestCase):
   observed_count = 0
   observed_sum = 0
-  observed_keys = []
+  observed_keys = []  # type: List[Optional[str]]
 
   def observer(self, value, key=None):
     self.observed_count += 1

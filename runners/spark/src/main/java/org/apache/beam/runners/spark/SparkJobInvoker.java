@@ -23,8 +23,12 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
+import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineJarCreator;
+import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,7 +92,13 @@ public class SparkJobInvoker extends JobInvoker {
             sparkOptions.getJobName(),
             retrievalToken,
             PipelineOptionsTranslation.toProto(sparkOptions));
-    SparkPipelineRunner pipelineRunner = new SparkPipelineRunner(sparkOptions);
+    PortablePipelineRunner pipelineRunner;
+    if (Strings.isNullOrEmpty(
+        sparkOptions.as(PortablePipelineOptions.class).getOutputExecutablePath())) {
+      pipelineRunner = new SparkPipelineRunner(sparkOptions);
+    } else {
+      pipelineRunner = new PortablePipelineJarCreator(SparkPipelineRunner.class);
+    }
     return new JobInvocation(jobInfo, executorService, pipeline, pipelineRunner);
   }
 }

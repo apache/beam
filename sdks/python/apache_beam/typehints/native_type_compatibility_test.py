@@ -69,7 +69,7 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         ('arbitrary-length tuple', typing.Tuple[int, ...],
          typehints.Tuple[int, ...])
         if sys.version_info >= (3, 5, 4) else None,
-        ('flat alias', _TestFlatAlias, typehints.Tuple[bytes, float]),
+        ('flat alias', _TestFlatAlias, typehints.Tuple[bytes, float]),  # type: ignore[misc]
         ('nested alias', _TestNestedAlias,
          typehints.List[typehints.Tuple[bytes, float]]),
         ('complex dict',
@@ -101,6 +101,11 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
     self.assertEqual(
         typehints.Iterator[int],
         convert_to_beam_type(typing.Generator[int, None, None]))
+
+  def test_string_literal_converted_to_any(self):
+    self.assertEqual(
+        typehints.Any,
+        convert_to_beam_type('typing.List[int]'))
 
   def test_convert_nested_to_beam_type(self):
     self.assertEqual(

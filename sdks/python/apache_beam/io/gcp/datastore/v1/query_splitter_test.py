@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 import sys
 import unittest
+from typing import Type
 
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
@@ -37,7 +38,7 @@ try:
   from google.cloud.proto.datastore.v1.query_pb2 import PropertyFilter
 except (ImportError, TypeError):
   datastore_pb2 = None
-  query_splitter = None
+  query_splitter = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -65,7 +66,7 @@ class QuerySplitterTest(unittest.TestCase):
       test_filter.property_filter.op = PropertyFilter.GREATER_THAN
     return query
 
-  split_error = ValueError
+  split_error = ValueError  # type: Type[Exception]
   query_splitter = query_splitter
 
   def test_get_splits_query_with_multiple_kinds(self):

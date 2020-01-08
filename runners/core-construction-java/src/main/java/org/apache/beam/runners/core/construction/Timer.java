@@ -47,7 +47,12 @@ public abstract class Timer<T> {
 
   /** Returns a timer for the given timestamp with a user specified payload. */
   public static <T> Timer<T> of(Instant timestamp, @Nullable T payload) {
-    return new AutoValue_Timer(timestamp, payload);
+    return new AutoValue_Timer(timestamp, timestamp, payload);
+  }
+
+  /** Returns a timer for the given timestamp with a user specified payload and outputTimestamp. */
+  public static <T> Timer<T> of(Instant timestamp, Instant outputTimestamp, @Nullable T payload) {
+    return new AutoValue_Timer(timestamp, outputTimestamp, payload);
   }
 
   /**
@@ -57,6 +62,9 @@ public abstract class Timer<T> {
    * org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec} that is associated with this timer.
    */
   public abstract Instant getTimestamp();
+
+  /* Returns the outputTimestamps  */
+  public abstract Instant getOutputTimestamp();
 
   /** A user supplied payload. */
   @Nullable

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
@@ -86,6 +87,6 @@ public class FnApiMonitoringInfoToCounterUpdateTransformerTest {
 
     CounterUpdate result = testObject.transform(monitoringInfo);
 
-    assertSame(null, result);
+    assertNull(result);
   }
 }

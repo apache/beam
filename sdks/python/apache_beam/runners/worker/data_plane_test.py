@@ -21,6 +21,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import itertools
 import logging
 import sys
 import threading
@@ -62,7 +63,18 @@ class DataChannelTest(unittest.TestCase):
 
   @timeout(5)
   def test_grpc_data_channel(self):
-    data_servicer = data_plane.BeamFnDataServicer()
+    self._grpc_data_channel_test()
+
+  @timeout(5)
+  def test_time_based_flush_grpc_data_channel(self):
+    self._grpc_data_channel_test(True)
+
+  def _grpc_data_channel_test(self, time_based_flush=False):
+    if time_based_flush:
+      data_servicer = data_plane.BeamFnDataServicer(
+          data_buffer_time_limit_ms=100)
+    else:
+      data_servicer = data_plane.BeamFnDataServicer()
     worker_id = 'worker_0'
     data_channel_service = \
       data_servicer.get_conn_by_worker_id(worker_id)
@@ -78,10 +90,15 @@ class DataChannelTest(unittest.TestCase):
     grpc_channel = grpc.intercept_channel(
         grpc_channel, WorkerIdInterceptor(worker_id))
     data_channel_stub = beam_fn_api_pb2_grpc.BeamFnDataStub(grpc_channel)
-    data_channel_client = data_plane.GrpcClientDataChannel(data_channel_stub)
+    if time_based_flush:
+      data_channel_client = data_plane.GrpcClientDataChannel(
+          data_channel_stub, data_buffer_time_limit_ms=100)
+    else:
+      data_channel_client = data_plane.GrpcClientDataChannel(data_channel_stub)
 
     try:
-      self._data_channel_test(data_channel_service, data_channel_client)
+      self._data_channel_test(
+          data_channel_service, data_channel_client, time_based_flush)
     finally:
       data_channel_client.close()
       data_channel_service.close()
@@ -92,22 +109,25 @@ class DataChannelTest(unittest.TestCase):
     channel = data_plane.InMemoryDataChannel()
     self._data_channel_test(channel, channel.inverse())
 
-  def _data_channel_test(self, server, client):
-    self._data_channel_test_one_direction(server, client)
-    self._data_channel_test_one_direction(client, server)
+  def _data_channel_test(self, server, client, time_based_flush=False):
+    self._data_channel_test_one_direction(server, client, time_based_flush)
+    self._data_channel_test_one_direction(client, server, time_based_flush)
 
-  def _data_channel_test_one_direction(self, from_channel, to_channel):
+  def _data_channel_test_one_direction(
+      self, from_channel, to_channel, time_based_flush):
     def send(instruction_id, transform_id, data):
       stream = from_channel.output_stream(instruction_id, transform_id)
       stream.write(data)
-      stream.close()
+      if not time_based_flush:
+        stream.close()
     transform_1 = '1'
     transform_2 = '2'
 
     # Single write.
     send('0', transform_1, b'abc')
     self.assertEqual(
-        list(to_channel.input_elements('0', [transform_1])),
+        list(itertools.islice(
+            to_channel.input_elements('0', [transform_1]), 1)),
         [beam_fn_api_pb2.Elements.Data(
             instruction_id='0',
             transform_id=transform_1,
@@ -117,14 +137,16 @@ class DataChannelTest(unittest.TestCase):
     send('1', transform_1, b'abc')
     send('2', transform_1, b'def')
     self.assertEqual(
-        list(to_channel.input_elements('1', [transform_1])),
+        list(itertools.islice(
+            to_channel.input_elements('1', [transform_1]), 1)),
         [beam_fn_api_pb2.Elements.Data(
             instruction_id='1',
             transform_id=transform_1,
             data=b'abc')])
     send('2', transform_2, b'ghi')
     self.assertEqual(
-        list(to_channel.input_elements('2', [transform_1, transform_2])),
+        list(itertools.islice(
+            to_channel.input_elements('2', [transform_1, transform_2]), 2)),
         [beam_fn_api_pb2.Elements.Data(
             instruction_id='2',
             transform_id=transform_1,

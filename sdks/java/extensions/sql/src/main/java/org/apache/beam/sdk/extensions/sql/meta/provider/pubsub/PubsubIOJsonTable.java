@@ -31,13 +31,11 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTagList;
 
 /**
  * <i>Experimental</i>
@@ -148,8 +146,14 @@ class PubsubIOJsonTable extends BaseBeamTable implements Serializable {
   public PCollection<Row> buildIOReader(PBegin begin) {
     PCollectionTuple rowsWithDlq =
         begin
-            .apply("readFromPubsub", readMessagesWithAttributes())
-            .apply("parseMessageToRow", createParserParDo());
+            .apply("ReadFromPubsub", readMessagesWithAttributes())
+            .apply(
+                "PubsubMessageToRow",
+                PubsubMessageToRow.builder()
+                    .messageSchema(getSchema())
+                    .useDlq(config.useDlq())
+                    .useFlatSchema(config.getUseFlatSchema())
+                    .build());
     rowsWithDlq.get(MAIN_TAG).setRowSchema(getSchema());
 
     if (config.useDlq()) {
@@ -157,17 +161,6 @@ class PubsubIOJsonTable extends BaseBeamTable implements Serializable {
     }
 
     return rowsWithDlq.get(MAIN_TAG);
-  }
-
-  private ParDo.MultiOutput<PubsubMessage, Row> createParserParDo() {
-    return ParDo.of(
-            PubsubMessageToRow.builder()
-                .messageSchema(getSchema())
-                .useDlq(config.useDlq())
-                .useFlatSchema(config.getUseFlatSchema())
-                .build())
-        .withOutputTags(
-            MAIN_TAG, config.useDlq() ? TupleTagList.of(DLQ_TAG) : TupleTagList.empty());
   }
 
   private PubsubIO.Read<PubsubMessage> readMessagesWithAttributes() {

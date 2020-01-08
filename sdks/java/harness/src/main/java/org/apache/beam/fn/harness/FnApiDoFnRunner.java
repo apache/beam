@@ -338,6 +338,11 @@ public class FnApiDoFnRunner<InputT, OutputT>
       return this;
     }
 
+    @Override
+    public org.apache.beam.sdk.state.Timer withOutputTimestamp(Instant outputTime) {
+      throw new UnsupportedOperationException("TODO: Add support for timers");
+    }
+
     /**
      * For event time timers the target time should be prior to window GC time. So it returns
      * min(time to set, GC Time of window).

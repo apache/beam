@@ -34,6 +34,11 @@ from apache_beam.options.value_provider import StaticValueProvider
 # <file name acronym>_non_vp_arg<number> for non-value-provider arguments.
 # The number will grow per file as tests are added.
 class ValueProviderTests(unittest.TestCase):
+  def setUp(self):
+    # Reset runtime options, since the is_accessible assertions require them to
+    # be uninitialized.
+    RuntimeValueProvider.set_runtime_options(None)
+
   def test_static_value_provider_keyword_argument(self):
     class UserDefinedOptions(PipelineOptions):
       @classmethod
@@ -196,9 +201,6 @@ class ValueProviderTests(unittest.TestCase):
     self.assertTrue(isinstance(RuntimeValueProvider.experiments, set))
     self.assertTrue('feature_1' in RuntimeValueProvider.experiments)
     self.assertTrue('feature_2' in RuntimeValueProvider.experiments)
-    # Clean up runtime_options after this test case finish, otherwise, it'll
-    # affect other cases since runtime_options is static attr
-    RuntimeValueProvider.set_runtime_options(None)
 
   def test_experiments_options_setup(self):
     options = PipelineOptions(['--experiments', 'a', '--experiments', 'b,c'])
