@@ -255,16 +255,22 @@ public class ParDoTranslation {
               timerSpecs.put(timer.getKey(), spec);
             }
 
+            return timerSpecs;
+          }
+
+          @Override
+          public Map<String, RunnerApi.TimerFamilySpec> translateTimerFamilySpecs(
+              SdkComponents newComponents) {
+            Map<String, RunnerApi.TimerFamilySpec> timerFamilySpecs = new HashMap<>();
             for (Map.Entry<String, DoFnSignature.TimerFamilyDeclaration> timerFamily :
                 signature.timerFamilyDeclarations().entrySet()) {
-              RunnerApi.TimerSpec spec =
-                  translateTimerSpec(
+              RunnerApi.TimerFamilySpec spec =
+                  translateTimerFamilySpec(
                       DoFnSignatures.getTimerFamilySpecOrThrow(timerFamily.getValue(), doFn),
                       newComponents);
-              timerSpecs.put(timerFamily.getKey(), spec);
+              timerFamilySpecs.put(timerFamily.getKey(), spec);
             }
-
-            return timerSpecs;
+            return timerFamilySpecs;
           }
 
           @Override
@@ -573,6 +579,14 @@ public class ParDoTranslation {
         .build();
   }
 
+  public static RunnerApi.TimerFamilySpec translateTimerFamilySpec(
+      TimerSpec timer, SdkComponents components) {
+    return RunnerApi.TimerFamilySpec.newBuilder()
+        .setTimeDomain(translateTimeDomain(timer.getTimeDomain()))
+        .setTimerFamilyCoderId(registerCoderOrThrow(components, Timer.Coder.of(VoidCoder.of())))
+        .build();
+  }
+
   private static RunnerApi.TimeDomain.Enum translateTimeDomain(TimeDomain timeDomain) {
     switch (timeDomain) {
       case EVENT_TIME:
@@ -695,7 +709,9 @@ public class ParDoTranslation {
 
   public static boolean usesStateOrTimers(AppliedPTransform<?, ?, ?> transform) throws IOException {
     ParDoPayload payload = getParDoPayload(transform);
-    return payload.getStateSpecsCount() > 0 || payload.getTimerSpecsCount() > 0;
+    return payload.getStateSpecsCount() > 0
+        || payload.getTimerSpecsCount() > 0
+        || payload.getTimerFamilySpecsCount() > 0;
   }
 
   public static boolean isSplittable(AppliedPTransform<?, ?, ?> transform) throws IOException {
@@ -724,6 +740,8 @@ public class ParDoTranslation {
 
     Map<String, RunnerApi.TimerSpec> translateTimerSpecs(SdkComponents newComponents);
 
+    Map<String, RunnerApi.TimerFamilySpec> translateTimerFamilySpecs(SdkComponents newComponents);
+
     boolean isSplittable();
 
     String translateRestrictionCoderId(SdkComponents newComponents);
@@ -737,6 +755,7 @@ public class ParDoTranslation {
         .addAllParameters(parDo.translateParameters())
         .putAllStateSpecs(parDo.translateStateSpecs(components))
         .putAllTimerSpecs(parDo.translateTimerSpecs(components))
+        .putAllTimerFamilySpecs(parDo.translateTimerFamilySpecs(components))
         .putAllSideInputs(parDo.translateSideInputs(components))
         .setSplittable(parDo.isSplittable())
         .setRestrictionCoderId(parDo.translateRestrictionCoderId(components))
