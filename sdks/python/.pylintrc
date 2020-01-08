@@ -179,7 +179,7 @@ indent-after-paren=4
 ignore-long-lines=(?x)
   (^\s*(import|from)\s
    |^\s*(\#\ )?<?(https?|ftp):\/\/[^\s\/$.?#].[^\s]*>?$
-   |# type:
+   |^.*\#\ type\:
    )
 
 [VARIABLES]

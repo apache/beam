@@ -32,6 +32,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.rel.AbstractBeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamBigQuerySqlDialect;
+import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamSqlUnparseContext;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -73,7 +74,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
         i ->
             new SqlIdentifier(
                 getProgram().getInputRowType().getFieldList().get(i).getName(), SqlParserPos.ZERO);
-    context = new SqlImplementor.SimpleContext(DIALECT, fn);
+    context = new BeamSqlUnparseContext(fn);
   }
 
   @Override

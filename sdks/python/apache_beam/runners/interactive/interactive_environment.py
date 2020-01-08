@@ -89,6 +89,7 @@ class InteractiveEnvironment(object):
     # the end user. The InteractiveRunner is responsible for populating this
     # dictionary implicitly when a background caching jobs is started.
     self._background_caching_pipeline_results = {}
+    self._cached_source_signature = {}
     self._tracked_user_pipelines = set()
     # Always watch __main__ module.
     self.watch('__main__')
@@ -239,6 +240,12 @@ class InteractiveEnvironment(object):
     if result:
       return runner.PipelineState.is_terminal(result.state)
     return True
+
+  def set_cached_source_signature(self, pipeline, signature):
+    self._cached_source_signature[pipeline] = signature
+
+  def get_cached_source_signature(self, pipeline):
+    return self._cached_source_signature.get(pipeline, set())
 
   def track_user_pipelines(self):
     """Record references to all user-defined pipeline instances watched in

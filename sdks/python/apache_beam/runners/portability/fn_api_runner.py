@@ -112,7 +112,8 @@ ConstructorFn = Callable[
 DataSideInput = Dict[Tuple[str, str],
                      Tuple[bytes, beam_runner_api_pb2.FunctionSpec]]
 DataOutput = Dict[str, bytes]
-BundleProcessResult = Tuple[beam_fn_api_pb2.InstructionResponse, List[beam_fn_api_pb2.ProcessBundleSplitResponse]]
+BundleProcessResult = Tuple[beam_fn_api_pb2.InstructionResponse,
+                            List[beam_fn_api_pb2.ProcessBundleSplitResponse]]
 
 # This module is experimental. No backwards-compatibility guarantees.
 

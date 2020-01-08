@@ -39,6 +39,15 @@ public interface RemoteBundle extends AutoCloseable {
   Map<String, FnDataReceiver> getInputReceivers();
 
   /**
+   * Ask the remote bundle to split its current processing based upon its knowledge of remaining
+   * work. A fraction of 0, is equivalent to asking the SDK to checkpoint.
+   *
+   * <p>This method will return after the request has been issued. Any splits will be forwarded to
+   * the {@link BundleSplitHandler}.
+   */
+  void split(double fractionOfRemainder);
+
+  /**
    * Closes this bundle. This causes the input {@link FnDataReceiver} to be closed (future calls to
    * that {@link FnDataReceiver} will throw an exception), and causes the {@link RemoteBundle} to
    * produce any buffered outputs. The call to {@link #close()} will block until all of the outputs

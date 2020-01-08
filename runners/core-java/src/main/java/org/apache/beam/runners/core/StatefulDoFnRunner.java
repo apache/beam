@@ -118,6 +118,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
   @Override
   public void onTimer(
       String timerId,
+      String timerFamilyId,
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
@@ -138,7 +139,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
             window,
             cleanupTimer.currentInputWatermarkTime());
       } else {
-        doFnRunner.onTimer(timerId, window, timestamp, outputTimestamp, timeDomain);
+        doFnRunner.onTimer(timerId, timerFamilyId, window, timestamp, outputTimestamp, timeDomain);
       }
     }
   }

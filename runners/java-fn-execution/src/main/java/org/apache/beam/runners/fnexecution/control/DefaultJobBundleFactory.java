@@ -400,6 +400,11 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         }
 
         @Override
+        public void split(double fractionOfRemainder) {
+          bundle.split(fractionOfRemainder);
+        }
+
+        @Override
         public void close() throws Exception {
           bundle.close();
           currentClient.wrappedClient.unref();

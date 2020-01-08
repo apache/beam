@@ -419,7 +419,8 @@ class ExternalTransform(ptransform.PTransform):
         inputs=self._expanded_transform.inputs,
         outputs={
             tag: pcoll_renames.get(pcoll, pcoll)
-            for tag, pcoll in self._expanded_transform.outputs.items()})
+            for tag, pcoll in self._expanded_transform.outputs.items()},
+        environment_id=self._expanded_transform.environment_id)
 
 
 class JavaJarExpansionService(object):

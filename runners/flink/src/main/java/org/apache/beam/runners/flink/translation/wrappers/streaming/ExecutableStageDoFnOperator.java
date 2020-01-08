@@ -662,6 +662,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     @Override
     public void onTimer(
         String timerId,
+        String timerFamilyId,
         BoundedWindow window,
         Instant timestamp,
         Instant outputTimestamp,

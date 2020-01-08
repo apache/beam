@@ -814,6 +814,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     timerInternals.cleanupPendingTimer(timer.getNamespace());
     pushbackDoFnRunner.onTimer(
         timerData.getTimerId(),
+        timerData.getTimerFamilyId(),
         window,
         timerData.getTimestamp(),
         timerData.getOutputTimestamp(),

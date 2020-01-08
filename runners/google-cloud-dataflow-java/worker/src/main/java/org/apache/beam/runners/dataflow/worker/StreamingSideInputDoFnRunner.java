@@ -78,6 +78,7 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
   @Override
   public void onTimer(
       String timerId,
+      String timerFamilyId,
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,

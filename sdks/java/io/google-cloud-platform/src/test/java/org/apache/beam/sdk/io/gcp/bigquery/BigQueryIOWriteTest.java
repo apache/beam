@@ -684,6 +684,35 @@ public class BigQueryIOWriteTest implements Serializable {
     p.run();
   }
 
+  @Test
+  public void testWriteWithoutInsertId() throws Exception {
+    TableRow row1 = new TableRow().set("name", "a").set("number", 1);
+    TableRow row2 = new TableRow().set("name", "b").set("number", 2);
+    TableRow row3 = new TableRow().set("name", "c").set("number", 3);
+    p.apply(Create.of(row1, row2, row3).withCoder(TableRowJsonCoder.of()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table-id")
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS)
+                .withSchema(
+                    new TableSchema()
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema().setName("name").setType("STRING"),
+                                new TableFieldSchema().setName("number").setType("INTEGER"))))
+                .withTestServices(fakeBqServices)
+                .ignoreInsertIds()
+                .withoutValidation());
+    p.run();
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(row1, row2, row3));
+    // Verify no insert id is added.
+    assertThat(
+        fakeDatasetService.getAllIds("project-id", "dataset-id", "table-id"), containsInAnyOrder());
+  }
+
   @AutoValue
   abstract static class InputRecord implements Serializable {
 

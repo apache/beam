@@ -53,6 +53,7 @@ public class BufferedElementsTest {
     BufferedElement timerElement =
         new BufferedElements.Timer(
             "timerId",
+            "timerId",
             GlobalWindow.INSTANCE,
             new Instant(1),
             new Instant(1),

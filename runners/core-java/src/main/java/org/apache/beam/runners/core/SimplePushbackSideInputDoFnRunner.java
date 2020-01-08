@@ -109,11 +109,12 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
   @Override
   public void onTimer(
       String timerId,
+      String timerFamilyId,
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
       TimeDomain timeDomain) {
-    underlying.onTimer(timerId, window, timestamp, outputTimestamp, timeDomain);
+    underlying.onTimer(timerId, timerFamilyId, window, timestamp, outputTimestamp, timeDomain);
   }
 
   @Override

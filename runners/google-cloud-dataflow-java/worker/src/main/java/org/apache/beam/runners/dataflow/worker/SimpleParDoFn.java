@@ -359,6 +359,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
       BoundedWindow window = ((WindowNamespace) timer.getNamespace()).getWindow();
       fnRunner.onTimer(
           timer.getTimerId(),
+          timer.getTimerFamilyId(),
           window,
           timer.getTimestamp(),
           timer.getOutputTimestamp(),

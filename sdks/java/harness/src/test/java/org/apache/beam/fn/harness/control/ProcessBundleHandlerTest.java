@@ -21,6 +21,8 @@ import static org.apache.beam.fn.harness.control.ProcessBundleHandler.REGISTERED
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
@@ -222,8 +224,11 @@ public class ProcessBundleHandlerTest {
 
     @Override
     BundleProcessor get(
-        String bundleDescriptorId, Supplier<BundleProcessor> bundleProcessorSupplier) {
-      return new TestBundleProcessor(super.get(bundleDescriptorId, bundleProcessorSupplier));
+        String bundleDescriptorId,
+        String instructionId,
+        Supplier<BundleProcessor> bundleProcessorSupplier) {
+      return new TestBundleProcessor(
+          super.get(bundleDescriptorId, instructionId, bundleProcessorSupplier));
     }
   }
 
@@ -480,6 +485,24 @@ public class ProcessBundleHandlerTest {
     assertThat(handler.bundleProcessorCache.getCachedBundleProcessors().size(), equalTo(1));
     assertThat(
         handler.bundleProcessorCache.getCachedBundleProcessors().get("1L").size(), equalTo(1));
+  }
+
+  @Test
+  public void testBundleProcessorIsFoundWhenActive() {
+    BundleProcessor bundleProcessor = mock(BundleProcessor.class);
+    when(bundleProcessor.getInstructionId()).thenReturn("known");
+    BundleProcessorCache cache = new BundleProcessorCache();
+
+    // Check that an unknown bundle processor is not found
+    assertNull(cache.find("unknown"));
+
+    // Once it is active, ensure the bundle processor is found
+    cache.get("descriptorId", "known", () -> bundleProcessor);
+    assertSame(bundleProcessor, cache.find("known"));
+
+    // After it is released, ensure the bundle processor is no longer found
+    cache.release("descriptorId", bundleProcessor);
+    assertNull(cache.find("known"));
   }
 
   @Test

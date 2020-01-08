@@ -454,6 +454,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     } else {
       pushbackFnRunner.onTimer(
           timer.getTimerId(),
+          timer.getTimerFamilyId(),
           window,
           timer.getTimestamp(),
           timer.getOutputTimestamp(),
