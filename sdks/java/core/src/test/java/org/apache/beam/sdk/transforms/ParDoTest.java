@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static junit.framework.TestCase.assertTrue;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
