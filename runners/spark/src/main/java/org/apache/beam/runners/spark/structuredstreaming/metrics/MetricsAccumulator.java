@@ -51,6 +51,8 @@ public class MetricsAccumulator {
         }
       }
       LOG.info("Instantiated metrics accumulator: " + instance.value());
+    } else {
+      instance.reset();
     }
   }
 
