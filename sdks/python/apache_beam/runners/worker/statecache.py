@@ -16,6 +16,8 @@
 #
 
 """A module for caching state reads/writes in Beam applications."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections

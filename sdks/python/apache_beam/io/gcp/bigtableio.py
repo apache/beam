@@ -35,6 +35,8 @@ those generated rows in the table.
                                   instance_id,
                                   table_id))
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import apache_beam as beam

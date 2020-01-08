@@ -17,6 +17,8 @@
 
 """Core PTransform subclasses, such as FlatMap, GroupByKey, and Map."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import copy

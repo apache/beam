@@ -19,6 +19,8 @@
 on transforms.ptransform_test.test_read_metrics.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from builtins import range

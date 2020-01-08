@@ -16,6 +16,8 @@
 #
 
 """Unit tests for uncompiled implementation of coder impls."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging

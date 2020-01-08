@@ -29,6 +29,8 @@ returns a writer object supporting writing records of serialized data to
 the sink.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 

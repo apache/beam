@@ -27,6 +27,8 @@ The pipelines behave in the steps below.
   5. Query the written Entities, verify no results.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse

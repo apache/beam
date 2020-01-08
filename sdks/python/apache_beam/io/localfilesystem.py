@@ -16,6 +16,8 @@
 #
 """Local File system implementation for accessing files on disk."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import os

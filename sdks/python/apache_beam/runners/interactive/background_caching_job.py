@@ -35,6 +35,8 @@ will run using the deterministic replay-able cached events until they are
 invalidated.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import apache_beam as beam

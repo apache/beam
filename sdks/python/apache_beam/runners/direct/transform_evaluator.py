@@ -17,6 +17,8 @@
 
 """An evaluator of a specific application of a transform."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import atexit

@@ -17,6 +17,8 @@
 
 """Module to convert Python's native typing types to Beam types."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections

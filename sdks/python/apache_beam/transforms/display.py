@@ -36,6 +36,8 @@ Available classes:
   and communicate it to the API.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import calendar

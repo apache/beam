@@ -70,6 +70,8 @@ python game_stats.py \
     --temp_location gs://$BUCKET/user_score/temp
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function

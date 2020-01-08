@@ -17,6 +17,8 @@
 
 """Pipeline transformations for the FnApiRunner.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 

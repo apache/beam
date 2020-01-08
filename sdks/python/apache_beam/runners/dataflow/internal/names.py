@@ -20,6 +20,8 @@
 # All constants are for internal use only; no backwards-compatibility
 # guarantees.
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 # Standard file names used for staging files.

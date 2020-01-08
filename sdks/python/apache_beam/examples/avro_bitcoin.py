@@ -24,6 +24,8 @@ python -m apache_beam.examples.bitcoin \
   --compress --fastavro --output fastavro-compressed
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse

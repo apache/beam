@@ -21,6 +21,8 @@ For an explanation of the TF-IDF algorithm see the following link:
 http://en.wikipedia.org/wiki/Tf-idf
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 

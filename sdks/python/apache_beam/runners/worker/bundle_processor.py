@@ -17,6 +17,8 @@
 
 """SDK harness for executing Python Fns via the Fn API."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function

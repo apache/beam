@@ -21,6 +21,8 @@
    Can be configured to simulate slow reading for a given number of rows.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging

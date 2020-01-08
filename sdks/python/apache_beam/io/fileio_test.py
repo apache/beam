@@ -17,6 +17,8 @@
 
 """Tests for transforms defined in apache_beam.io.fileio."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import csv

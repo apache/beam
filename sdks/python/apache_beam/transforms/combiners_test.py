@@ -16,6 +16,8 @@
 #
 
 """Unit tests for our libraries of combine PTransforms."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
