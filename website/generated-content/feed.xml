@@ -20,6 +20,115 @@
     <generator>Jekyll v3.6.3</generator>
     
       <item>
+        <title>Apache Beam 2.17.0</title>
+        <description>&lt;!--
+Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+
+&lt;p&gt;We are happy to present the new 2.17.0 release of Beam. This release includes both improvements and new functionality.
+See the &lt;a href=&quot;/get-started/downloads/#2170-2020-01-06&quot;&gt;download page&lt;/a&gt; for this release.&lt;!--more--&gt;
+For more information on changes in 2.17.0, check out the
+&lt;a href=&quot;https://issues.apache.org/jira/secure/ReleaseNote.jspa?version=12345970&amp;amp;projectId=12319527&quot;&gt;detailed release notes&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;highlights&quot;&gt;Highlights&lt;/h2&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7962&quot;&gt;BEAM-7962&lt;/a&gt; - Drop support for Flink 1.5 and 1.6&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7635&quot;&gt;BEAM-7635&lt;/a&gt; - Migrate SnsIO to AWS SDK for Java 2&lt;/li&gt;
+  &lt;li&gt;Improved usability for portable Flink Runner
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8183&quot;&gt;BEAM-8183&lt;/a&gt; - Optionally bundle multiple pipelines into a single Flink jar.&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8372&quot;&gt;BEAM-8372&lt;/a&gt; - Allow submission of Flink UberJar directly to flink cluster.&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8471&quot;&gt;BEAM-8471&lt;/a&gt; - Flink native job submission for portable pipelines.&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8312&quot;&gt;BEAM-8312&lt;/a&gt; - Flink portable pipeline jars do not need to stage artifacts remotely.&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;new-features--improvements&quot;&gt;New Features / Improvements&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7730&quot;&gt;BEAM-7730&lt;/a&gt; - Add Flink 1.9 build target and Make FlinkRunner compatible with Flink 1.9.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7990&quot;&gt;BEAM-7990&lt;/a&gt; - Add ability to read parquet files into PCollection of pyarrow.Table.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8355&quot;&gt;BEAM-8355&lt;/a&gt; - Make BooleanCoder a standard coder.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8394&quot;&gt;BEAM-8394&lt;/a&gt; - Add withDataSourceConfiguration() method in JdbcIO.ReadRows class.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-5428&quot;&gt;BEAM-5428&lt;/a&gt; - Implement cross-bundle state caching.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-5967&quot;&gt;BEAM-5967&lt;/a&gt; - Add handling of DynamicMessage in ProtoCoder.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7473&quot;&gt;BEAM-7473&lt;/a&gt; - Update RestrictionTracker within Python to not be required to be thread safe.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7920&quot;&gt;BEAM-7920&lt;/a&gt; - Added AvroTableProvider to Beam SQL.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8098&quot;&gt;BEAM-8098&lt;/a&gt; - Improve documentation on BigQueryIO.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8100&quot;&gt;BEAM-8100&lt;/a&gt; - Add exception handling to Json transforms in Java SDK.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8306&quot;&gt;BEAM-8306&lt;/a&gt; - Improve estimation of data byte size reading from source in ElasticsearchIO.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8351&quot;&gt;BEAM-8351&lt;/a&gt; - Support passing in arbitrary KV pairs to sdk worker via external environment config.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8396&quot;&gt;BEAM-8396&lt;/a&gt; - Default to LOOPBACK mode for local flink (spark, …) runner.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8410&quot;&gt;BEAM-8410&lt;/a&gt; - JdbcIO should support setConnectionInitSqls in its DataSource.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8609&quot;&gt;BEAM-8609&lt;/a&gt; - Add HllCount to Java transform catalog.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8861&quot;&gt;BEAM-8861&lt;/a&gt; - Disallow self-signed certificates by default in ElasticsearchIO.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;dependency-changes&quot;&gt;Dependency Changes&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8285&quot;&gt;BEAM-8285&lt;/a&gt; - Upgrade ZetaSQL to 2019.09.1.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8392&quot;&gt;BEAM-8392&lt;/a&gt; - Upgrade pyarrow version bounds: 0.15.1&amp;lt;= to &amp;lt;0.16.0.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-5895&quot;&gt;BEAM-5895&lt;/a&gt; - Upgrade com.rabbitmq:amqp-client to 5.7.3.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-6896&quot;&gt;BEAM-6896&lt;/a&gt; - Upgrade PyYAML version bounds: 3.12&amp;lt;= to &amp;lt;6.0.0.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;bugfixes&quot;&gt;Bugfixes&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;[BEAM-8819] - AvroCoder for SpecificRecords is not serialized correctly since 2.13.0&lt;/li&gt;
+  &lt;li&gt;Various bug fixes and performance improvements.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;known-issues&quot;&gt;Known Issues&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8989&quot;&gt;BEAM-8989&lt;/a&gt; Apache Nemo
+runner broken due to backwards incompatible change since 2.16.0.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h2&gt;
+
+&lt;p&gt;According to git shortlog, the following people contributed to the 2.17.0 release. Thank you to all contributors!&lt;/p&gt;
+
+&lt;p&gt;Ahmet Altay, Alan Myrvold, Alexey Romanenko, Andre-Philippe Paquet, Andrew
+Pilloud, angulartist, Ankit Jhalaria, Ankur Goenka, Anton Kedin, Aryan Naraghi,
+Aurélien Geron, B M VISHWAS, Bartok Jozsef, Boyuan Zhang, Brian Hulette, Cerny
+Ondrej, Chad Dombrova, Chamikara Jayalath, ChethanU, cmach, Colm O hEigeartaigh,
+Cyrus Maden, Daniel Oliveira, Daniel Robert, Dante, David Cavazos, David
+Moravek, David Yan, Enrico Canzonieri, Etienne Chauchot, gxercavins, Hai Lu,
+Hannah Jiang, Ian Lance Taylor, Ismaël Mejía, Israel Herraiz, James Wen, Jan
+Lukavský, Jean-Baptiste Onofré, Jeff Klukas, jesusrv1103, Jofre, Kai Jiang,
+Kamil Wasilewski, Kasia Kucharczyk, Kenneth Knowles, Kirill Kozlov,
+kirillkozlov, Kohki YAMAGIWA, Kyle Weaver, Leonardo Alves Miguel, lloigor,
+lostluck, Luis Enrique Ortíz Ramirez, Luke Cwik, Mark Liu, Maximilian Michels,
+Michal Walenia, Mikhail Gryzykhin, mrociorg, Nicolas Delsaux, Ning Kang, NING
+KANG, Pablo Estrada, pabloem, Piotr Szczepanik, rahul8383, Rakesh Kumar, Renat
+Nasyrov, Reuven Lax, Robert Bradshaw, Robert Burke, Rui Wang, Ruslan Altynnikov,
+Ryan Skraba, Salman Raza, Saul Chavez, Sebastian Jambor, sunjincheng121, Tatu
+Saloranta, tchiarato, Thomas Weise, Tomo Suzuki, Tudor Marian, tvalentyn, Udi
+Meiri, Valentyn Tymofieiev, Viola Lyu, Vishwas, Yichi Zhang, Yifan Zou, Yueyang
+Qiu, Łukasz Gajowy&lt;/p&gt;
+
+</description>
+        <pubDate>Mon, 06 Jan 2020 00:00:01 -0800</pubDate>
+        <link>https://beam.apache.org/blog/2020/01/06/beam-2.17.0.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2020/01/06/beam-2.17.0.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
         <title>Apache Beam 2.16.0</title>
         <description>&lt;!--
 Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1208,112 +1317,6 @@ limitations under the License.
         <pubDate>Sat, 11 May 2019 01:00:01 -0700</pubDate>
         <link>https://beam.apache.org/blog/2019/05/11/beam-summit-europe-2019.html</link>
         <guid isPermaLink="true">https://beam.apache.org/blog/2019/05/11/beam-summit-europe-2019.html</guid>
-        
-        
-        <category>blog</category>
-        
-      </item>
-    
-      <item>
-        <title>Apache Beam + Kotlin = ❤️</title>
-        <description>&lt;!--
-Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---&gt;
-
-&lt;p&gt;Apache Beam samples are now available in Kotlin!&lt;/p&gt;
-
-&lt;!--more--&gt;
-
-&lt;p&gt;&lt;img src=&quot;/images/blog/kotlin.png&quot; alt=&quot;Kotlin&quot; height=&quot;320&quot; width=&quot;800&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;If you are someone who’s been working with Java in your professional career; there’s a good chance that you’ve also heard of &lt;a href=&quot;https://kotlinlang.org/&quot;&gt;Kotlin&lt;/a&gt;, which is an Open Sourced, statically typed language for JVM and is mostly being favoured by Android Developers due to the many myriad features which enable more concise and cleaner code than Java without sacrificing performance or safety.&lt;/p&gt;
-
-&lt;p&gt;It gives us an immense pleasure to announce that we are also taking a step ahead in the same direction and releasing the samples for the Beam SDK in Kotlin alongside Java!&lt;/p&gt;
-
-&lt;p&gt;(Note : At the time of writing this post, only the WordCount samples have been added in Koltin with more samples underway)&lt;/p&gt;
-
-&lt;h2 id=&quot;code-snippets&quot;&gt;Code Snippets&lt;/h2&gt;
-&lt;p&gt;Here are few brief snippets of code that show how the Kotlin Samples compare to Java&lt;/p&gt;
-
-&lt;h3 id=&quot;java&quot;&gt;Java&lt;/h3&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt; &lt;span class=&quot;n&quot;&gt;String&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;format&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;
-                    &lt;span class=&quot;s&quot;&gt;&quot;%s-%s-of-%s%s&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;
-                    &lt;span class=&quot;n&quot;&gt;filenamePrefixForWindow&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;intervalWindow&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;),&lt;/span&gt;
-                    &lt;span class=&quot;n&quot;&gt;shardNumber&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;
-                    &lt;span class=&quot;n&quot;&gt;numShards&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt;
-                    &lt;span class=&quot;n&quot;&gt;outputFileHints&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;suggestedFilenameSuffix&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;kotlin&quot;&gt;Kotlin&lt;/h3&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt; &lt;span class=&quot;c1&quot;&gt;// String templating&lt;/span&gt;
- &lt;span class=&quot;n&quot;&gt;val&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;$filenamePrefixForWindow(intervalWindow)-$shardNumber-of-$numShards${outputFileHints.suggestedFilenameSuffix)&quot;&lt;/span&gt;  
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;java-1&quot;&gt;Java&lt;/h3&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;FormatAsTextFn&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;extends&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SimpleFunction&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;KV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Long&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;nd&quot;&gt;@Override&lt;/span&gt;
-    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;String&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;apply&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;KV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Long&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;input&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;input&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getKey&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;: &quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;input&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getValue&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
-    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;kotlin-1&quot;&gt;Kotlin&lt;/h2&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;FormatAsTextFn&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SimpleFunction&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;KV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Long&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;override&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fun&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;apply&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;input:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;KV&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Long&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;${input.key} : ${input.value}&quot;&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;//Single line functions&lt;/span&gt;
-&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;java-2&quot;&gt;Java&lt;/h3&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tableRow&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;){&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;formatAndInsert&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tableRow&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;kotlin-2&quot;&gt;Kotlin&lt;/h3&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;tableRow&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;?.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;let&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;formatAndInsert&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;it&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;// No need for null checks&lt;/span&gt;
-&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;java-3&quot;&gt;Java&lt;/h3&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tableName&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;testTable&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;kotlin-3&quot;&gt;Kotlin&lt;/h3&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tableName&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;testTable&quot;&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;// Type inferencing&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;contributors-welcomed&quot;&gt;Contributors Welcomed!&lt;/h2&gt;
-
-&lt;p&gt;While we’re still adding more samples and streamlining the current ones, we would love to have your feedback on the code snippets.
-You can find them over here : &lt;a href=&quot;https://github.com/apache/beam/tree/master/examples/kotlin&quot;&gt;https://github.com/apache/beam/tree/master/examples/kotlin&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;If you are using Kotlin with Apache Beam already; we would very much appreciate if you went ahead and help us convert the existing samples from Java into Koltin.&lt;/p&gt;
-
-&lt;p&gt;Thank you, and we are looking forward to feedback from you!&lt;/p&gt;
-</description>
-        <pubDate>Thu, 25 Apr 2019 01:00:01 -0700</pubDate>
-        <link>https://beam.apache.org/blog/2019/04/25/beam-kotlin.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/blog/2019/04/25/beam-kotlin.html</guid>
         
         
         <category>blog</category>
