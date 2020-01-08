@@ -104,3 +104,16 @@ task validatesRunnerStreamingTests {
     }
   }
 }
+
+task mongodbioIT {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  def opts = findProperty('opts')
+  opts = String.format("%s %s", opts, "--sdk_location=${files(configurations.distTarBall.files).singleFile}")
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.io.mongodbio_it_test ${opts}"
+    }
+  }
+}

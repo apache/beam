@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import com.google.common.base.Strings;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -41,6 +42,7 @@ public final class DataflowWorkerHarnessHelper {
 
   private static final String CONTROL_API_SERVICE_DESCRIPTOR = "CONTROL_API_SERVICE_DESCRIPTOR";
   private static final String LOGGING_API_SERVICE_DESCRIPTOR = "LOGGING_API_SERVICE_DESCRIPTOR";
+  private static final String STATUS_API_SERVICE_DESCRIPTOR = "STATUS_API_SERVICE_DESCRIPTOR";
   private static final String ROOT_LOGGER_NAME = "";
   private static final String PIPELINE_PATH = "PIPELINE_PATH";
 
@@ -111,6 +113,18 @@ public final class DataflowWorkerHarnessHelper {
   public static Endpoints.ApiServiceDescriptor getControlDescriptor()
       throws TextFormat.ParseException {
     return parseApiServiceDescriptorFromText(System.getenv().get(CONTROL_API_SERVICE_DESCRIPTOR));
+  }
+
+  @Nullable
+  public static Endpoints.ApiServiceDescriptor getStatusDescriptor()
+      throws TextFormat.ParseException {
+    String statusApiDescriptor = System.getenv().get(STATUS_API_SERVICE_DESCRIPTOR);
+    if (Strings.isNullOrEmpty(statusApiDescriptor)) {
+      // Missing STATUS_API_SERVICE_DESCRIPTOR env var is a signal that the worker status API
+      // is unsupported by the current runner.
+      return null;
+    }
+    return parseApiServiceDescriptorFromText(statusApiDescriptor);
   }
 
   // TODO: make env logic private to main() so it is never done outside of initializing the process

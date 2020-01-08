@@ -20,14 +20,13 @@ package org.apache.beam.runners.fnexecution.environment;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.Environments;
@@ -158,15 +157,11 @@ public class DockerEnvironmentFactoryTest {
     }
 
     @Test(expected = RuntimeException.class)
-    public void logsDockerOutputOnTimeoutException() throws Exception {
+    public void logsDockerOutputOnStartupFailed() throws Exception {
       when(docker.runImage(Mockito.eq(IMAGE_NAME), Mockito.any(), Mockito.any()))
           .thenReturn(CONTAINER_ID);
-      when(docker.isContainerRunning(Mockito.eq(CONTAINER_ID))).thenReturn(true);
-      DockerEnvironmentFactory factory =
-          getFactory(
-              (workerId, timeout) -> {
-                throw new TimeoutException();
-              });
+      when(docker.isContainerRunning(Mockito.eq(CONTAINER_ID))).thenReturn(false);
+      DockerEnvironmentFactory factory = getFactory((workerId, timeout) -> client);
 
       factory.createEnvironment(ENVIRONMENT);
 
@@ -188,7 +183,7 @@ public class DockerEnvironmentFactoryTest {
 
     @Test
     public void createsMultipleEnvironments() throws Exception {
-      when(docker.isContainerRunning(anyString())).thenReturn(true);
+      when(docker.isContainerRunning(any())).thenReturn(true);
       DockerEnvironmentFactory factory = getFactory((workerId, timeout) -> client);
 
       Environment fooEnv = Environments.createDockerEnvironment("foo");

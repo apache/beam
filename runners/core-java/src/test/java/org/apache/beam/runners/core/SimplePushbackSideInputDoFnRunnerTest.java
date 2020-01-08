@@ -283,7 +283,13 @@ public class SimplePushbackSideInputDoFnRunnerTest {
 
     // Mocking is not easily compatible with annotation analysis, so we manually record
     // the method call.
-    runner.onTimer(timerId, window, new Instant(timestamp), TimeDomain.EVENT_TIME);
+    runner.onTimer(
+        timerId,
+        timerId,
+        window,
+        new Instant(timestamp),
+        new Instant(timestamp),
+        TimeDomain.EVENT_TIME);
 
     assertThat(
         underlying.firedTimers,
@@ -320,12 +326,19 @@ public class SimplePushbackSideInputDoFnRunnerTest {
 
     @Override
     public void onTimer(
-        String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+        String timerId,
+        String timerFamilyId,
+        BoundedWindow window,
+        Instant timestamp,
+        Instant outputTimestamp,
+        TimeDomain timeDomain) {
       firedTimers.add(
           TimerData.of(
               timerId,
+              timerFamilyId,
               StateNamespaces.window(IntervalWindow.getCoder(), (IntervalWindow) window),
               timestamp,
+              outputTimestamp,
               timeDomain));
     }
 
@@ -458,7 +471,13 @@ public class SimplePushbackSideInputDoFnRunnerTest {
       StateNamespace namespace = timer.getNamespace();
       checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
       BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
-      toTrigger.onTimer(timer.getTimerId(), window, timer.getTimestamp(), timer.getDomain());
+      toTrigger.onTimer(
+          timer.getTimerId(),
+          timer.getTimerFamilyId(),
+          window,
+          timer.getTimestamp(),
+          timer.getOutputTimestamp(),
+          timer.getDomain());
     }
   }
 

@@ -71,8 +71,8 @@ public class InMemoryTimerInternalsTest {
     Instant laterTimestamp = new Instant(42);
 
     underTest.advanceInputWatermark(new Instant(0));
-    underTest.setTimer(NS1, ID1, earlyTimestamp, TimeDomain.EVENT_TIME);
-    underTest.setTimer(NS1, ID1, laterTimestamp, TimeDomain.EVENT_TIME);
+    underTest.setTimer(NS1, ID1, ID1, earlyTimestamp, earlyTimestamp, TimeDomain.EVENT_TIME);
+    underTest.setTimer(NS1, ID1, ID1, laterTimestamp, laterTimestamp, TimeDomain.EVENT_TIME);
     underTest.advanceInputWatermark(earlyTimestamp.plus(1L));
     assertThat(underTest.removeNextEventTimer(), nullValue());
 
@@ -86,7 +86,7 @@ public class InMemoryTimerInternalsTest {
   public void testDeletionIdempotent() throws Exception {
     InMemoryTimerInternals underTest = new InMemoryTimerInternals();
     Instant timestamp = new Instant(42);
-    underTest.setTimer(NS1, ID1, timestamp, TimeDomain.EVENT_TIME);
+    underTest.setTimer(NS1, ID1, ID1, timestamp, timestamp, TimeDomain.EVENT_TIME);
     underTest.deleteTimer(NS1, ID1);
     underTest.deleteTimer(NS1, ID1);
   }
@@ -97,7 +97,7 @@ public class InMemoryTimerInternalsTest {
     Instant timestamp = new Instant(42);
 
     underTest.advanceInputWatermark(new Instant(0));
-    underTest.setTimer(NS1, ID1, timestamp, TimeDomain.EVENT_TIME);
+    underTest.setTimer(NS1, ID1, ID1, timestamp, timestamp, TimeDomain.EVENT_TIME);
     underTest.deleteTimer(NS1, ID1);
     underTest.advanceInputWatermark(new Instant(43));
 

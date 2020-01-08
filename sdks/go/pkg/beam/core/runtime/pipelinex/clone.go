@@ -52,6 +52,7 @@ func ShallowClonePTransform(t *pb.PTransform) *pb.PTransform {
 	ret.Subtransforms, _ = reflectx.ShallowClone(t.Subtransforms).([]string)
 	ret.Inputs, _ = reflectx.ShallowClone(t.Inputs).(map[string]string)
 	ret.Outputs, _ = reflectx.ShallowClone(t.Outputs).(map[string]string)
+	ret.EnvironmentId = t.EnvironmentId
 	return ret
 }
 

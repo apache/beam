@@ -100,7 +100,7 @@ class BatchElementsTest(unittest.TestCase):
     with TestPipeline() as p:
       res = (
           p
-          | beam.Create(range(47))
+          | beam.Create(range(47), reshuffle=False)
           | beam.Map(lambda t: window.TimestampedValue(t, t))
           | beam.WindowInto(window.FixedWindows(30))
           | util.BatchElements(
@@ -351,7 +351,8 @@ class ReshuffleTest(unittest.TestCase):
 
     after_gbk = (pipeline
                  | beam.Create(data)
-                 | beam.GroupByKey())
+                 | beam.GroupByKey()
+                 | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
     assert_that(after_gbk, equal_to(expected_result), label='after_gbk')
     after_reshuffle = after_gbk | beam.Reshuffle()
     assert_that(after_reshuffle, equal_to(expected_result),
@@ -435,7 +436,8 @@ class ReshuffleTest(unittest.TestCase):
     before_reshuffle = (pipeline
                         | beam.Create(data)
                         | beam.WindowInto(GlobalWindows())
-                        | beam.GroupByKey())
+                        | beam.GroupByKey()
+                        | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
     assert_that(before_reshuffle, equal_to(expected_data),
                 label='before_reshuffle')
     after_reshuffle = before_reshuffle | beam.Reshuffle()
@@ -452,7 +454,8 @@ class ReshuffleTest(unittest.TestCase):
                         | beam.Create(data)
                         | beam.WindowInto(SlidingWindows(
                             size=window_size, period=1))
-                        | beam.GroupByKey())
+                        | beam.GroupByKey()
+                        | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
     assert_that(before_reshuffle, equal_to(expected_data),
                 label='before_reshuffle')
     after_reshuffle = before_reshuffle | beam.Reshuffle()
@@ -471,7 +474,8 @@ class ReshuffleTest(unittest.TestCase):
     before_reshuffle = (pipeline
                         | beam.Create(data)
                         | beam.WindowInto(GlobalWindows())
-                        | beam.GroupByKey())
+                        | beam.GroupByKey()
+                        | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
     assert_that(before_reshuffle, equal_to(expected_data),
                 label='before_reshuffle')
     after_reshuffle = before_reshuffle | beam.Reshuffle()
@@ -479,7 +483,8 @@ class ReshuffleTest(unittest.TestCase):
                 label='after reshuffle')
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  # TODO(BEAM-9003): Does not work in streaming mode on Dataflow.
+  @attr('ValidatesRunner', 'sickbay-streaming')
   def test_reshuffle_preserves_timestamps(self):
     with TestPipeline() as pipeline:
 
@@ -602,7 +607,7 @@ class GroupIntoBatchesTest(unittest.TestCase):
                    .advance_watermark_to(start_time +
                                          GroupIntoBatchesTest.NUM_ELEMENTS)
                    .advance_watermark_to_infinity())
-    pipeline = TestPipeline()
+    pipeline = TestPipeline(options=StandardOptions(streaming=True))
     #  window duration is 6 and batch size is 5, so output batch size should be
     #  5 (flush because of batchSize reached)
     expected_0 = 5

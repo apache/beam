@@ -53,6 +53,10 @@ public final class MutationGroup implements Serializable, Iterable<Mutation> {
     return mutations.iterator();
   }
 
+  public long size() {
+    return mutations.size();
+  }
+
   private MutationGroup(ImmutableList<Mutation> mutations) {
     this.mutations = mutations;
   }

@@ -37,7 +37,7 @@ try:
                            PropertyFilter.GREATER_THAN,
                            PropertyFilter.GREATER_THAN_OR_EQUAL]
 except ImportError:
-  UNSUPPORTED_OPERATORS = None
+  UNSUPPORTED_OPERATORS = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 

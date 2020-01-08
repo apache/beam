@@ -38,6 +38,7 @@ import java.util.List;
 import org.apache.avro.generic.GenericData;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions.TruncateTimestamps;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
@@ -477,6 +478,11 @@ public class BigQueryUtilsTest {
     @Override
     public String getIdentifier() {
       return "SqlTimeType";
+    }
+
+    @Override
+    public FieldType getArgumentType() {
+      return FieldType.STRING;
     }
 
     @Override

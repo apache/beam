@@ -187,8 +187,8 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
     this.inputCoder = inputCoder;
     this.outputCoders = outputCoders;
 
-    TimerInternals.TimerDataCoder timerCoder =
-        TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
+    TimerInternals.TimerDataCoderV2 timerCoder =
+        TimerInternals.TimerDataCoderV2.of(windowingStrategy.getWindowFn().windowCoder());
     this.currentKeyTimerInternals = new ApexTimerInternals<>(timerCoder);
     this.doFnSchemaInformation = doFnSchemaInformation;
     this.sideInputMapping = sideInputMapping;
@@ -384,7 +384,12 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
       checkArgument(namespace instanceof WindowNamespace);
       BoundedWindow window = ((WindowNamespace<?>) namespace).getWindow();
       pushbackDoFnRunner.onTimer(
-          timerData.getTimerId(), window, timerData.getTimestamp(), timerData.getDomain());
+          timerData.getTimerId(),
+          timerData.getTimerFamilyId(),
+          window,
+          timerData.getTimestamp(),
+          timerData.getOutputTimestamp(),
+          timerData.getDomain());
     }
     pushbackDoFnRunner.finishBundle();
   }

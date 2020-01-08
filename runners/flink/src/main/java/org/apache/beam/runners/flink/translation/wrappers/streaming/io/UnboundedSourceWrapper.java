@@ -136,6 +136,9 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
   /** false if checkpointCoder is null or no restore state by starting first. */
   private transient boolean isRestored = false;
 
+  /** Metrics container which will be reported as Flink accumulators at the end of the job. */
+  private transient FlinkMetricContainer metricContainer;
+
   @SuppressWarnings("unchecked")
   public UnboundedSourceWrapper(
       String stepName,
@@ -177,6 +180,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
   public void open(Configuration parameters) throws Exception {
     FileSystems.setDefaultPipelineOptions(serializedOptions.get());
     runtimeContext = (StreamingRuntimeContext) getRuntimeContext();
+    metricContainer = new FlinkMetricContainer(runtimeContext);
 
     // figure out which split sources we're responsible for
     int subtaskIndex = runtimeContext.getIndexOfThisSubtask();
@@ -219,8 +223,6 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
   public void run(SourceContext<WindowedValue<ValueWithRecordId<OutputT>>> ctx) throws Exception {
 
     context = ctx;
-
-    FlinkMetricContainer metricContainer = new FlinkMetricContainer(getRuntimeContext());
 
     ReaderInvocationUtil<OutputT, UnboundedSource.UnboundedReader<OutputT>> readerInvoker =
         new ReaderInvocationUtil<>(stepName, serializedOptions.get(), metricContainer);
@@ -347,6 +349,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
   @Override
   public void close() throws Exception {
+    metricContainer.registerMetricsForPipelineResult();
     try {
       super.close();
       if (localReaders != null) {

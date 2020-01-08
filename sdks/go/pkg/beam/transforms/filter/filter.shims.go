@@ -20,8 +20,6 @@ package filter
 
 import (
 	"context"
-	"fmt"
-	"io"
 	"reflect"
 
 	// Library imports
@@ -32,16 +30,15 @@ import (
 )
 
 func init() {
-	runtime.RegisterFunction(keyFn)
 	runtime.RegisterFunction(mapFn)
+	runtime.RegisterFunction(mergeFn)
 	runtime.RegisterType(reflect.TypeOf((*filterFn)(nil)).Elem())
 	reflectx.RegisterStructWrapper(reflect.TypeOf((*filterFn)(nil)).Elem(), wrapMakerFilterFn)
+	reflectx.RegisterFunc(reflect.TypeOf((*func(int, int) int)(nil)).Elem(), funcMakerIntIntГInt)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T, func(typex.T)))(nil)).Elem(), funcMakerTypex۰TEmitTypex۰TГ)
-	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T, func(*int) bool) typex.T)(nil)).Elem(), funcMakerTypex۰TIterIntГTypex۰T)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.T) (typex.T, int))(nil)).Elem(), funcMakerTypex۰TГTypex۰TInt)
 	reflectx.RegisterFunc(reflect.TypeOf((*func())(nil)).Elem(), funcMakerГ)
 	exec.RegisterEmitter(reflect.TypeOf((*func(typex.T))(nil)).Elem(), emitMakerTypex۰T)
-	exec.RegisterInput(reflect.TypeOf((*func(*int) bool)(nil)).Elem(), iterMakerInt)
 }
 
 func wrapMakerFilterFn(fn interface{}) map[string]reflectx.Func {
@@ -50,6 +47,32 @@ func wrapMakerFilterFn(fn interface{}) map[string]reflectx.Func {
 		"ProcessElement": reflectx.MakeFunc(func(a0 typex.T, a1 func(typex.T)) { dfn.ProcessElement(a0, a1) }),
 		"Setup":          reflectx.MakeFunc(func() { dfn.Setup() }),
 	}
+}
+
+type callerIntIntГInt struct {
+	fn func(int, int) int
+}
+
+func funcMakerIntIntГInt(fn interface{}) reflectx.Func {
+	f := fn.(func(int, int) int)
+	return &callerIntIntГInt{fn: f}
+}
+
+func (c *callerIntIntГInt) Name() string {
+	return reflectx.FunctionName(c.fn)
+}
+
+func (c *callerIntIntГInt) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *callerIntIntГInt) Call(args []interface{}) []interface{} {
+	out0 := c.fn(args[0].(int), args[1].(int))
+	return []interface{}{out0}
+}
+
+func (c *callerIntIntГInt) Call2x1(arg0, arg1 interface{}) interface{} {
+	return c.fn(arg0.(int), arg1.(int))
 }
 
 type callerTypex۰TEmitTypex۰TГ struct {
@@ -76,32 +99,6 @@ func (c *callerTypex۰TEmitTypex۰TГ) Call(args []interface{}) []interface{} {
 
 func (c *callerTypex۰TEmitTypex۰TГ) Call2x0(arg0, arg1 interface{}) {
 	c.fn(arg0.(typex.T), arg1.(func(typex.T)))
-}
-
-type callerTypex۰TIterIntГTypex۰T struct {
-	fn func(typex.T, func(*int) bool) typex.T
-}
-
-func funcMakerTypex۰TIterIntГTypex۰T(fn interface{}) reflectx.Func {
-	f := fn.(func(typex.T, func(*int) bool) typex.T)
-	return &callerTypex۰TIterIntГTypex۰T{fn: f}
-}
-
-func (c *callerTypex۰TIterIntГTypex۰T) Name() string {
-	return reflectx.FunctionName(c.fn)
-}
-
-func (c *callerTypex۰TIterIntГTypex۰T) Type() reflect.Type {
-	return reflect.TypeOf(c.fn)
-}
-
-func (c *callerTypex۰TIterIntГTypex۰T) Call(args []interface{}) []interface{} {
-	out0 := c.fn(args[0].(typex.T), args[1].(func(*int) bool))
-	return []interface{}{out0}
-}
-
-func (c *callerTypex۰TIterIntГTypex۰T) Call2x1(arg0, arg1 interface{}) interface{} {
-	return c.fn(arg0.(typex.T), arg1.(func(*int) bool))
 }
 
 type callerTypex۰TГTypex۰TInt struct {
@@ -188,53 +185,6 @@ func (e *emitNative) invokeTypex۰T(val typex.T) {
 	if err := e.n.ProcessElement(e.ctx, &e.value); err != nil {
 		panic(err)
 	}
-}
-
-type iterNative struct {
-	s  exec.ReStream
-	fn interface{}
-
-	// cur is the "current" stream, if any.
-	cur exec.Stream
-}
-
-func (v *iterNative) Init() error {
-	cur, err := v.s.Open()
-	if err != nil {
-		return err
-	}
-	v.cur = cur
-	return nil
-}
-
-func (v *iterNative) Value() interface{} {
-	return v.fn
-}
-
-func (v *iterNative) Reset() error {
-	if err := v.cur.Close(); err != nil {
-		return err
-	}
-	v.cur = nil
-	return nil
-}
-
-func iterMakerInt(s exec.ReStream) exec.ReusableInput {
-	ret := &iterNative{s: s}
-	ret.fn = ret.readInt
-	return ret
-}
-
-func (v *iterNative) readInt(value *int) bool {
-	elm, err := v.cur.Read()
-	if err != nil {
-		if err == io.EOF {
-			return false
-		}
-		panic(fmt.Sprintf("broken stream: %v", err))
-	}
-	*value = elm.Elm.(int)
-	return true
 }
 
 // DO NOT MODIFY: GENERATED CODE

@@ -92,9 +92,16 @@ import types
 from builtins import next
 from builtins import object
 from builtins import zip
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import Optional
+from typing import Tuple
+from typing import TypeVar
 
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
+from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.typehints.typehints import CompositeTypeHintError
 from apache_beam.typehints.typehints import SimpleTypeHintError
 from apache_beam.typehints.typehints import check_constraint
@@ -113,6 +120,9 @@ __all__ = [
     'TypeCheckError',
 ]
 
+T = TypeVar('T')
+WithTypeHintsT = TypeVar('WithTypeHintsT', bound='WithTypeHints')  # pylint: disable=invalid-name
+
 # This is missing in the builtin types module.  str.upper is arbitrary, any
 # method on a C-implemented type will do.
 # pylint: disable=invalid-name
@@ -128,7 +138,7 @@ try:
   _original_getfullargspec = inspect.getfullargspec
   _use_full_argspec = True
 except AttributeError:  # Python 2
-  _original_getfullargspec = inspect.getargspec
+  _original_getfullargspec = inspect.getargspec  # type: ignore
   _use_full_argspec = False
 
 
@@ -219,7 +229,10 @@ class IOTypeHints(object):
   """
   __slots__ = ('input_types', 'output_types')
 
-  def __init__(self, input_types=None, output_types=None):
+  def __init__(self,
+               input_types=None,  # type: Optional[Tuple[Tuple[Any, ...], Dict[str, Any]]]
+               output_types=None  # type: Optional[Tuple[Tuple[Any, ...], Dict[str, Any]]]
+              ):
     self.input_types = input_types
     self.output_types = output_types
 
@@ -254,16 +267,16 @@ class IOTypeHints(object):
           input_args.append(typehints.Any)
       else:
         if param.kind in [param.KEYWORD_ONLY, param.VAR_KEYWORD]:
-          input_kwargs[param.name] = param.annotation
+          input_kwargs[param.name] = convert_to_beam_type(param.annotation)
         else:
           assert param.kind in [param.POSITIONAL_ONLY,
                                 param.POSITIONAL_OR_KEYWORD,
                                 param.VAR_POSITIONAL], \
               'Unsupported Parameter kind: %s' % param.kind
-          input_args.append(param.annotation)
+          input_args.append(convert_to_beam_type(param.annotation))
     output_args = []
     if signature.return_annotation != signature.empty:
-      output_args.append(signature.return_annotation)
+      output_args.append(convert_to_beam_type(signature.return_annotation))
     else:
       output_args.append(typehints.Any)
 
@@ -312,9 +325,11 @@ class IOTypeHints(object):
     return res
 
   def copy(self):
+    # type: () -> IOTypeHints
     return IOTypeHints(self.input_types, self.output_types)
 
   def with_defaults(self, hints):
+    # type: (Optional[IOTypeHints]) -> IOTypeHints
     if not hints:
       return self
     if self._has_input_types():
@@ -365,6 +380,7 @@ class WithTypeHints(object):
     self._type_hints = IOTypeHints()
 
   def _get_or_create_type_hints(self):
+    # type: () -> IOTypeHints
     # __init__ may have not been called
     try:
       # Only return an instance bound to self (see BEAM-8629).
@@ -389,12 +405,14 @@ class WithTypeHints(object):
     return None
 
   def with_input_types(self, *arg_hints, **kwarg_hints):
+    # type: (WithTypeHintsT, *Any, **Any) -> WithTypeHintsT
     arg_hints = native_type_compatibility.convert_to_beam_types(arg_hints)
     kwarg_hints = native_type_compatibility.convert_to_beam_types(kwarg_hints)
     self._get_or_create_type_hints().set_input_types(*arg_hints, **kwarg_hints)
     return self
 
   def with_output_types(self, *arg_hints, **kwarg_hints):
+    # type: (WithTypeHintsT, *Any, **Any) -> WithTypeHintsT
     arg_hints = native_type_compatibility.convert_to_beam_types(arg_hints)
     kwarg_hints = native_type_compatibility.convert_to_beam_types(kwarg_hints)
     self._get_or_create_type_hints().set_output_types(*arg_hints, **kwarg_hints)
@@ -591,6 +609,7 @@ def getcallargs_forhints_impl_py3(func, type_args, type_kwargs):
 
 
 def get_type_hints(fn):
+  # type: (Any) -> IOTypeHints
   """Gets the type hint associated with an arbitrary object fn.
 
   Always returns a valid IOTypeHints object, creating one if necessary.
@@ -605,13 +624,14 @@ def get_type_hints(fn):
       hints = IOTypeHints()
       # Python 3.7 introduces annotations for _MethodDescriptorTypes.
       if isinstance(fn, _MethodDescriptorType) and sys.version_info < (3, 7):
-        hints.set_input_types(fn.__objclass__)
+        hints.set_input_types(fn.__objclass__)  # type: ignore
       return hints
   return fn._type_hints
   # pylint: enable=protected-access
 
 
 def with_input_types(*positional_hints, **keyword_hints):
+  # type: (*Any, **Any) -> Callable[[T], T]
   """A decorator that type-checks defined type-hints with passed func arguments.
 
   All type-hinted arguments can be specified using positional arguments,
@@ -694,6 +714,7 @@ def with_input_types(*positional_hints, **keyword_hints):
 
 
 def with_output_types(*return_type_hint, **kwargs):
+  # type: (*Any, **Any) -> Callable[[T], T]
   """A decorator that type-checks defined type-hints for return values(s).
 
   This decorator will type-check the return value(s) of the decorated function.

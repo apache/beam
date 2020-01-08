@@ -39,6 +39,7 @@ from apache_beam.utils.annotations import experimental
 __all__ = [
     'assert_that',
     'equal_to',
+    'equal_to_per_window',
     'is_empty',
     'is_not_empty',
     'matches_all',
@@ -85,30 +86,67 @@ def contains_in_any_order(iterable):
 
   return InAnyOrder(iterable)
 
+class _EqualToPerWindowMatcher(object):
+  def __init__(self, expected_window_to_elements):
+    self._expected_window_to_elements = expected_window_to_elements
+
+  def __call__(self, value):
+    # Short-hand.
+    _expected = self._expected_window_to_elements
+
+    # Match the given windowed value to an expected window. Fails if the window
+    # doesn't exist or the element wasn't found in the window.
+    def match(windowed_value):
+      actual = windowed_value.value
+      window_key = windowed_value.windows[0]
+      try:
+        expected = _expected[window_key]
+      except KeyError:
+        raise BeamAssertException(
+            'Failed assert: window {} not found in any expected ' \
+            'windows {}'.format(window_key, list(_expected.keys())))
+
+      # Remove any matched elements from the window. This is used later on to
+      # assert that all elements in the window were matched with actual
+      # elements.
+      try:
+        _expected[window_key].remove(actual)
+      except ValueError:
+        raise BeamAssertException(
+            'Failed assert: element {} not found in window ' \
+            '{}:{}'.format(actual, window_key, _expected[window_key]))
+
+    # Run the matcher for each window and value pair. Fails if the
+    # windowed_value is not a TestWindowedValue.
+    for windowed_value in value:
+      if not isinstance(windowed_value, TestWindowedValue):
+        raise BeamAssertException(
+            'Failed assert: Received element {} is not of type ' \
+            'TestWindowedValue. Did you forget to set reify_windows=True ' \
+            'on the assertion?'.format(windowed_value))
+      match(windowed_value)
+
+    # Finally, some elements may not have been matched. Assert that we removed
+    # all the elements that we received from the expected list. If the list is
+    # non-empty, then there are unmatched elements.
+    for win in _expected:
+      if _expected[win]:
+        raise BeamAssertException(
+            'Failed assert: unmatched elements {} in window {}'.format(
+                _expected[win], win))
 
 def equal_to_per_window(expected_window_to_elements):
-  """Matcher used by assert_that to check on values for specific windows.
+  """Matcher used by assert_that to check to assert expected windows.
+
+  The 'assert_that' statement must have reify_windows=True. This assertion works
+  when elements are emitted and are finally checked at the end of the window.
 
   Arguments:
     expected_window_to_elements: A dictionary where the keys are the windows
       to check and the values are the elements associated with each window.
   """
-  def matcher(elements):
-    actual_elements_in_window, window = elements
-    if window in expected_window_to_elements:
-      expected_elements_in_window = list(
-          expected_window_to_elements[window])
-      sorted_expected = sorted(expected_elements_in_window)
-      sorted_actual = sorted(actual_elements_in_window)
-      if sorted_expected != sorted_actual:
-        # Results for the same window don't necessarily come all
-        # at once. Hence the same actual window may contain only
-        # subsets of the expected elements for the window.
-        # For example, in the presence of early triggers.
-        if all(elem in sorted_expected for elem in sorted_actual) is False:
-          raise BeamAssertException(
-              'Failed assert: %r not in %r' % (sorted_actual, sorted_expected))
-  return matcher
+
+  return _EqualToPerWindowMatcher(expected_window_to_elements)
 
 
 # Note that equal_to checks if expected and actual are permutations of each
@@ -136,15 +174,19 @@ def equal_to(expected):
     # 2) As a fallback if we encounter a TypeError in python 3. this method
     #    works on collections that have different types.
     except (BeamAssertException, TypeError):
+      unexpected = []
       for element in actual:
         try:
           expected_list.remove(element)
         except ValueError:
-          raise BeamAssertException(
-              'Failed assert: %r == %r' % (expected, actual))
-      if expected_list:
-        raise BeamAssertException(
-            'Failed assert: %r == %r' % (expected, actual))
+          unexpected.append(element)
+      if unexpected or expected_list:
+        msg = 'Failed assert: %r == %r' % (expected, actual)
+        if unexpected:
+          msg = msg + ', unexpected elements %r' % unexpected
+        if expected_list:
+          msg = msg + ', missing elements %r' % expected_list
+        raise BeamAssertException(msg)
 
   return _equal
 
@@ -214,6 +256,10 @@ def assert_that(actual, matcher, label='assert_that',
       pvalue.PCollection), ('%s is not a supported type for Beam assert'
                             % type(actual))
 
+  if isinstance(matcher, _EqualToPerWindowMatcher):
+    reify_windows = True
+    use_global_window = True
+
   class ReifyTimestampWindow(DoFn):
     def process(self, element, timestamp=DoFn.TimestampParam,
                 window=DoFn.WindowParam):
@@ -239,6 +285,8 @@ def assert_that(actual, matcher, label='assert_that',
 
       keyed_actual = pcoll | "ToVoidKey" >> Map(lambda v: (None, v))
 
+      # This is a CoGroupByKey so that the matcher always runs, even if the
+      # PCollection is empty.
       plain_actual = ((keyed_singleton, keyed_actual)
                       | "Group" >> CoGroupByKey()
                       | "Unkey" >> Map(lambda k_values: k_values[1][1]))

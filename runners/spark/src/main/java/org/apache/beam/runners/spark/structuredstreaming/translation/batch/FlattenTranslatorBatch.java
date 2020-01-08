@@ -19,7 +19,7 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import java.util.Map;
+import java.util.Collection;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TranslationContext;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -27,7 +27,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.spark.sql.Dataset;
 
 class FlattenTranslatorBatch<T>
@@ -36,13 +35,12 @@ class FlattenTranslatorBatch<T>
   @Override
   public void translateTransform(
       PTransform<PCollectionList<T>, PCollection<T>> transform, TranslationContext context) {
-    Map<TupleTag<?>, PValue> inputs = context.getInputs();
+    Collection<PValue> pcollectionList = context.getInputs().values();
     Dataset<WindowedValue<T>> result = null;
-
-    if (inputs.isEmpty()) {
+    if (pcollectionList.isEmpty()) {
       result = context.emptyDataset();
     } else {
-      for (PValue pValue : inputs.values()) {
+      for (PValue pValue : pcollectionList) {
         checkArgument(
             pValue instanceof PCollection,
             "Got non-PCollection input to flatten: %s of type %s",

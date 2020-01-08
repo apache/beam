@@ -21,6 +21,7 @@
 class CommonTestProperties {
     enum SDK {
         PYTHON,
+        PYTHON_37,
         JAVA
     }
 
@@ -42,6 +43,11 @@ class CommonTestProperties {
                         DATAFLOW: "TestDataflowRunner",
                         DIRECT: "DirectRunner",
                         PORTABLE: "PortableRunner"
+                ],
+                PYTHON_37: [
+                        DATAFLOW: "TestDataflowRunner",
+                        DIRECT: "DirectRunner",
+                        PORTABLE: "PortableRunner"
                 ]
         ]
 
@@ -51,8 +57,7 @@ class CommonTestProperties {
             this.option = option
         }
 
-
-        String getDepenedencyBySDK(SDK sdk) {
+        String getDependencyBySDK(SDK sdk) {
             RUNNER_DEPENDENCY_MAP.get(sdk.toString()).get(this.toString())
         }
 

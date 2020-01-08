@@ -42,6 +42,8 @@ if __name__ == '__main__':
   parser.add_argument('--environment_type', default='docker',
                       help='Environment type. docker or process')
   parser.add_argument('--environment_config', help='Environment config.')
+  parser.add_argument('--environment_cache_millis',
+                      help='Environment cache TTL in milliseconds.')
   parser.add_argument('--extra_experiments', default=[], action='append',
                       help='Beam experiments config.')
   known_args, args = parser.parse_known_args(sys.argv)
@@ -51,6 +53,7 @@ if __name__ == '__main__':
   environment_type = known_args.environment_type.lower()
   environment_config = (
       known_args.environment_config if known_args.environment_config else None)
+  environment_cache_millis = known_args.environment_cache_millis
   extra_experiments = known_args.extra_experiments
 
   # This is defined here to only be run when we invoke this file explicitly.
@@ -86,10 +89,12 @@ if __name__ == '__main__':
       options = super(SparkRunnerTest, self).create_options()
       options.view_as(DebugOptions).experiments = [
           'beam_fn_api'] + extra_experiments
-      options.view_as(PortableOptions).environment_type = (
-          environment_type.upper())
+      portable_options = options.view_as(PortableOptions)
+      portable_options.environment_type = environment_type.upper()
       if environment_config:
-        options.view_as(PortableOptions).environment_config = environment_config
+        portable_options.environment_config = environment_config
+      if environment_cache_millis:
+        portable_options.environment_cache_millis = environment_cache_millis
 
       return options
 
@@ -98,6 +103,10 @@ if __name__ == '__main__':
       raise unittest.SkipTest("BEAM-7219")
 
     def test_sdf(self):
+      # Skip until Spark runner supports SDF.
+      raise unittest.SkipTest("BEAM-7222")
+
+    def test_sdf_with_watermark_tracking(self):
       # Skip until Spark runner supports SDF.
       raise unittest.SkipTest("BEAM-7222")
 
