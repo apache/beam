@@ -19,6 +19,7 @@
 from __future__ import absolute_import
 
 import json
+import logging
 
 from apache_beam.metrics import MetricsFilter
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
@@ -32,14 +33,29 @@ class LoadTest(object):
         self.pipeline.get_option('input_options') or '{}')
     self.project_id = self.pipeline.get_option('project')
     self.metrics_namespace = self.pipeline.get_option('metrics_table')
+
+    publish_to_bq = self._str_to_boolean('publish_to_big_query')
+    if publish_to_bq is None:
+      logging.info('Missing --publish_to_big_query option. Metrics will not '
+                   'be published to BigQuery.')
+
     self._metrics_monitor = MetricsReader(
-        publish_to_bq=self.pipeline.get_option('publish_to_big_query')
-        .lower() == 'true',
+        publish_to_bq=publish_to_bq,
         project_name=self.project_id,
         bq_table=self.metrics_namespace,
         bq_dataset=self.pipeline.get_option('metrics_dataset'),
         # Apply filter to prevent system metrics from being published
         filters=MetricsFilter().with_namespace(self.metrics_namespace))
+
+  def _str_to_boolean(self, opt_name):
+    value = self.pipeline.get_option(opt_name)
+    if value is None:
+      return value
+    try:
+      return bool(['false', 'true'].index(value.lower()))
+    except ValueError:
+      raise ValueError('{}: "true" or "false" expected, got "{}" instead.'
+                       .format(opt_name, value))
 
   def test(self):
     """An abstract method where the pipeline definition should be put."""
