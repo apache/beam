@@ -21,9 +21,7 @@ package org.apache.beam.gradle
 import org.gradle.api.Project
 
 /**
- * Utilities for working with our vendored version of gRPC. The test dependency junit and the runtime dependencies
- * slf4j, commons-logging and log4j are not included in the vendored jar. The linkage checker complains about
- * these dependencies could be ignored.
+ * Utilities for working with our vendored version of gRPC.
  */
 class GrpcVendoring_1_26_0 {
   /** Returns the list of compile time dependencies. */
