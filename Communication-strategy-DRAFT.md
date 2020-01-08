@@ -6,13 +6,13 @@
 
 While all the channels are connected to a specific function in the short, medium, and long term, some areas have redundancies, and some other areas could use more exposure. In order to continue to grow th project, there are 3 proposals we need to focus on (click on the link on each section to read more):
 
-1. Blog post categories, frequency and distribution. 
+**1. [Blog post categories, frequency and distribution.](#proposal-1-blog-post-categories-frequency-and-distribution)** 
 Reduce to one blogging space (on Beam Website). Incorporate 3 categories to the blog: Apache Beam summit, Apache Beam use cases, and Your journey as a contributor. 
 
-2. Develop more in-person and digital workshops.
+**2. [Develop more in-person and digital workshops.](#proposal-2-develop-more-in-person-and-digital-workshops)**
 Two workshop types: how to use Beam, and how to contribute to Beam. 
 
-3. Increase distribution of tech talks.
+**3. [Increase distribution of tech talks.](#proposal-3-distribution-of-tech-talks)**
    - Embed tech talks in the Beam website, and the Beam Summit website,
    - Share talks on @ApacheBeam Twitter handle
    - Curate a list of talks by topic, and write blog posts to share curated talks (1 blog every 3 months), 
