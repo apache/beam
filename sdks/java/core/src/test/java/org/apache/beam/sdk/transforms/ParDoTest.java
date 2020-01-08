@@ -94,6 +94,7 @@ import org.apache.beam.sdk.testing.UsesSideInputsWithDifferentCoders;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.UsesStrictTimerOrdering;
 import org.apache.beam.sdk.testing.UsesTestStream;
+import org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp;
 import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
@@ -3735,7 +3736,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
-      UsesTestStream.class
+      UsesTestStreamWithOutputTimestamp.class
     })
     public void testOutputTimestamp() {
       final String timerId = "bar";
@@ -3803,7 +3804,6 @@ public class ParDoTest implements Serializable {
       PCollection<Integer> output =
           pipeline.apply(stream).apply("first", ParDo.of(fn1)).apply("second", ParDo.of(fn2));
 
-      Instant base = new Instant(0);
       PAssert.that(output).containsInAnyOrder(100); // result output
       pipeline.run();
     }
