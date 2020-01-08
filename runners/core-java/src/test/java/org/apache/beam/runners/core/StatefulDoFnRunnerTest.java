@@ -225,6 +225,7 @@ public class StatefulDoFnRunnerTest {
           timer.getTimerFamilyId(),
           window,
           timer.getTimestamp(),
+          timer.getOutputTimestamp(),
           timer.getDomain());
     }
   }

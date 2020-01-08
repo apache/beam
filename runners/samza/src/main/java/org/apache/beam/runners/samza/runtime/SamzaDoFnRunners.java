@@ -266,6 +266,7 @@ public class SamzaDoFnRunners {
         String timerFamilyId,
         BoundedWindow window,
         Instant timestamp,
+        Instant outputTimestamp,
         TimeDomain timeDomain) {}
 
     @Override

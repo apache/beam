@@ -21,11 +21,13 @@ import com.google.auto.value.AutoValue;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Phaser;
@@ -77,12 +79,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Processes {@link BeamFnApi.ProcessBundleRequest}s by materializing the set of required runners
- * for each {@link RunnerApi.FunctionSpec}, wiring them together based upon the {@code input} and
- * {@code output} map definitions.
+ * Processes {@link BeamFnApi.ProcessBundleRequest}s and {@link
+ * BeamFnApi.ProcessBundleSplitRequest}s.
  *
- * <p>Finally executes the DAG based graph by starting all runners in reverse topological order, and
- * finishing all runners in forward topological order.
+ * <p>{@link BeamFnApi.ProcessBundleSplitRequest}s use a {@link BundleProcessorCache cache} to
+ * find/create a {@link BundleProcessor}. The creation of a {@link BundleProcessor} uses the
+ * associated {@link BeamFnApi.ProcessBundleDescriptor} definition; creating runners for each {@link
+ * RunnerApi.FunctionSpec}; wiring them together based upon the {@code input} and {@code output} map
+ * definitions. The {@link BundleProcessor} executes the DAG based graph by starting all runners in
+ * reverse topological order, and finishing all runners in forward topological order.
+ *
+ * <p>{@link BeamFnApi.ProcessBundleSplitRequest}s finds an {@code active} {@link BundleProcessor}
+ * associated with a currently processing {@link BeamFnApi.ProcessBundleRequest} and uses it to
+ * perform a split request. See <a href="https://s.apache.org/beam-breaking-fusion">breaking the
+ * fusion barrier</a> for further details.
  */
 public class ProcessBundleHandler {
 
@@ -231,6 +241,7 @@ public class ProcessBundleHandler {
     BundleProcessor bundleProcessor =
         bundleProcessorCache.get(
             request.getProcessBundle().getProcessBundleDescriptorId(),
+            request.getInstructionId(),
             () -> {
               try {
                 return createBundleProcessor(
@@ -240,7 +251,6 @@ public class ProcessBundleHandler {
                 throw new RuntimeException(e);
               }
             });
-    bundleProcessor.setInstructionId(request.getInstructionId());
     PTransformFunctionRegistry startFunctionRegistry = bundleProcessor.getStartFunctionRegistry();
     PTransformFunctionRegistry finishFunctionRegistry = bundleProcessor.getFinishFunctionRegistry();
     Multimap<String, DelayedBundleApplication> allResiduals = bundleProcessor.getAllResiduals();
@@ -292,6 +302,19 @@ public class ProcessBundleHandler {
           request.getProcessBundle().getProcessBundleDescriptorId(), bundleProcessor);
     }
     return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
+  }
+
+  /** Splits an active bundle. */
+  public BeamFnApi.InstructionResponse.Builder split(BeamFnApi.InstructionRequest request) {
+    BundleProcessor bundleProcessor =
+        bundleProcessorCache.find(request.getProcessBundleSplit().getInstructionId());
+    if (bundleProcessor == null) {
+      throw new IllegalStateException(
+          String.format(
+              "Unable to find active bundle for instruction id %s.",
+              request.getProcessBundleSplit().getInstructionId()));
+    }
+    throw new UnsupportedOperationException("TODO: BEAM-3836, support splitting within SDK.");
   }
 
   /** Shutdown the bundles, running the tearDown() functions. */
@@ -406,9 +429,18 @@ public class ProcessBundleHandler {
   public static class BundleProcessorCache {
 
     private final Map<String, ConcurrentLinkedQueue<BundleProcessor>> cachedBundleProcessors;
+    private final Map<String, BundleProcessor> activeBundleProcessors;
+
+    @Override
+    public int hashCode() {
+      return super.hashCode();
+    }
 
     BundleProcessorCache() {
       this.cachedBundleProcessors = Maps.newConcurrentMap();
+      // We specifically use a weak hash map so that references will automatically go out of scope
+      // and not need to be freed explicitly from the cache.
+      this.activeBundleProcessors = Collections.synchronizedMap(new WeakHashMap<>());
     }
 
     Map<String, ConcurrentLinkedQueue<BundleProcessor>> getCachedBundleProcessors() {
@@ -417,26 +449,43 @@ public class ProcessBundleHandler {
 
     /**
      * Get a {@link BundleProcessor} from the cache if it's available. Otherwise, create one using
-     * the specified bundleProcessorSupplier.
+     * the specified {@code bundleProcessorSupplier}. The {@link BundleProcessor} that is returned
+     * can be {@link #find found} using the specified method.
+     *
+     * <p>The caller is responsible for calling {@link #release} to return the bundle processor back
+     * to this cache if and only if the bundle processor successfully processed a bundle.
      */
     BundleProcessor get(
-        String bundleDescriptorId, Supplier<BundleProcessor> bundleProcessorSupplier) {
+        String bundleDescriptorId,
+        String instructionId,
+        Supplier<BundleProcessor> bundleProcessorSupplier) {
       ConcurrentLinkedQueue<BundleProcessor> bundleProcessors =
           cachedBundleProcessors.computeIfAbsent(
               bundleDescriptorId, descriptorId -> new ConcurrentLinkedQueue<>());
       BundleProcessor bundleProcessor = bundleProcessors.poll();
-      if (bundleProcessor != null) {
-        return bundleProcessor;
+      if (bundleProcessor == null) {
+        bundleProcessor = bundleProcessorSupplier.get();
       }
 
-      return bundleProcessorSupplier.get();
+      bundleProcessor.setInstructionId(instructionId);
+      activeBundleProcessors.put(instructionId, bundleProcessor);
+      return bundleProcessor;
+    }
+
+    /**
+     * Finds an active bundle processor for the specified {@code instructionId} or null if one could
+     * not be found.
+     */
+    BundleProcessor find(String instructionId) {
+      return activeBundleProcessors.get(instructionId);
     }
 
     /**
      * Add a {@link BundleProcessor} to cache. The {@link BundleProcessor} will be reset before
-     * being added to the cache.
+     * being added to the cache and will be marked as inactive.
      */
     void release(String bundleDescriptorId, BundleProcessor bundleProcessor) {
+      activeBundleProcessors.remove(bundleProcessor.getInstructionId());
       bundleProcessor.reset();
       cachedBundleProcessors.get(bundleDescriptorId).add(bundleProcessor);
     }

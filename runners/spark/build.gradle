@@ -71,7 +71,7 @@ dependencies {
   provided library.java.spark_network_common
   provided library.java.hadoop_common
   provided library.java.commons_lang3
-  provided library.java.commons_io_2x
+  provided library.java.commons_io
   provided library.java.hamcrest_core
   provided library.java.hamcrest_library
   provided "com.esotericsoftware.kryo:kryo:2.21"

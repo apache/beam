@@ -192,6 +192,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       String timerFamilyId,
       BoundedWindow window,
       Instant timestamp,
+      Instant outputTimestamp,
       TimeDomain timeDomain) {
 
     // The effective timestamp is when derived elements will have their timestamp set, if not

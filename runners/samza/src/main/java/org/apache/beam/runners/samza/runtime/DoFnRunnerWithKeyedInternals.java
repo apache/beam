@@ -67,6 +67,7 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
           timer.getTimerFamilyId(),
           window,
           timer.getTimestamp(),
+          timer.getOutputTimestamp(),
           timer.getDomain());
     } finally {
       clearKeyedInternals();
@@ -79,10 +80,11 @@ public class DoFnRunnerWithKeyedInternals<InputT, OutputT> implements DoFnRunner
       String timerFamilyId,
       BoundedWindow window,
       Instant timestamp,
+      Instant outputTimestamp,
       TimeDomain timeDomain) {
     checkState(keyedInternals.getKey() != null, "Key is not set for timer");
 
-    underlying.onTimer(timerId, timerFamilyId, window, timestamp, timeDomain);
+    underlying.onTimer(timerId, timerFamilyId, window, timestamp, outputTimestamp, timeDomain);
   }
 
   @Override

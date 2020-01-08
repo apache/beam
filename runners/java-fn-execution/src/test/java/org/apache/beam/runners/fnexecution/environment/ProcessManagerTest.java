@@ -21,7 +21,9 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.ByteArrayOutputStream;
@@ -156,5 +158,33 @@ public class ProcessManagerTest {
     // String outputStr = new String(baos.toByteArray(), Charset.defaultCharset());
     // assertThat(outputStr, containsString("testing123"));
     assertFalse(ProcessManager.INHERIT_IO_FILE.exists());
+  }
+
+  @Test
+  public void testShutdownHook() throws IOException {
+    ProcessManager processManager = ProcessManager.create();
+
+    // no process alive, no shutdown hook
+    assertNull(ProcessManager.shutdownHook);
+
+    processManager.startProcess(
+        "1", "bash", Arrays.asList("-c", "echo 'testing123'"), Collections.emptyMap());
+    // the shutdown hook will be created when process is started
+    assertNotNull(ProcessManager.shutdownHook);
+    // check the shutdown hook is registered
+    assertTrue(Runtime.getRuntime().removeShutdownHook(ProcessManager.shutdownHook));
+    // add back the shutdown hook
+    Runtime.getRuntime().addShutdownHook(ProcessManager.shutdownHook);
+
+    processManager.startProcess(
+        "2", "bash", Arrays.asList("-c", "echo 'testing123'"), Collections.emptyMap());
+
+    processManager.stopProcess("1");
+    // the shutdown hook will be not removed if there are still processes alive
+    assertNotNull(ProcessManager.shutdownHook);
+
+    processManager.stopProcess("2");
+    // the shutdown hook will be removed when there is no process alive
+    assertNull(ProcessManager.shutdownHook);
   }
 }

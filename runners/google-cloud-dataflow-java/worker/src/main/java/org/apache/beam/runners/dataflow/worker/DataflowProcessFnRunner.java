@@ -113,6 +113,7 @@ class DataflowProcessFnRunner<InputT, OutputT, RestrictionT>
       String timerFamilyId,
       BoundedWindow window,
       Instant timestamp,
+      Instant outputTimestamp,
       TimeDomain timeDomain) {
     throw new UnsupportedOperationException("Unsupported for ProcessFn");
   }

@@ -817,6 +817,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
         timerData.getTimerFamilyId(),
         window,
         timerData.getTimestamp(),
+        timerData.getOutputTimestamp(),
         timerData.getDomain());
   }
 

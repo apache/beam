@@ -336,7 +336,7 @@ options = PipelineOptions([
     "--flink_master=localhost:8081",
     "--environment_type=LOOPBACK"
 ])
-with beam.Pipeline(options) as p:
+with beam.Pipeline(options=options) as p:
     ...
 ```
 

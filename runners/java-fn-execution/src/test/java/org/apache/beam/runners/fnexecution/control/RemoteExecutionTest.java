@@ -60,7 +60,6 @@ import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
-import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.ActiveBundle;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
@@ -286,7 +285,7 @@ public class RemoteExecutionTest implements Serializable {
     }
     // The impulse example
 
-    try (ActiveBundle bundle =
+    try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(WindowedValue.valueInGlobalWindow(new byte[0]));
@@ -350,7 +349,7 @@ public class RemoteExecutionTest implements Serializable {
               (FnDataReceiver<? super WindowedValue<?>>) outputContents::add));
     }
 
-    try (ActiveBundle bundle =
+    try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(
@@ -359,7 +358,7 @@ public class RemoteExecutionTest implements Serializable {
     }
 
     try {
-      try (ActiveBundle bundle =
+      try (RemoteBundle bundle =
           processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
         Iterables.getOnlyElement(bundle.getInputReceivers().values())
             .accept(
@@ -372,7 +371,7 @@ public class RemoteExecutionTest implements Serializable {
       assertTrue(e.getMessage().contains("testBundleExecutionFailure"));
     }
 
-    try (ActiveBundle bundle =
+    try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(
@@ -504,7 +503,7 @@ public class RemoteExecutionTest implements Serializable {
             });
     BundleProgressHandler progressHandler = BundleProgressHandler.ignored();
 
-    try (ActiveBundle bundle =
+    try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(WindowedValue.valueInGlobalWindow("X"));
@@ -818,7 +817,7 @@ public class RemoteExecutionTest implements Serializable {
           }
         };
 
-    try (ActiveBundle bundle =
+    try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(
@@ -959,7 +958,7 @@ public class RemoteExecutionTest implements Serializable {
               }
             });
 
-    try (ActiveBundle bundle =
+    try (RemoteBundle bundle =
         processor.newBundle(
             outputReceivers, stateRequestHandler, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
@@ -1102,7 +1101,7 @@ public class RemoteExecutionTest implements Serializable {
     // output.
     DateTimeUtils.setCurrentMillisFixed(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
 
-    try (ActiveBundle bundle =
+    try (RemoteBundle bundle =
         processor.newBundle(
             outputReceivers, StateRequestHandler.unsupported(), BundleProgressHandler.ignored())) {
       bundle
@@ -1222,7 +1221,7 @@ public class RemoteExecutionTest implements Serializable {
                 (Coder<WindowedValue<?>>) remoteOutputCoder.getValue(), outputValues::add));
       }
 
-      try (ActiveBundle bundle =
+      try (RemoteBundle bundle =
           processor.newBundle(
               outputReceivers,
               StateRequestHandler.unsupported(),

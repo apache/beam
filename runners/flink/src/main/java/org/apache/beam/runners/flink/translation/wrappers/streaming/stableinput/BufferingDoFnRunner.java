@@ -121,9 +121,11 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       String timerFamilyId,
       BoundedWindow window,
       Instant timestamp,
+      Instant outputTimestamp,
       TimeDomain timeDomain) {
     currentBufferingElementsHandler.buffer(
-        new BufferedElements.Timer(timerId, window, timestamp, timeDomain));
+        new BufferedElements.Timer(
+            timerId, timerFamilyId, window, timestamp, outputTimestamp, timeDomain));
   }
 
   @Override

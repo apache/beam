@@ -61,8 +61,12 @@ public class DoFnRunnerWithMetrics<InT, OutT> implements DoFnRunner<InT, OutT> {
       String timerFamilyId,
       BoundedWindow window,
       Instant timestamp,
+      Instant outputTimestamp,
       TimeDomain timeDomain) {
-    withMetrics(() -> underlying.onTimer(timerId, timerFamilyId, window, timestamp, timeDomain));
+    withMetrics(
+        () ->
+            underlying.onTimer(
+                timerId, timerFamilyId, window, timestamp, outputTimestamp, timeDomain));
   }
 
   @Override

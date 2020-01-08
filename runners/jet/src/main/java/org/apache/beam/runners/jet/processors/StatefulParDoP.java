@@ -97,6 +97,7 @@ public class StatefulParDoP<OutputT>
         timer.getTimerFamilyId(),
         window,
         timer.getTimestamp(),
+        timer.getOutputTimestamp(),
         timer.getDomain());
   }
 

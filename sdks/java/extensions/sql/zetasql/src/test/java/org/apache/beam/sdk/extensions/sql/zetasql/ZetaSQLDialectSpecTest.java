@@ -141,6 +141,73 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testByteLiterals() {
+    String sql = "SELECT b'abc'";
+
+    byte[] byteString = new byte[] {'a', 'b', 'c'};
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addNullableField("ColA", FieldType.BYTES).build();
+
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(byteString).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testByteString() {
+    String sql = "SELECT @p0 IS NULL AS ColA";
+
+    ByteString byteString = ByteString.copyFrom(new byte[] {0x62});
+
+    ImmutableMap<String, Value> params =
+        ImmutableMap.<String, Value>builder().put("p0", Value.createBytesValue(byteString)).build();
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addNullableField("ColA", FieldType.BOOLEAN).build();
+
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(false).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testFloat() {
+    String sql = "SELECT 3.0";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addNullableField("ColA", FieldType.DOUBLE).build();
+
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(3.0).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testStringLiterals() {
+    String sql = "SELECT 'abc\\n'";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addNullableField("ColA", FieldType.STRING).build();
+
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("abc\n").build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testEQ1() {
     String sql = "SELECT @p0 = @p1 AS ColA";
 

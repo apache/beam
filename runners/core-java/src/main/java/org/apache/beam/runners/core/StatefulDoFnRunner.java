@@ -121,6 +121,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
       String timerFamilyId,
       BoundedWindow window,
       Instant timestamp,
+      Instant outputTimestamp,
       TimeDomain timeDomain) {
     if (cleanupTimer.isForWindow(timerId, window, timestamp, timeDomain)) {
       stateCleaner.clearForWindow(window);
@@ -138,7 +139,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
             window,
             cleanupTimer.currentInputWatermarkTime());
       } else {
-        doFnRunner.onTimer(timerId, timerFamilyId, window, timestamp, timeDomain);
+        doFnRunner.onTimer(timerId, timerFamilyId, window, timestamp, outputTimestamp, timeDomain);
       }
     }
   }

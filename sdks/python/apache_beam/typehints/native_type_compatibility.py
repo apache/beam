@@ -189,7 +189,8 @@ def convert_to_beam_type(typ):
   """Convert a given typing type to a Beam type.
 
   Args:
-    typ (type): typing type.
+    typ (`typing.Union[type, str]`): typing type or string literal representing
+      a type.
 
   Returns:
     type: The given type converted to a Beam type as far as we can do the
@@ -209,6 +210,11 @@ def convert_to_beam_type(typ):
       _type_var_cache[id(typ)] = new_type_variable
       _type_var_cache[id(new_type_variable)] = typ
     return _type_var_cache[id(typ)]
+  elif isinstance(typ, str):
+    # Special case for forward references.
+    # TODO(BEAM-8487): Currently unhandled.
+    _LOGGER.info('Converting string literal type hint to Any: "%s"', typ)
+    return typehints.Any
   elif getattr(typ, '__module__', None) != 'typing':
     # Only translate types from the typing module.
     return typ

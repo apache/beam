@@ -287,8 +287,8 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 				ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{
 					ChannelSplits: []*fnpb.ProcessBundleSplitResponse_ChannelSplit{
 						&fnpb.ProcessBundleSplitResponse_ChannelSplit{
-							LastPrimaryElement:   int32(split - 1),
-							FirstResidualElement: int32(split),
+							LastPrimaryElement:   split - 1,
+							FirstResidualElement: split,
 						},
 					},
 				},

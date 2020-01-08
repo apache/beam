@@ -220,6 +220,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
         timer.getTimerFamilyId(),
         window,
         timer.getTimestamp(),
+        timer.getOutputTimestamp(),
         timer.getDomain());
   }
 

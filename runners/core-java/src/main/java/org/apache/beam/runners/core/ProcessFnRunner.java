@@ -87,6 +87,7 @@ public class ProcessFnRunner<InputT, OutputT, RestrictionT>
       String timerFamilyId,
       BoundedWindow window,
       Instant timestamp,
+      Instant outputTimestamp,
       TimeDomain timeDomain) {
     throw new UnsupportedOperationException("User timers unsupported in ProcessFn");
   }

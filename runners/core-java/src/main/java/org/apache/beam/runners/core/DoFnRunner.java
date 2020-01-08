@@ -43,6 +43,7 @@ public interface DoFnRunner<InputT, OutputT> {
       String timerFamilyId,
       BoundedWindow window,
       Instant timestamp,
+      Instant outputTimestamp,
       TimeDomain timeDomain);
 
   /**

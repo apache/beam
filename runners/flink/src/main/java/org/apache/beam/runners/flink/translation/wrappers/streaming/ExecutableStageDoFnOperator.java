@@ -665,6 +665,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         String timerFamilyId,
         BoundedWindow window,
         Instant timestamp,
+        Instant outputTimestamp,
         TimeDomain timeDomain) {
       Object timerKey = keyForTimer.get();
       Preconditions.checkNotNull(timerKey, "Key for timer needs to be set before calling onTimer");

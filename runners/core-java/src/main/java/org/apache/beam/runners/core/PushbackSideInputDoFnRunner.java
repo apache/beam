@@ -48,6 +48,7 @@ public interface PushbackSideInputDoFnRunner<InputT, OutputT> {
       String timerFamilyId,
       BoundedWindow window,
       Instant timestamp,
+      Instant outputTimestamp,
       TimeDomain timeDomain);
 
   /** Calls the underlying {@link DoFn.FinishBundle} method. */
