@@ -3661,7 +3661,6 @@ public class ZetaSQLDialectSpecTest {
 
   /** Only sample scenarios are covered here. Excessive testing is done via Compliance tests. */
   @Test
-  @Ignore("ZetaSQL does not support EnumType to IdentifierLiteral")
   public void testExtractTimestamp() {
     String sql =
         "WITH Timestamps AS (\n"
