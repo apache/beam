@@ -17,6 +17,8 @@
 
 """Tests for apache_beam.typehints.trivial_inference."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import sys

@@ -36,6 +36,8 @@ To run these tests manually:
     -DkmsKeyName=KMS_KEY_NAME
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging

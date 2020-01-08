@@ -26,6 +26,8 @@ will be split into multiple jobs.
 NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import datetime

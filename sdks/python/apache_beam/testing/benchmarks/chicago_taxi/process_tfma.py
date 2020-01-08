@@ -13,6 +13,8 @@
 # limitations under the License.
 """Runs a batch job for performing Tensorflow Model Analysis."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import, division, print_function
 
 import argparse

@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from apache_beam.transforms.external import ExternalTransform

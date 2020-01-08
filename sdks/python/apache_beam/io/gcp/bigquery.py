@@ -229,6 +229,8 @@ encoding when writing to BigQuery. When bytes are read from BigQuery they are
 returned as base64-encoded bytes.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections

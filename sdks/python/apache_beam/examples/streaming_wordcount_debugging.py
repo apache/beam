@@ -32,6 +32,8 @@ gcloud alpha pubsub topics publish $PUBSUB_INPUT_TOPIC --message '210 213 151'
 
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse

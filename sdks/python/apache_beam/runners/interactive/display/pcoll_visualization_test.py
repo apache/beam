@@ -16,6 +16,8 @@
 #
 
 """Tests for apache_beam.runners.interactive.display.pcoll_visualization."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import sys

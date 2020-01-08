@@ -28,6 +28,8 @@ The pickler module should be used to pickle functions and modules; for values,
 the coders.*PickleCoder classes should be used instead.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import base64

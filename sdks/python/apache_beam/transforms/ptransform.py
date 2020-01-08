@@ -34,6 +34,8 @@ class and wrapper class that allows lambda functions to be used as
 FlatMap processing functions.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import contextlib

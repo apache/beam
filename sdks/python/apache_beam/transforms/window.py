@@ -47,6 +47,8 @@ Custom windowing function classes can be created, by subclassing from
 WindowFn.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import abc

@@ -27,6 +27,8 @@ Users should specify the number of groups to form and optionally a corpus and/or
 a word that should be ignored when forming groups.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse

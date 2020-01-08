@@ -17,6 +17,8 @@
 
 """Tests for decorators module with Python 3 syntax not supported by 2.7."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import typing

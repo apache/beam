@@ -31,6 +31,8 @@ future.builtins.range to avoid performance regression in Cython compiled code.
 
 For internal use only; no backwards-compatibility guarantees.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 

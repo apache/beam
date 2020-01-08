@@ -17,6 +17,8 @@
 
 """A library of basic combiner PTransform subclasses."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
