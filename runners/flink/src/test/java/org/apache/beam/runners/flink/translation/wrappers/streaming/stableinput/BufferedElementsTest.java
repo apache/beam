@@ -52,7 +52,12 @@ public class BufferedElementsTest {
             WindowedValue.of("test", new Instant(2), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
     BufferedElement timerElement =
         new BufferedElements.Timer(
-            "timerId", GlobalWindow.INSTANCE, new Instant(1), TimeDomain.EVENT_TIME);
+            "timerId",
+            "timerId",
+            GlobalWindow.INSTANCE,
+            new Instant(1),
+            new Instant(1),
+            TimeDomain.EVENT_TIME);
 
     testRoundTrip(ImmutableList.of(element), coder);
     testRoundTrip(ImmutableList.of(timerElement), coder);

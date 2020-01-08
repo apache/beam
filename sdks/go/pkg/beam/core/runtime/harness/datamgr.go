@@ -115,6 +115,12 @@ func (m *DataChannelManager) Open(ctx context.Context, port exec.Port) (*DataCha
 	if err != nil {
 		return nil, err
 	}
+	ch.forceRecreate = func(id string, err error) {
+		log.Warnf(ctx, "forcing DataChannel[%v] reconnection on port %v due to %v", id, port, err)
+		m.mu.Lock()
+		delete(m.ports, port.URL)
+		m.mu.Unlock()
+	}
 	m.ports[port.URL] = ch
 	return ch, nil
 }
@@ -133,8 +139,10 @@ type dataClient interface {
 	Recv() (*pb.Elements, error)
 }
 
-// DataChannel manages a single multiplexed gRPC connection over the Data API. Data is
-// pushed over the channel, so data for a reader may arrive before the reader connects.
+// DataChannel manages a single gRPC stream over the Data API. Data from
+// multiple bundles can be multiplexed over this stream. Data is pushed
+// over the channel, so data for a reader may arrive before the reader
+// connects.
 // Thread-safe.
 type DataChannel struct {
 	id     string
@@ -142,15 +150,18 @@ type DataChannel struct {
 
 	writers map[clientID]*dataWriter
 	readers map[clientID]*dataReader
-	// TODO: early/late closed, bad instructions, finer locks, reconnect?
-
 	// readErr indicates a client.Recv error and is used to prevent new readers.
 	readErr error
 
-	mu sync.Mutex // guards both the readers and writers maps.
+	// a closure that forces the data manager to recreate this stream.
+	forceRecreate func(id string, err error)
+	cancelFn      context.CancelFunc // Allows writers to stop the grpc reading goroutine.
+
+	mu sync.Mutex // guards mutable internal data, notably the maps and readErr.
 }
 
 func newDataChannel(ctx context.Context, port exec.Port) (*DataChannel, error) {
+	ctx, cancelFn := context.WithCancel(ctx)
 	cc, err := dial(ctx, port.URL, 15*time.Second)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to connect to data service at %v", port.URL)
@@ -160,23 +171,35 @@ func newDataChannel(ctx context.Context, port exec.Port) (*DataChannel, error) {
 		cc.Close()
 		return nil, errors.Wrapf(err, "failed to create data client on %v", port.URL)
 	}
-	return makeDataChannel(ctx, port.URL, client), nil
+	return makeDataChannel(ctx, port.URL, client, cancelFn), nil
 }
 
-func makeDataChannel(ctx context.Context, id string, client dataClient) *DataChannel {
+func makeDataChannel(ctx context.Context, id string, client dataClient, cancelFn context.CancelFunc) *DataChannel {
 	ret := &DataChannel{
-		id:      id,
-		client:  client,
-		writers: make(map[clientID]*dataWriter),
-		readers: make(map[clientID]*dataReader),
+		id:       id,
+		client:   client,
+		writers:  make(map[clientID]*dataWriter),
+		readers:  make(map[clientID]*dataReader),
+		cancelFn: cancelFn,
 	}
 	go ret.read(ctx)
 
 	return ret
 }
 
+// terminateStreamOnError requires the lock to be held.
+func (c *DataChannel) terminateStreamOnError(err error) {
+	c.cancelFn() // A context.CancelFunc is threadsafe and indempotent.
+	if c.forceRecreate != nil {
+		c.forceRecreate(c.id, err)
+		c.forceRecreate = nil
+	}
+}
+
 // OpenRead returns an io.ReadCloser of the data elements for the given instruction and ptransform.
 func (c *DataChannel) OpenRead(ctx context.Context, ptransformID string, instID instructionID) io.ReadCloser {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	cid := clientID{ptransformID: ptransformID, instID: instID}
 	if c.readErr != nil {
 		log.Errorf(ctx, "opening a reader %v on a closed channel", cid)
@@ -198,6 +221,10 @@ func (c *DataChannel) read(ctx context.Context) {
 			// This connection is bad, so we should close and delete all extant streams.
 			c.mu.Lock()
 			c.readErr = err // prevent not yet opened readers from hanging.
+			// Readers must be closed from this goroutine, since we can't
+			// close the r.buf channels twice, or send on a closed channel.
+			// Any other approach is racy, and may cause one of the above
+			// panics.
 			for _, r := range c.readers {
 				log.Errorf(ctx, "DataChannel.read %v reader %v closing due to error on channel", c.id, r.id)
 				if !r.completed {
@@ -207,6 +234,7 @@ func (c *DataChannel) read(ctx context.Context) {
 				}
 				delete(cache, r.id)
 			}
+			c.terminateStreamOnError(err)
 			c.mu.Unlock()
 
 			if err == io.EOF {
@@ -230,7 +258,9 @@ func (c *DataChannel) read(ctx context.Context) {
 			if local, ok := cache[id]; ok {
 				r = local
 			} else {
+				c.mu.Lock()
 				r = c.makeReader(ctx, id)
+				c.mu.Unlock()
 				cache[id] = r
 			}
 
@@ -280,10 +310,8 @@ func (r *errReader) Close() error {
 	return r.err
 }
 
+// makeReader creates a dataReader. It expects to be called while c.mu is held.
 func (c *DataChannel) makeReader(ctx context.Context, id clientID) *dataReader {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	if r, ok := c.readers[id]; ok {
 		return r
 	}
@@ -361,11 +389,33 @@ type dataWriter struct {
 	ch *DataChannel
 }
 
+// send requires the ch.mu lock to be held.
+func (w *dataWriter) send(msg *pb.Elements) error {
+	recordStreamSend(msg)
+	if err := w.ch.client.Send(msg); err != nil {
+		if err == io.EOF {
+			log.Warnf(context.TODO(), "dataWriter[%v;%v] EOF on send; fetching real error", w.id, w.ch.id)
+			err = nil
+			for err == nil {
+				// Per GRPC stream documentation, if there's an EOF, we must call Recv
+				// until a non-nil error is returned, to ensure resources are cleaned up.
+				// https://godoc.org/google.golang.org/grpc#ClientConn.NewStream
+				_, err = w.ch.client.Recv()
+			}
+		}
+		log.Warnf(context.TODO(), "dataWriter[%v;%v] error on send: %v", w.id, w.ch.id, err)
+		w.ch.terminateStreamOnError(err)
+		return err
+	}
+	return nil
+}
+
 func (w *dataWriter) Close() error {
 	// Don't acquire the locks as Flush will do so.
+	l := len(w.buf)
 	err := w.Flush()
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "dataWriter[%v;%v].Close: error flushing buffer of length %d", w.id, w.ch.id, l)
 	}
 
 	// Now acquire the locks since we're sending.
@@ -381,12 +431,10 @@ func (w *dataWriter) Close() error {
 			},
 		},
 	}
-
-	// TODO(wcn): if this send fails, we have a data channel that's lingering that
-	// the runner is still waiting on. Need some way to identify these and resolve them.
-	recordStreamSend(msg)
-	return w.ch.client.Send(msg)
+	return w.send(msg)
 }
+
+const largeBufferNotificationThreshold = 1024 * 1024 * 1024 // 1GB
 
 func (w *dataWriter) Flush() error {
 	w.ch.mu.Lock()
@@ -405,9 +453,11 @@ func (w *dataWriter) Flush() error {
 			},
 		},
 	}
+	if l := len(w.buf); l > largeBufferNotificationThreshold {
+		log.Infof(context.TODO(), "dataWriter[%v;%v].Flush flushed large buffer of length %d", w.id, w.ch.id, l)
+	}
 	w.buf = nil
-	recordStreamSend(msg)
-	return w.ch.client.Send(msg)
+	return w.send(msg)
 }
 
 func (w *dataWriter) Write(p []byte) (n int, err error) {

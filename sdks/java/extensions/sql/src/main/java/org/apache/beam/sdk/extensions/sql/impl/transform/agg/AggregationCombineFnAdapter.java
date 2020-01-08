@@ -99,10 +99,10 @@ public class AggregationCombineFnAdapter<T> {
     }
   }
 
-  private static class ConstantEmpty extends CombineFn<Row, Row, Row> {
-    private static final Schema EMPTY_SCHEMA = Schema.builder().build();
-    private static final Row EMPTY_ROW = Row.withSchema(EMPTY_SCHEMA).build();
+  public static final Schema EMPTY_SCHEMA = Schema.builder().build();
+  public static final Row EMPTY_ROW = Row.withSchema(EMPTY_SCHEMA).build();
 
+  private static class ConstantEmpty extends CombineFn<Row, Row, Row> {
     public static final ConstantEmpty INSTANCE = new ConstantEmpty();
 
     @Override

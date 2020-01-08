@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
-import org.apache.beam.sdk.transforms.DoFn;
-
 /** Definitions and convenience methods for reporting sizes for SplittableDoFns. */
 public final class Sizes {
   /**
@@ -29,8 +27,7 @@ public final class Sizes {
   public interface HasSize {
     /**
      * A representation for the amount of known work represented as a size. Size {@code double}
-     * representations should preferably represent a linear space and be comparable within the same
-     * partition.
+     * representations should preferably represent a linear space.
      *
      * <p>It is up to each restriction tracker to convert between their natural representation of
      * outstanding work and this representation. For example:
@@ -47,10 +44,6 @@ public final class Sizes {
      *       of encoded bytes for the keys and values is known for the key range, the number of
      *       remaining bytes can be used.
      * </ul>
-     *
-     * <p>{@link DoFn}s should provide a method annotated with {@link DoFn.GetPartition} to report a
-     * partition identifier if the element and restriction represent the size for a shared resource
-     * such as a message queue topic. See {@link DoFn.GetPartition} for additional details.
      */
     double getSize();
   }

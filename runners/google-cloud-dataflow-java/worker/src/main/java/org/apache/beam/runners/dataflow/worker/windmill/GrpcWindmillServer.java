@@ -117,8 +117,6 @@ public class GrpcWindmillServer extends WindmillServerStub {
   // high.
   private static final long DEFAULT_UNARY_RPC_DEADLINE_SECONDS = 300;
   private static final long DEFAULT_STREAM_RPC_DEADLINE_SECONDS = 300;
-  // Stream clean close seconds must be set lower than the stream deadline seconds.
-  private static final long DEFAULT_STREAM_CLEAN_CLOSE_SECONDS = 180;
 
   private static final Duration MIN_BACKOFF = Duration.millis(1);
   private static final Duration MAX_BACKOFF = Duration.standardSeconds(30);
@@ -137,13 +135,14 @@ public class GrpcWindmillServer extends WindmillServerStub {
       syncStubList = new ArrayList<>();
   private WindmillApplianceGrpc.WindmillApplianceBlockingStub syncApplianceStub = null;
   private long unaryDeadlineSeconds = DEFAULT_UNARY_RPC_DEADLINE_SECONDS;
+  private long streamDeadlineSeconds = DEFAULT_STREAM_RPC_DEADLINE_SECONDS;
   private ImmutableSet<HostAndPort> endpoints;
   private int logEveryNStreamFailures = 20;
   private Duration maxBackoff = MAX_BACKOFF;
   private final ThrottleTimer getWorkThrottleTimer = new ThrottleTimer();
   private final ThrottleTimer getDataThrottleTimer = new ThrottleTimer();
   private final ThrottleTimer commitWorkThrottleTimer = new ThrottleTimer();
-  Random rand = new Random();
+  private final Random rand = new Random();
 
   private final Set<AbstractWindmillStream<?, ?>> streamRegistry =
       Collections.newSetFromMap(new ConcurrentHashMap<AbstractWindmillStream<?, ?>, Boolean>());
@@ -213,7 +212,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
   private synchronized void initializeLocalHost(int port) throws IOException {
     this.logEveryNStreamFailures = 1;
     this.maxBackoff = Duration.millis(500);
-    this.unaryDeadlineSeconds = 10; // For local testing use a short deadline.
+    this.unaryDeadlineSeconds = 10; // For local testing use short deadlines.
     Channel channel = localhostChannel(port);
     if (streamingEngineEnabled()) {
       this.stubList.add(CloudWindmillServiceV1Alpha1Grpc.newStub(channel));
@@ -599,7 +598,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       this.clientFactory = clientFactory;
     }
 
-    /** Called on each response from the server */
+    /** Called on each response from the server. */
     protected abstract void onResponse(ResponseT response);
     /** Called when a new underlying stream to the server has been opened. */
     protected abstract void onNewStream();
@@ -607,7 +606,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
     protected abstract boolean hasPendingRequests();
     /**
      * Called when the stream is throttled due to resource exhausted errors. Will be called for each
-     * resource exhausted error not just the first. onResponse() must stop throttling on reciept of
+     * resource exhausted error not just the first. onResponse() must stop throttling on receipt of
      * the first good message.
      */
     protected abstract void startThrottleTimer();
@@ -746,15 +745,6 @@ public class GrpcWindmillServer extends WindmillServerStub {
     }
 
     @Override
-    public final void closeAfterDefaultTimeout() throws InterruptedException {
-      if (!finishLatch.await(DEFAULT_STREAM_CLEAN_CLOSE_SECONDS, TimeUnit.SECONDS)) {
-        // If the stream did not close due to error in the specified amount of time, half-close
-        // the stream cleanly.
-        close();
-      }
-    }
-
-    @Override
     public final Instant startTime() {
       return new Instant(startTimeMs.get());
     }
@@ -773,7 +763,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       super(
           responseObserver ->
               stub()
-                  .withDeadlineAfter(DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS)
+                  .withDeadlineAfter(streamDeadlineSeconds, TimeUnit.SECONDS)
                   .getWorkStream(responseObserver));
       this.request = request;
       this.receiver = receiver;
@@ -946,7 +936,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       super(
           responseObserver ->
               stub()
-                  .withDeadlineAfter(DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS)
+                  .withDeadlineAfter(streamDeadlineSeconds, TimeUnit.SECONDS)
                   .getDataStream(responseObserver));
       startStream();
     }
@@ -1161,7 +1151,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
 
     private class Batcher {
       long queuedBytes = 0;
-      Map<Long, PendingRequest> queue = new HashMap<>();
+      final Map<Long, PendingRequest> queue = new HashMap<>();
 
       boolean canAccept(PendingRequest request) {
         return queue.isEmpty()
@@ -1178,6 +1168,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       void flush() {
         flushInternal(queue);
         queuedBytes = 0;
+        queue.clear();
       }
     }
 
@@ -1187,7 +1178,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       super(
           responseObserver ->
               stub()
-                  .withDeadlineAfter(DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS)
+                  .withDeadlineAfter(streamDeadlineSeconds, TimeUnit.SECONDS)
                   .commitWorkStream(responseObserver));
       startStream();
     }
@@ -1219,15 +1210,26 @@ public class GrpcWindmillServer extends WindmillServerStub {
     protected void onResponse(StreamingCommitResponse response) {
       commitWorkThrottleTimer.stop();
 
+      RuntimeException finalException = null;
       for (int i = 0; i < response.getRequestIdCount(); ++i) {
         long requestId = response.getRequestId(i);
         PendingRequest done = pending.remove(requestId);
         if (done == null) {
           LOG.error("Got unknown commit request ID: {}", requestId);
         } else {
-          done.onDone.accept(
-              (i < response.getStatusCount()) ? response.getStatus(i) : CommitStatus.OK);
+          try {
+            done.onDone.accept(
+                (i < response.getStatusCount()) ? response.getStatus(i) : CommitStatus.OK);
+          } catch (RuntimeException e) {
+            // Catch possible exceptions to ensure that an exception for one commit does not prevent
+            // other commits from being processed.
+            LOG.warn("Exception while processing commit response {} ", e);
+            finalException = e;
+          }
         }
+      }
+      if (finalException != null) {
+        throw finalException;
       }
     }
 
@@ -1252,7 +1254,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       batcher.flush();
     }
 
-    private final void flushInternal(Map<Long, PendingRequest> requests) {
+    private void flushInternal(Map<Long, PendingRequest> requests) {
       if (requests.isEmpty()) {
         return;
       }
@@ -1266,7 +1268,6 @@ public class GrpcWindmillServer extends WindmillServerStub {
       } else {
         issueBatchedRequest(requests);
       }
-      requests.clear();
     }
 
     private void issueSingleRequest(final long id, PendingRequest pendingRequest) {
@@ -1278,13 +1279,13 @@ public class GrpcWindmillServer extends WindmillServerStub {
           .setShardingKey(pendingRequest.request.getShardingKey())
           .setSerializedWorkItemCommit(pendingRequest.request.toByteString());
       StreamingCommitWorkRequest chunk = requestBuilder.build();
-      try {
-        synchronized (this) {
-          pending.put(id, pendingRequest);
+      synchronized (this) {
+        pending.put(id, pendingRequest);
+        try {
           send(chunk);
+        } catch (IllegalStateException e) {
+          // Stream was broken, request will be retried when stream is reopened.
         }
-      } catch (IllegalStateException e) {
-        // Stream was broken, request will be retried when stream is reopened.
       }
     }
 
@@ -1303,13 +1304,13 @@ public class GrpcWindmillServer extends WindmillServerStub {
         chunkBuilder.setSerializedWorkItemCommit(request.request.toByteString());
       }
       StreamingCommitWorkRequest request = requestBuilder.build();
-      try {
-        synchronized (this) {
-          pending.putAll(requests);
+      synchronized (this) {
+        pending.putAll(requests);
+        try {
           send(request);
+        } catch (IllegalStateException e) {
+          // Stream was broken, request will be retried when stream is reopened.
         }
-      } catch (IllegalStateException e) {
-        // Stream was broken, request will be retried when stream is reopened.
       }
     }
 
@@ -1492,7 +1493,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       }
     }
 
-    /** Returns if the specified type is currently being throttled */
+    /** Returns if the specified type is currently being throttled. */
     public synchronized boolean throttled() {
       return startTime != -1;
     }

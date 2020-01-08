@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static junit.framework.TestCase.assertTrue;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
@@ -93,6 +94,7 @@ import org.apache.beam.sdk.testing.UsesSideInputsWithDifferentCoders;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.UsesStrictTimerOrdering;
 import org.apache.beam.sdk.testing.UsesTestStream;
+import org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp;
 import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
@@ -3726,6 +3728,83 @@ public class ParDoTest implements Serializable {
       Instant now = new Instant(1500000000000L);
       Instant end = now.plus(100);
       pipeline.apply(TwoTimerTest.of(now, end, Create.of(KV.of(null, null))));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesTimersInParDo.class,
+      UsesTestStreamWithOutputTimestamp.class
+    })
+    public void testOutputTimestamp() {
+      final String timerId = "bar";
+      DoFn<KV<String, Integer>, KV<String, Integer>> fn1 =
+          new DoFn<KV<String, Integer>, KV<String, Integer>>() {
+
+            @TimerId(timerId)
+            private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(
+                @TimerId(timerId) Timer timer, OutputReceiver<KV<String, Integer>> o) {
+              timer.withOutputTimestamp(new Instant(5)).set(new Instant(10));
+              // Output a message. This will cause the next DoFn to set a timer as well.
+              o.output(KV.of("foo", 100));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(OnTimerContext c, BoundedWindow w) {}
+          };
+
+      DoFn<KV<String, Integer>, Integer> fn2 =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @StateId("timerFired")
+            final StateSpec<ValueState<Boolean>> timerFiredState = StateSpecs.value();
+
+            @ProcessElement
+            public void processElement(
+                @TimerId(timerId) Timer timer,
+                @StateId("timerFired") ValueState<Boolean> timerFiredState) {
+              Boolean timerFired = timerFiredState.read();
+              assertTrue(timerFired == null || !timerFired);
+              // Set a timer to 8. This is earlier than the previous DoFn's timer, but after the
+              // previous
+              // DoFn timer's watermark hold. This timer should not fire until the previous timer
+              // fires and removes
+              // the watermark hold.
+              timer.set(new Instant(8));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(
+                @StateId("timerFired") ValueState<Boolean> timerFiredState,
+                OutputReceiver<Integer> o) {
+              timerFiredState.write(true);
+              o.output(100);
+            }
+          };
+
+      TestStream<KV<String, Integer>> stream =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+              .advanceWatermarkTo(new Instant(0))
+              // Cause fn2 to set a timer.
+              .addElements(KV.of("key", 1))
+              // Normally this would case fn2's timer to expire, but it shouldn't here because of
+              // the output timestamp.
+              .advanceWatermarkTo(new Instant(9))
+              // If the timer fired, then this would case fn2 to fail with an assertion error.
+              .addElements(KV.of("key", 1))
+              .advanceWatermarkToInfinity();
+      PCollection<Integer> output =
+          pipeline.apply(stream).apply("first", ParDo.of(fn1)).apply("second", ParDo.of(fn2));
+
+      PAssert.that(output).containsInAnyOrder(100); // result output
       pipeline.run();
     }
 

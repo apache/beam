@@ -25,6 +25,7 @@ from __future__ import print_function
 import contextlib
 import copy
 import threading
+from typing import Dict
 
 from apache_beam import pvalue
 from apache_beam.coders import registry
@@ -225,7 +226,6 @@ class ExternalTransform(ptransform.PTransform):
   _namespace_counter = 0
   _namespace = threading.local()
 
-  _EXPANDED_TRANSFORM_UNIQUE_NAME = 'root'
   _IMPULSE_PREFIX = 'impulse'
 
   def __init__(self, urn, payload, expansion_service=None):
@@ -247,6 +247,8 @@ class ExternalTransform(ptransform.PTransform):
         else payload)
     self._expansion_service = expansion_service
     self._namespace = self._fresh_namespace()
+    self._inputs = {}  # type: Dict[str, pvalue.PCollection]
+    self._output = {}  # type: Dict[str, pvalue.PCollection]
 
   def __post_init__(self, expansion_service):
     """
@@ -276,10 +278,12 @@ class ExternalTransform(ptransform.PTransform):
 
   @classmethod
   def _fresh_namespace(cls):
+    # type: () -> str
     ExternalTransform._namespace_counter += 1
     return '%s_%d' % (cls.get_local_namespace(), cls._namespace_counter)
 
   def expand(self, pvalueish):
+    # type: (pvalue.PCollection) -> pvalue.PCollection
     if isinstance(pvalueish, pvalue.PBegin):
       self._inputs = {}
     elif isinstance(pvalueish, (list, tuple)):
@@ -294,7 +298,7 @@ class ExternalTransform(ptransform.PTransform):
         else pvalueish.pipeline)
     context = pipeline_context.PipelineContext()
     transform_proto = beam_runner_api_pb2.PTransform(
-        unique_name=self._EXPANDED_TRANSFORM_UNIQUE_NAME,
+        unique_name=pipeline._current_transform().full_label,
         spec=beam_runner_api_pb2.FunctionSpec(
             urn=self._urn, payload=self._payload))
     for tag, pcoll in self._inputs.items():
@@ -311,7 +315,7 @@ class ExternalTransform(ptransform.PTransform):
     components = context.to_runner_api()
     request = beam_expansion_api_pb2.ExpansionRequest(
         components=components,
-        namespace=self._namespace,
+        namespace=self._namespace,  # type: ignore  # mypy thinks self._namespace is threading.local
         transform=transform_proto)
 
     if isinstance(self._expansion_service, str):
@@ -398,14 +402,14 @@ class ExternalTransform(ptransform.PTransform):
         continue
       assert id.startswith(self._namespace), (id, self._namespace)
       new_proto = beam_runner_api_pb2.PTransform(
-          unique_name=full_label + proto.unique_name[
-              len(self._EXPANDED_TRANSFORM_UNIQUE_NAME):],
+          unique_name=proto.unique_name,
           spec=proto.spec,
           subtransforms=proto.subtransforms,
           inputs={tag: pcoll_renames.get(pcoll, pcoll)
                   for tag, pcoll in proto.inputs.items()},
           outputs={tag: pcoll_renames.get(pcoll, pcoll)
-                   for tag, pcoll in proto.outputs.items()})
+                   for tag, pcoll in proto.outputs.items()},
+          environment_id=proto.environment_id)
       context.transforms.put_proto(id, new_proto)
 
     return beam_runner_api_pb2.PTransform(
@@ -415,7 +419,8 @@ class ExternalTransform(ptransform.PTransform):
         inputs=self._expanded_transform.inputs,
         outputs={
             tag: pcoll_renames.get(pcoll, pcoll)
-            for tag, pcoll in self._expanded_transform.outputs.items()})
+            for tag, pcoll in self._expanded_transform.outputs.items()},
+        environment_id=self._expanded_transform.environment_id)
 
 
 class JavaJarExpansionService(object):

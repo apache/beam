@@ -43,6 +43,7 @@ dependencies {
 
   // for embedded cassandra
   testCompile group: 'info.archinnov', name: 'achilles-junit', version: "$achilles_version"
+  testCompile library.java.commons_io
   testCompile library.java.jackson_jaxb_annotations
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

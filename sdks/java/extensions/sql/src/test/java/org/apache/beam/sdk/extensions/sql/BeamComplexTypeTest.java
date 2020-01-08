@@ -380,6 +380,16 @@ public class BeamComplexTypeTest {
     }
 
     @Override
+    public FieldType getArgumentType() {
+      return FieldType.STRING;
+    }
+
+    @Override
+    public String getArgument() {
+      return "";
+    }
+
+    @Override
     public Schema.FieldType getBaseType() {
       return Schema.FieldType.DATETIME;
     }
@@ -399,6 +409,16 @@ public class BeamComplexTypeTest {
     @Override
     public String getIdentifier() {
       return "SqlDateType";
+    }
+
+    @Override
+    public FieldType getArgumentType() {
+      return FieldType.STRING;
+    }
+
+    @Override
+    public String getArgument() {
+      return "";
     }
 
     @Override
