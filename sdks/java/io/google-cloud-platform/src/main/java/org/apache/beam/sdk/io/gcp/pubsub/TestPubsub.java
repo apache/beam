@@ -22,12 +22,14 @@ import static org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.projectPathFromPath
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
@@ -205,11 +207,16 @@ public class TestPubsub implements TestRule {
     if (!messages.isEmpty()) {
       pubsub.acknowledge(
           subscriptionPath,
-          messages.stream().map(msg -> msg.ackId).collect(ImmutableList.toImmutableList()));
+          messages.stream().map(IncomingMessage::ackId).collect(ImmutableList.toImmutableList()));
     }
 
     return messages.stream()
-        .map(msg -> new PubsubMessage(msg.elementBytes, msg.attributes, msg.recordId))
+        .map(
+            msg ->
+                new PubsubMessage(
+                    msg.message().getData().toByteArray(),
+                    msg.message().getAttributesMap(),
+                    msg.recordId()))
         .collect(ImmutableList.toImmutableList());
   }
 
@@ -292,7 +299,12 @@ public class TestPubsub implements TestRule {
   }
 
   private PubsubClient.OutgoingMessage toOutgoingMessage(PubsubMessage message) {
-    return new PubsubClient.OutgoingMessage(
-        message.getPayload(), message.getAttributeMap(), DateTime.now().getMillis(), null);
+    return PubsubClient.OutgoingMessage.of(
+        com.google.pubsub.v1.PubsubMessage.newBuilder()
+            .setData(ByteString.copyFrom(message.getPayload()))
+            .putAllAttributes(message.getAttributeMap())
+            .build(),
+        DateTime.now().getMillis(),
+        null);
   }
 }
