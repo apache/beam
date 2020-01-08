@@ -184,7 +184,7 @@ class WindmillTimerInternals implements TimerInternals {
               .setStateFamily(stateFamily)
               .setReset(true)
               .addTimestamps(
-                  WindmillTimeUtils.harnessToWindmillTimestamp(timerData.getTimestamp()));
+                  WindmillTimeUtils.harnessToWindmillTimestamp(timerData.getOutputTimestamp()));
         }
       } else {
         // Deleting a timer. If it is a user timer, clear the hold
