@@ -159,7 +159,7 @@ class InputStream(object):
     # type: () -> int
     self.pos += 1
     # mypy tests against python 3.x, where this is an error:
-    return ord(self.data[self.pos - 1])  # type: ignore[arg-type]
+    return ord(self.data[self.pos - 1])  # TODO type: ignore[arg-type]
 
   def read_byte_py3(self):
     # type: () -> int

@@ -183,7 +183,7 @@ class PeriodicThread(threading.Thread):
     self._finished.set()
 
 
-class DataChannel(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
+class DataChannel(with_metaclass(abc.ABCMeta, object)):  # TODO type: ignore[misc]
   """Represents a channel for reading and writing data over the data plane.
 
   Read from this channel with the input_elements method::
@@ -478,7 +478,7 @@ class BeamFnDataServicer(beam_fn_api_pb2_grpc.BeamFnDataServicer):
       yield elements
 
 
-class DataChannelFactory(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
+class DataChannelFactory(with_metaclass(abc.ABCMeta, object)):  # TODO type: ignore[misc]
   """An abstract factory for creating ``DataChannel``."""
 
   @abc.abstractmethod

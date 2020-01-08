@@ -2114,7 +2114,7 @@ class GroupByKey(PTransform):
     def infer_output_type(self, input_type):
       key_type, value_type = trivial_inference.key_value_types(input_type)
       return typehints.Iterable[
-          typehints.KV[key_type, typehints.WindowedValue[value_type]]]  # type: ignore[misc]
+          typehints.KV[key_type, typehints.WindowedValue[value_type]]]  # TODO type: ignore[misc]
 
   def expand(self, pcoll):
     # This code path is only used in the local direct runner.  For Dataflow
@@ -2131,11 +2131,11 @@ class GroupByKey(PTransform):
           'GroupByKey operation "%s"' % self.label)
 
       reify_output_type = typehints.KV[
-          key_type, typehints.WindowedValue[value_type]]  # type: ignore[misc]
+          key_type, typehints.WindowedValue[value_type]]  # TODO type: ignore[misc]
       gbk_input_type = (
           typehints.KV[
               key_type,
-              typehints.Iterable[typehints.WindowedValue[value_type]]])  # type: ignore[misc]
+              typehints.Iterable[typehints.WindowedValue[value_type]]])  # TODO type: ignore[misc]
       gbk_output_type = typehints.KV[
           key_type, typehints.Iterable[value_type]]
 

@@ -825,5 +825,5 @@ class _Future(object):
     if not hasattr(cls, 'DONE'):
       done_future = _Future()
       done_future.set(None)
-      cls.DONE = done_future  # type: ignore[attr-defined]
-    return cls.DONE  # type: ignore[attr-defined]
+      cls.DONE = done_future  # TODO type: ignore[attr-defined]
+    return cls.DONE  # TODO type: ignore[attr-defined]

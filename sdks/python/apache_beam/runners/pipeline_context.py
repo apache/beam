@@ -141,6 +141,7 @@ class PipelineContext(object):
       'windowing_strategies': core.Windowing,
       'environments': environments.Environment,
   }
+  _HAS_DYNAMIC_ATTRIBUTES = True
 
   def __init__(self,
                proto=None,  # type: Optional[Union[beam_runner_api_pb2.Components, beam_fn_api_pb2.ProcessBundleDescriptor]]

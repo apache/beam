@@ -166,7 +166,7 @@ def run_benchmarks(benchmark_suite, verbose=True):
       name = str(benchmark_config)
 
       if isinstance(benchmark_config, LinearRegressionBenchmarkConfig):
-        from scipy import stats
+        from scipy import stats  # pytype: disable=import-error
         print()
         # pylint: disable=unused-variable
         gradient, intercept, r_value, p_value, std_err = stats.linregress(

@@ -94,11 +94,8 @@ class DisplayData(object):
   """ Static display data associated with a pipeline component.
   """
 
-  def __init__(self,
-               namespace,  # type: str
-               display_data_dict  # type: dict
-              ):
-    # type: (...) -> None
+  def __init__(self, namespace, display_data_dict):
+    # type: (str, dict) -> None
     self.namespace = namespace
     self.items = []  # type: List[DisplayDataItem]
     self._populate_items(display_data_dict)

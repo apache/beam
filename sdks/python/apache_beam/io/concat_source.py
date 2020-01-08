@@ -223,7 +223,7 @@ class ConcatRangeTracker(iobase.RangeTracker):
       return (source_ix, None)
     else:
       return (source_ix,
-              self.sub_range_tracker(source_ix).position_at_fraction(
+              self.sub_range_tracker(source_ix).position_at_fraction(  # pytype: disable=attribute-error
                   source_frac))
 
   def fraction_consumed(self):

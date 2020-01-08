@@ -138,14 +138,9 @@ class ReadFromPubSub(PTransform):
   """A ``PTransform`` for reading from Cloud Pub/Sub."""
   # Implementation note: This ``PTransform`` is overridden by Directrunner.
 
-  def __init__(self,
-               topic=None,  # type: Optional[str]
-               subscription=None,  # type: Optional[str]
-               id_label=None,  # type: Optional[str]
-               with_attributes=False,  # type: bool
-               timestamp_attribute=None  # type: Optional[str]
-              ):
-    # type: (...) -> None
+  def __init__(self, topic=None, subscription=None, id_label=None,
+               with_attributes=False, timestamp_attribute=None):
+    # type: (Optional[str], Optional[str], Optional[str], bool, Optional[str]) -> None
     """Initializes ``ReadFromPubSub``.
 
     Args:
@@ -252,13 +247,9 @@ class WriteToPubSub(PTransform):
   """A ``PTransform`` for writing messages to Cloud Pub/Sub."""
   # Implementation note: This ``PTransform`` is overridden by Directrunner.
 
-  def __init__(self,
-               topic,  # type: str
-               with_attributes=False,  # type: bool
-               id_label=None,  # type: Optional[str]
-               timestamp_attribute=None  # type: Optional[str]
-              ):
-    # type: (...) -> None
+  def __init__(self, topic, with_attributes=False, id_label=None,
+               timestamp_attribute=None):
+    # type: (str, bool, Optional[str], Optional[str]) -> None
     """Initializes ``WriteToPubSub``.
 
     Args:
@@ -343,13 +334,9 @@ class _PubSubSource(dataflow_io.NativeSource):
       fetches ``PubsubMessage`` protobufs.
   """
 
-  def __init__(self,
-               topic=None,  # type: Optional[str]
-               subscription=None,  # type: Optional[str]
-               id_label=None,  # type: Optional[str]
-               with_attributes=False,  # type: bool
-               timestamp_attribute=None  # type: Optional[str]
-              ):
+  def __init__(self, topic=None, subscription=None, id_label=None,
+               with_attributes=False, timestamp_attribute=None):
+    # (Optional[str], Optional[str], Optional[str], bool, Optional[str]) -> None
     self.coder = coders.BytesCoder()
     self.full_topic = topic
     self.full_subscription = subscription
@@ -406,12 +393,8 @@ class _PubSubSink(dataflow_io.NativeSink):
   This ``NativeSource`` is overridden by a native Pubsub implementation.
   """
 
-  def __init__(self,
-               topic,  # type: str
-               id_label,  # type: Optional[str]
-               with_attributes,  # type: bool
-               timestamp_attribute  # type: Optional[str]
-              ):
+  def __init__(self, topic, id_label, with_attributes, timestamp_attribute):
+    # type: (str, Optional[str], bool, Optional[str]) -> None
     self.coder = coders.BytesCoder()
     self.full_topic = topic
     self.id_label = id_label

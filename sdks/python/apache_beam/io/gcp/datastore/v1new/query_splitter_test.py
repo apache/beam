@@ -176,6 +176,14 @@ class QuerySplitterTest(QuerySplitterTestBase):
     self.assertLess(query_splitter.IdOrName(1), query_splitter.IdOrName(2))
     self.assertLess(query_splitter.IdOrName('1'), query_splitter.IdOrName('2'))
 
+  def test_id_or_name_eq_hash(self):
+    i1 = query_splitter.IdOrName(1)
+    i2 = query_splitter.IdOrName(1)
+    i3 = query_splitter.IdOrName('1')
+    self.assertTrue(i1 == i2)
+    self.assertTrue(i1 != i3)
+    _ = {i1, i2, i3}  # For __hash__ coverage.
+
   def test_client_key_sort_key(self):
     k = key.Key('kind1', 1, project=self._PROJECT, namespace=self._NAMESPACE)
     k2 = key.Key('kind2', 'a', parent=k)

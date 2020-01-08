@@ -65,7 +65,7 @@ class DataflowDistributionCounter(object):
 
   def __init__(self):
     global INT64_MAX  # pylint: disable=global-variable-not-assigned
-    self.min = INT64_MAX
+    self.min = INT64_MAX  # pytype: disable=name-error
     self.max = 0
     self.count = 0
     self.sum = 0

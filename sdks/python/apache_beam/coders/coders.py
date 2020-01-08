@@ -41,7 +41,7 @@ import google.protobuf.wrappers_pb2
 from future.moves import pickle
 from past.builtins import unicode
 
-from apache_beam.coders import coder_impl
+from apache_beam.coders import coder_impl  # pytype: disable=pyi-error # TODO needs investigation
 from apache_beam.coders.avro_record import AvroRecord
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
@@ -56,9 +56,9 @@ if TYPE_CHECKING:
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
-  from .stream import get_varint_size
+  from .stream import get_varint_size  # pytype: disable=pyi-error # TODO needs investigation
 except ImportError:
-  from .slow_stream import get_varint_size
+  from .slow_stream import get_varint_size  # pytype: disable=pyi-error # TODO needs investigation
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
@@ -285,21 +285,14 @@ class Coder(object):
 
   @classmethod
   @overload
-  def register_urn(cls,
-                   urn,  # type: str
-                   parameter_type,  # type: Optional[Type[T]]
-                  ):
-    # type: (...) -> Callable[[Callable[[T, List[Coder], PipelineContext], Any]], Callable[[T, List[Coder], PipelineContext], Any]]
+  def register_urn(cls, urn, parameter_type):
+    # type: (str, Optional[Type[T]]) -> Callable[[Callable[[T, List[Coder], PipelineContext], Any]], Callable[[T, List[Coder], PipelineContext], Any]]
     pass
 
   @classmethod
   @overload
-  def register_urn(cls,
-                   urn,  # type: str
-                   parameter_type,  # type: Optional[Type[T]]
-                   fn  # type: Callable[[T, List[Coder], PipelineContext], Any]
-                  ):
-    # type: (...) -> None
+  def register_urn(cls, urn, parameter_type, fn):
+    # type: (str, Optional[Type[T]], Callable[[T, List[Coder], PipelineContext], Any]) -> None
     pass
 
   @classmethod
@@ -323,7 +316,7 @@ class Coder(object):
       register(fn)
     else:
       # Used as a decorator.
-      return register
+      return register  # pytype: disable=bad-return-type
 
   def to_runner_api(self, context):
     # type: (PipelineContext) -> beam_runner_api_pb2.Coder
@@ -1330,12 +1323,9 @@ Coder.register_structured_urn(
 
 
 class StateBackedIterableCoder(FastCoder):
-  def __init__(
-      self,
-      element_coder,  # type: Coder
-      read_state=None,  # type: Optional[coder_impl.IterableStateReader]
-      write_state=None,  # type: Optional[coder_impl.IterableStateWriter]
-      write_state_threshold=1):
+  def __init__(self, element_coder, read_state=None, write_state=None,
+               write_state_threshold=1):
+    # type: (Coder, Optional[coder_impl.IterableStateReader], Optional[coder_impl.IterableStateWriter], int) -> None
     self._element_coder = element_coder
     self._read_state = read_state
     self._write_state = write_state

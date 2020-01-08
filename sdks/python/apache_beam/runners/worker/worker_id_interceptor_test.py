@@ -50,7 +50,7 @@ class WorkerIdInterceptorTest(unittest.TestCase):
                                                   _ClientCallDetails(
                                                       None, None, None, None),
                                                   [])
-    self.assertEqual(headers_holder[worker_id_key], 'my_worker_id',
+    self.assertEqual(headers_holder.get(worker_id_key), 'my_worker_id',
                      'worker_id_key not set')
 
   def test_failure_when_worker_id_exists(self):

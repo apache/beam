@@ -884,7 +884,7 @@ class Latest(object):
     def expand(self, pcoll):
       return (pcoll
               | core.ParDo(self.add_timestamp)
-              .with_output_types(Tuple[T, TimestampType])  # type: ignore[misc]
+              .with_output_types(Tuple[T, TimestampType])  # TODO type: ignore[misc]
               | core.CombineGlobally(LatestCombineFn()))
 
   @with_input_types(Tuple[K, V])
@@ -901,11 +901,11 @@ class Latest(object):
     def expand(self, pcoll):
       return (pcoll
               | core.ParDo(self.add_timestamp)
-              .with_output_types(Tuple[K, Tuple[T, TimestampType]])  # type: ignore[misc]
+              .with_output_types(Tuple[K, Tuple[T, TimestampType]])  # TODO type: ignore[misc]
               | core.CombinePerKey(LatestCombineFn()))
 
 
-@with_input_types(Tuple[T, TimestampType])  # type: ignore[misc]
+@with_input_types(Tuple[T, TimestampType])  # TODO type: ignore[misc]
 @with_output_types(T)
 class LatestCombineFn(core.CombineFn):
   """CombineFn to get the element with the latest timestamp

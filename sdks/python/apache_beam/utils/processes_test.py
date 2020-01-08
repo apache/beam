@@ -105,6 +105,8 @@ class Exec(unittest.TestCase):
 
 
 class TestErrorHandlingCheckCall(unittest.TestCase):
+  mock_get = None  # For pytype.
+
   @classmethod
   def setUpClass(cls):
     cls.mock_get_patcher = mock.patch(\
@@ -152,6 +154,8 @@ class TestErrorHandlingCheckCall(unittest.TestCase):
 
 
 class TestErrorHandlingCheckOutput(unittest.TestCase):
+  mock_get = None  # For pytype.
+
   @classmethod
   def setUpClass(cls):
     cls.mock_get_patcher = mock.patch(\
@@ -188,6 +192,8 @@ class TestErrorHandlingCheckOutput(unittest.TestCase):
 
 
 class TestErrorHandlingCall(unittest.TestCase):
+  mock_get = None  # For pytype.
+
   @classmethod
   def setUpClass(cls):
     cls.mock_get_patcher = mock.patch(\

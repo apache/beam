@@ -447,7 +447,7 @@ class BeamIOError(IOError):
     self.exception_details = exception_details
 
 
-class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
+class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # TODO type: ignore[misc]
   """A class that defines the functions that can be performed on a filesystem.
 
   All methods are abstract and they are for file system providers to

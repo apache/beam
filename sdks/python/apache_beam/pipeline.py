@@ -200,7 +200,7 @@ class Pipeline(object):
     # then the transform will have to be cloned with a new label.
     self.applied_labels = set()  # type: Set[str]
 
-  @property  # type: ignore[misc]  # decorated property not supported
+  @property  # TODO type: ignore[misc]  # decorated property not supported
   @deprecated(since='First stable release',
               extra_message='References to <pipeline>.options'
               ' will not be supported')
@@ -1054,7 +1054,7 @@ class AppliedPTransform(object):
     return result
 
 
-class PTransformOverride(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
+class PTransformOverride(with_metaclass(abc.ABCMeta, object)):  # TODO type: ignore[misc]
   """For internal use only; no backwards-compatibility guarantees.
 
   Gives a matcher and replacements for matching PTransforms.

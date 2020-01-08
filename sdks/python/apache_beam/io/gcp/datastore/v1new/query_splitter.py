@@ -169,7 +169,7 @@ class IdOrName(object):
     return self.id == other.id and self.name == other.name
 
   def __hash__(self):
-    return hash((self.id, self.other))
+    return hash((self.id, self.name))
 
 
 def client_key_sort_key(client_key):

@@ -189,14 +189,16 @@ class Timestamp(object):
     return self.micros // 1000000
 
   def __eq__(self, other):
-    # type: (Union[int, float, Timestamp, Duration]) -> bool
+    # type: (Union[int, float, Timestamp, Duration]) -> Union[bool, type(NotImplemented)]
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Duration):
       try:
         other = Timestamp.of(other)
       except TypeError:
         return NotImplemented
-    return self.micros == other.micros
+    # The pytype attribute-error here may have to do with the
+    # @functools.total_ordering decorator.
+    return self.micros == other.micros  # pytype: disable=attribute-error
 
   def __ne__(self, other):
     # type: (Any) -> bool
@@ -208,7 +210,7 @@ class Timestamp(object):
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Duration):
       other = Timestamp.of(other)
-    return self.micros < other.micros
+    return self.micros < other.micros  # pytype: disable=attribute-error
 
   def __hash__(self):
     return hash(self.micros)
@@ -234,7 +236,7 @@ class Timestamp(object):
 
   def __sub__(self, other):
     if isinstance(other, Timestamp):
-      return Duration(micros=self.micros - other.micros)
+      return Duration(micros=self.micros - other.micros)  # pytype: disable=attribute-error
     other = Duration.of(other)
     return Timestamp(micros=self.micros - other.micros)
 
@@ -334,7 +336,7 @@ class Duration(object):
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Timestamp):
       other = Duration.of(other)
-    return self.micros == other.micros
+    return self.micros == other.micros  # pytype: disable=attribute-error
 
   def __ne__(self, other):
     # type: (Any) -> bool
@@ -346,7 +348,7 @@ class Duration(object):
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Timestamp):
       other = Duration.of(other)
-    return self.micros < other.micros
+    return self.micros < other.micros  # pytype: disable=attribute-error
 
   def __hash__(self):
     return hash(self.micros)

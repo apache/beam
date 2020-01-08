@@ -114,7 +114,9 @@ class FileSystems(object):
 
   @staticmethod
   def join(basepath, *paths):
+    # pytype: disable=invalid-function-type-comment # TODO open bug?
     # type: (str, *str) -> str
+    # pytype: enable=invalid-function-type-comment
     """Join two or more pathname components for the filesystem
 
     Args:

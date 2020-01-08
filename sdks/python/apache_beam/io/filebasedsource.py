@@ -384,18 +384,14 @@ class ReadAllFiles(PTransform):
   read a PCollection of files.
   """
 
-  def __init__(self,
-               splittable,  # type: bool
-               compression_type,
-               desired_bundle_size,  # type: int
-               min_bundle_size,  # type: int
-               source_from_file,  # type: Callable[[str], iobase.BoundedSource]
-              ):
+  def __init__(self, splittable, compression_type, desired_bundle_size,
+               min_bundle_size, source_from_file):
+    # type: (bool, CompressionTypes, int, int, Callable[[str], iobase.BoundedSource]) -> None
     """
     Args:
       splittable: If False, files won't be split into sub-ranges. If True,
                   files may or may not be split into data ranges.
-      compression_type: A ``CompressionType`` object that specifies the
+      compression_type: A ``CompressionTypes`` object that specifies the
                   compression type of the files that will be processed. If
                   ``CompressionType.AUTO``, system will try to automatically
                   determine the compression type based on the extension of

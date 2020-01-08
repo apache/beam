@@ -78,7 +78,7 @@ class AccumulationMode(object):
   # RETRACTING = 3
 
 
-class _StateTag(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
+class _StateTag(with_metaclass(ABCMeta, object)):  # TODO type: ignore[misc]
   """An identifier used to store and retrieve typed, combinable state.
 
   The given tag must be unique for this step."""
@@ -164,7 +164,7 @@ class _WatermarkHoldStateTag(_StateTag):
 
 # pylint: disable=unused-argument
 # TODO(robertwb): Provisional API, Java likely to change as well.
-class TriggerFn(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
+class TriggerFn(with_metaclass(ABCMeta, object)):  # TODO type: ignore[misc]
   """A TriggerFn determines when window (panes) are emitted.
 
   See https://beam.apache.org/documentation/programming-guide/#triggers
@@ -584,7 +584,7 @@ class Repeatedly(TriggerFn):
     return self.underlying.has_ontime_pane()
 
 
-class _ParallelTriggerFn(with_metaclass(ABCMeta, TriggerFn)):  # type: ignore[misc]
+class _ParallelTriggerFn(with_metaclass(ABCMeta, TriggerFn)):  # TODO type: ignore[misc]
 
   def __init__(self, *triggers):
     self.triggers = triggers
@@ -824,7 +824,7 @@ class NestedContext(object):
 
 
 # pylint: disable=unused-argument
-class SimpleState(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
+class SimpleState(with_metaclass(ABCMeta, object)):  # TODO type: ignore[misc]
   """Basic state storage interface used for triggering.
 
   Only timers must hold the watermark (by their timestamp).
@@ -999,7 +999,7 @@ def create_trigger_driver(windowing,
   return driver
 
 
-class TriggerDriver(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
+class TriggerDriver(with_metaclass(ABCMeta, object)):  # TODO type: ignore[misc]
   """Breaks a series of bundle and timer firings into window (pane)s."""
 
   @abstractmethod

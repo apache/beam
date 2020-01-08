@@ -33,7 +33,7 @@ from apache_beam.portability.api import metrics_pb2
 from apache_beam.utils import proto_utils
 
 try:
-  import cython
+  import cython  # pytype: disable=import-error
 except ImportError:
   class fake_cython:
     compiled = False

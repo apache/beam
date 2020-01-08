@@ -74,7 +74,7 @@ from typing import Type
 
 from past.builtins import unicode
 
-from apache_beam.coders import coders
+from apache_beam.coders import coders  # pytype: disable=pyi-error # TODO needs investigation
 from apache_beam.typehints import typehints
 
 __all__ = ['registry']

@@ -69,7 +69,7 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         ('arbitrary-length tuple', typing.Tuple[int, ...],
          typehints.Tuple[int, ...])
         if sys.version_info >= (3, 5, 4) else None,
-        ('flat alias', _TestFlatAlias, typehints.Tuple[bytes, float]),  # type: ignore[misc]
+        ('flat alias', _TestFlatAlias, typehints.Tuple[bytes, float]),  # TODO type: ignore[misc]
         ('nested alias', _TestNestedAlias,
          typehints.List[typehints.Tuple[bytes, float]]),
         ('complex dict',

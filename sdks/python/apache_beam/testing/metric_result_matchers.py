@@ -92,7 +92,7 @@ class MetricResultMatcher(BaseMatcher):
       return False
     for (k_matcher, v_matcher) in self.label_matchers.items():
       matched_keys = [key for key in metric_result.key.labels.keys() if
-                      k_matcher.matches(key)]
+                      k_matcher.matches(key)]  # pytype: disable=attribute-error
       matched_key = matched_keys[0] if matched_keys else None
       if not matched_key:
         return False

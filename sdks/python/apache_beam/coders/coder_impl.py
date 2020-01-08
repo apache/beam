@@ -65,7 +65,7 @@ if TYPE_CHECKING:
   from apache_beam.transforms.window import IntervalWindow
 
 try:
-  from . import stream  # pylint: disable=unused-import
+  from . import stream  # pylint: disable=unused-import # pytype: disable=import-error
 except ImportError:
   SLOW_STREAM = True
 else:
@@ -579,7 +579,7 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
       if IntervalWindow is None:
         from apache_beam.transforms.window import IntervalWindow
     # instantiating with None is not part of the public interface
-    typed_value = IntervalWindow(None, None)  # type: ignore[arg-type]
+    typed_value = IntervalWindow(None, None)  # TODO type: ignore[arg-type]
     typed_value._end_micros = (
         1000 * self._to_normal_time(in_.read_bigendian_uint64()))
     typed_value._start_micros = (
@@ -859,12 +859,9 @@ class SequenceCoderImpl(StreamCoderImpl):
   # Default buffer size of 64kB of handling iterables of unknown length.
   _DEFAULT_BUFFER_SIZE = 64 * 1024
 
-  def __init__(self,
-               elem_coder,  # type: CoderImpl
-               read_state=None,  # type: Optional[IterableStateReader]
-               write_state=None,  # type: Optional[IterableStateWriter]
-               write_state_threshold=0  # type: int
-              ):
+  def __init__(self, elem_coder, read_state=None, write_state=None,
+               write_state_threshold=0):
+    # type: (CoderImpl, Optional[IterableStateReader], Optional[IterableStateWriter], int) -> None
     self._elem_coder = elem_coder
     self._read_state = read_state
     self._write_state = write_state

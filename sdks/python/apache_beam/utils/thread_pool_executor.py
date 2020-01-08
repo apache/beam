@@ -25,7 +25,7 @@ from concurrent.futures import _base
 try:  # Python3
   import queue
 except Exception:  # Python2
-  import Queue as queue
+  import Queue as queue  # pytype: disable=import-error
 
 
 class _WorkItem(object):

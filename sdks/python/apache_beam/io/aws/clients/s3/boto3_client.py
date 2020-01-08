@@ -51,8 +51,8 @@ class Client(object):
     try:
       boto_response = self.client.head_object(**kwargs)
     except Exception as e:
-      message = e.response['Error']['Message']
-      code = e.response['ResponseMetadata']['HTTPStatusCode']
+      message = e.response['Error']['Message']  # pytype: disable=attribute-error
+      code = e.response['ResponseMetadata']['HTTPStatusCode']  # pytype: disable=attribute-error
       raise messages.S3ClientError(message, code)
 
     item = messages.Item(boto_response['ETag'],
@@ -78,8 +78,8 @@ class Client(object):
                                                  start,
                                                  end - 1))
     except Exception as e:
-      message = e.response['Error']['Message']
-      code = e.response['ResponseMetadata']['HTTPStatusCode']
+      message = e.response['Error']['Message']  # pytype: disable=attribute-error
+      code = e.response['ResponseMetadata']['HTTPStatusCode']  # pytype: disable=attribute-error
       raise messages.S3ClientError(message, code)
 
     return boto_response['Body'].read() # A bytes object
@@ -101,8 +101,8 @@ class Client(object):
     try:
       boto_response = self.client.list_objects_v2(**kwargs)
     except Exception as e:
-      message = e.response['Error']['Message']
-      code = e.response['ResponseMetadata']['HTTPStatusCode']
+      message = e.response['Error']['Message']  # pytype: disable=attribute-error
+      code = e.response['ResponseMetadata']['HTTPStatusCode']  # pytype: disable=attribute-error
       raise messages.S3ClientError(message, code)
 
     if boto_response['KeyCount'] == 0:
@@ -140,8 +140,8 @@ class Client(object):
       )
       response = messages.UploadResponse(boto_response['UploadId'])
     except Exception as e:
-      message = e.response['Error']['Message']
-      code = e.response['ResponseMetadata']['HTTPStatusCode']
+      message = e.response['Error']['Message']  # pytype: disable=attribute-error
+      code = e.response['ResponseMetadata']['HTTPStatusCode']  # pytype: disable=attribute-error
       raise messages.S3ClientError(message, code)
     return response
 
@@ -163,8 +163,8 @@ class Client(object):
                                              request.part_number)
       return response
     except Exception as e:
-      message = e.response['Error']['Message']
-      code = e.response['ResponseMetadata']['HTTPStatusCode']
+      message = e.response['Error']['Message']  # pytype: disable=attribute-error
+      code = e.response['ResponseMetadata']['HTTPStatusCode']  # pytype: disable=attribute-error
       raise messages.S3ClientError(message, code)
 
   def complete_multipart_upload(self, request):
@@ -182,8 +182,8 @@ class Client(object):
                                             UploadId=request.upload_id,
                                             MultipartUpload=parts)
     except Exception as e:
-      message = e.response['Error']['Message']
-      code = e.response['ResponseMetadata']['HTTPStatusCode']
+      message = e.response['Error']['Message']  # pytype: disable=attribute-error
+      code = e.response['ResponseMetadata']['HTTPStatusCode']  # pytype: disable=attribute-error
       raise messages.S3ClientError(message, code)
 
   def delete(self, request):
@@ -198,8 +198,8 @@ class Client(object):
                                 Key=request.object)
 
     except Exception as e:
-      message = e.response['Error']['Message']
-      code = e.response['ResponseMetadata']['HTTPStatusCode']
+      message = e.response['Error']['Message']  # pytype: disable=attribute-error
+      code = e.response['ResponseMetadata']['HTTPStatusCode']  # pytype: disable=attribute-error
       raise messages.S3ClientError(message, code)
 
   def delete_batch(self, request):
@@ -214,8 +214,8 @@ class Client(object):
     try:
       aws_response = self.client.delete_objects(**aws_request)
     except Exception as e:
-      message = e.response['Error']['Message']
-      code = int(e.response['ResponseMetadata']['HTTPStatusCode'])
+      message = e.response['Error']['Message']  # pytype: disable=attribute-error
+      code = int(e.response['ResponseMetadata']['HTTPStatusCode'])  # pytype: disable=attribute-error
       raise messages.S3ClientError(message, code)
 
     deleted = [obj['Key'] for obj in aws_response.get('Deleted', [])]
@@ -235,6 +235,6 @@ class Client(object):
       }
       self.client.copy(copy_src, request.dest_bucket, request.dest_key)
     except Exception as e:
-      message = e.response['Error']['Message']
-      code = e.response['ResponseMetadata']['HTTPStatusCode']
+      message = e.response['Error']['Message']  # pytype: disable=attribute-error
+      code = e.response['ResponseMetadata']['HTTPStatusCode']  # pytype: disable=attribute-error
       raise messages.S3ClientError(message, code)

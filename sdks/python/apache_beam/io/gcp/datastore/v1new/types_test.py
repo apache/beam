@@ -93,6 +93,7 @@ class TypesTest(unittest.TestCase):
       elif name == 'entity':
         self.assertNotIsInstance(converted, Entity)
         self.assertNotIsInstance(converted.key, Key)
+        assert isinstance(unconverted, Entity)  # For pytype.
         self._assert_keys_equal(unconverted.key, converted.key, self._PROJECT)
       else:
         self.assertEqual(unconverted, converted)

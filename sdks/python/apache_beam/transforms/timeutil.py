@@ -59,7 +59,7 @@ class TimeDomain(object):
     return TimeDomain._RUNNER_API_MAPPING[domain]
 
 
-class TimestampCombinerImpl(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
+class TimestampCombinerImpl(with_metaclass(ABCMeta, object)):  # TODO type: ignore[misc]
   """Implementation of TimestampCombiner."""
 
   @abstractmethod
@@ -86,7 +86,7 @@ class TimestampCombinerImpl(with_metaclass(ABCMeta, object)):  # type: ignore[mi
     return self.combine_all(merging_timestamps)
 
 
-class DependsOnlyOnWindow(with_metaclass(ABCMeta, TimestampCombinerImpl)):  # type: ignore[misc]
+class DependsOnlyOnWindow(with_metaclass(ABCMeta, TimestampCombinerImpl)):  # TODO type: ignore[misc]
   """TimestampCombinerImpl that only depends on the window."""
 
   def merge(self, result_window, unused_merging_timestamps):

@@ -76,7 +76,7 @@ def unpack_Any(any_msg, msg_class):
   Returns None if msg_class is None.
   """
   if msg_class is None:
-    return None
+    return None  # pytype: disable=bad-return-type  # https://github.com/google/pytype/issues/445
   msg = msg_class()
   any_msg.Unpack(msg)
   return msg
@@ -99,7 +99,7 @@ def parse_Bytes(serialized_bytes, msg_class):
 
   Returns the input bytes if msg_class is None."""
   if msg_class is None or msg_class is bytes:
-    return serialized_bytes
+    return serialized_bytes  # pytype: disable=bad-return-type  # https://github.com/google/pytype/issues/445
   msg = msg_class()
   msg.ParseFromString(serialized_bytes)
   return msg

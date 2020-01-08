@@ -36,11 +36,11 @@ class ExtraAssertionsMixin(object):
     for numpy arrays.
     """
     try:
-      self.assertCountEqual(data1, data2)
+      self.assertCountEqual(data1, data2)  # pytype: disable=attribute-error
     except (TypeError, ValueError):
       data1 = [self._to_hashable(d) for d in data1]
       data2 = [self._to_hashable(d) for d in data2]
-      self.assertCountEqual(data1, data2)
+      self.assertCountEqual(data1, data2)  # pytype: disable=attribute-error
 
   def _to_hashable(self, element):
     try:

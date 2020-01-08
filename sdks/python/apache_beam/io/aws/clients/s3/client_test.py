@@ -61,7 +61,7 @@ class ClientErrorTest(unittest.TestCase):
       self.client.get_object_metadata(request)
     except Exception as e:
       self.assertIsInstance(e, messages.S3ClientError)
-      self.assertEqual(e.code, 404)
+      self.assertEqual(e.code, 404)  # pytype: disable=attribute-error
 
   def test_get_range_nonexistent(self):
 
@@ -76,7 +76,7 @@ class ClientErrorTest(unittest.TestCase):
       self.client.get_range(request, 0, 10)
     except Exception as e:
       self.assertIsInstance(e, messages.S3ClientError)
-      self.assertEqual(e.code, 404)
+      self.assertEqual(e.code, 404)  # pytype: disable=attribute-error
 
   def test_get_range_bad_start_end(self):
 
@@ -120,7 +120,7 @@ class ClientErrorTest(unittest.TestCase):
       self.client.upload_part(request)
     except Exception as e:
       self.assertIsInstance(e, messages.S3ClientError)
-      self.assertEqual(e.code, 404)
+      self.assertEqual(e.code, 404)  # pytype: disable=attribute-error
 
 
   def test_copy_nonexistent(self):
@@ -164,7 +164,7 @@ class ClientErrorTest(unittest.TestCase):
       response = self.client.upload_part(request)
     except Exception as e:
       self.assertIsInstance(e, messages.S3ClientError)
-      self.assertEqual(e.code, 400)
+      self.assertEqual(e.code, 400)  # pytype: disable=attribute-error
 
   def test_complete_multipart_upload_too_small(self):
 
@@ -205,7 +205,7 @@ class ClientErrorTest(unittest.TestCase):
       self.client.complete_multipart_upload(complete_request)
     except Exception as e:
       self.assertIsInstance(e, messages.S3ClientError)
-      self.assertEqual(e.code, 400)
+      self.assertEqual(e.code, 400)  # pytype: disable=attribute-error
 
   def test_complete_multipart_upload_too_many(self):
 
@@ -247,7 +247,7 @@ class ClientErrorTest(unittest.TestCase):
       self.client.complete_multipart_upload(complete_request)
     except Exception as e:
       self.assertIsInstance(e, messages.S3ClientError)
-      self.assertEqual(e.code, 400)
+      self.assertEqual(e.code, 400)  # pytype: disable=attribute-error
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

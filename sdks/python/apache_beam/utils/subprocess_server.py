@@ -120,9 +120,6 @@ class SubprocessServer(object):
         self._process.kill()
       self._process = None
 
-  def local_temp_dir(self, **kwargs):
-    return tempfile.mkdtemp(dir=self._local_temp_root, **kwargs)
-
 
 class JavaJarServer(SubprocessServer):
 

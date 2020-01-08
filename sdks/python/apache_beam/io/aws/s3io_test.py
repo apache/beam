@@ -515,9 +515,9 @@ class TestS3IO(unittest.TestCase):
   def test_file_mode(self):
     file_name = self.TEST_DATA_PATH + 'jerry/pigpen/bobby'
     with self.aws.open(file_name, 'w') as f:
-      assert f.mode == 'w'
+      assert f.mode == 'w'  # pytype: disable=attribute-error
     with self.aws.open(file_name, 'r') as f:
-      assert f.mode == 'r'
+      assert f.mode == 'r'  # pytype: disable=attribute-error
 
     # Clean up
     self.aws.delete(file_name)
@@ -530,7 +530,7 @@ class TestS3IO(unittest.TestCase):
     contents = f.contents
 
     f = self.aws.open(file_name)
-    self.assertEqual(f.mode, 'r')
+    self.assertEqual(f.mode, 'r')  # pytype: disable=attribute-error
     f.seek(0, os.SEEK_END)
     self.assertEqual(f.tell(), file_size)
     self.assertEqual(f.read(), b'')
@@ -545,7 +545,7 @@ class TestS3IO(unittest.TestCase):
     file_size = 8 * 1024 * 1024 + 2000
     contents = os.urandom(file_size)
     f = self.aws.open(file_name, 'w')
-    self.assertEqual(f.mode, 'w')
+    self.assertEqual(f.mode, 'w')  # pytype: disable=attribute-error
     f.write(contents[0:1000])
     f.write(contents[1000:1024 * 1024])
     f.write(contents[1024 * 1024:])
@@ -608,7 +608,7 @@ class TestS3IO(unittest.TestCase):
     file_size = 5 * 1024 * 1024 + 2000
     contents = os.urandom(file_size)
     f = self.aws.open(file_name, 'w')
-    self.assertEqual(f.mode, 'w')
+    self.assertEqual(f.mode, 'w')  # pytype: disable=attribute-error
     f.write(contents[0:1000])
     f.flush()
     f.write(contents[1000:1024 * 1024])
@@ -710,7 +710,7 @@ class TestS3IO(unittest.TestCase):
     file_size = 5 * 1024 * 1024 + 2000
     contents = os.urandom(file_size)
     f = self.aws.open(file_name, 'w')
-    self.assertEqual(f.mode, 'w')
+    self.assertEqual(f.mode, 'w')  # pytype: disable=attribute-error
     f.write(contents)
     f.close()
     f.close()  # This should not crash.
