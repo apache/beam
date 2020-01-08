@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.include
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -81,6 +82,8 @@ import org.junit.runners.JUnit4;
 /** Tests for CompressedSource. */
 @RunWith(JUnit4.class)
 public class CompressedSourceTest {
+	
+  private final double DELTA = 1e-6;  
 
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
@@ -360,6 +363,30 @@ public class CompressedSourceTest {
     List<Byte> actual = SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create());
     assertEquals(Bytes.asList(expected), actual);
   }
+
+  /**
+   * Using Lzop Codec Test a concatenation of lzop files is not correctly decompressed.
+   *
+   * The current behaviour of LZOP codec returns the contents of the first file only
+   */
+  @Test
+  public void testFalseReadConcatenatedLzop() throws IOException {
+    byte[] header = "a,b,c\n".getBytes(StandardCharsets.UTF_8);
+    byte[] body = "1,2,3\n4,5,6\n7,8,9\n".getBytes(StandardCharsets.UTF_8);
+    byte[] expected = concat(header, body);
+    byte[] totalLzop = concat(compressLzop(header), compressLzop(body));
+    File tmpFile = tmpFolder.newFile();
+    try (FileOutputStream os = new FileOutputStream(tmpFile)) {
+      os.write(totalLzop);
+    }
+
+    CompressedSource<Byte> source =
+        CompressedSource.from(new ByteSource(tmpFile.getAbsolutePath(), 1))
+            .withDecompression(CompressionMode.LZOP);
+    List<Byte> actual = SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create());
+    assertNotEquals(Bytes.asList(expected), actual);
+  }
+
 
   /**
    * Test a bzip2 file containing multiple streams is correctly decompressed.
@@ -1015,7 +1042,7 @@ public class CompressedSourceTest {
       assertThat(readerOrig, instanceOf(CompressedReader.class));
       CompressedReader<Byte> reader = (CompressedReader<Byte>) readerOrig;
       // before starting
-      assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(0.0, reader.getFractionConsumed(), DELTA);
       assertEquals(0, reader.getSplitPointsConsumed());
       assertEquals(1, reader.getSplitPointsRemaining());
 
@@ -1023,7 +1050,7 @@ public class CompressedSourceTest {
       assertFalse(reader.start());
 
       // after reading empty source
-      assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(1.0, reader.getFractionConsumed(), DELTA);
       assertEquals(0, reader.getSplitPointsConsumed());
       assertEquals(0, reader.getSplitPointsRemaining());
     }
@@ -1042,7 +1069,7 @@ public class CompressedSourceTest {
       assertThat(readerOrig, instanceOf(CompressedReader.class));
       CompressedReader<Byte> reader = (CompressedReader<Byte>) readerOrig;
       // before starting
-      assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(0.0, reader.getFractionConsumed(), DELTA);
       assertEquals(0, reader.getSplitPointsConsumed());
       assertEquals(1, reader.getSplitPointsRemaining());
 
@@ -1059,7 +1086,7 @@ public class CompressedSourceTest {
       assertFalse(reader.advance());
 
       // after reading empty source
-      assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(1.0, reader.getFractionConsumed(), DELTA);
       assertEquals(1, reader.getSplitPointsConsumed());
       assertEquals(0, reader.getSplitPointsRemaining());
     }
@@ -1078,13 +1105,13 @@ public class CompressedSourceTest {
       assertThat(readerOrig, instanceOf(CompressedReader.class));
       CompressedReader<Byte> reader = (CompressedReader<Byte>) readerOrig;
       // before starting
-      assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(0.0, reader.getFractionConsumed(), DELTA);
       assertEquals(0, reader.getSplitPointsConsumed());
       assertEquals(1, reader.getSplitPointsRemaining());
       // confirm empty
       assertFalse(reader.start());
       // after reading empty source
-      assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(1.0, reader.getFractionConsumed(), DELTA);
       assertEquals(0, reader.getSplitPointsConsumed());
       assertEquals(0, reader.getSplitPointsRemaining());
     }
@@ -1104,7 +1131,7 @@ public class CompressedSourceTest {
       assertThat(readerOrig, instanceOf(CompressedReader.class));
       CompressedReader<Byte> reader = (CompressedReader<Byte>) readerOrig;
       // before starting
-      assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(0.0, reader.getFractionConsumed(), DELTA);
       assertEquals(0, reader.getSplitPointsConsumed());
       assertEquals(1, reader.getSplitPointsRemaining());
 
@@ -1121,7 +1148,7 @@ public class CompressedSourceTest {
       assertFalse(reader.advance());
 
       // after reading empty source
-      assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(1.0, reader.getFractionConsumed(), DELTA);
       assertEquals(1, reader.getSplitPointsConsumed());
       assertEquals(0, reader.getSplitPointsRemaining());
     }
@@ -1140,7 +1167,7 @@ public class CompressedSourceTest {
       assertThat(readerOrig, instanceOf(CompressedReader.class));
       CompressedReader<Byte> reader = (CompressedReader<Byte>) readerOrig;
       // before starting
-      assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(0.0, reader.getFractionConsumed(), DELTA);
       assertEquals(0, reader.getSplitPointsConsumed());
       assertEquals(1, reader.getSplitPointsRemaining());
 
@@ -1148,7 +1175,7 @@ public class CompressedSourceTest {
       assertFalse(reader.start());
 
       // after reading empty source
-      assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(1.0, reader.getFractionConsumed(), DELTA);
       assertEquals(0, reader.getSplitPointsConsumed());
       assertEquals(0, reader.getSplitPointsRemaining());
     }
@@ -1168,7 +1195,7 @@ public class CompressedSourceTest {
       assertThat(readerOrig, instanceOf(CompressedReader.class));
       CompressedReader<Byte> reader = (CompressedReader<Byte>) readerOrig;
       // before starting
-      assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(0.0, reader.getFractionConsumed(), DELTA);
       assertEquals(0, reader.getSplitPointsConsumed());
       assertEquals(1, reader.getSplitPointsRemaining());
 
@@ -1185,7 +1212,7 @@ public class CompressedSourceTest {
       assertFalse(reader.advance());
 
       // after reading empty source
-      assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(1.0, reader.getFractionConsumed(), DELTA);
       assertEquals(1, reader.getSplitPointsConsumed());
       assertEquals(0, reader.getSplitPointsRemaining());
     }
@@ -1236,7 +1263,7 @@ public class CompressedSourceTest {
       FileBasedReader<Byte> reader = (FileBasedReader<Byte>) readerOrig;
 
       // Check preconditions before starting
-      assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(0.0, reader.getFractionConsumed(), DELTA);
       assertEquals(0, reader.getSplitPointsConsumed());
       assertEquals(BoundedReader.SPLIT_POINTS_UNKNOWN, reader.getSplitPointsRemaining());
 
@@ -1252,7 +1279,7 @@ public class CompressedSourceTest {
 
       // Confirm empty and check post-conditions
       assertFalse(reader.advance());
-      assertEquals(1.0, reader.getFractionConsumed(), 1e-6);
+      assertEquals(1.0, reader.getFractionConsumed(), DELTA);
       assertEquals(2, reader.getSplitPointsConsumed());
       assertEquals(0, reader.getSplitPointsRemaining());
     }
