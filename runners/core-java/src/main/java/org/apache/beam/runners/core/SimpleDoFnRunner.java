@@ -1014,10 +1014,10 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
         Instant windowExpiry = window.maxTimestamp().plus(allowedLateness);
         checkArgument(
-            !outputTimestamp.isAfter(windowExpiry),
+            !target.isAfter(windowExpiry),
             "Attempted to set event time timer that outputs for %s but that is"
                 + " after the expiration of window %s",
-            outputTimestamp,
+            target,
             windowExpiry);
       }
     }
