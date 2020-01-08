@@ -45,12 +45,15 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
   }
 
   @Override
-  public OffsetRange checkpoint() {
+  public SplitResult<OffsetRange> trySplit(double fractionOfRemainder) {
+    // TODO(BEAM-8872): Add support for splitting off a fixed amount of work for this restriction
+    // instead of only supporting checkpointing.
+
     checkState(
         lastClaimedOffset != null, "Can't checkpoint before any offset was successfully claimed");
     OffsetRange res = new OffsetRange(lastClaimedOffset + 1, range.getTo());
     this.range = new OffsetRange(range.getFrom(), lastClaimedOffset + 1);
-    return res;
+    return SplitResult.of(range, res);
   }
 
   /**

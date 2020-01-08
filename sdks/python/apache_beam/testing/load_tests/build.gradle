@@ -24,8 +24,6 @@ dependencies {
     distTarBall project(path: ":sdks:python", configuration: "distTarBall")
 }
 
-pythonVersion = '2.7'
-
 description = "Apache Beam :: SDKs :: Python :: Load Tests"
 
 def mainClassProperty = "loadTest.mainClass"

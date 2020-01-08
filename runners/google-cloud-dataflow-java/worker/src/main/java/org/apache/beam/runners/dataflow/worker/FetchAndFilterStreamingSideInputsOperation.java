@@ -75,7 +75,7 @@ public class FetchAndFilterStreamingSideInputsOperation<T, W extends BoundedWind
       Coder<WindowedValue<T>> inputCoder,
       WindowingStrategy<?, W> windowingStrategy,
       DataflowExecutionContext.DataflowStepContext stepContext,
-      Map<PCollectionView<?>, RunnerApi.SdkFunctionSpec> pCollectionViewToWindowMappingFns) {
+      Map<PCollectionView<?>, RunnerApi.FunctionSpec> pCollectionViewToWindowMappingFns) {
     super(receivers, context);
 
     this.sideInputFetcher =
@@ -167,9 +167,9 @@ public class FetchAndFilterStreamingSideInputsOperation<T, W extends BoundedWind
       FnDataService beamFnDataService,
       ApiServiceDescriptor dataServiceApiServiceDescriptor,
       Coder<BoundedWindow> mainInputWindowCoder,
-      Map<PCollectionView<?>, RunnerApi.SdkFunctionSpec> pCollectionViewsToWindowMappingFns) {
+      Map<PCollectionView<?>, RunnerApi.FunctionSpec> pCollectionViewsToWindowMappingFns) {
     ImmutableList.Builder<PCollectionView<?>> wrappedViews = ImmutableList.builder();
-    for (Map.Entry<PCollectionView<?>, RunnerApi.SdkFunctionSpec> entry :
+    for (Map.Entry<PCollectionView<?>, RunnerApi.FunctionSpec> entry :
         pCollectionViewsToWindowMappingFns.entrySet()) {
       WindowMappingFn windowMappingFn =
           new FnApiWindowMappingFn(

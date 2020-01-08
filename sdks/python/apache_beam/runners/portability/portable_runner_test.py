@@ -185,6 +185,9 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
         python_urns.EMBEDDED_PYTHON)
     # Enable caching (disabled by default)
     options.view_as(DebugOptions).add_experiment('state_cache_size=100')
+    # Enable time-based data buffer (disabled by default)
+    options.view_as(DebugOptions).add_experiment(
+        'data_buffer_time_limit_ms=1000')
     return options
 
   def create_pipeline(self):
@@ -240,6 +243,8 @@ class PortableRunnerOptimized(PortableRunnerTest):
     options = super(PortableRunnerOptimized, self).create_options()
     options.view_as(DebugOptions).add_experiment('pre_optimize=all')
     options.view_as(DebugOptions).add_experiment('state_cache_size=100')
+    options.view_as(DebugOptions).add_experiment(
+        'data_buffer_time_limit_ms=1000')
     return options
 
 
@@ -249,7 +254,7 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
   def setUpClass(cls):
     cls._worker_address, cls._worker_server = (
         worker_pool_main.BeamFnExternalWorkerPoolServicer.start(
-            state_cache_size=100))
+            state_cache_size=100, data_buffer_time_limit_ms=1000))
 
   @classmethod
   def tearDownClass(cls):
@@ -274,6 +279,9 @@ class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
         sys.executable.encode('ascii')).decode('utf-8')
     # Enable caching (disabled by default)
     options.view_as(DebugOptions).add_experiment('state_cache_size=100')
+    # Enable time-based data buffer (disabled by default)
+    options.view_as(DebugOptions).add_experiment(
+        'data_buffer_time_limit_ms=1000')
     return options
 
   @classmethod

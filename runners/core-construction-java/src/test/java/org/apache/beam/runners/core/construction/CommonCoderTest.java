@@ -61,6 +61,7 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -105,6 +106,9 @@ public class CommonCoderTest {
           .put(
               getUrn(StandardCoders.Enum.WINDOWED_VALUE),
               WindowedValue.FullWindowedValueCoder.class)
+          .put(
+              getUrn(StandardCoders.Enum.PARAM_WINDOWED_VALUE),
+              WindowedValue.ParamWindowedValueCoder.class)
           .put(getUrn(StandardCoders.Enum.ROW), RowCoder.class)
           .build();
 
@@ -271,7 +275,8 @@ public class CommonCoderTest {
       return convertedElements;
     } else if (s.equals(getUrn(StandardCoders.Enum.GLOBAL_WINDOW))) {
       return GlobalWindow.INSTANCE;
-    } else if (s.equals(getUrn(StandardCoders.Enum.WINDOWED_VALUE))) {
+    } else if (s.equals(getUrn(StandardCoders.Enum.WINDOWED_VALUE))
+        || s.equals(getUrn(StandardCoders.Enum.PARAM_WINDOWED_VALUE))) {
       Map<String, Object> kvMap = (Map<String, Object>) value;
       Coder valueCoder = ((WindowedValue.FullWindowedValueCoder) coder).getValueCoder();
       Coder windowCoder = ((WindowedValue.FullWindowedValueCoder) coder).getWindowCoder();
@@ -435,6 +440,9 @@ public class CommonCoderTest {
       assertEquals(expectedValue, actualValue);
 
     } else if (s.equals(getUrn(StandardCoders.Enum.WINDOWED_VALUE))) {
+      assertEquals(expectedValue, actualValue);
+
+    } else if (s.equals(getUrn(StandardCoders.Enum.PARAM_WINDOWED_VALUE))) {
       assertEquals(expectedValue, actualValue);
 
     } else if (s.equals(getUrn(StandardCoders.Enum.DOUBLE))) {

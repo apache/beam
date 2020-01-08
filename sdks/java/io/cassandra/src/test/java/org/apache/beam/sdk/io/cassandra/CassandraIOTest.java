@@ -32,6 +32,7 @@ import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
+import com.datastax.driver.core.exceptions.NoHostAvailableException;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Computed;
@@ -39,8 +40,12 @@ import com.datastax.driver.mapping.annotations.PartitionKey;
 import com.datastax.driver.mapping.annotations.Table;
 import info.archinnov.achilles.embedded.CassandraEmbeddedServerBuilder;
 import info.archinnov.achilles.embedded.CassandraShutDownHook;
+import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigInteger;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -75,14 +80,12 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.cassandra.service.StorageServiceMBean;
+import org.apache.commons.io.FileUtils;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
@@ -90,7 +93,6 @@ import org.slf4j.LoggerFactory;
 
 /** Tests of {@link CassandraIO}. */
 @RunWith(JUnit4.class)
-@Ignore("Ignore until https://issues.apache.org/jira/browse/BEAM-8025 is resolved")
 public class CassandraIOTest implements Serializable {
   private static final long NUM_ROWS = 20L;
   private static final String CASSANDRA_KEYSPACE = "beam_ks";
@@ -100,13 +102,15 @@ public class CassandraIOTest implements Serializable {
   private static final String STORAGE_SERVICE_MBEAN = "org.apache.cassandra.db:type=StorageService";
   private static final float ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE = 0.5f;
   private static final int FLUSH_TIMEOUT = 30000;
+  private static final int JMX_CONF_TIMEOUT = 1000;
   private static int jmxPort;
   private static int cassandraPort;
 
   private static Cluster cluster;
   private static Session session;
 
-  @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+  private static final String TEMPORARY_FOLDER =
+      System.getProperty("java.io.tmpdir") + "/embedded-cassandra/";
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   private static CassandraShutDownHook shutdownHook;
 
@@ -114,13 +118,17 @@ public class CassandraIOTest implements Serializable {
   public static void beforeClass() throws Exception {
     jmxPort = NetworkTestHelper.getAvailableLocalPort();
     shutdownHook = new CassandraShutDownHook();
-    // randomized port at startup
-    String data = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "data").getPath();
-    String commitLog = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "commit-log").getPath();
-    String cdcRaw = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "cdc-raw").getPath();
-    String hints = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "hints").getPath();
-    String savedCache = TEMPORARY_FOLDER.newFolder("embedded-cassandra", "saved-cache").getPath();
-    cluster =
+    String data = TEMPORARY_FOLDER + "/data";
+    Files.createDirectories(Paths.get(data));
+    String commitLog = TEMPORARY_FOLDER + "/commit-log";
+    Files.createDirectories(Paths.get(commitLog));
+    String cdcRaw = TEMPORARY_FOLDER + "/cdc-raw";
+    Files.createDirectories(Paths.get(cdcRaw));
+    String hints = TEMPORARY_FOLDER + "/hints";
+    Files.createDirectories(Paths.get(hints));
+    String savedCache = TEMPORARY_FOLDER + "/saved-cache";
+    Files.createDirectories(Paths.get(savedCache));
+    CassandraEmbeddedServerBuilder builder =
         CassandraEmbeddedServerBuilder.builder()
             .withKeyspaceName(CASSANDRA_KEYSPACE)
             .withDataFolder(data)
@@ -129,18 +137,40 @@ public class CassandraIOTest implements Serializable {
             .withHintsFolder(hints)
             .withSavedCachesFolder(savedCache)
             .withShutdownHook(shutdownHook)
+            // randomized CQL port at startup
             .withJMXPort(jmxPort)
-            .buildNativeCluster();
+            .cleanDataFilesAtStartup(false);
+
+    // under load we get a NoHostAvailable exception at cluster creation,
+    // so retry to create it every 1 sec up to 3 times.
+    cluster = buildCluster(builder);
 
     cassandraPort = cluster.getConfiguration().getProtocolOptions().getPort();
     session = CassandraIOTest.cluster.newSession();
-
     insertData();
+    disableAutoCompaction();
+  }
+
+  private static Cluster buildCluster(CassandraEmbeddedServerBuilder builder) {
+    int tried = 0;
+    while (tried < 3) {
+      try {
+        return builder.buildNativeCluster();
+      } catch (NoHostAvailableException e) {
+        tried++;
+        try {
+          Thread.sleep(1000L);
+        } catch (InterruptedException e1) {
+        }
+      }
+    }
+    throw new RuntimeException("Unable to create embedded Cassandra cluster");
   }
 
   @AfterClass
-  public static void afterClass() throws InterruptedException {
+  public static void afterClass() throws InterruptedException, IOException {
     shutdownHook.shutDownNow();
+    FileUtils.deleteDirectory(new File(TEMPORARY_FOLDER));
   }
 
   private static void insertData() throws Exception {
@@ -209,6 +239,27 @@ public class CassandraIOTest implements Serializable {
     mBeanProxy.forceKeyspaceFlush(CASSANDRA_KEYSPACE, CASSANDRA_TABLE);
     jmxConnector.close();
     Thread.sleep(FLUSH_TIMEOUT);
+  }
+
+  /**
+   * Disable auto compaction on embedded cassandra host, to avoid race condition in temporary files
+   * cleaning.
+   */
+  @SuppressWarnings("unused")
+  private static void disableAutoCompaction() throws Exception {
+    JMXServiceURL url =
+        new JMXServiceURL(
+            String.format(
+                "service:jmx:rmi://%s/jndi/rmi://%s:%s/jmxrmi",
+                CASSANDRA_HOST, CASSANDRA_HOST, jmxPort));
+    JMXConnector jmxConnector = JMXConnectorFactory.connect(url, null);
+    MBeanServerConnection mBeanServerConnection = jmxConnector.getMBeanServerConnection();
+    ObjectName objectName = new ObjectName(STORAGE_SERVICE_MBEAN);
+    StorageServiceMBean mBeanProxy =
+        JMX.newMBeanProxy(mBeanServerConnection, objectName, StorageServiceMBean.class);
+    mBeanProxy.disableAutoCompaction(CASSANDRA_KEYSPACE, CASSANDRA_TABLE);
+    jmxConnector.close();
+    Thread.sleep(JMX_CONF_TIMEOUT);
   }
 
   @Test

@@ -119,7 +119,12 @@ public class SimpleDoFnRunnerTest {
     thrown.expectCause(is(fn.exceptionToThrow));
 
     runner.onTimer(
-        ThrowingDoFn.TIMER_ID, GlobalWindow.INSTANCE, new Instant(0), TimeDomain.EVENT_TIME);
+        ThrowingDoFn.TIMER_ID,
+        ThrowingDoFn.TIMER_ID,
+        GlobalWindow.INSTANCE,
+        new Instant(0),
+        new Instant(0),
+        TimeDomain.EVENT_TIME);
   }
 
   /**
@@ -156,6 +161,8 @@ public class SimpleDoFnRunnerTest {
         .setTimer(
             StateNamespaces.window(new GlobalWindows().windowCoder(), GlobalWindow.INSTANCE),
             DoFnWithTimers.TIMER_ID,
+            "",
+            currentTime.plus(DoFnWithTimers.TIMER_OFFSET),
             currentTime.plus(DoFnWithTimers.TIMER_OFFSET),
             TimeDomain.EVENT_TIME);
   }
@@ -237,7 +244,9 @@ public class SimpleDoFnRunnerTest {
     // the method call.
     runner.onTimer(
         DoFnWithTimers.TIMER_ID,
+        DoFnWithTimers.TIMER_ID,
         GlobalWindow.INSTANCE,
+        currentTime.plus(offset),
         currentTime.plus(offset),
         TimeDomain.EVENT_TIME);
 
@@ -246,7 +255,9 @@ public class SimpleDoFnRunnerTest {
         contains(
             TimerData.of(
                 DoFnWithTimers.TIMER_ID,
+                DoFnWithTimers.TIMER_ID,
                 StateNamespaces.window(windowFn.windowCoder(), GlobalWindow.INSTANCE),
+                currentTime.plus(offset),
                 currentTime.plus(offset),
                 TimeDomain.EVENT_TIME)));
   }

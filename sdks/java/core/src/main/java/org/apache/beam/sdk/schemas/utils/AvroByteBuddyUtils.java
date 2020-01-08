@@ -19,12 +19,15 @@ package org.apache.beam.sdk.schemas.utils;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Type;
 import java.util.Map;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
-import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
+import org.apache.beam.sdk.schemas.utils.AvroUtils.AvroTypeConversionFactory;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.InjectPackageStrategy;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversion;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -51,7 +54,7 @@ class AvroByteBuddyUtils {
   static <T extends SpecificRecord> SchemaUserTypeCreator getCreator(
       Class<T> clazz, Schema schema) {
     return CACHED_CREATORS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema), c -> createCreator(clazz, schema));
+        ClassWithSchema.create(clazz, schema), c -> createCreator(clazz, schema));
   }
 
   private static <T> SchemaUserTypeCreator createCreator(Class<T> clazz, Schema schema) {
@@ -101,11 +104,13 @@ class AvroByteBuddyUtils {
 
   private static StackManipulation readAndConvertParameter(
       Class<?> constructorParameterType, int index) {
+    TypeConversionsFactory typeConversionsFactory = new AvroTypeConversionFactory();
+
     // The types in the AVRO-generated constructor might be the types returned by Beam's Row class,
     // so we have to convert the types used by Beam's Row class.
     // We know that AVRO generates constructor parameters in the same order as fields
     // in the schema, so we can just add the parameters sequentially.
-    ConvertType convertType = new ConvertType(true);
+    TypeConversion<Type> convertType = typeConversionsFactory.createTypeConversion(true);
 
     // Map the AVRO-generated type to the one Beam will use.
     ForLoadedType convertedType =
@@ -121,7 +126,8 @@ class AvroByteBuddyUtils {
             TypeCasting.to(convertedType));
 
     // Convert to the parameter accepted by the SpecificRecord constructor.
-    return new ByteBuddyUtils.ConvertValueForSetter(readParameter)
+    return typeConversionsFactory
+        .createSetterConversions(readParameter)
         .convert(TypeDescriptor.of(constructorParameterType));
   }
 }

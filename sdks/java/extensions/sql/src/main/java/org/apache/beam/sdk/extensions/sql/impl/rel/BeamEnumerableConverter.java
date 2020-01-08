@@ -383,14 +383,15 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
   private static boolean isLimitQuery(BeamRelNode node) {
     return (node instanceof BeamSortRel && ((BeamSortRel) node).isLimitOnly())
-        || (node instanceof BeamCalcRel && ((BeamCalcRel) node).isInputSortRelAndLimitOnly());
+        || (node instanceof AbstractBeamCalcRel
+            && ((AbstractBeamCalcRel) node).isInputSortRelAndLimitOnly());
   }
 
   private static int getLimitCount(BeamRelNode node) {
     if (node instanceof BeamSortRel) {
       return ((BeamSortRel) node).getCount();
-    } else if (node instanceof BeamCalcRel) {
-      return ((BeamCalcRel) node).getLimitCountOfSortRel();
+    } else if (node instanceof AbstractBeamCalcRel) {
+      return ((AbstractBeamCalcRel) node).getLimitCountOfSortRel();
     }
 
     throw new RuntimeException(

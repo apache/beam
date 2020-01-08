@@ -82,7 +82,12 @@ public class GroupAlsoByWindowFnRunner<InputT, OutputT> implements DoFnRunner<In
 
   @Override
   public void onTimer(
-      String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+      String timerId,
+      String timerFamilyId,
+      BoundedWindow window,
+      Instant timestamp,
+      Instant outputTimestamp,
+      TimeDomain timeDomain) {
     throw new UnsupportedOperationException(
         String.format("Timers are not supported by %s", GroupAlsoByWindowFn.class.getSimpleName()));
   }

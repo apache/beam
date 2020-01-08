@@ -35,6 +35,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.zetasql.ArrayType;
+import com.google.zetasql.EnumType;
 import com.google.zetasql.Type;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
@@ -560,7 +561,7 @@ public class ExpressionConverter {
         ret = convertArrayValueToRexNode(type.asArray(), value);
         break;
       case TYPE_ENUM:
-        ret = convertEnumToRexNode(type, value);
+        ret = convertEnumToRexNode(type.asEnum(), value);
         break;
       default:
         // TODO: convert struct literal.
@@ -661,8 +662,8 @@ public class ExpressionConverter {
     return rexBuilder().makeCall(SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR, operands);
   }
 
-  private RexNode convertEnumToRexNode(Type type, Value value) {
-    if (type.typeName().equals("`zetasql.functions.DateTimestampPart`")) {
+  private RexNode convertEnumToRexNode(EnumType type, Value value) {
+    if ("zetasql.functions.DateTimestampPart".equals(type.getDescriptor().getFullName())) {
       return convertTimeUnitRangeEnumToRexNode(type, value);
     } else {
       throw new RuntimeException(

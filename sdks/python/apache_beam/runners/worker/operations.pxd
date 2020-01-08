@@ -111,11 +111,13 @@ cdef class PGBKCVOperation(Operation):
   cdef public object combine_fn
   cdef public object combine_fn_add_input
   cdef public object combine_fn_compact
+  cdef public bint is_default_windowing
+  cdef public object timestamp_combiner
   cdef dict table
   cdef long max_keys
   cdef long key_count
 
-  cpdef output_key(self, tuple wkey, value)
+  cpdef output_key(self, wkey, value, timestamp)
 
 
 cdef class FlattenOperation(Operation):

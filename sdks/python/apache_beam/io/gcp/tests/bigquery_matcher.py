@@ -19,6 +19,7 @@
 
 from __future__ import absolute_import
 
+import concurrent
 import logging
 import sys
 import time
@@ -48,9 +49,11 @@ MAX_RETRIES = 5
 _LOGGER = logging.getLogger(__name__)
 
 
-def retry_on_http_and_value_error(exception):
+def retry_on_http_timeout_and_value_error(exception):
   """Filter allowing retries on Bigquery errors and value error."""
-  return isinstance(exception, (GoogleCloudError, ValueError))
+  return isinstance(exception, (GoogleCloudError,
+                                ValueError,
+                                concurrent.futures.TimeoutError))
 
 
 class BigqueryMatcher(BaseMatcher):
@@ -94,7 +97,7 @@ class BigqueryMatcher(BaseMatcher):
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
-      retry_filter=retry_on_http_and_value_error)
+      retry_filter=retry_on_http_timeout_and_value_error)
   def _query_with_retry(self):
     """Run Bigquery query with retry if got error http response"""
     _LOGGER.info('Attempting to perform query %s to BQ', self.query)
@@ -204,7 +207,7 @@ class BigQueryTableMatcher(BaseMatcher):
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
-      retry_filter=retry_on_http_and_value_error)
+      retry_filter=retry_on_http_timeout_and_value_error)
   def _get_table_with_retry(self, bigquery_wrapper):
     return bigquery_wrapper.get_table(self.project, self.dataset, self.table)
 

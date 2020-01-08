@@ -147,7 +147,7 @@ class MainInputTest(unittest.TestCase):
                                 r'requires.*str.*got.*int.*side_input'):
       _ = [1, 2, 3] | beam.ParDo(my_do_fn, side_input=1)
 
-  def test_type_dofn_var_kwargs(self):
+  def test_typed_dofn_var_kwargs(self):
     class MyDoFn(beam.DoFn):
       def process(self, element: int, **side_inputs: typehints.Dict[str, str]) \
           -> typehints.Generator[typehints.Optional[int]]:
@@ -160,6 +160,21 @@ class MainInputTest(unittest.TestCase):
     with self.assertRaisesRegex(typehints.TypeCheckError,
                                 r'requires.*str.*got.*int.*side_inputs'):
       _ = [1, 2, 3] | beam.ParDo(my_do_fn, a=1)
+
+  def test_typed_callable_string_literals(self):
+    def do_fn(element: 'int') -> 'typehints.List[str]':
+      return [[str(element)] * 2]
+
+    result = [1, 2] | beam.ParDo(do_fn)
+    self.assertEqual([['1', '1'], ['2', '2']], sorted(result))
+
+  def test_typed_dofn_string_literals(self):
+    class MyDoFn(beam.DoFn):
+      def process(self, element: 'int') -> 'typehints.List[str]':
+        return [[str(element)] * 2]
+
+    result = [1, 2] | beam.ParDo(MyDoFn())
+    self.assertEqual([['1', '1'], ['2', '2']], sorted(result))
 
 
 class AnnotationsTest(unittest.TestCase):
@@ -215,7 +230,9 @@ class AnnotationsTest(unittest.TestCase):
     self.assertEqual(th.input_types, ((int,), {}))
     self.assertEqual(th.output_types, ((int,), {}))
 
+  @unittest.skip('BEAM-8662: Py3 annotations not yet supported for MapTuple')
   def test_flat_map_tuple_wrapper(self):
+    # TODO(BEAM-8662): Also test with a fn that accepts default arguments.
     def tuple_map_fn(a: str, b: str, c: str) -> typehints.Iterable[str]:
       return [a, b, c]
 
@@ -231,7 +248,9 @@ class AnnotationsTest(unittest.TestCase):
     self.assertEqual(th.input_types, ((int,), {}))
     self.assertEqual(th.output_types, ((int,), {}))
 
+  @unittest.skip('BEAM-8662: Py3 annotations not yet supported for MapTuple')
   def test_map_tuple(self):
+    # TODO(BEAM-8662): Also test with a fn that accepts default arguments.
     def tuple_map_fn(a: str, b: str, c: str) -> str:
       return a + b + c
 
@@ -245,7 +264,7 @@ class AnnotationsTest(unittest.TestCase):
 
     th = beam.Filter(filter_fn).get_type_hints()
     self.assertEqual(th.input_types, ((int,), {}))
-    self.assertEqual(th.output_types, ((bool,), {}))
+    self.assertEqual(th.output_types, ((int,), {}))
 
 
 if __name__ == '__main__':

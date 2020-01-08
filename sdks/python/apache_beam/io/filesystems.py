@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 import re
 from builtins import object
+from typing import BinaryIO  # pylint: disable=unused-import
 
 from past.builtins import unicode
 
@@ -47,6 +48,11 @@ except ImportError:
 
 try:
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
+except ImportError:
+  pass
+
+try:
+  from apache_beam.io.aws.s3filesystem import S3FileSystem
 except ImportError:
   pass
 
@@ -82,6 +88,7 @@ class FileSystems(object):
 
   @staticmethod
   def get_filesystem(path):
+    # type: (str) -> FileSystems
     """Get the correct filesystem for the specified path
     """
     try:
@@ -89,7 +96,10 @@ class FileSystems(object):
       systems = [fs for fs in FileSystem.get_all_subclasses()
                  if fs.scheme() == path_scheme]
       if len(systems) == 0:
-        raise ValueError('Unable to get the Filesystem for path %s' % path)
+        raise ValueError(
+            'Unable to get filesystem from specified path, please use the '
+            'correct path or ensure the required dependency is installed, '
+            'e.g., pip install apache_beam[gcp]. Path specified: %s' % path)
       elif len(systems) == 1:
         # Pipeline options could come either from the Pipeline itself (using
         # direct runner), or via RuntimeValueProvider (other runners).
@@ -105,6 +115,7 @@ class FileSystems(object):
 
   @staticmethod
   def join(basepath, *paths):
+    # type: (str, *str) -> str
     """Join two or more pathname components for the filesystem
 
     Args:
@@ -189,6 +200,7 @@ class FileSystems(object):
   @staticmethod
   def create(path, mime_type='application/octet-stream',
              compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
     """Returns a write channel for the given file path.
 
     Args:
@@ -205,6 +217,7 @@ class FileSystems(object):
   @staticmethod
   def open(path, mime_type='application/octet-stream',
            compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
     """Returns a read channel for the given file path.
 
     Args:

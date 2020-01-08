@@ -37,7 +37,7 @@ __all__ = ['RangeSource']
 
 class RangeSource(iobase.BoundedSource):
 
-  __hash__ = None
+  __hash__ = None  # type: ignore[assignment]
 
   def __init__(self, start, end, split_freq=1):
     assert start <= end

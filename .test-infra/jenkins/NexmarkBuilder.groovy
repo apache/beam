@@ -81,7 +81,7 @@ class NexmarkBuilder {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
         tasks(':sdks:java:testing:nexmark:run')
         commonJobProperties.setGradleSwitches(delegate)
-        switches("-Pnexmark.runner=${runner.getDepenedencyBySDK(sdk)}")
+        switches("-Pnexmark.runner=${runner.getDependencyBySDK(sdk)}")
         switches("-Pnexmark.args=\"${parseOptions(options)}\"")
       }
     }

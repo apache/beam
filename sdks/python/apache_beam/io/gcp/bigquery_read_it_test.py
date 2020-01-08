@@ -26,6 +26,7 @@ import random
 import time
 import unittest
 from decimal import Decimal
+from functools import wraps
 
 from future.utils import iteritems
 from nose.plugins.attrib import attr
@@ -49,35 +50,73 @@ except ImportError:
 _LOGGER = logging.getLogger(__name__)
 
 
+def skip(runners):
+  if not isinstance(runners, list):
+    runners = [runners]
+
+  def inner(fn):
+    @wraps(fn)
+    def wrapped(self):
+      if self.runner_name in runners:
+        self.skipTest('This test doesn\'t work on these runners: {}'.format(
+            runners))
+      else:
+        return fn(self)
+    return wrapped
+  return inner
+
+
 class BigQueryReadIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_read_table_'
 
-  def setUp(self):
-    self.test_pipeline = TestPipeline(is_integration_test=True)
-    self.runner_name = type(self.test_pipeline.runner).__name__
-    self.project = self.test_pipeline.get_option('project')
+  @classmethod
+  def setUpClass(cls):
+    cls.test_pipeline = TestPipeline(is_integration_test=True)
+    cls.args = cls.test_pipeline.get_full_options_as_args()
+    cls.runner_name = type(cls.test_pipeline.runner).__name__
+    cls.project = cls.test_pipeline.get_option('project')
 
-    self.bigquery_client = BigQueryWrapper()
-    self.dataset_id = '%s%s%d' % (self.BIG_QUERY_DATASET_ID,
-                                  str(int(time.time())),
-                                  random.randint(0, 10000))
-    self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
+    cls.bigquery_client = BigQueryWrapper()
+    cls.dataset_id = '%s%s%d' % (cls.BIG_QUERY_DATASET_ID,
+                                 str(int(time.time())),
+                                 random.randint(0, 10000))
+    cls.bigquery_client.get_or_create_dataset(cls.project, cls.dataset_id)
     _LOGGER.info("Created dataset %s in project %s",
-                 self.dataset_id, self.project)
+                 cls.dataset_id, cls.project)
 
-  def tearDown(self):
+  @classmethod
+  def tearDownClass(cls):
     request = bigquery.BigqueryDatasetsDeleteRequest(
-        projectId=self.project, datasetId=self.dataset_id,
+        projectId=cls.project, datasetId=cls.dataset_id,
         deleteContents=True)
     try:
       _LOGGER.info("Deleting dataset %s in project %s",
-                   self.dataset_id, self.project)
-      self.bigquery_client.client.datasets.Delete(request)
+                   cls.dataset_id, cls.project)
+      cls.bigquery_client.client.datasets.Delete(request)
     except HttpError:
       _LOGGER.debug('Failed to clean up dataset %s in project %s',
-                    self.dataset_id, self.project)
+                    cls.dataset_id, cls.project)
 
-  def create_table(self, tablename):
+
+class ReadTests(BigQueryReadIntegrationTests):
+  TABLE_DATA = [
+      {'number': 1, 'str': 'abc'},
+      {'number': 2, 'str': 'def'},
+      {'number': 3, 'str': u'你好'},
+      {'number': 4, 'str': u'привет'}
+  ]
+
+  @classmethod
+  def setUpClass(cls):
+    super(ReadTests, cls).setUpClass()
+    cls.table_name = 'python_write_table'
+    cls.create_table(cls.table_name)
+
+    table_id = '{}.{}'.format(cls.dataset_id, cls.table_name)
+    cls.query = 'SELECT number, str FROM `%s`' % table_id
+
+  @classmethod
+  def create_table(cls, table_name):
     table_schema = bigquery.TableSchema()
     table_field = bigquery.TableFieldSchema()
     table_field.name = 'number'
@@ -89,23 +128,45 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
     table_schema.fields.append(table_field)
     table = bigquery.Table(
         tableReference=bigquery.TableReference(
-            projectId=self.project,
-            datasetId=self.dataset_id,
-            tableId=tablename),
+            projectId=cls.project,
+            datasetId=cls.dataset_id,
+            tableId=table_name),
         schema=table_schema)
     request = bigquery.BigqueryTablesInsertRequest(
-        projectId=self.project, datasetId=self.dataset_id, table=table)
-    self.bigquery_client.client.tables.Insert(request)
-    table_data = [
-        {'number': 1, 'str': 'abc'},
-        {'number': 2, 'str': 'def'},
-        {'number': 3, 'str': u'你好'},
-        {'number': 4, 'str': u'привет'}
-    ]
-    self.bigquery_client.insert_rows(
-        self.project, self.dataset_id, tablename, table_data)
+        projectId=cls.project, datasetId=cls.dataset_id, table=table)
+    cls.bigquery_client.client.tables.Insert(request)
+    cls.bigquery_client.insert_rows(
+        cls.project, cls.dataset_id, table_name, cls.TABLE_DATA)
 
-  def create_table_new_types(self, table_name):
+  @skip(['PortableRunner', 'FlinkRunner'])
+  @attr('IT')
+  def test_native_source(self):
+    with beam.Pipeline(argv=self.args) as p:
+      result = (p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
+          query=self.query, use_standard_sql=True)))
+      assert_that(result, equal_to(self.TABLE_DATA))
+
+  @attr('IT')
+  def test_iobase_source(self):
+    with beam.Pipeline(argv=self.args) as p:
+      result = (p | 'read' >> beam.io._ReadFromBigQuery(
+          query=self.query, use_standard_sql=True, project=self.project))
+      assert_that(result, equal_to(self.TABLE_DATA))
+
+
+class ReadNewTypesTests(BigQueryReadIntegrationTests):
+  @classmethod
+  def setUpClass(cls):
+    super(ReadNewTypesTests, cls).setUpClass()
+    cls.table_name = 'python_new_types'
+    cls.create_table(cls.table_name)
+
+    table_id = '{}.{}'.format(cls.dataset_id, cls.table_name)
+    cls.query = 'SELECT float, numeric, bytes, date, time, datetime,' \
+                'timestamp, geo FROM `%s`' % table_id
+
+  @classmethod
+  def create_table(cls, table_name):
     table_schema = bigquery.TableSchema()
     table_field = bigquery.TableFieldSchema()
     table_field.name = 'float'
@@ -141,13 +202,13 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
     table_schema.fields.append(table_field)
     table = bigquery.Table(
         tableReference=bigquery.TableReference(
-            projectId=self.project,
-            datasetId=self.dataset_id,
+            projectId=cls.project,
+            datasetId=cls.dataset_id,
             tableId=table_name),
         schema=table_schema)
     request = bigquery.BigqueryTablesInsertRequest(
-        projectId=self.project, datasetId=self.dataset_id, table=table)
-    self.bigquery_client.client.tables.Insert(request)
+        projectId=cls.project, datasetId=cls.dataset_id, table=table)
+    cls.bigquery_client.client.tables.Insert(request)
     row_data = {
         'float': 0.33, 'numeric': Decimal('10'), 'bytes':
         base64.b64encode(b'\xab\xac').decode('utf-8'), 'date': '3000-12-31',
@@ -160,34 +221,10 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
     for key, value in iteritems(row_data):
       table_data.append({key: value})
 
-    self.bigquery_client.insert_rows(
-        self.project, self.dataset_id, table_name, table_data)
+    cls.bigquery_client.insert_rows(
+        cls.project, cls.dataset_id, table_name, table_data)
 
-  @attr('IT')
-  def test_big_query_read(self):
-    table_name = 'python_write_table'
-    self.create_table(table_name)
-    table_id = '{}.{}'.format(self.dataset_id, table_name)
-
-    args = self.test_pipeline.get_full_options_as_args()
-
-    with beam.Pipeline(argv=args) as p:
-      result = (p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
-          query='SELECT number, str FROM `%s`' % table_id,
-          use_standard_sql=True)))
-      assert_that(result, equal_to([{'number': 1, 'str': 'abc'},
-                                    {'number': 2, 'str': 'def'},
-                                    {'number': 3, 'str': u'你好'},
-                                    {'number': 4, 'str': u'привет'}]))
-
-  @attr('IT')
-  def test_big_query_read_new_types(self):
-    table_name = 'python_new_types'
-    self.create_table_new_types(table_name)
-    table_id = '{}.{}'.format(self.dataset_id, table_name)
-
-    args = self.test_pipeline.get_full_options_as_args()
-
+  def get_expected_data(self):
     expected_row = {
         'float': 0.33, 'numeric': Decimal('10'), 'bytes':
         base64.b64encode(b'\xab\xac'), 'date': '3000-12-31',
@@ -203,12 +240,22 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
       row[key] = value
       expected_data.append(row)
 
-    with beam.Pipeline(argv=args) as p:
+    return expected_data
+
+  @skip(['PortableRunner', 'FlinkRunner'])
+  @attr('IT')
+  def test_native_source(self):
+    with beam.Pipeline(argv=self.args) as p:
       result = (p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
-          query='SELECT float, numeric, bytes, date, time, datetime,'
-                'timestamp, geo FROM `%s`' % table_id,
-          use_standard_sql=True)))
-      assert_that(result, equal_to(expected_data))
+          query=self.query, use_standard_sql=True)))
+      assert_that(result, equal_to(self.get_expected_data()))
+
+  @attr('IT')
+  def test_iobase_source(self):
+    with beam.Pipeline(argv=self.args) as p:
+      result = (p | 'read' >> beam.io._ReadFromBigQuery(
+          query=self.query, use_standard_sql=True, project=self.project))
+      assert_that(result, equal_to(self.get_expected_data()))
 
 
 if __name__ == '__main__':

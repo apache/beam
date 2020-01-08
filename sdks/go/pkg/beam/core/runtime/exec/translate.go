@@ -168,7 +168,7 @@ func (b *builder) makeWindowingStrategy(id string) (*window.WindowingStrategy, e
 	if !ok {
 		return nil, errors.Errorf("windowing strategy %v not found", id)
 	}
-	wfn, err := unmarshalWindowFn(ws.GetWindowFn().GetSpec())
+	wfn, err := unmarshalWindowFn(ws.GetWindowFn())
 	if err != nil {
 		return nil, err
 	}
@@ -345,13 +345,13 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			if err := proto.Unmarshal(payload, &pardo); err != nil {
 				return nil, errors.Wrapf(err, "invalid ParDo payload for %v", transform)
 			}
-			data = string(pardo.GetDoFn().GetSpec().GetPayload())
+			data = string(pardo.GetDoFn().GetPayload())
 		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract:
 			var cmb pb.CombinePayload
 			if err := proto.Unmarshal(payload, &cmb); err != nil {
 				return nil, errors.Wrapf(err, "invalid CombinePayload payload for %v", transform)
 			}
-			data = string(cmb.GetCombineFn().GetSpec().GetPayload())
+			data = string(cmb.GetCombineFn().GetPayload())
 		default:
 			// TODO(herohde) 12/4/2017: we see DoFns directly with Dataflow. Handle that
 			// case here, for now, so that the harness can use this logic.
@@ -479,7 +479,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		if err := proto.Unmarshal(payload, &wp); err != nil {
 			return nil, errors.Wrapf(err, "invalid WindowInto payload for %v", transform)
 		}
-		wfn, err := unmarshalWindowFn(wp.GetWindowFn().GetSpec())
+		wfn, err := unmarshalWindowFn(wp.GetWindowFn())
 		if err != nil {
 			return nil, err
 		}
