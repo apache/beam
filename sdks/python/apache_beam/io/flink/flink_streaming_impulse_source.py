@@ -20,6 +20,8 @@ A PTransform that provides an unbounded, streaming source of empty byte arrays.
 
 This can only be used with the flink runner.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import json

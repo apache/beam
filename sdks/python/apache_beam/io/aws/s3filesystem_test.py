@@ -18,6 +18,8 @@
 
 """Unit tests for the S3 File System"""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging

@@ -17,6 +17,8 @@
 
 """A factory that creates UncommittedBundles."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from builtins import object

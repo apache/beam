@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Compute stats, infer schema, and validate stats for chicago taxi example."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function

@@ -16,6 +16,8 @@
 #
 
 """Tests for apache_beam.runners.interactive.background_caching_job."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import unittest

@@ -17,6 +17,8 @@
 
 """A cross-language word-counting workflow."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse

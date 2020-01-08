@@ -17,6 +17,8 @@
 
 """Unit tests for the windowing classes."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import unittest

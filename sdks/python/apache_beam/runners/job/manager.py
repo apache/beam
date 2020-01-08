@@ -18,6 +18,8 @@
 """A object to control to the Job API Co-Process
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging

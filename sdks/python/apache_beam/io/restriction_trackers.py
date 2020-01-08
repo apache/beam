@@ -16,6 +16,8 @@
 #
 
 """`iobase.RestrictionTracker` implementations provided with Apache Beam."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 

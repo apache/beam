@@ -24,6 +24,8 @@ transform (of type PTransform), which describes how the value will be
 produced when the pipeline gets executed.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections

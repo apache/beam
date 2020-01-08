@@ -49,6 +49,8 @@ and an output prefix on GCS:::
   --output gs://YOUR_OUTPUT_PREFIX
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse

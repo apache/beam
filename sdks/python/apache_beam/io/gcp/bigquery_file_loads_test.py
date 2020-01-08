@@ -17,6 +17,8 @@
 
 """Unit tests for BigQuery file loads utilities."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import json

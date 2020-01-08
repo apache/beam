@@ -16,6 +16,8 @@
 #
 """S3 file system implementation for accessing files on AWS S3."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from future.utils import iteritems

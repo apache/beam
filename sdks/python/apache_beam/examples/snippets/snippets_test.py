@@ -17,6 +17,8 @@
 #
 
 """Tests for all code snippets used in public docs."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 

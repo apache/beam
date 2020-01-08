@@ -20,6 +20,8 @@
 This can only be used with the Flink portable runner.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse

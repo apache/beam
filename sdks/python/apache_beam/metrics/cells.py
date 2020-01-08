@@ -21,6 +21,8 @@ in-memory changes to a metric. It represents a specific metric in a single
 context.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 

@@ -16,6 +16,8 @@
 #
 
 """Unit tests for the Create and _CreateSource classes."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 

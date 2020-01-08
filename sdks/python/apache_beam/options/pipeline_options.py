@@ -17,6 +17,8 @@
 
 """Pipeline options obtained from command line parsing."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse
