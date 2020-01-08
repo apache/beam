@@ -169,9 +169,8 @@ class PipelineOptions(HasDisplayData):
   By default the options classes will use command line arguments to initialize
   the options.
   """
-  def __init__(self,
-               flags=None,  # type: Optional[List[str]]
-               **kwargs):
+  def __init__(self, flags=None, **kwargs):
+    # type: (Optional[List[str]], **Any) -> None
     """Initialize an options class.
 
     The initializer will traverse all subclasses, add all their argparse
@@ -992,6 +991,28 @@ class FlinkRunnerOptions(PipelineOptions):
                              ' directly, rather than starting up a job server.'
                              ' Only applies when flink_master is set to a'
                              ' cluster address.  Requires Python 3.6+.')
+
+
+class SparkRunnerOptions(PipelineOptions):
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument('--spark_master_url',
+                        default='local[4]',
+                        help='Spark master URL (spark://HOST:PORT). '
+                             'Use "local" (single-threaded) or "local[*]" '
+                             '(multi-threaded) to start a local cluster for '
+                             'the execution.')
+    parser.add_argument('--spark_job_server_jar',
+                        help='Path or URL to a Beam Spark jobserver jar.')
+    parser.add_argument('--spark_submit_uber_jar',
+                        default=False,
+                        action='store_true',
+                        help='Create and upload an uber jar to the Spark REST'
+                             ' endpoint, rather than starting up a job server.'
+                             ' Requires Python 3.6+.')
+    parser.add_argument('--spark_rest_url',
+                        help='URL for the Spark REST endpoint. '
+                             'Only required when using spark_submit_uber_jar.')
 
 
 class TestOptions(PipelineOptions):

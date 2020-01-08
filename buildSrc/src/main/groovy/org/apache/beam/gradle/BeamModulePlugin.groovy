@@ -362,10 +362,10 @@ class BeamModulePlugin implements Plugin<Project> {
     def apex_malhar_version = "3.4.0"
     def aws_java_sdk_version = "1.11.519"
     def aws_java_sdk2_version = "2.5.71"
-    def cassandra_driver_version = "3.6.0"
+    def cassandra_driver_version = "3.8.0"
     def classgraph_version = "4.8.56"
     def generated_grpc_beta_version = "0.44.0"
-    def generated_grpc_ga_version = "1.43.0"
+    def generated_grpc_ga_version = "1.83.0"
     def generated_grpc_dc_beta_version = "0.27.0-alpha"
     def google_auth_version = "0.12.0"
     def google_clients_version = "1.28.0"
@@ -384,7 +384,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def postgres_version = "42.2.2"
     def powermock_version = "2.0.2"
     def proto_google_common_protos_version = "1.17.0"
-    def protobuf_version = "3.6.0"
+    def protobuf_version = "3.11.1"
     def quickcheck_version = "0.8"
     def spark_version = "2.4.4"
     def spark_structured_streaming_version = "2.4.0"
@@ -428,11 +428,10 @@ class BeamModulePlugin implements Plugin<Project> {
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
         classgraph                                  : "io.github.classgraph:classgraph:$classgraph_version",
-        commons_codec                               : "commons-codec:commons-codec:1.10",
+        commons_codec                               : "commons-codec:commons-codec:1.14",
         commons_compress                            : "org.apache.commons:commons-compress:1.19",
         commons_csv                                 : "org.apache.commons:commons-csv:1.4",
-        commons_io_1x                               : "commons-io:commons-io:1.3.2",
-        commons_io_2x                               : "commons-io:commons-io:2.5",
+        commons_io                                  : "commons-io:commons-io:2.6",
         commons_lang3                               : "org.apache.commons:commons-lang3:3.6",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.0.15",
@@ -445,7 +444,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20181114-$google_clients_version",
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20181015-$google_clients_version",
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20190927-$google_clients_version",
-        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20181213-$google_clients_version",
+        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20191111-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20181109-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials:$google_auth_version",
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http:$google_auth_version",

@@ -45,6 +45,7 @@ public interface PushbackSideInputDoFnRunner<InputT, OutputT> {
   /** Calls the underlying {@link DoFn.OnTimer} method. */
   void onTimer(
       String timerId,
+      String timerFamilyId,
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,

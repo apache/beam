@@ -385,6 +385,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
       BoundedWindow window = ((WindowNamespace<?>) namespace).getWindow();
       pushbackDoFnRunner.onTimer(
           timerData.getTimerId(),
+          timerData.getTimerFamilyId(),
           window,
           timerData.getTimestamp(),
           timerData.getOutputTimestamp(),

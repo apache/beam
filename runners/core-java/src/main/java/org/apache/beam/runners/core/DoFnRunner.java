@@ -40,6 +40,7 @@ public interface DoFnRunner<InputT, OutputT> {
    */
   void onTimer(
       String timerId,
+      String timerFamilyId,
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,

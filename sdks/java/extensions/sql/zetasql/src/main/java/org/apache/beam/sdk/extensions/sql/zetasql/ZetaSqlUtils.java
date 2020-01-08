@@ -158,6 +158,11 @@ public final class ZetaSqlUtils {
       case DECIMAL:
         return value.getNumericValue();
       case DOUBLE:
+        // Floats with a floating part equal to zero are treated as whole (INT64).
+        // Cast to double when that happens.
+        if (value.getType().getKind().equals(TypeKind.TYPE_INT64)) {
+          return (double) value.getInt64Value();
+        }
         return value.getDoubleValue();
       case STRING:
         return value.getStringValue();

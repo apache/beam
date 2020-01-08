@@ -66,6 +66,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
 }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Dataflow_Batch', 'H 13 * * *', this) {
+CronJobBuilder.cronJob('beam_LoadTests_Python_37_ParDo_Dataflow_Batch', 'H 13 * * *', this) {
     batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }

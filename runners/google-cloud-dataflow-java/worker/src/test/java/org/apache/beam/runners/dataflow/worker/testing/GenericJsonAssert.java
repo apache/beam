@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.testing;
 
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.json.jackson2.JacksonFactory;
+import java.io.IOException;
 import org.json.JSONException;
 import org.skyscreamer.jsonassert.JSONAssert;
 
@@ -28,19 +29,23 @@ public class GenericJsonAssert {
   private static final JacksonFactory jacksonFactory = JacksonFactory.getDefaultInstance();
 
   /**
-   * Asserts that {@code actual} has the same JSON representation as {@code expectedJsonText}.
+   * Asserts that {@code actual} has the same JSON representation as {@code expected}.
    *
-   * @param expectedJsonText expected JSON string.
+   * @param expected expected JSON string, {@link GenericJson}, {@link java.util.Map}, or {@link
+   *     Iterable} of {@link GenericJson}.
    * @param actual actual object to compare its JSON representation.
    */
-  public static void assertEqualsAsJson(String expectedJsonText, GenericJson actual) {
-    actual.setFactory(jacksonFactory);
+  public static void assertEqualsAsJson(Object expected, Object actual) {
 
-    String actualJsonText = actual.toString();
     try {
+      String expectedJsonText =
+          expected instanceof String ? (String) expected : jacksonFactory.toString(expected);
+      String actualJsonText = jacksonFactory.toString(actual);
       JSONAssert.assertEquals(expectedJsonText, actualJsonText, true);
     } catch (JSONException ex) {
       throw new IllegalArgumentException("Could not parse JSON", ex);
+    } catch (IOException ex) {
+      throw new IllegalArgumentException("Could not generate JSON text", ex);
     }
   }
 }

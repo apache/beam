@@ -163,6 +163,7 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
       BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
       doFnRunner.onTimer(
           timer.getTimerId(),
+          timer.getTimerFamilyId(),
           window,
           timer.getTimestamp(),
           timer.getOutputTimestamp(),

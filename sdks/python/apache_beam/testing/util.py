@@ -174,15 +174,19 @@ def equal_to(expected):
     # 2) As a fallback if we encounter a TypeError in python 3. this method
     #    works on collections that have different types.
     except (BeamAssertException, TypeError):
+      unexpected = []
       for element in actual:
         try:
           expected_list.remove(element)
         except ValueError:
-          raise BeamAssertException(
-              'Failed assert: %r == %r' % (expected, actual))
-      if expected_list:
-        raise BeamAssertException(
-            'Failed assert: %r == %r' % (expected, actual))
+          unexpected.append(element)
+      if unexpected or expected_list:
+        msg = 'Failed assert: %r == %r' % (expected, actual)
+        if unexpected:
+          msg = msg + ', unexpected elements %r' % unexpected
+        if expected_list:
+          msg = msg + ', missing elements %r' % expected_list
+        raise BeamAssertException(msg)
 
   return _equal
 

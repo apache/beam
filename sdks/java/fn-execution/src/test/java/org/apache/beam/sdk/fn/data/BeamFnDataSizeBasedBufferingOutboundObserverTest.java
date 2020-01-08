@@ -130,7 +130,7 @@ public class BeamFnDataSizeBasedBufferingOutboundObserverTest {
     PipelineOptions options = PipelineOptionsFactory.create();
     options
         .as(ExperimentalOptions.class)
-        .setExperiments(Arrays.asList("beam_fn_api_data_buffer_size_limit=100"));
+        .setExperiments(Arrays.asList("data_buffer_size_limit=100"));
     CloseableFnDataReceiver<WindowedValue<byte[]>> consumer =
         BeamFnDataBufferingOutboundObserver.forLocation(
             options,

@@ -315,6 +315,11 @@ public class ExecutableStageDoFnOperatorTest {
               }
 
               @Override
+              public void split(double fractionOfRemainder) {
+                throw new UnsupportedOperationException();
+              }
+
+              @Override
               public void close() throws Exception {
                 if (onceEmitted) {
                   return;
