@@ -4,7 +4,7 @@
 ## This map describes how each communication channel contributes to the growth of Apache Beam project.  
 ![Beam communications logic model](/comms-logic-model.svg)
 
-While all the channels are connected to a specific function in the short, medium, and long term, some areas have redundancies, and some other areas could use more exposure. In order to continue to grow th project, there are 3 proposals we need to focus on (click on the link on each section to read more):
+While all the channels are connected to a specific function in the short, medium, and long term, some areas have redundancies, and some other areas could use more exposure. In order to continue to grow the project, there are 3 proposals we need to focus on (click on the link on each section to read more):
 
 **1. [Blog post categories, frequency and distribution.](#proposal-1-blog-post-categories-frequency-and-distribution)** 
 Reduce to one blogging space (on Beam Website). Incorporate 3 categories to the blog: Apache Beam summit, Apache Beam use cases, and Your journey as a contributor. 
