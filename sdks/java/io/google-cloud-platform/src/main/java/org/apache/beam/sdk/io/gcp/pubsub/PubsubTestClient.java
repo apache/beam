@@ -309,12 +309,17 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
         IncomingMessage incomingMessage = pendItr.next();
         pendItr.remove();
         IncomingMessage incomingMessageWithRequestTime =
-            incomingMessage.withRequestTime(requestTimeMsSinceEpoch);
+            IncomingMessage.of(
+                incomingMessage.message(),
+                incomingMessage.timestampMsSinceEpoch(),
+                requestTimeMsSinceEpoch,
+                incomingMessage.ackId(),
+                incomingMessage.recordId());
         incomingMessages.add(incomingMessageWithRequestTime);
         STATE.pendingAckIncomingMessages.put(
-            incomingMessageWithRequestTime.ackId, incomingMessageWithRequestTime);
+            incomingMessageWithRequestTime.ackId(), incomingMessageWithRequestTime);
         STATE.ackDeadline.put(
-            incomingMessageWithRequestTime.ackId,
+            incomingMessageWithRequestTime.ackId(),
             requestTimeMsSinceEpoch + STATE.ackTimeoutSec * 1000);
         if (incomingMessages.size() >= batchSize) {
           break;
