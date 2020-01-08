@@ -74,6 +74,11 @@ import org.apache.parquet.io.SeekableInputStream;
  *
  * <p>As {@link Read} is based on {@link FileIO}, it supports any filesystem (hdfs, ...).
  *
+ * <p>When using schemas created via reflection, it may be useful to generate {@link GenericRecord}
+ * instances rather than instances of the class associated with the schema. {@link Read} and
+ * {@link ReadFiles} provide {@link ParquetIO.Read#withAvroDataModel(GenericData)} allowing
+ * implementations to set the data model associated with the {@link AvroParquetReader}
+ *
  * <p>For more advanced use cases, like reading each file in a {@link PCollection} of {@link
  * FileIO.ReadableFile}, use the {@link ReadFiles} transform.
  *
@@ -171,6 +176,7 @@ public class ParquetIO {
       return from(ValueProvider.StaticValueProvider.of(filepattern));
     }
 
+    /** Define the Avro data model; see {@link AvroParquetReader.Builder#withDataModel(GenericData)}. */
     public Read withAvroDataModel(GenericData model) {
       return toBuilder().setAvroDataModel(model).build();
     }
@@ -216,6 +222,7 @@ public class ParquetIO {
       abstract ReadFiles build();
     }
 
+    /** Define the Avro data model; see {@link AvroParquetReader.Builder#withDataModel(GenericData)}. */
     public ReadFiles withAvroDataModel(GenericData model) {
       return toBuilder().setAvroDataModel(model).build();
     }
