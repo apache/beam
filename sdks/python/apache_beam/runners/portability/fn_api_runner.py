@@ -452,18 +452,16 @@ class FnApiRunner(runner.PipelineRunner):
         pipeline_options.DirectOptions).direct_num_workers or self._num_workers
 
     # set direct workers running mode if it is defined with pipeline options.
-    if options.view_as(pipeline_options.DirectOptions).direct_running_mode \
-        is not None:
-      running_mode = \
-        options.view_as(pipeline_options.DirectOptions).direct_running_mode
-      if running_mode == 'multi_threading':
-        self._default_environment = environments.EmbeddedPythonGrpcEnvironment()
-      elif running_mode == 'multi_processing':
-        command_bytes = b'%s -m apache_beam.runners.worker.sdk_worker_main' \
-                         % sys.executable.encode('ascii')
-        self._default_environment = environments.SubprocessSDKEnvironment(
-            command_string=command_bytes.decode('utf-8')
-        )
+    running_mode = \
+      options.view_as(pipeline_options.DirectOptions).direct_running_mode
+    if running_mode == 'multi_threading':
+      self._default_environment = environments.EmbeddedPythonGrpcEnvironment()
+    elif running_mode == 'multi_processing':
+      command_string = '%s -m apache_beam.runners.worker.sdk_worker_main' \
+                    % sys.executable
+      self._default_environment = environments.SubprocessSDKEnvironment(
+          command_string=command_string
+      )
 
     self._profiler_factory = profiler.Profile.factory_from_options(
         options.view_as(pipeline_options.ProfilingOptions))
