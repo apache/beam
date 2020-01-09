@@ -783,14 +783,14 @@ class TimestampCombinerTest(unittest.TestCase):
           label='assert per window')
 
 def _sort_lists(result):
-    if isinstance(result, list):
-      return sorted(result)
-    elif isinstance(result, tuple):
-      return tuple(_sort_lists(e) for e in result)
-    elif isinstance(result, dict):
-      return {k: _sort_lists(v) for k, v in result.items()}
-    else:
-      return result
+  if isinstance(result, list):
+    return sorted(result)
+  elif isinstance(result, tuple):
+    return tuple(_sort_lists(e) for e in result)
+  elif isinstance(result, dict):
+    return {k: _sort_lists(v) for k, v in result.items()}
+  else:
+    return result
 
 _SortLists = beam.Map(_sort_lists)
 
