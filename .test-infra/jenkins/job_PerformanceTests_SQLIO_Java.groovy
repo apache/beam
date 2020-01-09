@@ -17,8 +17,6 @@
  */
 import CommonJobProperties as common
 
-def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
-
 def jobConfigs = [
         [
                 title        : 'SQL BigQueryIO with push-down Batch Performance Test Java',

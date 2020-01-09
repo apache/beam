@@ -35,6 +35,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rule.BeamIOPushDownRule;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.io.common.IOITHelper;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testutils.NamedTestResult;
@@ -57,6 +58,8 @@ import org.junit.runners.JUnit4;
 public class BigQueryIOPushDownIT {
   private static final String READ_FROM_TABLE = "bigquery-public-data:hacker_news.full";
   private static final String NAMESPACE = BigQueryIOPushDownIT.class.getName();
+  private static final String FIELDS_READ_METRIC = "fields_read";
+  private static final String READ_TIME_METRIC = "read_time";
   private static final String CREATE_TABLE_STATEMENT =
       "CREATE EXTERNAL TABLE HACKER_NEWS( \n"
           + "   title VARCHAR, \n"
@@ -97,17 +100,17 @@ public class BigQueryIOPushDownIT {
 
   @Before
   public void before() {
-    sqlEnv = BeamSqlEnv.inMemory(new BigQueryPerfTableProvider(NAMESPACE, "fields_read"));
+    sqlEnv = BeamSqlEnv.inMemory(new BigQueryPerfTableProvider(NAMESPACE, FIELDS_READ_METRIC));
   }
 
   @Test
   public void readUsingDirectReadMethodPushDown() {
-    sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, "DIRECT_READ"));
+    sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, Method.DIRECT_READ.toString()));
 
     BeamRelNode beamRelNode = sqlEnv.parseQuery(SELECT_STATEMENT);
     PCollection<Row> output =
         BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
-            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")));
+            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
 
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
@@ -124,18 +127,19 @@ public class BigQueryIOPushDownIT {
     ruleList.remove(BeamIOPushDownRule.INSTANCE);
 
     InMemoryMetaStore inMemoryMetaStore = new InMemoryMetaStore();
-    inMemoryMetaStore.registerProvider(new BigQueryPerfTableProvider(NAMESPACE, "fields_read"));
+    inMemoryMetaStore.registerProvider(
+        new BigQueryPerfTableProvider(NAMESPACE, FIELDS_READ_METRIC));
     sqlEnv =
         BeamSqlEnv.builder(inMemoryMetaStore)
             .setPipelineOptions(PipelineOptionsFactory.create())
             .setRuleSets(new RuleSet[] {RuleSets.ofList(ruleList)})
             .build();
-    sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, "DIRECT_READ"));
+    sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, Method.DIRECT_READ.toString()));
 
     BeamRelNode beamRelNode = sqlEnv.parseQuery(SELECT_STATEMENT);
     PCollection<Row> output =
         BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
-            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")));
+            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
 
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
@@ -144,12 +148,12 @@ public class BigQueryIOPushDownIT {
 
   @Test
   public void readUsingDefaultMethod() {
-    sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, "DEFAULT"));
+    sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, Method.DEFAULT.toString()));
 
     BeamRelNode beamRelNode = sqlEnv.parseQuery(SELECT_STATEMENT);
     PCollection<Row> output =
         BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
-            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")));
+            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
 
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
@@ -171,14 +175,15 @@ public class BigQueryIOPushDownIT {
     Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
     suppliers.add(
         reader -> {
-          long readStart = reader.getStartTimeMetric("read_time");
-          long readEnd = reader.getEndTimeMetric("read_time");
-          return NamedTestResult.create(uuid, timestamp, "read_time", (readEnd - readStart) / 1e3);
+          long readStart = reader.getStartTimeMetric(READ_TIME_METRIC);
+          long readEnd = reader.getEndTimeMetric(READ_TIME_METRIC);
+          return NamedTestResult.create(
+              uuid, timestamp, READ_TIME_METRIC, (readEnd - readStart) / 1e3);
         });
     suppliers.add(
         reader -> {
-          long fieldsRead = reader.getCounterMetric("fields_read");
-          return NamedTestResult.create(uuid, timestamp, "fields_read", fieldsRead);
+          long fieldsRead = reader.getCounterMetric(FIELDS_READ_METRIC);
+          return NamedTestResult.create(uuid, timestamp, FIELDS_READ_METRIC, fieldsRead);
         });
     return suppliers;
   }
