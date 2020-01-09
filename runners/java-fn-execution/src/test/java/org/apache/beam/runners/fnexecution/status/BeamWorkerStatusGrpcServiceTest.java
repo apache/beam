@@ -101,7 +101,7 @@ public class BeamWorkerStatusGrpcServiceTest {
     waitAndGetStatusClient(ID);
     String response = service.getSingleWorkerStatus("id", 1, TimeUnit.MILLISECONDS);
     assertEquals(
-        "Error: exception encountered getting status from SDK harness:java.util.concurrent.TimeoutException",
+        "Error: exception encountered getting status from SDK harness: java.util.concurrent.TimeoutException",
         response);
   }
 

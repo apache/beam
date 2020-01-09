@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
@@ -36,6 +37,7 @@ import org.apache.beam.runners.fnexecution.HeaderAccessor;
 import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -122,9 +124,6 @@ public class BeamWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase impl
    * @return {@link CompletableFuture} of WorkerStatusResponse from SDK harness.
    */
   public String getSingleWorkerStatus(String workerId, long timeout, TimeUnit timeUnit) {
-    if (!connectedClient.containsKey(workerId)) {
-      return "Error: Not connected.";
-    }
     try {
       return getWorkerStatus(workerId).get(timeout, timeUnit);
     } catch (InterruptedException | ExecutionException | TimeoutException e) {
@@ -144,17 +143,12 @@ public class BeamWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase impl
     // return result in worker id sorted map.
     Map<String, String> allStatuses = new ConcurrentSkipListMap<>(Comparator.naturalOrder());
 
-    connectedClient
-        .keySet()
+    Set<String> connectedClientIdsCopy = ImmutableSet.copyOf(connectedClient.keySet());
+    connectedClientIdsCopy
         .parallelStream()
         .forEach(
-            workerId -> {
-              try {
-                allStatuses.put(workerId, getWorkerStatus(workerId).get(timeout, timeUnit));
-              } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                allStatuses.put(workerId, handleAndReturnExceptionResponse(e));
-              }
-            });
+            workerId ->
+                allStatuses.put(workerId, getSingleWorkerStatus(workerId, timeout, timeUnit)));
 
     return allStatuses;
   }
@@ -164,7 +158,7 @@ public class BeamWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase impl
     CompletableFuture<WorkerStatusClient> statusClient;
     try {
       statusClient = getStatusClient(workerId);
-      if (statusClient == null) {
+      if (!statusClient.isDone()) {
         return CompletableFuture.completedFuture("Error: Not connected.");
       }
       CompletableFuture<WorkerStatusResponse> future = statusClient.get().getWorkerStatus();
@@ -201,9 +195,12 @@ public class BeamWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase impl
       Thread.currentThread().interrupt();
     }
     StringBuilder response = new StringBuilder();
-    response.append(DEFAULT_EXCEPTION_RESPONSE).append(":").append(e.getClass().getCanonicalName());
+    response
+        .append(DEFAULT_EXCEPTION_RESPONSE)
+        .append(": ")
+        .append(e.getClass().getCanonicalName());
     if (e.getMessage() != null) {
-      response.append(":").append(e.getMessage());
+      response.append(": ").append(e.getMessage());
     }
     return response.toString();
   }
