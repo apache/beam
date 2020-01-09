@@ -20,6 +20,8 @@ DirectRunner implementation of MetricResults. It is in charge not only of
 responding to queries of current metrics, but also of keeping the common
 state consistent.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import threading

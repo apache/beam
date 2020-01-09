@@ -196,15 +196,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       TimeDomain timeDomain) {
 
     // The effective timestamp is when derived elements will have their timestamp set, if not
-    // otherwise specified. If this is an event time timer, then they have the timestamp of the
-    // timer itself. Otherwise, they are set to the input timestamp, which is by definition
+    // otherwise specified. If this is an event time timer, then they have the timer's output
+    // timestamp. Otherwise, they are set to the input timestamp, which is by definition
     // non-late.
     Instant effectiveTimestamp;
     switch (timeDomain) {
       case EVENT_TIME:
-        effectiveTimestamp = timestamp;
+        effectiveTimestamp = outputTimestamp;
         break;
-
       case PROCESSING_TIME:
       case SYNCHRONIZED_PROCESSING_TIME:
         effectiveTimestamp = stepContext.timerInternals().currentInputWatermarkTime();
@@ -975,6 +974,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final String timerId;
     private final String timerFamilyId;
     private final TimerSpec spec;
+    private Instant target;
+    private Instant outputTimestamp;
     private Duration period = Duration.ZERO;
     private Duration offset = Duration.ZERO;
 
@@ -1009,30 +1010,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public void set(Instant target) {
-      // Verifies that the time domain of this timer is acceptable for absolute timers.
-      if (!TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
-        throw new IllegalStateException(
-            "Can only set relative timers in processing time domain. Use #setRelative()");
-      }
-
-      // Ensures that the target time is reasonable. For event time timers this means that the time
-      // should be prior to window GC time.
-      if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
-        Instant windowExpiry = window.maxTimestamp().plus(allowedLateness);
-        checkArgument(
-            !target.isAfter(windowExpiry),
-            "Attempted to set event time timer for %s but that is after"
-                + " the expiration of window %s",
-            target,
-            windowExpiry);
-      }
-
-      setUnderlyingTimer(target);
+      this.target = target;
+      verifyAbsoluteTimeDomain();
+      setAndVerifyOutputTimestamp();
+      setUnderlyingTimer();
     }
 
     @Override
     public void setRelative() {
-      Instant target;
       Instant now = getCurrentTime();
       if (period.equals(Duration.ZERO)) {
         target = now.plus(offset);
@@ -1041,7 +1026,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         target = millisSinceStart == 0 ? now : now.plus(period).minus(millisSinceStart);
       }
       target = minTargetAndGcTime(target);
-      setUnderlyingTimer(target);
+
+      setAndVerifyOutputTimestamp();
+      setUnderlyingTimer();
     }
 
     @Override
@@ -1070,14 +1057,58 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       return target;
     }
 
+    @Override
+    public Timer withOutputTimestamp(Instant outputTimestamp) {
+      this.outputTimestamp = outputTimestamp;
+      return this;
+    }
+
+    /** Verifies that the time domain of this timer is acceptable for absolute timers. */
+    private void verifyAbsoluteTimeDomain() {
+      if (!TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
+        throw new IllegalStateException(
+            "Cannot only set relative timers in processing time domain." + " Use #setRelative()");
+      }
+    }
+
+    /**
+     *
+     *
+     * <ul>
+     *   Ensures that:
+     *   <li>Users can't set {@code outputTimestamp} for processing time timers.
+     *   <li>Event time timers' {@code outputTimestamp} is set before window expiration.
+     * </ul>
+     */
+    private void setAndVerifyOutputTimestamp() {
+      // Output timestamp is currently not supported in processing time timers.
+      if (outputTimestamp != null && !TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
+        throw new IllegalStateException("Cannot set outputTimestamp in processing time domain.");
+      }
+      // Output timestamp is set to the delivery time if not initialized by an user.
+      if (outputTimestamp == null) {
+        outputTimestamp = target;
+      }
+
+      if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
+        Instant windowExpiry = window.maxTimestamp().plus(allowedLateness);
+        checkArgument(
+            !target.isAfter(windowExpiry),
+            "Attempted to set event time timer that outputs for %s but that is"
+                + " after the expiration of window %s",
+            target,
+            windowExpiry);
+      }
+    }
+
     /**
      * Sets the timer for the target time without checking anything about whether it is a reasonable
      * thing to do. For example, absolute processing time timers are not really sensible since the
      * user has no way to compute a good choice of time.
      */
-    private void setUnderlyingTimer(Instant target) {
+    private void setUnderlyingTimer() {
       timerInternals.setTimer(
-          namespace, timerId, timerFamilyId, target, target, spec.getTimeDomain());
+          namespace, timerId, timerFamilyId, target, outputTimestamp, spec.getTimeDomain());
     }
 
     private Instant getCurrentTime() {

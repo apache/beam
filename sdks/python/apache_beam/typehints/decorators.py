@@ -83,6 +83,8 @@ properly it must appear at the top of the module where all functions are
 defined, or before importing a module containing type-hinted functions.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import inspect

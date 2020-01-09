@@ -54,6 +54,7 @@ public abstract class Timer<T> {
   public static <T> Timer<T> of(Instant timestamp, Instant outputTimestamp, @Nullable T payload) {
     return new AutoValue_Timer(timestamp, outputTimestamp, payload);
   }
+
   /**
    * Returns the timestamp of when the timer is scheduled to fire.
    *

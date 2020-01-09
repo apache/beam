@@ -17,6 +17,8 @@
 
 """PubSub verifier used for end-to-end test."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging

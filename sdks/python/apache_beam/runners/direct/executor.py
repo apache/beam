@@ -17,6 +17,8 @@
 
 """An executor that schedules and executes applied ptransforms."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections

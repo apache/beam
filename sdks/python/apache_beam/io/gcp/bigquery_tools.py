@@ -25,6 +25,8 @@ These tools include wrappers and clients to interact with BigQuery APIs.
 NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import datetime

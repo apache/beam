@@ -16,6 +16,8 @@
 #
 
 """Tests common to all coder implementations."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging

@@ -18,6 +18,8 @@
 """Unit tests for the type-hint objects and decorators with Python 3 syntax not
 supported by 2.7."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 

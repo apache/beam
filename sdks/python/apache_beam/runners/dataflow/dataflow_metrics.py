@@ -21,6 +21,8 @@ responding to queries of current metrics by going to the dataflow
 service.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse

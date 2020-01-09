@@ -432,7 +432,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_compress                            : "org.apache.commons:commons-compress:1.19",
         commons_csv                                 : "org.apache.commons:commons-csv:1.4",
         commons_io                                  : "commons-io:commons-io:2.6",
-        commons_lang3                               : "org.apache.commons:commons-lang3:3.6",
+        commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.0.15",
         gax_grpc                                    : "com.google.api:gax-grpc:1.38.0",
@@ -955,7 +955,7 @@ class BeamModulePlugin implements Plugin<Project> {
                 FileTree exposedClasses = project.zipTree(it).matching {
                   include "**/*.class"
                   // BEAM-5919: Exclude paths for Java 9 multi-release jars.
-                  exclude "META-INF/versions/*/module-info.class"
+                  exclude "**/module-info.class"
                   configuration.shadowJarValidationExcludes.each {
                     exclude "$it"
                     exclude "META-INF/versions/*/$it"
@@ -1496,7 +1496,7 @@ class BeamModulePlugin implements Plugin<Project> {
               archivesBaseName: configuration.archivesBaseName,
               automaticModuleName: configuration.automaticModuleName,
               shadowJarValidationExcludes: it.shadowJarValidationExcludes,
-              shadowClosure: GrpcVendoring.shadowClosure() << {
+              shadowClosure: GrpcVendoring_1_21_0.shadowClosure() << {
                 // We perform all the code relocations but don't include
                 // any of the actual dependencies since they will be supplied
                 // by org.apache.beam:beam-vendor-grpc-v1p21p0:0.1
@@ -1537,7 +1537,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      project.dependencies GrpcVendoring.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_21_0 }
+      project.dependencies GrpcVendoring_1_21_0.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_21_0 }
     }
 
     /** ***********************************************************************************************/

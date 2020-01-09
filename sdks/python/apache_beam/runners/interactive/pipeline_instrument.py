@@ -21,6 +21,8 @@ For internal use only; no backwards-compatibility guarantees.
 This module accesses current interactive environment and analyzes given pipeline
 to transform original pipeline into a one-shot pipeline with interactivity.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import apache_beam as beam

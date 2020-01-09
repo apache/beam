@@ -26,6 +26,8 @@ For an example implementation of :class:`FileBasedSource` see
 :class:`~apache_beam.io._AvroSource`.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from typing import Callable

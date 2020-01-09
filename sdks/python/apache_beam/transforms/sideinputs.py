@@ -24,6 +24,8 @@ directly by pipeline writers. Instead, users should use the helper methods
 AsSingleton, AsIter, AsList and AsDict in apache_beam.pvalue.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from builtins import object

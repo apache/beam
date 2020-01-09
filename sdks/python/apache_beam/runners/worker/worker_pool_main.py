@@ -26,6 +26,8 @@ subject to the GIL and not sufficient.
 This entry point is used by the Python SDK container in worker pool mode.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse

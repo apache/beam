@@ -20,6 +20,8 @@
 Triggers control when in processing time windows get emitted.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections

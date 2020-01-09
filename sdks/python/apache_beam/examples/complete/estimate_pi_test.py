@@ -17,6 +17,8 @@
 
 """Test for the estimate_pi example."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging

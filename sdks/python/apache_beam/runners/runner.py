@@ -17,6 +17,8 @@
 
 """PipelineRunner, an abstract base runner object."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import importlib

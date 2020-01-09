@@ -20,6 +20,8 @@
 For internal use only; no backwards-compatibility guarantees.
 Only works with Python 3.5+.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import base64

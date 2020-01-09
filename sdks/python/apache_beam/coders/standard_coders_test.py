@@ -17,6 +17,8 @@
 
 """Unit tests for coders that must be consistent across all Beam SDKs.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 

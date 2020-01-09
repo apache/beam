@@ -38,7 +38,7 @@ import org.joda.time.Instant;
 /**
  * A customized {@link DoFnRunner} that handles late data dropping and garbage collection for
  * stateful {@link DoFn DoFns}. It registers a GC timer in {@link #processElement(WindowedValue)}
- * and does cleanup in {@link #onTimer(String, BoundedWindow, Instant, TimeDomain)}
+ * and does cleanup in {@link #onTimer(String, BoundedWindow, Instant, Instant, TimeDomain)}
  *
  * @param <InputT> the type of the {@link DoFn} (main) input elements
  * @param <OutputT> the type of the {@link DoFn} (main) output elements

@@ -29,6 +29,8 @@ automatically in the web docs. The naming convention for the tags is to have as
 prefix the PATH_TO_HTML where they are included followed by a descriptive
 string. The tags can contain only letters, digits and _.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 

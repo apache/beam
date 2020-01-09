@@ -20,6 +20,8 @@
 The 4.2 spec is available at https://samtools.github.io/hts-specs/VCFv4.2.pdf.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging

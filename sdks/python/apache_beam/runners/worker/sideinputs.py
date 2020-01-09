@@ -17,6 +17,8 @@
 
 """Utilities for handling side inputs."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections

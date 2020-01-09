@@ -17,6 +17,8 @@
 
 """Manages watermarks of PCollections and AppliedPTransforms."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import threading
