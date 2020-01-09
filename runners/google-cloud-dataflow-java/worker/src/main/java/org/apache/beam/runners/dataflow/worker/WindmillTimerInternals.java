@@ -305,7 +305,7 @@ class WindmillTimerInternals implements TimerInternals {
    */
   public static ByteString timerTag(WindmillNamespacePrefix prefix, TimerData timerData) {
     String tagString;
-    // Timers without timerFamily would have timerFamily == null or timerFamily equals to timerId
+    // Timers without timerFamily would have timerFamily would be an empty string
     if ("".equals(timerData.getTimerId())) {
       tagString =
           new StringBuilder()
