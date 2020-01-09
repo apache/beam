@@ -28,6 +28,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.WorkerStatusRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.WorkerStatusResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnWorkerStatusGrpc.BeamFnWorkerStatusImplBase;
@@ -54,6 +55,7 @@ public class BeamWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase impl
   private final HeaderAccessor headerAccessor;
   private final Map<String, CompletableFuture<WorkerStatusClient>> connectedClient =
       Collections.synchronizedMap(new HashMap<>());
+  private final AtomicBoolean isClosed = new AtomicBoolean();
 
   private BeamWorkerStatusGrpcService(
       ApiServiceDescriptor apiServiceDescriptor, HeaderAccessor headerAccessor) {
@@ -76,6 +78,9 @@ public class BeamWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase impl
 
   @Override
   public void close() throws Exception {
+    if (isClosed.getAndSet(true)) {
+      return;
+    }
     synchronized (connectedClient) {
       for (CompletableFuture<WorkerStatusClient> clientFuture : connectedClient.values()) {
         if (clientFuture.isDone()) {
@@ -89,6 +94,9 @@ public class BeamWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase impl
   @Override
   public StreamObserver<WorkerStatusResponse> workerStatus(
       StreamObserver<WorkerStatusRequest> requestObserver) {
+    if (isClosed.get()) {
+      throw new IllegalStateException("BeamWorkerStatusGrpcService already closed.");
+    }
     String workerId = headerAccessor.getSdkWorkerId();
     LOG.info("Beam Fn Status client connected with id {}", workerId);
 
@@ -124,6 +132,9 @@ public class BeamWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase impl
    * @return {@link CompletableFuture} of WorkerStatusResponse from SDK harness.
    */
   public String getSingleWorkerStatus(String workerId, long timeout, TimeUnit timeUnit) {
+    if (isClosed.get()) {
+      throw new IllegalStateException("BeamWorkerStatusGrpcService already closed.");
+    }
     try {
       return getWorkerStatus(workerId).get(timeout, timeUnit);
     } catch (InterruptedException | ExecutionException | TimeoutException e) {
@@ -140,6 +151,9 @@ public class BeamWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase impl
    * @return All the statuses in a map keyed by the SDK harness id.
    */
   public Map<String, String> getAllWorkerStatuses(long timeout, TimeUnit timeUnit) {
+    if (isClosed.get()) {
+      throw new IllegalStateException("BeamWorkerStatusGrpcService already closed.");
+    }
     // return result in worker id sorted map.
     Map<String, String> allStatuses = new ConcurrentSkipListMap<>(Comparator.naturalOrder());
 
