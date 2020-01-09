@@ -146,7 +146,8 @@ public class DataStoreTableTest {
     PCollection<Entity> result =
         pipeline
             .apply(Create.of(ROW))
-            .apply(RowToEntity.createTest(UUID_VALUE, SCHEMA, "__key__", KIND));
+            .setRowSchema(SCHEMA)
+            .apply(RowToEntity.createTest(UUID_VALUE, "__key__", KIND));
     PAssert.that(result).containsInAnyOrder(ENTITY);
 
     pipeline.run().waitUntilFinish();
@@ -171,7 +172,8 @@ public class DataStoreTableTest {
     PCollection<Entity> result =
         pipeline
             .apply(Create.of(rowWithoutKey))
-            .apply(RowToEntity.createTest(UUID_VALUE, SCHEMA, "__key__", KIND));
+            .setRowSchema(schemaWithoutKey)
+            .apply(RowToEntity.createTest(UUID_VALUE, "__key__", KIND));
 
     PAssert.that(result).containsInAnyOrder(ENTITY);
 
