@@ -429,7 +429,7 @@ class SdkWorker(object):
         stack_trace = '-NOT AVAILABLE-'
 
       _LOGGER.warning(
-          '%s%s without returning. Traceback:\n%s',
+          '%s%s without returning. Current Traceback:\n%s',
           state_lull_log, step_name_log, stack_trace)
 
   def process_bundle_progress(self,
