@@ -495,8 +495,10 @@ class Pipeline(object):
         belong to this pipeline instance.
     """
 
-    visited = set()  # type: Set[pvalue.PValue]
-    self._root_transform().visit(visitor, self, visited)
+    visited_vals = set()  # type: Set[pvalue.PValue]
+    visited_transforms = set()  # type: Set[AppliedPTransform]
+    self._root_transform().visit(visitor, self, visited_vals,
+                                 visited_transforms)
 
   def apply(self, transform, pvalueish=None, label=None):
     """Applies a custom transform using the pvalueish specified.
@@ -902,54 +904,58 @@ class AppliedPTransform(object):
   def visit(self,
             visitor,  # type: PipelineVisitor
             pipeline,  # type: Pipeline
-            visited  # type: Set[pvalue.PValue]
+            visited_vals,  # type: Set[pvalue.PValue]
+            visited_transforms,  # type: Set[AppliedPTransform]
            ):
     # type: (...) -> None
     """Visits all nodes reachable from the current node."""
 
     for pval in self.inputs:
-      if pval not in visited and not isinstance(pval, pvalue.PBegin):
+      if pval not in visited_vals and not isinstance(pval, pvalue.PBegin):
         if pval.producer is not None:
-          pval.producer.visit(visitor, pipeline, visited)
-          # The value should be visited now since we visit outputs too.
-          assert pval in visited, pval
+          pval.producer.visit(visitor, pipeline, visited_vals,
+                              visited_transforms)
+          # The value should be visited_vals now since we visit outputs too.
+          assert pval in visited_vals, pval
 
     # Visit side inputs.
     for pval in self.side_inputs:
-      if isinstance(pval, pvalue.AsSideInput) and pval.pvalue not in visited:
+      if (isinstance(pval, pvalue.AsSideInput) and
+          pval.pvalue not in visited_vals):
         pval = pval.pvalue  # Unpack marker-object-wrapped pvalue.
         if pval.producer is not None:
-          pval.producer.visit(visitor, pipeline, visited)
-          # The value should be visited now since we visit outputs too.
-          assert pval in visited
+          pval.producer.visit(visitor, pipeline, visited_vals)
+          # The value should be visited_vals now since we visit outputs too.
+          assert pval in visited_vals
           # TODO(silviuc): Is there a way to signal that we are visiting a side
           # value? The issue is that the same PValue can be reachable through
           # multiple paths and therefore it is not guaranteed that the value
-          # will be visited as a side value.
+          # will be visited_vals as a side value.
 
     # Visit a composite or primitive transform.
     if self.is_composite():
       visitor.enter_composite_transform(self)
       for part in self.parts:
-        part.visit(visitor, pipeline, visited)
+        part.visit(visitor, pipeline, visited_vals, visited_transforms)
       visitor.leave_composite_transform(self)
-    else:
+    elif self not in visited_transforms:
       visitor.visit_transform(self)
+      visited_transforms.add(self)
 
-    # Visit the outputs (one or more). It is essential to mark as visited the
-    # tagged PCollections of the DoOutputsTuple object. A tagged PCollection is
-    # connected directly with its producer (a multi-output ParDo), but the
+    # Visit the outputs (one or more). It is essential to mark as visited_vals
+    # the tagged PCollections of the DoOutputsTuple object. A tagged PCollection
+    # is connected directly with its producer (a multi-output ParDo), but the
     # output of such a transform is the containing DoOutputsTuple, not the
     # PCollection inside it. Without the code below a tagged PCollection will
-    # not be marked as visited while visiting its producer.
+    # not be marked as visited_vals while visiting its producer.
     for pval in self.outputs.values():
       if isinstance(pval, pvalue.DoOutputsTuple):
         pvals = (v for v in pval)
       else:
         pvals = (pval,)
       for v in pvals:
-        if v not in visited:
-          visited.add(v)
+        if v not in visited_vals:
+          visited_vals.add(v)
           visitor.visit_value(v, self)
 
   def named_inputs(self):

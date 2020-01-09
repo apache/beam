@@ -271,6 +271,42 @@ class PipelineTest(unittest.TestCase):
     self.assertEqual(visitor.enter_composite[1].transform, transform)
     self.assertEqual(visitor.leave_composite[0].transform, transform)
 
+  def test_visitor_not_sorted(self):
+    p = Pipeline()
+    # pylint: disable=expression-not-assigned
+    p | beam.Impulse() | beam.Map(lambda _: _)
+
+    original_graph = p.to_runner_api(return_context=False)
+    out_of_order_graph = p.to_runner_api(return_context=False)
+
+    root_id = out_of_order_graph.root_transform_ids[0]
+    root = out_of_order_graph.components.transforms[root_id]
+    tmp = root.subtransforms[0]
+    root.subtransforms[0] = root.subtransforms[1]
+    root.subtransforms[1] = tmp
+
+    p = beam.Pipeline().from_runner_api(out_of_order_graph,
+                                        runner='BundleBasedDirectRunner',
+                                        options=None)
+    class Visitor(PipelineVisitor):
+      def __init__(self):
+        self.visited = []
+
+      def visit_transform(self, applied_ptransform):
+        self.visited.append(applied_ptransform.full_label)
+
+    v_out_of_order = Visitor()
+    p.visit(v_out_of_order)
+
+    p = beam.Pipeline().from_runner_api(original_graph,
+                                        runner='BundleBasedDirectRunner',
+                                        options=None)
+
+    v_original = Visitor()
+    p.visit(v_original)
+
+    self.assertCountEqual(v_out_of_order.visited, v_original.visited)
+
   def test_apply_custom_transform(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'pcoll' >> Create([1, 2, 3])
