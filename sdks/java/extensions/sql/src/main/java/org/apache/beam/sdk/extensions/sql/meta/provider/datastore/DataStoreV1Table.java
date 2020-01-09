@@ -123,13 +123,13 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
 
     PCollection<Entity> readEntities = readInstance.expand(begin);
 
-    return readEntities.apply(EntityToRow.create(getSchema(), keyField)).setRowSchema(schema);
+    return readEntities.apply(EntityToRow.create(getSchema(), keyField));
   }
 
   @Override
   public POutput buildIOWriter(PCollection<Row> input) {
     return input
-        .apply(RowToEntity.create(getSchema(), keyField, kind))
+        .apply(RowToEntity.create(keyField, kind))
         .apply(DatastoreIO.v1().write().withProjectId(projectId));
   }
 
@@ -199,7 +199,7 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
 
     @Override
     public PCollection<Row> expand(PCollection<Entity> input) {
-      return input.apply(ParDo.of(new EntityToRowConverter()));
+      return input.apply(ParDo.of(new EntityToRowConverter())).setRowSchema(schema);
     }
 
     @VisibleForTesting
@@ -306,56 +306,51 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
    */
   public static class RowToEntity extends PTransform<PCollection<Row>, PCollection<Entity>> {
     private final Supplier<String> keySupplier;
-    private final Schema schema;
     private final String kind;
     private final String keyField;
 
-    private RowToEntity(Supplier<String> keySupplier, Schema schema, String kind, String keyField) {
+    private RowToEntity(Supplier<String> keySupplier, String kind, String keyField) {
       this.keySupplier = keySupplier;
-      this.schema = schema;
       this.kind = kind;
       this.keyField = keyField;
+    }
 
-      if (schema.getFieldNames().contains(keyField)
-          && !schema.getField(keyField).getType().getTypeName().equals(TypeName.BYTES)) {
+    @Override
+    public PCollection<Entity> expand(PCollection<Row> input) {
+      if (input.getSchema().getFieldNames().contains(keyField)
+          && !input.getSchema().getField(keyField).getType().getTypeName().equals(TypeName.BYTES)) {
         throw new IllegalStateException(
             "Field `"
                 + keyField
                 + "` should of type `VARBINARY`. Please change the type or specify a field to write the KEY value from via TableProperties.");
       }
-    }
-
-    @Override
-    public PCollection<Entity> expand(PCollection<Row> input) {
       return input.apply(ParDo.of(new RowToEntityConverter()));
     }
 
     /**
      * Create a PTransform instance.
      *
-     * @param schema Source row schema.
      * @param keyField Row field containing a serialized {@code Key}, must be set when using user
      *     specified keys.
      * @param kind DataStore `Kind` data will be written to (required when generating random {@code
      *     Key}s).
      * @return {@code PTransform} instance for Row to Entity conversion.
      */
-    public static RowToEntity create(Schema schema, String keyField, String kind) {
+    public static RowToEntity create(String keyField, String kind) {
       LOGGER.info(
           "VARBINARY field with the KEY was not specified, using default value: `"
               + DEFAULT_KEY_FIELD
               + "`.");
       return new RowToEntity(
           (Supplier<String> & Serializable) () -> UUID.randomUUID().toString(),
-          schema,
           kind,
           keyField);
     }
 
     @VisibleForTesting
-    static RowToEntity createTest(String keyString, Schema schema, String keyField, String kind) {
+    static RowToEntity createTest(String keyString, String keyField, String kind) {
       return new RowToEntity(
-          (Supplier<String> & Serializable) () -> keyString, schema, kind, keyField);
+          (Supplier<String> & Serializable) () -> keyString, kind, keyField);
     }
 
     @VisibleForTesting
@@ -404,7 +399,7 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
         Schema schemaWithoutKeyField =
             Schema.builder()
                 .addFields(
-                    schema.getFields().stream()
+                    row.getSchema().getFields().stream()
                         .filter(field -> !field.getName().equals(keyField))
                         .collect(Collectors.toList()))
                 .build();
