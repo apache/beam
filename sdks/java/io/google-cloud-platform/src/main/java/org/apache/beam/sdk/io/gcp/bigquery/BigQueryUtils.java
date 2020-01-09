@@ -373,13 +373,17 @@ public class BigQueryUtils {
     }
   }
 
+  /**
+   * Convert to a Beam {@link Row} from an Avro {@link GenericRecord} without using an avro schema.
+   */
   public static Row toBeamRow(GenericRecord record, Schema schema, ConversionOptions options) {
     List<Object> valuesInOrder =
         schema.getFields().stream()
             .map(
                 field -> {
                   try {
-                    return convertAvroFormat(field.getType(), record.get(field.getName()), options);
+                    return convertAvroFormat(
+                        field.getType(), null, record.get(field.getName()), options);
                   } catch (Exception cause) {
                     throw new IllegalArgumentException(
                         "Error converting field " + field + ": " + cause.getMessage(), cause);
@@ -388,6 +392,35 @@ public class BigQueryUtils {
             .collect(toList());
 
     return Row.withSchema(schema).addValues(valuesInOrder).build();
+  }
+
+  /**
+   * Convert to a Beam {@link Row} from an Avro {@link GenericRecord}, using the avro schema to
+   * differentiate between Avro {@link org.apache.avro.LogicalType}.
+   */
+  public static Row toBeamRow(
+      GenericRecord record,
+      org.apache.avro.Schema avroSchema,
+      Schema beamSchema,
+      ConversionOptions options) {
+    List<Object> valuesInOrder =
+        beamSchema.getFields().stream()
+            .map(
+                field -> {
+                  try {
+                    return convertAvroFormat(
+                        field.getType(),
+                        avroSchema == null ? null : avroSchema.getField(field.getName()).schema(),
+                        record.get(field.getName()),
+                        options);
+                  } catch (Exception cause) {
+                    throw new IllegalArgumentException(
+                        "Error converting field " + field + ": " + cause.getMessage(), cause);
+                  }
+                })
+            .collect(toList());
+
+    return Row.withSchema(beamSchema).addValues(valuesInOrder).build();
   }
 
   public static TableRow convertGenericRecordToTableRow(
@@ -547,6 +580,19 @@ public class BigQueryUtils {
    */
   public static Object convertAvroFormat(
       FieldType beamFieldType, Object avroValue, BigQueryUtils.ConversionOptions options) {
+    return convertAvroFormat(beamFieldType, null, avroValue, options);
+  }
+
+  /**
+   * Tries to convert an Avro decoded value to a Beam field value based on the target type of the
+   * Beam field, as well as the source avro field logical type.
+   */
+  public static Object convertAvroFormat(
+      FieldType beamFieldType,
+      org.apache.avro.Schema avroFieldSchema,
+      Object avroValue,
+      BigQueryUtils.ConversionOptions options) {
+
     TypeName beamFieldTypeName = beamFieldType.getTypeName();
     if (avroValue == null) {
       if (beamFieldType.getNullable()) {
@@ -565,21 +611,25 @@ public class BigQueryUtils {
       case BOOLEAN:
         return convertAvroPrimitiveTypes(beamFieldTypeName, avroValue);
       case DATETIME:
-        // Expecting value in microseconds.
-        switch (options.getTruncateTimestamps()) {
-          case TRUNCATE:
-            return truncateToMillis(avroValue);
-          case REJECT:
-            return safeToMillis(avroValue);
-          default:
-            throw new IllegalArgumentException(
-                String.format(
-                    "Unknown timestamp truncation option: %s", options.getTruncateTimestamps()));
+        if (avroFieldSchema != null
+            && avroFieldSchema.getLogicalType() == org.apache.avro.LogicalTypes.timestampMillis()) {
+          return new Instant((long) avroValue);
+        } else {
+          switch (options.getTruncateTimestamps()) {
+            case TRUNCATE:
+              return truncateToMillis(avroValue);
+            case REJECT:
+              return safeToMillis(avroValue);
+            default:
+              throw new IllegalArgumentException(
+                  String.format(
+                      "Unknown timestamp truncation option: %s", options.getTruncateTimestamps()));
+          }
         }
       case STRING:
         return convertAvroPrimitiveTypes(beamFieldTypeName, avroValue);
       case ARRAY:
-        return convertAvroArray(beamFieldType, avroValue, options);
+        return convertAvroArray(beamFieldType, avroFieldSchema, avroValue, options);
       case LOGICAL_TYPE:
         String identifier = beamFieldType.getLogicalType().getIdentifier();
         if (SQL_DATE_TIME_TYPES.contains(identifier)) {
@@ -599,12 +649,12 @@ public class BigQueryUtils {
           throw new RuntimeException("Unknown logical type " + identifier);
         }
       case ROW:
-        Schema rowSchema = beamFieldType.getRowSchema();
-        if (rowSchema == null) {
+        Schema beamRowSchema = beamFieldType.getRowSchema();
+        if (beamRowSchema == null) {
           throw new IllegalArgumentException("Nested ROW missing row schema");
         }
         GenericData.Record record = (GenericData.Record) avroValue;
-        return toBeamRow(record, rowSchema, options);
+        return toBeamRow(record, avroFieldSchema, beamRowSchema, options);
       case DECIMAL:
         throw new RuntimeException("Does not support converting DECIMAL type value");
       case MAP:
@@ -635,13 +685,21 @@ public class BigQueryUtils {
   }
 
   private static Object convertAvroArray(
-      FieldType beamField, Object value, BigQueryUtils.ConversionOptions options) {
+      FieldType beamField,
+      org.apache.avro.Schema avroFieldSchema,
+      Object value,
+      BigQueryUtils.ConversionOptions options) {
     // Check whether the type of array element is equal.
     List<Object> values = (List<Object>) value;
     List<Object> ret = new ArrayList();
     FieldType collectionElement = beamField.getCollectionElementType();
     for (Object v : values) {
-      ret.add(convertAvroFormat(collectionElement, v, options));
+      ret.add(
+          convertAvroFormat(
+              collectionElement,
+              avroFieldSchema == null ? null : avroFieldSchema.getElementType(),
+              v,
+              options));
     }
     return (Object) ret;
   }

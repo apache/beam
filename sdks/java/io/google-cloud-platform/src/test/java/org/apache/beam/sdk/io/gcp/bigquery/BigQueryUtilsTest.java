@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toBeamRow;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toTableRow;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toTableSchema;
 import static org.hamcrest.Matchers.contains;
@@ -31,10 +32,16 @@ import static org.junit.Assert.assertThrows;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+import org.apache.avro.LogicalTypes;
+import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions.TruncateTimestamps;
 import org.apache.beam.sdk.schemas.Schema;
@@ -528,31 +535,31 @@ public class BigQueryUtilsTest {
 
   @Test
   public void testToBeamRow_flat() {
-    Row beamRow = BigQueryUtils.toBeamRow(FLAT_TYPE, BQ_FLAT_ROW);
+    Row beamRow = toBeamRow(FLAT_TYPE, BQ_FLAT_ROW);
     assertEquals(FLAT_ROW, beamRow);
   }
 
   @Test
   public void testToBeamRow_null() {
-    Row beamRow = BigQueryUtils.toBeamRow(FLAT_TYPE, BQ_NULL_FLAT_ROW);
+    Row beamRow = toBeamRow(FLAT_TYPE, BQ_NULL_FLAT_ROW);
     assertEquals(NULL_FLAT_ROW, beamRow);
   }
 
   @Test
   public void testToBeamRow_array() {
-    Row beamRow = BigQueryUtils.toBeamRow(ARRAY_TYPE, BQ_ARRAY_ROW);
+    Row beamRow = toBeamRow(ARRAY_TYPE, BQ_ARRAY_ROW);
     assertEquals(ARRAY_ROW, beamRow);
   }
 
   @Test
   public void testToBeamRow_row() {
-    Row beamRow = BigQueryUtils.toBeamRow(ROW_TYPE, BQ_ROW_ROW);
+    Row beamRow = toBeamRow(ROW_TYPE, BQ_ROW_ROW);
     assertEquals(ROW_ROW, beamRow);
   }
 
   @Test
   public void testToBeamRow_array_row() {
-    Row beamRow = BigQueryUtils.toBeamRow(ARRAY_ROW_TYPE, BQ_ARRAY_ROW_ROW);
+    Row beamRow = toBeamRow(ARRAY_ROW_TYPE, BQ_ARRAY_ROW_ROW);
     assertEquals(ARRAY_ROW_ROW, beamRow);
   }
 
@@ -570,8 +577,7 @@ public class BigQueryUtilsTest {
     flat.put("valid", false);
     record.put("rows", Arrays.asList(flat));
     Row beamRow =
-        BigQueryUtils.toBeamRow(
-            record, AVRO_ARRAY_TYPE, BigQueryUtils.ConversionOptions.builder().build());
+        toBeamRow(record, AVRO_ARRAY_TYPE, BigQueryUtils.ConversionOptions.builder().build());
     assertEquals(expected, beamRow);
   }
 
@@ -597,8 +603,82 @@ public class BigQueryUtilsTest {
     arrayRecord.put("rows", Arrays.asList(flat));
     record.put("array_rows", Arrays.asList(arrayRecord));
     Row beamRow =
-        BigQueryUtils.toBeamRow(
-            record, AVRO_ARRAY_ARRAY_TYPE, BigQueryUtils.ConversionOptions.builder().build());
+        toBeamRow(record, AVRO_ARRAY_ARRAY_TYPE, BigQueryUtils.ConversionOptions.builder().build());
     assertEquals(expected, beamRow);
+  }
+
+  @Test
+  public void testAvroTimestampLogicalTypeSupport() {
+
+    org.apache.avro.Schema timestampMilliType =
+        LogicalTypes.timestampMillis()
+            .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG));
+
+    org.apache.avro.Schema arrayTimestampMilliType =
+        SchemaBuilder.array().items(timestampMilliType);
+
+    org.apache.avro.Schema nestedTimestampMilliType =
+        SchemaBuilder.record("avroTimestampMilisNestedTestRecord")
+            .fields()
+            .name("nested_ts_millis")
+            .type(timestampMilliType)
+            .noDefault()
+            .endRecord();
+
+    org.apache.avro.Schema avroSchema =
+        org.apache.avro.SchemaBuilder.record("avroTimestampMillisTestRecord")
+            .fields()
+            .name("ts_millis")
+            .type(timestampMilliType)
+            .noDefault()
+            .name("ts_millis_array")
+            .type(arrayTimestampMilliType)
+            .noDefault()
+            .name("ts_millis_record")
+            .type(nestedTimestampMilliType)
+            .noDefault()
+            .endRecord();
+
+    long milliSeconds = LocalDateTime.now().toInstant(ZoneOffset.UTC).toEpochMilli();
+
+    org.apache.avro.Schema arraySchema = avroSchema.getField("ts_millis_array").schema();
+
+    GenericData.Array<Long> tsArray = new GenericData.Array<>(3, arraySchema);
+    tsArray.add(milliSeconds);
+    tsArray.add(milliSeconds);
+    tsArray.add(milliSeconds);
+
+    org.apache.avro.generic.GenericRecord tsRecord =
+        new org.apache.avro.generic.GenericRecordBuilder(nestedTimestampMilliType)
+            .set("nested_ts_millis", milliSeconds)
+            .build();
+
+    org.apache.avro.generic.GenericRecord record =
+        new org.apache.avro.generic.GenericRecordBuilder(avroSchema)
+            .set("ts_millis", milliSeconds)
+            .set("ts_millis_array", tsArray)
+            .set("ts_millis_record", tsRecord)
+            .build();
+
+    Schema beamSchema = AvroUtils.toBeamSchema(avroSchema);
+
+    Row beamRow =
+        toBeamRow(
+            record,
+            avroSchema,
+            beamSchema,
+            BigQueryUtils.ConversionOptions.builder()
+                .setTruncateTimestamps(TruncateTimestamps.TRUNCATE)
+                .build());
+
+    assertEquals(beamRow.getDateTime("ts_millis").toInstant().getMillis(), milliSeconds);
+    assertEquals(
+        beamRow.getArray("ts_millis_array"),
+        StreamSupport.stream(tsArray.spliterator(), false)
+            .map(l -> new Instant(l))
+            .collect(Collectors.toList()));
+    assertEquals(
+        beamRow.getRow("ts_millis_record").getDateTime("nested_ts_millis").toInstant().getMillis(),
+        milliSeconds);
   }
 }
