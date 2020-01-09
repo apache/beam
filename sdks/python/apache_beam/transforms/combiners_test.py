@@ -538,9 +538,9 @@ class CombineTest(unittest.TestCase):
                      | "sort global result" >> _SortLists)
 
     # The (key, concatenated_string) pairs for all keys.
-    concat_per_key = (input | beam.CombinePerKey(
-        CounterIncrememtingCombineFn())
-        | "sort per key result" >> _SortLists)
+    concat_per_key = (input
+                      | beam.CombinePerKey(CounterIncrememtingCombineFn())
+                      | "sort per key result" >> _SortLists)
 
     result = p.run()
     result.wait_until_finish()
