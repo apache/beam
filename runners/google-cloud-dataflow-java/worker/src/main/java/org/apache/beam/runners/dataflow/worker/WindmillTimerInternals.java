@@ -88,8 +88,14 @@ class WindmillTimerInternals implements TimerInternals {
 
   @Override
   public void setTimer(TimerData timerKey) {
-    timers.put(timerKey.getTimerId(), timerKey.getNamespace(), timerKey);
-    timerStillPresent.put(timerKey.getTimerId(), timerKey.getNamespace(), true);
+    timers.put(
+        getTimerDataKey(timerKey.getTimerId(), timerKey.getTimerFamilyId()),
+        timerKey.getNamespace(),
+        timerKey);
+    timerStillPresent.put(
+        getTimerDataKey(timerKey.getTimerId(), timerKey.getTimerFamilyId()),
+        timerKey.getNamespace(),
+        true);
   }
 
   @Override
@@ -101,16 +107,29 @@ class WindmillTimerInternals implements TimerInternals {
       Instant outputTimestamp,
       TimeDomain timeDomain) {
     timers.put(
-        timerId,
+        getTimerDataKey(timerId, timerFamilyId),
         namespace,
         TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, timeDomain));
-    timerStillPresent.put(timerId, namespace, true);
+    timerStillPresent.put(getTimerDataKey(timerId, timerFamilyId), namespace, true);
+  }
+
+  private String getTimerDataKey(String timerId, String timerFamilyId) {
+    // if no timerFamily id then return as it was before
+    if ("".equals(timerFamilyId)) return timerId;
+    // else make a new key with timerFamilyId
+    return timerId + '+' + timerFamilyId;
   }
 
   @Override
   public void deleteTimer(TimerData timerKey) {
-    timers.put(timerKey.getTimerId(), timerKey.getNamespace(), timerKey);
-    timerStillPresent.put(timerKey.getTimerId(), timerKey.getNamespace(), false);
+    timers.put(
+        getTimerDataKey(timerKey.getTimerId(), timerKey.getTimerFamilyId()),
+        timerKey.getNamespace(),
+        timerKey);
+    timerStillPresent.put(
+        getTimerDataKey(timerKey.getTimerId(), timerKey.getTimerFamilyId()),
+        timerKey.getNamespace(),
+        false);
   }
 
   @Override
@@ -285,13 +304,27 @@ class WindmillTimerInternals implements TimerInternals {
    * <p>This is necessary because Windmill will deduplicate based only on this tag.
    */
   public static ByteString timerTag(WindmillNamespacePrefix prefix, TimerData timerData) {
-    String tagString =
-        new StringBuilder()
-            .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
-            .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
-            .append('+')
-            .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
-            .toString();
+    String tagString;
+    // Timers without timerFamily would have timerFamily == null or timerFamily equals to timerId
+    if ("".equals(timerData.getTimerId())) {
+      tagString =
+          new StringBuilder()
+              .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
+              .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
+              .append('+')
+              .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
+              .toString();
+    } else {
+      tagString =
+          new StringBuilder()
+              .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
+              .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
+              .append('+')
+              .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
+              .append('+')
+              .append(timerData.getTimerFamilyId())
+              .toString();
+    }
     return ByteString.copyFromUtf8(tagString);
   }
 

@@ -195,7 +195,7 @@ public interface TimerInternals {
         Instant outputTimestamp,
         TimeDomain domain) {
       return new AutoValue_TimerInternals_TimerData(
-          timerId, timerId, namespace, timestamp, outputTimestamp, domain);
+          timerId, "", namespace, timestamp, outputTimestamp, domain);
     }
 
     /**
@@ -221,7 +221,7 @@ public interface TimerInternals {
     public static TimerData of(
         String timerId, StateNamespace namespace, Instant timestamp, TimeDomain domain) {
       return new AutoValue_TimerInternals_TimerData(
-          timerId, timerId, namespace, timestamp, timestamp, domain);
+          timerId, "", namespace, timestamp, timestamp, domain);
     }
 
     public static TimerData of(
