@@ -34,12 +34,8 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
  * limitations under the License.
  */
 
-import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.MoreObjects.firstNonNull;
-
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions.TruncateTimestamps;
 
 /** A test table provider for BigQueryIOPushDownIT. */
 public class BigQueryPerfTableProvider extends BigQueryTableProvider {
@@ -47,7 +43,6 @@ public class BigQueryPerfTableProvider extends BigQueryTableProvider {
   private final String metric;
 
   BigQueryPerfTableProvider(String namespace, String metric) {
-    super();
     this.namespace = namespace;
     this.metric = metric;
   }
@@ -55,14 +50,6 @@ public class BigQueryPerfTableProvider extends BigQueryTableProvider {
   @Override
   public BeamSqlTable buildBeamSqlTable(Table table) {
     return new BigQueryPerfTable(
-        table,
-        ConversionOptions.builder()
-            .setTruncateTimestamps(
-                firstNonNull(table.getProperties().getBoolean("truncateTimestamps"), false)
-                    ? TruncateTimestamps.TRUNCATE
-                    : TruncateTimestamps.REJECT)
-            .build(),
-        namespace,
-        metric);
+        table, getConversionOptions(table.getProperties()), namespace, metric);
   }
 }
