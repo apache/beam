@@ -75,13 +75,14 @@ class SortedConcatWithCounters(beam.CombineFn):
     self.word_lengths_dist.update(len(element))
     self.last_word_len.set(len(element))
 
-    # ''.join() converts the list to a string.
-    return ''.join(acc + element)
+    return acc + element
 
   def merge_accumulators(self, accs):
     return ''.join(accs)
 
   def extract_output(self, acc):
+    # The sorted acc became a list of characters
+    # and has to be converted back to a string using join.
     return ''.join(sorted(acc))
 
 
@@ -539,9 +540,6 @@ class CombineTest(unittest.TestCase):
     # The (key, concatenated_string) pairs for all keys.
     concat_per_key = (input
                       | beam.CombinePerKey(SortedConcatWithCounters()))
-
-    result = p.run()
-    result.wait_until_finish()
 
     # Verify the concatenated strings are correct.
     expected_concat_per_key = [('key1', 'aaabbc'), ('key2', 'uuvvxxyyz')]
