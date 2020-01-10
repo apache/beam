@@ -522,11 +522,17 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
 
               @Override
               public void outputWithTimestamp(RestrictionT output, Instant timestamp) {
+                RestrictionTracker<RestrictionT, PositionT> outputTracker =
+                    doFnInvoker.invokeNewTracker(output);
                 outputTo(
                     mainOutputConsumers,
                     (WindowedValue<OutputT>)
                         WindowedValue.of(
-                            KV.of(currentElement.getValue(), output),
+                            KV.of(
+                                KV.of(currentElement.getValue(), output),
+                                outputTracker instanceof HasSize
+                                    ? ((HasSize) outputTracker).getSize()
+                                    : 1.0),
                             timestamp,
                             currentWindow,
                             currentElement.getPane()));
