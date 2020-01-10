@@ -871,6 +871,10 @@ public class StreamingDataflowWorker {
     statusPages.start();
   }
 
+  public WorkerStatusPages getStatusPages() {
+    return this.statusPages;
+  }
+
   public void stop() {
     try {
       if (globalConfigRefreshTimer != null) {
