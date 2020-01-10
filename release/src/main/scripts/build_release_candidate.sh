@@ -46,10 +46,7 @@ BEAM_ROOT_DIR=beam
 WEBSITE_ROOT_DIR=beam-site
 
 PYTHON_VER=("python2.7" "python3.5" "python3.6" "python3.7")
-FLINK_VER=("$(ls -1 runners/flink | awk '/^[0-9]+\.[0-9]+$/{print}')")
-if [[ "${#FLINK_VER[@]}" = 0 ]]; then
-  echo "WARNING: Failed to list Flink versions. Are you in the root directory?"
-fi
+FLINK_VER=("1.7" "1.8" "1.9")
 
 echo "================Setting Up Environment Variables==========="
 echo "Which release version are you working on: "

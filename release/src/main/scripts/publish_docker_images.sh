@@ -25,7 +25,7 @@
 set -e
 
 PYTHON_VER=("python2.7" "python3.5" "python3.6" "python3.7")
-FLINK_VER=("$(ls -1 runners/flink | awk '/^[0-9]+\.[0-9]+$/{print}')")
+FLINK_VER=("1.7" "1.8" "1.9")
 
 echo "Publish SDK docker images to Docker Hub."
 
@@ -97,18 +97,26 @@ if [[ $confirmation = "y" ]]; then
   docker rmi -f apachebeam/go_sdk:latest
 
   echo '-------------Generating and Pushing Flink job server images-------------'
-  echo "Building containers for the following Flink versions:" "${FLINK_VER[@]}"
+  echo "Publishing images for the following Flink versions:" "${FLINK_VER[@]}"
+  echo "Make sure the versions are correct, then press any key to proceed."
+  read
   for ver in "${FLINK_VER[@]}"; do
-     ./gradlew ":runners:flink:${ver}:job-server-container:docker" -Pdocker-tag="${RELEASE}"
      FLINK_IMAGE_NAME=apachebeam/flink${ver}_job_server
-     docker push "${FLINK_IMAGE_NAME}:${RELEASE}"
-     docker tag "${FLINK_IMAGE_NAME}:${RELEASE}" "${FLINK_IMAGE_NAME}:latest"
-     docker push "${FLINK_IMAGE_NAME}:latest"
-  done
 
-  for ver in "${FLINK_VER[@]}"; do
-    FLINK_IMAGE_NAME=apachebeam/flink${ver}_job_server
-    docker rmi -f "${FLINK_IMAGE_NAME}:${RELEASE}"
-    docker rmi -f "${FLINK_IMAGE_NAME}:latest"
+     # Pull verified RC from dockerhub.
+     docker pull "${FLINK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}"
+
+     # Tag with ${RELEASE} and push to dockerhub.
+     docker tag "${FLINK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}" "${FLINK_IMAGE_NAME}:${RELEASE}"
+     docker push "${FLINK_IMAGE_NAME}:${RELEASE}"
+
+     # Tag with latest and push to dockerhub.
+     docker tag "${FLINK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}" "${FLINK_IMAGE_NAME}:latest"
+     docker push "${FLINK_IMAGE_NAME}:latest"
+
+     # Cleanup images from local
+     docker rmi -f "${FLINK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}"
+     docker rmi -f "${FLINK_IMAGE_NAME}:${RELEASE}"
+     docker rmi -f "${FLINK_IMAGE_NAME}:latest"
   done
 fi
