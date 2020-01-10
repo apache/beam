@@ -52,7 +52,7 @@ from apache_beam.typehints import TypeCheckError
 from apache_beam.utils.timestamp import Timestamp
 
 
-class CounterIncrememtingCombineFn(beam.CombineFn):
+class SortedConcatWithCounters(beam.CombineFn):
   """CombineFn for incrementing three different counters:
      counter, distribution, gauge,
      at the same time concatenating words."""
@@ -76,13 +76,13 @@ class CounterIncrememtingCombineFn(beam.CombineFn):
     self.last_word_len.set(len(element))
 
     # ''.join() converts the list to a string.
-    return ''.join(sorted(acc + element))
+    return ''.join(acc + element)
 
   def merge_accumulators(self, accs):
-    return ''.join(sorted(''.join(accs)))
+    return ''.join(accs)
 
   def extract_output(self, acc):
-    return acc
+    return ''.join(sorted(acc))
 
 
 class CombineTest(unittest.TestCase):
@@ -521,33 +521,31 @@ class CombineTest(unittest.TestCase):
                   label='sum per key')
 
   # Test that three different kinds of metrics work with a customized
-  # CounterIncrememtingCombineFn.
+  # SortedConcatWithCounters CombineFn.
   def test_custormized_counters_in_combine_fn(self):
     p = TestPipeline()
     input = (p
-             | beam.Create([('c', 'i'),
-                            ('c', 'go'),
-                            ('c', 'run'),
-                            ('d', 'beam'),
-                            ('d', 'tests')]))
+             | beam.Create([('key1', 'a'),
+                            ('key1', 'ab'),
+                            ('key1', 'abc'),
+                            ('key2', 'uvxy'),
+                            ('key2', 'uvxyz')]))
 
     # The result of concatenating all values regardless of key.
     global_concat = (input
                      | beam.Values()
-                     | beam.CombineGlobally(CounterIncrememtingCombineFn())
-                     | "sort global result" >> _SortLists)
+                     | beam.CombineGlobally(SortedConcatWithCounters()))
 
     # The (key, concatenated_string) pairs for all keys.
     concat_per_key = (input
-                      | beam.CombinePerKey(CounterIncrememtingCombineFn())
-                      | "sort per key result" >> _SortLists)
+                      | beam.CombinePerKey(SortedConcatWithCounters()))
 
     result = p.run()
     result.wait_until_finish()
 
     # Verify the concatenated strings are correct.
-    expected_concat_per_key = [('c', 'ginoru'), ('d', 'abeemsstt')]
-    assert_that(global_concat, equal_to(['abeegimnorssttu']),
+    expected_concat_per_key = [('key1', 'aaabbc'), ('key2', 'uuvvxxyyz')]
+    assert_that(global_concat, equal_to(['aaabbcuuvvxxyyz']),
                 label='global concat')
     assert_that(concat_per_key, equal_to(expected_concat_per_key),
                 label='concat per key')
@@ -581,7 +579,7 @@ class CombineTest(unittest.TestCase):
       self.assertIn(last_word_len.result.value, [1, 2, 3, 4, 5])
 
   # Test that three different kinds of metrics work with the customized
-  # CounterIncrememtingCombineFn when the PCollection is empty.
+  # SortedConcatWithCounters CombineFn when the PCollection is empty.
   def test_custormized_counters_in_combine_fn_empty(self):
     p = TestPipeline()
     input = p | beam.Create([])
@@ -589,11 +587,11 @@ class CombineTest(unittest.TestCase):
     # The result of concatenating all values regardless of key.
     global_concat = (input
                      | beam.Values()
-                     | beam.CombineGlobally(CounterIncrememtingCombineFn()))
+                     | beam.CombineGlobally(SortedConcatWithCounters()))
 
     # The (key, concatenated_string) pairs for all keys.
     concat_per_key = (input | beam.CombinePerKey(
-        CounterIncrememtingCombineFn()))
+        SortedConcatWithCounters()))
 
     # Verify the concatenated strings are correct.
     assert_that(global_concat, equal_to(['']), label='global concat')
@@ -781,18 +779,6 @@ class TimestampCombinerTest(unittest.TestCase):
           equal_to_per_window(expected_window_to_elements),
           use_global_window=False,
           label='assert per window')
-
-def _sort_lists(result):
-  if isinstance(result, list):
-    return sorted(result)
-  elif isinstance(result, tuple):
-    return tuple(_sort_lists(e) for e in result)
-  elif isinstance(result, dict):
-    return {k: _sort_lists(v) for k, v in result.items()}
-  else:
-    return result
-
-_SortLists = beam.Map(_sort_lists)
 
 if __name__ == '__main__':
   unittest.main()
