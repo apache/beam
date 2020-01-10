@@ -46,10 +46,6 @@ BEAM_ROOT_DIR=beam
 WEBSITE_ROOT_DIR=beam-site
 
 PYTHON_VER=("python2.7" "python3.5" "python3.6" "python3.7")
-FLINK_VER=("$(ls -1 runners/flink | awk '/^[0-9]+\.[0-9]+$/{print}')")
-if [[ "${#FLINK_VER[@]}" = 0 ]]; then
-  echo "WARNING: Failed to list Flink versions. Are you in the root directory?"
-fi
 
 echo "================Setting Up Environment Variables==========="
 echo "Which release version are you working on: "
@@ -234,6 +230,11 @@ if [[ $confirmation = "y" ]]; then
   ./gradlew :sdks:go:container:dockerPush -Pdocker-tag=${RELEASE}_rc${RC_NUM}
 
   echo '-------------Generating and Pushing Flink job server images-------------'
+  FLINK_VER=("$(ls -1 runners/flink | awk '/^[0-9]+\.[0-9]+$/{print}')")
+  if [[ -z "${FLINK_VER}" || "${#FLINK_VER[@]}" = 0 ]]; then
+    echo "Error: Failed to list Flink versions."
+    exit
+  fi
   echo "Building containers for the following Flink versions:" "${FLINK_VER[@]}"
   for ver in "${FLINK_VER[@]}"; do
      ./gradlew ":runners:flink:${ver}:job-server-container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"

@@ -62,6 +62,11 @@ if [[ $confirmation = "y" ]]; then
   docker push apachebeam/go_sdk:latest
 
   echo '-------------Generating and Pushing Flink job server images-------------'
+  FLINK_VER=("$(ls -1 runners/flink | awk '/^[0-9]+\.[0-9]+$/{print}')")
+  if [[ -z "${FLINK_VER}" || "${#FLINK_VER[@]}" = 0 ]]; then
+    echo "Error: Failed to list Flink versions."
+    exit
+  fi
   echo "Building containers for the following Flink versions:" "${FLINK_VER[@]}"
   for ver in "${FLINK_VER[@]}"; do
      ./gradlew ":runners:flink:${ver}:job-server-container:docker" -Pdocker-tag="${RELEASE}"
