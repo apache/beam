@@ -401,7 +401,7 @@ class SubprocessSDKEnvironment(Environment):
     return hash((self.__class__, self.command_string))
 
   def __repr__(self):
-    return 'SubprocessSDKEnvironment(command_string=%s)' % self.container_string
+    return 'SubprocessSDKEnvironment(command_string=%s)' % self.command_string
 
   def to_runner_api_parameter(self, context):
     return python_urns.SUBPROCESS_SDK, self.command_string.encode('utf-8')
