@@ -64,14 +64,12 @@ import java.math.BigInteger;
 import java.nio.channels.Channels;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.VectorLoader;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.VectorUnloader;
 import org.apache.arrow.vector.ipc.WriteChannel;
@@ -108,7 +106,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
@@ -927,18 +924,6 @@ public class BigQueryIOStorageReadTest {
     MessageSerializer.serialize(
         new WriteChannel(Channels.newChannel(byteOutputStream)), recordBatch);
 
-    VectorLoader vectorLoader = new VectorLoader(vectorRoot);
-    vectorLoader.load(recordBatch);
-
-    Iterator<Row> iter =
-        new org.apache.beam.sdk.extensions.arrow.ArrowSchema.RecordBatchIterable(
-                org.apache.beam.sdk.extensions.arrow.ArrowSchema.toBeamSchema(schema), vectorRoot)
-            .iterator();
-    while (iter.hasNext()) {
-      Row r = iter.next();
-      r.toString();
-    }
-
     return ReadRowsResponse.newBuilder()
         .setArrowRecordBatch(
             ArrowProto.ArrowRecordBatch.newBuilder()
@@ -1604,7 +1589,7 @@ public class BigQueryIOStorageReadTest {
         asList(children));
   }
 
-  private static org.apache.arrow.vector.types.pojo.Field field(
+  static org.apache.arrow.vector.types.pojo.Field field(
       String name, ArrowType type, org.apache.arrow.vector.types.pojo.Field... children) {
     return field(name, false, type, children);
   }
