@@ -61,7 +61,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
 import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
-import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
@@ -525,13 +524,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             PTransformMatchers.requiresStableInputParDoMulti(),
             RequiresStableInputParDoOverrides.multiOutputOverrideFactory()));
     */
-    // Expands into Reshuffle and single-output ParDo, so has to be before the overrides below.
-    if (fnApiEnabled) {
-      overridesBuilder.add(
-          PTransformOverride.of(
-              PTransformMatchers.classEqualTo(Read.Bounded.class),
-              new FnApiBoundedReadOverrideFactory()));
-    }
     overridesBuilder
         .add(
             PTransformOverride.of(
@@ -1696,23 +1688,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
       return Pipeline.applyTransform(input, new UnboundedReadFromBoundedSource<>(source))
           .setIsBoundedInternal(IsBounded.BOUNDED);
-    }
-  }
-
-  private static class FnApiBoundedReadOverrideFactory<T>
-      implements PTransformOverrideFactory<PBegin, PCollection<T>, Read.Bounded<T>> {
-    @Override
-    public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
-        AppliedPTransform<PBegin, PCollection<T>, Read.Bounded<T>> transform) {
-      return PTransformReplacement.of(
-          transform.getPipeline().begin(),
-          JavaReadViaImpulse.bounded(transform.getTransform().getSource()));
-    }
-
-    @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
-      return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
 
