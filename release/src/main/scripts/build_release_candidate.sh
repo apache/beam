@@ -221,7 +221,7 @@ if [[ $confirmation = "y" ]]; then
   echo '-------------------Generating and Pushing Python images-----------------'
   ./gradlew :sdks:python:container:buildAll -Pdocker-tag=${RELEASE}_rc${RC_NUM}
   for ver in "${PYTHON_VER[@]}"; do
-     docker push apachebeam/${ver}_sdk:${RELEASE}_rc${RC_NUM} &
+    docker push apachebeam/${ver}_sdk:${RELEASE}_rc${RC_NUM} &
   done
 
   echo '-------------------Generating and Pushing Java images-----------------'
@@ -233,7 +233,7 @@ if [[ $confirmation = "y" ]]; then
   echo '-------------Generating and Pushing Flink job server images-------------'
   echo "Building containers for the following Flink versions:" "${FLINK_VER[@]}"
   for ver in "${FLINK_VER[@]}"; do
-     ./gradlew ":runners:flink:${ver}:job-server-container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
+    ./gradlew ":runners:flink:${ver}:job-server-container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
   done
 
   rm -rf ~/${PYTHON_ARTIFACTS_DIR}
