@@ -1588,7 +1588,7 @@ class FnApiBasedLullLoggingTest(unittest.TestCase):
 
     self.assertRegex(
         ''.join(logs.output),
-        '.*There has been a processing lull of over.*',
+        '.*Operation ongoing for over.*',
         'Unable to find a lull logged for this job.')
 
 class StateBackedTestElementType(object):
