@@ -400,7 +400,9 @@ There are 2 ways to perform this verification, either running automation script(
   1. Create a test PR against release branch;
 
 Jenkins job `beam_Release_Gradle_Build` basically run `./gradlew build -PisRelease`.
-This only verifies that everything builds with unit tests passing. 
+This only verifies that everything builds with unit tests passing.
+
+You can rever to [this script](https://gist.github.com/Ardagan/13e6031e8d1c9ebbd3029bf365c1a517) to mass-comment on PR.
 
 #### Verify the build succeeds
 
