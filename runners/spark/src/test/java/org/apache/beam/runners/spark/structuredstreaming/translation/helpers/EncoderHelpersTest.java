@@ -15,13 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.structuredstreaming.utils;
+package org.apache.beam.runners.spark.structuredstreaming.translation.helpers;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.SparkSession;
@@ -31,7 +30,7 @@ import org.junit.runners.JUnit4;
 
 /** Test of the wrapping of Beam Coders as Spark ExpressionEncoders. */
 @RunWith(JUnit4.class)
-public class EncodersTest {
+public class EncoderHelpersTest {
 
   @Test
   public void beamCoderToSparkEncoderTest() {
@@ -40,13 +39,9 @@ public class EncodersTest {
             .appName("beamCoderToSparkEncoderTest")
             .master("local[4]")
             .getOrCreate();
-    List<Integer> data = new ArrayList<>();
-    data.add(1);
-    data.add(2);
-    data.add(3);
+    List<Integer> data = Arrays.asList(1, 2, 3);
     Dataset<Integer> dataset =
         sparkSession.createDataset(data, EncoderHelpers.fromBeamCoder(VarIntCoder.of()));
-    List<Integer> results = dataset.collectAsList();
-    assertEquals(data, results);
+    assertEquals(data, dataset.collectAsList());
   }
 }
