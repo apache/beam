@@ -156,8 +156,10 @@ public class BeamWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase impl
     }
     // return result in worker id sorted map.
     Map<String, String> allStatuses = new ConcurrentSkipListMap<>(Comparator.naturalOrder());
-
-    Set<String> connectedClientIdsCopy = ImmutableSet.copyOf(connectedClient.keySet());
+    Set<String> connectedClientIdsCopy;
+    synchronized (connectedClient) {
+      connectedClientIdsCopy = ImmutableSet.copyOf(connectedClient.keySet());
+    }
     connectedClientIdsCopy
         .parallelStream()
         .forEach(
