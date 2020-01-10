@@ -44,7 +44,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * to associate each input with its output. The nonce is represented as an opaque set of bytes.
  */
 public class WindowMappingFnRunner {
-  static final String URN = PTransformTranslation.MERGE_WINDOWS_TRANSFORM_URN;
+  static final String URN = PTransformTranslation.MAP_WINDOWS_TRANSFORM_URN;
 
   /**
    * A registrar which provides a factory to handle mapping main input windows onto side input
