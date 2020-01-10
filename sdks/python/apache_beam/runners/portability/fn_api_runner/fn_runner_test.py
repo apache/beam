@@ -555,6 +555,18 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_group_by_key(self):
     with self.create_pipeline() as p:
+      pc1 = p | 'c1' >> beam.Create([('a', 1), ('a', 2), ('b', 3),
+                                     ('c', 1), ('c', 2), ('d', 3)])
+      res = (pc1
+             | beam.GroupByKey()
+             | beam.Map(lambda k_vs: (k_vs[0], sorted(k_vs[1]))))
+      assert_that(res, equal_to([('a', [1, 2]),
+                                 ('b', [3]),
+                                 ('c', [1, 2]),
+                                 ('d', [3])]))
+
+  def test_flatten_and_gbk(self):
+    with self.create_pipeline() as p:
       pc1 = p | 'c1' >> beam.Create([('a', 1), ('a', 2), ('b', 3)])
       pc2 = p | 'c2' >> beam.Create([('c', 1), ('c', 2), ('d', 3)])
       pcboth = (pc1, pc2) | beam.Flatten()
