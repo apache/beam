@@ -115,8 +115,10 @@ public class DataflowRunnerHarness {
                 streamObserverFactory::from,
                 GrpcContextHeaderAccessorProvider.getHeaderAccessor());
         BeamWorkerStatusGrpcService beamWorkerStatusGrpcService =
-            BeamWorkerStatusGrpcService.create(
-                statusApiService, GrpcContextHeaderAccessorProvider.getHeaderAccessor());
+            statusApiService == null
+                ? null
+                : BeamWorkerStatusGrpcService.create(
+                    statusApiService, GrpcContextHeaderAccessorProvider.getHeaderAccessor());
         GrpcStateService beamFnStateService = GrpcStateService.create()) {
 
       servicesServer =
@@ -127,8 +129,8 @@ public class DataflowRunnerHarness {
       loggingServer =
           serverFactory.create(ImmutableList.of(beamFnLoggingService), loggingApiService);
 
-      // Grpc server for obtaining SDK harness runtime status information.
-      if (statusApiService != null && beamWorkerStatusGrpcService != null) {
+      // gRPC server for obtaining SDK harness runtime status information.
+      if (beamWorkerStatusGrpcService != null) {
         statusServer =
             serverFactory.create(ImmutableList.of(beamWorkerStatusGrpcService), statusApiService);
       }
@@ -141,20 +143,28 @@ public class DataflowRunnerHarness {
           controlApiService,
           beamFnStateService,
           beamWorkerStatusGrpcService);
-      servicesServer.shutdown().awaitTermination(30, TimeUnit.SECONDS);
-      loggingServer.shutdown().awaitTermination(30, TimeUnit.SECONDS);
+
       if (statusServer != null) {
-        statusServer.shutdown().awaitTermination(30, TimeUnit.SECONDS);
+        statusServer.shutdown();
       }
+      servicesServer.shutdown();
+      loggingServer.shutdown();
+
+      // wait 30 secs for outstanding requests to finish.
+      if (statusServer != null) {
+        statusServer.awaitTermination(30, TimeUnit.SECONDS);
+      }
+      servicesServer.awaitTermination(30, TimeUnit.SECONDS);
+      loggingServer.awaitTermination(30, TimeUnit.SECONDS);
     } finally {
-      if (servicesServer != null) {
+      if (statusServer != null && !statusServer.isTerminated()) {
+        statusServer.shutdownNow();
+      }
+      if (servicesServer != null && !servicesServer.isTerminated()) {
         servicesServer.shutdownNow();
       }
-      if (loggingServer != null) {
+      if (loggingServer != null && !loggingServer.isTerminated()) {
         loggingServer.shutdownNow();
-      }
-      if (statusServer != null) {
-        statusServer.shutdownNow();
       }
     }
   }
@@ -184,8 +194,7 @@ public class DataflowRunnerHarness {
       if (beamWorkerStatusGrpcService != null) {
         SdkWorkerStatusServlet sdkWorkerStatusServlet =
             new SdkWorkerStatusServlet(beamWorkerStatusGrpcService);
-        worker.getStatusPages().addServlet(sdkWorkerStatusServlet);
-        worker.getStatusPages().addCapturePage(sdkWorkerStatusServlet);
+        worker.addWorkerStatusPage(sdkWorkerStatusServlet);
       }
       worker.startStatusPages();
       worker.start();

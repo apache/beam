@@ -49,32 +49,23 @@ public class SdkWorkerStatusServlet extends BaseStatusServlet implements Captura
   }
 
   @Override
-  protected String getPath(String parameters) {
-    return super.getPath(parameters);
-  }
-
-  @Override
   protected void doGet(HttpServletRequest request, HttpServletResponse response)
       throws IOException, ServletException {
     String id = request.getParameter("id");
     if (Strings.isNullOrEmpty(id)) {
       // return all connected sdk statuses if no id provided.
-      response.setStatus(HttpServletResponse.SC_OK);
       response.setContentType("text/html;charset=utf-8");
       ServletOutputStream writer = response.getOutputStream();
       try (PrintWriter out =
           new PrintWriter(new OutputStreamWriter(writer, StandardCharsets.UTF_8))) {
         captureData(out);
-        response.flushBuffer();
-        return;
       }
+    } else {
+      response.setContentType("text/plain;charset=utf-8");
+      ServletOutputStream writer = response.getOutputStream();
+      writer.println(statusGrpcService.getSingleWorkerStatus(id, 10, TimeUnit.SECONDS));
     }
-
-    response.setContentType("text/plain;charset=utf-8");
     response.setStatus(HttpServletResponse.SC_OK);
-    String status = this.statusGrpcService.getSingleWorkerStatus(id, 10, TimeUnit.SECONDS);
-    ServletOutputStream writer = response.getOutputStream();
-    writer.println(status);
     response.flushBuffer();
   }
 
@@ -85,8 +76,7 @@ public class SdkWorkerStatusServlet extends BaseStatusServlet implements Captura
 
   @Override
   public void captureData(PrintWriter writer) {
-    Map<String, String> allStatuses =
-        this.statusGrpcService.getAllWorkerStatuses(10, TimeUnit.SECONDS);
+    Map<String, String> allStatuses = statusGrpcService.getAllWorkerStatuses(10, TimeUnit.SECONDS);
 
     writer.println("<html>");
     writer.println("<h1>SDK harness</h1>");

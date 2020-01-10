@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
@@ -818,7 +819,7 @@ public class StreamingDataflowWorker {
           new TimerTask() {
             @Override
             public void run() {
-              List<Capturable> pages = statusPages.getDebugCapturePages();
+              Collection<Capturable> pages = statusPages.getDebugCapturePages();
               if (pages.isEmpty()) {
                 LOG.warn("No captured status pages.");
               }
@@ -871,8 +872,11 @@ public class StreamingDataflowWorker {
     statusPages.start();
   }
 
-  public WorkerStatusPages getStatusPages() {
-    return this.statusPages;
+  public void addWorkerStatusPage(BaseStatusServlet page) {
+    statusPages.addServlet(page);
+    if (page instanceof Capturable) {
+      statusPages.addCapturePage((Capturable) page);
+    }
   }
 
   public void stop() {

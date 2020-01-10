@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.status;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import javax.servlet.ServletException;
@@ -112,7 +113,7 @@ public class WorkerStatusPages {
   }
 
   /** Returns the set of pages than should be captured by DebugCapture. */
-  public List<Capturable> getDebugCapturePages() {
+  public Collection<Capturable> getDebugCapturePages() {
     return this.capturePages;
   }
 
