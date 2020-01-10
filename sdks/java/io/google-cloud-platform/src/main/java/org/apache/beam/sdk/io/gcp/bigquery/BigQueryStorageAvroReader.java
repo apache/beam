@@ -36,7 +36,7 @@ public class BigQueryStorageAvroReader implements BigQueryStorageReader {
   private GenericRecord record;
   private long rowCount;
 
-  public BigQueryStorageAvroReader(ReadSession readSession) {
+  BigQueryStorageAvroReader(ReadSession readSession) {
     this.avroSchema = new Schema.Parser().parse(readSession.getAvroSchema().getSchema());
     this.datumReader = new GenericDatumReader<>(avroSchema);
     this.rowCount = 0;
