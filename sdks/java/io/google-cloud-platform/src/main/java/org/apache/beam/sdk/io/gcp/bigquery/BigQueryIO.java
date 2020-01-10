@@ -2316,11 +2316,22 @@ public class BigQueryIO {
       return toBuilder().setMaxFilesPerPartition(maxFilesPerPartition).build();
     }
 
-    @VisibleForTesting
-    Write<T> withMaxBytesPerPartition(long maxBytesPerPartition) {
+    /**
+     * Control how much data will be assigned to a single BigQuery load job. If the amount of data
+     * flowing into one {@code BatchLoads} partition exceeds this value, that partition will be
+     * handled via multiple load jobs.
+     *
+     * <p>The default value (11 TiB) respects BigQuery's maximum size per load job limit and is
+     * appropriate for most use cases. Reducing the value of this parameter can improve stability
+     * when loading to tables with complex schemas containing thousands of fields.
+     *
+     * @see <a href="https://cloud.google.com/bigquery/quotas#load_jobs">BigQuery Load Job
+     *     Limits</a>
+     */
+    public Write<T> withMaxBytesPerPartition(long maxBytesPerPartition) {
       checkArgument(
           maxBytesPerPartition > 0,
-          "maxFilesPerPartition must be > 0, but was: %s",
+          "maxBytesPerPartition must be > 0, but was: %s",
           maxBytesPerPartition);
       return toBuilder().setMaxBytesPerPartition(maxBytesPerPartition).build();
     }
