@@ -17,6 +17,8 @@
 
 """Set of utilities for execution of a pipeline by the FnApiRunner."""
 
+from __future__ import absolute_import
+
 import collections
 import itertools
 import logging

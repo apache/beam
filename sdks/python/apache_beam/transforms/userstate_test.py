@@ -624,9 +624,10 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      | beam.Map(lambda t: window.TimestampedValue(t, 1))
                      | beam.WindowInto(window.FixedWindows(1))
                      | beam.ParDo(SetStateClearingStatefulDoFn())
-                     | beam.GroupByKey())
+                     | beam.GroupByKey()
+                     | beam.Map(lambda x: (x[0], sorted(x[1]))))
 
-    assert_that(actual_values, equal_to([('key', 2 * [1, 2, 3, 4, 5])]))
+    assert_that(actual_values, equal_to([('key', sorted(2 * [1, 2, 3, 4, 5]))]))
     result = p.run()
     result.wait_until_finish()
 
