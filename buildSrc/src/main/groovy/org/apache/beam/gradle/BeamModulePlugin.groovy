@@ -467,6 +467,7 @@ class BeamModulePlugin implements Plugin<Project> {
         grpc_all                                    : "io.grpc:grpc-all:$grpc_version",
         grpc_auth                                   : "io.grpc:grpc-auth:$grpc_version",
         grpc_core                                   : "io.grpc:grpc-core:$grpc_version",
+        grpc_context                                : "io.grpc:grpc-context:$grpc_version",
         grpc_google_cloud_datacatalog_v1beta1       : "com.google.api.grpc:grpc-google-cloud-datacatalog-v1beta1:$generated_grpc_dc_beta_version",
         grpc_google_cloud_pubsub_v1                 : "com.google.api.grpc:grpc-google-cloud-pubsub-v1:$generated_grpc_ga_version",
         grpc_protobuf                               : "io.grpc:grpc-protobuf:$grpc_version",

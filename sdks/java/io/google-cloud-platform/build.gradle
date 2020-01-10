@@ -51,6 +51,7 @@ dependencies {
   compile library.java.grpc_all
   compile library.java.grpc_auth
   compile library.java.grpc_core
+  compile library.java.grpc_context
   compile library.java.grpc_netty
   compile library.java.grpc_stub
   compile library.java.grpc_google_cloud_pubsub_v1
