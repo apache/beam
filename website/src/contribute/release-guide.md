@@ -584,9 +584,6 @@ For this step, we recommend you using automation script to create a RC, but you 
 * The script will:
   1. Run gradle release to create rc tag and push source release into github repo.
   1. Run gradle publish to push java artifacts into Maven staging repo.
-     
-     __NOTE__: In order to public staging artifacts, you need to goto the [staging repo](https://repository.apache.org/#stagingRepositories) to close the staging repository on Apache Nexus. 
-     When prompted for a description, enter “Apache Beam, version X, release candidate Y”.
   1. Stage source release into dist.apache.org dev [repo](https://dist.apache.org/repos/dist/dev/beam/).
   1. Stage,sign and hash python binaries into dist.apache.ord dev repo python dir
   1. Stage SDK docker images to [https://hub.docker.com/u/apachebeam](https://hub.docker.com/u/apachebeam).
@@ -600,7 +597,7 @@ For this step, we recommend you using automation script to create a RC, but you 
   1. Update last release download links in `website/src/get-started/downloads.md`.
   1. Update `website/src/.htaccess` to redirect to the new version.
   1. Build and stage python wheels.
-  1. Public staging artifacts
+  1. Publish staging artifacts
       1. Go to the staging repo to close the staging repository on [Apache Nexus](https://repository.apache.org/#stagingRepositories). 
       1. When prompted for a description, enter “Apache Beam, version X, release candidate Y”.
 
@@ -1256,12 +1253,7 @@ please follow [the guide](https://help.github.com/articles/creating-a-personal-a
    delete the `.asc`, `.sha512`;
 3. Upload the new release `twine upload *` from the directory with the `.zip` and `.whl` files;
 
-[Installing twine](https://packaging.python.org/tutorials/packaging-projects/):
-```
-virtualenv env
-. ./env/bin/activate
-pip install twine
-```
+[Installing twine](https://packaging.python.org/tutorials/packaging-projects/#uploading-the-distribution-archives): pip install twine
 
 
 #### Deploy source release to dist.apache.org
