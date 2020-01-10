@@ -45,21 +45,21 @@ if [[ $confirmation = "y" ]]; then
 
   echo '-------------------Generating and Pushing Python images-----------------'
   for ver in "${PYTHON_VER[@]}"; do
-     # Pull varified RC from dockerhub.
-     docker pull apachebeam/${ver}_sdk:${RELEASE}_${RC_VERSION}
+    # Pull varified RC from dockerhub.
+    docker pull apachebeam/${ver}_sdk:${RELEASE}_${RC_VERSION}
 
-     # Tag with ${RELEASE} and push to dockerhub.
-     docker tag apachebeam/${ver}_sdk:${RELEASE}_${RC_VERSION} apachebeam/${ver}_sdk:${RELEASE}
-     docker push apachebeam/${ver}_sdk:${RELEASE}
+    # Tag with ${RELEASE} and push to dockerhub.
+    docker tag apachebeam/${ver}_sdk:${RELEASE}_${RC_VERSION} apachebeam/${ver}_sdk:${RELEASE}
+    docker push apachebeam/${ver}_sdk:${RELEASE}
 
-     # Tag with latest and push to dockerhub.
-     docker tag apachebeam/${ver}_sdk:${RELEASE}_${RC_VERSION} apachebeam/${ver}_sdk:latest
-     docker push apachebeam/${ver}_sdk:latest
+    # Tag with latest and push to dockerhub.
+    docker tag apachebeam/${ver}_sdk:${RELEASE}_${RC_VERSION} apachebeam/${ver}_sdk:latest
+    docker push apachebeam/${ver}_sdk:latest
 
-      # Cleanup images from local
-     docker rmi -f apachebeam/${ver}_sdk:${RELEASE}_${RC_VERSION}
-     docker rmi -f apachebeam/${ver}_sdk:${RELEASE}
-     docker rmi -f apachebeam/${ver}_sdk:latest
+    # Cleanup images from local
+    docker rmi -f apachebeam/${ver}_sdk:${RELEASE}_${RC_VERSION}
+    docker rmi -f apachebeam/${ver}_sdk:${RELEASE}
+    docker rmi -f apachebeam/${ver}_sdk:latest
   done
 
   echo '-------------------Generating and Pushing Java images-----------------'
@@ -101,22 +101,22 @@ if [[ $confirmation = "y" ]]; then
   echo "Make sure the versions are correct, then press any key to proceed."
   read
   for ver in "${FLINK_VER[@]}"; do
-     FLINK_IMAGE_NAME=apachebeam/flink${ver}_job_server
+    FLINK_IMAGE_NAME=apachebeam/flink${ver}_job_server
 
-     # Pull verified RC from dockerhub.
-     docker pull "${FLINK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}"
+    # Pull verified RC from dockerhub.
+    docker pull "${FLINK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}"
 
-     # Tag with ${RELEASE} and push to dockerhub.
-     docker tag "${FLINK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}" "${FLINK_IMAGE_NAME}:${RELEASE}"
-     docker push "${FLINK_IMAGE_NAME}:${RELEASE}"
+    # Tag with ${RELEASE} and push to dockerhub.
+    docker tag "${FLINK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}" "${FLINK_IMAGE_NAME}:${RELEASE}"
+    docker push "${FLINK_IMAGE_NAME}:${RELEASE}"
 
-     # Tag with latest and push to dockerhub.
-     docker tag "${FLINK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}" "${FLINK_IMAGE_NAME}:latest"
-     docker push "${FLINK_IMAGE_NAME}:latest"
+    # Tag with latest and push to dockerhub.
+    docker tag "${FLINK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}" "${FLINK_IMAGE_NAME}:latest"
+    docker push "${FLINK_IMAGE_NAME}:latest"
 
-     # Cleanup images from local
-     docker rmi -f "${FLINK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}"
-     docker rmi -f "${FLINK_IMAGE_NAME}:${RELEASE}"
-     docker rmi -f "${FLINK_IMAGE_NAME}:latest"
+    # Cleanup images from local
+    docker rmi -f "${FLINK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}"
+    docker rmi -f "${FLINK_IMAGE_NAME}:${RELEASE}"
+    docker rmi -f "${FLINK_IMAGE_NAME}:latest"
   done
 fi
