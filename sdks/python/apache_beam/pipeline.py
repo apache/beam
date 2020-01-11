@@ -51,7 +51,6 @@ from __future__ import absolute_import
 import abc
 import logging
 import os
-import re
 import shutil
 import tempfile
 from builtins import object
@@ -80,7 +79,9 @@ from apache_beam.options.pipeline_options_validator import PipelineOptionsValida
 from apache_beam.portability import common_urns
 from apache_beam.runners import PipelineRunner
 from apache_beam.runners import create_runner
+from apache_beam.transforms import ParDo
 from apache_beam.transforms import ptransform
+from apache_beam.transforms.sideinputs import get_sideinput_index
 #from apache_beam.transforms import external
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
@@ -822,7 +823,7 @@ class AppliedPTransform(object):
 
   def __init__(self,
                parent,
-               transform,  # type: ptransform.PTransform
+               transform,  # type: Optional[ptransform.PTransform]
                full_label,  # type: str
                inputs,  # type: Optional[Sequence[Union[pvalue.PBegin, pvalue.PCollection]]]
                environment_id=None  # type: Optional[str]
@@ -1020,15 +1021,17 @@ class AppliedPTransform(object):
     main_inputs = [context.pcollections.get_by_id(id)
                    for tag, id in proto.inputs.items()
                    if not is_side_input(tag)]
+
     # Ordering is important here.
-    indexed_side_inputs = [(int(re.match('side([0-9]+)(-.*)?$', tag).group(1)),
+    indexed_side_inputs = [(get_sideinput_index(tag),
                             context.pcollections.get_by_id(id))
                            for tag, id in proto.inputs.items()
                            if is_side_input(tag)]
     side_inputs = [si for _, si in sorted(indexed_side_inputs)]
+    transform = ptransform.PTransform.from_runner_api(proto.spec, context)
     result = AppliedPTransform(
         parent=None,
-        transform=ptransform.PTransform.from_runner_api(proto.spec, context),
+        transform=transform,
         full_label=proto.unique_name,
         inputs=main_inputs,
         environment_id=proto.environment_id)
@@ -1046,6 +1049,7 @@ class AppliedPTransform(object):
         for tag, id in proto.outputs.items()}
     # This annotation is expected by some runners.
     if proto.spec.urn == common_urns.primitives.PAR_DO.urn:
+      assert isinstance(result.transform, ParDo)
       result.transform.output_tags = set(proto.outputs.keys()).difference(
           {'None'})
     if not result.parts:
