@@ -22,9 +22,8 @@ import java.io.IOException;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
-import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
-import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.PCollectionViewTranslation;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
@@ -45,7 +44,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * to associate each input with its output. The nonce is represented as an opaque set of bytes.
  */
 public class WindowMappingFnRunner {
-  static final String URN = BeamUrns.getUrn(StandardPTransforms.Primitives.MAP_WINDOWS);
+  static final String URN = PTransformTranslation.MAP_WINDOWS_TRANSFORM_URN;
 
   /**
    * A registrar which provides a factory to handle mapping main input windows onto side input
