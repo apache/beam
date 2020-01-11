@@ -336,7 +336,7 @@ class IOTypeHints(object):
         try:
           types.remove(type(None))
           output_type = types[0]
-        except KeyError:
+        except ValueError:
           pass
 
     yielded_type = typehints.get_yielded_type(output_type)
