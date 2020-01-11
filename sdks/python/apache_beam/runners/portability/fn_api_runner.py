@@ -50,6 +50,7 @@ from typing import Tuple
 from typing import Type
 from typing import TypeVar
 from typing import Union
+from typing import overload
 
 import grpc
 
@@ -152,8 +153,17 @@ class ControlConnection(object):
     for data in self._input:
       self._futures_by_id.pop(data.instruction_id).set(data)
 
+  @overload
   def push(self, req):
-    # type: (...) -> Optional[ControlFuture]
+    # type: (BeamFnControlServicer.DoneMarker) -> None
+    pass
+
+  @overload
+  def push(self, req):
+    # type: (beam_fn_api_pb2.InstructionRequest) -> ControlFuture
+    pass
+
+  def push(self, req):
     if req == BeamFnControlServicer._DONE_MARKER:
       self._push_queue.put(req)
       return None
@@ -195,7 +205,10 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
   STARTED_STATE = 'started'
   DONE_STATE = 'done'
 
-  _DONE_MARKER = object()
+  class DoneMarker(object):
+    pass
+
+  _DONE_MARKER = DoneMarker()
 
   def __init__(self):
     self._lock = threading.Lock()
@@ -367,8 +380,9 @@ class _WindowGroupingBuffer(object):
     # type: (bytes) -> None
     input_stream = create_InputStream(elements_data)
     while input_stream.size() > 0:
-      windowed_value = self._windowed_value_coder.get_impl(
-          ).decode_from_stream(input_stream, True)
+      windowed_val_coder_impl = self._windowed_value_coder.get_impl()  # type: WindowedValueCoderImpl
+      windowed_value = windowed_val_coder_impl.decode_from_stream(
+          input_stream, True)
       key, value = self._kv_extractor(windowed_value.value)
       for window in windowed_value.windows:
         self._values_by_window[key, window].append(value)
@@ -819,9 +833,10 @@ class FnApiRunner(runner.PipelineRunner):
             pipeline_components.windowing_strategies.items()),
         environments=dict(pipeline_components.environments.items()))
 
-    if worker_handler.state_api_service_descriptor():
+    state_api_service_descriptor = worker_handler.state_api_service_descriptor()
+    if state_api_service_descriptor:
       process_bundle_descriptor.state_api_service_descriptor.url = (
-          worker_handler.state_api_service_descriptor().url)
+          state_api_service_descriptor.url)
 
     # Store the required side inputs into state so it is accessible for the
     # worker when it runs this bundle.
@@ -1228,6 +1243,9 @@ class WorkerHandler(object):
   _registered_environments = {}  # type: Dict[str, Tuple[ConstructorFn, type]]
   _worker_id_counter = -1
   _lock = threading.Lock()
+
+  control_conn = None  # type: ControlConnection
+  data_conn = None  # type: data_plane._GrpcDataChannel
 
   def __init__(self,
                control_handler,
@@ -1872,6 +1890,7 @@ class BundleManager(object):
                             read_transform_id,  # type: str
                             byte_streams
                            ):
+    assert self._worker_handler is not None
     data_out = self._worker_handler.data_conn.output_stream(
         process_bundle_id, read_transform_id)
     for byte_stream in byte_streams:
@@ -1883,6 +1902,7 @@ class BundleManager(object):
     if self._registered:
       registration_future = None
     else:
+      assert self._worker_handler is not None
       process_bundle_registration = beam_fn_api_pb2.InstructionRequest(
           register=beam_fn_api_pb2.RegisterRequest(
               process_bundle_descriptor=[self._bundle_descriptor]))
@@ -1929,6 +1949,8 @@ class BundleManager(object):
     # Send all the data.
     self._send_input_to_worker(
         process_bundle_id, read_transform_id, [byte_stream])
+
+    assert self._worker_handler is not None
 
     # Execute the requested splits.
     while not done:
@@ -2067,13 +2089,18 @@ class ParallelBundleManager(BundleManager):
 
     merged_result = None  # type: Optional[beam_fn_api_pb2.InstructionResponse]
     split_result_list = []  # type: List[beam_fn_api_pb2.ProcessBundleSplitResponse]
-    with UnboundedThreadPoolExecutor() as executor:
-      for result, split_result in executor.map(lambda part: BundleManager(
+
+    def execute(part_map):
+      # type: (...) -> BundleProcessResult
+      bundle_manager = BundleManager(
           self._worker_handler_list, self._get_buffer,
           self._get_input_coder_impl, self._bundle_descriptor,
           self._progress_frequency, self._registered,
-          cache_token_generator=self._cache_token_generator).process_bundle(
-              part, expected_outputs), part_inputs):
+          cache_token_generator=self._cache_token_generator)
+      return bundle_manager.process_bundle(part_map, expected_outputs)
+
+    with UnboundedThreadPoolExecutor() as executor:
+      for result, split_result in executor.map(execute, part_inputs):
 
         split_result_list += split_result
         if merged_result is None:
@@ -2086,6 +2113,7 @@ class ParallelBundleManager(BundleManager):
                           result.process_bundle.monitoring_infos,
                           merged_result.process_bundle.monitoring_infos))),
               error=result.error or merged_result.error)
+    assert merged_result is not None
 
     return merged_result, split_result_list
 

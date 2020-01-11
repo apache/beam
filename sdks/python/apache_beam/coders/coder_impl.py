@@ -909,7 +909,8 @@ class SequenceCoderImpl(StreamCoderImpl):
           buffer = create_OutputStream()
           if (self._write_state is not None
               and out.size() - start_size > self._write_state_threshold):
-            tail = (value_iter[index + 1:] if isinstance(value, (list, tuple))
+            tail = (value_iter[index + 1:]
+                    if isinstance(value_iter, (list, tuple))
                     else value_iter)
             state_token = self._write_state(tail, self._elem_coder)
             out.write_var_int64(-1)
