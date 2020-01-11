@@ -34,8 +34,6 @@ LOCAL_PYTHON_DOC=python_doc
 LOCAL_JAVA_DOC=java_doc
 LOCAL_WEBSITE_REPO=beam_website_repo
 
-USER_REMOTE_URL=
-USER_GITHUB_ID=
 GIT_REPO_URL=git@github.com:apache/beam.git
 ROOT_SVN_URL=https://dist.apache.org/repos/dist/dev/beam
 GIT_BEAM_ARCHIVE=https://github.com/apache/beam/archive
@@ -49,21 +47,28 @@ PYTHON_VER=("python2.7" "python3.5" "python3.6" "python3.7")
 FLINK_VER=("1.7" "1.8" "1.9")
 
 echo "================Setting Up Environment Variables==========="
-echo "Which release version are you working on: "
-read RELEASE
+if [[ "$RELEASE" == "" ]]; then
+  echo "Which release version are you working on (e.g. 2.18.0): "
+  read RELEASE
+fi
 RELEASE_BRANCH=release-${RELEASE}
-echo "Which release candidate number(e.g. 1) are you going to create: "
-read RC_NUM
-echo "Please enter your github username(ID): "
-read USER_GITHUB_ID
+if [[ "$RC_NUM" == "" ]]; then
+  echo "Which release candidate number (e.g. 1) are you going to create: "
+  read RC_NUM
+fi
+if [[ "$USER_GITHUB_ID" == "" ]]; then
+  echo "Please enter your github username (ID): "
+  read USER_GITHUB_ID
+fi
 
 USER_REMOTE_URL=git@github.com:${USER_GITHUB_ID}/beam-site
 
+if [[ "$SIGNING_KEY" == "" ]]; then
 echo "================Listing all GPG keys================="
-gpg --list-keys --keyid-format LONG --fingerprint --fingerprint
-echo "Please copy the public key which is associated with your Apache account:"
-
-read SIGNING_KEY
+  gpg --list-keys --keyid-format LONG --fingerprint --fingerprint
+  echo "Please copy the public key which is associated with your Apache account:"
+  read SIGNING_KEY
+fi
 
 echo "================Checking Environment Variables=============="
 echo "beam repo will be cloned into: ${LOCAL_CLONE_DIR}"
@@ -79,6 +84,7 @@ if [[ $confirmation != "y" ]]; then
   exit
 fi
 
+RC_TAG=${RELEASE}-RC${RC_NUM}
 echo "[Current Step]: Build and stage java artifacts"
 echo "Do you want to proceed? [y|N]"
 read confirmation
@@ -96,20 +102,42 @@ if [[ $confirmation = "y" ]]; then
   git checkout ${RELEASE_BRANCH}
   RELEASE_COMMIT=$(git rev-parse --verify ${RELEASE_BRANCH})
 
-  echo "-------------Building Java Artifacts with Gradle-------------"
-  git config credential.helper store
+  echo "[Current Step]: Build and stage java artifacts"
+  echo "Do you want to proceed (skip if retrying staging step)? [y|N]"
+  read confirmation
+  if [[ $confirmation = "y" ]]; then
+    echo "-------------Building Java Artifacts with Gradle-------------"
+    git config credential.helper store
 
-  ./gradlew release -Prelease.newVersion=${RELEASE}-SNAPSHOT \
-                -Prelease.releaseVersion=${RELEASE}-RC${RC_NUM} \
-                -Prelease.useAutomaticVersion=true --info --no-daemon
+    ./gradlew release -Prelease.newVersion=${RELEASE}-SNAPSHOT \
+                  -Prelease.releaseVersion=${RC_TAG} \
+                  -Prelease.useAutomaticVersion=true --info --no-daemon
 
-  echo "Please make sure gradle release succeed: "
-  echo "1. release code has been pushed to github repo."
-  echo "2. new rc tag has created in github."
+    echo "======Will update ${RELEASE_BRANCH} branch as follows========"
+    git log -p origin/${RELEASE_BRANCH}..
+    echo "============================================================="
+    echo "You should see 2 commits and 1 tag above."
+    echo "Please confirm these changes are ready to be pushed to github: [y|N] "
+
+    read confirmation
+    if [[ $confirmation != "y" ]]; then
+      echo "Aborting."
+      exit
+    fi
+    git push --tags
+    git push
+    echo ""
+    echo "Please verify that the bottom commit is here (note the new RC tag):"
+    echo "  https://github.com/apache/beam/commits/v${RC_TAG}"
+    echo "and that both commits are here: "
+    echo "  https://github.com/apache/beam/commits/${RELEASE_BRANCH}"
+    echo ""
+  fi
 
   echo "-------------Staging Java Artifacts into Maven---------------"
   gpg --local-user ${SIGNING_KEY} --output /dev/null --sign ~/.bashrc
   ./gradlew publish -Psigning.gnupg.keyName=${SIGNING_KEY} -PisRelease --no-daemon
+  echo "Please close the staging repo on Nexus. (see release guide)"
   echo "Please review all artifacts in staging URL. e.g. https://repository.apache.org/content/repositories/orgapachebeam-NNNN/"
   rm -rf ~/${LOCAL_CLONE_DIR}
 fi
@@ -218,35 +246,29 @@ if [[ $confirmation = "y" ]]; then
   cd ${BEAM_ROOT_DIR}
   git checkout ${RELEASE_BRANCH}
 
+  DOCKER_RC_TAG=${RELEASE}_rc${RC_NUM}
   echo '-------------------Generating and Pushing Python images-----------------'
-  ./gradlew :sdks:python:container:buildAll -Pdocker-tag=${RELEASE}_rc${RC_NUM}
+  ./gradlew :sdks:python:container:buildAll -Pdocker-tag=${DOCKER_RC_TAG}
   for ver in "${PYTHON_VER[@]}"; do
-    docker push apachebeam/${ver}_sdk:${RELEASE}_rc${RC_NUM} &
+    docker push apachebeam/${ver}_sdk:${DOCKER_RC_TAG}
   done
 
   echo '-------------------Generating and Pushing Java images-----------------'
-  ./gradlew :sdks:java:container:dockerPush -Pdocker-tag=${RELEASE}_rc${RC_NUM}
+  ./gradlew :sdks:java:container:dockerPush -Pdocker-tag=${DOCKER_RC_TAG}
 
   echo '-------------------Generating and Pushing Go images-----------------'
-  ./gradlew :sdks:go:container:dockerPush -Pdocker-tag=${RELEASE}_rc${RC_NUM}
+  ./gradlew :sdks:go:container:dockerPush -Pdocker-tag=${DOCKER_RC_TAG}
 
   echo '-------------Generating and Pushing Flink job server images-------------'
   echo "Building containers for the following Flink versions:" "${FLINK_VER[@]}"
   for ver in "${FLINK_VER[@]}"; do
-    ./gradlew ":runners:flink:${ver}:job-server-container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
+    ./gradlew ":runners:flink:${ver}:job-server-container:dockerPush" -Pdocker-tag="${DOCKER_RC_TAG}"
   done
 
   rm -rf ~/${PYTHON_ARTIFACTS_DIR}
 
   echo '-------------------Clean up images at local-----------------'
-  for ver in "${PYTHON_VER[@]}"; do
-     docker rmi -f apachebeam/${ver}_sdk:${RELEASE}_rc${RC_NUM}
-  done
-  docker rmi -f apachebeam/java_sdk:${RELEASE}_rc${RC_NUM}
-  docker rmi -f apachebeam/go_sdk:${RELEASE}_rc${RC_NUM}
-  for ver in "${FLINK_VER[@]}"; do
-    docker rmi -f "apachebeam/flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
-  done
+  docker rmi $(docker images --filter=reference="apachebeam/*:${DOCKER_RC_TAG}" -q)
 fi
 
 echo "[Current Step]: Update beam-site"
@@ -320,7 +342,7 @@ if [[ $confirmation = "y" ]]; then
     echo "Without hub, you need to create PR manually."
   fi
 
-  echo "Finished v${RELEASE}-RC${RC_NUM} creation."
+  echo "Finished v${RC_TAG} creation."
   rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}
   rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}
 fi
@@ -328,16 +350,17 @@ fi
 echo "===========Please Review All Items in the Checklist=========="
 echo "1. Maven artifacts deployed to https://repository.apache.org/content/repositories/"
 echo "2. Source distribution deployed to https://dist.apache.org/repos/dist/dev/beam/${RELEASE}"
-echo "3. Website pull request published the Java API reference manual the Python API reference manual."
+echo "3. Website pull request published the Java and Python API reference manuals."
 
 echo "==============Things Needed To Be Done Manually=============="
-echo "1.Make sure a pull request is created to update the javadoc and pydoc to the beam-site: "
+echo "1. Make sure a pull request is created to update the javadoc and pydoc to"
+echo "   the beam-site (may have been already created above): "
 echo "  - cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_WEBSITE_REPO}/${WEBSITE_ROOT_DIR}"
 echo "  - git checkout updates_release_${RELEASE}"
 echo "  - Check if both javadoc/ and pydoc/ exist."
 echo "  - commit your changes"
-echo "2.Create a pull request to update the release in the beam/website:"
+echo "2. Create a pull request to update the release in the beam/website:"
 echo "  - An example pull request：https://github.com/apache/beam/pull/9341"
 echo "  - You can find the release note in JIRA: https://issues.apache.org/jira/projects/BEAM?selectedItem=com.atlassian.jira.jira-projects-plugin%3Arelease-page&status=unreleased"
-echo "3.You need to build Python Wheels."
-echo "4.Start the review-and-vote thread on the dev@ mailing list."
+echo "3. You need to build Python Wheels."
+echo "4. Start the review-and-vote thread on the dev@ mailing list."

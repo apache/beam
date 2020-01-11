@@ -615,6 +615,8 @@ release tag to the origin repository (this would be the Apache Beam repo):
     ./gradlew release -Prelease.newVersion=${RELEASE}-SNAPSHOT \
                   -Prelease.releaseVersion=${RELEASE}-RC${RC_NUM} \
                   -Prelease.useAutomaticVersion=true --info --no-daemon
+    git push --tags
+    git push
 
 Use Gradle publish plugin to stage these artifacts on the Apache Nexus repository, as follows:
 
@@ -715,15 +717,7 @@ done
 Clean up images from local
 
 ```
-for ver in "${PYTHON_VER[@]}"; do
-   docker rmi -f apachebeam/${ver}_sdk:${RELEASE}_rc{RC_NUM}
-done
-docker rmi -f apachebeam/java_sdk:${RELEASE}_rc{RC_NUM}
-docker rmi -f apachebeam/go_sdk:${RELEASE}_rc{RC_NUM}
-for ver in "${FLINK_VER[@]}"; do
-   docker rmi -f "apachebeam/flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
-done
-
+docker rmi $(docker images --filter=reference="apachebeam/*:${RELEASE}_rc{RC_NUM}" -q)
 ```
 
 How to find images:
@@ -734,13 +728,15 @@ How to find images:
 ### Build and stage python wheels
 
 There is a wrapper repo [beam-wheels](https://github.com/apache/beam-wheels) to help build python wheels.
-
 If you are interested in how it works, please refer to the [structure section](https://github.com/apache/beam-wheels#structure).
 
-Please follow the [user guide](https://github.com/apache/beam-wheels#user-guide) to build python wheels.
+- Please follow the [user guide](https://github.com/apache/beam-wheels#user-guide) to build python wheels.
+- Once the build is complete, run
+[./beam/release/src/main/scripts/sign_hash_python_wheels.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/sign_hash_python_wheels.sh)
+to sign, hash, and stage python wheels.
+- Verify that the wheels have been staged under `${RELEASE}/python/` in
+[dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/),
 
-Once all python wheels have been staged [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/),
-please run [./sign_hash_python_wheels.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/sign_hash_python_wheels.sh) to sign and hash python wheels.
 
 
 **********
@@ -887,7 +883,7 @@ Template:
 
 You can (optionally) also do additional verification by:
 1. Check that Python zip file contains the `README.md`, `NOTICE`, and `LICENSE` files.
-1. Check hashes (e.g. `md5sum -c *.md5` and `sha1sum -c *.sha1`)
+1. Check hashes (e.g. `sha512sum -c *.sha512`)
 1. Check signatures (e.g. `gpg --verify apache-beam-1.2.3-python.zip.asc apache-beam-1.2.3-python.zip`)
 1. `grep` for legal headers in each file.
 1. Run all jenkins suites and include links to passing tests in the voting email. (Select "Run with parameters")
