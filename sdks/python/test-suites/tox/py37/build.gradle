@@ -54,16 +54,12 @@ toxTask "testPy37CythonPytest", "py37-cython-pytest"
 // Ensure that cython tests run exclusively to other tests.
 testPy37CythonPytest.mustRunAfter testPython37Pytest, testPy37GcpPytest
 
-toxTask "docs", "docs"
-assemble.dependsOn docs
-
 task preCommitPy37() {
     dependsOn "testPy37Gcp"
     dependsOn "testPy37Cython"
 }
 
 task preCommitPy37Pytest {
-  dependsOn "docs"
   dependsOn "testPy37GcpPytest"
   dependsOn "testPy37CythonPytest"
 }
