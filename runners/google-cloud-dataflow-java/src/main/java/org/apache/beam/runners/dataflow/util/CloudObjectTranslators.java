@@ -355,9 +355,8 @@ class CloudObjectTranslators {
       public Coder fromCloudObject(CloudObject cloudObject) {
         String serializedCoder = Structs.getString(cloudObject, CODER_FIELD);
         String type = Structs.getString(cloudObject, TYPE_FIELD);
-        return (Coder<?>)
-            SerializableUtils.deserializeFromByteArray(
-                StringUtils.jsonStringToByteArray(serializedCoder), type);
+        return SerializableUtils.deserializeFromByteArray(
+            StringUtils.jsonStringToByteArray(serializedCoder), type);
       }
 
       @Override

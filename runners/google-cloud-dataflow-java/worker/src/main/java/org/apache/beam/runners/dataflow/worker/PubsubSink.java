@@ -111,9 +111,7 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
         withAttributes = true;
         if (attributesFnBytes.length > 0) {
           formatFn =
-              (SimpleFunction<Object, PubsubMessage>)
-                  SerializableUtils.deserializeFromByteArray(
-                      attributesFnBytes, "serialized fn info");
+              SerializableUtils.deserializeFromByteArray(attributesFnBytes, "serialized fn info");
         }
       }
 

@@ -363,9 +363,8 @@ public class WindowingStrategyTranslation implements Serializable {
         return Sessions.withGapDuration(
             Duration.millis(Durations.toMillis(sessionParams.getGapSize())));
       } else if (s.equals(SERIALIZED_JAVA_WINDOWFN_URN)) {
-        return (WindowFn<?, ?>)
-            SerializableUtils.deserializeFromByteArray(
-                windowFnSpec.getPayload().toByteArray(), "WindowFn");
+        return SerializableUtils.deserializeFromByteArray(
+            windowFnSpec.getPayload().toByteArray(), "WindowFn");
       } else {
         throw new IllegalArgumentException(
             "Unknown or unsupported WindowFn: " + windowFnSpec.getUrn());

@@ -71,12 +71,10 @@ public class PartialGroupByKeyParDoFns {
       sideInputReader = NullSideInputReader.empty();
       stepContext = null;
     } else {
-      Object deserializedFn =
+      AppliedCombineFn<K, InputT, AccumT, ?> combineFnUnchecked =
           SerializableUtils.deserializeFromByteArray(
               getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN), "serialized combine fn");
-      @SuppressWarnings("unchecked")
-      AppliedCombineFn<K, InputT, AccumT, ?> combineFnUnchecked =
-          ((AppliedCombineFn<K, InputT, AccumT, ?>) deserializedFn);
+
       combineFn = combineFnUnchecked;
 
       sideInputReader =

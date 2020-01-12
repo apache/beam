@@ -713,11 +713,10 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     DoFnInfo<String, Integer> fnInfo =
-        (DoFnInfo<String, Integer>)
-            SerializableUtils.deserializeFromByteArray(
-                jsonStringToByteArray(
-                    getString(processKeyedStep.getProperties(), PropertyNames.SERIALIZED_FN)),
-                "DoFnInfo");
+        SerializableUtils.deserializeFromByteArray(
+            jsonStringToByteArray(
+                getString(processKeyedStep.getProperties(), PropertyNames.SERIALIZED_FN)),
+            "DoFnInfo");
     assertThat(fnInfo.getDoFn(), instanceOf(TestSplittableFn.class));
     assertThat(
         fnInfo.getWindowingStrategy().getWindowFn(),

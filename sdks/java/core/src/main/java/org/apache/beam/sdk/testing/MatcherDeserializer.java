@@ -34,8 +34,7 @@ class MatcherDeserializer extends JsonDeserializer<SerializableMatcher<?>> {
       throws IOException, JsonProcessingException {
     ObjectNode node = jsonParser.readValueAsTree();
     String matcher = node.get("matcher").asText();
-    byte[] in = BaseEncoding.base64().decode(matcher);
-    return (SerializableMatcher<?>)
-        SerializableUtils.deserializeFromByteArray(in, "SerializableMatcher");
+    return SerializableUtils.deserializeFromByteArray(
+        BaseEncoding.base64().decode(matcher), "SerializableMatcher");
   }
 }

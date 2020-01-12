@@ -143,8 +143,7 @@ public class CoderTranslation {
   }
 
   private static Coder<?> fromCustomCoder(RunnerApi.Coder protoCoder) throws IOException {
-    return (Coder<?>)
-        SerializableUtils.deserializeFromByteArray(
-            protoCoder.getSpec().getPayload().toByteArray(), "Custom Coder Bytes");
+    return SerializableUtils.deserializeFromByteArray(
+        protoCoder.getSpec().getPayload().toByteArray(), "Custom Coder Bytes");
   }
 }

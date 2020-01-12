@@ -574,9 +574,7 @@ public class WorkerCustomSources {
   @VisibleForTesting
   static Source<?> deserializeFromCloudSource(Map<String, Object> spec) throws Exception {
     Source<?> source =
-        (Source<?>)
-            deserializeFromByteArray(
-                Base64.decodeBase64(getString(spec, SERIALIZED_SOURCE)), "Source");
+        deserializeFromByteArray(Base64.decodeBase64(getString(spec, SERIALIZED_SOURCE)), "Source");
     try {
       source.validate();
     } catch (Exception e) {

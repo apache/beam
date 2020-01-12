@@ -90,9 +90,8 @@ public class CreatePCollectionViewTranslationTest {
 
     // Checks that the payload is what it should be
     PCollectionView<?> deserializedView =
-        (PCollectionView<?>)
-            SerializableUtils.deserializeFromByteArray(
-                payload.getPayload().toByteArray(), PCollectionView.class.getSimpleName());
+        SerializableUtils.deserializeFromByteArray(
+            payload.getPayload().toByteArray(), PCollectionView.class.getSimpleName());
 
     assertThat(deserializedView, Matchers.equalTo(createViewTransform.getView()));
   }
@@ -117,9 +116,8 @@ public class CreatePCollectionViewTranslationTest {
 
     // Checks that the payload is what it should be
     PCollectionView<?> deserializedView =
-        (PCollectionView<?>)
-            SerializableUtils.deserializeFromByteArray(
-                payload.getPayload().toByteArray(), PCollectionView.class.getSimpleName());
+        SerializableUtils.deserializeFromByteArray(
+            payload.getPayload().toByteArray(), PCollectionView.class.getSimpleName());
 
     assertThat(deserializedView, Matchers.equalTo(createViewTransform.getView()));
   }

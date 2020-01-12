@@ -68,23 +68,17 @@ public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<S
   public SchemaCoder fromCloudObject(CloudObject cloudObject) {
     try {
       TypeDescriptor typeDescriptor =
-          (TypeDescriptor)
-              SerializableUtils.deserializeFromByteArray(
-                  StringUtils.jsonStringToByteArray(
-                      Structs.getString(cloudObject, TYPE_DESCRIPTOR)),
-                  "typeDescriptor");
+          SerializableUtils.deserializeFromByteArray(
+              StringUtils.jsonStringToByteArray(Structs.getString(cloudObject, TYPE_DESCRIPTOR)),
+              "typeDescriptor");
       SerializableFunction toRowFunction =
-          (SerializableFunction)
-              SerializableUtils.deserializeFromByteArray(
-                  StringUtils.jsonStringToByteArray(
-                      Structs.getString(cloudObject, TO_ROW_FUNCTION)),
-                  "toRowFunction");
+          SerializableUtils.deserializeFromByteArray(
+              StringUtils.jsonStringToByteArray(Structs.getString(cloudObject, TO_ROW_FUNCTION)),
+              "toRowFunction");
       SerializableFunction fromRowFunction =
-          (SerializableFunction)
-              SerializableUtils.deserializeFromByteArray(
-                  StringUtils.jsonStringToByteArray(
-                      Structs.getString(cloudObject, FROM_ROW_FUNCTION)),
-                  "fromRowFunction");
+          SerializableUtils.deserializeFromByteArray(
+              StringUtils.jsonStringToByteArray(Structs.getString(cloudObject, FROM_ROW_FUNCTION)),
+              "fromRowFunction");
       SchemaApi.Schema protoSchema =
           SchemaApi.Schema.parseFrom(
               StringUtils.jsonStringToByteArray(Structs.getString(cloudObject, SCHEMA)));

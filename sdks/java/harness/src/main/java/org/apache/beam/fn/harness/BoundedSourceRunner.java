@@ -133,7 +133,7 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
         byte[] bytes = definition.getPayload().toByteArray();
         @SuppressWarnings("unchecked")
         InputT boundedSource0 =
-            (InputT) SerializableUtils.deserializeFromByteArray(bytes, definition.toString());
+            SerializableUtils.deserializeFromByteArray(bytes, definition.toString());
         boundedSource = boundedSource0;
       } else if (definition.getUrn().equals(PTransformTranslation.READ_TRANSFORM_URN)) {
         ReadPayload readPayload = ReadPayload.parseFrom(definition.getPayload());

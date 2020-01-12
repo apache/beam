@@ -75,8 +75,7 @@ public class DoFnInstanceManagers {
     }
 
     private DoFnInfo<?, ?> deserializeCopy() throws Exception {
-      DoFnInfo<?, ?> fn;
-      fn = (DoFnInfo<?, ?>) SerializableUtils.deserializeFromByteArray(serializedFnInfo, null);
+      DoFnInfo<?, ?> fn = SerializableUtils.deserializeFromByteArray(serializedFnInfo, null);
       DoFnInvokers.invokerFor(fn.getDoFn()).invokeSetup();
       return fn;
     }

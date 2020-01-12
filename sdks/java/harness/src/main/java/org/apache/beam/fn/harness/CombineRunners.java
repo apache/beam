@@ -154,9 +154,8 @@ public class CombineRunners {
 
       CombinePayload combinePayload = CombinePayload.parseFrom(pTransform.getSpec().getPayload());
       CombineFn<InputT, AccumT, ?> combineFn =
-          (CombineFn)
-              SerializableUtils.deserializeFromByteArray(
-                  combinePayload.getCombineFn().getPayload().toByteArray(), "CombineFn");
+          SerializableUtils.deserializeFromByteArray(
+              combinePayload.getCombineFn().getPayload().toByteArray(), "CombineFn");
       Coder<AccumT> accumCoder =
           (Coder<AccumT>) rehydratedComponents.getCoder(combinePayload.getAccumulatorCoderId());
 
@@ -187,9 +186,8 @@ public class CombineRunners {
               throws IOException {
     CombinePayload combinePayload = CombinePayload.parseFrom(pTransform.getSpec().getPayload());
     CombineFn<?, AccumT, ?> combineFn =
-        (CombineFn)
-            SerializableUtils.deserializeFromByteArray(
-                combinePayload.getCombineFn().getPayload().toByteArray(), "CombineFn");
+        SerializableUtils.deserializeFromByteArray(
+            combinePayload.getCombineFn().getPayload().toByteArray(), "CombineFn");
 
     return (KV<KeyT, Iterable<AccumT>> input) ->
         KV.of(input.getKey(), combineFn.mergeAccumulators(input.getValue()));
@@ -200,9 +198,8 @@ public class CombineRunners {
           String pTransformId, PTransform pTransform) throws IOException {
     CombinePayload combinePayload = CombinePayload.parseFrom(pTransform.getSpec().getPayload());
     CombineFn<?, AccumT, OutputT> combineFn =
-        (CombineFn)
-            SerializableUtils.deserializeFromByteArray(
-                combinePayload.getCombineFn().getPayload().toByteArray(), "CombineFn");
+        SerializableUtils.deserializeFromByteArray(
+            combinePayload.getCombineFn().getPayload().toByteArray(), "CombineFn");
 
     return (KV<KeyT, AccumT> input) ->
         KV.of(input.getKey(), combineFn.extractOutput(input.getValue()));
@@ -214,9 +211,8 @@ public class CombineRunners {
               throws IOException {
     CombinePayload combinePayload = CombinePayload.parseFrom(pTransform.getSpec().getPayload());
     CombineFn<InputT, AccumT, OutputT> combineFn =
-        (CombineFn)
-            SerializableUtils.deserializeFromByteArray(
-                combinePayload.getCombineFn().getPayload().toByteArray(), "CombineFn");
+        SerializableUtils.deserializeFromByteArray(
+            combinePayload.getCombineFn().getPayload().toByteArray(), "CombineFn");
 
     return (KV<KeyT, Iterable<InputT>> input) -> {
       return KV.of(input.getKey(), combineFn.apply(input.getValue()));

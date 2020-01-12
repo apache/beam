@@ -114,12 +114,8 @@ public class WriteFilesTranslation {
         FileBasedSink.class.getSimpleName(),
         FunctionSpec.class.getSimpleName(),
         sinkProto.getUrn());
-
-    byte[] serializedSink = sinkProto.getPayload().toByteArray();
-
-    return (FileBasedSink<?, ?, ?>)
-        SerializableUtils.deserializeFromByteArray(
-            serializedSink, FileBasedSink.class.getSimpleName());
+    return SerializableUtils.deserializeFromByteArray(
+        sinkProto.getPayload().toByteArray(), FileBasedSink.class.getSimpleName());
   }
 
   public static <UserT, DestinationT, OutputT> FileBasedSink<UserT, DestinationT, OutputT> getSink(

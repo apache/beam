@@ -85,9 +85,8 @@ public class ReadTranslation {
   public static BoundedSource<?> boundedSourceFromProto(ReadPayload payload)
       throws InvalidProtocolBufferException {
     checkArgument(payload.getIsBounded().equals(IsBounded.Enum.BOUNDED));
-    return (BoundedSource<?>)
-        SerializableUtils.deserializeFromByteArray(
-            payload.getSource().getPayload().toByteArray(), "BoundedSource");
+    return SerializableUtils.deserializeFromByteArray(
+        payload.getSource().getPayload().toByteArray(), "BoundedSource");
   }
 
   public static <T> BoundedSource<T> boundedSourceFromTransform(
@@ -122,9 +121,8 @@ public class ReadTranslation {
 
   public static UnboundedSource<?, ?> unboundedSourceFromProto(ReadPayload payload) {
     checkArgument(payload.getIsBounded().equals(IsBounded.Enum.UNBOUNDED));
-    return (UnboundedSource<?, ?>)
-        SerializableUtils.deserializeFromByteArray(
-            payload.getSource().getPayload().toByteArray(), "UnboundedSource");
+    return SerializableUtils.deserializeFromByteArray(
+        payload.getSource().getPayload().toByteArray(), "UnboundedSource");
   }
 
   public static PCollection.IsBounded sourceIsBounded(AppliedPTransform<?, ?, ?> transform) {

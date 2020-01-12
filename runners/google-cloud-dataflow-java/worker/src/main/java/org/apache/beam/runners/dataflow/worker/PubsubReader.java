@@ -94,8 +94,7 @@ class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
       // special case of a zero-length array allows pass-through of the raw protobuf.
       if (attributesFnBytes != null && attributesFnBytes.length > 0) {
         parseFn =
-            (SimpleFunction<PubsubMessage, Object>)
-                SerializableUtils.deserializeFromByteArray(attributesFnBytes, "serialized fn info");
+            SerializableUtils.deserializeFromByteArray(attributesFnBytes, "serialized fn info");
       }
       return new PubsubReader<>(
           typedCoder, (StreamingModeExecutionContext) executionContext, parseFn);

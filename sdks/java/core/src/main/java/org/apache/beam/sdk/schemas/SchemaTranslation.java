@@ -250,9 +250,8 @@ public class SchemaTranslation {
           return FieldType.DECIMAL;
         } else if (urn.equals(URN_BEAM_LOGICAL_JAVASDK)) {
           return FieldType.logicalType(
-              (LogicalType)
-                  SerializableUtils.deserializeFromByteArray(
-                      protoFieldType.getLogicalType().getPayload().toByteArray(), "logicalType"));
+              SerializableUtils.deserializeFromByteArray(
+                  protoFieldType.getLogicalType().getPayload().toByteArray(), "logicalType"));
         } else {
           throw new IllegalArgumentException("Encountered unsupported logical type URN: " + urn);
         }

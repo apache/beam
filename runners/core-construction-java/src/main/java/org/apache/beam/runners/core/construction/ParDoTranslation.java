@@ -537,10 +537,8 @@ public class ParDoTranslation {
         }
 
         Combine.CombineFn<?, ?, ?> combineFn =
-            (Combine.CombineFn<?, ?, ?>)
-                SerializableUtils.deserializeFromByteArray(
-                    combineFnSpec.getPayload().toByteArray(),
-                    Combine.CombineFn.class.getSimpleName());
+            SerializableUtils.deserializeFromByteArray(
+                combineFnSpec.getPayload().toByteArray(), Combine.CombineFn.class.getSimpleName());
 
         // Rawtype coder cast because it is required to be a valid accumulator coder
         // for the CombineFn, by construction
@@ -618,9 +616,8 @@ public class ParDoTranslation {
         FunctionSpec.class.getSimpleName(),
         CUSTOM_JAVA_DO_FN_URN,
         fnSpec.getUrn());
-    byte[] serializedFn = fnSpec.getPayload().toByteArray();
-    return (DoFnWithExecutionInformation)
-        SerializableUtils.deserializeFromByteArray(serializedFn, "Custom DoFn With Execution Info");
+    return SerializableUtils.deserializeFromByteArray(
+        fnSpec.getPayload().toByteArray(), "Custom DoFn With Execution Info");
   }
 
   /**

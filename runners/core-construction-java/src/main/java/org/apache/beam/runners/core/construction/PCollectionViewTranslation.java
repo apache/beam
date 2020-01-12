@@ -83,9 +83,8 @@ public class PCollectionViewTranslation {
         "Can't deserialize unknown %s type %s",
         ViewFn.class.getSimpleName(),
         spec.getUrn());
-    return (ViewFn<?, ?>)
-        SerializableUtils.deserializeFromByteArray(
-            spec.getPayload().toByteArray(), "Custom ViewFn");
+    return SerializableUtils.deserializeFromByteArray(
+        spec.getPayload().toByteArray(), "Custom ViewFn");
   }
 
   /**
@@ -100,8 +99,7 @@ public class PCollectionViewTranslation {
         "Can't deserialize unknown %s type %s",
         WindowMappingFn.class.getSimpleName(),
         spec.getUrn());
-    return (WindowMappingFn<?>)
-        SerializableUtils.deserializeFromByteArray(
-            spec.getPayload().toByteArray(), "Custom WinodwMappingFn");
+    return SerializableUtils.deserializeFromByteArray(
+        spec.getPayload().toByteArray(), "Custom WinodwMappingFn");
   }
 }

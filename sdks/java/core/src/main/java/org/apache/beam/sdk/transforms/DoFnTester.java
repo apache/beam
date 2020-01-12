@@ -704,9 +704,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       fn = origFn;
     } else {
       fn =
-          (DoFn<InputT, OutputT>)
-              SerializableUtils.deserializeFromByteArray(
-                  SerializableUtils.serializeToByteArray(origFn), origFn.toString());
+          SerializableUtils.deserializeFromByteArray(
+              SerializableUtils.serializeToByteArray(origFn), origFn.toString());
     }
     fnInvoker = DoFnInvokers.invokerFor(fn);
     fnInvoker.invokeSetup();

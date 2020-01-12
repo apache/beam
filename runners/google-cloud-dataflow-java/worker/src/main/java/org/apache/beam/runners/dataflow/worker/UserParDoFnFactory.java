@@ -58,9 +58,8 @@ class UserParDoFnFactory implements ParDoFnFactory {
   private static class UserDoFnExtractor implements DoFnExtractor {
     @Override
     public DoFnInfo<?, ?> getDoFnInfo(CloudObject cloudUserFn) {
-      return (DoFnInfo<?, ?>)
-          SerializableUtils.deserializeFromByteArray(
-              getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN), "Serialized DoFnInfo");
+      return SerializableUtils.deserializeFromByteArray(
+          getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN), "Serialized DoFnInfo");
     }
   }
 

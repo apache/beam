@@ -63,12 +63,12 @@ public class SerializableUtils {
    * @throws IllegalArgumentException if there are errors when deserializing, using the provided
    *     description to identify what was being deserialized
    */
-  public static Object deserializeFromByteArray(byte[] encodedValue, String description) {
+  public static <T> T deserializeFromByteArray(byte[] encodedValue, String description) {
     try {
       try (ObjectInputStream ois =
           new ContextualObjectInputStream(
               new SnappyInputStream(new ByteArrayInputStream(encodedValue)))) {
-        return ois.readObject();
+        return (T) ois.readObject();
       }
     } catch (IOException | ClassNotFoundException exn) {
       throw new IllegalArgumentException("unable to deserialize " + description, exn);
@@ -107,10 +107,9 @@ public class SerializableUtils {
       loader = tccl; // will likely fail but the best we can do
     }
     thread.setContextClassLoader(loader);
-    @SuppressWarnings("unchecked")
     final T copy;
     try {
-      copy = (T) deserializeFromByteArray(serializeToByteArray(value), value.toString());
+      copy = deserializeFromByteArray(serializeToByteArray(value), value.toString());
     } finally {
       thread.setContextClassLoader(tccl);
     }

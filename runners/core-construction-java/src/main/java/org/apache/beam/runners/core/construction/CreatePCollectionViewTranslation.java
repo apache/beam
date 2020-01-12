@@ -73,10 +73,8 @@ public class CreatePCollectionViewTranslation {
         application.getFullName(),
         transformProto.getSpec().getUrn());
 
-    return (PCollectionView<ViewT>)
-        SerializableUtils.deserializeFromByteArray(
-            transformProto.getSpec().getPayload().toByteArray(),
-            PCollectionView.class.getSimpleName());
+    return SerializableUtils.deserializeFromByteArray(
+        transformProto.getSpec().getPayload().toByteArray(), PCollectionView.class.getSimpleName());
   }
 
   /**

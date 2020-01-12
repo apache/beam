@@ -98,9 +98,8 @@ class DoFnLifecycleManager {
     @Override
     public DoFn<?, ?> load(Thread key) throws Exception {
       DoFn<?, ?> fn =
-          (DoFn<?, ?>)
-              SerializableUtils.deserializeFromByteArray(
-                  original, "DoFn Copy in thread " + key.getName());
+          SerializableUtils.deserializeFromByteArray(
+              original, "DoFn Copy in thread " + key.getName());
       DoFnInvokers.tryInvokeSetupFor(fn);
       return fn;
     }

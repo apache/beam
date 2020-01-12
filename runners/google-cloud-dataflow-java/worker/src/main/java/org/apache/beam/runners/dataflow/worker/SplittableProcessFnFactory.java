@@ -72,9 +72,8 @@ class SplittableProcessFnFactory {
     @Override
     public DoFnInfo<?, ?> getDoFnInfo(CloudObject cloudUserFn) throws Exception {
       DoFnInfo<?, ?> doFnInfo =
-          (DoFnInfo<?, ?>)
-              deserializeFromByteArray(
-                  getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN), "Serialized DoFnInfo");
+          deserializeFromByteArray(
+              getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN), "Serialized DoFnInfo");
       Coder restrictionCoder =
           coderFromCloudObject(
               fromSpec(getObject(cloudUserFn, WorkerPropertyNames.RESTRICTION_CODER)));
