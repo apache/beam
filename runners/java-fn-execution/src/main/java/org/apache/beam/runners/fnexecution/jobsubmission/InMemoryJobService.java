@@ -344,9 +344,6 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
           event -> {
             syncResponseObserver.onNext(
                 JobMessagesResponse.newBuilder().setStateResponse(event).build());
-            if (JobInvocation.isTerminated(event.getState())) {
-              responseObserver.onCompleted();
-            }
           };
       Consumer<JobMessage> messageListener =
           message ->
@@ -355,6 +352,10 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
 
       invocation.addStateListener(stateListener);
       invocation.addMessageListener(messageListener);
+
+      if (JobInvocation.isTerminated(invocation.getStateEvent().getState())) {
+        responseObserver.onCompleted();
+      }
     } catch (StatusRuntimeException | StatusException e) {
       responseObserver.onError(e);
     } catch (Exception e) {
