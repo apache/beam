@@ -230,7 +230,7 @@
       <li><a href="#share-your-intent">Share your intent</a></li>
       <li><a href="#development-setup">Development Setup</a></li>
       <li><a href="#make-your-change">Make your change</a></li>
-      <li><a href="#make-reviewers-job-easier">Make reviewer’s job easier</a></li>
+      <li><a href="#make-the-reviewers-job-easier">Make the reviewer’s job easier</a></li>
     </ul>
   </li>
   <li><a href="#when-will-my-change-show-up-in-an-apache-beam-release">When will my change show up in an Apache Beam release?</a></li>
@@ -302,14 +302,39 @@ detail.</p>
 <ul>
   <li>a GitHub account</li>
   <li>a Linux, macOS, or Microsoft Windows development environment with Java JDK 8 installed</li>
-  <li><a href="https://www.docker.com/">Docker</a> installed for some tasks including building worker containers and testing website
+  <li><a href="https://www.docker.com/">Docker</a> installed for some tasks including building worker containers and testing this website
 changes locally</li>
-  <li><a href="https://golang.org">Go</a> 1.10 or later installed for Go SDK development</li>
-  <li>Python, virtualenv, and tox installed for Python SDK development</li>
+  <li><a href="https://golang.org">Go</a> 1.12 or later installed for Go SDK development</li>
+  <li>Python 2.7, 3.5, 3.6, and 3.7. Yes, you need all four versions installed.
+    <ul>
+      <li>pip, setuptools, virtualenv, and tox installed for Python development</li>
+    </ul>
+  </li>
   <li>for large contributions, a signed <a href="https://www.apache.org/licenses/icla.pdf">Individual Contributor License
 Agreement</a> (ICLA) to the Apache
 Software Foundation (ASF).</li>
 </ul>
+
+<p>To install these in a Debian-based distribution:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sudo apt-get install \
+   openjdk-8-jdk \
+   python-setuptools \
+   python-pip \
+   virtualenv \
+   tox \
+   docker-ce
+</code></pre></div></div>
+
+<p>You also need to <a href="https://golang.org/doc/install]">install Go</a>.</p>
+
+<p>Once Go is installed, install goavro:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
+$ go get github.com/linkedin/goavro
+</code></pre></div></div>
+
+<p>gLinux users should configure their machines for sudoless Docker.</p>
 
 <h3 id="connect-with-the-beam-community">Connect With the Beam community</h3>
 
@@ -445,7 +470,7 @@ To find a committer for your area, either:
 request.</li>
 </ol>
 
-<h3 id="make-reviewers-job-easier">Make reviewer’s job easier</h3>
+<h3 id="make-the-reviewers-job-easier">Make the reviewer’s job easier</h3>
 
 <ol>
   <li>
