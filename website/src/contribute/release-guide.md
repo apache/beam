@@ -867,7 +867,7 @@ Template:
 
     * {$KNOWN_ISSUE_1}
     * {$KNOWN_ISSUE_2}
-    * See a full list of open [issues that affects](https://issues.apache.org/jira/browse/BEAM-8989?jql=project = BEAM AND affectedVersion = 2.16.0 ORDER BY priority DESC, updated DESC) this version.
+    * See a full list of open [issues that affect](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%20{$RELEASE}%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC) this version.
 
 
     ## List of Contributors
@@ -926,7 +926,7 @@ Start the review-and-vote thread on the dev@ mailing list. Here’s an email tem
     * Java artifacts were built with Maven MAVEN_VERSION and OpenJDK/Oracle JDK JDK_VERSION.
     * Python artifacts are deployed along with the source release to the dist.apache.org [2].
     * Validation sheet with a tab for 1.2.3 release to help with validation [9].
-    * Docker images puhlished to Docker Hub [10].
+    * Docker images published to Docker Hub [10].
 
     The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 
