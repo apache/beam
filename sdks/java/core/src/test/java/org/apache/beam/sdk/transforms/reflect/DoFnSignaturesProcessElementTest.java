@@ -38,8 +38,7 @@ public class DoFnSignaturesProcessElementTest {
   public void testBadExtraProcessContextType() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
-        "Integer is not a valid context parameter. "
-            + "Should be one of [BoundedWindow, RestrictionTracker<?, ?>]");
+        "Integer is not a valid context parameter.");
 
     analyzeProcessElementMethod(
         new AnonymousMethod() {
