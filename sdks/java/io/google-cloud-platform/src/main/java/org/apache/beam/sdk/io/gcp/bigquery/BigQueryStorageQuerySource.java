@@ -37,7 +37,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 
 /** A {@link org.apache.beam.sdk.io.Source} representing reading the results of a query. */
 @Experimental(Experimental.Kind.SOURCE_SINK)
-public class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
+class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
 
   public static <T> BigQueryStorageQuerySource<T> create(
       String stepUuid,

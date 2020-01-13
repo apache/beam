@@ -553,17 +553,18 @@ public class BigQueryIO {
         .setBigQueryServices(new BigQueryServicesImpl())
         .setParseFn(parseFn)
         .setMethod(Method.DEFAULT)
-        .setFormat(DataFormat.AVRO)
+        .setFormat(DataFormat.DEFAULT)
         .build();
   }
 
   @VisibleForTesting
-  public static class TableRowParser implements SerializableFunction<SchemaAndRecord, TableRow> {
+  static class TableRowParser implements SerializableFunction<SchemaAndRecord, TableRow> {
 
     public static final TableRowParser INSTANCE = new TableRowParser();
 
     @Override
     public TableRow apply(SchemaAndRecord schemaAndRecord) {
+      // TODO(BEAM-9114): Implement a function to encapsulate row conversion logic.
       if (schemaAndRecord.getRecord() != null) {
         return BigQueryAvroUtils.convertGenericRecordToTableRow(
             schemaAndRecord.getRecord(), schemaAndRecord.getTableSchema());
@@ -725,6 +726,9 @@ public class BigQueryIO {
     /** Determines the data format used when reading/writing in {@link Method#DIRECT_READ} mode. */
     @Experimental(Experimental.Kind.SOURCE_SINK)
     public enum DataFormat {
+      /** The default behavior if no method is explicitly set. Currently {@link #AVRO}. */
+      DEFAULT,
+
       /** Utilize Avro data format. */
       AVRO,
 

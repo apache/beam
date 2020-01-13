@@ -50,7 +50,7 @@ import org.slf4j.LoggerFactory;
 
 /** A {@link org.apache.beam.sdk.io.Source} representing a single stream in a read session. */
 @Experimental(Experimental.Kind.SOURCE_SINK)
-public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
+class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryStorageStreamSource.class);
 

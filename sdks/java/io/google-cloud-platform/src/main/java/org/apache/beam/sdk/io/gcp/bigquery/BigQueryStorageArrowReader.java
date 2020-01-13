@@ -35,7 +35,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.beam.sdk.extensions.arrow.ArrowConversion;
 import org.apache.beam.sdk.values.Row;
 
-public class BigQueryStorageArrowReader implements BigQueryStorageReader {
+class BigQueryStorageArrowReader implements BigQueryStorageReader {
 
   private final RootAllocator alloc;
   private final Schema arrowSchema;

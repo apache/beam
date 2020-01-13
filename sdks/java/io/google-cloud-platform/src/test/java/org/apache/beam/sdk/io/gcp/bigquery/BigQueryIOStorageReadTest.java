@@ -987,8 +987,6 @@ public class BigQueryIOStorageReadTest {
             new TableRowParser(),
             TableRowJsonCoder.of(),
             new FakeBigQueryServices().withStorageClient(fakeStorageClient));
-
-    List<TableRow> rows = new ArrayList<>();
     BoundedReader<TableRow> reader = streamSource.createReader(options);
 
     // Before call to BoundedReader#start, fraction consumed must be zero.

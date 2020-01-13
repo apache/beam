@@ -28,7 +28,7 @@ import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
 
-public class BigQueryStorageAvroReader implements BigQueryStorageReader {
+class BigQueryStorageAvroReader implements BigQueryStorageReader {
 
   private final Schema avroSchema;
   private final DatumReader<GenericRecord> datumReader;

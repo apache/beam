@@ -138,7 +138,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
       requestBuilder.setReadOptions(tableReadOptions);
     }
 
-    if (format != null && format.equals(TypedRead.DataFormat.ARROW)) {
+    if (TypedRead.DataFormat.ARROW.equals(format)) {
       requestBuilder.setFormat(DataFormat.ARROW);
     }
 

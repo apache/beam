@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
 import java.io.IOException;
 
-public class BigQueryStorageReaderFactory {
+class BigQueryStorageReaderFactory {
 
   private BigQueryStorageReaderFactory() {}
 
