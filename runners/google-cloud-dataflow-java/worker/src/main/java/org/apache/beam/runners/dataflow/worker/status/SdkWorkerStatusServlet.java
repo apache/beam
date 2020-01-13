@@ -90,7 +90,7 @@ public class SdkWorkerStatusServlet extends BaseStatusServlet implements Captura
       writer.println(String.format("<h2 id=\"%s\">%s</h2>", entry.getKey(), entry.getKey()));
       writer.println("<a href=\"#top\">return to top</a>");
       writer.println("<div style=\"white-space:pre-wrap\">");
-      writer.println(allStatuses.get(entry.getValue()));
+      writer.println(entry.getValue());
       writer.println("</div>");
       writer.println("");
     }
