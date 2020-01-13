@@ -3736,6 +3736,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
+      UsesTestStream.class,
       UsesTestStreamWithOutputTimestamp.class
     })
     public void testOutputTimestamp() {
