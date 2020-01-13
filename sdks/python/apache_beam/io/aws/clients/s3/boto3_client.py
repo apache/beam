@@ -20,6 +20,8 @@
 from __future__ import absolute_import
 
 from apache_beam.io.aws.clients.s3 import messages
+from botocore.config import Config
+import os
 
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
@@ -37,7 +39,28 @@ class Client(object):
 
   def __init__(self):
     assert boto3 is not None, 'Missing boto3 requirement'
-    self.client = boto3.client('s3')
+
+    #
+    # Some enviroment variables are based on tensorflow's them.
+    #   - https://github.com/tensorflow/examples/blob/master/community/en/docs/deploy/s3.md
+    #
+    # It is because avoiding complexity and conflicts when using these options.
+    #
+    endpoint_url = os.environ.get("S3_ENDPOINT", None)
+    ssl_verify = os.environ.get("S3_VERIFY_SSL", None)
+    region_name = os.environ.get("AWS_REGION", None)
+    use_ssl = os.environ.get("S3_USE_HTTPS", True)
+    aws_access_key_id = os.environ.get("AWS_ACCESS_KEY_ID", None)
+    aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY", None)
+    s3_proxy = os.environ.get("S3_PROXY", None)
+
+    config = Config(proxies={'https': s3_proxy, 'http': s3_proxy}) if s3_proxy is not None else None
+
+    s3_resource = boto3.resource('s3', endpoint_url=endpoint_url, config=config, verify=ssl_verify,
+                                 region_name=region_name, use_ssl=use_ssl,
+                                 aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key)
+
+    self.client = s3_resource.meta.client
 
   def get_object_metadata(self, request):
     r"""Retrieves an object's metadata.
