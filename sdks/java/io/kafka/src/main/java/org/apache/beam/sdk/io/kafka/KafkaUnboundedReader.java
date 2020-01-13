@@ -19,6 +19,11 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -87,9 +92,21 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     consumerSpEL.evaluateAssign(consumer, spec.getTopicPartitions());
 
     try {
-      keyDeserializerInstance = spec.getKeyDeserializer().getDeclaredConstructor().newInstance();
-      valueDeserializerInstance =
-          spec.getValueDeserializer().getDeclaredConstructor().newInstance();
+      if (spec.getKeyDeserializer().equals(KafkaAvroDeserializer.class)) {
+        SchemaRegistryClient registryClient = getSchemaRegistryClient(spec);
+        keyDeserializerInstance = (Deserializer) new KafkaAvroDeserializer(registryClient);
+      } else {
+        keyDeserializerInstance = spec.getKeyDeserializer().getDeclaredConstructor().newInstance();
+      }
+
+      if (spec.getValueDeserializer().equals(KafkaAvroDeserializer.class)) {
+        SchemaRegistryClient registryClient = getSchemaRegistryClient(spec);
+        valueDeserializerInstance = (Deserializer) new KafkaAvroDeserializer(registryClient);
+      } else {
+        valueDeserializerInstance =
+            spec.getValueDeserializer().getDeclaredConstructor().newInstance();
+      }
+
     } catch (InstantiationException
         | IllegalAccessException
         | InvocationTargetException
@@ -153,6 +170,25 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         this::updateLatestOffsets, 0, OFFSET_UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
 
     return advance();
+  }
+
+  private SchemaRegistryClient getSchemaRegistryClient(Read<K, V> spec) {
+    SchemaRegistryClient registryClient;
+    String schemaRegistryURL =
+        (String)
+            spec.getConsumerConfig().get(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG);
+
+    if (spec.getSchemaRegistryClientFactoryFn() != null) {
+      registryClient = spec.getSchemaRegistryClientFactoryFn().apply(schemaRegistryURL);
+    } else {
+      registryClient =
+          new CachedSchemaRegistryClient(
+              (String)
+                  spec.getConsumerConfig()
+                      .get(KafkaAvroDeserializerConfig.SCHEMA_REGISTRY_URL_CONFIG),
+              Integer.MAX_VALUE);
+    }
+    return registryClient;
   }
 
   @Override

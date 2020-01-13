@@ -31,6 +31,12 @@ import static org.junit.Assume.assumeTrue;
 import static org.junit.internal.matchers.ThrowableCauseMatcher.hasCause;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
+import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
+import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
@@ -53,6 +59,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -62,6 +70,7 @@ import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
@@ -160,6 +169,27 @@ public class KafkaIOTest {
   private static final String TIMESTAMP_START_MILLIS_CONFIG = "test.timestamp.start.millis";
   private static final String TIMESTAMP_TYPE_CONFIG = "test.timestamp.type";
 
+  private static Serializer<AvroGeneratedUser> getSerializer(boolean isKey) {
+    SchemaRegistryClient registryClient = new MockSchemaRegistryClient();
+    Map<String, Object> map = new HashMap<>();
+    map.put(KafkaAvroDeserializerConfig.AUTO_REGISTER_SCHEMAS, true);
+    map.put(KafkaAvroDeserializerConfig.SCHEMA_REGISTRY_URL_CONFIG, "mock://my-scope-name");
+    Serializer<AvroGeneratedUser> serializer = (Serializer) new KafkaAvroSerializer(registryClient);
+    serializer.configure(map, isKey);
+    return serializer;
+  }
+
+  private static Deserializer<AvroGeneratedUser> getDeserializer(
+      boolean key, SchemaRegistryClient registryClient) {
+    Map<String, Object> map = new HashMap<>();
+    map.put(KafkaAvroDeserializerConfig.SPECIFIC_AVRO_READER_CONFIG, "true");
+    map.put(KafkaAvroDeserializerConfig.SCHEMA_REGISTRY_URL_CONFIG, "mock://my-scope-name");
+    Deserializer<AvroGeneratedUser> deserializer =
+        (Deserializer) new KafkaAvroDeserializer(registryClient);
+    deserializer.configure(map, key);
+    return deserializer;
+  }
+
   // Update mock consumer with records distributed among the given topics, each with given number
   // of partitions. Records are assigned in round-robin order among the partitions.
   private static MockConsumer<byte[], byte[]> mkMockConsumer(
@@ -167,7 +197,8 @@ public class KafkaIOTest {
       int partitionsPerTopic,
       int numElements,
       OffsetResetStrategy offsetResetStrategy,
-      Map<String, Object> config) {
+      Map<String, Object> config,
+      boolean isAvro) {
 
     final List<TopicPartition> partitions = new ArrayList<>();
     final Map<TopicPartition, List<ConsumerRecord<byte[], byte[]>>> records = new HashMap<>();
@@ -196,12 +227,25 @@ public class KafkaIOTest {
                 config.getOrDefault(
                     TIMESTAMP_TYPE_CONFIG, TimestampType.LOG_APPEND_TIME.toString()));
 
+    // Used for Avro records
+    Serializer<AvroGeneratedUser> serializer = getSerializer(false);
+
     for (int i = 0; i < numElements; i++) {
       int pIdx = i % numPartitions;
       TopicPartition tp = partitions.get(pIdx);
 
-      byte[] key = ByteBuffer.wrap(new byte[4]).putInt(i).array(); // key is 4 byte record id
-      byte[] value = ByteBuffer.wrap(new byte[8]).putLong(i).array(); // value is 8 byte record id
+      byte[] key;
+      byte[] value;
+      if (isAvro) {
+        key =
+            serializer.serialize(tp.topic(), new AvroGeneratedUser("KeyName" + i, i, "color" + i));
+        value =
+            serializer.serialize(
+                tp.topic(), new AvroGeneratedUser("ValueName" + i, i, "color" + i));
+      } else {
+        key = ByteBuffer.wrap(new byte[4]).putInt(i).array(); // key is 4 byte record id
+        value = ByteBuffer.wrap(new byte[8]).putLong(i).array(); // value is 8 byte record id
+      }
 
       records
           .get(tp)
@@ -302,6 +346,7 @@ public class KafkaIOTest {
     private final int partitionsPerTopic;
     private final int numElements;
     private final OffsetResetStrategy offsetResetStrategy;
+    private final boolean isAvro;
 
     ConsumerFactoryFn(
         List<String> topics,
@@ -312,11 +357,26 @@ public class KafkaIOTest {
       this.partitionsPerTopic = partitionsPerTopic;
       this.numElements = numElements;
       this.offsetResetStrategy = offsetResetStrategy;
+      this.isAvro = false;
+    }
+
+    ConsumerFactoryFn(
+        List<String> topics,
+        int partitionsPerTopic,
+        int numElements,
+        OffsetResetStrategy offsetResetStrategy,
+        boolean isAvro) {
+      this.topics = topics;
+      this.partitionsPerTopic = partitionsPerTopic;
+      this.numElements = numElements;
+      this.offsetResetStrategy = offsetResetStrategy;
+      this.isAvro = isAvro;
     }
 
     @Override
     public Consumer<byte[], byte[]> apply(Map<String, Object> config) {
-      return mkMockConsumer(topics, partitionsPerTopic, numElements, offsetResetStrategy, config);
+      return mkMockConsumer(
+          topics, partitionsPerTopic, numElements, offsetResetStrategy, config, isAvro);
     }
   }
 
@@ -389,6 +449,84 @@ public class KafkaIOTest {
     PAssert.thatSingleton(input.apply("Min", Min.globally())).isEqualTo(min);
 
     PAssert.thatSingleton(input.apply("Max", Max.globally())).isEqualTo(max);
+  }
+
+  private static class MockSchemaRegistryClientFactoryFn
+      implements SerializableFunction<String, SchemaRegistryClient> {
+
+    private static final String SCHEMA_STRING =
+        "{\"namespace\": \"example.avro\",\n"
+            + " \"type\": \"record\",\n"
+            + " \"name\": \"AvroGeneratedUser\",\n"
+            + " \"fields\": [\n"
+            + "     {\"name\": \"name\", \"type\": \"string\"},\n"
+            + "     {\"name\": \"favorite_number\", \"type\": [\"int\", \"null\"]},\n"
+            + "     {\"name\": \"favorite_color\", \"type\": [\"string\", \"null\"]}\n"
+            + " ]\n"
+            + "}";
+
+    private static final Schema SCHEMA = new Schema.Parser().parse(SCHEMA_STRING);
+
+    private final String keySchemaSubject;
+    private final String valueSchemaSubject;
+
+    private MockSchemaRegistryClientFactoryFn(String keySubject, String valueSubject) {
+      this.keySchemaSubject = keySubject;
+      this.valueSchemaSubject = valueSubject;
+    }
+
+    @Override
+    public SchemaRegistryClient apply(String schemaRegistryURL) {
+      SchemaRegistryClient registryClient = new MockSchemaRegistryClient();
+      registerSchemaBySubject(registryClient, keySchemaSubject);
+      registerSchemaBySubject(registryClient, valueSchemaSubject);
+      return registryClient;
+    }
+
+    private void registerSchemaBySubject(
+        SchemaRegistryClient registryClient, String schemaSubject) {
+      try {
+        registryClient.register(schemaSubject, SCHEMA);
+      } catch (IOException | RestClientException e) {
+        throw new IllegalArgumentException(
+            "Unable to register schema for subject: " + schemaSubject, e);
+      }
+    }
+  }
+
+  @Test
+  public void testReadAvroKeyValuesWithSchemaRegistry() {
+    int numElements = 100;
+    String topic = "my_topic";
+    String keySubject = topic + "-key";
+    String valueSubject = topic + "-value";
+
+    List<KV<GenericRecord, GenericRecord>> inputs = new ArrayList<>();
+    for (int i = 0; i < numElements; i++) {
+      inputs.add(
+          KV.of(
+              new AvroGeneratedUser("KeyName" + i, i, "color" + i),
+              new AvroGeneratedUser("ValueName" + i, i, "color" + i)));
+    }
+
+    KafkaIO.Read<GenericRecord, GenericRecord> reader =
+        KafkaIO.<GenericRecord, GenericRecord>read()
+            .withBootstrapServers("localhost:9092")
+            .withTopic(topic)
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(
+                    ImmutableList.of(topic), 1, numElements, OffsetResetStrategy.EARLIEST, true))
+            .withMaxNumRecords(numElements)
+            .withSchemaRegistry("mock://my-scope-name")
+            .withKeySchemaSubject(keySubject)
+            .withValueSchemaSubject(valueSubject)
+            .withSchemaRegistryClientFactoryFn(
+                new MockSchemaRegistryClientFactoryFn(keySubject, valueSubject));
+
+    PCollection<KV<GenericRecord, GenericRecord>> input = p.apply(reader.withoutMetadata());
+
+    PAssert.that(input).containsInAnyOrder(inputs);
+    p.run();
   }
 
   @Test
