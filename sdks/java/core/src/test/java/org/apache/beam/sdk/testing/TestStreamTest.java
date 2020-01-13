@@ -469,8 +469,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category(UsesTestStreamWithProcessingTime.class)
-  public void testCoder() throws Exception {
+  public void testTestStreamCoder() throws Exception {
     TestStream<String> testStream =
         TestStream.create(StringUtf8Coder.of())
             .addElements("hey")
