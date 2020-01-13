@@ -325,6 +325,23 @@ public class BeamFnDataReadRunnerTest {
                     .build())
             .build();
     assertEquals(expected, responseBuilder.build());
+
+    // Ensure that we process the correct number of elements after splitting.
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("A"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("B"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("C"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("D"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("E"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("F"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("G"));
+    assertThat(
+        outputValues,
+        contains(
+            valueInGlobalWindow("A"),
+            valueInGlobalWindow("B"),
+            valueInGlobalWindow("C"),
+            valueInGlobalWindow("D"),
+            valueInGlobalWindow("E")));
   }
 
   @Test
@@ -357,6 +374,22 @@ public class BeamFnDataReadRunnerTest {
                     .build())
             .build();
     assertEquals(expected, responseBuilder.build());
+
+    // Ensure that we process the correct number of elements after splitting.
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("C"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("D"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("E"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("F"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("G"));
+    assertThat(
+        outputValues,
+        contains(
+            valueInGlobalWindow("A"),
+            valueInGlobalWindow("B"),
+            valueInGlobalWindow("C"),
+            valueInGlobalWindow("D"),
+            valueInGlobalWindow("E"),
+            valueInGlobalWindow("F")));
   }
 
   @Test
@@ -383,10 +416,10 @@ public class BeamFnDataReadRunnerTest {
             .build();
     ProcessBundleSplitResponse.Builder responseBuilder = ProcessBundleSplitResponse.newBuilder();
 
-    // Process 2 elements then split
+    // We will be "processing" the 'C' element, aka 2nd index
     readRunner.forwardElementToConsumer(valueInGlobalWindow("A"));
     readRunner.forwardElementToConsumer(valueInGlobalWindow("B"));
-    readRunner.forwardElementToConsumer(valueInGlobalWindow("B"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("C"));
     readRunner.split(request, responseBuilder);
 
     ProcessBundleSplitResponse expected =

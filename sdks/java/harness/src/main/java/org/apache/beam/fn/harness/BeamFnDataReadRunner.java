@@ -138,9 +138,9 @@ public class BeamFnDataReadRunner<OutputT> {
   private final Coder<WindowedValue<OutputT>> coder;
 
   private final Object splittingLock = new Object();
-  // 0-based count of the number of elements
+  // 0-based index of the current element being processed
   private long index = -1;
-  // 0-based count of the number of elements
+  // 0-based index of the first element to not process, aka the first element of the residual
   private long stopIndex = Long.MAX_VALUE;
   private InboundDataClient readFuture;
 
@@ -247,7 +247,7 @@ public class BeamFnDataReadRunner<OutputT> {
 
       // Compute the amount of "remaining" work that we know of.
       double remainder = totalBufferSize - index - currentElementProgress;
-      // Compute the fraction of work that we should "keep".
+      // Compute the number of elements (including fractional elements) that we should "keep".
       double keep = remainder * desiredSplit.getFractionOfRemainder();
 
       // If the downstream operator says the progress is less than 1 then the element could be
