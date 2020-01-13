@@ -342,7 +342,8 @@ public class WatermarkManager<ExecutableT, CollectionT> {
         if (TimeDomain.EVENT_TIME.equals(timer.getDomain())) {
           @Nullable
           TimerData existingTimer =
-              existingTimersForKey.get(timer.getNamespace(), timer.getTimerId());
+              existingTimersForKey.get(
+                  timer.getNamespace(), timer.getTimerId() + '+' + timer.getTimerFamilyId());
 
           if (existingTimer == null) {
             pendingTimers.add(timer);
@@ -357,7 +358,8 @@ public class WatermarkManager<ExecutableT, CollectionT> {
             keyTimers.add(timer);
           }
 
-          existingTimersForKey.put(timer.getNamespace(), timer.getTimerId(), timer);
+          existingTimersForKey.put(
+              timer.getNamespace(), timer.getTimerId() + '+' + timer.getTimerFamilyId(), timer);
         }
       }
 
@@ -365,12 +367,15 @@ public class WatermarkManager<ExecutableT, CollectionT> {
         if (TimeDomain.EVENT_TIME.equals(timer.getDomain())) {
           @Nullable
           TimerData existingTimer =
-              existingTimersForKey.get(timer.getNamespace(), timer.getTimerId());
+              existingTimersForKey.get(
+                  timer.getNamespace(), timer.getTimerId() + '+' + timer.getTimerFamilyId());
 
           if (existingTimer != null) {
             pendingTimers.remove(existingTimer);
             keyTimers.remove(existingTimer);
-            existingTimersForKey.remove(existingTimer.getNamespace(), existingTimer.getTimerId());
+            existingTimersForKey.remove(
+                existingTimer.getNamespace(),
+                existingTimer.getTimerId() + '+' + existingTimer.getTimerFamilyId());
           }
         }
       }
@@ -619,7 +624,9 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
         @Nullable
         TimerData existingTimer =
-            existingTimersForKey.get(addedTimer.getNamespace(), addedTimer.getTimerId());
+            existingTimersForKey.get(
+                addedTimer.getNamespace(),
+                addedTimer.getTimerId() + '+' + addedTimer.getTimerFamilyId());
         if (existingTimer == null) {
           timerQueue.add(addedTimer);
         } else if (!existingTimer.equals(addedTimer)) {
@@ -627,7 +634,10 @@ public class WatermarkManager<ExecutableT, CollectionT> {
           timerQueue.add(addedTimer);
         } // else the timer is already set identically, so noop.
 
-        existingTimersForKey.put(addedTimer.getNamespace(), addedTimer.getTimerId(), addedTimer);
+        existingTimersForKey.put(
+            addedTimer.getNamespace(),
+            addedTimer.getTimerId() + '+' + addedTimer.getTimerFamilyId(),
+            addedTimer);
       }
 
       for (TimerData deletedTimer : update.deletedTimers) {
@@ -638,12 +648,16 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
         @Nullable
         TimerData existingTimer =
-            existingTimersForKey.get(deletedTimer.getNamespace(), deletedTimer.getTimerId());
+            existingTimersForKey.get(
+                deletedTimer.getNamespace(),
+                deletedTimer.getTimerId() + '+' + deletedTimer.getTimerFamilyId());
 
         if (existingTimer != null) {
           pendingTimers.remove(deletedTimer);
           timerQueue.remove(deletedTimer);
-          existingTimersForKey.remove(existingTimer.getNamespace(), existingTimer.getTimerId());
+          existingTimersForKey.remove(
+              existingTimer.getNamespace(),
+              existingTimer.getTimerId() + '+' + existingTimer.getTimerFamilyId());
         }
       }
 
