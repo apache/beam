@@ -945,7 +945,7 @@ public abstract class DoFnSignature {
 
   /** Describes a {@link DoFn.GetInitialRestriction} method. */
   @AutoValue
-  public abstract static class GetInitialRestrictionMethod implements DoFnMethod {
+  public abstract static class GetInitialRestrictionMethod implements MethodWithExtraParameters {
     /** The annotated method itself. */
     @Override
     public abstract Method targetMethod();
@@ -953,14 +953,28 @@ public abstract class DoFnSignature {
     /** Type of the returned restriction. */
     public abstract TypeDescriptor<?> restrictionT();
 
-    static GetInitialRestrictionMethod create(Method targetMethod, TypeDescriptor<?> restrictionT) {
-      return new AutoValue_DoFnSignature_GetInitialRestrictionMethod(targetMethod, restrictionT);
+    /** The window type used by this method, if any. */
+    @Nullable
+    @Override
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
+    /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
+    public abstract List<Parameter> extraParameters();
+
+    static GetInitialRestrictionMethod create(
+        Method targetMethod,
+        TypeDescriptor<?> restrictionT,
+        TypeDescriptor<? extends BoundedWindow> windowT,
+        List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_GetInitialRestrictionMethod(
+          targetMethod, restrictionT, windowT, extraParameters);
     }
   }
 
   /** Describes a {@link DoFn.SplitRestriction} method. */
   @AutoValue
-  public abstract static class SplitRestrictionMethod implements DoFnMethod {
+  public abstract static class SplitRestrictionMethod implements MethodWithExtraParameters {
     /** The annotated method itself. */
     @Override
     public abstract Method targetMethod();
@@ -968,14 +982,28 @@ public abstract class DoFnSignature {
     /** Type of the restriction taken and returned. */
     public abstract TypeDescriptor<?> restrictionT();
 
-    static SplitRestrictionMethod create(Method targetMethod, TypeDescriptor<?> restrictionT) {
-      return new AutoValue_DoFnSignature_SplitRestrictionMethod(targetMethod, restrictionT);
+    /** The window type used by this method, if any. */
+    @Nullable
+    @Override
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
+    /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
+    public abstract List<Parameter> extraParameters();
+
+    static SplitRestrictionMethod create(
+        Method targetMethod,
+        TypeDescriptor<?> restrictionT,
+        TypeDescriptor<? extends BoundedWindow> windowT,
+        List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_SplitRestrictionMethod(
+          targetMethod, restrictionT, windowT, extraParameters);
     }
   }
 
   /** Describes a {@link DoFn.NewTracker} method. */
   @AutoValue
-  public abstract static class NewTrackerMethod implements DoFnMethod {
+  public abstract static class NewTrackerMethod implements MethodWithExtraParameters {
     /** The annotated method itself. */
     @Override
     public abstract Method targetMethod();
@@ -986,9 +1014,23 @@ public abstract class DoFnSignature {
     /** Type of the returned {@link RestrictionTracker}. */
     public abstract TypeDescriptor<?> trackerT();
 
+    /** The window type used by this method, if any. */
+    @Nullable
+    @Override
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
+    /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
+    public abstract List<Parameter> extraParameters();
+
     static NewTrackerMethod create(
-        Method targetMethod, TypeDescriptor<?> restrictionT, TypeDescriptor<?> trackerT) {
-      return new AutoValue_DoFnSignature_NewTrackerMethod(targetMethod, restrictionT, trackerT);
+        Method targetMethod,
+        TypeDescriptor<?> restrictionT,
+        TypeDescriptor<?> trackerT,
+        TypeDescriptor<? extends BoundedWindow> windowT,
+        List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_NewTrackerMethod(
+          targetMethod, restrictionT, trackerT, windowT, extraParameters);
     }
   }
 
