@@ -655,11 +655,6 @@ public class ParDoTranslation {
           }
 
           @Override
-          public RunnerApi.Parameter dispatch(Parameter.TimerIdParameter p) {
-            return null;
-          }
-
-          @Override
           // Java 7 + findbugs limitation. The return type is nullable.
           protected @Nullable RunnerApi.Parameter dispatchDefault(Parameter p) {
             return null;

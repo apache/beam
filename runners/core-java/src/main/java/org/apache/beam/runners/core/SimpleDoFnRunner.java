@@ -1158,6 +1158,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public Timer get(String timerId) {
+      if (timers.get(timerId) == null) {
+        Timer timer =
+            new TimerInternalsTimer(
+                window, namespace, timerId, timerFamilyId, spec, timerInternals);
+        timers.put(timerId, timer);
+      }
       return timers.get(timerId);
     }
   }

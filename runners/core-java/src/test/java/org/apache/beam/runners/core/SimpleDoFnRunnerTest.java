@@ -425,7 +425,7 @@ public class SimpleDoFnRunnerTest {
     }
 
     @TimerId(TIMER_ID)
-    private statiwic final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+    private static final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
     @ProcessElement
     public void process(ProcessContext context, @TimerId(TIMER_ID) Timer timer) {

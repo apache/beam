@@ -349,6 +349,11 @@ public abstract class DoFnSignature {
         }
 
         @Override
+        public ResultT dispatch(TimerIdParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
         public ResultT dispatch(TimeDomainParameter p) {
           return dispatchDefault(p);
         }

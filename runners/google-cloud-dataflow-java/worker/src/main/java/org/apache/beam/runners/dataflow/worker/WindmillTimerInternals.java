@@ -114,9 +114,7 @@ class WindmillTimerInternals implements TimerInternals {
   }
 
   private String getTimerDataKey(String timerId, String timerFamilyId) {
-    // if no timerFamily id then return as it was before
-    if ("".equals(timerFamilyId)) return timerId;
-    // else make a new key with timerFamilyId
+    // Identifies timer uniquely with timerFamilyId
     return timerId + '+' + timerFamilyId;
   }
 
@@ -265,7 +263,7 @@ class WindmillTimerInternals implements TimerInternals {
     // The tag is a path-structure string but cheaper to parse than a proper URI. It follows
     // this pattern, where no component but the ID can contain a slash
     //
-    //     prefix namespace '+' id
+    //     prefix namespace '+' id '+' familyId
     //
     //     prefix ::= '/' prefix_char
     //     namespace ::= '/' | '/' window '/'
@@ -288,13 +286,19 @@ class WindmillTimerInternals implements TimerInternals {
         prefix.byteString());
     int namespaceStart = prefix.byteString().size(); // drop the prefix, leave the begin slash
     int namespaceEnd = tag.indexOf('+', namespaceStart); // keep the end slash, drop the +
-
     String namespaceString = tag.substring(namespaceStart, namespaceEnd);
-    String id = tag.substring(namespaceEnd + 1);
+    String timerIdPlusTimerFamilyId = tag.substring(namespaceEnd + 1); // timerId+timerFamilyId
+    int timerIdEnd = timerIdPlusTimerFamilyId.indexOf('+'); // end of timerId
+    // if no '+' found then timerFamilyId is empty string else they have a '+' separator
+    String familyId = timerIdEnd == -1 ? "" : timerIdPlusTimerFamilyId.substring(timerIdEnd + 1);
+    String id =
+        timerIdEnd == -1
+            ? timerIdPlusTimerFamilyId
+            : timerIdPlusTimerFamilyId.substring(0, timerIdEnd);
     StateNamespace namespace = StateNamespaces.fromString(namespaceString, windowCoder);
     Instant timestamp = WindmillTimeUtils.windmillToHarnessTimestamp(timer.getTimestamp());
 
-    return TimerData.of(id, namespace, timestamp, timerTypeToTimeDomain(timer.getType()));
+    return TimerData.of(id, familyId, namespace, timestamp, timerTypeToTimeDomain(timer.getType()));
   }
 
   /**
@@ -306,7 +310,7 @@ class WindmillTimerInternals implements TimerInternals {
   public static ByteString timerTag(WindmillNamespacePrefix prefix, TimerData timerData) {
     String tagString;
     // Timers without timerFamily would have timerFamily would be an empty string
-    if ("".equals(timerData.getTimerId())) {
+    if ("".equals(timerData.getTimerFamilyId())) {
       tagString =
           new StringBuilder()
               .append(prefix.byteString().toStringUtf8()) // this never ends with a slash

@@ -4335,5 +4335,92 @@ public class ParDoTest implements Serializable {
       PAssert.that(output).containsInAnyOrder("process", "timer1", "timer2");
       pipeline.run();
     }
+
+    @Test
+    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    public void testTimerWithMultipleTimerFamily() throws Exception {
+      final String timerFamilyId1 = "foo";
+      final String timerFamilyId2 = "bar";
+
+      DoFn<KV<String, Integer>, String> fn =
+          new DoFn<KV<String, Integer>, String>() {
+
+            @TimerFamily(timerFamilyId1)
+            private final TimerSpec spec1 = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
+
+            @TimerFamily(timerFamilyId2)
+            private final TimerSpec spec2 = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(
+                @TimerFamily(timerFamilyId1) TimerMap timerMap1,
+                @TimerFamily(timerFamilyId2) TimerMap timerMap2,
+                OutputReceiver<String> r) {
+              timerMap1.set("timer1", new Instant(1));
+              timerMap2.set("timer1", new Instant(2));
+              r.output("process");
+            }
+
+            @OnTimer(timerFamilyId1)
+            public void onTimer1(
+                @TimerId String timerId, @Timestamp Instant ts, OutputReceiver<String> r) {
+              r.output(timerId);
+            }
+
+            @OnTimer(timerFamilyId2)
+            public void onTimer2(
+                @TimerId String timerId, @Timestamp Instant ts, OutputReceiver<String> r) {
+              r.output(timerId);
+            }
+          };
+
+      TestStream<KV<String, Integer>> stream =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+              .advanceWatermarkTo(new Instant(0))
+              .addElements(KV.of("hello", 37))
+              .advanceWatermarkToInfinity();
+
+      PCollection<String> output = pipeline.apply(stream).apply(ParDo.of(fn));
+      PAssert.that(output).containsInAnyOrder("process", "timer1", "timer1");
+      pipeline.run();
+    }
+
+    @Test
+    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStreamWithProcessingTime.class})
+    public void testTimerFamilyProcessingTime() throws Exception {
+      final String timerId = "foo";
+
+      DoFn<KV<String, Integer>, Integer> fn =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @TimerFamily(timerId)
+            private final TimerSpec spec = TimerSpecs.timerMap(TimeDomain.PROCESSING_TIME);
+
+            @ProcessElement
+            public void processElement(
+                @TimerFamily(timerId) TimerMap timerMap, OutputReceiver<Integer> r) {
+              Timer timer = timerMap.get("timerId1");
+              timer.offset(Duration.standardSeconds(1)).setRelative();
+              r.output(3);
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(TimeDomain timeDomain, OutputReceiver<Integer> r) {
+              if (timeDomain.equals(TimeDomain.PROCESSING_TIME)) {
+                r.output(42);
+              }
+            }
+          };
+
+      TestStream<KV<String, Integer>> stream =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+              .addElements(KV.of("hello", 37))
+              .advanceProcessingTime(Duration.standardSeconds(2))
+              .advanceWatermarkToInfinity();
+
+      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
+      PAssert.that(output).containsInAnyOrder(3, 42);
+      pipeline.run();
+    }
   }
 }
