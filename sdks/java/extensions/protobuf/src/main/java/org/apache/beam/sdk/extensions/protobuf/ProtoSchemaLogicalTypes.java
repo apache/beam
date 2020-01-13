@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.protobuf;
 
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
+import java.util.UUID;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
@@ -31,8 +32,13 @@ public class ProtoSchemaLogicalTypes {
   public abstract static class NanosType<T> implements LogicalType<T, Row> {
     private final String identifier;
 
-    private static final Schema SCHEMA =
-        Schema.builder().addInt64Field("seconds").addInt32Field("nanos").build();
+    private static final Schema SCHEMA;
+
+    static {
+      Schema schema = Schema.builder().addInt64Field("seconds").addInt32Field("nanos").build();
+      schema.setUUID(UUID.fromString("dc5915f1-6db8-3134-9444-4980fb088e92"));
+      SCHEMA = schema;
+    }
 
     protected NanosType(String identifier) {
       this.identifier = identifier;
@@ -46,6 +52,11 @@ public class ProtoSchemaLogicalTypes {
     @Override
     public FieldType getArgumentType() {
       return FieldType.STRING;
+    }
+
+    @Override
+    public String getArgument() {
+      return "";
     }
 
     @Override
