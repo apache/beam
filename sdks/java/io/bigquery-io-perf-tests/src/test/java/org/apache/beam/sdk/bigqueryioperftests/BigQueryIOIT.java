@@ -37,6 +37,7 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.common.IOITHelper;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.DataFormat;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedSource;
 import org.apache.beam.sdk.io.synthetic.SyntheticOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
@@ -81,6 +82,7 @@ public class BigQueryIOIT {
   private static final String TEST_ID = UUID.randomUUID().toString();
   private static final String TEST_TIMESTAMP = Timestamp.now().toString();
   private static final String READ_TIME_METRIC_NAME = "read_time";
+  private static final String ARROW_READ_TIME_METRIC_NAME = "arrow_read_time";
   private static final String WRITE_TIME_METRIC_NAME = "write_time";
   private static final String AVRO_WRITE_TIME_METRIC_NAME = "avro_write_time";
   private static String metricsBigQueryTable;
@@ -128,7 +130,13 @@ public class BigQueryIOIT {
         testJsonWrite();
         break;
     }
-    testRead();
+    testRead(DataFormat.AVRO, READ_TIME_METRIC_NAME);
+  }
+
+  @Test
+  public void testReadArrowAvro() {
+    testRead(DataFormat.ARROW, ARROW_READ_TIME_METRIC_NAME);
+    testRead(DataFormat.AVRO, READ_TIME_METRIC_NAME);
   }
 
   private void testJsonWrite() {
@@ -182,14 +190,15 @@ public class BigQueryIOIT {
     extractAndPublishTime(pipelineResult, metricName);
   }
 
-  private void testRead() {
+  private void testRead(DataFormat readFormat, String readMetricName) {
     Pipeline pipeline = Pipeline.create(options);
     pipeline
-        .apply("Read from BQ", BigQueryIO.readTableRows().from(tableQualifier))
-        .apply("Gather time", ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC_NAME)));
+        .apply(
+            "Read from BQ", BigQueryIO.readTableRows().withFormat(readFormat).from(tableQualifier))
+        .apply("Gather time", ParDo.of(new TimeMonitor<>(NAMESPACE, readMetricName)));
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
-    extractAndPublishTime(result, READ_TIME_METRIC_NAME);
+    extractAndPublishTime(result, readMetricName);
   }
 
   private void extractAndPublishTime(PipelineResult pipelineResult, String writeTimeMetricName) {
