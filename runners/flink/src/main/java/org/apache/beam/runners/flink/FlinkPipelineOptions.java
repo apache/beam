@@ -153,11 +153,11 @@ public interface FlinkPipelineOptions
 
   void setStateBackendFactory(Class<? extends FlinkStateBackendFactory> stateBackendFactory);
 
-  @Description("Enable/disable Beam metrics in Flink Runner")
-  @Default.Boolean(true)
-  Boolean getEnableMetrics();
+  @Description("Disable Beam metrics in Flink Runner")
+  @Default.Boolean(false)
+  Boolean getDisableMetrics();
 
-  void setEnableMetrics(Boolean enableMetrics);
+  void setDisableMetrics(Boolean enableMetrics);
 
   /** Enables or disables externalized checkpoints. */
   @Description(

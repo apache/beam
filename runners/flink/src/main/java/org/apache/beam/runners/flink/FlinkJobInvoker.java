@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 
-import java.io.IOException;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
+import org.apache.beam.runners.flink.translation.utils.Workarounds;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
 import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineJarCreator;
@@ -56,8 +56,9 @@ public class FlinkJobInvoker extends JobInvoker {
       RunnerApi.Pipeline pipeline,
       Struct options,
       @Nullable String retrievalToken,
-      ListeningExecutorService executorService)
-      throws IOException {
+      ListeningExecutorService executorService) {
+    Workarounds.restoreOriginalStdOutAndStdErrIfApplicable();
+
     // TODO: How to make Java/Python agree on names of keys and their values?
     LOG.trace("Parsing pipeline options");
     FlinkPipelineOptions flinkOptions =
@@ -78,7 +79,8 @@ public class FlinkJobInvoker extends JobInvoker {
           new FlinkPipelineRunner(
               flinkOptions,
               serverConfig.getFlinkConfDir(),
-              detectClassPathResourcesToStage(FlinkJobInvoker.class.getClassLoader()));
+              detectClassPathResourcesToStage(
+                  FlinkJobInvoker.class.getClassLoader(), flinkOptions));
     } else {
       pipelineRunner = new PortablePipelineJarCreator(FlinkPipelineRunner.class);
     }

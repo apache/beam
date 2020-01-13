@@ -67,20 +67,30 @@ class BufferedElements {
   static final class Timer implements BufferedElement {
 
     private final String timerId;
+    private final String timerFamilyId;
     private final BoundedWindow window;
     private final Instant timestamp;
+    private final Instant outputTimestamp;
     private final TimeDomain timeDomain;
 
-    Timer(String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+    Timer(
+        String timerId,
+        String timerFamilyId,
+        BoundedWindow window,
+        Instant timestamp,
+        Instant outputTimestamp,
+        TimeDomain timeDomain) {
       this.timerId = timerId;
       this.window = window;
       this.timestamp = timestamp;
       this.timeDomain = timeDomain;
+      this.outputTimestamp = outputTimestamp;
+      this.timerFamilyId = timerFamilyId;
     }
 
     @Override
     public void processWith(DoFnRunner doFnRunner) {
-      doFnRunner.onTimer(timerId, window, timestamp, timeDomain);
+      doFnRunner.onTimer(timerId, timerFamilyId, window, timestamp, outputTimestamp, timeDomain);
     }
 
     @Override
@@ -130,8 +140,10 @@ class BufferedElements {
         outStream.write(TIMER_MAGIC_BYTE);
         Timer timer = (Timer) value;
         STRING_CODER.encode(timer.timerId, outStream);
+        STRING_CODER.encode(timer.timerFamilyId, outStream);
         windowCoder.encode(timer.window, outStream);
         INSTANT_CODER.encode(timer.timestamp, outStream);
+        INSTANT_CODER.encode(timer.outputTimestamp, outStream);
         outStream.write(timer.timeDomain.ordinal());
       } else {
         throw new IllegalStateException("Unexpected element " + value);
@@ -147,7 +159,9 @@ class BufferedElements {
         case TIMER_MAGIC_BYTE:
           return new Timer(
               STRING_CODER.decode(inStream),
+              STRING_CODER.decode(inStream),
               windowCoder.decode(inStream),
+              INSTANT_CODER.decode(inStream),
               INSTANT_CODER.decode(inStream),
               TimeDomain.values()[inStream.read()]);
         default:

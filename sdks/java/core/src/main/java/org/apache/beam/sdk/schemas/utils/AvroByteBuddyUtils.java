@@ -54,7 +54,7 @@ class AvroByteBuddyUtils {
   static <T extends SpecificRecord> SchemaUserTypeCreator getCreator(
       Class<T> clazz, Schema schema) {
     return CACHED_CREATORS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema), c -> createCreator(clazz, schema));
+        ClassWithSchema.create(clazz, schema), c -> createCreator(clazz, schema));
   }
 
   private static <T> SchemaUserTypeCreator createCreator(Class<T> clazz, Schema schema) {

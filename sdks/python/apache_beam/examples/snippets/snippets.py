@@ -29,6 +29,8 @@ automatically in the web docs. The naming convention for the tags is to have as
 prefix the PATH_TO_HTML where they are included followed by a descriptive
 string. The tags can contain only letters, digits and _.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -174,33 +176,34 @@ def model_pipelines(argv):
 
 def model_pcollection(argv):
   """Creating a PCollection from data in local memory."""
+  # [START model_pcollection]
+  import apache_beam as beam
   from apache_beam.options.pipeline_options import PipelineOptions
 
-  class MyOptions(PipelineOptions):
-
-    @classmethod
-    def _add_argparse_args(cls, parser):
-      parser.add_argument('--output',
-                          dest='output',
-                          required=True,
-                          help='Output file to write results to.')
-
+  # argv = None  # if None, uses sys.argv
   pipeline_options = PipelineOptions(argv)
-  my_options = pipeline_options.view_as(MyOptions)
-
-  # [START model_pcollection]
-  with beam.Pipeline(options=pipeline_options) as p:
-
-    lines = (p
-             | beam.Create([
-                 'To be, or not to be: that is the question: ',
-                 'Whether \'tis nobler in the mind to suffer ',
-                 'The slings and arrows of outrageous fortune, ',
-                 'Or to take arms against a sea of troubles, ']))
+  with beam.Pipeline(options=pipeline_options) as pipeline:
+    lines = (
+        pipeline
+        | beam.Create([
+            'To be, or not to be: that is the question: ',
+            "Whether 'tis nobler in the mind to suffer ",
+            'The slings and arrows of outrageous fortune, ',
+            'Or to take arms against a sea of troubles, ',
+        ])
+    )
     # [END model_pcollection]
 
-    (lines
-     | beam.io.WriteToText(my_options.output))
+    class MyOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_argument('--output',
+                            dest='output',
+                            required=True,
+                            help='Output file to write results to.')
+
+    my_options = pipeline_options.view_as(MyOptions)
+    lines | beam.io.WriteToText(my_options.output)
 
 
 def pipeline_options_remote(argv):

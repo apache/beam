@@ -30,10 +30,13 @@ public interface ShuffleBatchReader {
   public static class Batch {
     public final List<ShuffleEntry> entries;
     @Nullable public final ShufflePosition nextStartPosition;
+    public final long bytes;
 
-    public Batch(List<ShuffleEntry> entries, @Nullable ShufflePosition nextStartPosition) {
+    public Batch(
+        List<ShuffleEntry> entries, @Nullable ShufflePosition nextStartPosition, long bytes) {
       this.entries = entries;
       this.nextStartPosition = nextStartPosition;
+      this.bytes = bytes;
     }
   }
 

@@ -31,6 +31,8 @@ future.builtins.range to avoid performance regression in Cython compiled code.
 
 For internal use only; no backwards-compatibility guarantees.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -1176,6 +1178,55 @@ class WindowedValueCoderImpl(StreamCoderImpl):
         self._windows_coder.estimate_size(value.windows, nested=True))
     estimated_size += (
         self._pane_info_coder.estimate_size(value.pane_info, nested=True))
+    return estimated_size, observables
+
+
+class ParamWindowedValueCoderImpl(WindowedValueCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for windowed values with constant timestamp, windows and
+  pane info. The coder drops timestamp, windows and pane info during
+  encoding, and uses the supplied parameterized timestamp, windows
+  and pane info values during decoding when reconstructing the windowed
+  value."""
+
+  def __init__(self, value_coder, window_coder, payload):
+    super(ParamWindowedValueCoderImpl, self).__init__(
+        value_coder, TimestampCoderImpl(), window_coder)
+    self._timestamp, self._windows, self._pane_info = self._from_proto(
+        payload, window_coder)
+
+  def _from_proto(self, payload, window_coder):
+    windowed_value_coder = WindowedValueCoderImpl(
+        BytesCoderImpl(), TimestampCoderImpl(), window_coder)
+    wv = windowed_value_coder.decode(payload)
+    return wv.timestamp_micros, wv.windows, wv.pane_info
+
+  def encode_to_stream(self, value, out, nested):
+    wv = value  # type cast
+    self._value_coder.encode_to_stream(wv.value, out, nested)
+
+  def decode_from_stream(self, in_stream, nested):
+    value = self._value_coder.decode_from_stream(in_stream, nested)
+    return windowed_value.create(
+        value,
+        self._timestamp,
+        self._windows,
+        self._pane_info)
+
+  def get_estimated_size_and_observables(self, value, nested=False):
+    """Returns estimated size of value along with any nested observables."""
+    if isinstance(value, observable.ObservableMixin):
+      # Should never be here.
+      # TODO(robertwb): Remove when coders are set correctly.
+      return 0, [(value, self._value_coder)]
+    estimated_size = 0
+    observables = []
+    value_estimated_size, value_observables = (
+        self._value_coder.get_estimated_size_and_observables(
+            value.value, nested=nested))
+    estimated_size += value_estimated_size
+    observables += value_observables
     return estimated_size, observables
 
 

@@ -125,6 +125,26 @@ class CoderTranslators {
     };
   }
 
+  static CoderTranslator<WindowedValue.ParamWindowedValueCoder<?>> paramWindowedValue() {
+    return new CoderTranslator<WindowedValue.ParamWindowedValueCoder<?>>() {
+      @Override
+      public List<? extends Coder<?>> getComponents(WindowedValue.ParamWindowedValueCoder<?> from) {
+        return ImmutableList.of(from.getValueCoder(), from.getWindowCoder());
+      }
+
+      @Override
+      public byte[] getPayload(WindowedValue.ParamWindowedValueCoder<?> from) {
+        return WindowedValue.ParamWindowedValueCoder.getPayload(from);
+      }
+
+      @Override
+      public WindowedValue.ParamWindowedValueCoder<?> fromComponents(
+          List<Coder<?>> components, byte[] payload) {
+        return WindowedValue.ParamWindowedValueCoder.fromComponents(components, payload);
+      }
+    };
+  }
+
   static CoderTranslator<RowCoder> row() {
     return new CoderTranslator<RowCoder>() {
       @Override
@@ -134,7 +154,7 @@ class CoderTranslators {
 
       @Override
       public byte[] getPayload(RowCoder from) {
-        return SchemaTranslation.schemaToProto(from.getSchema()).toByteArray();
+        return SchemaTranslation.schemaToProto(from.getSchema(), true).toByteArray();
       }
 
       @Override

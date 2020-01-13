@@ -20,6 +20,8 @@
 The runner will create a JSON description of the job graph and then submit it
 to the Dataflow Service for remote execution by a worker.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -1238,7 +1240,7 @@ class DataflowRunner(PipelineRunner):
     # TestStream source doesn't do any decoding of elements,
     # so we won't set test_stream_payload.coder_id.
     output_coder = transform._infer_output_coder()  # pylint: disable=protected-access
-    for event in transform.events:
+    for event in transform._events:
       new_event = test_stream_payload.events.add()
       if isinstance(event, ElementEvent):
         for tv in event.timestamped_values:

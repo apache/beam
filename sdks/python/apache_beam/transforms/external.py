@@ -19,6 +19,8 @@
 
 No backward compatibility guarantees. Everything in this module is experimental.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -408,7 +410,8 @@ class ExternalTransform(ptransform.PTransform):
           inputs={tag: pcoll_renames.get(pcoll, pcoll)
                   for tag, pcoll in proto.inputs.items()},
           outputs={tag: pcoll_renames.get(pcoll, pcoll)
-                   for tag, pcoll in proto.outputs.items()})
+                   for tag, pcoll in proto.outputs.items()},
+          environment_id=proto.environment_id)
       context.transforms.put_proto(id, new_proto)
 
     return beam_runner_api_pb2.PTransform(
@@ -418,7 +421,8 @@ class ExternalTransform(ptransform.PTransform):
         inputs=self._expanded_transform.inputs,
         outputs={
             tag: pcoll_renames.get(pcoll, pcoll)
-            for tag, pcoll in self._expanded_transform.outputs.items()})
+            for tag, pcoll in self._expanded_transform.outputs.items()},
+        environment_id=self._expanded_transform.environment_id)
 
 
 class JavaJarExpansionService(object):

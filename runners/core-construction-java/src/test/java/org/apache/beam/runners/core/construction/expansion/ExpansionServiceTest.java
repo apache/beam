@@ -99,6 +99,8 @@ public class ExpansionServiceTest {
     assertEquals(TEST_NAMESPACE + TEST_NAME, expandedTransform.getUniqueName());
     // Verify it has the right input.
     assertEquals(inputPcollId, Iterables.getOnlyElement(expandedTransform.getInputsMap().values()));
+    // Verify it has the right output.
+    assertEquals("output", Iterables.getOnlyElement(expandedTransform.getOutputsMap().keySet()));
     // Loose check that it's composite, and its children are represented.
     assertNotEquals(expandedTransform.getSubtransformsCount(), 0);
     for (String subtransform : expandedTransform.getSubtransformsList()) {

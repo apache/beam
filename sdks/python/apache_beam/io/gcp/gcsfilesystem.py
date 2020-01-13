@@ -16,6 +16,8 @@
 #
 """GCS file system implementation for accessing files on GCS."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from builtins import zip

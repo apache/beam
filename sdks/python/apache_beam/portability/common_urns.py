@@ -17,6 +17,8 @@
 
 """ Accessors for URNs of common Beam entities. """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from builtins import object

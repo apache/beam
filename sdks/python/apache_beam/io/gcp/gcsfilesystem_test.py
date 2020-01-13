@@ -18,6 +18,8 @@
 
 """Unit tests for GCS File System."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging

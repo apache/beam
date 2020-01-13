@@ -29,6 +29,8 @@ A demonstration of:
   Non-linear pipelines (i.e., pipelines with branches)
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse

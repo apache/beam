@@ -20,6 +20,8 @@
 Triggers control when in processing time windows get emitted.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections
@@ -1128,6 +1130,7 @@ class GeneralTriggerDriver(TriggerDriver):
 
   def __init__(self, windowing, clock):
     self.clock = clock
+    self.allowed_lateness = windowing.allowed_lateness
     self.window_fn = windowing.windowfn
     self.timestamp_combiner_impl = TimestampCombiner.get_impl(
         windowing.timestamp_combiner, self.window_fn)
@@ -1147,6 +1150,9 @@ class GeneralTriggerDriver(TriggerDriver):
     windows_to_elements = collections.defaultdict(list)
     for wv in windowed_values:
       for window in wv.windows:
+        # ignore expired windows
+        if input_watermark > window.end + self.allowed_lateness:
+          continue
         windows_to_elements[window].append((wv.value, wv.timestamp))
 
     # First handle merging.
@@ -1241,7 +1247,6 @@ class GeneralTriggerDriver(TriggerDriver):
         nonspeculative_index = state.get_state(
             window, self.NONSPECULATIVE_INDEX)
         state.add_state(window, self.NONSPECULATIVE_INDEX, 1)
-        windowed_value.PaneInfoTiming.LATE
         _LOGGER.warning('Watermark moved backwards in time '
                         'or late data moved window end forward.')
     else:

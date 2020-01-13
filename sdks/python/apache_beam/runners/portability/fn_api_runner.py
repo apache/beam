@@ -17,6 +17,8 @@
 
 """A PipelineRunner using the SDK harness.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -112,7 +114,8 @@ ConstructorFn = Callable[
 DataSideInput = Dict[Tuple[str, str],
                      Tuple[bytes, beam_runner_api_pb2.FunctionSpec]]
 DataOutput = Dict[str, bytes]
-BundleProcessResult = Tuple[beam_fn_api_pb2.InstructionResponse, List[beam_fn_api_pb2.ProcessBundleSplitResponse]]
+BundleProcessResult = Tuple[beam_fn_api_pb2.InstructionResponse,
+                            List[beam_fn_api_pb2.ProcessBundleSplitResponse]]
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -125,6 +128,9 @@ ENCODED_IMPULSE_VALUE = beam.coders.WindowedValueCoder(
 # test which runs without state caching (FnApiRunnerTestWithDisabledCaching).
 # The cache is disabled in production for other runners.
 STATE_CACHE_SIZE = 100
+
+# Time-based flush is enabled in the fn_api_runner by default.
+DATA_BUFFER_TIME_LIMIT_MS = 1000
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -446,6 +452,19 @@ class FnApiRunner(runner.PipelineRunner):
         pipeline_options.DirectOptions).direct_runner_bundle_repeat
     self._num_workers = options.view_as(
         pipeline_options.DirectOptions).direct_num_workers or self._num_workers
+
+    # set direct workers running mode if it is defined with pipeline options.
+    running_mode = \
+      options.view_as(pipeline_options.DirectOptions).direct_running_mode
+    if running_mode == 'multi_threading':
+      self._default_environment = environments.EmbeddedPythonGrpcEnvironment()
+    elif running_mode == 'multi_processing':
+      command_string = '%s -m apache_beam.runners.worker.sdk_worker_main' \
+                    % sys.executable
+      self._default_environment = environments.SubprocessSDKEnvironment(
+          command_string=command_string
+      )
+
     self._profiler_factory = profiler.Profile.factory_from_options(
         options.view_as(pipeline_options.ProfilingOptions))
 
@@ -1442,7 +1461,8 @@ class GrpcServer(object):
       beam_artifact_api_pb2_grpc.add_ArtifactRetrievalServiceServicer_to_server(
           service, self.control_server)
 
-    self.data_plane_handler = data_plane.BeamFnDataServicer()
+    self.data_plane_handler = data_plane.BeamFnDataServicer(
+        DATA_BUFFER_TIME_LIMIT_MS)
     beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(
         self.data_plane_handler, self.data_server)
 
@@ -1583,16 +1603,20 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
     # type: (...) -> None
     super(EmbeddedGrpcWorkerHandler, self).__init__(state, provision_info,
                                                     grpc_server)
-    if payload:
-      state_cache_size = payload.decode('ascii')
-      self._state_cache_size = int(state_cache_size)
-    else:
-      self._state_cache_size = STATE_CACHE_SIZE
+
+    from apache_beam.transforms.environments import EmbeddedPythonGrpcEnvironment
+    config = EmbeddedPythonGrpcEnvironment.parse_config(
+        payload.decode('utf-8'))
+    self._state_cache_size = config.get('state_cache_size') or STATE_CACHE_SIZE
+    self._data_buffer_time_limit_ms = \
+        config.get('data_buffer_time_limit_ms') or DATA_BUFFER_TIME_LIMIT_MS
 
   def start_worker(self):
     # type: () -> None
     self.worker = sdk_worker.SdkHarness(
-        self.control_address, state_cache_size=self._state_cache_size,
+        self.control_address,
+        state_cache_size=self._state_cache_size,
+        data_buffer_time_limit_ms=self._data_buffer_time_limit_ms,
         worker_id=self.worker_id)
     self.worker_thread = threading.Thread(
         name='run_worker', target=self.worker.run)

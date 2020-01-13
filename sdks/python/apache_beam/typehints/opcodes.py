@@ -26,6 +26,8 @@ are handled inline rather than here.
 
 For internal use only; no backwards-compatibility guarantees.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import inspect

@@ -138,7 +138,10 @@ REQUIRED_PACKAGES = [
     'avro>=1.8.1,<2.0.0; python_version < "3.0"',
     'avro-python3>=1.8.1,<2.0.0; python_version >= "3.0"',
     'crcmod>=1.7,<2.0',
-    # Dill doesn't guarantee compatibility between releases within minor version.
+    # Dill doesn't have forwards-compatibility guarantees within minor version.
+    # Pickles created with a new version of dill may not unpickle using older
+    # version of dill. It is best to use the same version of dill on client and
+    # server, therefore list of allowed versions is very narrow.
     # See: https://github.com/uqfoundation/dill/issues/341.
     'dill>=0.3.1.1,<0.3.2',
     'fastavro>=0.21.4,<0.22',
@@ -173,11 +176,13 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
   ]
 
 REQUIRED_TEST_PACKAGES = [
+    'freezegun>=0.3.12',
     'nose>=1.3.7',
     'nose_xunitmp>=0.4.1',
     'pandas>=0.23.4,<0.25',
-    'parameterized>=0.6.0,<0.7.0',
-    'pyhamcrest>=1.9,<2.0',
+    'parameterized>=0.6.0,<0.8.0',
+    # pyhamcrest==1.10.0 requires Py3. Beam still supports Py2.
+    'pyhamcrest>=1.9,<1.10.0',
     'pyyaml>=3.12,<6.0.0',
     'requests_mock>=1.7,<2.0',
     'tenacity>=5.0.2,<6.0',
@@ -207,6 +212,10 @@ INTERACTIVE_BEAM = [
     'jsons>=1.0.0,<2; python_version >= "3.5.3"',
     'timeloop>=1.0.2,<2',
 ]
+AWS_REQUIREMENTS = [
+    'boto3 >=1.9'
+]
+
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first(original_cmd):
@@ -267,6 +276,7 @@ setuptools.setup(
         'test': REQUIRED_TEST_PACKAGES,
         'gcp': GCP_REQUIREMENTS,
         'interactive': INTERACTIVE_BEAM,
+        'aws': AWS_REQUIREMENTS
     },
     zip_safe=False,
     # PyPI package information.

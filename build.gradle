@@ -214,14 +214,6 @@ task pythonPreCommit() {
   // have caught. Note that the same tests will still run in postcommit.
 }
 
-// TODO(BEAM-3713): Temporary task for testing pytest.
-task pythonPreCommitPytest() {
-  dependsOn ":sdks:python:test-suites:tox:py2:preCommitPy2Pytest"
-  dependsOn ":sdks:python:test-suites:tox:py35:preCommitPy35Pytest"
-  dependsOn ":sdks:python:test-suites:tox:py36:preCommitPy36Pytest"
-  dependsOn ":sdks:python:test-suites:tox:py37:preCommitPy37Pytest"
-}
-
 task pythonLintPreCommit() {
   dependsOn ":sdks:python:test-suites:tox:py2:lint"
   dependsOn ":sdks:python:test-suites:tox:py37:lint"
@@ -326,7 +318,14 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
     dependsOn project.getTasksByName('publishMavenJavaPublicationToMavenLocal', true /* recursively */)
     classpath = project.configurations.linkageCheckerJava
     main = 'com.google.cloud.tools.opensource.classpath.LinkageCheckerMain'
-    args '-a', project.javaLinkageArtifactIds.split(',').collect({"${project.ext.mavenGroupId}:${it}:${project.version}"}).join(',')
+    args '-a', project.javaLinkageArtifactIds.split(',').collect({
+      if (it.contains(':')) {
+        "${project.ext.mavenGroupId}:${it}"
+      } else {
+        // specify the version if not provided
+        "${project.ext.mavenGroupId}:${it}:${project.version}"
+      }
+    }).join(',')
     doLast {
       println "NOTE: This task published artifacts into your local Maven repository. You may want to remove them manually."
     }

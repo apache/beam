@@ -88,6 +88,8 @@ parameter can be anything, as long as elements can be grouped by it.
 No backward compatibility guarantees. Everything in this module is experimental.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections

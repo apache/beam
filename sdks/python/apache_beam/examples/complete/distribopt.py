@@ -49,6 +49,8 @@ The pipeline consists of three phases:
   - Selecting the mapping with the lowest cost.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 

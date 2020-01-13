@@ -17,6 +17,8 @@
 
 """Test for Beam type compatibility library."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import sys
@@ -101,6 +103,11 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
     self.assertEqual(
         typehints.Iterator[int],
         convert_to_beam_type(typing.Generator[int, None, None]))
+
+  def test_string_literal_converted_to_any(self):
+    self.assertEqual(
+        typehints.Any,
+        convert_to_beam_type('typing.List[int]'))
 
   def test_convert_nested_to_beam_type(self):
     self.assertEqual(

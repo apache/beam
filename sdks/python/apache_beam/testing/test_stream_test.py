@@ -17,6 +17,8 @@
 
 """Unit tests for the test_stream module."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import unittest
@@ -275,7 +277,7 @@ class TestStreamTest(unittest.TestCase):
     p = TestPipeline(options=options)
     records = (p
                | test_stream
-               | beam.WindowInto(FixedWindows(15))
+               | beam.WindowInto(FixedWindows(15), allowed_lateness=300)
                | beam.Map(lambda x: ('k', x))
                | beam.GroupByKey())
 

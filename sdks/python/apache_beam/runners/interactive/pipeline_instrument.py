@@ -21,6 +21,8 @@ For internal use only; no backwards-compatibility guarantees.
 This module accesses current interactive environment and analyzes given pipeline
 to transform original pipeline into a one-shot pipeline with interactivity.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import apache_beam as beam
@@ -99,6 +101,11 @@ class PipelineInstrument(object):
     # should create new transform and track the PCollection read from cache.
     # (Dict[str, AppliedPTransform]).
     self._cached_pcoll_read = {}
+
+    # Reference to the user defined pipeline instance based on the given
+    # pipeline. The class never mutates it.
+    # Note: the original pipeline is not the user pipeline.
+    self._user_pipeline = None
 
   def instrumented_pipeline_proto(self):
     """Always returns a new instance of portable instrumented proto."""
@@ -258,6 +265,20 @@ class PipelineInstrument(object):
     """Returns a snapshot of the pipeline before instrumentation."""
     return self._pipeline_snap
 
+  @property
+  def user_pipeline(self):
+    """Returns a reference to the pipeline instance defined by the user. If a
+    pipeline has no cacheable PCollection and the user pipeline cannot be
+    found, return None indicating there is nothing to be cached in the user
+    pipeline.
+
+    The pipeline given for instrumenting and mutated in this class is not
+    necessarily the pipeline instance defined by the user. From the watched
+    scopes, this class figures out what the user pipeline instance is.
+    This metadata can be used for tracking pipeline results.
+    """
+    return self._user_pipeline
+
   def instrument(self):
     """Instruments original pipeline with cache.
 
@@ -330,6 +351,10 @@ class PipelineInstrument(object):
           cacheable_key = self._pin._cacheable_key(pcoll)
           if (cacheable_key in self._pin.cacheables and
               self._pin.cacheables[cacheable_key]['pcoll'] != pcoll):
+            if not self._pin._user_pipeline:
+              # Retrieve a reference to the user defined pipeline instance.
+              self._pin._user_pipeline = self._pin.cacheables[cacheable_key][
+                  'pcoll'].pipeline
             self._pin.cacheables[cacheable_key]['pcoll'] = pcoll
 
     v = PreprocessVisitor(self)

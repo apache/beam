@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark;
 
-import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStage;
 
 import java.util.UUID;
@@ -94,7 +94,8 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
 
     if (pipelineOptions.getFilesToStage() == null) {
       pipelineOptions.setFilesToStage(
-          detectClassPathResourcesToStage(SparkPipelineRunner.class.getClassLoader()));
+          detectClassPathResourcesToStage(
+              SparkPipelineRunner.class.getClassLoader(), pipelineOptions));
       LOG.info(
           "PipelineOptions.filesToStage was not specified. Defaulting to files from the classpath");
     }
@@ -168,6 +169,10 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     SparkPipelineOptions sparkOptions = portablePipelineOptions.as(SparkPipelineOptions.class);
     String invocationId =
         String.format("%s_%s", sparkOptions.getJobName(), UUID.randomUUID().toString());
+    if (sparkOptions.getAppName() == null) {
+      LOG.debug("App name was null. Using invocationId {}", invocationId);
+      sparkOptions.setAppName(invocationId);
+    }
 
     SparkPipelineRunner runner = new SparkPipelineRunner(sparkOptions);
     JobInfo jobInfo =

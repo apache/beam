@@ -17,6 +17,8 @@
 
 """FileSystems interface class for accessing the correct filesystem"""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import re
@@ -48,6 +50,11 @@ except ImportError:
 
 try:
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
+except ImportError:
+  pass
+
+try:
+  from apache_beam.io.aws.s3filesystem import S3FileSystem
 except ImportError:
   pass
 
@@ -91,7 +98,10 @@ class FileSystems(object):
       systems = [fs for fs in FileSystem.get_all_subclasses()
                  if fs.scheme() == path_scheme]
       if len(systems) == 0:
-        raise ValueError('Unable to get the Filesystem for path %s' % path)
+        raise ValueError(
+            'Unable to get filesystem from specified path, please use the '
+            'correct path or ensure the required dependency is installed, '
+            'e.g., pip install apache_beam[gcp]. Path specified: %s' % path)
       elif len(systems) == 1:
         # Pipeline options could come either from the Pipeline itself (using
         # direct runner), or via RuntimeValueProvider (other runners).

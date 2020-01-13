@@ -17,6 +17,8 @@
 
 """Core PTransform subclasses, such as FlatMap, GroupByKey, and Map."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import copy
@@ -64,6 +66,7 @@ from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import is_consistent_with
 from apache_beam.utils import timestamp
 from apache_beam.utils import urns
+from apache_beam.utils.timestamp import Duration
 
 if typing.TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
@@ -610,7 +613,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       **kwargs: other keyword arguments.
 
     Returns:
-      An Iterable of output elements.
+      An Iterable of output elements or None.
     """
     raise NotImplementedError
 
@@ -1303,11 +1306,9 @@ class ParDo(PTransformWithSideInputs):
     return (
         common_urns.primitives.PAR_DO.urn,
         beam_runner_api_pb2.ParDoPayload(
-            do_fn=beam_runner_api_pb2.SdkFunctionSpec(
-                environment_id=context.default_environment_id(),
-                spec=beam_runner_api_pb2.FunctionSpec(
-                    urn=python_urns.PICKLED_DOFN_INFO,
-                    payload=picked_pardo_fn_data)),
+            do_fn=beam_runner_api_pb2.FunctionSpec(
+                urn=python_urns.PICKLED_DOFN_INFO,
+                payload=picked_pardo_fn_data),
             splittable=is_splittable,
             restriction_coder_id=restriction_coder_id,
             state_specs={spec.name: spec.to_runner_api(context)
@@ -1326,9 +1327,9 @@ class ParDo(PTransformWithSideInputs):
   @PTransform.register_urn(
       common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
   def from_runner_api_parameter(pardo_payload, context):
-    assert pardo_payload.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
+    assert pardo_payload.do_fn.urn == python_urns.PICKLED_DOFN_INFO
     fn, args, kwargs, si_tags_and_types, windowing = pickler.loads(
-        pardo_payload.do_fn.spec.payload)
+        pardo_payload.do_fn.payload)
     if si_tags_and_types:
       raise NotImplementedError('explicit side input data')
     elif windowing:
@@ -2271,9 +2272,23 @@ class Windowing(object):
   def __init__(self,
                windowfn,  # type: WindowFn
                triggerfn=None,  # type: typing.Optional[TriggerFn]
-               accumulation_mode=None,  # typing.Optional[beam_runner_api_pb2.AccumulationMode]
-               timestamp_combiner=None,  # typing.Optional[beam_runner_api_pb2.OutputTime]
-              ):
+               accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode]
+               timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime]
+               allowed_lateness=0, # type: typing.Union[int, float]
+               ):
+    """Class representing the window strategy.
+
+    Args:
+      windowfn: Window assign function.
+      triggerfn: Trigger function.
+      accumulation_mode: a AccumulationMode, controls what to do with data
+        when a trigger fires multiple times.
+      timestamp_combiner: a TimestampCombiner, determines how output
+        timestamps of grouping operations are assigned.
+      allowed_lateness: Maximum delay in seconds after end of window
+        allowed for any late data to be processed without being discarded
+        directly.
+    """
     global AccumulationMode, DefaultTrigger  # pylint: disable=global-variable-not-assigned
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms.trigger import AccumulationMode, DefaultTrigger
@@ -2293,13 +2308,15 @@ class Windowing(object):
     self.windowfn = windowfn
     self.triggerfn = triggerfn
     self.accumulation_mode = accumulation_mode
+    self.allowed_lateness = Duration.of(allowed_lateness)
     self.timestamp_combiner = (
         timestamp_combiner or TimestampCombiner.OUTPUT_AT_EOW)
     self._is_default = (
         self.windowfn == GlobalWindows() and
         self.triggerfn == DefaultTrigger() and
         self.accumulation_mode == AccumulationMode.DISCARDING and
-        self.timestamp_combiner == TimestampCombiner.OUTPUT_AT_EOW)
+        self.timestamp_combiner == TimestampCombiner.OUTPUT_AT_EOW and
+        self.allowed_lateness == 0)
 
   def __repr__(self):
     return "Windowing(%s, %s, %s, %s)" % (self.windowfn, self.triggerfn,
@@ -2314,7 +2331,8 @@ class Windowing(object):
           self.windowfn == other.windowfn
           and self.triggerfn == other.triggerfn
           and self.accumulation_mode == other.accumulation_mode
-          and self.timestamp_combiner == other.timestamp_combiner)
+          and self.timestamp_combiner == other.timestamp_combiner
+          and self.allowed_lateness == other.allowed_lateness)
     return False
 
   def __ne__(self, other):
@@ -2322,7 +2340,8 @@ class Windowing(object):
     return not self == other
 
   def __hash__(self):
-    return hash((self.windowfn, self.accumulation_mode,
+    return hash((self.windowfn, self.triggerfn, self.accumulation_mode,
+                 self.allowed_lateness,
                  self.timestamp_combiner))
 
   def is_default(self):
@@ -2344,7 +2363,8 @@ class Windowing(object):
         # TODO(robertwb): Support EMIT_IF_NONEMPTY
         closing_behavior=beam_runner_api_pb2.ClosingBehavior.EMIT_ALWAYS,
         OnTimeBehavior=beam_runner_api_pb2.OnTimeBehavior.FIRE_ALWAYS,
-        allowed_lateness=0)
+        allowed_lateness=self.allowed_lateness.micros // 1000,
+        environment_id=context.default_environment_id())
 
   @staticmethod
   def from_runner_api(proto, context):
@@ -2354,7 +2374,8 @@ class Windowing(object):
         windowfn=WindowFn.from_runner_api(proto.window_fn, context),
         triggerfn=TriggerFn.from_runner_api(proto.trigger, context),
         accumulation_mode=proto.accumulation_mode,
-        timestamp_combiner=proto.output_time)
+        timestamp_combiner=proto.output_time,
+        allowed_lateness=Duration(micros=proto.allowed_lateness * 1000))
 
 
 @typehints.with_input_types(T)
@@ -2386,8 +2407,8 @@ class WindowInto(ParDo):
                windowfn,  # type: typing.Union[Windowing, WindowFn]
                trigger=None,  # type: typing.Optional[TriggerFn]
                accumulation_mode=None,
-               timestamp_combiner=None
-              ):
+               timestamp_combiner=None,
+               allowed_lateness=0):
     """Initializes a WindowInto transform.
 
     Args:
@@ -2409,7 +2430,8 @@ class WindowInto(ParDo):
       timestamp_combiner = timestamp_combiner or windowing.timestamp_combiner
 
     self.windowing = Windowing(
-        windowfn, trigger, accumulation_mode, timestamp_combiner)
+        windowfn, trigger, accumulation_mode, timestamp_combiner,
+        allowed_lateness)
     super(WindowInto, self).__init__(self.WindowIntoFn(self.windowing))
 
   def get_windowing(self, unused_inputs):

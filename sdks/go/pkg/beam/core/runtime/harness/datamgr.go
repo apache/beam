@@ -116,7 +116,7 @@ func (m *DataChannelManager) Open(ctx context.Context, port exec.Port) (*DataCha
 		return nil, err
 	}
 	ch.forceRecreate = func(id string, err error) {
-		log.Warnf(ctx, "forcing channel[%v] reconnection on port %v due to %v", id, port, err)
+		log.Warnf(ctx, "forcing DataChannel[%v] reconnection on port %v due to %v", id, port, err)
 		m.mu.Lock()
 		delete(m.ports, port.URL)
 		m.mu.Unlock()
@@ -150,14 +150,14 @@ type DataChannel struct {
 
 	writers map[clientID]*dataWriter
 	readers map[clientID]*dataReader
-
 	// readErr indicates a client.Recv error and is used to prevent new readers.
 	readErr error
+
 	// a closure that forces the data manager to recreate this stream.
 	forceRecreate func(id string, err error)
 	cancelFn      context.CancelFunc // Allows writers to stop the grpc reading goroutine.
 
-	mu sync.Mutex // guards both the readers and writers maps.
+	mu sync.Mutex // guards mutable internal data, notably the maps and readErr.
 }
 
 func newDataChannel(ctx context.Context, port exec.Port) (*DataChannel, error) {
@@ -198,6 +198,8 @@ func (c *DataChannel) terminateStreamOnError(err error) {
 
 // OpenRead returns an io.ReadCloser of the data elements for the given instruction and ptransform.
 func (c *DataChannel) OpenRead(ctx context.Context, ptransformID string, instID instructionID) io.ReadCloser {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	cid := clientID{ptransformID: ptransformID, instID: instID}
 	if c.readErr != nil {
 		log.Errorf(ctx, "opening a reader %v on a closed channel", cid)
@@ -256,7 +258,9 @@ func (c *DataChannel) read(ctx context.Context) {
 			if local, ok := cache[id]; ok {
 				r = local
 			} else {
+				c.mu.Lock()
 				r = c.makeReader(ctx, id)
+				c.mu.Unlock()
 				cache[id] = r
 			}
 
@@ -306,10 +310,8 @@ func (r *errReader) Close() error {
 	return r.err
 }
 
+// makeReader creates a dataReader. It expects to be called while c.mu is held.
 func (c *DataChannel) makeReader(ctx context.Context, id clientID) *dataReader {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	if r, ok := c.readers[id]; ok {
 		return r
 	}
@@ -392,7 +394,7 @@ func (w *dataWriter) send(msg *pb.Elements) error {
 	recordStreamSend(msg)
 	if err := w.ch.client.Send(msg); err != nil {
 		if err == io.EOF {
-			log.Warnf(context.TODO(), "dataWriter[%v;%v].Close EOF on send; fetching real error", w.id, w.ch.id)
+			log.Warnf(context.TODO(), "dataWriter[%v;%v] EOF on send; fetching real error", w.id, w.ch.id)
 			err = nil
 			for err == nil {
 				// Per GRPC stream documentation, if there's an EOF, we must call Recv
@@ -401,7 +403,7 @@ func (w *dataWriter) send(msg *pb.Elements) error {
 				_, err = w.ch.client.Recv()
 			}
 		}
-		log.Warnf(context.TODO(), "dataWriter[%v;%v].Close error on send: %v", w.id, w.ch.id, err)
+		log.Warnf(context.TODO(), "dataWriter[%v;%v] error on send: %v", w.id, w.ch.id, err)
 		w.ch.terminateStreamOnError(err)
 		return err
 	}

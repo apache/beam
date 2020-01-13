@@ -21,7 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 import java.nio.charset.StandardCharsets;
-import org.apache.commons.lang3.SerializationUtils;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.SerializationUtils;
 import org.apache.hadoop.hbase.client.Scan;
 import org.junit.Rule;
 import org.junit.Test;

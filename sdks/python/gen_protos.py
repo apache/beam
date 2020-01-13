@@ -121,19 +121,12 @@ def generate_proto_files(force=False, log=None):
         raise ValueError("Proto generation failed (see log for details).")
     else:
       log.info('Regenerating Python proto definitions (%s).' % regenerate)
-
-      ret_code = subprocess.call(["pip", "install", "mypy-protobuf==1.12"])
-      if ret_code:
-        raise RuntimeError(
-            'Error installing mypy-protobuf during proto generation')
-
       builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')
       args = (
           [sys.executable] +  # expecting to be called from command line
           ['--proto_path=%s' % builtin_protos] +
           ['--proto_path=%s' % d for d in proto_dirs] +
           ['--python_out=%s' % out_dir] +
-          ['--mypy_out=%s' % out_dir] +
           # TODO(robertwb): Remove the prefix once it's the default.
           ['--grpc_python_out=grpc_2_0:%s' % out_dir] +
           proto_files)

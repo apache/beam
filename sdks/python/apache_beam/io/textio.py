@@ -18,6 +18,8 @@
 """A source and a sink for reading from and writing to text files."""
 
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging

@@ -24,6 +24,8 @@ This query selects auctions (items) that have a particular id.
 It illustrates a simple filter.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import apache_beam as beam

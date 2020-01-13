@@ -17,6 +17,8 @@
 
 """An evaluator of a specific application of a transform."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import atexit
@@ -50,14 +52,14 @@ from apache_beam.runners.direct.direct_userstate import DirectUserStateContext
 from apache_beam.runners.direct.sdf_direct_runner import ProcessElements
 from apache_beam.runners.direct.sdf_direct_runner import ProcessFn
 from apache_beam.runners.direct.sdf_direct_runner import SDFProcessElementInvoker
+from apache_beam.runners.direct.test_stream_impl import _TestStream
+from apache_beam.runners.direct.test_stream_impl import _WatermarkController
 from apache_beam.runners.direct.util import KeyedWorkItem
 from apache_beam.runners.direct.util import TransformResult
 from apache_beam.runners.direct.watermark_manager import WatermarkManager
 from apache_beam.testing.test_stream import ElementEvent
 from apache_beam.testing.test_stream import ProcessingTimeEvent
 from apache_beam.testing.test_stream import WatermarkEvent
-from apache_beam.testing.test_stream import _TestStream
-from apache_beam.testing.test_stream import _WatermarkController
 from apache_beam.transforms import core
 from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.transforms.trigger import TimeDomain

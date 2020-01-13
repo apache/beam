@@ -18,6 +18,8 @@
 """This module contains Splittable DoFn logic that is specific to DirectRunner.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import uuid

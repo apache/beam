@@ -22,6 +22,7 @@ apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 
 def pythonRootDir = "${rootDir}/sdks/python"
+def runScriptsDir = "${rootDir}/sdks/python/scripts"
 
 /*************************************************************************************************/
 
@@ -39,6 +40,7 @@ task postCommitPy2() {
   dependsOn ':runners:flink:1.9:job-server:shadowJar'
   dependsOn portableWordCountFlinkRunnerBatch
   dependsOn portableWordCountFlinkRunnerStreaming
+  dependsOn 'postCommitPy2IT'
   dependsOn ':runners:spark:job-server:shadowJar'
   dependsOn portableWordCountSparkRunnerBatch
 }
@@ -142,6 +144,28 @@ task crossLanguagePortableWordCount {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.examples.wordcount_xlang ${options.join(' ')}"
       // TODO: Check that the output file is generated and runs.
+    }
+  }
+}
+
+task postCommitPy2IT {
+  dependsOn 'installGcpTest'
+  dependsOn 'setupVirtualenv'
+  dependsOn ':runners:flink:1.9:job-server:shadowJar'
+
+  doLast {
+    def tests = [
+        "apache_beam.io.gcp.bigquery_read_it_test",
+    ]
+    def testOpts = ["--tests=${tests.join(',')}"]
+    def cmdArgs = mapToArgString([
+        "test_opts": testOpts,
+        "suite": "postCommitIT-flink-py2",
+        "pipeline_opts": "--runner=FlinkRunner --project=apache-beam-testing --environment_type=LOOPBACK --temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
+    ])
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
     }
   }
 }

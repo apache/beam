@@ -30,6 +30,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 @Experimental
 @Hidden
 public interface ExperimentalOptions extends PipelineOptions {
+
+  String STATE_CACHE_SIZE = "state_cache_size";
+
   @Description(
       "[Experimental] Apache Beam provides a number of experimental features that can "
           + "be enabled with this flag. If executing against a managed service, please contact the "
@@ -59,5 +62,23 @@ public interface ExperimentalOptions extends PipelineOptions {
       experiments.add(experiment);
     }
     options.setExperiments(experiments);
+  }
+
+  /** Return the value for the specified experiment or null if not present. */
+  static String getExperimentValue(PipelineOptions options, String experiment) {
+    if (options == null) {
+      return null;
+    }
+    List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
+    if (experiments == null) {
+      return null;
+    }
+    for (String experimentEntry : experiments) {
+      String[] tokens = experimentEntry.split(experiment + "=", -1);
+      if (tokens.length > 1) {
+        return tokens[1];
+      }
+    }
+    return null;
   }
 }

@@ -17,6 +17,8 @@
 
 """Unit tests for the DataflowRunner class."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import json

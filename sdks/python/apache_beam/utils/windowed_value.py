@@ -27,6 +27,8 @@ This module is experimental. No backwards-compatibility guarantees.
 
 #cython: profile=True
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from builtins import object
@@ -59,6 +61,15 @@ class PaneInfoTiming(object):
         cls.ON_TIME: 'ON_TIME',
         cls.LATE: 'LATE',
         cls.UNKNOWN: 'UNKNOWN',
+    }[value]
+
+  @classmethod
+  def from_string(cls, value):
+    return {
+        'EARLY': cls.EARLY,
+        'ON_TIME': cls.ON_TIME,
+        'LATE': cls.LATE,
+        'UNKNOWN': cls.UNKNOWN
     }[value]
 
 

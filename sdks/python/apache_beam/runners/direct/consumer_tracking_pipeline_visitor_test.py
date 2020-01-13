@@ -16,6 +16,8 @@
 #
 
 """Tests for consumer_tracking_pipeline_visitor."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging

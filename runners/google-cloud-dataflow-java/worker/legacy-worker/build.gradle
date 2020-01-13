@@ -78,6 +78,7 @@ def excluded_dependencies = [
         library.java.hamcrest_core,                  // Test only
         library.java.hamcrest_library,               // Test only
         library.java.junit,                          // Test only
+        library.java.jsonassert                      // Test only
 ]
 
 applyJavaNature(
@@ -224,6 +225,7 @@ dependencies {
     shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
     shadowTest library.java.hamcrest_core
     shadowTest library.java.hamcrest_library
+    shadowTest library.java.jsonassert
     shadowTest library.java.junit
     shadowTest library.java.mockito_core
 }

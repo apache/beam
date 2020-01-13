@@ -17,6 +17,8 @@
 """
 Integration test for Google Cloud Pub/Sub.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging

@@ -3,11 +3,13 @@
 
 package pipeline_v1
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import descriptor "github.com/golang/protobuf/protoc-gen-go/descriptor"
-import timestamp "github.com/golang/protobuf/ptypes/timestamp"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	descriptor "github.com/golang/protobuf/protoc-gen-go/descriptor"
+	timestamp "github.com/golang/protobuf/ptypes/timestamp"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -18,7 +20,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 type MonitoringInfoSpecs_Enum int32
 
@@ -47,6 +49,7 @@ var MonitoringInfoSpecs_Enum_name = map[int32]string{
 	5: "TOTAL_MSECS",
 	6: "USER_DISTRIBUTION_COUNTER",
 }
+
 var MonitoringInfoSpecs_Enum_value = map[string]int32{
 	"USER_COUNTER":              0,
 	"ELEMENT_COUNT":             1,
@@ -61,8 +64,9 @@ var MonitoringInfoSpecs_Enum_value = map[string]int32{
 func (x MonitoringInfoSpecs_Enum) String() string {
 	return proto.EnumName(MonitoringInfoSpecs_Enum_name, int32(x))
 }
+
 func (MonitoringInfoSpecs_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_f27e09e153e79ab4, []int{2, 0}
+	return fileDescriptor_6039342a2ba47b72, []int{2, 0}
 }
 
 type MonitoringInfo_MonitoringInfoLabels int32
@@ -89,6 +93,7 @@ var MonitoringInfo_MonitoringInfoLabels_name = map[int32]string{
 	5: "NAMESPACE",
 	6: "NAME",
 }
+
 var MonitoringInfo_MonitoringInfoLabels_value = map[string]int32{
 	"TRANSFORM":          0,
 	"PCOLLECTION":        1,
@@ -102,8 +107,9 @@ var MonitoringInfo_MonitoringInfoLabels_value = map[string]int32{
 func (x MonitoringInfo_MonitoringInfoLabels) String() string {
 	return proto.EnumName(MonitoringInfo_MonitoringInfoLabels_name, int32(x))
 }
+
 func (MonitoringInfo_MonitoringInfoLabels) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_f27e09e153e79ab4, []int{4, 0}
+	return fileDescriptor_6039342a2ba47b72, []int{4, 0}
 }
 
 type MonitoringInfoTypeUrns_Enum int32
@@ -119,6 +125,7 @@ var MonitoringInfoTypeUrns_Enum_name = map[int32]string{
 	1: "DISTRIBUTION_INT64_TYPE",
 	2: "LATEST_INT64_TYPE",
 }
+
 var MonitoringInfoTypeUrns_Enum_value = map[string]int32{
 	"SUM_INT64_TYPE":          0,
 	"DISTRIBUTION_INT64_TYPE": 1,
@@ -128,8 +135,9 @@ var MonitoringInfoTypeUrns_Enum_value = map[string]int32{
 func (x MonitoringInfoTypeUrns_Enum) String() string {
 	return proto.EnumName(MonitoringInfoTypeUrns_Enum_name, int32(x))
 }
+
 func (MonitoringInfoTypeUrns_Enum) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_f27e09e153e79ab4, []int{5, 0}
+	return fileDescriptor_6039342a2ba47b72, []int{5, 0}
 }
 
 // A specification containing required set of fields and labels required
@@ -152,16 +160,17 @@ func (m *MonitoringInfoSpec) Reset()         { *m = MonitoringInfoSpec{} }
 func (m *MonitoringInfoSpec) String() string { return proto.CompactTextString(m) }
 func (*MonitoringInfoSpec) ProtoMessage()    {}
 func (*MonitoringInfoSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_f27e09e153e79ab4, []int{0}
+	return fileDescriptor_6039342a2ba47b72, []int{0}
 }
+
 func (m *MonitoringInfoSpec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MonitoringInfoSpec.Unmarshal(m, b)
 }
 func (m *MonitoringInfoSpec) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_MonitoringInfoSpec.Marshal(b, m, deterministic)
 }
-func (dst *MonitoringInfoSpec) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MonitoringInfoSpec.Merge(dst, src)
+func (m *MonitoringInfoSpec) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MonitoringInfoSpec.Merge(m, src)
 }
 func (m *MonitoringInfoSpec) XXX_Size() int {
 	return xxx_messageInfo_MonitoringInfoSpec.Size(m)
@@ -213,16 +222,17 @@ func (m *Annotation) Reset()         { *m = Annotation{} }
 func (m *Annotation) String() string { return proto.CompactTextString(m) }
 func (*Annotation) ProtoMessage()    {}
 func (*Annotation) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_f27e09e153e79ab4, []int{1}
+	return fileDescriptor_6039342a2ba47b72, []int{1}
 }
+
 func (m *Annotation) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Annotation.Unmarshal(m, b)
 }
 func (m *Annotation) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Annotation.Marshal(b, m, deterministic)
 }
-func (dst *Annotation) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Annotation.Merge(dst, src)
+func (m *Annotation) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Annotation.Merge(m, src)
 }
 func (m *Annotation) XXX_Size() int {
 	return xxx_messageInfo_Annotation.Size(m)
@@ -262,16 +272,17 @@ func (m *MonitoringInfoSpecs) Reset()         { *m = MonitoringInfoSpecs{} }
 func (m *MonitoringInfoSpecs) String() string { return proto.CompactTextString(m) }
 func (*MonitoringInfoSpecs) ProtoMessage()    {}
 func (*MonitoringInfoSpecs) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_f27e09e153e79ab4, []int{2}
+	return fileDescriptor_6039342a2ba47b72, []int{2}
 }
+
 func (m *MonitoringInfoSpecs) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MonitoringInfoSpecs.Unmarshal(m, b)
 }
 func (m *MonitoringInfoSpecs) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_MonitoringInfoSpecs.Marshal(b, m, deterministic)
 }
-func (dst *MonitoringInfoSpecs) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MonitoringInfoSpecs.Merge(dst, src)
+func (m *MonitoringInfoSpecs) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MonitoringInfoSpecs.Merge(m, src)
 }
 func (m *MonitoringInfoSpecs) XXX_Size() int {
 	return xxx_messageInfo_MonitoringInfoSpecs.Size(m)
@@ -296,16 +307,17 @@ func (m *MonitoringInfoLabelProps) Reset()         { *m = MonitoringInfoLabelPro
 func (m *MonitoringInfoLabelProps) String() string { return proto.CompactTextString(m) }
 func (*MonitoringInfoLabelProps) ProtoMessage()    {}
 func (*MonitoringInfoLabelProps) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_f27e09e153e79ab4, []int{3}
+	return fileDescriptor_6039342a2ba47b72, []int{3}
 }
+
 func (m *MonitoringInfoLabelProps) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MonitoringInfoLabelProps.Unmarshal(m, b)
 }
 func (m *MonitoringInfoLabelProps) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_MonitoringInfoLabelProps.Marshal(b, m, deterministic)
 }
-func (dst *MonitoringInfoLabelProps) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MonitoringInfoLabelProps.Merge(dst, src)
+func (m *MonitoringInfoLabelProps) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MonitoringInfoLabelProps.Merge(m, src)
 }
 func (m *MonitoringInfoLabelProps) XXX_Size() int {
 	return xxx_messageInfo_MonitoringInfoLabelProps.Size(m)
@@ -362,16 +374,17 @@ func (m *MonitoringInfo) Reset()         { *m = MonitoringInfo{} }
 func (m *MonitoringInfo) String() string { return proto.CompactTextString(m) }
 func (*MonitoringInfo) ProtoMessage()    {}
 func (*MonitoringInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_f27e09e153e79ab4, []int{4}
+	return fileDescriptor_6039342a2ba47b72, []int{4}
 }
+
 func (m *MonitoringInfo) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MonitoringInfo.Unmarshal(m, b)
 }
 func (m *MonitoringInfo) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_MonitoringInfo.Marshal(b, m, deterministic)
 }
-func (dst *MonitoringInfo) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MonitoringInfo.Merge(dst, src)
+func (m *MonitoringInfo) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MonitoringInfo.Merge(m, src)
 }
 func (m *MonitoringInfo) XXX_Size() int {
 	return xxx_messageInfo_MonitoringInfo.Size(m)
@@ -381,27 +394,6 @@ func (m *MonitoringInfo) XXX_DiscardUnknown() {
 }
 
 var xxx_messageInfo_MonitoringInfo proto.InternalMessageInfo
-
-type isMonitoringInfo_Data interface {
-	isMonitoringInfo_Data()
-}
-
-type MonitoringInfo_MonitoringTableData struct {
-	MonitoringTableData *MonitoringTableData `protobuf:"bytes,3,opt,name=monitoring_table_data,json=monitoringTableData,proto3,oneof"`
-}
-type MonitoringInfo_Metric struct {
-	Metric *Metric `protobuf:"bytes,4,opt,name=metric,proto3,oneof"`
-}
-
-func (*MonitoringInfo_MonitoringTableData) isMonitoringInfo_Data() {}
-func (*MonitoringInfo_Metric) isMonitoringInfo_Data()              {}
-
-func (m *MonitoringInfo) GetData() isMonitoringInfo_Data {
-	if m != nil {
-		return m.Data
-	}
-	return nil
-}
 
 func (m *MonitoringInfo) GetUrn() string {
 	if m != nil {
@@ -415,6 +407,29 @@ func (m *MonitoringInfo) GetType() string {
 		return m.Type
 	}
 	return ""
+}
+
+type isMonitoringInfo_Data interface {
+	isMonitoringInfo_Data()
+}
+
+type MonitoringInfo_MonitoringTableData struct {
+	MonitoringTableData *MonitoringTableData `protobuf:"bytes,3,opt,name=monitoring_table_data,json=monitoringTableData,proto3,oneof"`
+}
+
+type MonitoringInfo_Metric struct {
+	Metric *Metric `protobuf:"bytes,4,opt,name=metric,proto3,oneof"`
+}
+
+func (*MonitoringInfo_MonitoringTableData) isMonitoringInfo_Data() {}
+
+func (*MonitoringInfo_Metric) isMonitoringInfo_Data() {}
+
+func (m *MonitoringInfo) GetData() isMonitoringInfo_Data {
+	if m != nil {
+		return m.Data
+	}
+	return nil
 }
 
 func (m *MonitoringInfo) GetMonitoringTableData() *MonitoringTableData {
@@ -445,78 +460,12 @@ func (m *MonitoringInfo) GetTimestamp() *timestamp.Timestamp {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*MonitoringInfo) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _MonitoringInfo_OneofMarshaler, _MonitoringInfo_OneofUnmarshaler, _MonitoringInfo_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*MonitoringInfo) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*MonitoringInfo_MonitoringTableData)(nil),
 		(*MonitoringInfo_Metric)(nil),
 	}
-}
-
-func _MonitoringInfo_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*MonitoringInfo)
-	// data
-	switch x := m.Data.(type) {
-	case *MonitoringInfo_MonitoringTableData:
-		b.EncodeVarint(3<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.MonitoringTableData); err != nil {
-			return err
-		}
-	case *MonitoringInfo_Metric:
-		b.EncodeVarint(4<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Metric); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("MonitoringInfo.Data has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _MonitoringInfo_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*MonitoringInfo)
-	switch tag {
-	case 3: // data.monitoring_table_data
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(MonitoringTableData)
-		err := b.DecodeMessage(msg)
-		m.Data = &MonitoringInfo_MonitoringTableData{msg}
-		return true, err
-	case 4: // data.metric
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Metric)
-		err := b.DecodeMessage(msg)
-		m.Data = &MonitoringInfo_Metric{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _MonitoringInfo_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*MonitoringInfo)
-	// data
-	switch x := m.Data.(type) {
-	case *MonitoringInfo_MonitoringTableData:
-		s := proto.Size(x.MonitoringTableData)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *MonitoringInfo_Metric:
-		s := proto.Size(x.Metric)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 type MonitoringInfoTypeUrns struct {
@@ -529,16 +478,17 @@ func (m *MonitoringInfoTypeUrns) Reset()         { *m = MonitoringInfoTypeUrns{}
 func (m *MonitoringInfoTypeUrns) String() string { return proto.CompactTextString(m) }
 func (*MonitoringInfoTypeUrns) ProtoMessage()    {}
 func (*MonitoringInfoTypeUrns) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_f27e09e153e79ab4, []int{5}
+	return fileDescriptor_6039342a2ba47b72, []int{5}
 }
+
 func (m *MonitoringInfoTypeUrns) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MonitoringInfoTypeUrns.Unmarshal(m, b)
 }
 func (m *MonitoringInfoTypeUrns) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_MonitoringInfoTypeUrns.Marshal(b, m, deterministic)
 }
-func (dst *MonitoringInfoTypeUrns) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MonitoringInfoTypeUrns.Merge(dst, src)
+func (m *MonitoringInfoTypeUrns) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MonitoringInfoTypeUrns.Merge(m, src)
 }
 func (m *MonitoringInfoTypeUrns) XXX_Size() int {
 	return xxx_messageInfo_MonitoringInfoTypeUrns.Size(m)
@@ -566,16 +516,17 @@ func (m *Metric) Reset()         { *m = Metric{} }
 func (m *Metric) String() string { return proto.CompactTextString(m) }
 func (*Metric) ProtoMessage()    {}
 func (*Metric) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_f27e09e153e79ab4, []int{6}
+	return fileDescriptor_6039342a2ba47b72, []int{6}
 }
+
 func (m *Metric) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Metric.Unmarshal(m, b)
 }
 func (m *Metric) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Metric.Marshal(b, m, deterministic)
 }
-func (dst *Metric) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Metric.Merge(dst, src)
+func (m *Metric) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Metric.Merge(m, src)
 }
 func (m *Metric) XXX_Size() int {
 	return xxx_messageInfo_Metric.Size(m)
@@ -593,16 +544,20 @@ type isMetric_Data interface {
 type Metric_CounterData struct {
 	CounterData *CounterData `protobuf:"bytes,1,opt,name=counter_data,json=counterData,proto3,oneof"`
 }
+
 type Metric_DistributionData struct {
 	DistributionData *DistributionData `protobuf:"bytes,2,opt,name=distribution_data,json=distributionData,proto3,oneof"`
 }
+
 type Metric_ExtremaData struct {
 	ExtremaData *ExtremaData `protobuf:"bytes,3,opt,name=extrema_data,json=extremaData,proto3,oneof"`
 }
 
-func (*Metric_CounterData) isMetric_Data()      {}
+func (*Metric_CounterData) isMetric_Data() {}
+
 func (*Metric_DistributionData) isMetric_Data() {}
-func (*Metric_ExtremaData) isMetric_Data()      {}
+
+func (*Metric_ExtremaData) isMetric_Data() {}
 
 func (m *Metric) GetData() isMetric_Data {
 	if m != nil {
@@ -632,97 +587,13 @@ func (m *Metric) GetExtremaData() *ExtremaData {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*Metric) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _Metric_OneofMarshaler, _Metric_OneofUnmarshaler, _Metric_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*Metric) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*Metric_CounterData)(nil),
 		(*Metric_DistributionData)(nil),
 		(*Metric_ExtremaData)(nil),
 	}
-}
-
-func _Metric_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*Metric)
-	// data
-	switch x := m.Data.(type) {
-	case *Metric_CounterData:
-		b.EncodeVarint(1<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.CounterData); err != nil {
-			return err
-		}
-	case *Metric_DistributionData:
-		b.EncodeVarint(2<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.DistributionData); err != nil {
-			return err
-		}
-	case *Metric_ExtremaData:
-		b.EncodeVarint(3<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.ExtremaData); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("Metric.Data has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _Metric_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*Metric)
-	switch tag {
-	case 1: // data.counter_data
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(CounterData)
-		err := b.DecodeMessage(msg)
-		m.Data = &Metric_CounterData{msg}
-		return true, err
-	case 2: // data.distribution_data
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(DistributionData)
-		err := b.DecodeMessage(msg)
-		m.Data = &Metric_DistributionData{msg}
-		return true, err
-	case 3: // data.extrema_data
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ExtremaData)
-		err := b.DecodeMessage(msg)
-		m.Data = &Metric_ExtremaData{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _Metric_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*Metric)
-	// data
-	switch x := m.Data.(type) {
-	case *Metric_CounterData:
-		s := proto.Size(x.CounterData)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Metric_DistributionData:
-		s := proto.Size(x.DistributionData)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Metric_ExtremaData:
-		s := proto.Size(x.ExtremaData)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 // Data associated with a Counter or Gauge metric.
@@ -743,16 +614,17 @@ func (m *CounterData) Reset()         { *m = CounterData{} }
 func (m *CounterData) String() string { return proto.CompactTextString(m) }
 func (*CounterData) ProtoMessage()    {}
 func (*CounterData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_f27e09e153e79ab4, []int{7}
+	return fileDescriptor_6039342a2ba47b72, []int{7}
 }
+
 func (m *CounterData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CounterData.Unmarshal(m, b)
 }
 func (m *CounterData) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_CounterData.Marshal(b, m, deterministic)
 }
-func (dst *CounterData) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CounterData.Merge(dst, src)
+func (m *CounterData) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CounterData.Merge(m, src)
 }
 func (m *CounterData) XXX_Size() int {
 	return xxx_messageInfo_CounterData.Size(m)
@@ -770,15 +642,19 @@ type isCounterData_Value interface {
 type CounterData_Int64Value struct {
 	Int64Value int64 `protobuf:"varint,1,opt,name=int64_value,json=int64Value,proto3,oneof"`
 }
+
 type CounterData_DoubleValue struct {
 	DoubleValue float64 `protobuf:"fixed64,2,opt,name=double_value,json=doubleValue,proto3,oneof"`
 }
+
 type CounterData_StringValue struct {
 	StringValue string `protobuf:"bytes,3,opt,name=string_value,json=stringValue,proto3,oneof"`
 }
 
-func (*CounterData_Int64Value) isCounterData_Value()  {}
+func (*CounterData_Int64Value) isCounterData_Value() {}
+
 func (*CounterData_DoubleValue) isCounterData_Value() {}
+
 func (*CounterData_StringValue) isCounterData_Value() {}
 
 func (m *CounterData) GetValue() isCounterData_Value {
@@ -809,83 +685,13 @@ func (m *CounterData) GetStringValue() string {
 	return ""
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*CounterData) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _CounterData_OneofMarshaler, _CounterData_OneofUnmarshaler, _CounterData_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*CounterData) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*CounterData_Int64Value)(nil),
 		(*CounterData_DoubleValue)(nil),
 		(*CounterData_StringValue)(nil),
 	}
-}
-
-func _CounterData_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*CounterData)
-	// value
-	switch x := m.Value.(type) {
-	case *CounterData_Int64Value:
-		b.EncodeVarint(1<<3 | proto.WireVarint)
-		b.EncodeVarint(uint64(x.Int64Value))
-	case *CounterData_DoubleValue:
-		b.EncodeVarint(2<<3 | proto.WireFixed64)
-		b.EncodeFixed64(math.Float64bits(x.DoubleValue))
-	case *CounterData_StringValue:
-		b.EncodeVarint(3<<3 | proto.WireBytes)
-		b.EncodeStringBytes(x.StringValue)
-	case nil:
-	default:
-		return fmt.Errorf("CounterData.Value has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _CounterData_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*CounterData)
-	switch tag {
-	case 1: // value.int64_value
-		if wire != proto.WireVarint {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeVarint()
-		m.Value = &CounterData_Int64Value{int64(x)}
-		return true, err
-	case 2: // value.double_value
-		if wire != proto.WireFixed64 {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeFixed64()
-		m.Value = &CounterData_DoubleValue{math.Float64frombits(x)}
-		return true, err
-	case 3: // value.string_value
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.Value = &CounterData_StringValue{x}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _CounterData_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*CounterData)
-	// value
-	switch x := m.Value.(type) {
-	case *CounterData_Int64Value:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(x.Int64Value))
-	case *CounterData_DoubleValue:
-		n += 1 // tag and wire
-		n += 8
-	case *CounterData_StringValue:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.StringValue)))
-		n += len(x.StringValue)
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 // Extrema messages are used for calculating
@@ -904,16 +710,17 @@ func (m *ExtremaData) Reset()         { *m = ExtremaData{} }
 func (m *ExtremaData) String() string { return proto.CompactTextString(m) }
 func (*ExtremaData) ProtoMessage()    {}
 func (*ExtremaData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_f27e09e153e79ab4, []int{8}
+	return fileDescriptor_6039342a2ba47b72, []int{8}
 }
+
 func (m *ExtremaData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ExtremaData.Unmarshal(m, b)
 }
 func (m *ExtremaData) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ExtremaData.Marshal(b, m, deterministic)
 }
-func (dst *ExtremaData) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ExtremaData.Merge(dst, src)
+func (m *ExtremaData) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ExtremaData.Merge(m, src)
 }
 func (m *ExtremaData) XXX_Size() int {
 	return xxx_messageInfo_ExtremaData.Size(m)
@@ -931,11 +738,13 @@ type isExtremaData_Extrema interface {
 type ExtremaData_IntExtremaData struct {
 	IntExtremaData *IntExtremaData `protobuf:"bytes,1,opt,name=int_extrema_data,json=intExtremaData,proto3,oneof"`
 }
+
 type ExtremaData_DoubleExtremaData struct {
 	DoubleExtremaData *DoubleExtremaData `protobuf:"bytes,2,opt,name=double_extrema_data,json=doubleExtremaData,proto3,oneof"`
 }
 
-func (*ExtremaData_IntExtremaData) isExtremaData_Extrema()    {}
+func (*ExtremaData_IntExtremaData) isExtremaData_Extrema() {}
+
 func (*ExtremaData_DoubleExtremaData) isExtremaData_Extrema() {}
 
 func (m *ExtremaData) GetExtrema() isExtremaData_Extrema {
@@ -959,78 +768,12 @@ func (m *ExtremaData) GetDoubleExtremaData() *DoubleExtremaData {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*ExtremaData) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _ExtremaData_OneofMarshaler, _ExtremaData_OneofUnmarshaler, _ExtremaData_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*ExtremaData) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*ExtremaData_IntExtremaData)(nil),
 		(*ExtremaData_DoubleExtremaData)(nil),
 	}
-}
-
-func _ExtremaData_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*ExtremaData)
-	// extrema
-	switch x := m.Extrema.(type) {
-	case *ExtremaData_IntExtremaData:
-		b.EncodeVarint(1<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.IntExtremaData); err != nil {
-			return err
-		}
-	case *ExtremaData_DoubleExtremaData:
-		b.EncodeVarint(2<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.DoubleExtremaData); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("ExtremaData.Extrema has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _ExtremaData_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*ExtremaData)
-	switch tag {
-	case 1: // extrema.int_extrema_data
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(IntExtremaData)
-		err := b.DecodeMessage(msg)
-		m.Extrema = &ExtremaData_IntExtremaData{msg}
-		return true, err
-	case 2: // extrema.double_extrema_data
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(DoubleExtremaData)
-		err := b.DecodeMessage(msg)
-		m.Extrema = &ExtremaData_DoubleExtremaData{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _ExtremaData_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*ExtremaData)
-	// extrema
-	switch x := m.Extrema.(type) {
-	case *ExtremaData_IntExtremaData:
-		s := proto.Size(x.IntExtremaData)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ExtremaData_DoubleExtremaData:
-		s := proto.Size(x.DoubleExtremaData)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 type IntExtremaData struct {
@@ -1044,16 +787,17 @@ func (m *IntExtremaData) Reset()         { *m = IntExtremaData{} }
 func (m *IntExtremaData) String() string { return proto.CompactTextString(m) }
 func (*IntExtremaData) ProtoMessage()    {}
 func (*IntExtremaData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_f27e09e153e79ab4, []int{9}
+	return fileDescriptor_6039342a2ba47b72, []int{9}
 }
+
 func (m *IntExtremaData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_IntExtremaData.Unmarshal(m, b)
 }
 func (m *IntExtremaData) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_IntExtremaData.Marshal(b, m, deterministic)
 }
-func (dst *IntExtremaData) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_IntExtremaData.Merge(dst, src)
+func (m *IntExtremaData) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_IntExtremaData.Merge(m, src)
 }
 func (m *IntExtremaData) XXX_Size() int {
 	return xxx_messageInfo_IntExtremaData.Size(m)
@@ -1082,16 +826,17 @@ func (m *DoubleExtremaData) Reset()         { *m = DoubleExtremaData{} }
 func (m *DoubleExtremaData) String() string { return proto.CompactTextString(m) }
 func (*DoubleExtremaData) ProtoMessage()    {}
 func (*DoubleExtremaData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_f27e09e153e79ab4, []int{10}
+	return fileDescriptor_6039342a2ba47b72, []int{10}
 }
+
 func (m *DoubleExtremaData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DoubleExtremaData.Unmarshal(m, b)
 }
 func (m *DoubleExtremaData) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_DoubleExtremaData.Marshal(b, m, deterministic)
 }
-func (dst *DoubleExtremaData) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DoubleExtremaData.Merge(dst, src)
+func (m *DoubleExtremaData) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DoubleExtremaData.Merge(m, src)
 }
 func (m *DoubleExtremaData) XXX_Size() int {
 	return xxx_messageInfo_DoubleExtremaData.Size(m)
@@ -1127,16 +872,17 @@ func (m *DistributionData) Reset()         { *m = DistributionData{} }
 func (m *DistributionData) String() string { return proto.CompactTextString(m) }
 func (*DistributionData) ProtoMessage()    {}
 func (*DistributionData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_f27e09e153e79ab4, []int{11}
+	return fileDescriptor_6039342a2ba47b72, []int{11}
 }
+
 func (m *DistributionData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DistributionData.Unmarshal(m, b)
 }
 func (m *DistributionData) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_DistributionData.Marshal(b, m, deterministic)
 }
-func (dst *DistributionData) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DistributionData.Merge(dst, src)
+func (m *DistributionData) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DistributionData.Merge(m, src)
 }
 func (m *DistributionData) XXX_Size() int {
 	return xxx_messageInfo_DistributionData.Size(m)
@@ -1154,11 +900,13 @@ type isDistributionData_Distribution interface {
 type DistributionData_IntDistributionData struct {
 	IntDistributionData *IntDistributionData `protobuf:"bytes,1,opt,name=int_distribution_data,json=intDistributionData,proto3,oneof"`
 }
+
 type DistributionData_DoubleDistributionData struct {
 	DoubleDistributionData *DoubleDistributionData `protobuf:"bytes,2,opt,name=double_distribution_data,json=doubleDistributionData,proto3,oneof"`
 }
 
-func (*DistributionData_IntDistributionData) isDistributionData_Distribution()    {}
+func (*DistributionData_IntDistributionData) isDistributionData_Distribution() {}
+
 func (*DistributionData_DoubleDistributionData) isDistributionData_Distribution() {}
 
 func (m *DistributionData) GetDistribution() isDistributionData_Distribution {
@@ -1182,78 +930,12 @@ func (m *DistributionData) GetDoubleDistributionData() *DoubleDistributionData {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*DistributionData) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _DistributionData_OneofMarshaler, _DistributionData_OneofUnmarshaler, _DistributionData_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*DistributionData) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*DistributionData_IntDistributionData)(nil),
 		(*DistributionData_DoubleDistributionData)(nil),
 	}
-}
-
-func _DistributionData_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*DistributionData)
-	// distribution
-	switch x := m.Distribution.(type) {
-	case *DistributionData_IntDistributionData:
-		b.EncodeVarint(1<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.IntDistributionData); err != nil {
-			return err
-		}
-	case *DistributionData_DoubleDistributionData:
-		b.EncodeVarint(2<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.DoubleDistributionData); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("DistributionData.Distribution has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _DistributionData_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*DistributionData)
-	switch tag {
-	case 1: // distribution.int_distribution_data
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(IntDistributionData)
-		err := b.DecodeMessage(msg)
-		m.Distribution = &DistributionData_IntDistributionData{msg}
-		return true, err
-	case 2: // distribution.double_distribution_data
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(DoubleDistributionData)
-		err := b.DecodeMessage(msg)
-		m.Distribution = &DistributionData_DoubleDistributionData{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _DistributionData_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*DistributionData)
-	// distribution
-	switch x := m.Distribution.(type) {
-	case *DistributionData_IntDistributionData:
-		s := proto.Size(x.IntDistributionData)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *DistributionData_DoubleDistributionData:
-		s := proto.Size(x.DoubleDistributionData)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 type IntDistributionData struct {
@@ -1270,16 +952,17 @@ func (m *IntDistributionData) Reset()         { *m = IntDistributionData{} }
 func (m *IntDistributionData) String() string { return proto.CompactTextString(m) }
 func (*IntDistributionData) ProtoMessage()    {}
 func (*IntDistributionData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_f27e09e153e79ab4, []int{12}
+	return fileDescriptor_6039342a2ba47b72, []int{12}
 }
+
 func (m *IntDistributionData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_IntDistributionData.Unmarshal(m, b)
 }
 func (m *IntDistributionData) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_IntDistributionData.Marshal(b, m, deterministic)
 }
-func (dst *IntDistributionData) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_IntDistributionData.Merge(dst, src)
+func (m *IntDistributionData) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_IntDistributionData.Merge(m, src)
 }
 func (m *IntDistributionData) XXX_Size() int {
 	return xxx_messageInfo_IntDistributionData.Size(m)
@@ -1332,16 +1015,17 @@ func (m *DoubleDistributionData) Reset()         { *m = DoubleDistributionData{}
 func (m *DoubleDistributionData) String() string { return proto.CompactTextString(m) }
 func (*DoubleDistributionData) ProtoMessage()    {}
 func (*DoubleDistributionData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_f27e09e153e79ab4, []int{13}
+	return fileDescriptor_6039342a2ba47b72, []int{13}
 }
+
 func (m *DoubleDistributionData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DoubleDistributionData.Unmarshal(m, b)
 }
 func (m *DoubleDistributionData) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_DoubleDistributionData.Marshal(b, m, deterministic)
 }
-func (dst *DoubleDistributionData) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DoubleDistributionData.Merge(dst, src)
+func (m *DoubleDistributionData) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DoubleDistributionData.Merge(m, src)
 }
 func (m *DoubleDistributionData) XXX_Size() int {
 	return xxx_messageInfo_DoubleDistributionData.Size(m)
@@ -1414,16 +1098,17 @@ func (m *MonitoringTableData) Reset()         { *m = MonitoringTableData{} }
 func (m *MonitoringTableData) String() string { return proto.CompactTextString(m) }
 func (*MonitoringTableData) ProtoMessage()    {}
 func (*MonitoringTableData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_f27e09e153e79ab4, []int{14}
+	return fileDescriptor_6039342a2ba47b72, []int{14}
 }
+
 func (m *MonitoringTableData) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MonitoringTableData.Unmarshal(m, b)
 }
 func (m *MonitoringTableData) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_MonitoringTableData.Marshal(b, m, deterministic)
 }
-func (dst *MonitoringTableData) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MonitoringTableData.Merge(dst, src)
+func (m *MonitoringTableData) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MonitoringTableData.Merge(m, src)
 }
 func (m *MonitoringTableData) XXX_Size() int {
 	return xxx_messageInfo_MonitoringTableData.Size(m)
@@ -1466,16 +1151,17 @@ func (m *MonitoringTableData_MonitoringColumnValue) Reset() {
 func (m *MonitoringTableData_MonitoringColumnValue) String() string { return proto.CompactTextString(m) }
 func (*MonitoringTableData_MonitoringColumnValue) ProtoMessage()    {}
 func (*MonitoringTableData_MonitoringColumnValue) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_f27e09e153e79ab4, []int{14, 0}
+	return fileDescriptor_6039342a2ba47b72, []int{14, 0}
 }
+
 func (m *MonitoringTableData_MonitoringColumnValue) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MonitoringTableData_MonitoringColumnValue.Unmarshal(m, b)
 }
 func (m *MonitoringTableData_MonitoringColumnValue) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_MonitoringTableData_MonitoringColumnValue.Marshal(b, m, deterministic)
 }
-func (dst *MonitoringTableData_MonitoringColumnValue) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MonitoringTableData_MonitoringColumnValue.Merge(dst, src)
+func (m *MonitoringTableData_MonitoringColumnValue) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MonitoringTableData_MonitoringColumnValue.Merge(m, src)
 }
 func (m *MonitoringTableData_MonitoringColumnValue) XXX_Size() int {
 	return xxx_messageInfo_MonitoringTableData_MonitoringColumnValue.Size(m)
@@ -1493,22 +1179,28 @@ type isMonitoringTableData_MonitoringColumnValue_Value interface {
 type MonitoringTableData_MonitoringColumnValue_Int64Value struct {
 	Int64Value int64 `protobuf:"varint,1,opt,name=int64_value,json=int64Value,proto3,oneof"`
 }
+
 type MonitoringTableData_MonitoringColumnValue_DoubleValue struct {
 	DoubleValue float64 `protobuf:"fixed64,2,opt,name=double_value,json=doubleValue,proto3,oneof"`
 }
+
 type MonitoringTableData_MonitoringColumnValue_StringValue struct {
 	StringValue string `protobuf:"bytes,3,opt,name=string_value,json=stringValue,proto3,oneof"`
 }
+
 type MonitoringTableData_MonitoringColumnValue_Timestamp struct {
 	Timestamp *timestamp.Timestamp `protobuf:"bytes,4,opt,name=timestamp,proto3,oneof"`
 }
 
 func (*MonitoringTableData_MonitoringColumnValue_Int64Value) isMonitoringTableData_MonitoringColumnValue_Value() {
 }
+
 func (*MonitoringTableData_MonitoringColumnValue_DoubleValue) isMonitoringTableData_MonitoringColumnValue_Value() {
 }
+
 func (*MonitoringTableData_MonitoringColumnValue_StringValue) isMonitoringTableData_MonitoringColumnValue_Value() {
 }
+
 func (*MonitoringTableData_MonitoringColumnValue_Timestamp) isMonitoringTableData_MonitoringColumnValue_Value() {
 }
 
@@ -1547,102 +1239,14 @@ func (m *MonitoringTableData_MonitoringColumnValue) GetTimestamp() *timestamp.Ti
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*MonitoringTableData_MonitoringColumnValue) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _MonitoringTableData_MonitoringColumnValue_OneofMarshaler, _MonitoringTableData_MonitoringColumnValue_OneofUnmarshaler, _MonitoringTableData_MonitoringColumnValue_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*MonitoringTableData_MonitoringColumnValue) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*MonitoringTableData_MonitoringColumnValue_Int64Value)(nil),
 		(*MonitoringTableData_MonitoringColumnValue_DoubleValue)(nil),
 		(*MonitoringTableData_MonitoringColumnValue_StringValue)(nil),
 		(*MonitoringTableData_MonitoringColumnValue_Timestamp)(nil),
 	}
-}
-
-func _MonitoringTableData_MonitoringColumnValue_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*MonitoringTableData_MonitoringColumnValue)
-	// value
-	switch x := m.Value.(type) {
-	case *MonitoringTableData_MonitoringColumnValue_Int64Value:
-		b.EncodeVarint(1<<3 | proto.WireVarint)
-		b.EncodeVarint(uint64(x.Int64Value))
-	case *MonitoringTableData_MonitoringColumnValue_DoubleValue:
-		b.EncodeVarint(2<<3 | proto.WireFixed64)
-		b.EncodeFixed64(math.Float64bits(x.DoubleValue))
-	case *MonitoringTableData_MonitoringColumnValue_StringValue:
-		b.EncodeVarint(3<<3 | proto.WireBytes)
-		b.EncodeStringBytes(x.StringValue)
-	case *MonitoringTableData_MonitoringColumnValue_Timestamp:
-		b.EncodeVarint(4<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Timestamp); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("MonitoringTableData_MonitoringColumnValue.Value has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _MonitoringTableData_MonitoringColumnValue_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*MonitoringTableData_MonitoringColumnValue)
-	switch tag {
-	case 1: // value.int64_value
-		if wire != proto.WireVarint {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeVarint()
-		m.Value = &MonitoringTableData_MonitoringColumnValue_Int64Value{int64(x)}
-		return true, err
-	case 2: // value.double_value
-		if wire != proto.WireFixed64 {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeFixed64()
-		m.Value = &MonitoringTableData_MonitoringColumnValue_DoubleValue{math.Float64frombits(x)}
-		return true, err
-	case 3: // value.string_value
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.Value = &MonitoringTableData_MonitoringColumnValue_StringValue{x}
-		return true, err
-	case 4: // value.timestamp
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(timestamp.Timestamp)
-		err := b.DecodeMessage(msg)
-		m.Value = &MonitoringTableData_MonitoringColumnValue_Timestamp{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _MonitoringTableData_MonitoringColumnValue_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*MonitoringTableData_MonitoringColumnValue)
-	// value
-	switch x := m.Value.(type) {
-	case *MonitoringTableData_MonitoringColumnValue_Int64Value:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(x.Int64Value))
-	case *MonitoringTableData_MonitoringColumnValue_DoubleValue:
-		n += 1 // tag and wire
-		n += 8
-	case *MonitoringTableData_MonitoringColumnValue_StringValue:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.StringValue)))
-		n += len(x.StringValue)
-	case *MonitoringTableData_MonitoringColumnValue_Timestamp:
-		s := proto.Size(x.Timestamp)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 type MonitoringTableData_MonitoringRow struct {
@@ -1656,16 +1260,17 @@ func (m *MonitoringTableData_MonitoringRow) Reset()         { *m = MonitoringTab
 func (m *MonitoringTableData_MonitoringRow) String() string { return proto.CompactTextString(m) }
 func (*MonitoringTableData_MonitoringRow) ProtoMessage()    {}
 func (*MonitoringTableData_MonitoringRow) Descriptor() ([]byte, []int) {
-	return fileDescriptor_metrics_f27e09e153e79ab4, []int{14, 1}
+	return fileDescriptor_6039342a2ba47b72, []int{14, 1}
 }
+
 func (m *MonitoringTableData_MonitoringRow) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_MonitoringTableData_MonitoringRow.Unmarshal(m, b)
 }
 func (m *MonitoringTableData_MonitoringRow) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_MonitoringTableData_MonitoringRow.Marshal(b, m, deterministic)
 }
-func (dst *MonitoringTableData_MonitoringRow) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MonitoringTableData_MonitoringRow.Merge(dst, src)
+func (m *MonitoringTableData_MonitoringRow) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MonitoringTableData_MonitoringRow.Merge(m, src)
 }
 func (m *MonitoringTableData_MonitoringRow) XXX_Size() int {
 	return xxx_messageInfo_MonitoringTableData_MonitoringRow.Size(m)
@@ -1688,7 +1293,7 @@ var E_LabelProps = &proto.ExtensionDesc{
 	ExtensionType: (*MonitoringInfoLabelProps)(nil),
 	Field:         127337796,
 	Name:          "org.apache.beam.model.pipeline.v1.label_props",
-	Tag:           "bytes,127337796,opt,name=label_props,json=labelProps",
+	Tag:           "bytes,127337796,opt,name=label_props",
 	Filename:      "metrics.proto",
 }
 
@@ -1697,11 +1302,14 @@ var E_MonitoringInfoSpec = &proto.ExtensionDesc{
 	ExtensionType: (*MonitoringInfoSpec)(nil),
 	Field:         207174266,
 	Name:          "org.apache.beam.model.pipeline.v1.monitoring_info_spec",
-	Tag:           "bytes,207174266,opt,name=monitoring_info_spec,json=monitoringInfoSpec",
+	Tag:           "bytes,207174266,opt,name=monitoring_info_spec",
 	Filename:      "metrics.proto",
 }
 
 func init() {
+	proto.RegisterEnum("org.apache.beam.model.pipeline.v1.MonitoringInfoSpecs_Enum", MonitoringInfoSpecs_Enum_name, MonitoringInfoSpecs_Enum_value)
+	proto.RegisterEnum("org.apache.beam.model.pipeline.v1.MonitoringInfo_MonitoringInfoLabels", MonitoringInfo_MonitoringInfoLabels_name, MonitoringInfo_MonitoringInfoLabels_value)
+	proto.RegisterEnum("org.apache.beam.model.pipeline.v1.MonitoringInfoTypeUrns_Enum", MonitoringInfoTypeUrns_Enum_name, MonitoringInfoTypeUrns_Enum_value)
 	proto.RegisterType((*MonitoringInfoSpec)(nil), "org.apache.beam.model.pipeline.v1.MonitoringInfoSpec")
 	proto.RegisterType((*Annotation)(nil), "org.apache.beam.model.pipeline.v1.Annotation")
 	proto.RegisterType((*MonitoringInfoSpecs)(nil), "org.apache.beam.model.pipeline.v1.MonitoringInfoSpecs")
@@ -1720,16 +1328,13 @@ func init() {
 	proto.RegisterType((*MonitoringTableData)(nil), "org.apache.beam.model.pipeline.v1.MonitoringTableData")
 	proto.RegisterType((*MonitoringTableData_MonitoringColumnValue)(nil), "org.apache.beam.model.pipeline.v1.MonitoringTableData.MonitoringColumnValue")
 	proto.RegisterType((*MonitoringTableData_MonitoringRow)(nil), "org.apache.beam.model.pipeline.v1.MonitoringTableData.MonitoringRow")
-	proto.RegisterEnum("org.apache.beam.model.pipeline.v1.MonitoringInfoSpecs_Enum", MonitoringInfoSpecs_Enum_name, MonitoringInfoSpecs_Enum_value)
-	proto.RegisterEnum("org.apache.beam.model.pipeline.v1.MonitoringInfo_MonitoringInfoLabels", MonitoringInfo_MonitoringInfoLabels_name, MonitoringInfo_MonitoringInfoLabels_value)
-	proto.RegisterEnum("org.apache.beam.model.pipeline.v1.MonitoringInfoTypeUrns_Enum", MonitoringInfoTypeUrns_Enum_name, MonitoringInfoTypeUrns_Enum_value)
 	proto.RegisterExtension(E_LabelProps)
 	proto.RegisterExtension(E_MonitoringInfoSpec)
 }
 
-func init() { proto.RegisterFile("metrics.proto", fileDescriptor_metrics_f27e09e153e79ab4) }
+func init() { proto.RegisterFile("metrics.proto", fileDescriptor_6039342a2ba47b72) }
 
-var fileDescriptor_metrics_f27e09e153e79ab4 = []byte{
+var fileDescriptor_6039342a2ba47b72 = []byte{
 	// 1897 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x58, 0xdd, 0x6f, 0x23, 0x57,
 	0x15, 0xcf, 0xb5, 0x1d, 0xa7, 0x39, 0x4e, 0x82, 0x73, 0xb3, 0xbb, 0x75, 0x47, 0xac, 0xb8, 0xeb,

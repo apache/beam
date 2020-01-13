@@ -27,6 +27,8 @@ enough to require extensive changes to this and associated modules.
 
 This module is experimental, no backwards compatibility guarantees.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 

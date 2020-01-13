@@ -20,6 +20,8 @@
 
 """Counters collect the progress of the Worker for reporting to the service."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
