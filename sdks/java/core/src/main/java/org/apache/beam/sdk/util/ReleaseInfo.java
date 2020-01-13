@@ -49,7 +49,7 @@ public abstract class ReleaseInfo implements Serializable {
     return getProperties().get("name");
   }
 
-  /** Provides the BEAM version. ie: 2.18.0-SNAPSHOT*/
+  /** Provides the BEAM version. ie: 2.18.0-SNAPSHOT */
   public String getVersion() {
     return getProperties().get("version");
   }
