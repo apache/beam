@@ -2645,7 +2645,8 @@ public class BigQueryIO {
                 getIgnoreUnknownValues(),
                 elementCoder,
                 rowWriterFactory,
-                getKmsKey());
+                getKmsKey(),
+                getClustering() != null);
         batchLoads.setTestServices(getBigQueryServices());
         if (getSchemaUpdateOptions() != null) {
           batchLoads.setSchemaUpdateOptions(getSchemaUpdateOptions());
