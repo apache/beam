@@ -42,10 +42,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
  * RabbitMQ multiplexes over a single Connection using Channels so it should not be necessary to
  * open multiple Connections to a single host. This class implements {@link ChannelLeaser} by
  * maintaining a map of lessees and their associated Channels over a single Connection.
- *
- * <p>Note: it is unclear what, if anything, is ultimately responsible for calling close() here; it
- * should only happen on Beam runner shutdown, or if it were knowable that there were no current
- * Readers or Writers interacting with Rabbit.
  */
 @ThreadSafe
 class ChannelCache implements ChannelLeaser, Closeable {
