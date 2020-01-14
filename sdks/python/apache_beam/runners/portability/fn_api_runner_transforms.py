@@ -317,7 +317,8 @@ def memoize_on_instance(f):
 class TransformContext(object):
 
   _KNOWN_CODER_URNS = set(
-      value.urn for value in common_urns.coders.__dict__.values())
+      value.urn for key, value in common_urns.coders.__dict__.items()
+      if not key.startswith('_'))
 
   def __init__(self,
                components,  # type: beam_runner_api_pb2.Components
