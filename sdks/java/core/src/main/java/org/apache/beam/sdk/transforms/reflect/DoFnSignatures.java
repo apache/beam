@@ -1133,11 +1133,8 @@ public class DoFnSignatures {
       return Parameter.timerParameter(timerDecl);
 
     } else if (hasTimerIdAnnotation(param.getAnnotations())) {
-      String timerId = getTimerId(param.getAnnotations());
       boolean isValidTimerIdForTimerFamily =
-          DoFn.DEFAULT_TIMER_ID.equals(timerId)
-              && fnContext.getTimerFamilyDeclarations().size() > 0
-              && rawType.equals(String.class);
+          fnContext.getTimerFamilyDeclarations().size() > 0 && rawType.equals(String.class);
       paramErrors.checkArgument(
           isValidTimerIdForTimerFamily, "%s not allowed here", DoFn.TimerId.class.getSimpleName());
       return Parameter.timerIdParameter();
