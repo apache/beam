@@ -109,7 +109,7 @@ public class RabbitMqIOTest implements Serializable {
     try {
       connectionHandler.close();
     } catch (IOException e) {
-      /* ignored */
+      LOG.warn("Error shutting down ConnectionHandler after test suite", e);
     }
   }
 

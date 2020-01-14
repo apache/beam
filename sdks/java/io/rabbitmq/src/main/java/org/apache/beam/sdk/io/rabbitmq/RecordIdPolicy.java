@@ -35,13 +35,12 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 public interface RecordIdPolicy extends SerializableFunction<RabbitMqMessage, byte[]> {
 
   /**
-   * @return a policy that defines the message id by the amqp {@code correlation-id} property
-   * @deprecated CorrelationId is not a good per-message unique identifier as many messages may be
-   *     correlated to a single upstream event. This is here for Beam legacy purposes (the old
-   *     RabbitMqIO used this property exclusively for unique identification), but consider using
-   *     messageId instead.
+   * @return a policy that defines the message id by the amqp {@code correlation-id} property. Note:
+   *     CorrelationId is not a good per-message unique identifier as many messages may be
+   *     correlated to a single upstream event. This is principally here for Beam legacy purposes
+   *     (the old RabbitMqIO used this property exclusively for unique identification), but consider
+   *     using {@link #messageId()} instead.
    */
-  @Deprecated
   static RecordIdPolicy correlationId() {
     return new CorrelationIdPropertyPolicy();
   }

@@ -109,6 +109,17 @@ class ConnectionHandler implements ChannelLeaser, Closeable {
         // ignore
       }
     }
+    if (channelsByLessee.isEmpty()) {
+      synchronized (this) {
+        if (channelsByLessee.isEmpty()) {
+          try {
+            close();
+          } catch (IOException e) {
+            // optimization; should be ok if this fails
+          }
+        }
+      }
+    }
   }
 
   private Channel getChannel(UUID lessee) throws IOException {
