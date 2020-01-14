@@ -57,11 +57,7 @@ public class TestExpansionService {
       Schema schema = new Schema.Parser().parse(rawSchema);
       return ImmutableMap.of(
           TEST_COUNT_URN, spec -> Count.perElement(),
-          TEST_FILTER_URN,
-              spec ->
-                  Filter.lessThanEq(
-                      // TODO(BEAM-6587): Use strings directly rather than longs.
-                      (long) spec.getPayload().toStringUtf8().charAt(0)),
+          TEST_FILTER_URN, spec -> Filter.lessThanEq(spec.getPayload().toStringUtf8()),
           TEST_PARQUET_READ_URN,
               spec ->
                   new PTransform<PBegin, PCollection<GenericRecord>>() {
