@@ -548,6 +548,9 @@ public class ParDo {
     for (OnTimerMethod method : signature.onTimerMethods().values()) {
       validateWindowTypeForMethod(actualWindowT, method);
     }
+    for (DoFnSignature.OnTimerFamilyMethod method : signature.onTimerFamilyMethods().values()) {
+      validateWindowTypeForMethod(actualWindowT, method);
+    }
   }
 
   private static void validateWindowTypeForMethod(

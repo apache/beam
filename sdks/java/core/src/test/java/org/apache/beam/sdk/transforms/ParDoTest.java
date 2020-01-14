@@ -4313,7 +4313,7 @@ public class ParDoTest implements Serializable {
               r.output("process");
             }
 
-            @OnTimer(timerFamilyId)
+            @OnTimerFamily(timerFamilyId)
             public void onTimer(
                 @TimerId String timerId,
                 @Timestamp Instant ts,
@@ -4361,13 +4361,13 @@ public class ParDoTest implements Serializable {
               r.output("process");
             }
 
-            @OnTimer(timerFamilyId1)
+            @OnTimerFamily(timerFamilyId1)
             public void onTimer1(
                 @TimerId String timerId, @Timestamp Instant ts, OutputReceiver<String> r) {
               r.output(timerId);
             }
 
-            @OnTimer(timerFamilyId2)
+            @OnTimerFamily(timerFamilyId2)
             public void onTimer2(
                 @TimerId String timerId, @Timestamp Instant ts, OutputReceiver<String> r) {
               r.output(timerId);
@@ -4404,7 +4404,7 @@ public class ParDoTest implements Serializable {
               r.output(3);
             }
 
-            @OnTimer(timerId)
+            @OnTimerFamily(timerId)
             public void onTimer(TimeDomain timeDomain, OutputReceiver<Integer> r) {
               if (timeDomain.equals(TimeDomain.PROCESSING_TIME)) {
                 r.output(42);

@@ -120,6 +120,10 @@ public abstract class DoFnSignature {
   @Nullable
   public abstract Map<String, OnTimerMethod> onTimerMethods();
 
+  /** Details about this {@link DoFn}'s {@link DoFn.OnTimerFamily} methods. */
+  @Nullable
+  public abstract Map<String, OnTimerFamilyMethod> onTimerFamilyMethods();
+
   /** @deprecated use {@link #usesState()}, it's cleaner */
   @Deprecated
   public boolean isStateful() {
@@ -177,6 +181,8 @@ public abstract class DoFnSignature {
         Map<String, FieldAccessDeclaration> fieldAccessDeclaration);
 
     abstract Builder setOnTimerMethods(Map<String, OnTimerMethod> onTimerMethods);
+
+    abstract Builder setOnTimerFamilyMethods(Map<String, OnTimerFamilyMethod> onTimerFamilyMethods);
 
     abstract DoFnSignature build();
   }
@@ -870,6 +876,48 @@ public abstract class DoFnSignature {
         TypeDescriptor<? extends BoundedWindow> windowT,
         List<Parameter> extraParameters) {
       return new AutoValue_DoFnSignature_OnTimerMethod(
+          id,
+          targetMethod,
+          requiresStableInput,
+          windowT,
+          Collections.unmodifiableList(extraParameters));
+    }
+  }
+
+  /** Describes a {@link DoFn.OnTimerFamily} method. */
+  @AutoValue
+  public abstract static class OnTimerFamilyMethod implements MethodWithExtraParameters {
+
+    /** The id on the method's {@link DoFn.TimerId} annotation. */
+    public abstract String id();
+
+    /** The annotated method itself. */
+    @Override
+    public abstract Method targetMethod();
+
+    /**
+     * Whether this method requires stable input, expressed via {@link
+     * org.apache.beam.sdk.transforms.DoFn.RequiresStableInput}. For timers, this means that any
+     * state must be stably persisted prior to calling it.
+     */
+    public abstract boolean requiresStableInput();
+
+    /** The window type used by this method, if any. */
+    @Nullable
+    @Override
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
+    /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
+    public abstract List<Parameter> extraParameters();
+
+    static OnTimerFamilyMethod create(
+        Method targetMethod,
+        String id,
+        boolean requiresStableInput,
+        TypeDescriptor<? extends BoundedWindow> windowT,
+        List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_OnTimerFamilyMethod(
           id,
           targetMethod,
           requiresStableInput,

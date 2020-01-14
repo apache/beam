@@ -130,6 +130,21 @@ public class DoFnSignatures {
           Parameter.TimerFamilyParameter.class,
           Parameter.TimerIdParameter.class);
 
+  private static final ImmutableList<Class<? extends Parameter>>
+      ALLOWED_ON_TIMER_FAMILY_PARAMETERS =
+          ImmutableList.of(
+              Parameter.OnTimerContextParameter.class,
+              Parameter.TimestampParameter.class,
+              Parameter.TimeDomainParameter.class,
+              Parameter.WindowParameter.class,
+              Parameter.PipelineOptionsParameter.class,
+              Parameter.OutputReceiverParameter.class,
+              Parameter.TaggedOutputReceiverParameter.class,
+              Parameter.TimerParameter.class,
+              Parameter.StateParameter.class,
+              Parameter.TimerFamilyParameter.class,
+              Parameter.TimerIdParameter.class);
+
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_ON_WINDOW_EXPIRATION_PARAMETERS =
           ImmutableList.of(
@@ -403,34 +418,55 @@ public class DoFnSignatures {
         Maps.newHashMapWithExpectedSize(onTimerMethods.size());
     for (Method onTimerMethod : onTimerMethods) {
       String id = onTimerMethod.getAnnotation(DoFn.OnTimer.class).value();
-      boolean isTimerOrTimerFamilyDeclared =
-          fnContext.getTimerDeclarations().containsKey(id)
-              || fnContext.getTimerFamilyDeclarations().containsKey(id);
       errors.checkArgument(
-          isTimerOrTimerFamilyDeclared,
+          fnContext.getTimerDeclarations().containsKey(id),
           "Callback %s is for undeclared timer %s",
           onTimerMethod,
           id);
 
       TimerDeclaration timerDecl = fnContext.getTimerDeclarations().get(id);
-      TimerFamilyDeclaration timerFamilyDec1 = fnContext.getTimerFamilyDeclarations().get(id);
-      Class<?> declaringClass =
-          timerDecl == null
-              ? timerFamilyDec1.field().getDeclaringClass()
-              : timerDecl.field().getDeclaringClass();
-
       errors.checkArgument(
-          declaringClass.equals(getDeclaringClass(onTimerMethod)),
+          timerDecl.field().getDeclaringClass().equals(getDeclaringClass(onTimerMethod)),
           "Callback %s is for timer %s declared in a different class %s."
               + " Timer callbacks must be declared in the same lexical scope as their timer",
           onTimerMethod,
           id,
-          declaringClass.getCanonicalName());
+          timerDecl.field().getDeclaringClass().getCanonicalName());
 
       onTimerMethodMap.put(
           id, analyzeOnTimerMethod(errors, fnT, onTimerMethod, id, inputT, outputT, fnContext));
     }
     signatureBuilder.setOnTimerMethods(onTimerMethodMap);
+
+    // Check for TimerFamily
+    Collection<Method> onTimerFamilyMethods =
+        declaredMethodsWithAnnotation(DoFn.OnTimerFamily.class, fnClass, DoFn.class);
+    HashMap<String, DoFnSignature.OnTimerFamilyMethod> onTimerFamilyMethodMap =
+        Maps.newHashMapWithExpectedSize(onTimerFamilyMethods.size());
+
+    for (Method onTimerFamilyMethod : onTimerFamilyMethods) {
+      String id = onTimerFamilyMethod.getAnnotation(DoFn.OnTimerFamily.class).value();
+      errors.checkArgument(
+          fnContext.getTimerFamilyDeclarations().containsKey(id),
+          "Callback %s is for undeclared timerFamily %s",
+          onTimerFamilyMethod,
+          id);
+
+      TimerFamilyDeclaration timerDecl = fnContext.getTimerFamilyDeclarations().get(id);
+      errors.checkArgument(
+          timerDecl.field().getDeclaringClass().equals(getDeclaringClass(onTimerFamilyMethod)),
+          "Callback %s is for timerFamily %s declared in a different class %s."
+              + " TimerFamily callbacks must be declared in the same lexical scope as their timer",
+          onTimerFamilyMethod,
+          id,
+          timerDecl.field().getDeclaringClass().getCanonicalName());
+
+      onTimerFamilyMethodMap.put(
+          id,
+          analyzeOnTimerFamilyMethod(
+              errors, fnT, onTimerFamilyMethod, id, inputT, outputT, fnContext));
+    }
+    signatureBuilder.setOnTimerFamilyMethods(onTimerFamilyMethodMap);
 
     // Check the converse - that all timers have a callback. This could be relaxed to only
     // those timers used in methods, once method parameter lists support timers.
@@ -446,9 +482,9 @@ public class DoFnSignatures {
 
     for (TimerFamilyDeclaration decl : fnContext.getTimerFamilyDeclarations().values()) {
       errors.checkArgument(
-          onTimerMethodMap.containsKey(decl.id()),
-          "No callback registered via %s for timer %s",
-          DoFn.OnTimer.class.getSimpleName(),
+          onTimerFamilyMethodMap.containsKey(decl.id()),
+          "No callback registered via %s for timerFamily %s",
+          DoFn.OnTimerFamily.class.getSimpleName(),
           decl.id());
     }
 
@@ -802,6 +838,51 @@ public class DoFnSignatures {
 
     return DoFnSignature.OnTimerMethod.create(
         m, timerId, requiresStableInput, windowT, extraParameters);
+  }
+
+  @VisibleForTesting
+  static DoFnSignature.OnTimerFamilyMethod analyzeOnTimerFamilyMethod(
+      ErrorReporter errors,
+      TypeDescriptor<? extends DoFn<?, ?>> fnClass,
+      Method m,
+      String timerFamilyId,
+      TypeDescriptor<?> inputT,
+      TypeDescriptor<?> outputT,
+      FnAnalysisContext fnContext) {
+    errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
+
+    Type[] params = m.getGenericParameterTypes();
+
+    MethodAnalysisContext methodContext = MethodAnalysisContext.create();
+
+    boolean requiresStableInput = m.isAnnotationPresent(DoFn.RequiresStableInput.class);
+
+    @Nullable TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnClass, m);
+
+    List<DoFnSignature.Parameter> extraParameters = new ArrayList<>();
+    ErrorReporter onTimerErrors = errors.forMethod(DoFn.OnTimerFamily.class, m);
+    for (int i = 0; i < params.length; ++i) {
+      Parameter parameter =
+          analyzeExtraParameter(
+              onTimerErrors,
+              fnContext,
+              methodContext,
+              fnClass,
+              ParameterDescription.of(
+                  m,
+                  i,
+                  fnClass.resolveType(params[i]),
+                  Arrays.asList(m.getParameterAnnotations()[i])),
+              inputT,
+              outputT);
+
+      checkParameterOneOf(errors, parameter, ALLOWED_ON_TIMER_FAMILY_PARAMETERS);
+
+      extraParameters.add(parameter);
+    }
+
+    return DoFnSignature.OnTimerFamilyMethod.create(
+        m, timerFamilyId, requiresStableInput, windowT, extraParameters);
   }
 
   @VisibleForTesting
