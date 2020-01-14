@@ -120,9 +120,6 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
           String.format("Finish state %s is not allowed.", finishState),
           finishState,
           is(PipelineResult.State.DONE));
-      // assert via matchers.
-      assertThat(result, testSparkOptions.getOnCreateMatcher());
-      assertThat(result, testSparkOptions.getOnSuccessMatcher());
     }
     return result;
   }

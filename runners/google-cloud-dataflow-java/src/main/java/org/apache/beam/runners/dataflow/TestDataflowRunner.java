@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
-import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
@@ -102,8 +101,6 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         job.getJobId(),
         expectedNumberOfAssertions);
 
-    assertThat(job, testPipelineOptions.getOnCreateMatcher());
-
     Boolean jobSuccess;
     Optional<Boolean> allAssertionsPassed;
 
@@ -134,8 +131,6 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       throw new RuntimeException(errorMessage(job, messageHandler));
     }
 
-    // If there is no reason to immediately fail, run the success matcher.
-    assertThat(job, testPipelineOptions.getOnSuccessMatcher());
     return job;
   }
 
