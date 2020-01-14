@@ -129,13 +129,9 @@ class ChannelCache implements ChannelLeaser, Closeable {
           ConnectionFactory connectionFactory = new ConnectionFactory();
           try {
             connectionFactory.setUri(uri);
-            connectionFactory.setAutomaticRecoveryEnabled(true);
-            connectionFactory.setConnectionTimeout(60000);
-            connectionFactory.setNetworkRecoveryInterval(5000);
-            connectionFactory.setRequestedHeartbeat(60);
-            connectionFactory.setTopologyRecoveryEnabled(true);
+            // zero value specifies unlimited maximum channel number (for
+            // unlimited numbers of concurrent Channels)
             connectionFactory.setRequestedChannelMax(0);
-            connectionFactory.setRequestedFrameMax(0);
           } catch (URISyntaxException e) {
             // full URI excluded lest it contain user/pass
             throw new IOException("Unable to connect to rabbit; invalid URI (uri redacted)", e);
