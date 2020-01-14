@@ -1104,11 +1104,11 @@ class FnApiRunner(runner.PipelineRunner):
           else:
             token_base, index = continuation_token.split(':')
             ix = int(index)
-            full_state = self._continuations[token_base]
-            if ix == len(full_state):
+            full_state_cont = self._continuations[token_base]
+            if ix == len(full_state_cont):
               return b'', None
             else:
-              return full_state[ix], '%s:%d' % (token_base, ix + 1)
+              return full_state_cont[ix], '%s:%d' % (token_base, ix + 1)
         else:
           assert not continuation_token
           return b''.join(full_state), None
@@ -1462,10 +1462,10 @@ class GrpcServer(object):
     # If we have provision info, serve these off the control port as well.
     if self.provision_info:
       if self.provision_info.provision_info:
-        provision_info = self.provision_info.provision_info
-        if not provision_info.worker_id:
-          provision_info = copy.copy(provision_info)
-          provision_info.worker_id = str(uuid.uuid4())
+        provision_info_proto = self.provision_info.provision_info
+        if not provision_info_proto.worker_id:
+          provision_info_proto = copy.copy(provision_info_proto)
+          provision_info_proto.worker_id = str(uuid.uuid4())
         beam_provision_api_pb2_grpc.add_ProvisionServiceServicer_to_server(
             BasicProvisionService(self.provision_info.provision_info),
             self.control_server)

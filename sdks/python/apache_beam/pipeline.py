@@ -911,17 +911,18 @@ class AppliedPTransform(object):
     # type: (...) -> None
     """Visits all nodes reachable from the current node."""
 
-    for pval in self.inputs:
-      if pval not in visited and not isinstance(pval, pvalue.PBegin):
-        if pval.producer is not None:
-          pval.producer.visit(visitor, pipeline, visited)
+    for in_pval in self.inputs:
+      if in_pval not in visited and not isinstance(in_pval, pvalue.PBegin):
+        if in_pval.producer is not None:
+          in_pval.producer.visit(visitor, pipeline, visited)
           # The value should be visited now since we visit outputs too.
-          assert pval in visited, pval
+          assert in_pval in visited, in_pval
 
     # Visit side inputs.
-    for pval in self.side_inputs:
-      if isinstance(pval, pvalue.AsSideInput) and pval.pvalue not in visited:
-        pval = pval.pvalue  # Unpack marker-object-wrapped pvalue.
+    for side_input in self.side_inputs:
+      if isinstance(side_input, pvalue.AsSideInput) \
+          and side_input.pvalue not in visited:
+        pval = side_input.pvalue  # Unpack marker-object-wrapped pvalue.
         if pval.producer is not None:
           pval.producer.visit(visitor, pipeline, visited)
           # The value should be visited now since we visit outputs too.
@@ -946,11 +947,11 @@ class AppliedPTransform(object):
     # output of such a transform is the containing DoOutputsTuple, not the
     # PCollection inside it. Without the code below a tagged PCollection will
     # not be marked as visited while visiting its producer.
-    for pval in self.outputs.values():
-      if isinstance(pval, pvalue.DoOutputsTuple):
-        pvals = (v for v in pval)
+    for out_pval in self.outputs.values():
+      if isinstance(out_pval, pvalue.DoOutputsTuple):
+        pvals = (v for v in out_pval)
       else:
-        pvals = (pval,)
+        pvals = (out_pval,)
       for v in pvals:
         if v not in visited:
           visited.add(v)
