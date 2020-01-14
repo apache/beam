@@ -42,13 +42,10 @@ import com.google.datastore.v1.Value.ValueTypeCase;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -70,9 +67,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowWithGetters;
-import org.apache.beam.sdk.values.RowWithStorage;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -204,40 +200,22 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
 
     @VisibleForTesting
     class EntityToRowConverter extends DoFn<Entity, Row> {
-      private final ImmutableMap<ValueTypeCase, Function<Value, Object>> MAPPING_FUNCTIONS =
-          ImmutableMap.<ValueTypeCase, Function<Value, Object>>builder()
-              .put(NULL_VALUE, (Function<Value, Object> & Serializable) v -> null)
-              .put(BOOLEAN_VALUE, (Function<Value, Object> & Serializable) Value::getBooleanValue)
-              .put(INTEGER_VALUE, (Function<Value, Object> & Serializable) Value::getIntegerValue)
-              .put(DOUBLE_VALUE, (Function<Value, Object> & Serializable) Value::getDoubleValue)
-              .put(
+      private final List<ValueTypeCase> SUPPORTED_VALUE_TYPES =
+          ImmutableList.<ValueTypeCase>builder()
+              .add(
+                  NULL_VALUE,
+                  BOOLEAN_VALUE,
+                  INTEGER_VALUE,
+                  DOUBLE_VALUE,
                   TIMESTAMP_VALUE,
-                  (Function<Value, Object> & Serializable)
-                      v -> {
-                        // TODO: DataStore may not support milliseconds.
-                        com.google.protobuf.Timestamp time = v.getTimestampValue();
-                        long millis = time.getSeconds() * 1000 + time.getNanos() / 1000;
-                        return Instant.ofEpochMilli(millis).toDateTime();
-                      })
-              .put(STRING_VALUE, (Function<Value, Object> & Serializable) Value::getStringValue)
-              // https://cloud.google.com/datastore/docs/concepts/entities.
-              .put(
+                  STRING_VALUE,
                   KEY_VALUE,
-                  (Function<Value, Object> & Serializable) v -> v.getKeyValue().toByteArray())
-              .put(
                   BLOB_VALUE,
-                  (Function<Value, Object> & Serializable) v -> v.getBlobValue().toByteArray())
-              .put(VALUETYPE_NOT_SET, (Function<Value, Object> & Serializable) v -> null)
+                  VALUETYPE_NOT_SET,
+                  ENTITY_VALUE,
+                  ARRAY_VALUE,
+                  VALUETYPE_NOT_SET)
               .build();
-      private final Function<Value, Object> MAPPING_NOT_FOUND =
-          (Function<Value, Object> & Serializable)
-              v -> {
-                throw new IllegalStateException(
-                    "No conversion exists from type: "
-                        + v.getValueTypeCase().name()
-                        + " to Beam type. Supported types are: "
-                        + Arrays.toString(MAPPING_FUNCTIONS.keySet().toArray()));
-              };
 
       @DoFn.ProcessElement
       public void processElement(ProcessContext context) {
@@ -259,23 +237,48 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
        */
       private Object convertValueToObject(FieldType currentFieldType, Value val) {
         ValueTypeCase typeCase = val.getValueTypeCase();
-        if (typeCase.equals(ENTITY_VALUE)) {
-          // Recursive mapping for row type.
-          Schema rowSchema = currentFieldType.getRowSchema();
-          assert rowSchema != null;
-          Entity entity = val.getEntityValue();
-          return extractRowFromProperties(rowSchema, entity.getPropertiesMap());
-        } else if (typeCase.equals(ARRAY_VALUE)) {
-          // Recursive mapping for collection type.
-          FieldType elementType = currentFieldType.getCollectionElementType();
-          List<Value> valueList = val.getArrayValue().getValuesList();
-          return valueList.stream()
-              .map(v -> convertValueToObject(elementType, v))
-              .collect(Collectors.toList());
-        }
 
-        // Mapping for primitive types.
-        return MAPPING_FUNCTIONS.getOrDefault(typeCase, MAPPING_NOT_FOUND).apply(val);
+        switch (typeCase) {
+          case NULL_VALUE:
+          case VALUETYPE_NOT_SET:
+            return null;
+          case BOOLEAN_VALUE:
+            return val.getBooleanValue();
+          case INTEGER_VALUE:
+            return val.getIntegerValue();
+          case DOUBLE_VALUE:
+            return val.getDoubleValue();
+          case TIMESTAMP_VALUE:
+            com.google.protobuf.Timestamp time = val.getTimestampValue();
+            long millis = time.getSeconds() * 1000 + time.getNanos() / 1000;
+            return Instant.ofEpochMilli(millis).toDateTime();
+          case STRING_VALUE:
+            return val.getStringValue();
+          case KEY_VALUE:
+            return val.getKeyValue().toByteArray();
+          case BLOB_VALUE:
+            return val.getBlobValue().toByteArray();
+          case ENTITY_VALUE:
+            // Recursive mapping for row type.
+            Schema rowSchema = currentFieldType.getRowSchema();
+            assert rowSchema != null;
+            Entity entity = val.getEntityValue();
+            return extractRowFromProperties(rowSchema, entity.getPropertiesMap());
+          case ARRAY_VALUE:
+            // Recursive mapping for collection type.
+            FieldType elementType = currentFieldType.getCollectionElementType();
+            List<Value> valueList = val.getArrayValue().getValuesList();
+            return valueList.stream()
+                .map(v -> convertValueToObject(elementType, v))
+                .collect(Collectors.toList());
+          case GEO_POINT_VALUE:
+          default:
+            throw new IllegalStateException(
+                "No conversion exists from type: "
+                    + val.getValueTypeCase().name()
+                    + " to Beam type. Supported types are: "
+                    + SUPPORTED_VALUE_TYPES.toString());
+        }
       }
 
       /**
@@ -342,55 +345,33 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
               + DEFAULT_KEY_FIELD
               + "`.");
       return new RowToEntity(
-          (Supplier<String> & Serializable) () -> UUID.randomUUID().toString(),
-          kind,
-          keyField);
+          (Supplier<String> & Serializable) () -> UUID.randomUUID().toString(), kind, keyField);
     }
 
     @VisibleForTesting
     static RowToEntity createTest(String keyString, String keyField, String kind) {
-      return new RowToEntity(
-          (Supplier<String> & Serializable) () -> keyString, kind, keyField);
+      return new RowToEntity((Supplier<String> & Serializable) () -> keyString, kind, keyField);
     }
 
     @VisibleForTesting
     class RowToEntityConverter extends DoFn<Row, Entity> {
-      private final ImmutableMap<Class, Function<?, Value>> MAPPING_FUNCTIONS =
-          ImmutableMap.<Class, Function<?, Value>>builder()
-              .put(
+      private final List<Class> SUPPORTED_JAVA_TYPES =
+          ImmutableList.<Class>builder()
+              .add(
                   Boolean.class,
-                  (Function<Boolean, Value> & Serializable) v -> makeValue(v).build())
-              .put(Byte.class, (Function<Byte, Value> & Serializable) v -> makeValue(v).build())
-              .put(Long.class, (Function<Long, Value> & Serializable) v -> makeValue(v).build())
-              .put(Short.class, (Function<Short, Value> & Serializable) v -> makeValue(v).build())
-              .put(
+                  Byte.class,
+                  Long.class,
                   Integer.class,
-                  (Function<Integer, Value> & Serializable) v -> makeValue(v).build())
-              .put(Double.class, (Function<Double, Value> & Serializable) v -> makeValue(v).build())
-              .put(Float.class, (Function<Float, Value> & Serializable) v -> makeValue(v).build())
-              .put(String.class, (Function<String, Value> & Serializable) v -> makeValue(v).build())
-              .put(
+                  Short.class,
+                  Byte.class,
+                  Double.class,
+                  Float.class,
+                  String.class,
                   Instant.class,
-                  (Function<Instant, Value> & Serializable) v -> makeValue(v.toDate()).build())
-              .put(
                   byte[].class,
-                  (Function<byte[], Value> & Serializable)
-                      v -> makeValue(ByteString.copyFrom(v)).build())
-              .put(RowWithStorage.class, (Function<Row, Value> & Serializable) this::mapRowToValue)
-              .put(RowWithGetters.class, (Function<Row, Value> & Serializable) this::mapRowToValue)
-              .put(
-                  ArrayList.class,
-                  (Function<Collection<Object>, Value> & Serializable) this::mapCollectionToValue)
+                  Row.class,
+                  Collection.class)
               .build();
-      private final Function<Object, Value> MAPPING_NOT_FOUND =
-          (Function<Object, Value> & Serializable)
-              v -> {
-                throw new IllegalStateException(
-                    "No conversion exists from type: "
-                        + v.getClass()
-                        + " to DataStove Value. Supported types are: "
-                        + Arrays.toString(MAPPING_FUNCTIONS.keySet().toArray()));
-              };
 
       @DoFn.ProcessElement
       public void processElement(ProcessContext context) {
@@ -445,29 +426,6 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
       }
 
       /**
-       * A mapping function to handle conversion of Collections (such as {@code ArrayList}) to
-       * DataStore {@code Value}.
-       *
-       * @param collection {@code Collection} to convert.
-       * @return resulting {@code Value}.
-       */
-      private Value mapCollectionToValue(Collection<Object> collection) {
-        List<Value> arrayValues =
-            collection.stream().map(this::mapObjectToValue).collect(Collectors.toList());
-        return makeValue(arrayValues).build();
-      }
-
-      /**
-       * A mapping function to handle conversion of nested {@code Row} to DataStore {@code Value}.
-       *
-       * @param row {@code Row} to convert.
-       * @return resulting {@code Value}.
-       */
-      private Value mapRowToValue(Row row) {
-        return makeValue(constructEntityFromRow(row.getSchema(), row)).build();
-      }
-
-      /**
        * Converts a {@code Row} value to an appropriate DataStore {@code Value} object.
        *
        * @param value {@code Row} value to convert.
@@ -478,9 +436,43 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
         if (value == null) {
           return Value.newBuilder().build();
         }
-        return ((Function<Object, Value>)
-                MAPPING_FUNCTIONS.getOrDefault(value.getClass(), MAPPING_NOT_FOUND))
-            .apply(value);
+
+        if (Boolean.class.equals(value.getClass())) {
+          return makeValue((Boolean) value).build();
+        } else if (Byte.class.equals(value.getClass())) {
+          return makeValue((Byte) value).build();
+        } else if (Long.class.equals(value.getClass())) {
+          return makeValue((Long) value).build();
+        } else if (Short.class.equals(value.getClass())) {
+          return makeValue((Short) value).build();
+        } else if (Integer.class.equals(value.getClass())) {
+          return makeValue((Integer) value).build();
+        } else if (Double.class.equals(value.getClass())) {
+          return makeValue((Double) value).build();
+        } else if (Float.class.equals(value.getClass())) {
+          return makeValue((Float) value).build();
+        } else if (String.class.equals(value.getClass())) {
+          return makeValue((String) value).build();
+        } else if (Instant.class.equals(value.getClass())) {
+          return makeValue(((Instant) value).toDate()).build();
+        } else if (byte[].class.equals(value.getClass())) {
+          return makeValue(ByteString.copyFrom((byte[]) value)).build();
+        } else if (value instanceof Row) {
+          // Recursive conversion to handle nested rows.
+          Row row = (Row) value;
+          return makeValue(constructEntityFromRow(row.getSchema(), row)).build();
+        } else if (value instanceof Collection) {
+          // Recursive to handle nested collections.
+          Collection<Object> collection = (Collection<Object>) value;
+          List<Value> arrayValues =
+              collection.stream().map(this::mapObjectToValue).collect(Collectors.toList());
+          return makeValue(arrayValues).build();
+        }
+        throw new IllegalStateException(
+            "No conversion exists from type: "
+                + value.getClass()
+                + " to DataStove Value. Supported types are: "
+                + SUPPORTED_JAVA_TYPES.toString());
       }
     }
   }
