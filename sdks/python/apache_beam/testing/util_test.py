@@ -140,7 +140,7 @@ class UtilTest(unittest.TestCase):
     with TestPipeline() as p:
       assert_that(p | Create([1, 2, 3]), is_not_empty())
 
-  def test_assert_that_fails_on_empty_expected(self):
+  def test_assert_that_fails_on_is_not_empty_expected(self):
     with self.assertRaises(BeamAssertException):
       with TestPipeline() as p:
         assert_that(p | Create([]), is_not_empty())
