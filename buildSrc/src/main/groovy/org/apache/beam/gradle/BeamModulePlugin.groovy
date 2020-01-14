@@ -388,7 +388,6 @@ class BeamModulePlugin implements Plugin<Project> {
     def protobuf_version = "3.11.1"
     def quickcheck_version = "0.8"
     def spark_version = "2.4.4"
-    def spark_structured_streaming_version = "2.4.0"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
