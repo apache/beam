@@ -340,7 +340,7 @@ class DoFnInvoker(object):
   represented by a given DoFnSignature."""
 
   def __init__(self,
-               output_processor,  # type: Optional[_OutputProcessor]
+               output_processor,  # type: OutputProcessor
                signature  # type: DoFnSignature
               ):
     # type: (...) -> None
@@ -359,7 +359,7 @@ class DoFnInvoker(object):
   @staticmethod
   def create_invoker(
       signature,  # type: DoFnSignature
-      output_processor=None,  # type: Optional[_OutputProcessor]
+      output_processor,  # type: OutputProcessor
       context=None,  # type: Optional[DoFnContext]
       side_inputs=None,   # type: Optional[List[sideinputs.SideInputMap]]
       input_args=None, input_kwargs=None,
@@ -410,7 +410,6 @@ class DoFnInvoker(object):
   def invoke_process(self,
                      windowed_value,  # type: WindowedValue
                      restriction_tracker=None,  # type: Optional[iobase.RestrictionTracker]
-                     output_processor=None,  # type: Optional[OutputProcessor]
                      additional_args=None,
                      additional_kwargs=None
                     ):
@@ -481,7 +480,7 @@ class SimpleInvoker(DoFnInvoker):
   """An invoker that processes elements ignoring windowing information."""
 
   def __init__(self,
-               output_processor,  # type: Optional[_OutputProcessor]
+               output_processor,  # type: OutputProcessor
                signature  # type: DoFnSignature
               ):
     # type: (...) -> None
@@ -491,15 +490,11 @@ class SimpleInvoker(DoFnInvoker):
   def invoke_process(self,
                      windowed_value,  # type: WindowedValue
                      restriction_tracker=None,  # type: Optional[iobase.RestrictionTracker]
-                     output_processor=None,  # type: Optional[OutputProcessor]
                      additional_args=None,
                      additional_kwargs=None
                     ):
     # type: (...) -> None
-    if not output_processor:
-      output_processor = self.output_processor
-    # self.output_processor is Optional, but in practice it won't be None here
-    output_processor.process_outputs(  # type: ignore[union-attr]
+    self.output_processor.process_outputs(
         windowed_value, self.process_method(windowed_value.value))
 
 
@@ -507,7 +502,7 @@ class PerWindowInvoker(DoFnInvoker):
   """An invoker that processes elements considering windowing information."""
 
   def __init__(self,
-               output_processor,  # type: Optional[_OutputProcessor]
+               output_processor,  # type: OutputProcessor
                signature,  # type: DoFnSignature
                context,  # type: DoFnContext
                side_inputs,  # type: Iterable[sideinputs.SideInputMap]
@@ -614,7 +609,6 @@ class PerWindowInvoker(DoFnInvoker):
   def invoke_process(self,
                      windowed_value,  # type: WindowedValue
                      restriction_tracker=None,
-                     output_processor=None,  # type: Optional[OutputProcessor]
                      additional_args=None,
                      additional_kwargs=None
                     ):
@@ -624,9 +618,6 @@ class PerWindowInvoker(DoFnInvoker):
     if not additional_kwargs:
       additional_kwargs = {}
 
-    if not output_processor:
-      assert self.output_processor is not None
-      output_processor = self.output_processor
     self.context.set_element(windowed_value)
     # Call for the process function for each window if has windowed side inputs
     # or if the process accesses the window parameter. We can just call it once
@@ -662,8 +653,7 @@ class PerWindowInvoker(DoFnInvoker):
       try:
         self.current_windowed_value = windowed_value
         return self._invoke_process_per_window(
-            windowed_value, additional_args, additional_kwargs,
-            output_processor)
+            windowed_value, additional_args, additional_kwargs)
       finally:
         self.threadsafe_restriction_tracker = None
         self.current_windowed_value = windowed_value
@@ -672,17 +662,16 @@ class PerWindowInvoker(DoFnInvoker):
       for w in windowed_value.windows:
         self._invoke_process_per_window(
             WindowedValue(windowed_value.value, windowed_value.timestamp, (w,)),
-            additional_args, additional_kwargs, output_processor)
+            additional_args, additional_kwargs)
     else:
       self._invoke_process_per_window(
-          windowed_value, additional_args, additional_kwargs, output_processor)
+          windowed_value, additional_args, additional_kwargs)
     return None
 
   def _invoke_process_per_window(self,
                                  windowed_value,  # type: WindowedValue
                                  additional_args,
                                  additional_kwargs,
-                                 output_processor  # type: OutputProcessor
                                 ):
     # type: (...) -> Optional[Tuple[WindowedValue, Timestamp]]
     if self.has_windowed_inputs:
@@ -751,11 +740,11 @@ class PerWindowInvoker(DoFnInvoker):
           kwargs_for_process[key] = additional_kwargs[key]
 
     if kwargs_for_process:
-      output_processor.process_outputs(
+      self.output_processor.process_outputs(
           windowed_value,
           self.process_method(*args_for_process, **kwargs_for_process))
     else:
-      output_processor.process_outputs(
+      self.output_processor.process_outputs(
           windowed_value, self.process_method(*args_for_process))
 
     if self.is_splittable:
