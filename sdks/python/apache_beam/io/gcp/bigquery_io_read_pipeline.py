@@ -53,7 +53,6 @@ class RowToStringWithSlowDown(beam.DoFn):
 
 
 def run(argv=None):
-  print(argv)
   parser = argparse.ArgumentParser()
   parser.add_argument('--input_table', required=True,
                       help='Input table to process.')
