@@ -31,6 +31,7 @@ import time
 
 import apache_beam as beam
 from apache_beam.io.gcp.bigquery import _ReadFromBigQuery
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
@@ -71,7 +72,8 @@ def run(argv=None):
 
   if known_args.beam_bq_source:
     reader = _ReadFromBigQuery(
-        table='%s:%s' % (options.project, known_args.input_table))
+        table='%s:%s' % (options.view_as(GoogleCloudOptions).project,
+                         known_args.input_table))
   else:
     reader = beam.io.Read(beam.io.BigQuerySource(known_args.input_table))
 
