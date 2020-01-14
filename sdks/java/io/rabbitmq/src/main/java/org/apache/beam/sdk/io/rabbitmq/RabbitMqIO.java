@@ -213,7 +213,7 @@ public class RabbitMqIO {
 
     abstract TimestampPolicyFactory timestampPolicyFactory();
 
-    abstract SerializableFunction<Void, ConnectionHandler> connectionHandlerProviderFn();
+    abstract SerializableFunction<Void, ChannelCache> connectionHandlerProviderFn();
 
     abstract Builder builder();
 
@@ -230,7 +230,7 @@ public class RabbitMqIO {
       abstract Builder setTimestampPolicyFactory(TimestampPolicyFactory timestampPolicyFactory);
 
       abstract Builder setConnectionHandlerProviderFn(
-          SerializableFunction<Void, ConnectionHandler> connectionHandlerProviderFn);
+          SerializableFunction<Void, ChannelCache> connectionHandlerProviderFn);
 
       abstract Read autoBuild();
 
@@ -276,7 +276,7 @@ public class RabbitMqIO {
      * mechanism.
      */
     public Read withConnectionHandlerProviderFn(
-        SerializableFunction<Void, ConnectionHandler> connectionHandlerProviderFn) {
+        SerializableFunction<Void, ChannelCache> connectionHandlerProviderFn) {
       checkArgument(
           connectionHandlerProviderFn != null, "connection handler provider can not be null");
       return builder().setConnectionHandlerProviderFn(connectionHandlerProviderFn).build();
@@ -402,7 +402,7 @@ public class RabbitMqIO {
 
     abstract String exchange();
 
-    abstract SerializableFunction<Void, ConnectionHandler> connectionHandlerProviderFn();
+    abstract SerializableFunction<Void, ChannelCache> connectionHandlerProviderFn();
 
     abstract Builder builder();
 
@@ -411,7 +411,7 @@ public class RabbitMqIO {
       abstract Builder setExchange(String exchange);
 
       abstract Builder setConnectionHandlerProviderFn(
-          SerializableFunction<Void, ConnectionHandler> connectionHandlerProviderFn);
+          SerializableFunction<Void, ChannelCache> connectionHandlerProviderFn);
 
       abstract Write build();
     }
@@ -437,7 +437,7 @@ public class RabbitMqIO {
      * mechanism.
      */
     public Write withConnectionHandlerProviderFn(
-        SerializableFunction<Void, ConnectionHandler> connectionHandlerProviderFn) {
+        SerializableFunction<Void, ChannelCache> connectionHandlerProviderFn) {
       checkArgument(
           connectionHandlerProviderFn != null, "connection handler provider can not be null");
       return builder().setConnectionHandlerProviderFn(connectionHandlerProviderFn).build();

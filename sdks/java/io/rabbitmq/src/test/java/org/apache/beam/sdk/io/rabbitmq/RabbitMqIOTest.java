@@ -65,7 +65,7 @@ public class RabbitMqIOTest implements Serializable {
   private static int port;
   private static String defaultPort;
   private static String uri;
-  private static ConnectionHandler connectionHandler;
+  private static ChannelCache channelCache;
 
   @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -95,7 +95,7 @@ public class RabbitMqIOTest implements Serializable {
 
     uri = "amqp://guest:guest@localhost:" + port;
 
-    connectionHandler = new ConnectionHandler(uri);
+    channelCache = new ChannelCache(uri);
   }
 
   @AfterClass
@@ -107,7 +107,7 @@ public class RabbitMqIOTest implements Serializable {
     }
     launcher.shutdown();
     try {
-      connectionHandler.close();
+      channelCache.close();
     } catch (IOException e) {
       LOG.warn("Error shutting down ConnectionHandler after test suite", e);
     }
@@ -145,7 +145,7 @@ public class RabbitMqIOTest implements Serializable {
       final boolean exclusive = false;
       final boolean autoDelete = false;
       final Map<String, Object> arguments = Collections.emptyMap();
-      connectionHandler.useChannel(
+      channelCache.useChannel(
           testId,
           channel -> channel.queueDeclare(queueName, durable, exclusive, autoDelete, arguments));
     } catch (IOException e) {
@@ -155,12 +155,12 @@ public class RabbitMqIOTest implements Serializable {
     try {
       Thread publisher =
           RabbitMqTestUtils.publishMessagesThread(
-              connectionHandler, testId, spec, messages, Duration.millis(250));
+              channelCache, testId, spec, messages, Duration.millis(250));
       publisher.start();
       p.run();
       publisher.join();
     } finally {
-      connectionHandler.closeChannel(testId);
+      channelCache.closeChannel(testId);
     }
   }
 
@@ -214,20 +214,20 @@ public class RabbitMqIOTest implements Serializable {
 
     try {
       if (!newQueue.isDefaultExchange()) {
-        connectionHandler.useChannel(
+        channelCache.useChannel(
             testId,
             channel -> channel.exchangeDeclare(newQueue.getExchange(), newQueue.getExchangeType()));
       }
       Thread publisher =
           RabbitMqTestUtils.publishMessagesThread(
-              connectionHandler, testId, read, finalToPublish, initialDelay);
+              channelCache, testId, read, finalToPublish, initialDelay);
       publisher.start();
       p.run();
       publisher.join();
     } finally {
       if (!newQueue.isDefaultExchange()) {
         boolean ifUnused = false;
-        connectionHandler.useChannel(
+        channelCache.useChannel(
             testId,
             channel -> {
               try {
@@ -238,7 +238,7 @@ public class RabbitMqIOTest implements Serializable {
               return null;
             });
       }
-      connectionHandler.closeChannel(testId);
+      channelCache.closeChannel(testId);
     }
   }
 
@@ -365,7 +365,7 @@ public class RabbitMqIOTest implements Serializable {
 
     final List<String> received = new ArrayList<>();
     try {
-      connectionHandler.useChannel(
+      channelCache.useChannel(
           testId,
           channel -> {
             channel.exchangeDeclare(exchangeName, BuiltinExchangeType.TOPIC);
@@ -375,7 +375,7 @@ public class RabbitMqIOTest implements Serializable {
 
       p.run();
 
-      connectionHandler.useChannel(
+      channelCache.useChannel(
           testId,
           channel -> {
             Consumer consumer = new RabbitMqTestUtils.TestConsumer(channel, received);
@@ -396,7 +396,7 @@ public class RabbitMqIOTest implements Serializable {
       }
 
     } finally {
-      connectionHandler.closeChannel(testId);
+      channelCache.closeChannel(testId);
     }
   }
 }

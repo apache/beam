@@ -48,12 +48,12 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
  * Readers or Writers interacting with Rabbit.
  */
 @ThreadSafe
-class ConnectionHandler implements ChannelLeaser, Closeable {
+class ChannelCache implements ChannelLeaser, Closeable {
   private final Map<UUID, Channel> channelsByLessee = new ConcurrentHashMap<>();
   private final String uri;
   private volatile Connection connection;
 
-  public ConnectionHandler(String uri) {
+  public ChannelCache(String uri) {
     this.uri = uri;
   }
 

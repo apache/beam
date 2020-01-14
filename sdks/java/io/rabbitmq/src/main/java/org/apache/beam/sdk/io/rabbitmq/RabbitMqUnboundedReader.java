@@ -38,7 +38,7 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
   private RabbitMqMessage currentRecord;
   private String queueName;
   private final RabbitMqCheckpointMark checkpointMark;
-  private final ConnectionHandler connectionHandler;
+  private final ChannelCache channelCache;
   private final MovingAvg averageRecordSize;
 
   RabbitMqUnboundedReader(RabbitMqSource source) {
@@ -49,9 +49,9 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
         new TimestampPolicyContext(
             Long.valueOf(UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN).intValue(),
             BoundedWindow.TIMESTAMP_MIN_VALUE);
-    this.connectionHandler = this.source.spec.connectionHandlerProviderFn().apply(null);
+    this.channelCache = this.source.spec.connectionHandlerProviderFn().apply(null);
     this.averageRecordSize = new MovingAvg();
-    this.checkpointMark = new RabbitMqCheckpointMark(this.connectionHandler);
+    this.checkpointMark = new RabbitMqCheckpointMark(this.channelCache);
     ensureTimestampPolicySet(Optional.ofNullable(this.checkpointMark.getWatermark()));
   }
 
@@ -126,7 +126,7 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
             return queueName;
           };
 
-      queueName = connectionHandler.useChannel(checkpointMark.getCheckpointId(), setupFn);
+      queueName = channelCache.useChannel(checkpointMark.getCheckpointId(), setupFn);
     } catch (IOException e) {
       checkpointMark.stopReading();
       throw e;
@@ -142,7 +142,7 @@ class RabbitMqUnboundedReader extends UnboundedSource.UnboundedReader<RabbitMqMe
     try {
       // we consume message without autoAck (we want to do the ack ourselves)
       GetResponse delivery =
-          connectionHandler.useChannel(
+          channelCache.useChannel(
               checkpointMark.getCheckpointId(),
               channel -> channel.basicGet(queueName, /* autoAck: */ false));
 

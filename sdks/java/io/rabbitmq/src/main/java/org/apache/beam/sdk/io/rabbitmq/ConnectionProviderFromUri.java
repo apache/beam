@@ -31,9 +31,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 /**
  * Modeled after {@link
  * org.apache.beam.sdk.io.jdbc.JdbcIO.DataSourceProviderFromDataSourceConfiguration}, providing a
- * means of obtaining a {@link ConnectionHandler} based on a static cache and a URI to promote
- * re-use of existing connections rather than establishing a new connection for each RabbitMq
- * interaction.
+ * means of obtaining a {@link ChannelCache} based on a static cache and a URI to promote re-use of
+ * existing connections rather than establishing a new connection for each RabbitMq interaction.
  *
  * <p>The cache is oriented around the full URI, which will not be parsed or validated until {@link
  * #apply(Void)} is called.
@@ -42,8 +41,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
  * responsible for ensure this happens.
  */
 public class ConnectionProviderFromUri
-    implements SerializableFunction<Void, ConnectionHandler>, HasDisplayData, Closeable {
-  private static final ConcurrentHashMap<String, ConnectionHandler> instances =
+    implements SerializableFunction<Void, ChannelCache>, HasDisplayData, Closeable {
+  private static final ConcurrentHashMap<String, ChannelCache> instances =
       new ConcurrentHashMap<>();
 
   private final String uri;
@@ -83,8 +82,8 @@ public class ConnectionProviderFromUri
   }
 
   @Override
-  public ConnectionHandler apply(Void input) {
-    return instances.computeIfAbsent(uri, ConnectionHandler::new);
+  public ChannelCache apply(Void input) {
+    return instances.computeIfAbsent(uri, ChannelCache::new);
   }
 
   @Override
