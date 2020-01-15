@@ -52,6 +52,7 @@ from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
 from apache_beam.pvalue import AsSideInput
+from apache_beam.runners.common import DoFnSignature
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
 from apache_beam.runners.dataflow.internal.names import PropertyNames
@@ -950,7 +951,6 @@ class DataflowRunner(PipelineRunner):
       step.add_property(PropertyNames.RESTRICTION_ENCODING,
                         self._get_cloud_encoding(restriction_coder))
 
-    from apache_beam.runners.common import DoFnSignature
     if DoFnSignature(transform.dofn).is_stateful_dofn():
       step.add_property(PropertyNames.USES_KEYED_STATE, "true")
 
