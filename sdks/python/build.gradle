@@ -48,7 +48,7 @@ task sdist {
       args '-c', ". ${envdir}/bin/activate && python setup.py -q sdist --formats zip,gztar --dist-dir ${buildDir}"
     }
 
-    def collection = fileTree(buildDir){ include "**/*${project['python_sdk_version']}*.tar.gz" exclude 'srcs/**'}
+    def collection = fileTree(buildDir){ include "**/*${project.sdk_version}*.tar.gz" exclude 'srcs/**'}
 
     // we need a fixed name for the artifact
     copy { from collection.singleFile; into buildDir; rename { tarball } }
