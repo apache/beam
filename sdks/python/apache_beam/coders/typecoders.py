@@ -63,6 +63,9 @@ example, the above function can be decorated::
 
 See apache_beam.typehints.decorators module for more details.
 """
+
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from builtins import object

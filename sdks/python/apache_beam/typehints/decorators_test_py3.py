@@ -17,6 +17,8 @@
 
 """Tests for decorators module with Python 3 syntax not supported by 2.7."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import typing
@@ -41,7 +43,7 @@ T_typing = typing.TypeVar('T')
 class IOTypeHintsTest(unittest.TestCase):
 
   def test_from_callable(self):
-    def fn(a: int, b: str = None, *args: Tuple[T], foo: List[int],
+    def fn(a: int, b: str = '', *args: Tuple[T], foo: List[int],
            **kwargs: Dict[str, str]) -> Tuple[Any, ...]:
       return a, b, args, foo, kwargs
     th = decorators.IOTypeHints.from_callable(fn)
@@ -94,7 +96,7 @@ class IOTypeHintsTest(unittest.TestCase):
     self.assertEqual(th.output_types, ((Tuple[Any, ...],), {}))
 
   def test_getcallargs_forhints(self):
-    def fn(a: int, b: str = None, *args: Tuple[T], foo: List[int],
+    def fn(a: int, b: str = '', *args: Tuple[T], foo: List[int],
            **kwargs: Dict[str, str]) -> Tuple[Any, ...]:
       return a, b, args, foo, kwargs
     callargs = decorators.getcallargs_forhints(fn, float, foo=List[str])

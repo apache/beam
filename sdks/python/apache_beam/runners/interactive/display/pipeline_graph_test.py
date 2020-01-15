@@ -16,6 +16,8 @@
 #
 
 """Tests for apache_beam.runners.interactive.display.pipeline_graph."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import unittest

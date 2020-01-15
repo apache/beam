@@ -17,6 +17,8 @@
 
 """A library of basic combiner PTransform subclasses."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -403,33 +405,44 @@ class _MergeTopPerBundle(core.DoFn):
 
   def process(self, key_and_bundles):
     _, bundles = key_and_bundles
-    heap = []
-    for bundle in bundles:
-      if not heap:
-        if self._less_than or self._key:
-          heap = [
+
+    def push(hp, e):
+      if len(hp) < self._n:
+        heapq.heappush(hp, e)
+        return False
+      elif e < hp[0]:
+        # Because _TopPerBundle returns sorted lists, all other elements
+        # will also be smaller.
+        return True
+      else:
+        heapq.heappushpop(hp, e)
+        return False
+
+    if self._less_than or self._key:
+      heapc = []  # type: List[cy_combiners.ComparableValue]
+      for bundle in bundles:
+        if not heapc:
+          heapc = [
               cy_combiners.ComparableValue(element, self._less_than, self._key)
               for element in bundle]
-        else:
-          heap = bundle
-        continue
-      for element in reversed(bundle):
-        if self._less_than or self._key:
-          element = cy_combiners.ComparableValue(
-              element, self._less_than, self._key)
-        if len(heap) < self._n:
-          heapq.heappush(heap, element)
-        elif element < heap[0]:
-          # Because _TopPerBundle returns sorted lists, all other elements
-          # will also be smaller.
-          break
-        else:
-          heapq.heappushpop(heap, element)
+          continue
+        for element in reversed(bundle):
+          if push(heapc, cy_combiners.ComparableValue(
+              element, self._less_than, self._key)):
+            break
+      heapc.sort()
+      yield [wrapper.value for wrapper in reversed(heapc)]
 
-    heap.sort()
-    if self._less_than or self._key:
-      yield [wrapper.value for wrapper in reversed(heap)]
     else:
+      heap = []  # type: List[T]
+      for bundle in bundles:
+        if not heap:
+          heap = bundle
+          continue
+        for element in reversed(bundle):
+          if push(heap, element):
+            break
+      heap.sort()
       yield heap[::-1]
 
 

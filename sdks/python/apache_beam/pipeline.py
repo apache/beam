@@ -44,12 +44,13 @@ Typical usage::
 
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import abc
 import logging
 import os
-import re
 import shutil
 import tempfile
 from builtins import object
@@ -78,7 +79,9 @@ from apache_beam.options.pipeline_options_validator import PipelineOptionsValida
 from apache_beam.portability import common_urns
 from apache_beam.runners import PipelineRunner
 from apache_beam.runners import create_runner
+from apache_beam.transforms import ParDo
 from apache_beam.transforms import ptransform
+from apache_beam.transforms.sideinputs import get_sideinput_index
 #from apache_beam.transforms import external
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
@@ -89,6 +92,7 @@ if TYPE_CHECKING:
   from apache_beam.portability.api import beam_runner_api_pb2
   from apache_beam.runners.pipeline_context import PipelineContext
   from apache_beam.runners.runner import PipelineResult
+  from apache_beam.transforms import environments
 
 __all__ = ['Pipeline', 'PTransformOverride']
 
@@ -677,7 +681,7 @@ class Pipeline(object):
                     return_context=False,
                     context=None,  # type: Optional[PipelineContext]
                     use_fake_coders=False,
-                    default_environment=None  # type: Optional[beam_runner_api_pb2.Environment]
+                    default_environment=None  # type: Optional[environments.Environment]
                    ):
     # type: (...) -> beam_runner_api_pb2.Pipeline
     """For internal use only; no backwards-compatibility guarantees."""
@@ -819,7 +823,7 @@ class AppliedPTransform(object):
 
   def __init__(self,
                parent,
-               transform,  # type: ptransform.PTransform
+               transform,  # type: Optional[ptransform.PTransform]
                full_label,  # type: str
                inputs,  # type: Optional[Sequence[Union[pvalue.PBegin, pvalue.PCollection]]]
                environment_id=None  # type: Optional[str]
@@ -907,17 +911,18 @@ class AppliedPTransform(object):
     # type: (...) -> None
     """Visits all nodes reachable from the current node."""
 
-    for pval in self.inputs:
-      if pval not in visited and not isinstance(pval, pvalue.PBegin):
-        if pval.producer is not None:
-          pval.producer.visit(visitor, pipeline, visited)
+    for in_pval in self.inputs:
+      if in_pval not in visited and not isinstance(in_pval, pvalue.PBegin):
+        if in_pval.producer is not None:
+          in_pval.producer.visit(visitor, pipeline, visited)
           # The value should be visited now since we visit outputs too.
-          assert pval in visited, pval
+          assert in_pval in visited, in_pval
 
     # Visit side inputs.
-    for pval in self.side_inputs:
-      if isinstance(pval, pvalue.AsSideInput) and pval.pvalue not in visited:
-        pval = pval.pvalue  # Unpack marker-object-wrapped pvalue.
+    for side_input in self.side_inputs:
+      if isinstance(side_input, pvalue.AsSideInput) \
+          and side_input.pvalue not in visited:
+        pval = side_input.pvalue  # Unpack marker-object-wrapped pvalue.
         if pval.producer is not None:
           pval.producer.visit(visitor, pipeline, visited)
           # The value should be visited now since we visit outputs too.
@@ -942,11 +947,11 @@ class AppliedPTransform(object):
     # output of such a transform is the containing DoOutputsTuple, not the
     # PCollection inside it. Without the code below a tagged PCollection will
     # not be marked as visited while visiting its producer.
-    for pval in self.outputs.values():
-      if isinstance(pval, pvalue.DoOutputsTuple):
-        pvals = (v for v in pval)
+    for out_pval in self.outputs.values():
+      if isinstance(out_pval, pvalue.DoOutputsTuple):
+        pvals = (v for v in out_pval)
       else:
-        pvals = (pval,)
+        pvals = (out_pval,)
       for v in pvals:
         if v not in visited:
           visited.add(v)
@@ -1017,15 +1022,17 @@ class AppliedPTransform(object):
     main_inputs = [context.pcollections.get_by_id(id)
                    for tag, id in proto.inputs.items()
                    if not is_side_input(tag)]
+
     # Ordering is important here.
-    indexed_side_inputs = [(int(re.match('side([0-9]+)(-.*)?$', tag).group(1)),
+    indexed_side_inputs = [(get_sideinput_index(tag),
                             context.pcollections.get_by_id(id))
                            for tag, id in proto.inputs.items()
                            if is_side_input(tag)]
     side_inputs = [si for _, si in sorted(indexed_side_inputs)]
+    transform = ptransform.PTransform.from_runner_api(proto.spec, context)
     result = AppliedPTransform(
         parent=None,
-        transform=ptransform.PTransform.from_runner_api(proto.spec, context),
+        transform=transform,
         full_label=proto.unique_name,
         inputs=main_inputs,
         environment_id=proto.environment_id)
@@ -1043,6 +1050,7 @@ class AppliedPTransform(object):
         for tag, id in proto.outputs.items()}
     # This annotation is expected by some runners.
     if proto.spec.urn == common_urns.primitives.PAR_DO.urn:
+      assert isinstance(result.transform, ParDo)
       result.transform.output_tags = set(proto.outputs.keys()).difference(
           {'None'})
     if not result.parts:

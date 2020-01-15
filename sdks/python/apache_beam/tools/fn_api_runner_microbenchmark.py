@@ -54,6 +54,8 @@ Per-element  0.005474923321695039
 R^2          0.95189
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function

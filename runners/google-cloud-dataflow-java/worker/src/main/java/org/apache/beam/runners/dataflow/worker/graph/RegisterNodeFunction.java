@@ -43,9 +43,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterRequest;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
-import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
 import org.apache.beam.runners.core.SideInputReader;
-import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -102,15 +100,15 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
   private static final String JAVA_SOURCE_URN = "beam:source:java:0.1";
 
   public static final String COMBINE_PER_KEY_URN =
-      BeamUrns.getUrn(StandardPTransforms.Composites.COMBINE_PER_KEY);
+      PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN;
   public static final String COMBINE_PRECOMBINE_URN =
-      BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_PER_KEY_PRECOMBINE);
+      PTransformTranslation.COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN;
   public static final String COMBINE_MERGE_URN =
-      BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_PER_KEY_MERGE_ACCUMULATORS);
+      PTransformTranslation.COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN;
   public static final String COMBINE_EXTRACT_URN =
-      BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_PER_KEY_EXTRACT_OUTPUTS);
+      PTransformTranslation.COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN;
   public static final String COMBINE_GROUPED_VALUES_URN =
-      BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_GROUPED_VALUES);
+      PTransformTranslation.COMBINE_GROUPED_VALUES_TRANSFORM_URN;
 
   private static final String SERIALIZED_SOURCE = "serialized_source";
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();

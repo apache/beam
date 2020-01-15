@@ -70,6 +70,8 @@ python game_stats.py \
     --temp_location gs://$BUCKET/user_score/temp
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -178,11 +180,6 @@ class WriteToBigQuery(beam.PTransform):
     self.dataset = dataset
     self.schema = schema
     self.project = project
-
-  def get_schema(self):
-    """Build the output table schema."""
-    return ', '.join(
-        '%s:%s' % (col, self.schema[col]) for col in self.schema)
 
   def get_schema(self):
     """Build the output table schema."""

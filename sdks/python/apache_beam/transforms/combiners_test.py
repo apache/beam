@@ -16,6 +16,8 @@
 #
 
 """Unit tests for our libraries of combine PTransforms."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -30,12 +32,16 @@ from nose.plugins.attrib import attr
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
+from apache_beam.metrics import Metrics
+from apache_beam.metrics import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import equal_to_per_window
+from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 from apache_beam.transforms.core import CombineGlobally
 from apache_beam.transforms.core import Create
@@ -43,9 +49,47 @@ from apache_beam.transforms.core import Map
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.transforms.trigger import AfterAll
+from apache_beam.transforms.trigger import AfterCount
+from apache_beam.transforms.trigger import AfterWatermark
+from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.typehints import TypeCheckError
 from apache_beam.utils.timestamp import Timestamp
+
+
+class SortedConcatWithCounters(beam.CombineFn):
+  """CombineFn for incrementing three different counters:
+     counter, distribution, gauge,
+     at the same time concatenating words."""
+
+  def __init__(self):
+    beam.CombineFn.__init__(self)
+    self.word_counter = Metrics.counter(self.__class__, 'word_counter')
+    self.word_lengths_counter = Metrics.counter(
+        self.__class__, 'word_lengths')
+    self.word_lengths_dist = Metrics.distribution(
+        self.__class__, 'word_len_dist')
+    self.last_word_len = Metrics.gauge(self.__class__, 'last_word_len')
+
+  def create_accumulator(self):
+    return ''
+
+  def add_input(self, acc, element):
+    self.word_counter.inc(1)
+    self.word_lengths_counter.inc(len(element))
+    self.word_lengths_dist.update(len(element))
+    self.last_word_len.set(len(element))
+
+    return acc + element
+
+  def merge_accumulators(self, accs):
+    return ''.join(accs)
+
+  def extract_output(self, acc):
+    # The sorted acc became a list of characters
+    # and has to be converted back to a string using join.
+    return ''.join(sorted(acc))
 
 
 class CombineTest(unittest.TestCase):
@@ -399,6 +443,31 @@ class CombineTest(unittest.TestCase):
           | beam.CombineGlobally(combine.MeanCombineFn()).with_fanout(11))
       assert_that(result, equal_to([49.5]))
 
+  def test_combining_with_accumulation_mode_and_fanout(self):
+    # PCollection will contain elements from 1 to 5.
+    elements = [i for i in range(1, 6)]
+
+    ts = TestStream().advance_watermark_to(0)
+    for i in elements:
+      ts.add_elements([i])
+    ts.advance_watermark_to_infinity()
+
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    with TestPipeline(options=options) as p:
+      result = (p
+                | ts
+                | beam.WindowInto(
+                    GlobalWindows(),
+                    accumulation_mode=trigger.AccumulationMode.ACCUMULATING,
+                    trigger=AfterWatermark(early=AfterAll(AfterCount(1)))
+                    )
+                | beam.CombineGlobally(sum).without_defaults().with_fanout(2))
+
+      # The frings for DISCARDING mode is [1, 2, 3, 4, 5, 0, 0].
+      firings = [1, 3, 6, 10, 15, 15, 15]
+      assert_that(result, equal_to(firings))
+
   def test_MeanCombineFn_combine(self):
     with TestPipeline() as p:
       input = (p
@@ -482,6 +551,108 @@ class CombineTest(unittest.TestCase):
       assert_that(sum_per_key,
                   equal_to([('c', 3), ('c', 10), ('d', 5), ('d', 17)]),
                   label='sum per key')
+
+  # Test that three different kinds of metrics work with a customized
+  # SortedConcatWithCounters CombineFn.
+  def test_custormized_counters_in_combine_fn(self):
+    p = TestPipeline()
+    input = (p
+             | beam.Create([('key1', 'a'),
+                            ('key1', 'ab'),
+                            ('key1', 'abc'),
+                            ('key2', 'uvxy'),
+                            ('key2', 'uvxyz')]))
+
+    # The result of concatenating all values regardless of key.
+    global_concat = (input
+                     | beam.Values()
+                     | beam.CombineGlobally(SortedConcatWithCounters()))
+
+    # The (key, concatenated_string) pairs for all keys.
+    concat_per_key = (input
+                      | beam.CombinePerKey(SortedConcatWithCounters()))
+
+    # Verify the concatenated strings are correct.
+    expected_concat_per_key = [('key1', 'aaabbc'), ('key2', 'uuvvxxyyz')]
+    assert_that(global_concat, equal_to(['aaabbcuuvvxxyyz']),
+                label='global concat')
+    assert_that(concat_per_key, equal_to(expected_concat_per_key),
+                label='concat per key')
+
+    result = p.run()
+    result.wait_until_finish()
+
+    # Verify the values of metrics are correct.
+    word_counter_filter = MetricsFilter().with_name('word_counter')
+    query_result = result.metrics().query(word_counter_filter)
+    if query_result['counters']:
+      word_counter = query_result['counters'][0]
+      self.assertEqual(word_counter.result, 5)
+
+    word_lengths_filter = MetricsFilter().with_name('word_lengths')
+    query_result = result.metrics().query(word_lengths_filter)
+    if query_result['counters']:
+      word_lengths = query_result['counters'][0]
+      self.assertEqual(word_lengths.result, 15)
+
+    word_len_dist_filter = MetricsFilter().with_name('word_len_dist')
+    query_result = result.metrics().query(word_len_dist_filter)
+    if query_result['distributions']:
+      word_len_dist = query_result['distributions'][0]
+      self.assertEqual(word_len_dist.result.mean, 3)
+
+    last_word_len_filter = MetricsFilter().with_name('last_word_len')
+    query_result = result.metrics().query(last_word_len_filter)
+    if query_result['gauges']:
+      last_word_len = query_result['gauges'][0]
+      self.assertIn(last_word_len.result.value, [1, 2, 3, 4, 5])
+
+  # Test that three different kinds of metrics work with the customized
+  # SortedConcatWithCounters CombineFn when the PCollection is empty.
+  def test_custormized_counters_in_combine_fn_empty(self):
+    p = TestPipeline()
+    input = p | beam.Create([])
+
+    # The result of concatenating all values regardless of key.
+    global_concat = (input
+                     | beam.Values()
+                     | beam.CombineGlobally(SortedConcatWithCounters()))
+
+    # The (key, concatenated_string) pairs for all keys.
+    concat_per_key = (input | beam.CombinePerKey(
+        SortedConcatWithCounters()))
+
+    # Verify the concatenated strings are correct.
+    assert_that(global_concat, equal_to(['']), label='global concat')
+    assert_that(concat_per_key, equal_to([]), label='concat per key')
+
+    result = p.run()
+    result.wait_until_finish()
+
+    # Verify the values of metrics are correct.
+    word_counter_filter = MetricsFilter().with_name('word_counter')
+    query_result = result.metrics().query(word_counter_filter)
+    if query_result['counters']:
+      word_counter = query_result['counters'][0]
+      self.assertEqual(word_counter.result, 0)
+
+    word_lengths_filter = MetricsFilter().with_name('word_lengths')
+    query_result = result.metrics().query(word_lengths_filter)
+    if query_result['counters']:
+      word_lengths = query_result['counters'][0]
+      self.assertEqual(word_lengths.result, 0)
+
+    word_len_dist_filter = MetricsFilter().with_name('word_len_dist')
+    query_result = result.metrics().query(word_len_dist_filter)
+    if query_result['distributions']:
+      word_len_dist = query_result['distributions'][0]
+      self.assertEqual(word_len_dist.result.count, 0)
+
+    last_word_len_filter = MetricsFilter().with_name('last_word_len')
+    query_result = result.metrics().query(last_word_len_filter)
+
+    # No element has ever been recorded.
+    self.assertFalse(query_result['gauges'])
 
 
 class LatestTest(unittest.TestCase):

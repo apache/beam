@@ -18,6 +18,11 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.SPLITTABLE_SPLIT_RESTRICTION_URN;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getStateSpecOrThrow;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerSpecOrThrow;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
@@ -414,7 +419,13 @@ public class ParDoTranslation {
   public static RunnerApi.PCollection getMainInput(
       RunnerApi.PTransform ptransform, Components components) throws IOException {
     checkArgument(
-        ptransform.getSpec().getUrn().equals(PAR_DO_TRANSFORM_URN),
+        PAR_DO_TRANSFORM_URN.equals(ptransform.getSpec().getUrn())
+            || SPLITTABLE_PAIR_WITH_RESTRICTION_URN.equals(ptransform.getSpec().getUrn())
+            || SPLITTABLE_SPLIT_RESTRICTION_URN.equals(ptransform.getSpec().getUrn())
+            || SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN.equals(ptransform.getSpec().getUrn())
+            || SPLITTABLE_PROCESS_ELEMENTS_URN.equals(ptransform.getSpec().getUrn())
+            || SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN.equals(
+                ptransform.getSpec().getUrn()),
         "Unexpected payload type %s",
         ptransform.getSpec().getUrn());
     return components.getPcollectionsOrThrow(
@@ -425,7 +436,13 @@ public class ParDoTranslation {
   public static String getMainInputName(RunnerApi.PTransformOrBuilder ptransform)
       throws IOException {
     checkArgument(
-        ptransform.getSpec().getUrn().equals(PAR_DO_TRANSFORM_URN),
+        PAR_DO_TRANSFORM_URN.equals(ptransform.getSpec().getUrn())
+            || SPLITTABLE_PAIR_WITH_RESTRICTION_URN.equals(ptransform.getSpec().getUrn())
+            || SPLITTABLE_SPLIT_RESTRICTION_URN.equals(ptransform.getSpec().getUrn())
+            || SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN.equals(ptransform.getSpec().getUrn())
+            || SPLITTABLE_PROCESS_ELEMENTS_URN.equals(ptransform.getSpec().getUrn())
+            || SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN.equals(
+                ptransform.getSpec().getUrn()),
         "Unexpected payload type %s",
         ptransform.getSpec().getUrn());
     ParDoPayload payload = ParDoPayload.parseFrom(ptransform.getSpec().getPayload());

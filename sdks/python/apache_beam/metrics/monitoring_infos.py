@@ -18,6 +18,8 @@
 # cython: language_level=3
 # cython: profile=True
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections

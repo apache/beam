@@ -44,6 +44,8 @@ using the Google Cloud Dataflow Service. No args are required to run the
 pipeline. You can see the results in your output bucket in the GCS browser.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse

@@ -17,12 +17,13 @@
 
 """Test Pipeline, a wrapper of Pipeline for test purpose"""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse
 import shlex
-
-from nose.plugins.skip import SkipTest
+from unittest import SkipTest
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import PipelineOptions

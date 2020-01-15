@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 """Tests for S3 client."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging

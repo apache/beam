@@ -187,9 +187,20 @@ public interface TimerInternals {
 
     // When adding a new field, make sure to add it to the compareTo() method.
 
+    /** Construct a {@link TimerData} for the given parameters. */
+    public static TimerData of(
+        String timerId,
+        StateNamespace namespace,
+        Instant timestamp,
+        Instant outputTimestamp,
+        TimeDomain domain) {
+      return new AutoValue_TimerInternals_TimerData(
+          timerId, timerId, namespace, timestamp, outputTimestamp, domain);
+    }
+
     /**
-     * Construct a {@link TimerData} for the given parameters, where the timer ID is automatically
-     * generated.
+     * Construct a {@link TimerData} for the given parameters except for {@code outputTimestamp}.
+     * {@code outputTimestamp} is set to timer {@code timestamp}.
      */
     public static TimerData of(
         String timerId,
@@ -214,17 +225,27 @@ public interface TimerInternals {
     }
 
     /**
-     * Construct a {@link TimerData} for the given parameters, where the timer ID is
+     * Construct a {@link TimerData} for the given parameters except for timer ID. Timer ID is
      * deterministically generated from the {@code timestamp} and {@code domain}.
      */
-    public static TimerData of(StateNamespace namespace, Instant timestamp, TimeDomain domain) {
+    public static TimerData of(
+        StateNamespace namespace, Instant timestamp, Instant outputTimestamp, TimeDomain domain) {
       String timerId =
           new StringBuilder()
               .append(domain.ordinal())
               .append(':')
               .append(timestamp.getMillis())
               .toString();
-      return of(timerId, namespace, timestamp, domain);
+      return of(timerId, namespace, timestamp, outputTimestamp, domain);
+    }
+
+    /**
+     * Construct a {@link TimerData} for the given parameters, where the timer ID is
+     * deterministically generated from the {@code timestamp} and {@code domain}. Also, output
+     * timestamp is set to the timer timestamp by default.
+     */
+    public static TimerData of(StateNamespace namespace, Instant timestamp, TimeDomain domain) {
+      return of(namespace, timestamp, timestamp, domain);
     }
 
     /**

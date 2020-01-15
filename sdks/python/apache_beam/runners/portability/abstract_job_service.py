@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import itertools
@@ -29,6 +31,7 @@ from typing import TYPE_CHECKING
 from typing import Dict
 from typing import Iterator
 from typing import Optional
+from typing import Tuple
 from typing import Union
 
 import grpc
@@ -48,6 +51,7 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
+StateEvent = Tuple[int, Union[timestamp_pb2.Timestamp, Timestamp]]
 
 def make_state_event(state, timestamp):
   if isinstance(timestamp, Timestamp):
@@ -127,7 +131,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
                request,  # type: beam_job_api_pb2.GetJobStateRequest
                context=None
               ):
-    # type: (...) -> beam_job_api_pb2.GetJobStateResponse
+    # type: (...) -> beam_job_api_pb2.JobStateEvent
     return beam_job_api_pb2.JobStateEvent(
         state=self._jobs[request.job_id].get_state())
 
@@ -151,7 +155,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
         state=self._jobs[request.job_id].get_state())
 
   def GetStateStream(self, request, context=None, timeout=None):
-    # type: (...) -> Iterator[beam_job_api_pb2.GetJobStateResponse]
+    # type: (...) -> Iterator[beam_job_api_pb2.JobStateEvent]
     """Yields state transitions since the stream started.
       """
     if request.job_id not in self._jobs:
@@ -216,11 +220,11 @@ class AbstractBeamJob(object):
     raise NotImplementedError(self)
 
   def get_state_stream(self):
-    # type: () -> Iterator[Optional[beam_job_api_pb2.JobState.Enum]]
+    # type: () -> Iterator[StateEvent]
     raise NotImplementedError(self)
 
   def get_message_stream(self):
-    # type: () -> Iterator[Union[int, Optional[beam_job_api_pb2.JobMessage]]]
+    # type: () -> Iterator[Union[StateEvent, Optional[beam_job_api_pb2.JobMessage]]]
     raise NotImplementedError(self)
 
 

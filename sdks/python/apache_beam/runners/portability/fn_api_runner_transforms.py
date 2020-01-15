@@ -17,6 +17,8 @@
 
 """Pipeline transformations for the FnApiRunner.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -275,7 +277,7 @@ class Stage(object):
           stage_components.transforms[side.transform_id].inputs[side.local_name]
           for side in side_inputs
       }, main_input=main_input_id)
-      payload = beam_runner_api_pb2.ExecutableStagePayload(
+      exec_payload = beam_runner_api_pb2.ExecutableStagePayload(
           environment=components.environments[self.environment],
           input=main_input_id,
           outputs=external_outputs,
@@ -289,7 +291,7 @@ class Stage(object):
           unique_name=unique_name(None, self.name),
           spec=beam_runner_api_pb2.FunctionSpec(
               urn='beam:runner:executable_stage:v1',
-              payload=payload.SerializeToString()),
+              payload=exec_payload.SerializeToString()),
           inputs=named_inputs,
           outputs={'output_%d' % ix: pcoll
                    for ix, pcoll in enumerate(external_outputs)},)
@@ -315,7 +317,8 @@ def memoize_on_instance(f):
 class TransformContext(object):
 
   _KNOWN_CODER_URNS = set(
-      value.urn for value in common_urns.coders.__dict__.values())
+      value.urn for key, value in common_urns.coders.__dict__.items()
+      if not key.startswith('_'))
 
   def __init__(self,
                components,  # type: beam_runner_api_pb2.Components
@@ -578,15 +581,18 @@ def annotate_downstream_side_inputs(stages, pipeline_context):
   This representation is also amenable to simple recomputation on fusion.
   """
   consumers = collections.defaultdict(list)  # type: DefaultDict[str, List[Stage]]
+  def get_all_side_inputs():
+    # type: () -> Set[str]
+    all_side_inputs = set()  # type: Set[str]
+    for stage in stages:
+      for transform in stage.transforms:
+        for input in transform.inputs.values():
+          consumers[input].append(stage)
+      for si in stage.side_inputs():
+        all_side_inputs.add(si)
+    return all_side_inputs
 
-  all_side_inputs = set()
-  for stage in stages:
-    for transform in stage.transforms:
-      for input in transform.inputs.values():
-        consumers[input].append(stage)
-    for si in stage.side_inputs():
-      all_side_inputs.add(si)
-  all_side_inputs = frozenset(all_side_inputs)
+  all_side_inputs = frozenset(get_all_side_inputs())
 
   downstream_side_inputs_by_stage = {}  # type: Dict[Stage, FrozenSet[str]]
 
@@ -1438,4 +1444,5 @@ def create_buffer_id(name, kind='materialize'):
 def split_buffer_id(buffer_id):
   # type: (bytes) -> Tuple[str, str]
   """A buffer id is "kind:pcollection_id". Split into (kind, pcoll_id). """
-  return buffer_id.decode('utf-8').split(':', 1)
+  kind, pcoll_id = buffer_id.decode('utf-8').split(':', 1)
+  return kind, pcoll_id

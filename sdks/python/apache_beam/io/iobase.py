@@ -29,6 +29,8 @@ returns a writer object supporting writing records of serialized data to
 the sink.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -1244,6 +1246,7 @@ class ThreadsafeRestrictionTracker(object):
   """
 
   def __init__(self, restriction_tracker):
+    # type: (RestrictionTracker) -> None
     if not isinstance(restriction_tracker, RestrictionTracker):
       raise ValueError(
           'Initialize ThreadsafeRestrictionTracker requires'
@@ -1377,6 +1380,7 @@ class RestrictionProgress(object):
 
   @property
   def completed_work(self):
+    # type: () -> float
     if self._completed:
       return self._completed
     elif self._remaining and self._fraction:
@@ -1384,6 +1388,7 @@ class RestrictionProgress(object):
 
   @property
   def remaining_work(self):
+    # type: () -> float
     if self._remaining:
       return self._remaining
     elif self._completed:
@@ -1391,10 +1396,12 @@ class RestrictionProgress(object):
 
   @property
   def total_work(self):
+    # type: () -> float
     return self.completed_work + self.remaining_work
 
   @property
   def fraction_completed(self):
+    # type: () -> float
     if self._fraction is not None:
       return self._fraction
     else:
@@ -1402,6 +1409,7 @@ class RestrictionProgress(object):
 
   @property
   def fraction_remaining(self):
+    # type: () -> float
     if self._fraction is not None:
       return 1 - self._fraction
     else:

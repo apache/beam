@@ -17,6 +17,8 @@
 
 """ConsumerTrackingPipelineVisitor, a PipelineVisitor object."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from typing import TYPE_CHECKING

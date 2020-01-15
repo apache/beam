@@ -1310,43 +1310,9 @@ class FlinkStreamingTransformTranslators {
               new CreateStreamingFlinkViewPayloadTranslator())
           .put(
               SplittableParDoViaKeyedWorkItems.ProcessElements.class,
-              new SplittableParDoProcessElementsTranslator())
-          .put(
-              SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems.class,
-              new SplittableParDoGbkIntoKeyedWorkItemsPayloadTranslator())
+              PTransformTranslation.TransformPayloadTranslator.NotSerializable.forUrn(
+                  SPLITTABLE_PROCESS_URN))
           .build();
-    }
-  }
-
-  /**
-   * A translator just to vend the URN. This will need to be moved to runners-core-construction-java
-   * once SDF is reorganized appropriately.
-   */
-  private static class SplittableParDoProcessElementsPayloadTranslator
-      extends PTransformTranslation.TransformPayloadTranslator.NotSerializable<
-          SplittableParDoViaKeyedWorkItems.ProcessElements<?, ?, ?, ?>> {
-
-    private SplittableParDoProcessElementsPayloadTranslator() {}
-
-    @Override
-    public String getUrn(SplittableParDoViaKeyedWorkItems.ProcessElements<?, ?, ?, ?> transform) {
-      return SPLITTABLE_PROCESS_URN;
-    }
-  }
-
-  /**
-   * A translator just to vend the URN. This will need to be moved to runners-core-construction-java
-   * once SDF is reorganized appropriately.
-   */
-  private static class SplittableParDoGbkIntoKeyedWorkItemsPayloadTranslator
-      extends PTransformTranslation.TransformPayloadTranslator.NotSerializable<
-          SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems<?, ?>> {
-
-    private SplittableParDoGbkIntoKeyedWorkItemsPayloadTranslator() {}
-
-    @Override
-    public String getUrn(SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems<?, ?> transform) {
-      return SplittableParDo.SPLITTABLE_GBKIKWI_URN;
     }
   }
 

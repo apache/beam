@@ -70,14 +70,12 @@ dependencies {
   provided library.java.spark_streaming
   provided library.java.spark_network_common
   provided library.java.hadoop_common
-  provided library.java.commons_lang3
   provided library.java.commons_io
   provided library.java.hamcrest_core
   provided library.java.hamcrest_library
   provided "com.esotericsoftware.kryo:kryo:2.21"
   runtimeOnly library.java.jackson_module_scala
   runtimeOnly "org.scala-lang:scala-library:2.11.8"
-  compile "org.scala-lang.modules:scala-java8-compat_2.11:0.9.0"
   testCompile project(":sdks:java:io:kafka")
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest

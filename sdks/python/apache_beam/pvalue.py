@@ -24,6 +24,8 @@ transform (of type PTransform), which describes how the value will be
 produced when the pipeline gets executed.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections
@@ -158,6 +160,7 @@ class PCollection(PValue, Generic[T]):
   def windowing(self):
     # type: () -> Windowing
     if not hasattr(self, '_windowing'):
+      assert self.producer is not None and self.producer.transform is not None
       self._windowing = self.producer.transform.get_windowing(
           self.producer.inputs)
     return self._windowing
@@ -199,10 +202,14 @@ class PCollection(PValue, Generic[T]):
   @staticmethod
   def from_runner_api(proto, context):
     # type: (beam_runner_api_pb2.PCollection, PipelineContext) -> PCollection
-    # Producer and tag will be filled in later, the key point is that the
-    # same object is returned for the same pcollection id.
+    # Producer and tag will be filled in later, the key point is that the same
+    # object is returned for the same pcollection id.
+    # We pass None for the PCollection's Pipeline to avoid a cycle during
+    # deserialization.  It will be populated soon after this call, in
+    # Pipeline.from_runner_api(). This brief period is the only time that
+    # PCollection.pipeline is allowed to be None.
     return PCollection(
-        None,
+        None,  # type: ignore[arg-type]
         element_type=context.element_type_from_coder_id(proto.coder_id),
         windowing=context.windowing_strategies.get_by_id(
             proto.windowing_strategy_id),

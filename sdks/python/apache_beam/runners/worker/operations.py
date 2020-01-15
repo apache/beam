@@ -20,6 +20,8 @@
 
 """Worker operations executor."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections
@@ -655,6 +657,7 @@ class DoOperation(Operation):
     with self.scoped_process_state:
       delayed_application = self.dofn_receiver.receive(o)
       if delayed_application:
+        assert self.execution_context is not None
         self.execution_context.delayed_applications.append(
             (self, delayed_application))
 
@@ -746,6 +749,7 @@ class SdfProcessSizedElements(DoOperation):
 
   def process(self, o):
     # type: (WindowedValue) -> None
+    assert self.tagged_receivers is not None
     with self.scoped_process_state:
       try:
         with self.lock:
@@ -756,6 +760,7 @@ class SdfProcessSizedElements(DoOperation):
         # the lock.
         delayed_application = self.dofn_runner.process_with_sized_restriction(o)
         if delayed_application:
+          assert self.execution_context is not None
           self.execution_context.delayed_applications.append(
               (self, delayed_application))
       finally:
@@ -782,6 +787,7 @@ class SdfProcessSizedElements(DoOperation):
       metrics = super(SdfProcessSizedElements, self).progress_metrics()
       current_element_progress = self.current_element_progress()
     if current_element_progress:
+      assert self.input_info is not None
       metrics.active_elements.measured.input_element_counts[
           self.input_info[1]] = 1
       metrics.active_elements.fraction_remaining = (

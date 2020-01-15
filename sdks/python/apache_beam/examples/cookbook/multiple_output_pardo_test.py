@@ -17,6 +17,8 @@
 
 """Test for the multiple_output_pardo example."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging

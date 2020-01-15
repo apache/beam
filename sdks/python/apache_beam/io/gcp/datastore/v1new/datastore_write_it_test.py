@@ -25,6 +25,8 @@ There is no output; instead, we use `assert_that` transform to verify the
 results in the pipeline.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging

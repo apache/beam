@@ -18,6 +18,8 @@
 The staging service here can be backed by any beam filesystem.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -148,7 +150,7 @@ class AbstractArtifactService(
         with self._open(artifact.uri, 'r') as fin:
           # This value is not emitted, but lets us yield a single empty
           # chunk on an empty file.
-          chunk = True
+          chunk = b'1'
           while chunk:
             chunk = fin.read(self._chunk_size)
             yield beam_artifact_api_pb2.ArtifactChunk(data=chunk)

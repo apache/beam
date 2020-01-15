@@ -17,6 +17,8 @@
 
 """FileSystems interface class for accessing the correct filesystem"""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import re

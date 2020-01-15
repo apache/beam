@@ -17,6 +17,8 @@
 
 # This module is experimental. No backwards-compatibility guarantees.
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from builtins import object
@@ -78,8 +80,7 @@ class StateSampler(object):
 
   def reset(self):
     # type: () -> None
-    for state in self._states_by_name.values():
-      state.nsecs = 0
+    pass
 
 
 class ScopedState(object):

@@ -51,6 +51,8 @@ Example usage::
 No backward compatibility guarantees. Everything in this module is experimental.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 

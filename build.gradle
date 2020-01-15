@@ -318,7 +318,14 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
     dependsOn project.getTasksByName('publishMavenJavaPublicationToMavenLocal', true /* recursively */)
     classpath = project.configurations.linkageCheckerJava
     main = 'com.google.cloud.tools.opensource.classpath.LinkageCheckerMain'
-    args '-a', project.javaLinkageArtifactIds.split(',').collect({"${project.ext.mavenGroupId}:${it}:${project.version}"}).join(',')
+    args '-a', project.javaLinkageArtifactIds.split(',').collect({
+      if (it.contains(':')) {
+        "${project.ext.mavenGroupId}:${it}"
+      } else {
+        // specify the version if not provided
+        "${project.ext.mavenGroupId}:${it}:${project.version}"
+      }
+    }).join(',')
     doLast {
       println "NOTE: This task published artifacts into your local Maven repository. You may want to remove them manually."
     }

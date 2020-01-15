@@ -23,6 +23,8 @@ watermark and emit events, and the multiplexer which sends events to the correct
 tagged PCollection.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from apache_beam import coders

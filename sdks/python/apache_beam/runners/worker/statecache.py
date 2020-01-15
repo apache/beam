@@ -16,22 +16,31 @@
 #
 
 """A module for caching state reads/writes in Beam applications."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections
 import logging
 import threading
+from typing import Callable
+from typing import DefaultDict
+from typing import Hashable
+from typing import Set
+from typing import TypeVar
 
 from apache_beam.metrics import monitoring_infos
 
 _LOGGER = logging.getLogger(__name__)
+
+CallableT = TypeVar('CallableT', bound='Callable')
 
 
 class Metrics(object):
   """Metrics container for state cache metrics."""
 
   # A set of all registered metrics
-  ALL_METRICS = set()
+  ALL_METRICS = set()  # type: Set[Hashable]
   PREFIX = "beam:metric:statecache:"
 
   def __init__(self):
@@ -42,12 +51,14 @@ class Metrics(object):
     """
     if hasattr(self._context, 'metrics'):
       return # Already initialized
-    self._context.metrics = collections.defaultdict(int)
+    self._context.metrics = collections.defaultdict(int)  # type: DefaultDict[Hashable, int]
 
   def count(self, name):
+    # type: (str) -> None
     self._context.metrics[name] += 1
 
   def hit_miss(self, total_name, hit_miss_name):
+    # type: (str, str) -> None
     self._context.metrics[total_name] += 1
     self._context.metrics[hit_miss_name] += 1
 
@@ -78,6 +89,7 @@ class Metrics(object):
 
   @staticmethod
   def counter_hit_miss(total_name, hit_name, miss_name):
+    # type: (str, str, str) -> Callable[[CallableT], CallableT]
     """Decorator for counting function calls and whether
        the return value equals None (=miss) or not (=hit)."""
     Metrics.ALL_METRICS.update([total_name, hit_name, miss_name])
@@ -98,6 +110,7 @@ class Metrics(object):
 
   @staticmethod
   def counter(metric_name):
+    # type: (str) -> Callable[[CallableT], CallableT]
     """Decorator for counting function calls."""
     Metrics.ALL_METRICS.add(metric_name)
 

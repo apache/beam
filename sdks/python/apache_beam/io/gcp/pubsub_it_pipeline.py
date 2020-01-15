@@ -18,6 +18,8 @@
 Test pipeline for use by pubsub_integration_test.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse

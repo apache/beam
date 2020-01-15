@@ -27,6 +27,8 @@ Currently it is possible to have following metrics types:
 * total_bytes_count
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging

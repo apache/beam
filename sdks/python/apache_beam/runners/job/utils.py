@@ -18,6 +18,8 @@
 """Utility functions for efficiently processing with the job API
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import json

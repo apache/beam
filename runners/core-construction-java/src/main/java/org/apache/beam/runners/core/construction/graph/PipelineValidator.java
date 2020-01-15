@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
-import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Map;
@@ -28,13 +27,10 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
-import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.CombineComponents;
-import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.Composites;
-import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.Primitives;
-import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.SplittableParDoComponents;
 import org.apache.beam.model.pipeline.v1.RunnerApi.TestStreamPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
@@ -51,32 +47,41 @@ public class PipelineValidator {
 
   private static final ImmutableMap<String, TransformValidator> VALIDATORS =
       ImmutableMap.<String, TransformValidator>builder()
-          .put(getUrn(Primitives.PAR_DO), PipelineValidator::validateParDo)
+          .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, PipelineValidator::validateParDo)
           // Nothing to validate for FLATTEN, GROUP_BY_KEY, IMPULSE
-          .put(getUrn(Primitives.ASSIGN_WINDOWS), PipelineValidator::validateAssignWindows)
-          .put(getUrn(Primitives.TEST_STREAM), PipelineValidator::validateTestStream)
+          .put(
+              PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN,
+              PipelineValidator::validateAssignWindows)
+          .put(
+              PTransformTranslation.TEST_STREAM_TRANSFORM_URN,
+              PipelineValidator::validateTestStream)
           // Nothing to validate for MAP_WINDOWS, READ, CREATE_VIEW.
-          .put(getUrn(Composites.COMBINE_PER_KEY), PipelineValidator::validateCombine)
-          .put(getUrn(Composites.COMBINE_GLOBALLY), PipelineValidator::validateCombine)
+          .put(
+              PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN,
+              PipelineValidator::validateCombine)
+          .put(
+              PTransformTranslation.COMBINE_GLOBALLY_TRANSFORM_URN,
+              PipelineValidator::validateCombine)
           // Nothing to validate for RESHUFFLE and WRITE_FILES
           .put(
-              getUrn(CombineComponents.COMBINE_PER_KEY_PRECOMBINE),
+              PTransformTranslation.COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN,
               PipelineValidator::validateCombine)
           .put(
-              getUrn(CombineComponents.COMBINE_PER_KEY_MERGE_ACCUMULATORS),
+              PTransformTranslation.COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN,
               PipelineValidator::validateCombine)
           .put(
-              getUrn(CombineComponents.COMBINE_PER_KEY_EXTRACT_OUTPUTS),
+              PTransformTranslation.COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN,
               PipelineValidator::validateCombine)
-          .put(getUrn(CombineComponents.COMBINE_GROUPED_VALUES), PipelineValidator::validateCombine)
           .put(
-              getUrn(SplittableParDoComponents.PAIR_WITH_RESTRICTION),
+              PTransformTranslation.COMBINE_GROUPED_VALUES_TRANSFORM_URN,
+              PipelineValidator::validateCombine)
+          .put(
+              PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN,
               PipelineValidator::validateParDo)
           .put(
-              getUrn(SplittableParDoComponents.SPLIT_RESTRICTION), PipelineValidator::validateParDo)
-          .put(
-              getUrn(SplittableParDoComponents.PROCESS_KEYED_ELEMENTS),
+              PTransformTranslation.SPLITTABLE_SPLIT_RESTRICTION_URN,
               PipelineValidator::validateParDo)
+          .put(PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN, PipelineValidator::validateParDo)
           .put(ExecutableStage.URN, PipelineValidator::validateExecutableStage)
           .build();
 

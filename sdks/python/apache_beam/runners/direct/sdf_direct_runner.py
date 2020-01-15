@@ -18,6 +18,8 @@
 """This module contains Splittable DoFn logic that is specific to DirectRunner.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import uuid
@@ -259,9 +261,11 @@ class ProcessFn(beam.DoFn):
     self._restriction_tag = _ValueStateTag('restriction')
     self.watermark_hold_tag = _ValueStateTag('watermark_hold')
     self._process_element_invoker = None
+    self._output_processor = _OutputProcessor()
 
     self.sdf_invoker = DoFnInvoker.create_invoker(
         DoFnSignature(self.sdf), context=DoFnContext('unused_context'),
+        output_processor=self._output_processor,
         input_args=args_for_invoker, input_kwargs=kwargs_for_invoker)
 
     self._step_context = None
@@ -327,7 +331,8 @@ class ProcessFn(beam.DoFn):
                       SDFProcessElementInvoker)
 
     output_values = self._process_element_invoker.invoke_process_element(
-        self.sdf_invoker, windowed_element, tracker, *args, **kwargs)
+        self.sdf_invoker, self._output_processor, windowed_element, tracker,
+        *args, **kwargs)
 
     sdf_result = None
     for output in output_values:
@@ -422,7 +427,7 @@ class SDFProcessElementInvoker(object):
     raise ValueError
 
   def invoke_process_element(
-      self, sdf_invoker, element, tracker, *args, **kwargs):
+      self, sdf_invoker, output_processor, element, tracker, *args, **kwargs):
     """Invokes `process()` method of a Splittable `DoFn` for a given element.
 
      Args:
@@ -451,10 +456,10 @@ class SDFProcessElementInvoker(object):
       checkpoint_state.residual_restriction = tracker.checkpoint()
       checkpoint_state.checkpointed = object()
 
-    output_processor = _OutputProcessor()
+    output_processor.reset()
     Timer(self._max_duration, initiate_checkpoint).start()
     sdf_invoker.invoke_process(
-        element, restriction_tracker=tracker, output_processor=output_processor,
+        element, restriction_tracker=tracker,
         additional_args=args, additional_kwargs=kwargs)
 
     assert output_processor.output_iter is not None
@@ -503,3 +508,6 @@ class _OutputProcessor(OutputProcessor):
   def process_outputs(self, windowed_input_element, output_iter):
     # type: (WindowedValue, Iterable[Any]) -> None
     self.output_iter = output_iter
+
+  def reset(self):
+    self.output_iter = None

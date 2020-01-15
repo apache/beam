@@ -23,6 +23,8 @@ Run as
   python -m apache_beam.tools.distribution_counter_microbenchmark
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
