@@ -303,7 +303,7 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
 
   configurations { linkageCheckerJava }
   dependencies {
-    linkageCheckerJava "com.google.cloud.tools:dependencies:1.0.1"
+    linkageCheckerJava "com.google.cloud.tools:dependencies:1.1.2"
   }
 
   // We need to evaluate all the projects first so that we can find depend on all the
@@ -318,7 +318,7 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
     dependsOn project.getTasksByName('publishMavenJavaPublicationToMavenLocal', true /* recursively */)
     classpath = project.configurations.linkageCheckerJava
     main = 'com.google.cloud.tools.opensource.classpath.LinkageCheckerMain'
-    args '-a', project.javaLinkageArtifactIds.split(',').collect({
+    args '--report-only-reachable', '-a', project.javaLinkageArtifactIds.split(',').collect({
       if (it.contains(':')) {
         "${project.ext.mavenGroupId}:${it}"
       } else {
