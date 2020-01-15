@@ -118,9 +118,9 @@ class S3IO(object):
     logging.info("Starting the size estimation of the input")
 
     while True:
-
-      #The list operation will raise an exception when trying to list a nonexistent S3 path. 
-      #This should not be an issue here. 
+      #The list operation will raise an exception
+      #when trying to list a nonexistent S3 path.
+      #This should not be an issue here.
       #Ignore this exception or it will break the procedure.
       try:
         response = self.client.list(request)
@@ -128,7 +128,7 @@ class S3IO(object):
         if e.code == 404:
           break
         else:
-          raise(e)
+          raise e
 
       for item in response.items:
         file_name = 's3://%s/%s' % (bucket, item.key)
