@@ -159,8 +159,8 @@ public class InMemoryTimerInternals implements TimerInternals {
   /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
   @Deprecated
   @Override
-  public void deleteTimer(StateNamespace namespace, String timerId) {
-    TimerData existing = existingTimers.get(namespace, timerId);
+  public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
+    TimerData existing = existingTimers.get(namespace, timerId + '+' + timerFamilyId);
     if (existing != null) {
       deleteTimer(existing);
     }

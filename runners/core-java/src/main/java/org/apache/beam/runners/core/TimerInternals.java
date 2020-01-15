@@ -80,7 +80,7 @@ public interface TimerInternals {
 
   /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
   @Deprecated
-  void deleteTimer(StateNamespace namespace, String timerId);
+  void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId);
 
   /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
   @Deprecated

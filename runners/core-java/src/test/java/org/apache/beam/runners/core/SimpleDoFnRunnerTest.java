@@ -161,7 +161,7 @@ public class SimpleDoFnRunnerTest {
         .setTimer(
             StateNamespaces.window(new GlobalWindows().windowCoder(), GlobalWindow.INSTANCE),
             DoFnWithTimers.TIMER_ID,
-            DoFnWithTimers.TIMER_ID,
+            "",
             currentTime.plus(DoFnWithTimers.TIMER_OFFSET),
             currentTime.plus(DoFnWithTimers.TIMER_OFFSET),
             TimeDomain.EVENT_TIME);
@@ -244,7 +244,7 @@ public class SimpleDoFnRunnerTest {
     // the method call.
     runner.onTimer(
         DoFnWithTimers.TIMER_ID,
-        DoFnWithTimers.TIMER_ID,
+        "",
         GlobalWindow.INSTANCE,
         currentTime.plus(offset),
         currentTime.plus(offset),
@@ -255,7 +255,7 @@ public class SimpleDoFnRunnerTest {
         contains(
             TimerData.of(
                 DoFnWithTimers.TIMER_ID,
-                DoFnWithTimers.TIMER_ID,
+                "",
                 StateNamespaces.window(windowFn.windowCoder(), GlobalWindow.INSTANCE),
                 currentTime.plus(offset),
                 currentTime.plus(offset),

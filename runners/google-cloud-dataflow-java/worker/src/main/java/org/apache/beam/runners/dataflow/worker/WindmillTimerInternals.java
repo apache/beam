@@ -131,7 +131,7 @@ class WindmillTimerInternals implements TimerInternals {
   }
 
   @Override
-  public void deleteTimer(StateNamespace namespace, String timerId) {
+  public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
     throw new UnsupportedOperationException("Canceling a timer by ID is not yet supported.");
   }
 
