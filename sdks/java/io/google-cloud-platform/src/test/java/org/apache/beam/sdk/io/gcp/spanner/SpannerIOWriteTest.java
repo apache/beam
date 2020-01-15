@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.doNothing;
@@ -33,6 +34,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeyRange;
@@ -53,6 +55,7 @@ import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.BatchFn;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.BatchableMutationFilterFn;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.GatherBundleAndSortFn;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteGrouped;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteToSpannerFn;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -60,6 +63,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -335,6 +339,106 @@ public class SpannerIOWriteTest implements Serializable {
     // writeAtLeastOnce called once for the batch of mutations
     // (which as they are unbatched = each mutation group) then again for the individual retry.
     verify(serviceFactory.mockDatabaseClient(), times(20)).writeAtLeastOnce(any());
+  }
+
+  @Test
+  public void deadlineExceededRetries() throws InterruptedException {
+    List<Mutation> mutationList = Arrays.asList(m((long) 1));
+
+    // mock sleeper so that it does not actually sleep.
+    WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
+
+    // respond with 2 timeouts and a success.
+    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+        .thenThrow(
+            SpannerExceptionFactory.newSpannerException(
+                ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout 1"))
+        .thenThrow(
+            SpannerExceptionFactory.newSpannerException(
+                ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout 2"))
+        .thenReturn(Timestamp.now());
+
+    SpannerWriteResult result =
+        pipeline
+            .apply(Create.of(mutationList))
+            .apply(
+                SpannerIO.write()
+                    .withProjectId("test-project")
+                    .withInstanceId("test-instance")
+                    .withDatabaseId("test-database")
+                    .withServiceFactory(serviceFactory)
+                    .withBatchSizeBytes(0)
+                    .withFailureMode(SpannerIO.FailureMode.REPORT_FAILURES));
+
+    // all success, so veryify no errors
+    PAssert.that(result.getFailedMutations())
+        .satisfies(
+            m -> {
+              assertEquals(0, Iterables.size(m));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+
+    // 2 calls to sleeper
+    verify(WriteToSpannerFn.sleeper, times(2)).sleep(anyLong());
+    // 3 write attempts for the single mutationGroup.
+    verify(serviceFactory.mockDatabaseClient(), times(3)).writeAtLeastOnce(any());
+  }
+
+  @Test
+  public void deadlineExceededFailsAfterRetries() throws InterruptedException {
+    List<Mutation> mutationList = Arrays.asList(m((long) 1));
+
+    // mock sleeper so that it does not actually sleep.
+    WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
+
+    // respond with all timeouts.
+    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+        .thenThrow(
+            SpannerExceptionFactory.newSpannerException(
+                ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout"));
+
+    SpannerWriteResult result =
+        pipeline
+            .apply(Create.of(mutationList))
+            .apply(
+                SpannerIO.write()
+                    .withProjectId("test-project")
+                    .withInstanceId("test-instance")
+                    .withDatabaseId("test-database")
+                    .withServiceFactory(serviceFactory)
+                    .withBatchSizeBytes(0)
+                    .withMaxCumulativeBackoff(Duration.standardHours(2))
+                    .withFailureMode(SpannerIO.FailureMode.REPORT_FAILURES));
+
+    // One error
+    PAssert.that(result.getFailedMutations())
+        .satisfies(
+            m -> {
+              assertEquals(1, Iterables.size(m));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+
+    // Due to jitter in backoff algorithm, we cannot test for an exact number of retries,
+    // but there will be more than 16 (normally 18).
+    int numSleeps = Mockito.mockingDetails(WriteToSpannerFn.sleeper).getInvocations().size();
+    assertTrue(String.format("Should be least 16 sleeps, got %d", numSleeps), numSleeps > 16);
+    long totalSleep =
+        Mockito.mockingDetails(WriteToSpannerFn.sleeper).getInvocations().stream()
+            .mapToLong(i -> i.getArgument(0))
+            .reduce(0L, Long::sum);
+
+    // Total sleep should be greater then 2x maxCumulativeBackoff: 120m,
+    // because the batch is repeated inidividually due REPORT_FAILURES.
+    assertTrue(
+        String.format("Should be least 7200s of sleep, got %d", totalSleep),
+        totalSleep >= Duration.standardHours(2).getMillis());
+
+    // Number of write attempts should be numSleeps + 2 write attempts:
+    //      1 batch attempt, numSleeps/2 batch retries,
+    // then 1 individual attempt + numSleeps/2 individual retries
+    verify(serviceFactory.mockDatabaseClient(), times(numSleeps + 2)).writeAtLeastOnce(any());
   }
 
   @Test
