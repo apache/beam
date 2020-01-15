@@ -35,5 +35,4 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-
 }

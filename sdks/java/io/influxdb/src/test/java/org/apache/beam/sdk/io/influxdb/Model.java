@@ -23,7 +23,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.influxdb.dto.Point;
 
-public class Model implements LineProtocolConvertable, Serializable {
+class Model implements LineProtocolConvertable, Serializable {
   private String measurement;
   private Map<String, String> tags;
   private Map<String, Object> fields;
@@ -51,7 +51,7 @@ public class Model implements LineProtocolConvertable, Serializable {
     this.timeUnit = timeUnit;
   }
 
-  public void addFeild(String name, Object value) {
+  public void addField(String name, Object value) {
     fields.put(name, value);
   }
 

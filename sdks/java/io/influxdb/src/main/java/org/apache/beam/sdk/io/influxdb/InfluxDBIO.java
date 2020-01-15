@@ -149,6 +149,7 @@ public class InfluxDBIO {
     @Nullable
     abstract Boolean sslEnabled();
 
+    @Nullable
     abstract DataSourceConfiguration dataSourceConfiguration();
 
     @Nullable
@@ -183,10 +184,7 @@ public class InfluxDBIO {
 
     /** Reads from the specified database. */
     public Read withDatabase(String database) {
-      return builder()
-          .setDatabase(database)
-          .setDataSourceConfiguration(dataSourceConfiguration())
-          .build();
+      return builder().setDatabase(database).build();
     }
     /** Reads from the specified query. */
     public Read withQuery(String query) {
@@ -211,7 +209,7 @@ public class InfluxDBIO {
 
     @Override
     public PCollection<String> expand(PBegin input) {
-      checkArgument(dataSourceConfiguration() != null, "withConfiguration() is required");
+      checkArgument(dataSourceConfiguration() != null, "withDataSourceConfiguration() is required");
       checkArgument(
           query() != null || database() != null, "withDatabase() or withQuery() is required");
       if (database() != null) {
