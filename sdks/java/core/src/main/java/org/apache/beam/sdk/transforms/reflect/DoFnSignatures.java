@@ -103,6 +103,8 @@ public class DoFnSignatures {
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
           ImmutableList.of(
+              Parameter.WindowParameter.class,
+              Parameter.PaneInfoParameter.class,
               Parameter.PipelineOptionsParameter.class,
               Parameter.ElementParameter.class,
               Parameter.TimestampParameter.class,
@@ -132,6 +134,28 @@ public class DoFnSignatures {
               Parameter.OutputReceiverParameter.class,
               Parameter.TaggedOutputReceiverParameter.class,
               Parameter.StateParameter.class);
+
+  private static final Collection<Class<? extends Parameter>>
+      ALLOWED_GET_INITIAL_RESTRICTION_PARAMETERS =
+          ImmutableList.of(
+              Parameter.WindowParameter.class,
+              Parameter.TimestampParameter.class,
+              Parameter.PaneInfoParameter.class,
+              Parameter.PipelineOptionsParameter.class);
+
+  private static final Collection<Class<? extends Parameter>> ALLOWED_SPLIT_RESTRICTION_PARAMETERS =
+      ImmutableList.of(
+          Parameter.WindowParameter.class,
+          Parameter.TimestampParameter.class,
+          Parameter.PaneInfoParameter.class,
+          Parameter.PipelineOptionsParameter.class);
+
+  private static final Collection<Class<? extends Parameter>> ALLOWED_NEW_TRACKER_PARAMETERS =
+      ImmutableList.of(
+          Parameter.WindowParameter.class,
+          Parameter.TimestampParameter.class,
+          Parameter.PaneInfoParameter.class,
+          Parameter.PipelineOptionsParameter.class);
 
   /** @return the {@link DoFnSignature} for the given {@link DoFn} instance. */
   public static <FnT extends DoFn<?, ?>> DoFnSignature signatureForDoFn(FnT fn) {
@@ -438,7 +462,12 @@ public class DoFnSignatures {
           errors.forMethod(DoFn.GetInitialRestriction.class, getInitialRestrictionMethod);
       signatureBuilder.setGetInitialRestriction(
           analyzeGetInitialRestrictionMethod(
-              getInitialRestrictionErrors, fnT, getInitialRestrictionMethod, inputT));
+              getInitialRestrictionErrors,
+              fnT,
+              getInitialRestrictionMethod,
+              inputT,
+              outputT,
+              fnContext));
     }
 
     if (splitRestrictionMethod != null) {
@@ -446,7 +475,7 @@ public class DoFnSignatures {
           errors.forMethod(DoFn.SplitRestriction.class, splitRestrictionMethod);
       signatureBuilder.setSplitRestriction(
           analyzeSplitRestrictionMethod(
-              splitRestrictionErrors, fnT, splitRestrictionMethod, inputT));
+              splitRestrictionErrors, fnT, splitRestrictionMethod, inputT, outputT, fnContext));
     }
 
     if (getRestrictionCoderMethod != null) {
@@ -460,7 +489,8 @@ public class DoFnSignatures {
     if (newTrackerMethod != null) {
       ErrorReporter newTrackerErrors = errors.forMethod(DoFn.NewTracker.class, newTrackerMethod);
       signatureBuilder.setNewTracker(
-          analyzeNewTrackerMethod(newTrackerErrors, fnT, newTrackerMethod));
+          analyzeNewTrackerMethod(
+              newTrackerErrors, fnT, newTrackerMethod, inputT, outputT, fnContext));
     }
 
     signatureBuilder.setIsBoundedPerElement(inferBoundedness(fnT, processElement, errors));
@@ -812,6 +842,7 @@ public class DoFnSignatures {
 
     TypeDescriptor<?> trackerT = getTrackerType(fnClass, m);
     TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnClass, m);
+
     for (int i = 0; i < params.length; ++i) {
       Parameter extraParam =
           analyzeExtraParameter(
@@ -1032,13 +1063,7 @@ public class DoFnSignatures {
 
       return Parameter.stateParameter(stateDecl);
     } else {
-      List<String> allowedParamTypes =
-          Arrays.asList(
-              formatType(new TypeDescriptor<BoundedWindow>() {}),
-              formatType(new TypeDescriptor<RestrictionTracker<?, ?>>() {}));
-      paramErrors.throwIllegalArgument(
-          "%s is not a valid context parameter. Should be one of %s",
-          formatType(paramT), allowedParamTypes);
+      paramErrors.throwIllegalArgument("%s is not a valid context parameter.", formatType(paramT));
       // Unreachable
       return null;
     }
@@ -1158,19 +1183,44 @@ public class DoFnSignatures {
   @VisibleForTesting
   static DoFnSignature.GetInitialRestrictionMethod analyzeGetInitialRestrictionMethod(
       ErrorReporter errors,
-      TypeDescriptor<? extends DoFn> fnT,
+      TypeDescriptor<? extends DoFn<?, ?>> fnT,
       Method m,
-      TypeDescriptor<?> inputT) {
+      TypeDescriptor<?> inputT,
+      TypeDescriptor<?> outputT,
+      FnAnalysisContext fnContext) {
     // Method is of the form:
     // @GetInitialRestriction
-    // RestrictionT getInitialRestriction(InputT element);
+    // RestrictionT getInitialRestriction(InputT element, ... additional optional parameters ...);
+
     Type[] params = m.getGenericParameterTypes();
     errors.checkArgument(
-        params.length == 1 && fnT.resolveType(params[0]).equals(inputT),
-        "Must take a single argument of type %s",
+        params.length >= 1 && fnT.resolveType(params[0]).equals(inputT),
+        "First argument must be of type %s",
         formatType(inputT));
+
+    MethodAnalysisContext methodContext = MethodAnalysisContext.create();
+    TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnT, m);
+    for (int i = 1; i < params.length; ++i) {
+      Parameter extraParam =
+          analyzeExtraParameter(
+              errors,
+              fnContext,
+              methodContext,
+              fnT,
+              ParameterDescription.of(
+                  m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
+              inputT,
+              outputT);
+
+      methodContext.addParameter(extraParam);
+    }
+
+    for (Parameter parameter : methodContext.getExtraParameters()) {
+      checkParameterOneOf(errors, parameter, ALLOWED_GET_INITIAL_RESTRICTION_PARAMETERS);
+    }
+
     return DoFnSignature.GetInitialRestrictionMethod.create(
-        m, fnT.resolveType(m.getGenericReturnType()));
+        m, fnT.resolveType(m.getGenericReturnType()), windowT, methodContext.extraParameters);
   }
 
   /**
@@ -1186,16 +1236,19 @@ public class DoFnSignatures {
   @VisibleForTesting
   static DoFnSignature.SplitRestrictionMethod analyzeSplitRestrictionMethod(
       ErrorReporter errors,
-      TypeDescriptor<? extends DoFn> fnT,
+      TypeDescriptor<? extends DoFn<?, ?>> fnT,
       Method m,
-      TypeDescriptor<?> inputT) {
+      TypeDescriptor<?> inputT,
+      TypeDescriptor<?> outputT,
+      FnAnalysisContext fnContext) {
     // Method is of the form:
     // @SplitRestriction
-    // void splitRestriction(InputT element, RestrictionT restriction);
+    // void splitRestriction(InputT element, RestrictionT restriction, ... additional optional
+    // parameters ...);
     errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
 
     Type[] params = m.getGenericParameterTypes();
-    errors.checkArgument(params.length == 3, "Must have exactly 3 arguments");
+    errors.checkArgument(params.length >= 3, "Must have at least 3 arguments");
     errors.checkArgument(
         fnT.resolveType(params[0]).equals(inputT),
         "First argument must be the element type %s",
@@ -1210,7 +1263,29 @@ public class DoFnSignatures {
         formatType(expectedReceiverT),
         formatType(receiverT));
 
-    return DoFnSignature.SplitRestrictionMethod.create(m, restrictionT);
+    MethodAnalysisContext methodContext = MethodAnalysisContext.create();
+    TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnT, m);
+    for (int i = 3; i < params.length; ++i) {
+      Parameter extraParam =
+          analyzeExtraParameter(
+              errors,
+              fnContext,
+              methodContext,
+              fnT,
+              ParameterDescription.of(
+                  m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
+              inputT,
+              outputT);
+
+      methodContext.addParameter(extraParam);
+    }
+
+    for (Parameter parameter : methodContext.getExtraParameters()) {
+      checkParameterOneOf(errors, parameter, ALLOWED_SPLIT_RESTRICTION_PARAMETERS);
+    }
+
+    return DoFnSignature.SplitRestrictionMethod.create(
+        m, restrictionT, windowT, methodContext.getExtraParameters());
   }
 
   private static ImmutableMap<String, TimerDeclaration> analyzeTimerDeclarations(
@@ -1286,12 +1361,17 @@ public class DoFnSignatures {
 
   @VisibleForTesting
   static DoFnSignature.NewTrackerMethod analyzeNewTrackerMethod(
-      ErrorReporter errors, TypeDescriptor<? extends DoFn> fnT, Method m) {
+      ErrorReporter errors,
+      TypeDescriptor<? extends DoFn<?, ?>> fnT,
+      Method m,
+      TypeDescriptor<?> inputT,
+      TypeDescriptor<?> outputT,
+      FnAnalysisContext fnContext) {
     // Method is of the form:
     // @NewTracker
-    // TrackerT newTracker(RestrictionT restriction);
+    // TrackerT newTracker(RestrictionT restriction, ... additional optional parameters ...);
     Type[] params = m.getGenericParameterTypes();
-    errors.checkArgument(params.length == 1, "Must have a single argument");
+    errors.checkArgument(params.length >= 1, "Must have at least one argument");
 
     TypeDescriptor<?> restrictionT = fnT.resolveType(params[0]);
     TypeDescriptor<?> trackerT = fnT.resolveType(m.getGenericReturnType());
@@ -1301,7 +1381,30 @@ public class DoFnSignatures {
         "Returns %s, but must return a subtype of %s",
         formatType(trackerT),
         formatType(expectedTrackerT));
-    return DoFnSignature.NewTrackerMethod.create(m, restrictionT, trackerT);
+
+    MethodAnalysisContext methodContext = MethodAnalysisContext.create();
+    TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnT, m);
+    for (int i = 1; i < params.length; ++i) {
+      Parameter extraParam =
+          analyzeExtraParameter(
+              errors,
+              fnContext,
+              methodContext,
+              fnT,
+              ParameterDescription.of(
+                  m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
+              inputT,
+              outputT);
+
+      methodContext.addParameter(extraParam);
+    }
+
+    for (Parameter parameter : methodContext.getExtraParameters()) {
+      checkParameterOneOf(errors, parameter, ALLOWED_NEW_TRACKER_PARAMETERS);
+    }
+
+    return DoFnSignature.NewTrackerMethod.create(
+        m, restrictionT, trackerT, windowT, methodContext.getExtraParameters());
   }
 
   private static Collection<Method> declaredMethodsWithAnnotation(

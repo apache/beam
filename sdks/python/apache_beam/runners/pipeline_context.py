@@ -20,6 +20,8 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from builtins import object
@@ -134,14 +136,6 @@ class PipelineContext(object):
   Used for accessing and constructing the referenced objects of a Pipeline.
   """
 
-  _COMPONENT_TYPES = {
-      'transforms': pipeline.AppliedPTransform,
-      'pcollections': pvalue.PCollection,
-      'coders': coders.Coder,
-      'windowing_strategies': core.Windowing,
-      'environments': environments.Environment,
-  }
-
   def __init__(self,
                proto=None,  # type: Optional[Union[beam_runner_api_pb2.Components, beam_fn_api_pb2.ProcessBundleDescriptor]]
                default_environment=None,  # type: Optional[environments.Environment]
@@ -156,13 +150,26 @@ class PipelineContext(object):
           coders=dict(proto.coders.items()),
           windowing_strategies=dict(proto.windowing_strategies.items()),
           environments=dict(proto.environments.items()))
-    for name, cls in self._COMPONENT_TYPES.items():
-      setattr(
-          self, name, _PipelineContextMap(
-              self, cls, namespace, getattr(proto, name, None)))
+
+    self.transforms = _PipelineContextMap(
+        self, pipeline.AppliedPTransform, namespace,
+        proto.transforms if proto is not None else None)
+    self.pcollections = _PipelineContextMap(
+        self, pvalue.PCollection, namespace,
+        proto.pcollections if proto is not None else None)
+    self.coders = _PipelineContextMap(
+        self, coders.Coder, namespace,
+        proto.coders if proto is not None else None)
+    self.windowing_strategies = _PipelineContextMap(
+        self, core.Windowing, namespace,
+        proto.windowing_strategies if proto is not None else None)
+    self.environments = _PipelineContextMap(
+        self, environments.Environment, namespace,
+        proto.environments if proto is not None else None)
+
     if default_environment:
       self._default_environment_id = self.environments.get_id(
-          default_environment, label='default_environment')
+          default_environment, label='default_environment')  # type: Optional[str]
     else:
       self._default_environment_id = None
     self.use_fake_coders = use_fake_coders
@@ -177,7 +184,7 @@ class PipelineContext(object):
   def coder_id_from_element_type(self, element_type):
     # type: (Any) -> str
     if self.use_fake_coders:
-      return pickler.dumps(element_type)
+      return pickler.dumps(element_type).decode('ascii')
     else:
       return self.coders.get_id(coders.registry.get_coder(element_type))
 
@@ -197,8 +204,13 @@ class PipelineContext(object):
   def to_runner_api(self):
     # type: () -> beam_runner_api_pb2.Components
     context_proto = beam_runner_api_pb2.Components()
-    for name in self._COMPONENT_TYPES:
-      getattr(self, name).populate_map(getattr(context_proto, name))
+
+    self.transforms.populate_map(context_proto.transforms)
+    self.pcollections.populate_map(context_proto.pcollections)
+    self.coders.populate_map(context_proto.coders)
+    self.windowing_strategies.populate_map(context_proto.windowing_strategies)
+    self.environments.populate_map(context_proto.environments)
+
     return context_proto
 
   def default_environment_id(self):

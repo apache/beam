@@ -17,6 +17,8 @@
 
 """Tests corresponding to Dataflow's iobase module."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import unittest

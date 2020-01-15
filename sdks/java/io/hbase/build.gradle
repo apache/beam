@@ -44,7 +44,6 @@ dependencies {
   compile "org.apache.hbase:hbase-shaded-client:$hbase_version"
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.commons_lang3
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library

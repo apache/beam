@@ -16,6 +16,8 @@
 #
 """UnitTests for DoFn lifecycle and bundle methods"""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import unittest

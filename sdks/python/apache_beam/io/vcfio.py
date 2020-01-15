@@ -20,6 +20,8 @@
 The 4.2 spec is available at https://samtools.github.io/hts-specs/VCFv4.2.pdf.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -178,9 +180,6 @@ class Variant(object):
       return NotImplemented
 
     return self < other or self == other
-
-  def __ne__(self, other):
-    return not self == other
 
   def __gt__(self, other):
     if not isinstance(other, Variant):

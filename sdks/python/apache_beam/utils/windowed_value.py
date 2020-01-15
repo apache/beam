@@ -27,6 +27,8 @@ This module is experimental. No backwards-compatibility guarantees.
 
 #cython: profile=True
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from builtins import object

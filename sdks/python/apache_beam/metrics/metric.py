@@ -24,6 +24,8 @@ and displayed as part of their pipeline execution.
 - Metrics - This class lets pipeline and transform writers create and access
     metric objects such as counters, distributions, etc.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import inspect

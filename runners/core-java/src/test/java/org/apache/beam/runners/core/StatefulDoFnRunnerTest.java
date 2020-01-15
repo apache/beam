@@ -220,7 +220,13 @@ public class StatefulDoFnRunnerTest {
       StateNamespace namespace = timer.getNamespace();
       checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
       BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
-      toTrigger.onTimer(timer.getTimerId(), window, timer.getTimestamp(), timer.getDomain());
+      toTrigger.onTimer(
+          timer.getTimerId(),
+          timer.getTimerFamilyId(),
+          window,
+          timer.getTimestamp(),
+          timer.getOutputTimestamp(),
+          timer.getDomain());
     }
   }
 

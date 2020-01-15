@@ -22,6 +22,8 @@ pipelines, during remote execution.
 This API is currently under development and is subject to change.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import re

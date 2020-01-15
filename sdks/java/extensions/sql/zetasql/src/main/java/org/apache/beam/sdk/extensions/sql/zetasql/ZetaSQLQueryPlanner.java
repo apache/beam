@@ -30,7 +30,6 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.ConventionTraitDef;
@@ -42,6 +41,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelRoot;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.JoinCommuteRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperatorTable;
@@ -65,26 +65,30 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
   }
 
   public ZetaSQLQueryPlanner(JdbcConnection jdbcConnection, RuleSet[] ruleSets) {
-    // TODO[BEAM-8630]: uncomment the next lines once we have fully migrated to BeamZetaSqlCalcRel
-    // plannerImpl =
-    //     new ZetaSQLPlannerImpl(defaultConfig(jdbcConnection, replaceBeamCalcRule(ruleSets)));
-    plannerImpl = new ZetaSQLPlannerImpl(defaultConfig(jdbcConnection, ruleSets));
+    plannerImpl =
+        new ZetaSQLPlannerImpl(defaultConfig(jdbcConnection, modifyRuleSetsForZetaSql(ruleSets)));
   }
 
   public static RuleSet[] getZetaSqlRuleSets() {
-    // TODO[BEAM-8630]: uncomment the next line once we have fully migrated to BeamZetaSqlCalcRel
-    // return replaceBeamCalcRule(BeamRuleSets.getRuleSets());
-    return BeamRuleSets.getRuleSets();
+    return modifyRuleSetsForZetaSql(BeamRuleSets.getRuleSets());
   }
 
-  private static RuleSet[] replaceBeamCalcRule(RuleSet[] ruleSets) {
+  private static RuleSet[] modifyRuleSetsForZetaSql(RuleSet[] ruleSets) {
     RuleSet[] ret = new RuleSet[ruleSets.length];
     for (int i = 0; i < ruleSets.length; i++) {
       ImmutableList.Builder<RelOptRule> bd = ImmutableList.builder();
       for (RelOptRule rule : ruleSets[i]) {
-        if (rule instanceof BeamCalcRule) {
-          bd.add(BeamZetaSqlCalcRule.INSTANCE);
-        } else {
+        // TODO[BEAM-9075]: Fix join re-ordering for ZetaSQL planner. Currently join re-ordering
+        //  requires the JoinCommuteRule, which doesn't work without struct flattening.
+        if (rule instanceof JoinCommuteRule) {
+          continue;
+        }
+        // TODO[BEAM-8630]: uncomment the next block once we have fully migrated to
+        //  BeamZetaSqlCalcRel
+        // else if (rule instanceof BeamCalcRule) {
+        //   bd.add(BeamZetaSqlCalcRule.INSTANCE);
+        // }
+        else {
           bd.add(rule);
         }
       }

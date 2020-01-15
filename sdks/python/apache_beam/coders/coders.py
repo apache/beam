@@ -19,6 +19,8 @@
 
 Only those coders listed in __all__ are part of the public API of this module.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import base64

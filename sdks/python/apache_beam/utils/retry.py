@@ -25,6 +25,8 @@ should find all such places. For this reason even places where retry is not
 needed right now use a @retry.no_retries decorator.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import functools

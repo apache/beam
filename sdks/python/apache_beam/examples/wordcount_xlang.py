@@ -17,6 +17,8 @@
 
 """A cross-language word-counting workflow."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse
@@ -53,13 +55,7 @@ class WordExtractingDoFn(beam.DoFn):
       The processed element.
     """
     text_line = element.strip()
-    # Using bytes type to match input and output coders between Python
-    # and Java SDKs. Any element type can be used for crossing the language
-    # boundary if a matching coder implementation exists in both SDKs.
-    # TODO(BEAM-6587): Use strings once they're understood by the
-    # Java SDK.
-    words = [bytes(x) for x in re.findall(r'[\w\']+', text_line)]
-    return words
+    return re.findall(r'[\w\']+', text_line)
 
 
 def run(p, input_file, output_file):

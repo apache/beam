@@ -17,13 +17,15 @@
 
 # This module is experimental. No backwards-compatibility guarantees.
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import contextlib
 import threading
-from collections import namedtuple
 from typing import TYPE_CHECKING
 from typing import Dict
+from typing import NamedTuple
 from typing import Optional
 from typing import Union
 
@@ -80,12 +82,12 @@ def for_test():
   return get_current_tracker()
 
 
-StateSamplerInfo = namedtuple(
+StateSamplerInfo = NamedTuple(
     'StateSamplerInfo',
-    ['state_name',
-     'transition_count',
-     'time_since_transition',
-     'tracked_thread'])
+    [('state_name', CounterName),
+     ('transition_count', int),
+     ('time_since_transition', int),
+     ('tracked_thread', Optional[threading.Thread])])
 
 
 # Default period for sampling current state of pipeline execution.

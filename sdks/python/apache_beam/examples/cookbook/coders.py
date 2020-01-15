@@ -28,6 +28,8 @@ per line in the following format:
   [TEAM_NAME, POINTS]
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse

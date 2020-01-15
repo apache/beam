@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import sys
@@ -25,7 +27,7 @@ from concurrent.futures import _base
 try:  # Python3
   import queue
 except Exception:  # Python2
-  import Queue as queue
+  import Queue as queue  # type: ignore[no-redef]
 
 
 class _WorkItem(object):

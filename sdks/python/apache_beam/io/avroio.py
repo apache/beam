@@ -41,6 +41,8 @@ Additionally, this module provides a write ``PTransform`` ``WriteToAvro``
 that can be used to write a given ``PCollection`` of Python objects to an
 Avro file.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import io

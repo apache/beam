@@ -1387,6 +1387,24 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testZetaSQLStructFieldAccessInnerJoin() {
+    String sql =
+        "SELECT A.rowCol.data FROM table_with_struct_two AS A INNER JOIN "
+            + "table_with_struct AS B "
+            + "ON A.rowCol.row_id = B.id";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    final Schema schema = Schema.builder().addStringField("field1").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValue("data1").build(),
+            Row.withSchema(schema).addValue("data2").build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testZetaSQLSelectFromTableWithArrayType() {
     String sql = "SELECT array_col FROM table_with_array;";
 
@@ -3661,7 +3679,6 @@ public class ZetaSQLDialectSpecTest {
 
   /** Only sample scenarios are covered here. Excessive testing is done via Compliance tests. */
   @Test
-  @Ignore("ZetaSQL does not support EnumType to IdentifierLiteral")
   public void testExtractTimestamp() {
     String sql =
         "WITH Timestamps AS (\n"

@@ -36,6 +36,8 @@ Available classes:
   and communicate it to the API.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import calendar
@@ -130,15 +132,18 @@ class DisplayData(object):
 
   @classmethod
   def create_from_options(cls, pipeline_options):
-    """ Creates :class:`DisplayData` from a
+    """ Creates :class:`~apache_beam.transforms.display.DisplayData` from a
     :class:`~apache_beam.options.pipeline_options.PipelineOptions` instance.
 
-    When creating :class:`DisplayData`, this method will convert the value of
-    any item of a non-supported type to its string representation.
+    When creating :class:`~apache_beam.transforms.display.DisplayData`, this
+    method will convert the value of any item of a non-supported type to its
+    string representation.
     The normal :meth:`.create_from()` method rejects those items.
 
     Returns:
-      DisplayData: A :class:`DisplayData` instance with populated items.
+      ~apache_beam.transforms.display.DisplayData:
+        A :class:`~apache_beam.transforms.display.DisplayData` instance with
+        populated items.
 
     Raises:
       ~exceptions.ValueError: If the **has_display_data** argument is
@@ -158,10 +163,13 @@ class DisplayData(object):
 
   @classmethod
   def create_from(cls, has_display_data):
-    """ Creates :class:`DisplayData` from a :class:`HasDisplayData` instance.
+    """ Creates :class:`~apache_beam.transforms.display.DisplayData` from a
+    :class:`HasDisplayData` instance.
 
     Returns:
-      DisplayData: A :class:`DisplayData` instance with populated items.
+      ~apache_beam.transforms.display.DisplayData:
+        A :class:`~apache_beam.transforms.display.DisplayData` instance with
+        populated items.
 
     Raises:
       ~exceptions.ValueError: If the **has_display_data** argument is

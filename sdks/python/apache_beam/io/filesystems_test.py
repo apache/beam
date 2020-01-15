@@ -18,12 +18,15 @@
 
 """Unit tests for LocalFileSystem."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import filecmp
 import logging
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 
@@ -46,6 +49,12 @@ def _gen_fake_join(separator):
 
 
 class FileSystemsTest(unittest.TestCase):
+
+  @classmethod
+  def setUpClass(cls):
+    # Method has been renamed in Python 3
+    if sys.version_info[0] < 3:
+      cls.assertCountEqual = cls.assertItemsEqual
 
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
@@ -130,7 +139,7 @@ class FileSystemsTest(unittest.TestCase):
       FileSystems.match([None])
     self.assertEqual(list(error.exception.exception_details), [None])
 
-  def test_match_directory(self):
+  def test_match_directory_with_files(self):
     path1 = os.path.join(self.tmpdir, 'f1')
     path2 = os.path.join(self.tmpdir, 'f2')
     open(path1, 'a').close()
@@ -140,7 +149,7 @@ class FileSystemsTest(unittest.TestCase):
     path = os.path.join(self.tmpdir, '*')
     result = FileSystems.match([path])[0]
     files = [f.path for f in result.metadata_list]
-    self.assertEqual(files, [path1, path2])
+    self.assertCountEqual(files, [path1, path2])
 
   def test_match_directory(self):
     result = FileSystems.match([self.tmpdir])[0]

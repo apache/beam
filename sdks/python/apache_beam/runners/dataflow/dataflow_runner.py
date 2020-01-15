@@ -20,6 +20,8 @@
 The runner will create a JSON description of the job graph and then submit it
 to the Dataflow Service for remote execution by a worker.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 

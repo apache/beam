@@ -22,6 +22,8 @@ Please avoid using this module for new pipelines since
 ``apache_beam.io.gcp.datastore.v1new.datastoreio`` will replace it in the
 next Beam major release.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 

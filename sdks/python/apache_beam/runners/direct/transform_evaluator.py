@@ -17,6 +17,8 @@
 
 """An evaluator of a specific application of a transform."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import atexit
@@ -584,6 +586,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
       bundles = [bundle]
     else:
       bundles = []
+    assert self._applied_ptransform.transform is not None
     if self._applied_ptransform.inputs:
       input_pvalue = self._applied_ptransform.inputs[0]  # type: Union[pvalue.PBegin, pvalue.PCollection]
     else:

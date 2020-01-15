@@ -889,3 +889,32 @@ service BeamFnExternalWorkerPool {
   // Stop the SDK worker.
   rpc StopWorker (StopWorkerRequest) returns (StopWorkerResponse) {}
 }
+
+// Request from runner to SDK Harness asking for its status. For more details see
+// https://s.apache.org/beam-fn-api-harness-status
+message WorkerStatusRequest {
+  // (Required) Unique ID identifying this request.
+  string id = 1;
+}
+
+// Response from SDK Harness to runner containing the debug related status info.
+message WorkerStatusResponse {
+  // (Required) Unique ID from the original request.
+  string id = 1;
+
+  // (Optional) Error message if exception encountered generating the status response.
+  string error = 2;
+
+  // (Optional) Status debugging info reported by SDK harness worker. Content and
+  // format is not strongly enforced but should be print-friendly and
+  // appropriate as an HTTP response body for end user. For details of the preferred
+  // info to include in the message see
+  // https://s.apache.org/beam-fn-api-harness-status
+  string status_info = 3;
+}
+
+// API for SDKs to report debug-related statuses to runner during pipeline execution.
+service BeamFnWorkerStatus {
+  rpc WorkerStatus (stream WorkerStatusResponse)
+    returns (stream WorkerStatusRequest) {}
+}

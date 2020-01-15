@@ -18,6 +18,8 @@
 """Unit tests for type-hint objects and decorators - Python 3 syntax specific.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import unittest
