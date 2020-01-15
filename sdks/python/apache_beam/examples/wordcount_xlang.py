@@ -64,7 +64,7 @@ def run(p, input_file, output_file):
 
   counts = (lines
             | 'split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(bytes))
+                          .with_output_types(unicode))
             | 'count' >> beam.ExternalTransform(
                 'beam:transforms:xlang:count', None, EXPANSION_SERVICE_ADDR))
 
