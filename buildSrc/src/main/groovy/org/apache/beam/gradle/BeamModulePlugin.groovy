@@ -364,6 +364,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def aws_java_sdk2_version = "2.5.71"
     def cassandra_driver_version = "3.8.0"
     def classgraph_version = "4.8.56"
+    def gax_version = "1.52.0"
     def generated_grpc_beta_version = "0.44.0"
     def generated_grpc_ga_version = "1.83.0"
     def generated_grpc_dc_beta_version = "0.27.0-alpha"
@@ -372,7 +373,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_cloud_bigdataoss_version = "1.9.16"
     def google_cloud_core_version = "1.61.0"
     def google_cloud_spanner_version = "1.6.0"
-    def grpc_version = "1.17.1"
+    def grpc_version = "1.25.0"
     def guava_version = "25.1-jre"
     def hadoop_version = "2.8.5"
     def hamcrest_version = "2.1"
@@ -434,7 +435,8 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.0.15",
-        gax_grpc                                    : "com.google.api:gax-grpc:1.38.0",
+        gax                                         : "com.google.api:gax:$gax_version",
+        gax_grpc                                    : "com.google.api:gax-grpc:$gax_version",
         google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version",
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
@@ -464,6 +466,7 @@ class BeamModulePlugin implements Plugin<Project> {
         grpc_all                                    : "io.grpc:grpc-all:$grpc_version",
         grpc_auth                                   : "io.grpc:grpc-auth:$grpc_version",
         grpc_core                                   : "io.grpc:grpc-core:$grpc_version",
+        grpc_context                                : "io.grpc:grpc-context:$grpc_version",
         grpc_google_cloud_datacatalog_v1beta1       : "com.google.api.grpc:grpc-google-cloud-datacatalog-v1beta1:$generated_grpc_dc_beta_version",
         grpc_google_cloud_pubsub_v1                 : "com.google.api.grpc:grpc-google-cloud-pubsub-v1:$generated_grpc_ga_version",
         grpc_protobuf                               : "io.grpc:grpc-protobuf:$grpc_version",
