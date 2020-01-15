@@ -950,6 +950,10 @@ class DataflowRunner(PipelineRunner):
       step.add_property(PropertyNames.RESTRICTION_ENCODING,
                         self._get_cloud_encoding(restriction_coder))
 
+    from apache_beam.runners.common import DoFnSignature
+    if DoFnSignature(transform.dofn).is_stateful_dofn():
+      step.add_property(PropertyNames.USES_KEYED_STATE, "true")
+
   @staticmethod
   def _pardo_fn_data(transform_node, get_label):
     transform = transform_node.transform

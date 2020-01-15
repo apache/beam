@@ -123,6 +123,7 @@ class PropertyNames(object):
   USE_INDEXED_FORMAT = 'use_indexed_format'
   USER_FN = 'user_fn'
   USER_NAME = 'user_name'
+  USES_KEYED_STATE = 'uses_keyed_state'
   VALIDATE_SINK = 'validate_sink'
   VALIDATE_SOURCE = 'validate_source'
   VALUE = 'value'
