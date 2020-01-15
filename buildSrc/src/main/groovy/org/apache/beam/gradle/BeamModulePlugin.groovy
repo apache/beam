@@ -372,7 +372,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_cloud_bigdataoss_version = "1.9.16"
     def google_cloud_core_version = "1.61.0"
     def google_cloud_spanner_version = "1.6.0"
-    def grpc_version = "1.26.0"
+    def grpc_version = "1.17.1"
     def guava_version = "25.1-jre"
     def hadoop_version = "2.8.5"
     def hamcrest_version = "2.1"
@@ -1437,14 +1437,14 @@ class BeamModulePlugin implements Plugin<Project> {
       project.protobuf {
         protoc {
           // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:3.6.0" }
+          artifact = "com.google.protobuf:protoc:$protobuf_version" }
 
         // Configure the codegen plugins
         plugins {
           // An artifact spec for a protoc plugin, with "grpc" as
           // the identifier, which can be referred to in the "plugins"
           // container of the "generateProtoTasks" closure.
-          grpc { artifact = "io.grpc:protoc-gen-grpc-java:1.26.0" }
+          grpc { artifact = "io.grpc:protoc-gen-grpc-java:$grpc_version" }
         }
 
         generateProtoTasks {
@@ -1515,14 +1515,14 @@ class BeamModulePlugin implements Plugin<Project> {
       project.protobuf {
         protoc {
           // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:3.11.0" }
+          artifact = "com.google.protobuf:protoc:$protobuf_version" }
 
         // Configure the codegen plugins
         plugins {
           // An artifact spec for a protoc plugin, with "grpc" as
           // the identifier, which can be referred to in the "plugins"
           // container of the "generateProtoTasks" closure.
-          grpc { artifact = "io.grpc:protoc-gen-grpc-java:1.26.0" }
+          grpc { artifact = "io.grpc:protoc-gen-grpc-java:$grpc_version" }
         }
 
         generateProtoTasks {
