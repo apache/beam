@@ -28,7 +28,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam Overview</title>
+  <title>Beam Security</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -42,7 +42,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/get-started/beam-overview/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/security/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -144,7 +144,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/get-started/beam-overview.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/security/index.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -211,10 +211,7 @@
 
 
 <ul class="nav">
-  <li><a href="#apache-beam-sdks">Apache Beam SDKs</a></li>
-  <li><a href="#apache-beam-pipeline-runners">Apache Beam Pipeline Runners</a></li>
-  <li><a href="#get-started">Get Started</a></li>
-  <li><a href="#contribute">Contribute</a></li>
+  <li><a href="#cve-2020-1929">CVE-2020-1929</a></li>
 </ul>
 
 
@@ -235,69 +232,44 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<h1 id="apache-beam-overview">Apache Beam Overview</h1>
+<h1 id="reporting-security-issues">Reporting Security Issues</h1>
 
-<p>Apache Beam is an open source, unified model for defining both batch and streaming data-parallel processing pipelines. Using one of the open source Beam SDKs, you build a program that defines the pipeline. The pipeline is then executed by one of Beam’s supported <strong>distributed processing back-ends</strong>, which include <a href="http://apex.apache.org">Apache Apex</a>, <a href="http://flink.apache.org">Apache Flink</a>, <a href="http://spark.apache.org">Apache Spark</a>, and <a href="https://cloud.google.com/dataflow">Google Cloud Dataflow</a>.</p>
+<p>Apache Beam uses the standard process outlined by the <a href="https://www.apache.org/security/">Apache Security
+Team</a> for reporting vulnerabilities. Note
+that vulnerabilities should not be publicly disclosed until the project has
+responded.</p>
 
-<p>Beam is particularly useful for <a href="http://en.wikipedia.org/wiki/Embarassingly_parallel">Embarrassingly Parallel</a> data processing tasks, in which the problem can be decomposed into many smaller bundles of data that can be processed independently and in parallel. You can also use Beam for Extract, Transform, and Load (ETL) tasks and pure data integration. These tasks are useful for moving data between different storage media and data sources, transforming data into a more desirable format, or loading data onto a new system.</p>
+<p>To report a possible security vulnerability, please email
+<code class="highlighter-rouge">security@apache.org</code> and <code class="highlighter-rouge">pmc@beam.apache.org</code>. This is a non-public list
+that will reach the Beam PMC.</p>
 
-<h2 id="apache-beam-sdks">Apache Beam SDKs</h2>
+<h1 id="known-security-issues">Known Security Issues</h1>
 
-<p>The Beam SDKs provide a unified programming model that can represent and transform data sets of any size, whether the input is a finite data set from a batch data source, or an infinite data set from a streaming data source. The Beam SDKs use the same classes to represent both bounded and unbounded data, and the same transforms to operate on that data. You use the Beam SDK of your choice to build a program that defines your data processing pipeline.</p>
+<h2 id="cve-2020-1929">CVE-2020-1929</h2>
 
-<p>Beam currently supports the following language-specific SDKs:</p>
+<p>[CVE-2020-1929] Apache Beam MongoDB IO connector disables certificate trust verification</p>
 
+<p>Severity: Major<br />
+Vendor: The Apache Software Foundation</p>
+
+<p>Versions Affected:<br />
+Apache Beam 2.10.0 to 2.16.0</p>
+
+<p>Description:<br />
+The Apache Beam MongoDB connector in versions 2.10.0 to 2.16.0 has an option to
+disable SSL trust verification. However this configuration is not respected and
+the certificate verification disables trust verification in every case. This
+exclusion also gets registered globally which disables trust checking for any
+code running in the same JVM.</p>
+
+<p>Mitigation:<br />
+Users of the affected versions should apply one of the following mitigations:</p>
 <ul>
-  <li>Java <img src="/images/logos/sdks/java.png" alt="Java logo" /></li>
-  <li>Python <img src="/images/logos/sdks/python.png" alt="Python logo" /></li>
-  <li>Go <img src="/images/logos/sdks/go.png" alt="Go logo" height="45px" /></li>
+  <li>Upgrade to Apache Beam 2.17.0 or later</li>
 </ul>
 
-<p>A Scala <img src="/images/logos/sdks/scala.png" alt="Scala logo" height="45px" /> interface is also available as <a href="https://github.com/spotify/scio">Scio</a>.</p>
-
-<h2 id="apache-beam-pipeline-runners">Apache Beam Pipeline Runners</h2>
-
-<p>The Beam Pipeline Runners translate the data processing pipeline you define with your Beam program into the API compatible with the distributed processing back-end of your choice. When you run your Beam program, you’ll need to specify an <a href="/documentation/runners/capability-matrix">appropriate runner</a> for the back-end where you want to execute your pipeline.</p>
-
-<p>Beam currently supports Runners that work with the following distributed processing back-ends:</p>
-
-<ul>
-  <li>Apache Apex  <img src="/images/logos/runners/apex.png" alt="Apache Apex logo" /></li>
-  <li>Apache Flink <img src="/images/logos/runners/flink.png" alt="Apache Flink logo" /></li>
-  <li>Apache Gearpump (incubating) <img src="/images/logos/runners/gearpump.png" alt="Apache Gearpump logo" /></li>
-  <li>Apache Samza <img src="/images/logos/runners/samza.png" alt="Apache Samza logo" height="20px" width="50" /></li>
-  <li>Apache Spark <img src="/images/logos/runners/spark.png" alt="Apache Spark logo" /></li>
-  <li>Google Cloud Dataflow <img src="/images/logos/runners/dataflow.png" alt="Google Cloud Dataflow logo" /></li>
-  <li>Hazelcast Jet <img src="/images/logos/runners/jet.png" alt="Hazelcast Jet logo" /></li>
-</ul>
-
-<p><strong>Note:</strong> You can always execute your pipeline locally for testing and debugging purposes.</p>
-
-<h2 id="get-started">Get Started</h2>
-
-<p>Get started using Beam for your data processing tasks.</p>
-
-<ol>
-  <li>
-    <p><a href="/get-started/try-apache-beam">Try Apache Beam</a> in an online interactive environment.</p>
-  </li>
-  <li>
-    <p>Follow the Quickstart for the <a href="/get-started/quickstart-java">Java SDK</a>, the <a href="/get-started/quickstart-py">Python SDK</a> or the <a href="/get-started/quickstart-go">Go SDK</a>.</p>
-  </li>
-  <li>
-    <p>See the <a href="/get-started/wordcount-example">WordCount Examples Walkthrough</a> for examples that introduce various features of the SDKs.</p>
-  </li>
-  <li>
-    <p>Take a self-paced tour through our <a href="/documentation/resources/learning-resources">Learning Resources</a>.</p>
-  </li>
-  <li>
-    <p>Dive into the <a href="/documentation/">Documentation</a> section for in-depth concepts and reference materials for the Beam model, SDKs, and runners.</p>
-  </li>
-</ol>
-
-<h2 id="contribute">Contribute</h2>
-
-<p>Beam is an <a href="http://www.apache.org" target="_blank">Apache Software Foundation</a> project, available under the Apache v2 license. Beam is an open source community and contributions are greatly appreciated! If you’d like to contribute, please see the <a href="/contribute/">Contribute</a> section.</p>
+<p>Acknowledgements:<br />
+This issue was reported (and fixed) by Colm Ó hÉigeartaigh.</p>
 
       </div>
     </div>
