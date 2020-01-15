@@ -50,6 +50,8 @@ import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -73,7 +75,9 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
+@Internal
+@Experimental
+class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
   public static final String KEY_FIELD_PROPERTY = "keyField";
   @VisibleForTesting static final String DEFAULT_KEY_FIELD = "__key__";
   private static final Logger LOGGER = LoggerFactory.getLogger(DataStoreV1Table.class);
@@ -83,7 +87,7 @@ public class DataStoreV1Table extends SchemaBaseBeamTable implements Serializabl
   @VisibleForTesting final String projectId;
   @VisibleForTesting final String kind;
 
-  public DataStoreV1Table(Table table) {
+  DataStoreV1Table(Table table) {
     super(table.getSchema());
 
     // TODO: allow users to specify a name of the field to store a key value via TableProperties.
