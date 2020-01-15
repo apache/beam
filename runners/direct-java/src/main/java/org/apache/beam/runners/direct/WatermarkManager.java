@@ -971,7 +971,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       Map<ExecutableT, Set<String>> transformsWithAlreadyExtractedTimers, ExecutableT executable) {
 
     return update -> {
-      String timerIdWithNs = TimerUpdate.getTimerIdWithNamespace(update);
+      String timerIdWithNs = TimerUpdate.getTimerIdAndTimerFamilyIdWithNamespace(update);
       transformsWithAlreadyExtractedTimers.compute(
           executable,
           (k, v) -> {
@@ -1243,7 +1243,8 @@ public class WatermarkManager<ExecutableT, CollectionT> {
                     v = new HashSet<>();
                   }
                   final Set<String> toUpdate = v;
-                  newTimers.forEach(td -> toUpdate.add(TimerUpdate.getTimerIdWithNamespace(td)));
+                  newTimers.forEach(
+                      td -> toUpdate.add(TimerUpdate.getTimerIdAndTimerFamilyIdWithNamespace(td)));
                   return v;
                 });
             allTimers.addAll(firedTimers);
@@ -1598,11 +1599,13 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
     private static Map<String, TimerData> indexTimerData(Iterable<? extends TimerData> timerData) {
       return StreamSupport.stream(timerData.spliterator(), false)
-          .collect(Collectors.toMap(TimerUpdate::getTimerIdWithNamespace, e -> e, (a, b) -> b));
+          .collect(
+              Collectors.toMap(
+                  TimerUpdate::getTimerIdAndTimerFamilyIdWithNamespace, e -> e, (a, b) -> b));
     }
 
-    private static String getTimerIdWithNamespace(TimerData td) {
-      return td.getNamespace() + td.getTimerId();
+    private static String getTimerIdAndTimerFamilyIdWithNamespace(TimerData td) {
+      return td.getNamespace() + td.getTimerId() + td.getTimerFamilyId();
     }
 
     private TimerUpdate(
@@ -1659,7 +1662,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       Set<TimerData> pushedBack = Sets.newHashSet(pushedBackTimers);
       Map<String, TimerData> newSetTimers = indexTimerData(setTimers);
       for (TimerData td : completedTimers) {
-        String timerIdWithNs = getTimerIdWithNamespace(td);
+        String timerIdWithNs = getTimerIdAndTimerFamilyIdWithNamespace(td);
         if (!pushedBack.contains(td)) {
           timersToComplete.add(td);
         } else if (!newSetTimers.containsKey(timerIdWithNs)) {
