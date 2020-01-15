@@ -4356,8 +4356,8 @@ public class ParDoTest implements Serializable {
                 @TimerFamily(timerFamilyId1) TimerMap timerMap1,
                 @TimerFamily(timerFamilyId2) TimerMap timerMap2,
                 OutputReceiver<String> r) {
-              timerMap1.set("timer1", new Instant(1));
-              timerMap2.set("timer1", new Instant(2));
+              timerMap1.set("timer", new Instant(1));
+              timerMap2.set("timer", new Instant(2));
               r.output("process");
             }
 
@@ -4381,7 +4381,7 @@ public class ParDoTest implements Serializable {
               .advanceWatermarkToInfinity();
 
       PCollection<String> output = pipeline.apply(stream).apply(ParDo.of(fn));
-      PAssert.that(output).containsInAnyOrder("process", "timer1", "timer1");
+      PAssert.that(output).containsInAnyOrder("process", "timer", "timer");
       pipeline.run();
     }
 
