@@ -215,7 +215,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     OnTimerArgumentProvider argumentProvider =
         new OnTimerArgumentProvider(timerId, window, effectiveTimestamp, timeDomain);
-    invoker.invokeOnTimer(timerFamilyId, argumentProvider);
+    invoker.invokeOnTimer(timerId, timerFamilyId, argumentProvider);
   }
 
   private void invokeProcessElement(WindowedValue<InputT> elem) {
@@ -988,7 +988,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       this.window = window;
       this.namespace = namespace;
       this.timerId = timerId;
-      this.timerFamilyId = timerId;
+      this.timerFamilyId = "";
       this.spec = spec;
       this.timerInternals = timerInternals;
     }

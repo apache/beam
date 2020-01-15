@@ -70,7 +70,8 @@ public interface DoFnInvoker<InputT, OutputT> {
   DoFn.ProcessContinuation invokeProcessElement(ArgumentProvider<InputT, OutputT> extra);
 
   /** Invoke the appropriate {@link DoFn.OnTimer} method on the bound {@link DoFn}. */
-  void invokeOnTimer(String timerId, ArgumentProvider<InputT, OutputT> arguments);
+  void invokeOnTimer(
+      String timerId, String timerFamilyId, ArgumentProvider<InputT, OutputT> arguments);
 
   /** Invoke the {@link DoFn.GetInitialRestriction} method on the bound {@link DoFn}. */
   @SuppressWarnings("TypeParameterUnusedInFormals")

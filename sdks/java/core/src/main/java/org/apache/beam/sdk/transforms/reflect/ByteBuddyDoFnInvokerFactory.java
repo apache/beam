@@ -189,7 +189,9 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
     @Override
     public void invokeOnTimer(
-        String timerId, DoFnInvoker.ArgumentProvider<InputT, OutputT> arguments) {
+        String timerId,
+        String timerFamilyId,
+        DoFnInvoker.ArgumentProvider<InputT, OutputT> arguments) {
       @Nullable OnTimerInvoker onTimerInvoker = onTimerInvokers.get(timerId);
 
       if (onTimerInvoker != null) {
@@ -240,7 +242,9 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
     @Override
     public void invokeOnTimer(
-        String timerFamilyId, DoFnInvoker.ArgumentProvider<InputT, OutputT> arguments) {
+        String timerId,
+        String timerFamilyId,
+        DoFnInvoker.ArgumentProvider<InputT, OutputT> arguments) {
       @Nullable OnTimerInvoker onTimerInvoker = onTimerInvokers.get(timerFamilyId);
 
       if (onTimerInvoker != null) {

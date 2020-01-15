@@ -208,7 +208,7 @@ public class FnApiDoFnRunner<InputT, OutputT>
           (Iterator<BoundedWindow>) timer.getWindows().iterator();
       while (windowIterator.hasNext()) {
         currentWindow = windowIterator.next();
-        doFnInvoker.invokeOnTimer(timerId, onTimerContext);
+        doFnInvoker.invokeOnTimer(timerId, timerId, onTimerContext);
       }
     } finally {
       currentTimer = null;
