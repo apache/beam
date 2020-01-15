@@ -344,18 +344,22 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
           event -> {
             syncResponseObserver.onNext(
                 JobMessagesResponse.newBuilder().setStateResponse(event).build());
+            // The terminal state is always updated after the last message, that's
+            // why we can end the stream here.
+            if (JobInvocation.isTerminated(invocation.getStateEvent().getState())) {
+              responseObserver.onCompleted();
+            }
           };
       Consumer<JobMessage> messageListener =
           message ->
               syncResponseObserver.onNext(
                   JobMessagesResponse.newBuilder().setMessageResponse(message).build());
 
-      invocation.addStateListener(stateListener);
       invocation.addMessageListener(messageListener);
+      // The order matters here. Make sure to send all the message first because the stream
+      // will be ended by the terminal state request.
+      invocation.addStateListener(stateListener);
 
-      if (JobInvocation.isTerminated(invocation.getStateEvent().getState())) {
-        responseObserver.onCompleted();
-      }
     } catch (StatusRuntimeException | StatusException e) {
       responseObserver.onError(e);
     } catch (Exception e) {
