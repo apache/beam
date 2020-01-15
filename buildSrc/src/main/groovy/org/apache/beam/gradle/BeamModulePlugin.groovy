@@ -1435,6 +1435,8 @@ class BeamModulePlugin implements Plugin<Project> {
 
     /** ***********************************************************************************************/
 
+    // applyGrpcNature should only be applied to projects who wish to use
+    // unvendored gRPC / protobuf dependencies.
     project.ext.applyGrpcNature = {
       project.apply plugin: "com.google.protobuf"
       project.protobuf {
@@ -1484,6 +1486,8 @@ class BeamModulePlugin implements Plugin<Project> {
 
     /** ***********************************************************************************************/
 
+    // applyPortabilityNature should only be applied to projects that want to use
+    // vendored gRPC / protobuf dependencies.
     project.ext.applyPortabilityNature = {
       PortabilityNatureConfiguration configuration = it ? it as PortabilityNatureConfiguration : new PortabilityNatureConfiguration()
 
@@ -1518,14 +1522,14 @@ class BeamModulePlugin implements Plugin<Project> {
       project.protobuf {
         protoc {
           // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:$protobuf_version" }
+          artifact = "com.google.protobuf:protoc:${GrpcVendoring_1_26_0.protobuf_version}" }
 
         // Configure the codegen plugins
         plugins {
           // An artifact spec for a protoc plugin, with "grpc" as
           // the identifier, which can be referred to in the "plugins"
           // container of the "generateProtoTasks" closure.
-          grpc { artifact = "io.grpc:protoc-gen-grpc-java:$grpc_version" }
+          grpc { artifact = "io.grpc:protoc-gen-grpc-java:${GrpcVendoring_1_26_0.grpc_version}" }
         }
 
         generateProtoTasks {
