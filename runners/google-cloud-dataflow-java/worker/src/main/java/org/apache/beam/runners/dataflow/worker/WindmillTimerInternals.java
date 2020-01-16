@@ -337,14 +337,30 @@ class WindmillTimerInternals implements TimerInternals {
    * hold that is only freed after the timer fires.
    */
   public static ByteString timerHoldTag(WindmillNamespacePrefix prefix, TimerData timerData) {
-    String tagString =
-        new StringBuilder()
-            .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
-            .append(TIMER_HOLD_PREFIX) // this never ends with a slash
-            .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
-            .append('+')
-            .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
-            .toString();
+    String tagString;
+    if ("".equals(timerData.getTimerFamilyId())) {
+      tagString =
+          new StringBuilder()
+              .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
+              .append(TIMER_HOLD_PREFIX) // this never ends with a slash
+              .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
+              .append('+')
+              .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
+              .toString();
+    } else {
+      tagString =
+          new StringBuilder()
+              .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
+              .append(TIMER_HOLD_PREFIX) // this never ends with a slash
+              .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
+              .append('+')
+              .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
+              .append('+')
+              .append(
+                  timerData.getTimerFamilyId()) // use to differentiate same timerId in different
+              // timerMap
+              .toString();
+    }
     return ByteString.copyFromUtf8(tagString);
   }
 
