@@ -72,6 +72,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -358,6 +359,33 @@ public class DefaultJobBundleFactoryTest {
       bundleFactory.forStage(getExecutableStage(environment));
     }
     verify(remoteEnvironment).close();
+  }
+
+  @Test
+  public void closesFnServices() throws Exception {
+    InOrder inOrder =
+        Mockito.inOrder(
+            loggingServer,
+            controlServer,
+            dataServer,
+            stateServer,
+            retrievalServer,
+            provisioningServer,
+            remoteEnvironment);
+
+    try (DefaultJobBundleFactory bundleFactory =
+        createDefaultJobBundleFactory(envFactoryProviderMap)) {
+      bundleFactory.forStage(getExecutableStage(environment));
+    }
+
+    // Close logging service first to avoid spaming the logs
+    inOrder.verify(loggingServer).close();
+    inOrder.verify(controlServer).close();
+    inOrder.verify(dataServer).close();
+    inOrder.verify(stateServer).close();
+    inOrder.verify(retrievalServer).close();
+    inOrder.verify(provisioningServer).close();
+    inOrder.verify(remoteEnvironment).close();
   }
 
   @Test
