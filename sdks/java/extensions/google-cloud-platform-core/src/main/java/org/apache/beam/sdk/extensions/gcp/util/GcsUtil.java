@@ -34,12 +34,13 @@ import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.RewriteResponse;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auto.value.AutoValue;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageGrpcWriteChannel;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageWriteChannel;
-import com.google.cloud.hadoop.gcsio.ObjectWriteConditions;
+import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
-import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
-import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
 import java.io.FileNotFoundException;
@@ -50,7 +51,6 @@ import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -146,6 +146,8 @@ public class GcsUtil {
   // starved for threads.
   // Exposed for testing.
   final ExecutorService executorService;
+
+  private GoogleCloudStorage googleCloudStorage;
 
   /** Rewrite operation setting. For testing purposes only. */
   @VisibleForTesting @Nullable Long maxBytesRewrittenPerCall;
@@ -391,6 +393,24 @@ public class GcsUtil {
     }
   }
 
+  // This method should not have to be synchronized really.
+  // But spotbugsMain task is not happy unless this test is also synchronized
+  // and thus guarding all accesses to googleCloudStorage guarded by mutex.
+  @VisibleForTesting
+  synchronized void setCloudStorageImpl(GoogleCloudStorage g) {
+    googleCloudStorage = g;
+  }
+
+  private synchronized GoogleCloudStorage getCloudStorage() {
+    if (googleCloudStorage == null) {
+      // TODO: Setting the flag to use grpc should be done by reading some config param.
+      GoogleCloudStorageOptions options =
+          GoogleCloudStorageOptions.builder().setGrpcEnabled(true).build();
+      googleCloudStorage = new GoogleCloudStorageImpl(options, this.storageClient);
+    }
+    return googleCloudStorage;
+  }
+
   /**
    * Opens an object in GCS.
    *
@@ -400,12 +420,7 @@ public class GcsUtil {
    * @return a SeekableByteChannel that can read the object data
    */
   public SeekableByteChannel open(GcsPath path) throws IOException {
-    return new GoogleCloudStorageReadChannel(
-        storageClient,
-        path.getBucket(),
-        path.getObject(),
-        errorExtractor,
-        new ClientRequestHelper<>());
+    return getCloudStorage().open(new StorageResourceId(path.getBucket()));
   }
 
   /**
@@ -414,7 +429,7 @@ public class GcsUtil {
    * <p>Returns a WritableByteChannel that can be used to write data to the object.
    *
    * @param path the GCS file to write to
-   * @param type the type of object, eg "text/plain".
+   * @param type the type of object, eg "text/plain". This is unused.
    * @return a Callable object that encloses the operation.
    */
   public WritableByteChannel create(GcsPath path, String type) throws IOException {
@@ -427,22 +442,14 @@ public class GcsUtil {
    */
   public WritableByteChannel create(GcsPath path, String type, Integer uploadBufferSizeBytes)
       throws IOException {
-    GoogleCloudStorageWriteChannel channel =
-        new GoogleCloudStorageWriteChannel(
-            executorService,
-            storageClient,
-            new ClientRequestHelper<>(),
-            path.getBucket(),
-            path.getObject(),
-            type,
-            /* kmsKeyName= */ null,
-            AsyncWriteChannelOptions.newBuilder().build(),
-            new ObjectWriteConditions(),
-            Collections.emptyMap());
+    WritableByteChannel channel = getCloudStorage().create(new StorageResourceId(path.getBucket()));
     if (uploadBufferSizeBytes != null) {
-      channel.setUploadBufferSize(uploadBufferSizeBytes);
+      if (channel instanceof GoogleCloudStorageWriteChannel) {
+        ((GoogleCloudStorageWriteChannel) channel).setUploadBufferSize(uploadBufferSizeBytes);
+      } else if (channel instanceof GoogleCloudStorageGrpcWriteChannel) {
+        ((GoogleCloudStorageGrpcWriteChannel) channel).setUploadBufferSize(uploadBufferSizeBytes);
+      }
     }
-    channel.initialize();
     return channel;
   }
 
