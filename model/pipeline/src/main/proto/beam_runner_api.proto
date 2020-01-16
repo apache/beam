@@ -1371,23 +1371,24 @@ message ExecutableStagePayload {
   }
   // Settings that decide the coder type of wire coder.
   message WireCoderSetting {
-      // (Required) The URN of the wire coder.
-      // Note that only windowed value coder or parameterized windowed value coder are supported.
-      string urn = 1;
+    // (Required) The URN of the wire coder.
+    // Note that only windowed value coder or parameterized windowed value coder are supported.
+    string urn = 1;
 
-      // (Optional) The data specifying any parameters to the URN. If
-      // the URN is beam:coder:windowed_value:v1, this may be omitted. If the URN is
-      // beam:coder:param_windowed_value:v1, the payload is an encoded windowed
-      // value using the beam:coder:windowed_value:v1 coder parameterized by
-      // a beam:coder:bytes:v1 element coder and the window coder that this
-      // param_windowed_value coder uses.
-      bytes payload = 2;
+    // (Optional) The data specifying any parameters to the URN. If
+    // the URN is beam:coder:windowed_value:v1, this may be omitted. If the URN is
+    // beam:coder:param_windowed_value:v1, the payload is an encoded windowed
+    // value using the beam:coder:windowed_value:v1 coder parameterized by
+    // a beam:coder:bytes:v1 element coder and the window coder that this
+    // param_windowed_value coder uses.
+    bytes payload = 2;
 
-      // (Required) The target(PCollection or Timer) this setting applies to.
-      oneof target {
-          // The input or output PCollection id this setting applies to.
-          string input_or_output_id = 3;
-          // The timer id this setting applies to.
-          TimerId timer = 4;
-      }
+    // (Required) The target(PCollection or Timer) this setting applies to.
+    oneof target {
+      // The input or output PCollection id this setting applies to.
+      string input_or_output_id = 3;
+      // The timer id this setting applies to.
+      TimerId timer = 4;
+    }
+  }
 }
