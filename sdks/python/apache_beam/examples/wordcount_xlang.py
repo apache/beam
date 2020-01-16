@@ -26,9 +26,8 @@ import logging
 import re
 import subprocess
 
-from past.builtins import unicode
-
 import grpc
+from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
