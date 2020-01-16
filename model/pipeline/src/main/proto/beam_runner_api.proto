@@ -1079,21 +1079,6 @@ message SideInput {
   FunctionSpec window_mapping_fn = 3;
 }
 
-// Settings that decide the coder type of wire coder.
-message WireCoderSetting {
-  // (Required) The URN of the wire coder.
-  // Note that only windowed value coder or parameterized windowed value coder are supported.
-  string urn = 1;
-
-  // (Optional) The data specifying any parameters to the URN. If
-  // the URN is beam:coder:windowed_value:v1, this may be omitted. If the URN is
-  // beam:coder:param_windowed_value:v1, the payload is an encoded windowed
-  // value using the beam:coder:windowed_value:v1 coder parameterized by
-  // a beam:coder:bytes:v1 element coder and the window coder that this
-  // param_windowed_value coder uses.
-  bytes payload = 2;
-}
-
 // An environment for executing UDFs. By default, an SDK container URL, but
 // can also be a process forked by a command, or an externally managed process.
 message Environment {
@@ -1302,8 +1287,8 @@ message ExecutableStagePayload {
   // because ExecutableStages use environments directly. This may change in the future.
   Environment environment = 1;
 
-  // set the wire coder of this executable stage
-  WireCoderSetting wire_coder_setting = 9;
+  // The wire coder settings of this executable stage
+  repeated WireCoderSetting wire_coder_settings = 9;
 
   // (Required) Input PCollection id. This must be present as a value in the inputs of any
   // PTransform the ExecutableStagePayload is the payload of.
@@ -1361,5 +1346,28 @@ message ExecutableStagePayload {
 
     // (Required) The local name of this timer for the PTransform that references it.
     string local_name = 2;
+  }
+
+  // Settings that decide the coder type of wire coder.
+  message WireCoderSetting {
+    // (Required) The URN of the wire coder.
+    // Note that only windowed value coder or parameterized windowed value coder are supported.
+    string urn = 1;
+
+    // (Optional) The data specifying any parameters to the URN. If
+    // the URN is beam:coder:windowed_value:v1, this may be omitted. If the URN is
+    // beam:coder:param_windowed_value:v1, the payload is an encoded windowed
+    // value using the beam:coder:windowed_value:v1 coder parameterized by
+    // a beam:coder:bytes:v1 element coder and the window coder that this
+    // param_windowed_value coder uses.
+    bytes payload = 2;
+
+    // (Required) The target(PCollection or Timer) this setting applies to.
+    oneof target {
+      // The input or output PCollection id this setting applies to.
+      string input_or_output_id = 3;
+      // The timer id this setting applies to.
+      TimerId timer = 4;
+    }
   }
 }
