@@ -72,6 +72,7 @@ public class PTransformTranslation {
   public static final String ASSIGN_WINDOWS_TRANSFORM_URN = "beam:transform:window_into:v1";
   public static final String TEST_STREAM_TRANSFORM_URN = "beam:transform:teststream:v1";
   public static final String MAP_WINDOWS_TRANSFORM_URN = "beam:transform:map_windows:v1";
+  public static final String MERGE_WINDOWS_TRANSFORM_URN = "beam:transform:merge_windows:v1";
 
   // DeprecatedPrimitives
   /**
@@ -124,6 +125,7 @@ public class PTransformTranslation {
       "beam:transform:sdf_process_sized_element_and_restrictions:v1";
 
   static {
+    // Primitives
     checkState(PAR_DO_TRANSFORM_URN.equals(getUrn(StandardPTransforms.Primitives.PAR_DO)));
     checkState(FLATTEN_TRANSFORM_URN.equals(getUrn(StandardPTransforms.Primitives.FLATTEN)));
     checkState(
@@ -135,6 +137,8 @@ public class PTransformTranslation {
         TEST_STREAM_TRANSFORM_URN.equals(getUrn(StandardPTransforms.Primitives.TEST_STREAM)));
     checkState(
         MAP_WINDOWS_TRANSFORM_URN.equals(getUrn(StandardPTransforms.Primitives.MAP_WINDOWS)));
+    checkState(
+        MERGE_WINDOWS_TRANSFORM_URN.equals(getUrn(StandardPTransforms.Primitives.MERGE_WINDOWS)));
 
     // DeprecatedPrimitives
     checkState(READ_TRANSFORM_URN.equals(getUrn(StandardPTransforms.DeprecatedPrimitives.READ)));

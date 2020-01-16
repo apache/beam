@@ -95,7 +95,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
 
       assert_that(files_pc, equal_to(files))
 
-  def test_match_files_one_directory_failure(self):
+  def test_match_files_one_directory_failure1(self):
     directories = [
         '%s%s' % (self._new_tempdir(), os.sep),
         '%s%s' % (self._new_tempdir(), os.sep)]
@@ -114,7 +114,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
 
         assert_that(files_pc, equal_to(files))
 
-  def test_match_files_one_directory_failure(self):
+  def test_match_files_one_directory_failure2(self):
     directories = [
         '%s%s' % (self._new_tempdir(), os.sep),
         '%s%s' % (self._new_tempdir(), os.sep)]

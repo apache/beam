@@ -52,11 +52,11 @@ import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
 import org.apache.beam.sdk.function.ThrowingConsumer;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.StatusException;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusException;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -344,7 +344,9 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
           event -> {
             syncResponseObserver.onNext(
                 JobMessagesResponse.newBuilder().setStateResponse(event).build());
-            if (JobInvocation.isTerminated(event.getState())) {
+            // The terminal state is always updated after the last message, that's
+            // why we can end the stream here.
+            if (JobInvocation.isTerminated(invocation.getStateEvent().getState())) {
               responseObserver.onCompleted();
             }
           };
@@ -353,8 +355,11 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
               syncResponseObserver.onNext(
                   JobMessagesResponse.newBuilder().setMessageResponse(message).build());
 
-      invocation.addStateListener(stateListener);
       invocation.addMessageListener(messageListener);
+      // The order matters here. Make sure to send all the message first because the stream
+      // will be ended by the terminal state request.
+      invocation.addStateListener(stateListener);
+
     } catch (StatusRuntimeException | StatusException e) {
       responseObserver.onError(e);
     } catch (Exception e) {

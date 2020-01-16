@@ -35,9 +35,9 @@ import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.junit.Before;
@@ -88,7 +88,7 @@ public class BeamFnControlServiceTest {
     Server server = ServerFactory.createDefault().create(ImmutableList.of(service), descriptor);
     String url = service.getApiServiceDescriptor().getUrl();
     BeamFnControlGrpc.BeamFnControlStub clientStub =
-        BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext(true).build());
+        BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext().build());
 
     // Connect from the client.
     clientStub.control(requestObserver);
@@ -134,9 +134,9 @@ public class BeamFnControlServiceTest {
 
     String url = service.getApiServiceDescriptor().getUrl();
     BeamFnControlGrpc.BeamFnControlStub clientStub =
-        BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext(true).build());
+        BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext().build());
     BeamFnControlGrpc.BeamFnControlStub anotherClientStub =
-        BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext(true).build());
+        BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext().build());
 
     // Connect from the client.
     clientStub.control(requestObserver);

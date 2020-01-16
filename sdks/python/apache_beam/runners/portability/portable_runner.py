@@ -88,7 +88,7 @@ class PortableRunner(runner.PipelineRunner):
 
   @staticmethod
   def _create_environment(options):
-    # type: (PipelineOptions) -> beam_runner_api_pb2.Environment
+    # type: (PipelineOptions) -> environments.Environment
     portable_options = options.view_as(PortableOptions)
     # Do not set a Runner. Otherwise this can cause problems in Java's
     # PipelineOptions, i.e. ClassNotFoundException, if the corresponding Runner

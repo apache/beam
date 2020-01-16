@@ -566,6 +566,12 @@ class FnApiRunnerTest(unittest.TestCase):
              p | 'd' >> beam.Create(additional)) | beam.Flatten()
       assert_that(res, equal_to(['a', 'b', 'c'] + additional))
 
+  def test_flatten_same_pcollections(self, with_transcoding=True):
+    with self.create_pipeline() as p:
+      pc = p | beam.Create(['a', 'b'])
+      assert_that((pc, pc, pc) | beam.Flatten(), equal_to(['a', 'b'] * 3))
+
+
   def test_combine_per_key(self):
     with self.create_pipeline() as p:
       res = (p
@@ -1185,10 +1191,10 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
 class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
 
   def create_pipeline(self):
-    pipeline_options = PipelineOptions(direct_num_workers=2)
+    pipeline_options = PipelineOptions(direct_num_workers=2,
+                                       direct_running_mode='multi_threading')
     p = beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(
-            default_environment=environments.EmbeddedPythonGrpcEnvironment()),
+        runner=fn_api_runner.FnApiRunner(),
         options=pipeline_options)
     #TODO(BEAM-8444): Fix these tests..
     p.options.view_as(DebugOptions).experiments.remove('beam_fn_api')
@@ -1545,10 +1551,10 @@ class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
 class FnApiRunnerSplitTestWithMultiWorkers(FnApiRunnerSplitTest):
 
   def create_pipeline(self):
-    pipeline_options = PipelineOptions(direct_num_workers=2)
+    pipeline_options = PipelineOptions(direct_num_workers=2,
+                                       direct_running_mode='multi_threading')
     p = beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(
-            default_environment=environments.EmbeddedPythonGrpcEnvironment()),
+        runner=fn_api_runner.FnApiRunner(),
         options=pipeline_options)
     #TODO(BEAM-8444): Fix these tests..
     p.options.view_as(DebugOptions).experiments.remove('beam_fn_api')
@@ -1588,7 +1594,7 @@ class FnApiBasedLullLoggingTest(unittest.TestCase):
 
     self.assertRegex(
         ''.join(logs.output),
-        '.*There has been a processing lull of over.*',
+        '.*Operation ongoing for over.*',
         'Unable to find a lull logged for this job.')
 
 class StateBackedTestElementType(object):

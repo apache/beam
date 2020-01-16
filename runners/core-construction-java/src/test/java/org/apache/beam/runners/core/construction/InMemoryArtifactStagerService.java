@@ -35,7 +35,7 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactRequest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactRequest.ContentCase;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactResponse;
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceImplBase;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 
 /**

@@ -440,6 +440,12 @@ class DirectOptions(PipelineOptions):
         type=int,
         default=1,
         help='number of parallel running workers.')
+    parser.add_argument(
+        '--direct_running_mode',
+        default='in_memory',
+        choices=['in_memory', 'multi_threading', 'multi_processing'],
+        help='Workers running environment.'
+        )
 
 
 class GoogleCloudOptions(PipelineOptions):

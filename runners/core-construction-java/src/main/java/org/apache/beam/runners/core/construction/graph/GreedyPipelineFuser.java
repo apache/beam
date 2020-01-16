@@ -416,7 +416,7 @@ public class GreedyPipelineFuser {
         stage.getTimers(),
         pTransformNodes,
         stage.getOutputPCollections(),
-        stage.getWireCoderSetting());
+        stage.getWireCoderSettings());
   }
 
   /**

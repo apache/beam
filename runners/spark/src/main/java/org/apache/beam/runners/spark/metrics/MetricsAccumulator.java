@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  * For resilience, {@link AccumulatorV2 Accumulators} are required to be wrapped in a Singleton.
  *
  * @see <a
- *     href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/util/AccumulatorV2.html">accumulatorsV2</a>
+ *     href="https://spark.apache.org/docs/2.4.4/streaming-programming-guide.html#accumulators-broadcast-variables-and-checkpoints">accumulatorsV2</a>
  */
 public class MetricsAccumulator {
   private static final Logger LOG = LoggerFactory.getLogger(MetricsAccumulator.class);

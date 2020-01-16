@@ -44,7 +44,7 @@ import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;

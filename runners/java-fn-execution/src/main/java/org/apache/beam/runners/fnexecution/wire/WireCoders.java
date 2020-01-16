@@ -18,11 +18,11 @@
 package org.apache.beam.runners.fnexecution.wire;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
-import static org.apache.beam.runners.core.construction.graph.ExecutableStage.DEFAULT_WIRE_CODER_SETTING;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.WireCoderSetting;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SyntheticComponents;
@@ -45,7 +45,7 @@ public class WireCoders {
   public static String addSdkWireCoder(
       PCollectionNode pCollectionNode,
       RunnerApi.Components.Builder components,
-      RunnerApi.WireCoderSetting wireCoderSetting) {
+      WireCoderSetting wireCoderSetting) {
     return addWireCoder(pCollectionNode, components, false, wireCoderSetting);
   }
 
@@ -60,7 +60,7 @@ public class WireCoders {
   public static String addRunnerWireCoder(
       PCollectionNode pCollectionNode,
       RunnerApi.Components.Builder components,
-      RunnerApi.WireCoderSetting wireCoderSetting) {
+      WireCoderSetting wireCoderSetting) {
     return addWireCoder(pCollectionNode, components, true, wireCoderSetting);
   }
 
@@ -72,7 +72,8 @@ public class WireCoders {
    */
   public static <T> Coder<WindowedValue<T>> instantiateRunnerWireCoder(
       PCollectionNode pCollectionNode, RunnerApi.Components components) throws IOException {
-    return instantiateRunnerWireCoder(pCollectionNode, components, DEFAULT_WIRE_CODER_SETTING);
+    return instantiateRunnerWireCoder(
+        pCollectionNode, components, WireCoderSetting.getDefaultInstance());
   }
 
   /**
@@ -84,7 +85,7 @@ public class WireCoders {
   public static <T> Coder<WindowedValue<T>> instantiateRunnerWireCoder(
       PCollectionNode pCollectionNode,
       RunnerApi.Components components,
-      RunnerApi.WireCoderSetting wireCoderSetting)
+      WireCoderSetting wireCoderSetting)
       throws IOException {
     // NOTE: We discard the new set of components so we don't bother to ensure it's consistent with
     // the caller's view.
@@ -104,7 +105,7 @@ public class WireCoders {
       PCollectionNode pCollectionNode,
       RunnerApi.Components.Builder components,
       boolean useByteArrayCoder,
-      RunnerApi.WireCoderSetting wireCoderSetting) {
+      WireCoderSetting wireCoderSetting) {
     String elementCoderId = pCollectionNode.getPCollection().getCoderId();
     String windowingStrategyId = pCollectionNode.getPCollection().getWindowingStrategyId();
     String windowCoderId =
