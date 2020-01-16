@@ -27,6 +27,7 @@ import re
 import subprocess
 
 import grpc
+from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
@@ -64,7 +65,7 @@ def run(p, input_file, output_file):
 
   counts = (lines
             | 'split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(bytes))
+                          .with_output_types(unicode))
             | 'count' >> beam.ExternalTransform(
                 'beam:transforms:xlang:count', None, EXPANSION_SERVICE_ADDR))
 
