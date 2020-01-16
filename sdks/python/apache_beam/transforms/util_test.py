@@ -604,24 +604,23 @@ class GroupIntoBatchesTest(unittest.TestCase):
                    .advance_watermark_to(start_time +
                                          GroupIntoBatchesTest.NUM_ELEMENTS)
                    .advance_watermark_to_infinity())
-    pipeline = TestPipeline(options=StandardOptions(streaming=True))
-    #  window duration is 6 and batch size is 5, so output batch size should be
-    #  5 (flush because of batchSize reached)
-    expected_0 = 5
-    # there is only one element left in the window so batch size should be 1
-    # (flush because of end of window reached)
-    expected_1 = 1
-    #  collection is 10 elements, there is only 4 left, so batch size should be
-    #  4 (flush because end of collection reached)
-    expected_2 = 4
+    with TestPipeline(options=StandardOptions(streaming=True)) as pipeline:
+      #  window duration is 6 and batch size is 5, so output batch size should be
+      #  5 (flush because of batchSize reached)
+      expected_0 = 5
+      # there is only one element left in the window so batch size should be 1
+      # (flush because of end of window reached)
+      expected_1 = 1
+      #  collection is 10 elements, there is only 4 left, so batch size should be
+      #  4 (flush because end of collection reached)
+      expected_2 = 4
 
-    collection = pipeline | test_stream \
-                 | WindowInto(FixedWindows(window_duration)) \
-                 | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
-    num_elements_in_batches = collection | beam.Map(len)
-    assert_that(num_elements_in_batches,
-                equal_to([expected_0, expected_1, expected_2]))
-    pipeline.run()
+      collection = pipeline | test_stream \
+                   | WindowInto(FixedWindows(window_duration)) \
+                   | util.GroupIntoBatches(GroupIntoBatchesTest.BATCH_SIZE)
+      num_elements_in_batches = collection | beam.Map(len)
+      assert_that(num_elements_in_batches,
+                  equal_to([expected_0, expected_1, expected_2]))
 
 
 class ToStringTest(unittest.TestCase):

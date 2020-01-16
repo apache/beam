@@ -112,6 +112,7 @@ def construct_pipeline(renames):
   from apache_beam.options.pipeline_options import PipelineOptions
 
   with beam.Pipeline(options=PipelineOptions()) as p:
+    pass  # build your pipeline here
     # [END pipelines_constructing_creating]
 
     with TestPipeline() as p:  # Use TestPipeline for testing.
@@ -133,9 +134,6 @@ def construct_pipeline(renames):
       # [END pipelines_constructing_writing]
 
       p.visit(SnippetUtils.RenameFiles(renames))
-
-      # [START pipelines_constructing_running]
-  # [END pipelines_constructing_running]
 
 
 def model_pipelines(argv):

@@ -63,7 +63,7 @@ class TemplatingDataflowRunnerTest(unittest.TestCase):
                       '--staging_location=' + dummy_dir,
                       '--temp_location=/dev/null',
                       '--template_location=' + dummy_file_name,
-                      '--no_auth=True'])) as pipeline:
+                      '--no_auth'])) as pipeline:
 
       pipeline | beam.Create([1, 2, 3]) | beam.Map(lambda x: x) # pylint: disable=expression-not-assigned
 
