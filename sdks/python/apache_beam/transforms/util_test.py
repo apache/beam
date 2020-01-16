@@ -605,14 +605,14 @@ class GroupIntoBatchesTest(unittest.TestCase):
                                          GroupIntoBatchesTest.NUM_ELEMENTS)
                    .advance_watermark_to_infinity())
     with TestPipeline(options=StandardOptions(streaming=True)) as pipeline:
-      #  window duration is 6 and batch size is 5, so output batch size should be
-      #  5 (flush because of batchSize reached)
+      # window duration is 6 and batch size is 5, so output batch size
+      # should be 5 (flush because of batchSize reached)
       expected_0 = 5
-      # there is only one element left in the window so batch size should be 1
-      # (flush because of end of window reached)
+      # there is only one element left in the window so batch size
+      # should be 1 (flush because of end of window reached)
       expected_1 = 1
-      #  collection is 10 elements, there is only 4 left, so batch size should be
-      #  4 (flush because end of collection reached)
+      # collection is 10 elements, there is only 4 left, so batch size
+      # should be 4 (flush because end of collection reached)
       expected_2 = 4
 
       collection = pipeline | test_stream \
