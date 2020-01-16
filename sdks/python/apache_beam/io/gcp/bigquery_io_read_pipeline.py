@@ -67,7 +67,8 @@ def run(argv=None):
                             ' transform, or the BigQuerySource.'))
   known_args, pipeline_args = parser.parse_known_args(argv)
 
-  with TestPipeline(options=PipelineOptions(pipeline_args)) as p:
+  options = PipelineOptions(pipeline_args)
+  with TestPipeline(options=options) as p:
     if known_args.beam_bq_source:
       reader = _ReadFromBigQuery(
           table='%s:%s' % (options.view_as(GoogleCloudOptions).project,
