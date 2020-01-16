@@ -97,6 +97,7 @@ import org.apache.beam.sdk.testing.UsesStrictTimerOrdering;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp;
 import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
+import org.apache.beam.sdk.testing.UsesTimerMap;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFn.OnTimer;
@@ -4296,7 +4297,12 @@ public class ParDoTest implements Serializable {
   public static class TimerFamilyTests extends SharedTestBase implements Serializable {
 
     @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    @Category({
+      NeedsRunner.class,
+      UsesTimersInParDo.class,
+      UsesTestStream.class,
+      UsesTimerMap.class
+    })
     public void testTimerFamilyEventTime() throws Exception {
       final String timerFamilyId = "foo";
 
@@ -4338,7 +4344,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+    @Category({
+      NeedsRunner.class,
+      UsesTimersInParDo.class,
+      UsesTestStream.class,
+      UsesTimerMap.class
+    })
     public void testTimerWithMultipleTimerFamily() throws Exception {
       final String timerFamilyId1 = "foo";
       final String timerFamilyId2 = "bar";
@@ -4387,7 +4398,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTestStreamWithProcessingTime.class})
+    @Category({
+      NeedsRunner.class,
+      UsesTimersInParDo.class,
+      UsesTestStreamWithProcessingTime.class,
+      UsesTimerMap.class
+    })
     public void testTimerFamilyProcessingTime() throws Exception {
       final String timerId = "foo";
 
