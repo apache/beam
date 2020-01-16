@@ -45,19 +45,12 @@ import uuid
 from hamcrest.core.core.allof import all_of
 
 from apache_beam.io.gcp.tests.pubsub_matcher import PubSubMessageMatcher
-from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing import test_utils
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.streaming import group_by_key_streaming_pipeline
 
 DEFAULT_TIMEOUT = 800
 WAIT_UNTIL_FINISH_DURATION = 1 * 60 * 1000
-
-
-class TestOptions(PipelineOptions):
-  @classmethod
-  def _add_argparse_args(cls, parser):
-    parser.add_argument('--test-pipeline-options')
 
 
 class GroupByKeyStreamingTest(LoadTest):
