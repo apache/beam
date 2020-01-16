@@ -100,7 +100,7 @@ public class DataStoreReadWriteIT {
   }
 
   @Test
-  public void testDataStoreV1SqlRead_withoutKey() {
+  public void testDataStoreV1SqlWriteRead_withoutKey() {
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new DataStoreV1TableProvider());
     String projectId = options.getProject();
 
@@ -115,6 +115,11 @@ public class DataStoreReadWriteIT {
             + KIND
             + "'";
     sqlEnv.executeDdl(createTableStatement);
+
+    String insertStatement = "INSERT INTO TEST VALUES ( '3000' )";
+
+    BeamSqlRelUtils.toPCollection(writePipeline, sqlEnv.parseQuery(insertStatement));
+    writePipeline.run().waitUntilFinish();
 
     String selectTableStatement = "SELECT * FROM TEST";
     PCollection<Row> output =
