@@ -99,7 +99,7 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
   }
 
   @Override
-  public void deleteTimer(StateNamespace namespace, String timerId) {
+  public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
     this.eventTimeTimeTimers.deleteTimer(getKeyBytes(this.currentKey), namespace, timerId);
     this.processingTimeTimers.deleteTimer(getKeyBytes(this.currentKey), namespace, timerId);
   }

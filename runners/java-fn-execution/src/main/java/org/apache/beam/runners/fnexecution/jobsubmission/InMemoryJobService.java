@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
@@ -52,11 +52,12 @@ import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
 import org.apache.beam.sdk.function.ThrowingConsumer;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.StatusException;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusException;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,12 +73,16 @@ import org.slf4j.LoggerFactory;
 public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implements FnService {
   private static final Logger LOG = LoggerFactory.getLogger(InMemoryJobService.class);
 
+  /** The default maximum number of completed invocations to keep. */
+  public static final int DEFAULT_MAX_INVOCATION_HISTORY = 10;
+
   /**
    * Creates an InMemoryJobService.
    *
    * @param stagingServiceDescriptor Endpoint for the staging service.
    * @param stagingServiceTokenProvider Function mapping a preparationId to a staging service token.
-   * @param invoker A JobInvoker that will actually create the jobs.
+   * @param cleanupJobFn A cleanup function to run, parameterized with the staging token of a job.
+   * @param invoker A JobInvoker which creates the jobs.
    * @return A new InMemoryJobService.
    */
   public static InMemoryJobService create(
@@ -86,22 +91,60 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       ThrowingConsumer<Exception, String> cleanupJobFn,
       JobInvoker invoker) {
     return new InMemoryJobService(
-        stagingServiceDescriptor, stagingServiceTokenProvider, cleanupJobFn, invoker);
+        stagingServiceDescriptor,
+        stagingServiceTokenProvider,
+        cleanupJobFn,
+        invoker,
+        DEFAULT_MAX_INVOCATION_HISTORY);
   }
 
-  private final ConcurrentMap<String, JobPreparation> preparations;
-  private final ConcurrentMap<String, JobInvocation> invocations;
-  private final ConcurrentMap<String, String> stagingSessionTokens;
+  /**
+   * Creates an InMemoryJobService.
+   *
+   * @param stagingServiceDescriptor The endpoint for the staging service.
+   * @param stagingServiceTokenProvider Function mapping a preparationId to a staging service token.
+   * @param cleanupJobFn A cleanup function to run, parameterized with the staging token of a job.
+   * @param invoker A JobInvoker which creates the jobs.
+   * @param maxInvocationHistory The maximum number of completed invocations to keep.
+   * @return A new InMemoryJobService.
+   */
+  public static InMemoryJobService create(
+      Endpoints.ApiServiceDescriptor stagingServiceDescriptor,
+      Function<String, String> stagingServiceTokenProvider,
+      ThrowingConsumer<Exception, String> cleanupJobFn,
+      JobInvoker invoker,
+      int maxInvocationHistory) {
+    return new InMemoryJobService(
+        stagingServiceDescriptor,
+        stagingServiceTokenProvider,
+        cleanupJobFn,
+        invoker,
+        maxInvocationHistory);
+  }
+
+  /** Map of preparationId to preparation. */
+  private final ConcurrentHashMap<String, JobPreparation> preparations;
+  /** Map of preparationId to staging token. */
+  private final ConcurrentHashMap<String, String> stagingSessionTokens;
+  /** Map of invocationId to invocation. */
+  private final ConcurrentHashMap<String, JobInvocation> invocations;
+  /** InvocationIds of completed invocations in least-recently-completed order. */
+  private final ConcurrentLinkedDeque<String> completedInvocationsIds;
+
   private final Endpoints.ApiServiceDescriptor stagingServiceDescriptor;
   private final Function<String, String> stagingServiceTokenProvider;
   private final ThrowingConsumer<Exception, String> cleanupJobFn;
   private final JobInvoker invoker;
 
+  /** The maximum number of past invocations to keep. */
+  private final int maxInvocationHistory;
+
   private InMemoryJobService(
       Endpoints.ApiServiceDescriptor stagingServiceDescriptor,
       Function<String, String> stagingServiceTokenProvider,
       ThrowingConsumer<Exception, String> cleanupJobFn,
-      JobInvoker invoker) {
+      JobInvoker invoker,
+      int maxInvocationHistory) {
     this.stagingServiceDescriptor = stagingServiceDescriptor;
     this.stagingServiceTokenProvider = stagingServiceTokenProvider;
     this.cleanupJobFn = cleanupJobFn;
@@ -109,9 +152,10 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
 
     this.preparations = new ConcurrentHashMap<>();
     this.invocations = new ConcurrentHashMap<>();
-
-    // Map "preparation ID" to staging token
     this.stagingSessionTokens = new ConcurrentHashMap<>();
+    this.completedInvocationsIds = new ConcurrentLinkedDeque<>();
+    Preconditions.checkArgument(maxInvocationHistory >= 0);
+    this.maxInvocationHistory = maxInvocationHistory;
   }
 
   @Override
@@ -196,20 +240,25 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
             }
             String stagingSessionToken = stagingSessionTokens.get(preparationId);
             stagingSessionTokens.remove(preparationId);
-            if (cleanupJobFn != null) {
-              try {
+            try {
+              if (cleanupJobFn != null) {
                 cleanupJobFn.accept(stagingSessionToken);
-              } catch (Exception e) {
-                LOG.warn(
-                    "Failed to remove job staging directory for token {}: {}",
-                    stagingSessionToken,
-                    e);
               }
+            } catch (Exception e) {
+              LOG.warn(
+                  "Failed to remove job staging directory for token {}: {}",
+                  stagingSessionToken,
+                  e);
+            } finally {
+              onFinishedInvocationCleanup(invocationId);
             }
           });
 
       invocation.start();
       invocations.put(invocationId, invocation);
+      // Cleanup this preparation because we are running it now.
+      // If we fail, we need to prepare again.
+      preparations.remove(preparationId);
       RunJobResponse response = RunJobResponse.newBuilder().setJobId(invocationId).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
@@ -344,7 +393,9 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
           event -> {
             syncResponseObserver.onNext(
                 JobMessagesResponse.newBuilder().setStateResponse(event).build());
-            if (JobInvocation.isTerminated(event.getState())) {
+            // The terminal state is always updated after the last message, that's
+            // why we can end the stream here.
+            if (JobInvocation.isTerminated(invocation.getStateEvent().getState())) {
               responseObserver.onCompleted();
             }
           };
@@ -353,8 +404,11 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
               syncResponseObserver.onNext(
                   JobMessagesResponse.newBuilder().setMessageResponse(message).build());
 
-      invocation.addStateListener(stateListener);
       invocation.addMessageListener(messageListener);
+      // The order matters here. Make sure to send all the message first because the stream
+      // will be ended by the terminal state request.
+      invocation.addStateListener(stateListener);
+
     } catch (StatusRuntimeException | StatusException e) {
       responseObserver.onError(e);
     } catch (Exception e) {
@@ -420,5 +474,15 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       throw Status.NOT_FOUND.asException();
     }
     return invocation;
+  }
+
+  private void onFinishedInvocationCleanup(String invocationId) {
+    completedInvocationsIds.addLast(invocationId);
+    while (completedInvocationsIds.size() > maxInvocationHistory) {
+      // Clean up invocations
+      // "preparations" is cleaned up when adding to "invocations"
+      // "stagingTokens" is cleaned up when the invocation finishes
+      invocations.remove(completedInvocationsIds.removeFirst());
+    }
   }
 }

@@ -108,8 +108,7 @@ Crown'd: 1
 
 
 See [BUILD.md](./BUILD.md) for how to build Go code in general. See
-[CONTAINERS.md](../CONTAINERS.md) for how to build and push the Go
-SDK harness container image.
+[container documentation](https://beam.apache.org/documentation/runtime/environments/#building-container-images) for how to build and push the Go SDK harness container image.
 
 ## Issues
 

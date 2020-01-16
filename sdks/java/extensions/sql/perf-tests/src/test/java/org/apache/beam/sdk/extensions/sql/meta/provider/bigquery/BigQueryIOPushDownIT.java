@@ -56,7 +56,8 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class BigQueryIOPushDownIT {
-  private static final String READ_FROM_TABLE = "bigquery-public-data:hacker_news.full";
+  private static final String READ_FROM_TABLE =
+      "apache-beam-testing:beam_performance.hacker_news_full";
   private static final String NAMESPACE = BigQueryIOPushDownIT.class.getName();
   private static final String FIELDS_READ_METRIC = "fields_read";
   private static final String READ_TIME_METRIC = "read_time";

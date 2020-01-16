@@ -38,7 +38,7 @@ import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

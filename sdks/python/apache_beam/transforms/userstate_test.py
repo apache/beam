@@ -113,10 +113,10 @@ class InterfaceTest(unittest.TestCase):
 
   def test_spec_construction(self):
     BagStateSpec('statename', VarIntCoder())
-    with self.assertRaises(AssertionError):
+    with self.assertRaises(TypeError):
       BagStateSpec(123, VarIntCoder())
     CombiningValueStateSpec('statename', VarIntCoder(), TopCombineFn(10))
-    with self.assertRaises(AssertionError):
+    with self.assertRaises(TypeError):
       CombiningValueStateSpec(123, VarIntCoder(), TopCombineFn(10))
     with self.assertRaises(TypeError):
       CombiningValueStateSpec('statename', VarIntCoder(), object())
