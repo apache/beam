@@ -18,44 +18,76 @@
 
 from __future__ import absolute_import
 
+import argparse
 import json
 import logging
+import sys
 
 from apache_beam.metrics import MetricsFilter
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
 from apache_beam.testing.test_pipeline import TestPipeline
+
+
+class LoadTestOptions(PipelineOptions):
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--publish_to_big_query',
+        type=cls._str_to_boolean,
+        help='Publishes pipeline metrics to BigQuery table.')
+    parser.add_argument(
+        '--metrics_dataset',
+        help='A BigQuery dataset where metrics should be'
+        'written.')
+    parser.add_argument(
+        '--metrics_table',
+        help='A BigQuery table where metrics should be '
+        'written.')
+    parser.add_argument(
+        '--input_options',
+        type=json.loads,
+        help='Input specification of SyntheticSource.')
+
+  @staticmethod
+  def _str_to_boolean(value):
+    try:
+      return bool(['false', 'true'].index(value.lower()))
+    except ValueError:
+      raise argparse.ArgumentTypeError(
+          '"true" or "false" expected, got "{}" '
+          'instead.'.format(value))
 
 
 class LoadTest(object):
   def __init__(self):
     self.pipeline = TestPipeline(is_integration_test=True)
-    self.input_options = json.loads(
-        self.pipeline.get_option('input_options') or '{}')
-    self.project_id = self.pipeline.get_option('project')
-    self.metrics_namespace = self.pipeline.get_option('metrics_table')
 
-    publish_to_bq = self._str_to_boolean('publish_to_big_query')
+    load_test_options = self.pipeline.get_pipeline_options().view_as(
+        LoadTestOptions)
+    self.input_options = load_test_options.input_options
+    self.metrics_namespace = load_test_options.metrics_table or 'default'
+    publish_to_bq = load_test_options.publish_to_big_query
     if publish_to_bq is None:
-      logging.info('Missing --publish_to_big_query option. Metrics will not '
-                   'be published to BigQuery.')
+      logging.info(
+          'Missing --publish_to_big_query option. Metrics will not '
+          'be published to BigQuery.')
+    if load_test_options.input_options is None:
+      logging.error('--input_options argument is required.')
+      sys.exit(1)
+
+    gcloud_options = self.pipeline.get_pipeline_options().view_as(
+        GoogleCloudOptions)
+    self.project_id = gcloud_options.project
 
     self._metrics_monitor = MetricsReader(
         publish_to_bq=publish_to_bq,
         project_name=self.project_id,
-        bq_table=self.metrics_namespace,
-        bq_dataset=self.pipeline.get_option('metrics_dataset'),
+        bq_table=load_test_options.metrics_table,
+        bq_dataset=load_test_options.metrics_dataset,
         # Apply filter to prevent system metrics from being published
         filters=MetricsFilter().with_namespace(self.metrics_namespace))
-
-  def _str_to_boolean(self, opt_name):
-    value = self.pipeline.get_option(opt_name)
-    if value is None:
-      return value
-    try:
-      return bool(['false', 'true'].index(value.lower()))
-    except ValueError:
-      raise ValueError('{}: "true" or "false" expected, got "{}" instead.'
-                       .format(opt_name, value))
 
   def test(self):
     """An abstract method where the pipeline definition should be put."""
