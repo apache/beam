@@ -23,6 +23,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
@@ -69,7 +70,8 @@ public interface DoFnInvoker<InputT, OutputT> {
   DoFn.ProcessContinuation invokeProcessElement(ArgumentProvider<InputT, OutputT> extra);
 
   /** Invoke the appropriate {@link DoFn.OnTimer} method on the bound {@link DoFn}. */
-  void invokeOnTimer(String timerId, ArgumentProvider<InputT, OutputT> arguments);
+  void invokeOnTimer(
+      String timerId, String timerFamilyId, ArgumentProvider<InputT, OutputT> arguments);
 
   /** Invoke the {@link DoFn.GetInitialRestriction} method on the bound {@link DoFn}. */
   @SuppressWarnings("TypeParameterUnusedInFormals")
@@ -170,6 +172,13 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     /** Returns the timer for the given {@link TimerId}. */
     Timer timer(String timerId);
+
+    /**
+     * Returns the timerMap for the given {@link org.apache.beam.sdk.transforms.DoFn.TimerFamily}.
+     */
+    TimerMap timerFamily(String tagId);
+
+    String timerId(DoFn<InputT, OutputT> doFn);
   }
 
   /**
@@ -202,6 +211,14 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
+    public TimerMap timerFamily(String tagId) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
     public InputT schemaElement(int index) {
       throw new UnsupportedOperationException(
           String.format(
@@ -211,6 +228,14 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
+    public String timerId(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",

@@ -17,26 +17,13 @@
  */
 package org.apache.beam.sdk.state;
 
-import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.joda.time.Instant;
 
-/** Static methods for working with {@link TimerSpec TimerSpecs}. */
-@Experimental(Kind.TIMERS)
-public class TimerSpecs {
+@Experimental(Experimental.Kind.TIMERS)
+public interface TimerMap {
 
-  public static TimerSpec timer(TimeDomain timeDomain) {
-    return new AutoValue_TimerSpecs_SimpleTimerSpec(timeDomain);
-  }
+  void set(String timerId, Instant absoluteTime);
 
-  public static TimerSpec timerMap(TimeDomain timeDomain) {
-    return new AutoValue_TimerSpecs_SimpleTimerSpec(timeDomain);
-  }
-
-  /** A straightforward POJO {@link TimerSpec}. Package-level access for AutoValue. */
-  @AutoValue
-  abstract static class SimpleTimerSpec implements TimerSpec {
-    @Override
-    public abstract TimeDomain getTimeDomain();
-  }
+  Timer get(String timerId);
 }

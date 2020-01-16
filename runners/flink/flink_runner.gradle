@@ -200,6 +200,7 @@ def createValidatesRunnerTask(Map m) {
     useJUnit {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
       excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
       excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
       excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
