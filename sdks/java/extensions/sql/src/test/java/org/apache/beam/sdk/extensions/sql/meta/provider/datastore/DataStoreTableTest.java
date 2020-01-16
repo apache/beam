@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.datastore;
 import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 import static org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.VARBINARY;
+import static org.apache.beam.sdk.extensions.sql.meta.provider.datastore.DataStoreV1Table.DEFAULT_KEY_FIELD;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.BOOLEAN;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.BYTES;
@@ -112,7 +113,8 @@ public class DataStoreTableTest {
 
   @Test
   public void testEntityToRowConverter() {
-    PCollection<Row> result = pipeline.apply(Create.of(ENTITY)).apply(EntityToRow.create(SCHEMA));
+    PCollection<Row> result =
+        pipeline.apply(Create.of(ENTITY)).apply(EntityToRow.create(SCHEMA, DEFAULT_KEY_FIELD));
     PAssert.that(result).containsInAnyOrder(ROW);
 
     pipeline.run().waitUntilFinish();
@@ -135,7 +137,9 @@ public class DataStoreTableTest {
                     .collect(Collectors.toList()))
             .build();
     PCollection<Row> result =
-        pipeline.apply(Create.of(ENTITY)).apply(EntityToRow.create(schemaWithoutKey));
+        pipeline
+            .apply(Create.of(ENTITY))
+            .apply(EntityToRow.create(schemaWithoutKey, DEFAULT_KEY_FIELD));
     PAssert.that(result).containsInAnyOrder(rowWithoutKey);
 
     pipeline.run().waitUntilFinish();

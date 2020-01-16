@@ -17,17 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.datastore;
 
-import static com.google.datastore.v1.Value.ValueTypeCase.ARRAY_VALUE;
-import static com.google.datastore.v1.Value.ValueTypeCase.BLOB_VALUE;
-import static com.google.datastore.v1.Value.ValueTypeCase.BOOLEAN_VALUE;
-import static com.google.datastore.v1.Value.ValueTypeCase.DOUBLE_VALUE;
-import static com.google.datastore.v1.Value.ValueTypeCase.ENTITY_VALUE;
-import static com.google.datastore.v1.Value.ValueTypeCase.INTEGER_VALUE;
-import static com.google.datastore.v1.Value.ValueTypeCase.KEY_VALUE;
-import static com.google.datastore.v1.Value.ValueTypeCase.NULL_VALUE;
-import static com.google.datastore.v1.Value.ValueTypeCase.STRING_VALUE;
-import static com.google.datastore.v1.Value.ValueTypeCase.TIMESTAMP_VALUE;
-import static com.google.datastore.v1.Value.ValueTypeCase.VALUETYPE_NOT_SET;
 import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
@@ -70,7 +59,6 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,7 +90,7 @@ class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
     }
     // TODO: allow users to specify a namespace in a location string.
     String location = table.getLocation();
-    assert location != null;
+    checkArgument(location != null, "DataStoreV1 location must be set.");
     Matcher matcher = locationPattern.matcher(location);
     checkArgument(
         matcher.matches(),
@@ -121,16 +109,16 @@ class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
     DatastoreV1.Read readInstance =
         DatastoreIO.v1().read().withProjectId(projectId).withQuery(query);
 
-    PCollection<Entity> readEntities = readInstance.expand(begin);
-
-    return readEntities.apply(EntityToRow.create(getSchema(), keyField));
+    return begin
+        .apply("Read Datastore Entities", readInstance)
+        .apply("Convert Datastore Entities to Rows", EntityToRow.create(getSchema(), keyField));
   }
 
   @Override
   public POutput buildIOWriter(PCollection<Row> input) {
     return input
-        .apply(RowToEntity.create(keyField, kind))
-        .apply(DatastoreIO.v1().write().withProjectId(projectId));
+        .apply("Convert Rows to Datastore Entities", RowToEntity.create(keyField, kind))
+        .apply("Write Datastore Entities", DatastoreIO.v1().write().withProjectId(projectId));
   }
 
   @Override
@@ -162,27 +150,15 @@ class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
       this.schema = schema;
       this.keyField = keyField;
 
-      if (schema.getFieldNames().contains(keyField)
-          && !schema.getField(keyField).getType().getTypeName().equals(TypeName.BYTES)) {
-        throw new IllegalStateException(
-            "Field `"
-                + keyField
-                + "` should of type `VARBINARY`. Please change the type or specify a field to store the KEY value in via TableProperties.");
+      if (schema.getFieldNames().contains(keyField)) {
+        if (!schema.getField(keyField).getType().getTypeName().equals(TypeName.BYTES)) {
+          throw new IllegalStateException(
+              "Field `"
+                  + keyField
+                  + "` should of type `VARBINARY`. Please change the type or specify a field to store the KEY value.");
+        }
+        LOGGER.info("Entity KEY will be stored under `" + keyField + "` field.");
       }
-    }
-
-    /**
-     * Create a PTransform instance.
-     *
-     * @param schema {@code Schema} of the target row.
-     * @return {@code PTransform} instance for Entity to Row conversion.
-     */
-    public static EntityToRow create(Schema schema) {
-      LOGGER.info(
-          "VARBINARY field to store KEY was not specified, using default value: `"
-              + DEFAULT_KEY_FIELD
-              + "`.");
-      return new EntityToRow(schema, DEFAULT_KEY_FIELD);
     }
 
     /**
@@ -193,7 +169,6 @@ class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
      * @return {@code PTransform} instance for Entity to Row conversion.
      */
     public static EntityToRow create(Schema schema, String keyField) {
-      LOGGER.info("VARBINARY field to store KEY was specified, using value: `" + keyField + "`.");
       return new EntityToRow(schema, keyField);
     }
 
@@ -204,22 +179,6 @@ class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
 
     @VisibleForTesting
     class EntityToRowConverter extends DoFn<Entity, Row> {
-      private final List<ValueTypeCase> SUPPORTED_VALUE_TYPES =
-          ImmutableList.<ValueTypeCase>builder()
-              .add(
-                  NULL_VALUE,
-                  BOOLEAN_VALUE,
-                  INTEGER_VALUE,
-                  DOUBLE_VALUE,
-                  TIMESTAMP_VALUE,
-                  STRING_VALUE,
-                  KEY_VALUE,
-                  BLOB_VALUE,
-                  VALUETYPE_NOT_SET,
-                  ENTITY_VALUE,
-                  ARRAY_VALUE,
-                  VALUETYPE_NOT_SET)
-              .build();
 
       @DoFn.ProcessElement
       public void processElement(ProcessContext context) {
@@ -280,8 +239,7 @@ class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
             throw new IllegalStateException(
                 "No conversion exists from type: "
                     + val.getValueTypeCase().name()
-                    + " to Beam type. Supported types are: "
-                    + SUPPORTED_VALUE_TYPES.toString());
+                    + " to Beam type.");
         }
       }
 
@@ -324,14 +282,17 @@ class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
 
     @Override
     public PCollection<Entity> expand(PCollection<Row> input) {
-      if (input.getSchema().getFieldNames().contains(keyField)
-          && !input.getSchema().getField(keyField).getType().getTypeName().equals(TypeName.BYTES)) {
-        throw new IllegalStateException(
-            "Field `"
-                + keyField
-                + "` should of type `VARBINARY`. Please change the type or specify a field to write the KEY value from via TableProperties.");
+      boolean isFieldPresent = input.getSchema().getFieldNames().contains(keyField);
+      if (isFieldPresent) {
+        if (!input.getSchema().getField(keyField).getType().getTypeName().equals(TypeName.BYTES)) {
+          throw new IllegalStateException(
+              "Field `"
+                  + keyField
+                  + "` should of type `VARBINARY`. Please change the type or specify a field to write the KEY value from via TableProperties.");
+        }
+        LOGGER.info("Field to use as Entity KEY is set to: `" + keyField + "`.");
       }
-      return input.apply(ParDo.of(new RowToEntityConverter()));
+      return input.apply(ParDo.of(new RowToEntityConverter(isFieldPresent)));
     }
 
     /**
@@ -344,10 +305,6 @@ class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
      * @return {@code PTransform} instance for Row to Entity conversion.
      */
     public static RowToEntity create(String keyField, String kind) {
-      LOGGER.info(
-          "VARBINARY field with the KEY was not specified, using default value: `"
-              + DEFAULT_KEY_FIELD
-              + "`.");
       return new RowToEntity(
           (Supplier<String> & Serializable) () -> UUID.randomUUID().toString(), kind, keyField);
     }
@@ -359,23 +316,12 @@ class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
 
     @VisibleForTesting
     class RowToEntityConverter extends DoFn<Row, Entity> {
-      private final List<Class> SUPPORTED_JAVA_TYPES =
-          ImmutableList.<Class>builder()
-              .add(
-                  Boolean.class,
-                  Byte.class,
-                  Long.class,
-                  Integer.class,
-                  Short.class,
-                  Byte.class,
-                  Double.class,
-                  Float.class,
-                  String.class,
-                  Instant.class,
-                  byte[].class,
-                  Row.class,
-                  Collection.class)
-              .build();
+      private final boolean useNonRandomKey;
+
+      RowToEntityConverter(boolean useNonRandomKey) {
+        super();
+        this.useNonRandomKey = useNonRandomKey;
+      }
 
       @DoFn.ProcessElement
       public void processElement(ProcessContext context) {
@@ -417,7 +363,7 @@ class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
        * @return resulting {@code Key}.
        */
       private Key constructKeyFromRow(Row row) {
-        if (!row.getSchema().getFieldNames().contains(keyField)) {
+        if (!useNonRandomKey) {
           // When key field is not present - use key supplier to generate a random one.
           return makeKey(kind, keySupplier.get()).build();
         }
@@ -473,10 +419,7 @@ class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
           return makeValue(arrayValues).build();
         }
         throw new IllegalStateException(
-            "No conversion exists from type: "
-                + value.getClass()
-                + " to DataStove Value. Supported types are: "
-                + SUPPORTED_JAVA_TYPES.toString());
+            "No conversion exists from type: " + value.getClass() + " to DataStove Value.");
       }
     }
   }
