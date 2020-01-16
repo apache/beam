@@ -57,7 +57,7 @@ docker {
           root: project.rootProject.hasProperty(["docker-repository-root"]) ?
                   project.rootProject["docker-repository-root"] : "apachebeam",
           tag: project.rootProject.hasProperty(["docker-tag"]) ?
-                  project.rootProject["docker-tag"] : project['python_sdk_version'])
+                  project.rootProject["docker-tag"] : project.sdk_version)
   files "../Dockerfile", "./build"
   buildArgs(['py_version': "3.7"])
 }

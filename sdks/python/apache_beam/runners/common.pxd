@@ -69,7 +69,6 @@ cdef class DoFnInvoker(object):
 
   cpdef invoke_process(self, WindowedValue windowed_value,
                        restriction_tracker=*,
-                       OutputProcessor output_processor=*,
                        additional_args=*, additional_kwargs=*)
   cpdef invoke_start_bundle(self)
   cpdef invoke_finish_bundle(self)

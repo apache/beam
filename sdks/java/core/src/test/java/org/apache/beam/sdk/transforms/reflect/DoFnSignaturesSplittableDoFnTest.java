@@ -19,23 +19,34 @@ package org.apache.beam.sdk.transforms.reflect;
 
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.analyzeProcessElementMethod;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.errors;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.lang.reflect.Method;
 import java.util.List;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
+import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures.FnAnalysisContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.AnonymousMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -92,19 +103,45 @@ public class DoFnSignaturesSplittableDoFnTest {
   }
 
   @Test
-  public void testSplittableProcessElementMustNotHaveOtherParams() throws Exception {
+  public void testSplittableProcessElementMustNotHaveUnsupportedParams() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Illegal parameter");
-    thrown.expectMessage("BoundedWindow");
+    thrown.expectMessage("ValueState");
 
-    DoFnSignature.ProcessElementMethod signature =
-        analyzeProcessElementMethod(
-            new AnonymousMethod() {
-              private void method(
-                  DoFn<Integer, String>.ProcessContext context,
-                  SomeRestrictionTracker tracker,
-                  BoundedWindow window) {}
-            });
+    DoFn<Integer, String> doFn =
+        new DoFn<Integer, String>() {
+          @StateId("my-state-id")
+          public final StateSpec<ValueState<String>> myStateSpec =
+              StateSpecs.value(StringUtf8Coder.of());
+
+          @ProcessElement
+          public void method(
+              DoFn<Integer, String>.ProcessContext context,
+              SomeRestrictionTracker tracker,
+              @StateId("my-state-id") ValueState<String> myState) {}
+        };
+    Method processElementMethod = null;
+    for (Method method : doFn.getClass().getDeclaredMethods()) {
+      if ("method".equals(method.getName())) {
+        processElementMethod = method;
+      }
+    }
+    checkState(processElementMethod != null);
+
+    FnAnalysisContext context = FnAnalysisContext.create();
+    context.addStateDeclaration(
+        DoFnSignature.StateDeclaration.create(
+            "my-state-id",
+            doFn.getClass().getField("myStateSpec"),
+            new TypeDescriptor<ValueState<String>>() {}));
+
+    DoFnSignatures.analyzeProcessElementMethod(
+        errors(),
+        new TypeDescriptor<DoFn<Integer, String>>() {},
+        processElementMethod,
+        TypeDescriptor.of(Integer.class),
+        TypeDescriptor.of(String.class),
+        context);
   }
 
   @Test
@@ -226,7 +263,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
   /** Tests a splittable {@link DoFn} that defines all methods in their full form, correctly. */
   @Test
-  public void testSplittableWithAllFunctions() throws Exception {
+  public void testSplittableWithAllFunctionsAndAllParameters() throws Exception {
     class GoodSplittableDoFn extends DoFn<Integer, String> {
       @ProcessElement
       public ProcessContinuation processElement(
@@ -235,16 +272,32 @@ public class DoFnSignaturesSplittableDoFnTest {
       }
 
       @GetInitialRestriction
-      public SomeRestriction getInitialRestriction(Integer element) {
+      public SomeRestriction getInitialRestriction(
+          Integer element,
+          PipelineOptions pipelineOptions,
+          BoundedWindow boundedWindow,
+          PaneInfo paneInfo,
+          @Timestamp Instant timestamp) {
         return null;
       }
 
       @SplitRestriction
       public void splitRestriction(
-          Integer element, SomeRestriction restriction, OutputReceiver<SomeRestriction> receiver) {}
+          Integer element,
+          SomeRestriction restriction,
+          OutputReceiver<SomeRestriction> receiver,
+          PipelineOptions pipelineOptions,
+          BoundedWindow boundedWindow,
+          PaneInfo paneInfo,
+          @Timestamp Instant timestamp) {}
 
       @NewTracker
-      public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
+      public SomeRestrictionTracker newTracker(
+          SomeRestriction restriction,
+          PipelineOptions pipelineOptions,
+          BoundedWindow boundedWindow,
+          PaneInfo paneInfo,
+          @Timestamp Instant timestamp) {
         return null;
       }
 
@@ -455,7 +508,9 @@ public class DoFnSignaturesSplittableDoFnTest {
           void method(
               Integer element, SomeRestriction restriction, DoFn.OutputReceiver<String> receiver) {}
         }.getMethod(),
-        TypeDescriptor.of(Integer.class));
+        TypeDescriptor.of(Integer.class),
+        TypeDescriptor.of(String.class),
+        FnAnalysisContext.create());
   }
 
   @Test
@@ -476,12 +531,14 @@ public class DoFnSignaturesSplittableDoFnTest {
               SomeRestriction restriction,
               DoFn.OutputReceiver<SomeRestriction> receiver) {}
         }.getMethod(),
-        TypeDescriptor.of(Integer.class));
+        TypeDescriptor.of(Integer.class),
+        TypeDescriptor.of(String.class),
+        FnAnalysisContext.create());
   }
 
   @Test
-  public void testSplitRestrictionWrongNumArguments() throws Exception {
-    thrown.expectMessage("Must have exactly 3 arguments");
+  public void testSplitRestrictionWrongArgumentType() throws Exception {
+    thrown.expectMessage("Object is not a valid context parameter.");
     DoFnSignatures.analyzeSplitRestrictionMethod(
         errors(),
         TypeDescriptor.of(FakeDoFn.class),
@@ -492,7 +549,9 @@ public class DoFnSignaturesSplittableDoFnTest {
               DoFn.OutputReceiver<SomeRestriction> receiver,
               Object extra) {}
         }.getMethod(),
-        TypeDescriptor.of(Integer.class));
+        TypeDescriptor.of(Integer.class),
+        TypeDescriptor.of(String.class),
+        FnAnalysisContext.create());
   }
 
   @Test
@@ -563,8 +622,8 @@ public class DoFnSignaturesSplittableDoFnTest {
   }
 
   @Test
-  public void testNewTrackerWrongNumArguments() throws Exception {
-    thrown.expectMessage("Must have a single argument");
+  public void testNewTrackerWrongArgumentType() throws Exception {
+    thrown.expectMessage("Object is not a valid context parameter.");
     DoFnSignatures.analyzeNewTrackerMethod(
         errors(),
         TypeDescriptor.of(FakeDoFn.class),
@@ -572,7 +631,10 @@ public class DoFnSignaturesSplittableDoFnTest {
           private SomeRestrictionTracker method(SomeRestriction restriction, Object extra) {
             return null;
           }
-        }.getMethod());
+        }.getMethod(),
+        TypeDescriptor.of(Integer.class),
+        TypeDescriptor.of(String.class),
+        FnAnalysisContext.create());
   }
 
   @Test
@@ -587,6 +649,9 @@ public class DoFnSignaturesSplittableDoFnTest {
           private SomeRestrictionTracker method(String restriction) {
             return null;
           }
-        }.getMethod());
+        }.getMethod(),
+        TypeDescriptor.of(Integer.class),
+        TypeDescriptor.of(String.class),
+        FnAnalysisContext.create());
   }
 }

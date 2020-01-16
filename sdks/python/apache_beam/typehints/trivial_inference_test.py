@@ -72,6 +72,11 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(str, lambda v: v[::-1], [str])
     self.assertReturnType(typehints.Any, lambda v: v[::-1], [typehints.Any])
     self.assertReturnType(typehints.Any, lambda v: v[::-1], [object])
+    if sys.version_info >= (3,):
+      # Test binary_subscr on a slice of a Const. On Py2.7 this will use the
+      # unsupported opcode SLICE+0.
+      test_list = ['a', 'b']
+      self.assertReturnType(typehints.List[str], lambda: test_list[:], [])
 
   def testUnpack(self):
     def reverse(a_b):

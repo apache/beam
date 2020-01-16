@@ -186,11 +186,6 @@ class WriteToBigQuery(beam.PTransform):
     return ', '.join(
         '%s:%s' % (col, self.schema[col]) for col in self.schema)
 
-  def get_schema(self):
-    """Build the output table schema."""
-    return ', '.join(
-        '%s:%s' % (col, self.schema[col]) for col in self.schema)
-
   def expand(self, pcoll):
     return (
         pcoll
