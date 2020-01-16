@@ -977,7 +977,7 @@ Since there are a bunch of tests, we recommend you running validations using aut
      [script.config](https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config)
   1. Then run
       ```
-      cd beam/release/src/main/scripts && ./run_rc_validation.sh
+      ./release/src/main/scripts/run_rc_validation.sh
       ```
 
 * Tasks included
@@ -1042,7 +1042,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
   Pre-request
   * Create your own BigQuery dataset
     ```
-    bq mk --project=${YOUR_GCP_PROJECT} ${YOUR_DATASET}
+    bq mk --project_id=${YOUR_GCP_PROJECT} ${YOUR_DATASET}
     ```
   * Create yout PubSub topic 
     ```
@@ -1108,7 +1108,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
     
     ```
     bq rm -rf --project=${YOUR_PROJECT} ${USER}_test
-    bq mk --project=${YOUR_PROJECT} ${USER}_test
+    bq mk --project_id=${YOUR_PROJECT} ${USER}_test
     gsutil rm -rf ${YOUR_GS_STORAGE]
     gsutil mb -p ${YOUR_PROJECT} ${YOUR_GS_STORAGE}
     gcloud alpha pubsub topics create --project=${YOUR_PROJECT} ${YOUR_PUBSUB_TOPIC}
