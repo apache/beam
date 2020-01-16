@@ -318,7 +318,7 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
     dependsOn project.getTasksByName('publishMavenJavaPublicationToMavenLocal', true /* recursively */)
     classpath = project.configurations.linkageCheckerJava
     main = 'com.google.cloud.tools.opensource.classpath.LinkageCheckerMain'
-    args '--report-only-reachable', '-a', project.javaLinkageArtifactIds.split(',').collect({
+    args '-a', project.javaLinkageArtifactIds.split(',').collect({
       if (it.contains(':')) {
         "${project.ext.mavenGroupId}:${it}"
       } else {
