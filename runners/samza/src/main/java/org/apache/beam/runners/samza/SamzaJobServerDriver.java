@@ -101,7 +101,8 @@ public class SamzaJobServerDriver {
           }
         },
         stagingSessionToken -> {},
-        jobInvoker);
+        jobInvoker,
+        InMemoryJobService.DEFAULT_MAX_INVOCATION_HISTORY);
   }
 
   public void run() throws Exception {
