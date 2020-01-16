@@ -610,24 +610,23 @@ class TestWriteToPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    _ = (p
-         | Create(payloads)
-         | WriteToPubSub('projects/fakeprj/topics/a_topic',
-                         id_label='a_label'))
     with self.assertRaisesRegex(NotImplementedError,
                                 r'id_label is not supported'):
-      p.run()
+      with TestPipeline(options=options) as p:
+        _ = (p
+             | Create(payloads)
+             | WriteToPubSub('projects/fakeprj/topics/a_topic',
+                             id_label='a_label'))
+
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
     with self.assertRaisesRegex(NotImplementedError,
                                 r'timestamp_attribute is not supported'):
-      p = TestPipeline(options=options)
-      _ = (p
-           | Create(payloads)
-           | WriteToPubSub('projects/fakeprj/topics/a_topic',
-                           timestamp_attribute='timestamp'))
-      p.run()
+      with TestPipeline(options=options) as p:
+        _ = (p
+             | Create(payloads)
+             | WriteToPubSub('projects/fakeprj/topics/a_topic',
+                             timestamp_attribute='timestamp'))
 
 
 if __name__ == '__main__':
