@@ -22,7 +22,6 @@ import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.alibaba.fastjson.JSONObject;
-import com.google.common.collect.ImmutableMap;
 import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.Key;
 import com.google.datastore.v1.Query;
@@ -59,6 +58,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
