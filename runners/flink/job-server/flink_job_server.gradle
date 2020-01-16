@@ -151,6 +151,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       if (streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp'
       } else {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       }
