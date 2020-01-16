@@ -433,6 +433,16 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Experimental(Kind.TIMERS)
   public @interface TimerId {
     /** The timer ID. */
+    String value() default "";
+  }
+
+  /** Parameter annotation for the TimerMap for a {@link ProcessElement} method. */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.FIELD, ElementType.PARAMETER})
+  @Experimental(Kind.TIMERS)
+  public @interface TimerFamily {
+    /** The TimerMap tag ID. */
     String value();
   }
 
@@ -459,6 +469,25 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Target(ElementType.METHOD)
   @Experimental(Kind.TIMERS)
   public @interface OnTimer {
+    /** The timer ID. */
+    String value();
+  }
+
+  /**
+   * Annotation for registering a callback for a timerFamily.
+   *
+   * <p>See the javadoc for {@link TimerFamily} for use in a full example.
+   *
+   * <p>The method annotated with {@code @OnTimerFamily} may have parameters according to the same
+   * logic as {@link ProcessElement}, but limited to the {@link BoundedWindow}, {@link State}
+   * subclasses, and {@link org.apache.beam.sdk.state.TimerMap}. State and timer parameters must be
+   * annotated with their {@link StateId} and {@link TimerId} respectively.
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  @Experimental(Kind.TIMERS)
+  public @interface OnTimerFamily {
     /** The timer ID. */
     String value();
   }

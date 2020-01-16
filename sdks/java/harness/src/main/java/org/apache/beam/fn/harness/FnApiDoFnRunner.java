@@ -60,6 +60,7 @@ import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -765,7 +766,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
           (Iterator<BoundedWindow>) timer.getWindows().iterator();
       while (windowIterator.hasNext()) {
         currentWindow = windowIterator.next();
-        doFnInvoker.invokeOnTimer(timerId, onTimerContext);
+        doFnInvoker.invokeOnTimer(timerId, timerId, onTimerContext);
       }
     } finally {
       currentTimer = null;
@@ -922,6 +923,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     }
   }
 
+  private static class FnApiTimerMap implements TimerMap {
+    FnApiTimerMap() {}
+
+    @Override
+    public void set(String timerId, Instant absoluteTime) {}
+
+    @Override
+    public org.apache.beam.sdk.state.Timer get(String timerId) {
+      return null;
+    }
+  }
+
   /**
    * Provides arguments for a {@link DoFnInvoker} for {@link DoFn.ProcessElement @ProcessElement}.
    */
@@ -982,6 +995,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     }
 
     @Override
+    public String timerId(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access timerId as parameter outside of @OnTimer method.");
+    }
+
+    @Override
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access time domain outside of @ProcessTimer method.");
@@ -1034,6 +1053,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
           currentElement.getValue());
 
       return new FnApiTimer(timerId, (WindowedValue) currentElement);
+    }
+
+    @Override
+    public TimerMap timerFamily(String tagId) {
+      // TODO: implement timerFamily
+      return null;
     }
 
     @Override
@@ -1170,6 +1195,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     }
 
     @Override
+    public String timerId(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("TimerId parameters are not supported.");
+    }
+
+    @Override
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
       return timeDomain();
     }
@@ -1220,6 +1250,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
           currentTimer);
 
       return new FnApiTimer(timerId, (WindowedValue) currentTimer);
+    }
+
+    @Override
+    public TimerMap timerFamily(String tagId) {
+      // TODO: implement timerFamily
+      throw new UnsupportedOperationException("TimerFamily parameters are not supported.");
     }
 
     @Override

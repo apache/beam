@@ -15,28 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.state;
-
-import com.google.auto.value.AutoValue;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-
-/** Static methods for working with {@link TimerSpec TimerSpecs}. */
-@Experimental(Kind.TIMERS)
-public class TimerSpecs {
-
-  public static TimerSpec timer(TimeDomain timeDomain) {
-    return new AutoValue_TimerSpecs_SimpleTimerSpec(timeDomain);
-  }
-
-  public static TimerSpec timerMap(TimeDomain timeDomain) {
-    return new AutoValue_TimerSpecs_SimpleTimerSpec(timeDomain);
-  }
-
-  /** A straightforward POJO {@link TimerSpec}. Package-level access for AutoValue. */
-  @AutoValue
-  abstract static class SimpleTimerSpec implements TimerSpec {
-    @Override
-    public abstract TimeDomain getTimeDomain();
-  }
-}
+package org.apache.beam.sdk.testing;
+/**
+ * Category tag for validation tests which use timerMap. Tests tagged with {@link UsesTimerMap}
+ * should be run for runners which support timerMap.
+ */
+public interface UsesTimerMap {}
