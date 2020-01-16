@@ -138,7 +138,9 @@ def addTestJavaJarCreator(String pyVersion) {
                 "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
                 "--python_root_dir ${project.rootDir}/sdks/python",
                 "--python_version ${pyVersion}",
-                "--python_container_image apachebeam/python${pyVersion}_sdk:${project['python_sdk_version']}",
+                "--python_container_image ${project.docker_image_default_repo_root}/"
+                        + ${project.docker_image_default_repo_prefix}
+                        + "python${pyVersion}_sdk:${project.sdk_version}",
         ]
         args "-c", "./test_spark_pipeline_jar.sh ${options.join(' ')}"
       }

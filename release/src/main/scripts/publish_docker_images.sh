@@ -46,62 +46,62 @@ if [[ $confirmation = "y" ]]; then
   echo '-------------------Generating and Pushing Python images-----------------'
   for ver in "${PYTHON_VER[@]}"; do
     # Pull varified RC from dockerhub.
-    docker pull apachebeam/${ver}_sdk:${RELEASE}_${RC_VERSION}
+    docker pull apache/beam-${ver}_sdk:${RELEASE}_${RC_VERSION}
 
     # Tag with ${RELEASE} and push to dockerhub.
-    docker tag apachebeam/${ver}_sdk:${RELEASE}_${RC_VERSION} apachebeam/${ver}_sdk:${RELEASE}
-    docker push apachebeam/${ver}_sdk:${RELEASE}
+    docker tag apache/beam-${ver}_sdk:${RELEASE}_${RC_VERSION} apache/beam-${ver}_sdk:${RELEASE}
+    docker push apache/beam-${ver}_sdk:${RELEASE}
 
     # Tag with latest and push to dockerhub.
-    docker tag apachebeam/${ver}_sdk:${RELEASE}_${RC_VERSION} apachebeam/${ver}_sdk:latest
-    docker push apachebeam/${ver}_sdk:latest
+    docker tag apache/beam-${ver}_sdk:${RELEASE}_${RC_VERSION} apache/beam-${ver}_sdk:latest
+    docker push apache/beam-${ver}_sdk:latest
 
     # Cleanup images from local
-    docker rmi -f apachebeam/${ver}_sdk:${RELEASE}_${RC_VERSION}
-    docker rmi -f apachebeam/${ver}_sdk:${RELEASE}
-    docker rmi -f apachebeam/${ver}_sdk:latest
+    docker rmi -f apache/beam-${ver}_sdk:${RELEASE}_${RC_VERSION}
+    docker rmi -f apache/beam-${ver}_sdk:${RELEASE}
+    docker rmi -f apache/beam-${ver}_sdk:latest
   done
 
   echo '-------------------Generating and Pushing Java images-----------------'
   # Pull varified RC from dockerhub.
-  docker pull apachebeam/java_sdk:${RELEASE}_${RC_VERSION}
+  docker pull apache/beam-java_sdk:${RELEASE}_${RC_VERSION}
 
   # Tag with ${RELEASE} and push to dockerhub.
-  docker tag apachebeam/java_sdk:${RELEASE}_${RC_VERSION} apachebeam/java_sdk:${RELEASE}
-  docker push apachebeam/java_sdk:${RELEASE}
+  docker tag apache/beam-java_sdk:${RELEASE}_${RC_VERSION} apache/beam-java_sdk:${RELEASE}
+  docker push apache/beam-java_sdk:${RELEASE}
 
   # Tag with latest and push to dockerhub.
-  docker tag apachebeam/java_sdk:${RELEASE}_${RC_VERSION} apachebeam/java_sdk:latest
-  docker push apachebeam/java_sdk:latest
+  docker tag apache/beam-java_sdk:${RELEASE}_${RC_VERSION} apache/beam-java_sdk:latest
+  docker push apache/beam-java_sdk:latest
 
   # Cleanup images from local
-  docker rmi -f apachebeam/java_sdk:${RELEASE}_${RC_VERSION}
-  docker rmi -f apachebeam/java_sdk:${RELEASE}
-  docker rmi -f apachebeam/java_sdk:latest
+  docker rmi -f apache/beam-java_sdk:${RELEASE}_${RC_VERSION}
+  docker rmi -f apache/beam-java_sdk:${RELEASE}
+  docker rmi -f apache/beam-java_sdk:latest
 
   echo '-------------------Generating and Pushing Go images-----------------'
   # Pull varified RC from dockerhub.
-  docker pull apachebeam/go_sdk:${RELEASE}_${RC_VERSION}
+  docker pull apache/beam-go_sdk:${RELEASE}_${RC_VERSION}
 
   # Tag with ${RELEASE} and push to dockerhub.
-  docker tag apachebeam/go_sdk:${RELEASE}_${RC_VERSION} apachebeam/go_sdk:${RELEASE}
-  docker push apachebeam/go_sdk:${RELEASE}
+  docker tag apache/beam-go_sdk:${RELEASE}_${RC_VERSION} apache/beam-go_sdk:${RELEASE}
+  docker push apache/beam-go_sdk:${RELEASE}
 
   # Tag with latest and push to dockerhub.
-  docker tag apachebeam/go_sdk:${RELEASE}_${RC_VERSION} apachebeam/go_sdk:latest
-  docker push apachebeam/go_sdk:latest
+  docker tag apache/beam-go_sdk:${RELEASE}_${RC_VERSION} apache/beam-go_sdk:latest
+  docker push apache/beam-go_sdk:latest
 
   # Cleanup images from local
-  docker rmi -f apachebeam/go_sdk:${RELEASE}_${RC_VERSION}
-  docker rmi -f apachebeam/go_sdk:${RELEASE}
-  docker rmi -f apachebeam/go_sdk:latest
+  docker rmi -f apache/beam-go_sdk:${RELEASE}_${RC_VERSION}
+  docker rmi -f apache/beam-go_sdk:${RELEASE}
+  docker rmi -f apache/beam-go_sdk:latest
 
   echo '-------------Generating and Pushing Flink job server images-------------'
   echo "Publishing images for the following Flink versions:" "${FLINK_VER[@]}"
   echo "Make sure the versions are correct, then press any key to proceed."
   read
   for ver in "${FLINK_VER[@]}"; do
-    FLINK_IMAGE_NAME=apachebeam/flink${ver}_job_server
+    FLINK_IMAGE_NAME=apache/beam-flink${ver}_job_server
 
     # Pull verified RC from dockerhub.
     docker pull "${FLINK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}"

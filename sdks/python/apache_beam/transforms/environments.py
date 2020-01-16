@@ -237,7 +237,7 @@ class DockerEnvironment(Environment):
                     'has Python %d.%d interpreter.' % (
                         sys.version_info[0], sys.version_info[1]))
 
-    image = ('apachebeam/python{version_suffix}_sdk:{tag}'.format(
+    image = ('apache/beam-python{version_suffix}_sdk:{tag}'.format(
         version_suffix=version_suffix, tag=sdk_version))
     logging.info(
         'Using Python SDK docker image: %s. If the image is not '

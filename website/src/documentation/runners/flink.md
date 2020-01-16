@@ -273,10 +273,10 @@ As of now you will need a copy of Apache Beam's source code. You can
 download it on the [Downloads page]({{ site.baseurl }}/get-started/downloads/).
 
 Pre-built Docker images are available at Docker-Hub:
-[Python 2.7](https://hub.docker.com/r/apachebeam/python2.7_sdk),
-[Python 3.5](https://hub.docker.com/r/apachebeam/python3.5_sdk),
-[Python 3.6](https://hub.docker.com/r/apachebeam/python3.6_sdk),
-[Python 3.7](https://hub.docker.com/r/apachebeam/python3.7_sdk).
+[Python 2.7](https://hub.docker.com/r/apache/beam-python2.7_sdk),
+[Python 3.5](https://hub.docker.com/r/apache/beam-python3.5_sdk),
+[Python 3.6](https://hub.docker.com/r/apache/beam-python3.6_sdk),
+[Python 3.7](https://hub.docker.com/r/apache/beam-python3.7_sdk).
 
 To run a pipeline on an embedded Flink cluster:
 </span>

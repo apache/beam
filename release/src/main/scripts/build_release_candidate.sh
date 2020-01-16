@@ -221,7 +221,7 @@ if [[ $confirmation = "y" ]]; then
   echo '-------------------Generating and Pushing Python images-----------------'
   ./gradlew :sdks:python:container:buildAll -Pdocker-tag=${RELEASE}_rc${RC_NUM}
   for ver in "${PYTHON_VER[@]}"; do
-    docker push apachebeam/${ver}_sdk:${RELEASE}_rc${RC_NUM} &
+    docker push apache/beam-${ver}_sdk:${RELEASE}_rc${RC_NUM} &
   done
 
   echo '-------------------Generating and Pushing Java images-----------------'
@@ -240,12 +240,12 @@ if [[ $confirmation = "y" ]]; then
 
   echo '-------------------Clean up images at local-----------------'
   for ver in "${PYTHON_VER[@]}"; do
-     docker rmi -f apachebeam/${ver}_sdk:${RELEASE}_rc${RC_NUM}
+     docker rmi -f apache/beam-${ver}_sdk:${RELEASE}_rc${RC_NUM}
   done
-  docker rmi -f apachebeam/java_sdk:${RELEASE}_rc${RC_NUM}
-  docker rmi -f apachebeam/go_sdk:${RELEASE}_rc${RC_NUM}
+  docker rmi -f apache/beam-java_sdk:${RELEASE}_rc${RC_NUM}
+  docker rmi -f apache/beam-go_sdk:${RELEASE}_rc${RC_NUM}
   for ver in "${FLINK_VER[@]}"; do
-    docker rmi -f "apachebeam/flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
+    docker rmi -f "apache/beam-flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
   done
 fi
 
