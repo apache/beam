@@ -86,6 +86,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -579,6 +580,55 @@ public class SdkHarnessClientTest {
     } catch (Exception e) {
       assertEquals(testException, e);
     }
+  }
+
+  @Test
+  public void testStateHandlerDeregistration() throws Exception {
+    StateDelegator mockStateDelegator = mock(StateDelegator.class);
+    StateDelegator.Registration mockStateRegistration = mock(StateDelegator.Registration.class);
+    when(mockStateDelegator.registerForProcessBundleInstructionId(any(), any()))
+        .thenReturn(mockStateRegistration);
+    StateRequestHandler mockStateHandler = mock(StateRequestHandler.class);
+
+    SdkHarnessClient client = harness.client();
+    BundleProcessor processor =
+        client.getProcessor(
+            descriptor,
+            Collections.singletonMap(
+                "inputPC",
+                RemoteInputDestination.of(
+                    (FullWindowedValueCoder)
+                        FullWindowedValueCoder.of(StringUtf8Coder.of(), Coder.INSTANCE),
+                    SDK_GRPC_READ_TRANSFORM)),
+            mockStateDelegator);
+
+    ActiveBundle activeBundle =
+        processor.newBundle(
+            Collections.singletonMap(
+                SDK_GRPC_WRITE_TRANSFORM,
+                RemoteOutputReceiver.of(
+                    FullWindowedValueCoder.of(
+                        LengthPrefixCoder.of(StringUtf8Coder.of()), Coder.INSTANCE),
+                    (elem) -> {})),
+            mockStateHandler,
+            BundleProgressHandler.ignored());
+
+    // Spy on the outputClients to verify they are closed before the state is de-registered
+    Map<String, InboundDataClient> outputClients = activeBundle.getOutputClients();
+    Map.Entry<String, InboundDataClient> clientEntry = getOnlyElement(outputClients.entrySet());
+    InboundDataClient spiedClient = Mockito.spy(clientEntry.getValue());
+    outputClients.put(clientEntry.getKey(), spiedClient);
+
+    // Capture the order for verification of the close() method
+    InOrder inOrder = Mockito.inOrder(spiedClient, mockStateRegistration);
+
+    // Close the ActiveBundle
+    activeBundle.close();
+
+    // Verify clients are closed first
+    inOrder.verify(spiedClient).awaitCompletion();
+    // State must be de-registered last
+    inOrder.verify(mockStateRegistration).deregister();
   }
 
   @Test

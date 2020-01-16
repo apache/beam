@@ -46,6 +46,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.util.MoreFutures;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -362,19 +363,6 @@ public class SdkHarnessClient implements AutoCloseable {
             exception.addSuppressed(e);
           }
         }
-        try {
-          if (exception == null) {
-            stateRegistration.deregister();
-          } else {
-            stateRegistration.abort();
-          }
-        } catch (Exception e) {
-          if (exception == null) {
-            exception = e;
-          } else {
-            exception.addSuppressed(e);
-          }
-        }
         for (InboundDataClient outputClient : outputClients.values()) {
           try {
             if (exception == null) {
@@ -390,9 +378,31 @@ public class SdkHarnessClient implements AutoCloseable {
             }
           }
         }
+        // This will de-register the state handler for this bundle id and should be done when no
+        // more elements can be processed by the SDK Harness. Otherwise, we run into a race
+        // condition where we may get state requests from the SDK Harness which can't be processed
+        // anymore.
+        try {
+          if (exception == null) {
+            stateRegistration.deregister();
+          } else {
+            stateRegistration.abort();
+          }
+        } catch (Exception e) {
+          if (exception == null) {
+            exception = e;
+          } else {
+            exception.addSuppressed(e);
+          }
+        }
         if (exception != null) {
           throw exception;
         }
+      }
+
+      @VisibleForTesting
+      Map<String, InboundDataClient> getOutputClients() {
+        return outputClients;
       }
     }
   }
