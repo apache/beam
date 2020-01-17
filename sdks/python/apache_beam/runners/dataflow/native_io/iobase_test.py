@@ -185,10 +185,9 @@ class TestNativeSink(unittest.TestCase):
       def Write(self, value):
         self.written_values.append(value)
 
-    p = TestPipeline()
-    sink = FakeSink()
-    p | Create(['a', 'b', 'c']) | _NativeWrite(sink)  # pylint: disable=expression-not-assigned
-    p.run()
+    with TestPipeline() as p:
+      sink = FakeSink()
+      p | Create(['a', 'b', 'c']) | _NativeWrite(sink)  # pylint: disable=expression-not-assigned
 
     self.assertEqual(['a', 'b', 'c'], sorted(sink.written_values))
 

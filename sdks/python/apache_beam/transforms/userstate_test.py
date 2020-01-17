@@ -518,19 +518,16 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
           aggregated_value += saved_value
         yield aggregated_value
 
-    p = TestPipeline()
-    values = p | beam.Create([('key', 1),
-                              ('key', 2),
-                              ('key', 3),
-                              ('key', 4),
-                              ('key', 3)], reshuffle=False)
-    actual_values = (values
-                     | beam.ParDo(SetStatefulDoFn()))
+    with TestPipeline() as p:
+      values = p | beam.Create([('key', 1),
+                                ('key', 2),
+                                ('key', 3),
+                                ('key', 4),
+                                ('key', 3)], reshuffle=False)
+      actual_values = (values
+                       | beam.ParDo(SetStatefulDoFn()))
+      assert_that(actual_values, equal_to([1, 3, 6, 10, 10]))
 
-    assert_that(actual_values, equal_to([1, 3, 6, 10, 10]))
-
-    result = p.run()
-    result.wait_until_finish()
 
   def test_stateful_set_state_clean_portably(self):
 
@@ -557,21 +554,19 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
       def emit_values(self, set_state=beam.DoFn.StateParam(SET_STATE)):
         yield sorted(set_state.read())
 
-    p = TestPipeline()
-    values = p | beam.Create([('key', 1),
-                              ('key', 2),
-                              ('key', 3),
-                              ('key', 4),
-                              ('key', 5)])
-    actual_values = (values
-                     | beam.Map(lambda t: window.TimestampedValue(t, 1))
-                     | beam.WindowInto(window.FixedWindows(1))
-                     | beam.ParDo(SetStateClearingStatefulDoFn()))
+    with TestPipeline() as p:
+      values = p | beam.Create([('key', 1),
+                                ('key', 2),
+                                ('key', 3),
+                                ('key', 4),
+                                ('key', 5)])
+      actual_values = (values
+                       | beam.Map(lambda t: window.TimestampedValue(t, 1))
+                       | beam.WindowInto(window.FixedWindows(1))
+                       | beam.ParDo(SetStateClearingStatefulDoFn()))
 
-    assert_that(actual_values, equal_to([[100]]))
+      assert_that(actual_values, equal_to([[100]]))
 
-    result = p.run()
-    result.wait_until_finish()
 
   def test_stateful_dofn_nonkeyed_input(self):
     p = TestPipeline()

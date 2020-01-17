@@ -68,24 +68,21 @@ def run(argv=None):
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   options = PipelineOptions(pipeline_args)
-  p = TestPipeline(options=options)
+  with TestPipeline(options=options) as p:
+    if known_args.beam_bq_source:
+      reader = _ReadFromBigQuery(
+          table='%s:%s' % (options.view_as(GoogleCloudOptions).project,
+                           known_args.input_table))
+    else:
+      reader = beam.io.Read(beam.io.BigQuerySource(known_args.input_table))
 
-  if known_args.beam_bq_source:
-    reader = _ReadFromBigQuery(
-        table='%s:%s' % (options.view_as(GoogleCloudOptions).project,
-                         known_args.input_table))
-  else:
-    reader = beam.io.Read(beam.io.BigQuerySource(known_args.input_table))
+    # pylint: disable=expression-not-assigned
+    count = (p | 'read' >> reader
+             | 'row to string' >> beam.ParDo(RowToStringWithSlowDown(),
+                                             num_slow=known_args.num_slow)
+             | 'count' >> beam.combiners.Count.Globally())
 
-  # pylint: disable=expression-not-assigned
-  count = (p | 'read' >> reader
-           | 'row to string' >> beam.ParDo(RowToStringWithSlowDown(),
-                                           num_slow=known_args.num_slow)
-           | 'count' >> beam.combiners.Count.Globally())
-
-  assert_that(count, equal_to([known_args.num_records]))
-
-  p.run()
+    assert_that(count, equal_to([known_args.num_records]))
 
 
 if __name__ == '__main__':
