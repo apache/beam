@@ -1011,8 +1011,15 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private void setAndVerifyOutputTimestamp() {
 
       // Output timestamp is set to the delivery time if not initialized by an user.
-      if (outputTimestamp == null) {
-        outputTimestamp = target.minus(offset.minus(outputTimestampOffset));
+      if (outputTimestamp == null && TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
+        outputTimestamp = target;
+      }
+
+      if (TimeDomain.PROCESSING_TIME.equals(spec.getTimeDomain())) {
+        outputTimestamp =
+            outputTimestampOffset.equals(Duration.ZERO)
+                ? target
+                : target.minus(offset.minus(outputTimestampOffset));
       }
 
       if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
