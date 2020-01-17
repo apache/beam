@@ -951,7 +951,8 @@ class DataflowRunner(PipelineRunner):
       step.add_property(PropertyNames.RESTRICTION_ENCODING,
                         self._get_cloud_encoding(restriction_coder))
 
-    if DoFnSignature(transform.dofn).is_stateful_dofn():
+    if options.view_as(StandardOptions).streaming and DoFnSignature(
+        transform.dofn).is_stateful_dofn():
       step.add_property(PropertyNames.USES_KEYED_STATE, "true")
 
   @staticmethod
@@ -1131,7 +1132,6 @@ class DataflowRunner(PipelineRunner):
         coders.registry.get_coder(transform_node.outputs[None].element_type),
         coders.coders.GlobalWindowCoder())
 
-    from apache_beam.runners.dataflow.internal import apiclient
     step.encoding = self._get_cloud_encoding(coder)
     step.add_property(
         PropertyNames.OUTPUT_INFO,
@@ -1217,7 +1217,6 @@ class DataflowRunner(PipelineRunner):
     # correct coder.
     coder = coders.WindowedValueCoder(transform.sink.coder,
                                       coders.coders.GlobalWindowCoder())
-    from apache_beam.runners.dataflow.internal import apiclient
     step.encoding = self._get_cloud_encoding(coder)
     step.add_property(PropertyNames.ENCODING, step.encoding)
     step.add_property(
