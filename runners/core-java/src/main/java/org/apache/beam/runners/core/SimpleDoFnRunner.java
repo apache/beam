@@ -200,9 +200,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     Instant effectiveTimestamp;
     switch (timeDomain) {
       case EVENT_TIME:
+      case PROCESSING_TIME:
         effectiveTimestamp = outputTimestamp;
         break;
-      case PROCESSING_TIME:
       case SYNCHRONIZED_PROCESSING_TIME:
         effectiveTimestamp = stepContext.timerInternals().currentInputWatermarkTime();
         break;
@@ -942,10 +942,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public void setRelative() {
       Instant now = getCurrentTime();
       if (period.equals(Duration.ZERO)) {
-        target = now.plus(offset).minus(outputTimestampOffset);
+        target = now.plus(offset);
       } else {
-        long millisSinceStart =
-            now.plus(offset).minus(outputTimestampOffset).getMillis() % period.getMillis();
+        long millisSinceStart = now.plus(offset).getMillis() % period.getMillis();
         target = millisSinceStart == 0 ? now : now.plus(period).minus(millisSinceStart);
       }
       target = minTargetAndGcTime(target);
@@ -1013,7 +1012,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
       // Output timestamp is set to the delivery time if not initialized by an user.
       if (outputTimestamp == null) {
-        outputTimestamp = target;
+        outputTimestamp = target.minus(offset.minus(outputTimestampOffset));
       }
 
       if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
