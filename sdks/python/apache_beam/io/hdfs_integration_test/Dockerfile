@@ -24,11 +24,13 @@ FROM $BASE_IMAGE
 
 WORKDIR /app
 ENV HDFSCLI_CONFIG /app/sdks/python/apache_beam/io/hdfs_integration_test/hdfscli.cfg
-RUN pip install --no-cache-dir 'tox>=3.14.3,<4'
 
 # Add Beam SDK sources.
 COPY sdks/python /app/sdks/python
 COPY model /app/model
+
+# This step should look like setupVirtualenv minus virtualenv creation.
+RUN pip install --no-cache-dir tox==3.11.1 -r sdks/python/build-requirements.txt
 
 # Run wordcount, and write results to HDFS.
 CMD cd sdks/python && tox -e hdfs_integration_test
