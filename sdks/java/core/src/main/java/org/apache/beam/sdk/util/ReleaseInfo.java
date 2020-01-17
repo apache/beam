@@ -49,9 +49,14 @@ public abstract class ReleaseInfo implements Serializable {
     return getProperties().get("name");
   }
 
-  /** Provides the SDK version. */
+  /** Provides the BEAM version. ie: 2.18.0-SNAPSHOT */
   public String getVersion() {
     return getProperties().get("version");
+  }
+
+  /** Provides the SDK version. ie: 2.18.0 or 2.18.0.dev */
+  public String getSdkVersion() {
+    return getProperties().get("sdk_version");
   }
 
   /////////////////////////////////////////////////////////////////////////
@@ -78,6 +83,9 @@ public abstract class ReleaseInfo implements Serializable {
       }
       if (!properties.containsKey("version")) {
         properties.setProperty("version", DEFAULT_VERSION);
+      }
+      if (!properties.containsKey("sdk_version")) {
+        properties.setProperty("sdk_version", DEFAULT_VERSION);
       }
       INSTANCE = new AutoValue_ReleaseInfo(ImmutableMap.copyOf((Map) properties));
     }

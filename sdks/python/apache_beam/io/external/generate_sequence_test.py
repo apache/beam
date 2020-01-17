@@ -41,12 +41,11 @@ from apache_beam.testing.util import equal_to
     "EXPANSION_PORT environment var is not provided.")
 class XlangGenerateSequenceTest(unittest.TestCase):
   def test_generate_sequence(self):
-    test_pipeline = TestPipeline()
     port = os.environ.get('EXPANSION_PORT')
     address = 'localhost:%s' % port
 
     try:
-      with test_pipeline as p:
+      with TestPipeline() as p:
         res = (
             p
             | GenerateSequence(start=1, stop=10,

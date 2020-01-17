@@ -65,10 +65,9 @@ def watch(watchable):
 
       class Foo(object)
         def run_pipeline(self):
-          p = beam.Pipeline()
-          init_pcoll = p |  'Init Create' >> beam.Create(range(10))
-          watch(locals())
-          p.run()
+          with beam.Pipeline() as p:
+            init_pcoll = p |  'Init Create' >> beam.Create(range(10))
+            watch(locals())
           return init_pcoll
       init_pcoll = Foo().run_pipeline()
 

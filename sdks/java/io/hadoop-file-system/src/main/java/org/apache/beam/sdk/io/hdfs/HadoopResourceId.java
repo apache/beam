@@ -65,6 +65,10 @@ class HadoopResourceId implements ResourceId {
 
   @Override
   public String getFilename() {
+    if (isDirectory()) {
+      Path parentPath = new Path(uri).getParent();
+      return parentPath == null ? null : parentPath.getName();
+    }
     return new Path(uri).getName();
   }
 

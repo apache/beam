@@ -33,6 +33,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.WireCoderSetting;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.ModelCoders;
@@ -56,7 +57,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableTable;
@@ -119,15 +120,19 @@ public class ProcessBundleDescriptors {
         ImmutableMap.builder();
     ImmutableMap.Builder<String, Coder> remoteOutputCodersBuilder = ImmutableMap.builder();
 
+    WireCoderSetting wireCoderSetting =
+        stage.getWireCoderSettings().stream()
+            .filter(ws -> ws.getInputOrOutputId().equals(stage.getInputPCollection().getId()))
+            .findAny()
+            .orElse(WireCoderSetting.getDefaultInstance());
     // The order of these does not matter.
     inputDestinationsBuilder.put(
         stage.getInputPCollection().getId(),
-        addStageInput(
-            dataEndpoint, stage.getInputPCollection(), components, stage.getWireCoderSetting()));
+        addStageInput(dataEndpoint, stage.getInputPCollection(), components, wireCoderSetting));
 
     remoteOutputCodersBuilder.putAll(
         addStageOutputs(
-            dataEndpoint, stage.getOutputPCollections(), components, stage.getWireCoderSetting()));
+            dataEndpoint, stage.getOutputPCollections(), components, stage.getWireCoderSettings()));
 
     Map<String, Map<String, SideInputSpec>> sideInputSpecs = addSideInputs(stage, components);
 
@@ -192,10 +197,15 @@ public class ProcessBundleDescriptors {
       ApiServiceDescriptor dataEndpoint,
       Collection<PCollectionNode> outputPCollections,
       Components.Builder components,
-      RunnerApi.WireCoderSetting wireCoderSetting)
+      Collection<WireCoderSetting> wireCoderSettings)
       throws IOException {
     Map<String, Coder<WindowedValue<?>>> remoteOutputCoders = new LinkedHashMap<>();
     for (PCollectionNode outputPCollection : outputPCollections) {
+      WireCoderSetting wireCoderSetting =
+          wireCoderSettings.stream()
+              .filter(ws -> ws.getInputOrOutputId().equals(outputPCollection.getId()))
+              .findAny()
+              .orElse(WireCoderSetting.getDefaultInstance());
       OutputEncoding outputEncoding =
           addStageOutput(dataEndpoint, components, outputPCollection, wireCoderSetting);
       remoteOutputCoders.put(outputEncoding.getPTransformId(), outputEncoding.getCoder());
@@ -207,7 +217,7 @@ public class ProcessBundleDescriptors {
       ApiServiceDescriptor dataEndpoint,
       PCollectionNode inputPCollection,
       Components.Builder components,
-      RunnerApi.WireCoderSetting wireCoderSetting)
+      WireCoderSetting wireCoderSetting)
       throws IOException {
     String inputWireCoderId =
         WireCoders.addSdkWireCoder(inputPCollection, components, wireCoderSetting);
@@ -235,7 +245,7 @@ public class ProcessBundleDescriptors {
       ApiServiceDescriptor dataEndpoint,
       Components.Builder components,
       PCollectionNode outputPCollection,
-      RunnerApi.WireCoderSetting wireCoderSetting)
+      WireCoderSetting wireCoderSetting)
       throws IOException {
     String outputWireCoderId =
         WireCoders.addSdkWireCoder(outputPCollection, components, wireCoderSetting);
@@ -385,6 +395,17 @@ public class ProcessBundleDescriptors {
               .setCoderId(timerCoderId)
               .build();
 
+      // The wire coder setting for both input and output of the timer. We haven't provided
+      // different settings for input and output now, because the timerCollectionSpec is same for
+      // both input and output of the timer.
+      WireCoderSetting wireCoderSetting =
+          stage.getWireCoderSettings().stream()
+              .filter(
+                  ws ->
+                      ws.getTimer().getTransformId().equals(timerReference.transform().getId())
+                          && ws.getTimer().getLocalName().equals(timerReference.localName()))
+              .findAny()
+              .orElse(WireCoderSetting.getDefaultInstance());
       // "Unroll" the timers into PCollections.
       String inputTimerPCollectionId =
           SyntheticComponents.uniqueId(
@@ -398,7 +419,7 @@ public class ProcessBundleDescriptors {
               dataEndpoint,
               PipelineNode.pCollection(inputTimerPCollectionId, timerCollectionSpec),
               components,
-              stage.getWireCoderSetting()));
+              wireCoderSetting));
       String outputTimerPCollectionId =
           SyntheticComponents.uniqueId(
               String.format(
@@ -411,7 +432,7 @@ public class ProcessBundleDescriptors {
               dataEndpoint,
               components,
               PipelineNode.pCollection(outputTimerPCollectionId, timerCollectionSpec),
-              stage.getWireCoderSetting());
+              wireCoderSetting);
       outputTransformCodersBuilder.put(outputEncoding.getPTransformId(), outputEncoding.getCoder());
       components.putTransforms(
           timerReference.transform().getId(),
