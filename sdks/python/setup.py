@@ -248,6 +248,14 @@ def generate_urn_files(log, out_dir):
   This is executed at build time rather than dynamically on import to ensure
   that it is compatible with static type checkers like mypy.
   """
+  if sys.version_info[0] == 2:
+    # this is a hack to make the google namespace package work on python2
+    import site
+    for path in sys.path:
+      if 'pep517-build-env' in path:
+        site.addsitedir(path)
+        break
+
   import google.protobuf.message as message
   import google.protobuf.pyext._message as pyext_message
 
