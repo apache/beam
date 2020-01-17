@@ -403,10 +403,8 @@ public class GcsUtil {
 
   private synchronized GoogleCloudStorage getCloudStorage() {
     if (googleCloudStorage == null) {
-      // TODO: Setting the flag to use grpc should be done by reading some config param.
-      GoogleCloudStorageOptions options =
-          GoogleCloudStorageOptions.builder().setGrpcEnabled(true).build();
-      googleCloudStorage = new GoogleCloudStorageImpl(options, this.storageClient);
+      googleCloudStorage =
+          new GoogleCloudStorageImpl(GoogleCloudStorageOptions.DEFAULT, this.storageClient);
     }
     return googleCloudStorage;
   }
