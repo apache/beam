@@ -899,6 +899,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
       throw new UnsupportedOperationException("TODO: Add support for timers");
     }
 
+    @Override
+    public org.apache.beam.sdk.state.Timer withOutputTimestampOffset(
+        Duration outputTimestampOffset) {
+      throw new UnsupportedOperationException("TODO: Add support for timers");
+    }
+
     /**
      * For event time timers the target time should be prior to window GC time. So it returns
      * min(time to set, GC Time of window).

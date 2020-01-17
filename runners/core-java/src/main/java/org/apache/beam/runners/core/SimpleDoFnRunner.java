@@ -915,6 +915,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private Instant outputTimestamp;
     private Duration period = Duration.ZERO;
     private Duration offset = Duration.ZERO;
+    private Duration outputTimestampOffset = Duration.ZERO;
 
     public TimerInternalsTimer(
         BoundedWindow window,
@@ -941,9 +942,10 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public void setRelative() {
       Instant now = getCurrentTime();
       if (period.equals(Duration.ZERO)) {
-        target = now.plus(offset);
+        target = now.plus(offset).minus(outputTimestampOffset);
       } else {
-        long millisSinceStart = now.plus(offset).getMillis() % period.getMillis();
+        long millisSinceStart =
+            now.plus(offset).minus(outputTimestampOffset).getMillis() % period.getMillis();
         target = millisSinceStart == 0 ? now : now.plus(period).minus(millisSinceStart);
       }
       target = minTargetAndGcTime(target);
@@ -984,6 +986,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       return this;
     }
 
+    @Override
+    public Timer withOutputTimestampOffset(Duration outputTimestampOffset) {
+      this.outputTimestampOffset = outputTimestampOffset;
+      return this;
+    }
+
     /** Verifies that the time domain of this timer is acceptable for absolute timers. */
     private void verifyAbsoluteTimeDomain() {
       if (!TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
@@ -1002,10 +1010,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
      * </ul>
      */
     private void setAndVerifyOutputTimestamp() {
-      // Output timestamp is currently not supported in processing time timers.
-      if (outputTimestamp != null && !TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
-        throw new IllegalStateException("Cannot set outputTimestamp in processing time domain.");
-      }
+
       // Output timestamp is set to the delivery time if not initialized by an user.
       if (outputTimestamp == null) {
         outputTimestamp = target;

@@ -72,4 +72,10 @@ public interface Timer {
    * the timer fires.
    */
   Timer withOutputTimestamp(Instant outputTime);
+
+  /**
+   * Sets processing time timer's output timestamp. Output watermark will be held at this timestamp
+   * until the timer fires.
+   */
+  Timer withOutputTimestampOffset(Duration outputTimestampOffset);
 }
