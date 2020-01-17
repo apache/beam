@@ -154,7 +154,7 @@ class SpannerReadTest(unittest.TestCase):
       pipeline.run()
 
   def test_read_with_index(self, mock_batch_snapshot_class,
-                                 mock_client_class):
+                           mock_client_class):
     mock_snapshot = mock.MagicMock()
     mock_snapshot.generate_read_batches.return_value = [{
         'read': {'table': 'users', 'keyset': {'all': True},
@@ -162,33 +162,27 @@ class SpannerReadTest(unittest.TestCase):
         'partition': 'test_partition'} for _ in range(3)]
     mock_snapshot.process_read_batch.side_effect = [
         FAKE_ROWS[0:2], FAKE_ROWS[2:4], FAKE_ROWS[4:]]
-  
     ro = [ReadOperation.table("users", ["Key", "Value"], index="Key")]
     pipeline = TestPipeline()
-  
     read = (pipeline
             | 'read' >> ReadFromSpanner(TEST_PROJECT_ID, TEST_INSTANCE_ID,
                                         _generate_database_name(),
                                         table="users",
                                         columns=["Key", "Value"]))
-  
     readall = (pipeline
                | 'read all' >> ReadFromSpanner(TEST_PROJECT_ID,
                                                TEST_INSTANCE_ID,
                                                _generate_database_name(),
                                                read_operations=ro))
-  
     readpipeline = (pipeline
                     | 'create reads' >> beam.Create(ro)
                     | 'reads' >> ReadFromSpanner(TEST_PROJECT_ID,
                                                  TEST_INSTANCE_ID,
                                                  _generate_database_name()))
-  
     pipeline.run()
     assert_that(read, equal_to(FAKE_ROWS), label='checkRead')
     assert_that(readall, equal_to(FAKE_ROWS), label='checkReadAll')
     assert_that(readpipeline, equal_to(FAKE_ROWS), label='checkReadPipeline')
-  
     with self.assertRaises(ValueError):
       # Test the exception raised when user passes the read operations in the
       # constructor and also in the pipeline.
@@ -294,12 +288,10 @@ class SpannerReadTest(unittest.TestCase):
       p.run()
 
   def test_invalid_transaction(self, mock_batch_snapshot_class,
-                                 mock_client_class):
-  
+                               mock_client_class):
     with self.assertRaises(ValueError):
       p = TestPipeline()
       transaction = (p | beam.Create([{"invalid": "transaction"}]))
-    
       _ = (p | 'with query' >> ReadFromSpanner(
           project_id=TEST_PROJECT_ID,
           instance_id=TEST_INSTANCE_ID,
@@ -307,7 +299,6 @@ class SpannerReadTest(unittest.TestCase):
           transaction=transaction,
           sql="Select * from users"
       ))
-      
       p.run()
 
 

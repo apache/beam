@@ -144,7 +144,7 @@ class _SPANNER_TRANSACTION(namedtuple("SPANNER_TRANSACTION", ["transaction"])):
   """
   Holds the spanner transaction details.
   """
-  
+
   __slots__ = ()
 
 
