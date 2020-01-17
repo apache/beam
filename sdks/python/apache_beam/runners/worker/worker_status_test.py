@@ -26,8 +26,8 @@ import mock
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
-from apache_beam.runners.test.utils import timeout
 from apache_beam.runners.worker.worker_status import FnApiWorkerStatusHandler
+from apache_beam.testing.util import timeout
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 

@@ -76,14 +76,14 @@ class SdkHarness(object):
 
   def __init__(self,
                control_address,  # type: str
-               status_address=None,  # type: Optional[str, unicode]
                credentials=None,
                worker_id=None,  # type: Optional[str]
                # Caching is disabled by default
                state_cache_size=0,
                # time-based data buffering is disabled by default
                data_buffer_time_limit_ms=0,
-               profiler_factory=None  # type: Optional[Callable[..., Profile]]
+               profiler_factory=None,  # type: Optional[Callable[..., Profile]]
+               status_address=None,  # type: Optional[str, unicode]
                ):
     self._alive = True
     self._worker_index = 0

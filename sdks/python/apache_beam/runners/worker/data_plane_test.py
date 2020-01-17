@@ -31,9 +31,9 @@ import grpc
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
-from apache_beam.runners.test.utils import timeout
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
+from apache_beam.testing.util import timeout
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 

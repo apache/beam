@@ -40,6 +40,7 @@ from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.internal import names
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
+from apache_beam.runners.worker.worker_status import thread_dump
 from apache_beam.utils import profiler
 
 # This module is experimental. No backwards-compatibility guarantees.
@@ -48,18 +49,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class StatusServer(object):
-
-  @classmethod
-  def get_thread_dump(cls):
-    lines = []
-    frames = sys._current_frames()  # pylint: disable=protected-access
-
-    for t in threading.enumerate():
-      lines.append('--- Thread #%s name: %s ---\n' % (t.ident, t.name))
-      if t.ident in frames:
-        lines.append(''.join(traceback.format_stack(frames[t.ident])))
-
-    return lines
 
   def start(self, status_http_port=0):
     """Executes the serving loop for the status server.
@@ -78,8 +67,7 @@ class StatusServer(object):
         self.send_header('Content-Type', 'text/plain')
         self.end_headers()
 
-        for line in StatusServer.get_thread_dump():
-          self.wfile.write(line.encode('utf-8'))
+        self.wfile.write(thread_dump())
 
       def log_message(self, f, *args):
         """Do not log any messages."""

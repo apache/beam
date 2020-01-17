@@ -34,6 +34,7 @@ from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 
 def thread_dump():
+  """Get a thread dump for the current SDK worker harness. """
   # deduplicate threads with same stack trace
   stack_traces = defaultdict(list)
   frames = sys._current_frames()  # pylint: disable=protected-access
@@ -58,6 +59,11 @@ def thread_dump():
 
 
 def active_processing_bundles_state(bundle_process_cache):
+  """Gather information about the currently in-processing active bundles.
+
+  The result only keeps the longest lasting 10 bundles to avoid excessive
+  spamming.
+  """
   active_bundles = ['=' * 10 + 'ACTIVE PROCESSING BUNDLES' + '=' * 10]
   if not bundle_process_cache.active_bundle_processors:
     active_bundles.append("No active processing bundles.")
@@ -68,8 +74,7 @@ def active_processing_bundles_state(bundle_process_cache):
       processor = bundle_process_cache.lookup(instruction)
       if processor:
         info = processor.state_sampler.get_info()
-        cache.append((instruction,
-                      processor.process_bundle_descriptor.id,
+        cache.append((instruction, processor.process_bundle_descriptor.id,
                       info.tracked_thread, info.time_since_transition))
     # reverse sort active bundle by time since last transition, keep top 10.
     cache.sort(key=lambda x: x[-1], reverse=True)
@@ -88,7 +93,14 @@ DONE = object()
 
 
 class FnApiWorkerStatusHandler(object):
+  """FnApiWorkerStatusHandler handles worker status request from Runner. """
   def __init__(self, status_address, bundle_process_cache=None):
+    """Initialize FnApiWorkerStatusHandler.
+
+    Args:
+      status_address: The URL Runner uses to host the WorkerStatus server.
+      bundle_process_cache: The BundleProcessor cache dict from sdk worker.
+    """
     self._alive = True
     self._bundle_process_cache = bundle_process_cache
     ch = GRPCChannelFactory.insecure_channel(status_address)
@@ -114,7 +126,9 @@ class FnApiWorkerStatusHandler(object):
     while self._alive:
       for request in self._status_stub.WorkerStatus(self._get_responses()):
         try:
-          response = self.generate_status_response()
+          self._responses.put(
+              beam_fn_api_pb2.WorkerStatusResponse(
+                  id=request.id, status_info=self.generate_status_response()))
         except Exception:
           traceback_string = traceback.format_exc()
           self._responses.put(
@@ -122,11 +136,6 @@ class FnApiWorkerStatusHandler(object):
                   id=request.id,
                   error="Exception encountered while generating "
                   "status page: %s" % traceback_string))
-          continue
-
-        self._responses.put(
-            beam_fn_api_pb2.WorkerStatusResponse(id=request.id,
-                                                 status_info=response))
 
   def generate_status_response(self):
     all_status_sections = [
