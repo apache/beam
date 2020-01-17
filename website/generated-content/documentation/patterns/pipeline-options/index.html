@@ -571,21 +571,20 @@ limitations under the License.
 
 <span class="n">pipeline_options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
 <span class="c"># Create pipeline.</span>
-<span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">pipeline_options</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">pipeline_options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
 
-<span class="n">my_options</span> <span class="o">=</span> <span class="n">pipeline_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">MyOptions</span><span class="p">)</span>
-<span class="c"># Add a branch for logging the ValueProvider value.</span>
-<span class="n">_</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
-     <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="bp">None</span><span class="p">])</span>
-     <span class="o">|</span> <span class="s">'LogValueProvs'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span>
-         <span class="n">LogValueProvidersFn</span><span class="p">(</span><span class="n">my_options</span><span class="o">.</span><span class="n">string_value</span><span class="p">)))</span>
+  <span class="n">my_options</span> <span class="o">=</span> <span class="n">pipeline_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">MyOptions</span><span class="p">)</span>
+  <span class="c"># Add a branch for logging the ValueProvider value.</span>
+  <span class="n">_</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
+       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="bp">None</span><span class="p">])</span>
+       <span class="o">|</span> <span class="s">'LogValueProvs'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span>
+           <span class="n">LogValueProvidersFn</span><span class="p">(</span><span class="n">my_options</span><span class="o">.</span><span class="n">string_value</span><span class="p">)))</span>
 
-<span class="c"># The main pipeline.</span>
-<span class="n">result_pc</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
-             <span class="o">|</span> <span class="s">"main_pc"</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
-             <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Sum</span><span class="o">.</span><span class="n">Globally</span><span class="p">())</span>
+  <span class="c"># The main pipeline.</span>
+  <span class="n">result_pc</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
+               <span class="o">|</span> <span class="s">"main_pc"</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+               <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Sum</span><span class="o">.</span><span class="n">Globally</span><span class="p">())</span>
 
-<span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span>
 
 
 </code></pre></div></div>

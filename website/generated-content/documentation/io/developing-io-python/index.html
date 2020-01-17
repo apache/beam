@@ -827,8 +827,8 @@ to <code class="highlighter-rouge">_CountingSource</code>. Then, create the wrap
 
 <p>Finally, read from the source:</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>p = beam.Pipeline(options=PipelineOptions())
-numbers = p | 'ProduceNumbers' &gt;&gt; ReadFromCountingSource(count)
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>with beam.Pipeline(options=PipelineOptions()) as p:
+  numbers = p | 'ProduceNumbers' &gt;&gt; ReadFromCountingSource(count)
 </code></pre></div></div>
 
 <p>For the sink, rename <code class="highlighter-rouge">SimpleKVSink</code> to <code class="highlighter-rouge">_SimpleKVSink</code>. Then, create the wrapper <code class="highlighter-rouge">PTransform</code>, called <code class="highlighter-rouge">WriteToKVSink</code>:</p>

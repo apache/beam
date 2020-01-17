@@ -660,7 +660,8 @@ to the <code class="highlighter-rouge">Pipeline</code> object when you create th
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 <span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
 
-<span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">())</span>
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">())</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+  <span class="k">pass</span>  <span class="c"># build your pipeline here</span>
 
 </code></pre></div></div>
 <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// In order to start creating the pipeline for execution, a Pipeline object and a Scope object are needed.</span><span class="x">
@@ -694,7 +695,8 @@ as demonstrated in the following example code:</p>
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 <span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
 
-<span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">())</span>
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">())</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+  <span class="k">pass</span>  <span class="c"># build your pipeline here</span>
 
 </code></pre></div></div>
 <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// If beamx or Go flags are used, flags must be parsed first.</span><span class="x">
