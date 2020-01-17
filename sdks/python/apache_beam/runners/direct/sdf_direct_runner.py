@@ -84,7 +84,10 @@ class SplittableParDo(PTransform):
   def expand(self, pcoll):
     sdf = self._ptransform.fn
     signature = DoFnSignature(sdf)
-    invoker = DoFnInvoker.create_invoker(signature, process_invocation=False)
+    invoker = DoFnInvoker.create_invoker(
+        signature,
+        output_processor=_NoneShallPassOutputProcessor(),
+        process_invocation=False)
 
     element_coder = typecoders.registry.get_coder(pcoll.element_type)
     restriction_coder = invoker.invoke_restriction_coder()
@@ -118,7 +121,9 @@ class PairWithRestrictionFn(beam.DoFn):
   def start_bundle(self):
     signature = DoFnSignature(self._do_fn)
     self._invoker = DoFnInvoker.create_invoker(
-        signature, process_invocation=False)
+        signature,
+        output_processor=_NoneShallPassOutputProcessor(),
+        process_invocation=False)
 
   def process(self, element, window=beam.DoFn.WindowParam, *args, **kwargs):
     initial_restriction = self._invoker.invoke_initial_restriction(element)
@@ -134,7 +139,9 @@ class SplitRestrictionFn(beam.DoFn):
   def start_bundle(self):
     signature = DoFnSignature(self._do_fn)
     self._invoker = DoFnInvoker.create_invoker(
-        signature, process_invocation=False)
+        signature,
+        output_processor=_NoneShallPassOutputProcessor(),
+        process_invocation=False)
 
   def process(self, element_and_restriction, *args, **kwargs):
     element = element_and_restriction.element
@@ -511,3 +518,8 @@ class _OutputProcessor(OutputProcessor):
 
   def reset(self):
     self.output_iter = None
+
+
+class _NoneShallPassOutputProcessor(OutputProcessor):
+  def process_outputs(self, windowed_input_element, output_iter):
+    raise RuntimeError()
