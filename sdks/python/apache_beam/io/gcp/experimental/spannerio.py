@@ -140,6 +140,14 @@ except ImportError:
 __all__ = ['create_transaction', 'ReadFromSpanner', 'ReadOperation']
 
 
+class _SPANNER_TRANSACTION(namedtuple("SPANNER_TRANSACTION", ["transaction"])):
+  """
+  Holds the spanner transaction details.
+  """
+  
+  __slots__ = ()
+
+
 class ReadOperation(namedtuple("ReadOperation", ["is_sql", "is_table",
                                                  "read_operation", "kwargs"])):
   """
@@ -253,7 +261,17 @@ class _NaiveSpannerReadDoFn(DoFn):
     self._database = instance.database(self._spanner_configuration.database,
                                        pool=self._spanner_configuration.pool)
 
-  def process(self, element, transaction_info):
+  def process(self, element, spanner_transaction):
+    # `spanner_transaction` should be the instance of the _SPANNER_TRANSACTION
+    # object.
+    if not isinstance(spanner_transaction, _SPANNER_TRANSACTION):
+      raise ValueError("Invalid transaction object: %s. It should be instance "
+                       "of SPANNER_TRANSACTION object created by "
+                       "spannerio.create_transaction transform."
+                       % type(spanner_transaction))
+
+    transaction_info = spanner_transaction.transaction
+
     # We used batch snapshot to reuse the same transaction passed through the
     # side input
     self._snapshot = BatchSnapshot.from_dict(self._database, transaction_info)
@@ -357,7 +375,7 @@ class _CreateTransactionFn(DoFn):
 
   def process(self, element, *args, **kwargs):
     self._snapshot = self._database.batch_snapshot(**self._snapshot_options)
-    return [self._snapshot.to_dict()]
+    return [_SPANNER_TRANSACTION(self._snapshot.to_dict())]
 
 
 @ptransform_fn
