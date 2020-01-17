@@ -61,6 +61,9 @@ if TYPE_CHECKING:
   from apache_beam.transforms import sideinputs
   from apache_beam.transforms.core import TimerSpec
 
+SplitResultType = Tuple[Tuple[WindowedValue, Optional[Timestamp]],
+                        Optional[Timestamp]]
+
 
 class NameContext(object):
   """Holds the name information for a step."""
@@ -415,7 +418,7 @@ class DoFnInvoker(object):
                      additional_args=None,
                      additional_kwargs=None
                     ):
-    # type: (...) -> Optional[Tuple[WindowedValue, Timestamp]]
+    # type: (...) -> Optional[SplitResultType]
 
     """Invokes the DoFn.process() function.
 
@@ -619,7 +622,7 @@ class PerWindowInvoker(DoFnInvoker):
                      additional_args=None,
                      additional_kwargs=None
                     ):
-    # type: (...) -> Optional[Tuple[WindowedValue, Timestamp]]
+    # type: (...) -> Optional[SplitResultType]
     if not additional_args:
       additional_args = []
     if not additional_kwargs:
@@ -682,7 +685,7 @@ class PerWindowInvoker(DoFnInvoker):
                                  additional_args,
                                  additional_kwargs,
                                 ):
-    # type: (...) -> Optional[Tuple[WindowedValue, Timestamp]]
+    # type: (...) -> Optional[SplitResultType]
     if self.has_windowed_inputs:
       window, = windowed_value.windows
       side_inputs = [si[window] for si in self.side_inputs]
@@ -804,6 +807,7 @@ class PerWindowInvoker(DoFnInvoker):
                         ((element, residual), residual_size)),
                     current_watermark),
                  None))
+    return None
 
   def current_element_progress(self):
     # type: () -> Optional[iobase.RestrictionProgress]
@@ -900,7 +904,7 @@ class DoFnRunner(Receiver):
     self.process(windowed_value)
 
   def process(self, windowed_value):
-    # type: (WindowedValue) -> Optional[Tuple[WindowedValue, Timestamp]]
+    # type: (WindowedValue) -> Optional[SplitResultType]
     try:
       return self.do_fn_invoker.invoke_process(windowed_value)
     except BaseException as exn:
@@ -908,7 +912,7 @@ class DoFnRunner(Receiver):
       return None
 
   def process_with_sized_restriction(self, windowed_value):
-    # type: (WindowedValue) -> Optional[Tuple[WindowedValue, Timestamp]]
+    # type: (WindowedValue) -> Optional[SplitResultType]
     (element, restriction), _ = windowed_value.value
     return self.do_fn_invoker.invoke_process(
         windowed_value.with_value(element),
@@ -916,6 +920,8 @@ class DoFnRunner(Receiver):
             restriction))
 
   def try_split(self, fraction):
+    # type: (...) -> Optional[Tuple[SplitResultType, SplitResultType]]
+    assert isinstance(self.do_fn_invoker, PerWindowInvoker)
     return self.do_fn_invoker.try_split(fraction)
 
   def current_element_progress(self):

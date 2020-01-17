@@ -1342,6 +1342,7 @@ class ThreadsafeRestrictionTracker(object):
         self._deferred_watermark -= (
             timestamp.Timestamp.now() - self._deferred_timestamp)
       return self._deferred_residual, self._deferred_watermark
+    return None
 
 
 class RestrictionTrackerView(object):
