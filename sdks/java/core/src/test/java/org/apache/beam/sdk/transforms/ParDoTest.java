@@ -4297,12 +4297,7 @@ public class ParDoTest implements Serializable {
   public static class TimerFamilyTests extends SharedTestBase implements Serializable {
 
     @Test
-    @Category({
-      NeedsRunner.class,
-      UsesTimersInParDo.class,
-      UsesTestStream.class,
-      UsesTimerMap.class
-    })
+    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTimerMap.class})
     public void testTimerFamilyEventTime() throws Exception {
       final String timerFamilyId = "foo";
 
@@ -4332,24 +4327,14 @@ public class ParDoTest implements Serializable {
             }
           };
 
-      TestStream<KV<String, Integer>> stream =
-          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-              .advanceWatermarkTo(new Instant(0))
-              .addElements(KV.of("hello", 37))
-              .advanceWatermarkToInfinity();
-
-      PCollection<String> output = pipeline.apply(stream).apply(ParDo.of(fn));
+      PCollection<String> output =
+          pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
       PAssert.that(output).containsInAnyOrder("process", "timer1", "timer2");
       pipeline.run();
     }
 
     @Test
-    @Category({
-      NeedsRunner.class,
-      UsesTimersInParDo.class,
-      UsesTestStream.class,
-      UsesTimerMap.class
-    })
+    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTimerMap.class})
     public void testTimerWithMultipleTimerFamily() throws Exception {
       final String timerFamilyId1 = "foo";
       final String timerFamilyId2 = "bar";
@@ -4386,13 +4371,8 @@ public class ParDoTest implements Serializable {
             }
           };
 
-      TestStream<KV<String, Integer>> stream =
-          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-              .advanceWatermarkTo(new Instant(0))
-              .addElements(KV.of("hello", 37))
-              .advanceWatermarkToInfinity();
-
-      PCollection<String> output = pipeline.apply(stream).apply(ParDo.of(fn));
+      PCollection<String> output =
+          pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
       PAssert.that(output).containsInAnyOrder("process", "timer", "timer");
       pipeline.run();
     }
