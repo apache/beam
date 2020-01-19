@@ -154,41 +154,50 @@ def equal_to_per_window(expected_window_to_elements):
 # Note that equal_to checks if expected and actual are permutations of each
 # other. However, only permutations of the top level are checked. Therefore
 # [1,2] and [2,1] are considered equal and [[1,2]] and [[2,1]] are not.
-def equal_to(expected):
+def equal_to(expected, equals_fn=None):
+  equal_to.equals_fn=equals_fn
 
   def _equal(actual):
     expected_list = list(expected)
+    equals_fn = equal_to.equals_fn
 
     # Try to compare actual and expected by sorting. This fails with a
     # TypeError in Python 3 if different types are present in the same
     # collection. It can also raise false negatives for types that don't have
     # a deterministic sort order, like pyarrow Tables as of 0.14.1
-    try:
-      sorted_expected = sorted(expected)
-      sorted_actual = sorted(actual)
-      if sorted_expected != sorted_actual:
-        raise BeamAssertException(
-            'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
+    if not equals_fn:
+      try:
+        sorted_expected = sorted(expected)
+        sorted_actual = sorted(actual)
+        if sorted_expected == sorted_actual:
+          return
+      except (BeamAssertException, TypeError):
+        pass
     # Slower method, used in two cases:
     # 1) If sorted expected != actual, use this method to verify the inequality.
     #    This ensures we don't raise any false negatives for types that don't
     #    have a deterministic sort order.
     # 2) As a fallback if we encounter a TypeError in python 3. this method
     #    works on collections that have different types.
-    except (BeamAssertException, TypeError):
-      unexpected = []
-      for element in actual:
-        try:
-          expected_list.remove(element)
-        except ValueError:
-          unexpected.append(element)
-      if unexpected or expected_list:
-        msg = 'Failed assert: %r == %r' % (expected, actual)
-        if unexpected:
-          msg = msg + ', unexpected elements %r' % unexpected
-        if expected_list:
-          msg = msg + ', missing elements %r' % expected_list
-        raise BeamAssertException(msg)
+    if not equals_fn:
+      equals_fn = lambda e, a: e == a
+    unexpected = []
+    for element in actual:
+      found = False
+      for i, v in enumerate(expected_list):
+        if equals_fn(v, element):
+          found = True
+          expected_list.pop(i)
+          break
+      if not found:
+        unexpected.append(element)
+    if unexpected or expected_list:
+      msg = 'Failed assert: %r == %r' % (expected, actual)
+      if unexpected:
+        msg = msg + ', unexpected elements %r' % unexpected
+      if expected_list:
+        msg = msg + ', missing elements %r' % expected_list
+      raise BeamAssertException(msg)
 
   return _equal
 
