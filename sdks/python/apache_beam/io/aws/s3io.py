@@ -85,7 +85,7 @@ class S3IO(object):
       S3 file object.
 
     Raises:
-      ~exceptions.ValueError: Invalid open file mode.
+      ValueError: Invalid open file mode.
     """
     if mode == 'r' or mode == 'rb':
       downloader = S3Downloader(self.client, filename,
