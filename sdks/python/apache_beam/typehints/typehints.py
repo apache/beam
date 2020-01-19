@@ -63,6 +63,8 @@ In addition, type-hints can be used to implement run-time type-checking via the
 
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections
@@ -70,6 +72,7 @@ import copy
 import logging
 import sys
 import types
+import typing
 from builtins import next
 from builtins import zip
 
@@ -1030,7 +1033,7 @@ class IteratorHint(CompositeTypeHint):
 IteratorTypeConstraint = IteratorHint.IteratorTypeConstraint
 
 
-class WindowedTypeConstraint(with_metaclass(GetitemConstructor,
+class WindowedTypeConstraint(with_metaclass(GetitemConstructor,  # type: ignore[misc]
                                             TypeConstraint)):
   """A type constraint for WindowedValue objects.
 
@@ -1114,7 +1117,7 @@ WindowedValue = WindowedTypeConstraint
 # There is a circular dependency between defining this mapping
 # and using it in normalize().  Initialize it here and populate
 # it below.
-_KNOWN_PRIMITIVE_TYPES = {}
+_KNOWN_PRIMITIVE_TYPES = {}  # type: typing.Dict[type, typing.Any]
 
 
 def normalize(x, none_as_type=False):
@@ -1174,7 +1177,7 @@ def get_yielded_type(type_hint):
   """Obtains the type of elements yielded by an iterable.
 
   Note that "iterable" here means: can be iterated over in a for loop, excluding
-  strings.
+  strings and dicts.
 
   Args:
     type_hint: (TypeConstraint) The iterable in question. Must be normalize()-d.
@@ -1190,7 +1193,10 @@ def get_yielded_type(type_hint):
   if is_consistent_with(type_hint, Iterator[Any]):
     return type_hint.yielded_type
   if is_consistent_with(type_hint, Tuple[Any, ...]):
-    return Union[type_hint.tuple_types]
+    if isinstance(type_hint, TupleConstraint):
+      return Union[type_hint.tuple_types]
+    else:  # TupleSequenceConstraint
+      return type_hint.inner_type
   if is_consistent_with(type_hint, Iterable[Any]):
     return type_hint.inner_type
   raise ValueError('%s is not iterable' % type_hint)

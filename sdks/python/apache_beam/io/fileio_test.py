@@ -17,6 +17,8 @@
 
 """Tests for transforms defined in apache_beam.io.fileio."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import csv
@@ -93,7 +95,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
 
       assert_that(files_pc, equal_to(files))
 
-  def test_match_files_one_directory_failure(self):
+  def test_match_files_one_directory_failure1(self):
     directories = [
         '%s%s' % (self._new_tempdir(), os.sep),
         '%s%s' % (self._new_tempdir(), os.sep)]
@@ -112,7 +114,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
 
         assert_that(files_pc, equal_to(files))
 
-  def test_match_files_one_directory_failure(self):
+  def test_match_files_one_directory_failure2(self):
     directories = [
         '%s%s' % (self._new_tempdir(), os.sep),
         '%s%s' % (self._new_tempdir(), os.sep)]
@@ -513,6 +515,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
         # TODO(BEAM-3759): Add many firings per window after getting PaneInfo.
         ts.advance_processing_time(5)
         ts.advance_watermark_to(timestamp)
+    ts.advance_watermark_to_infinity()
 
     def no_colon_file_naming(*args):
       file_name = fileio.destination_prefix_naming()(*args)
@@ -572,7 +575,8 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
           .add_elements([next(input), next(input)])
           .advance_watermark_to(30)
           .add_elements([next(input), next(input)])
-          .advance_watermark_to(40))
+          .advance_watermark_to(40)
+          .advance_watermark_to_infinity())
 
     def no_colon_file_naming(*args):
       file_name = fileio.destination_prefix_naming()(*args)

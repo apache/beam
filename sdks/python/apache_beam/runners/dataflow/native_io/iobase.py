@@ -20,15 +20,22 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
 from builtins import object
+from typing import TYPE_CHECKING
+from typing import Optional
 
 from apache_beam import pvalue
 from apache_beam.io import iobase
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.display import HasDisplayData
+
+if TYPE_CHECKING:
+  from apache_beam import coders
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,6 +63,7 @@ class NativeSource(iobase.SourceBase):
 
   This class is deprecated and should not be used to define new sources.
   """
+  coder = None  # type: Optional[coders.Coder]
 
   def reader(self):
     """Returns a NativeSourceReader instance associated with this source."""

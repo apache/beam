@@ -14,6 +14,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -434,11 +436,10 @@ class TestFileBasedSource(unittest.TestCase):
     self.assertCountEqual(expected_data, read_data)
 
   def _run_source_test(self, pattern, expected_data, splittable=True):
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
-        pattern, splittable=splittable))
-    assert_that(pcoll, equal_to(expected_data))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
+          pattern, splittable=splittable))
+      assert_that(pcoll, equal_to(expected_data))
 
   def test_source_file(self):
     file_name, expected_data = write_data(100)
@@ -474,13 +475,12 @@ class TestFileBasedSource(unittest.TestCase):
     with bz2.BZ2File(filename, 'wb') as f:
       f.write(b'\n'.join(lines))
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
-        filename,
-        splittable=False,
-        compression_type=CompressionTypes.BZIP2))
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
+          filename,
+          splittable=False,
+          compression_type=CompressionTypes.BZIP2))
+      assert_that(pcoll, equal_to(lines))
 
   def test_read_file_gzip(self):
     _, lines = write_data(10)
@@ -489,13 +489,12 @@ class TestFileBasedSource(unittest.TestCase):
     with gzip.GzipFile(filename, 'wb') as f:
       f.write(b'\n'.join(lines))
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
-        filename,
-        splittable=False,
-        compression_type=CompressionTypes.GZIP))
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
+          filename,
+          splittable=False,
+          compression_type=CompressionTypes.GZIP))
+      assert_that(pcoll, equal_to(lines))
 
   def test_read_pattern_bzip2(self):
     _, lines = write_data(200)
@@ -507,13 +506,12 @@ class TestFileBasedSource(unittest.TestCase):
       compressed_chunks.append(
           compressobj.compress(b'\n'.join(c)) + compressobj.flush())
     file_pattern = write_prepared_pattern(compressed_chunks)
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
-        file_pattern,
-        splittable=False,
-        compression_type=CompressionTypes.BZIP2))
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
+          file_pattern,
+          splittable=False,
+          compression_type=CompressionTypes.BZIP2))
+      assert_that(pcoll, equal_to(lines))
 
   def test_read_pattern_gzip(self):
     _, lines = write_data(200)
@@ -526,13 +524,12 @@ class TestFileBasedSource(unittest.TestCase):
         f.write(b'\n'.join(c))
       compressed_chunks.append(out.getvalue())
     file_pattern = write_prepared_pattern(compressed_chunks)
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
-        file_pattern,
-        splittable=False,
-        compression_type=CompressionTypes.GZIP))
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
+          file_pattern,
+          splittable=False,
+          compression_type=CompressionTypes.GZIP))
+      assert_that(pcoll, equal_to(lines))
 
   def test_read_auto_single_file_bzip2(self):
     _, lines = write_data(10)
@@ -541,12 +538,11 @@ class TestFileBasedSource(unittest.TestCase):
     with bz2.BZ2File(filename, 'wb') as f:
       f.write(b'\n'.join(lines))
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
-        filename,
-        compression_type=CompressionTypes.AUTO))
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
+          filename,
+          compression_type=CompressionTypes.AUTO))
+      assert_that(pcoll, equal_to(lines))
 
   def test_read_auto_single_file_gzip(self):
     _, lines = write_data(10)
@@ -555,12 +551,11 @@ class TestFileBasedSource(unittest.TestCase):
     with gzip.GzipFile(filename, 'wb') as f:
       f.write(b'\n'.join(lines))
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
-        filename,
-        compression_type=CompressionTypes.AUTO))
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
+          filename,
+          compression_type=CompressionTypes.AUTO))
+      assert_that(pcoll, equal_to(lines))
 
   def test_read_auto_pattern(self):
     _, lines = write_data(200)
@@ -574,12 +569,11 @@ class TestFileBasedSource(unittest.TestCase):
       compressed_chunks.append(out.getvalue())
     file_pattern = write_prepared_pattern(
         compressed_chunks, suffixes=['.gz']*len(chunks))
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
-        file_pattern,
-        compression_type=CompressionTypes.AUTO))
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
+          file_pattern,
+          compression_type=CompressionTypes.AUTO))
+      assert_that(pcoll, equal_to(lines))
 
   def test_read_auto_pattern_compressed_and_uncompressed(self):
     _, lines = write_data(200)
@@ -596,12 +590,11 @@ class TestFileBasedSource(unittest.TestCase):
         chunks_to_write.append(b'\n'.join(c))
     file_pattern = write_prepared_pattern(chunks_to_write,
                                           suffixes=(['.gz', '']*3))
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
-        file_pattern,
-        compression_type=CompressionTypes.AUTO))
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Read' >> beam.io.Read(LineSource(
+          file_pattern,
+          compression_type=CompressionTypes.AUTO))
+      assert_that(pcoll, equal_to(lines))
 
   def test_splits_get_coder_from_fbs(self):
     class DummyCoder(object):

@@ -60,20 +60,23 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   }
 
   @Override
-  public ByteKeyRange checkpoint() {
+  public SplitResult<ByteKeyRange> trySplit(double fractionOfRemainder) {
+    // TODO(BEAM-8871): Add support for splitting off a fixed amount of work for this restriction
+    // instead of only supporting checkpointing.
+
     // If we haven't done any work, we should return the original range we were processing
     // as the checkpoint.
     if (lastAttemptedKey == null) {
       ByteKeyRange rval = range;
       // We update our current range to an interval that contains no elements.
       range = NO_KEYS;
-      return rval;
+      return SplitResult.of(range, rval);
     }
 
     // Return an empty range if the current range is done.
     if (lastAttemptedKey.isEmpty()
         || !(range.getEndKey().isEmpty() || range.getEndKey().compareTo(lastAttemptedKey) > 0)) {
-      return NO_KEYS;
+      return SplitResult.of(range, NO_KEYS);
     }
 
     // Otherwise we compute the "remainder" of the range from the last key.
@@ -82,7 +85,7 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
     ByteKey nextKey = next(lastAttemptedKey);
     ByteKeyRange res = ByteKeyRange.of(nextKey, range.getEndKey());
     this.range = ByteKeyRange.of(range.getStartKey(), nextKey);
-    return res;
+    return SplitResult.of(range, res);
   }
 
   /**

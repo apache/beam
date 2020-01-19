@@ -26,13 +26,14 @@ import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSchema;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Contexts;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.ConventionTraitDef;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitDef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.prepare.CalciteCatalogReader;
@@ -40,6 +41,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelRoot;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.JoinCommuteRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperatorTable;
@@ -51,6 +53,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Framework
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelConversionException;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** ZetaSQLQueryPlanner. */
@@ -62,7 +65,36 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
   }
 
   public ZetaSQLQueryPlanner(JdbcConnection jdbcConnection, RuleSet[] ruleSets) {
-    plannerImpl = new ZetaSQLPlannerImpl(defaultConfig(jdbcConnection, ruleSets));
+    plannerImpl =
+        new ZetaSQLPlannerImpl(defaultConfig(jdbcConnection, modifyRuleSetsForZetaSql(ruleSets)));
+  }
+
+  public static RuleSet[] getZetaSqlRuleSets() {
+    return modifyRuleSetsForZetaSql(BeamRuleSets.getRuleSets());
+  }
+
+  private static RuleSet[] modifyRuleSetsForZetaSql(RuleSet[] ruleSets) {
+    RuleSet[] ret = new RuleSet[ruleSets.length];
+    for (int i = 0; i < ruleSets.length; i++) {
+      ImmutableList.Builder<RelOptRule> bd = ImmutableList.builder();
+      for (RelOptRule rule : ruleSets[i]) {
+        // TODO[BEAM-9075]: Fix join re-ordering for ZetaSQL planner. Currently join re-ordering
+        //  requires the JoinCommuteRule, which doesn't work without struct flattening.
+        if (rule instanceof JoinCommuteRule) {
+          continue;
+        }
+        // TODO[BEAM-8630]: uncomment the next block once we have fully migrated to
+        //  BeamZetaSqlCalcRel
+        // else if (rule instanceof BeamCalcRule) {
+        //   bd.add(BeamZetaSqlCalcRule.INSTANCE);
+        // }
+        else {
+          bd.add(rule);
+        }
+      }
+      ret[i] = RuleSets.ofList(bd.build());
+    }
+    return ret;
   }
 
   @Override
@@ -150,16 +182,10 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     final SqlOperatorTable opTab0 =
         connection.config().fun(SqlOperatorTable.class, SqlStdOperatorTable.instance());
 
-    Object[] contexts =
-        org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList.of(
-                connection.config(), TableResolutionContext.joinCompoundIds("datacatalog"))
-            .toArray();
-
     return Frameworks.newConfigBuilder()
         .parserConfig(parserConfig.build())
         .defaultSchema(defaultSchema)
         .traitDefs(traitDefs)
-        .context(Contexts.of(contexts))
         .ruleSets(ruleSets)
         .costFactory(BeamCostModel.FACTORY)
         .typeSystem(connection.getTypeFactory().getTypeSystem())

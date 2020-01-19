@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+import static org.apache.beam.runners.dataflow.worker.testing.GenericJsonAssert.assertEqualsAsJson;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 
@@ -56,7 +57,7 @@ public class MeanByteCountMonitoringInfoToCounterUpdateTransformerTest {
             mockSpecValidator, pcollectionNameMapping);
     Optional<String> error = Optional.of("Error text");
     when(mockSpecValidator.validate(any())).thenReturn(error);
-    assertEquals(null, testObject.transform(null));
+    assertNull(testObject.transform(null));
   }
 
   @Test
@@ -85,7 +86,7 @@ public class MeanByteCountMonitoringInfoToCounterUpdateTransformerTest {
         new MeanByteCountMonitoringInfoToCounterUpdateTransformer(
             mockSpecValidator, pcollectionNameMapping);
     when(mockSpecValidator.validate(any())).thenReturn(Optional.empty());
-    assertEquals(null, testObject.transform(monitoringInfo));
+    assertNull(testObject.transform(monitoringInfo));
   }
 
   @Test
@@ -107,12 +108,12 @@ public class MeanByteCountMonitoringInfoToCounterUpdateTransformerTest {
 
     CounterUpdate result = testObject.transform(monitoringInfo);
 
-    assertNotEquals(null, result);
-    assertEquals(
-        "{cumulative=true, integerMean={count={highBits=0, lowBits=0}, "
-            + "sum={highBits=0, lowBits=0}}, "
-            + "nameAndKind={kind=MEAN, "
-            + "name=transformedValue-MeanByteCount}}",
-        result.toString());
+    assertNotNull(result);
+    assertEqualsAsJson(
+        "{cumulative:true, integerMean:{count:{highBits:0, lowBits:0}, "
+            + "sum:{highBits:0, lowBits:0}}, "
+            + "nameAndKind:{kind:'MEAN', "
+            + "name:'transformedValue-MeanByteCount'}}",
+        result);
   }
 }

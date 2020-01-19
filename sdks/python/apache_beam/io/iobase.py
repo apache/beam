@@ -29,6 +29,8 @@ returns a writer object supporting writing records of serialized data to
 the sink.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -40,6 +42,11 @@ import uuid
 from builtins import object
 from builtins import range
 from collections import namedtuple
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Iterator
+from typing import Optional
+from typing import Tuple
 
 from apache_beam import coders
 from apache_beam import pvalue
@@ -56,6 +63,11 @@ from apache_beam.transforms.display import HasDisplayData
 from apache_beam.utils import timestamp
 from apache_beam.utils import urns
 from apache_beam.utils.windowed_value import WindowedValue
+
+if TYPE_CHECKING:
+  from apache_beam.io import restriction_trackers
+  from apache_beam.runners.pipeline_context import PipelineContext
+  from apache_beam.utils.timestamp import Timestamp
 
 __all__ = ['BoundedSource', 'RangeTracker', 'Read', 'RestrictionTracker',
            'Sink', 'Write', 'Writer']
@@ -89,6 +101,10 @@ class SourceBase(HasDisplayData, urns.RunnerApiFn):
   """Base class for all sources that can be passed to beam.io.Read(...).
   """
   urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_SOURCE)
+
+  def is_bounded(self):
+    # type: () -> bool
+    raise NotImplementedError
 
 
 class BoundedSource(SourceBase):
@@ -128,6 +144,7 @@ class BoundedSource(SourceBase):
   """
 
   def estimate_size(self):
+    # type: () -> Optional[int]
     """Estimates the size of source in bytes.
 
     An estimate of the total size (in bytes) of the data that would be read
@@ -140,7 +157,12 @@ class BoundedSource(SourceBase):
     """
     raise NotImplementedError
 
-  def split(self, desired_bundle_size, start_position=None, stop_position=None):
+  def split(self,
+            desired_bundle_size,  # type: int
+            start_position=None,  # type: Optional[Any]
+            stop_position=None,  # type: Optional[Any]
+           ):
+    # type: (...) -> Iterator[SourceBundle]
     """Splits the source into a set of bundles.
 
     Bundles should be approximately of size ``desired_bundle_size`` bytes.
@@ -157,7 +179,11 @@ class BoundedSource(SourceBase):
     """
     raise NotImplementedError
 
-  def get_range_tracker(self, start_position, stop_position):
+  def get_range_tracker(self,
+                        start_position,  # type: Optional[Any]
+                        stop_position,  # type: Optional[Any]
+                       ):
+    # type: (...) -> RangeTracker
     """Returns a RangeTracker for a given position range.
 
     Framework may invoke ``read()`` method with the RangeTracker object returned
@@ -841,6 +867,7 @@ class Read(ptransform.PTransform):
   """A transform that reads a PCollection."""
 
   def __init__(self, source):
+    # type: (SourceBase) -> None
     """Initializes a Read transform.
 
     Args:
@@ -851,7 +878,6 @@ class Read(ptransform.PTransform):
 
   @staticmethod
   def get_desired_chunk_size(total_size):
-    total_size
     if total_size:
       # 1MB = 1 shard, 1GB = 32 shards, 1TB = 1000 shards, 1PB = 32k shards
       chunk_size = max(1 << 20, 1000 * int(math.sqrt(total_size)))
@@ -860,41 +886,26 @@ class Read(ptransform.PTransform):
     return chunk_size
 
   def expand(self, pbegin):
-    from apache_beam.options.pipeline_options import DebugOptions
-    from apache_beam.transforms import util
-
-    assert isinstance(pbegin, pvalue.PBegin)
-    self.pipeline = pbegin.pipeline
-
-    debug_options = self.pipeline._options.view_as(DebugOptions)
-    if debug_options.experiments and 'beam_fn_api' in debug_options.experiments:
-      source = self.source
-
-      def split_source(unused_impulse):
-        return source.split(
-            self.get_desired_chunk_size(self.source.estimate_size()))
-
-      return (
-          pbegin
-          | core.Impulse()
-          | 'Split' >> core.FlatMap(split_source)
-          | util.Reshuffle()
-          | 'ReadSplits' >> core.FlatMap(lambda split: split.source.read(
-              split.source.get_range_tracker(
-                  split.start_position, split.stop_position))))
+    if isinstance(self.source, BoundedSource):
+      return pbegin | _SDFBoundedSourceWrapper(self.source)
     else:
       # Treat Read itself as a primitive.
-      return pvalue.PCollection(self.pipeline,
+      return pvalue.PCollection(pbegin.pipeline,
                                 is_bounded=self.source.is_bounded())
 
   def get_windowing(self, unused_inputs):
+    # type: (...) -> core.Windowing
     return core.Windowing(window.GlobalWindows())
 
   def _infer_output_coder(self, input_type=None, input_coder=None):
+    # type: (...) -> Optional[coders.Coder]
+    from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
     if isinstance(self.source, BoundedSource):
       return self.source.default_output_coder()
-    else:
+    elif isinstance(self.source, dataflow_io.NativeSource):
       return self.source.coder
+    else:
+      return None
 
   def display_data(self):
     return {'source': DisplayDataItem(self.source.__class__,
@@ -902,6 +913,7 @@ class Read(ptransform.PTransform):
             'source_dd': self.source}
 
   def to_runner_api_parameter(self, context):
+    # type: (PipelineContext) -> Tuple[str, beam_runner_api_pb2.ReadPayload]
     return (common_urns.deprecated_primitives.READ.urn,
             beam_runner_api_pb2.ReadPayload(
                 source=self.source.to_runner_api(context),
@@ -911,6 +923,7 @@ class Read(ptransform.PTransform):
 
   @staticmethod
   def from_runner_api_parameter(parameter, context):
+    # type: (beam_runner_api_pb2.ReadPayload, PipelineContext) -> Read
     return Read(SourceBase.from_runner_api(parameter.source, context))
 
 
@@ -981,6 +994,7 @@ class WriteImpl(ptransform.PTransform):
   """Implements the writing of custom sinks."""
 
   def __init__(self, sink):
+    # type: (Sink) -> None
     super(WriteImpl, self).__init__()
     self.sink = sink
 
@@ -1093,6 +1107,7 @@ def _finalize_write(unused_element, sink, init_result, write_results,
 class _RoundRobinKeyFn(core.DoFn):
 
   def __init__(self, count):
+    # type: (int) -> None
     self.count = count
 
   def start_bundle(self):
@@ -1138,6 +1153,7 @@ class RestrictionTracker(object):
     raise NotImplementedError
 
   def current_progress(self):
+    # type: () -> RestrictionProgress
     """Returns a RestrictionProgress object representing the current progress.
 
     This API is recommended to be implemented. The runner can do a better job
@@ -1233,6 +1249,7 @@ class ThreadsafeRestrictionTracker(object):
   """
 
   def __init__(self, restriction_tracker):
+    # type: (RestrictionTracker) -> None
     if not isinstance(restriction_tracker, RestrictionTracker):
       raise ValueError(
           'Initialize ThreadsafeRestrictionTracker requires'
@@ -1294,6 +1311,7 @@ class ThreadsafeRestrictionTracker(object):
       return self._restriction_tracker.try_split(fraction_of_remainder)
 
   def deferred_status(self):
+    # type: () -> Optional[Tuple[Any, Timestamp]]
     """Returns deferred work which is produced by ``defer_remainder()``.
 
     When there is a self-checkpoint performed, the system needs to fulfill the
@@ -1365,6 +1383,7 @@ class RestrictionProgress(object):
 
   @property
   def completed_work(self):
+    # type: () -> float
     if self._completed:
       return self._completed
     elif self._remaining and self._fraction:
@@ -1372,6 +1391,7 @@ class RestrictionProgress(object):
 
   @property
   def remaining_work(self):
+    # type: () -> float
     if self._remaining:
       return self._remaining
     elif self._completed:
@@ -1379,10 +1399,12 @@ class RestrictionProgress(object):
 
   @property
   def total_work(self):
+    # type: () -> float
     return self.completed_work + self.remaining_work
 
   @property
   def fraction_completed(self):
+    # type: () -> float
     if self._fraction is not None:
       return self._fraction
     else:
@@ -1390,6 +1412,7 @@ class RestrictionProgress(object):
 
   @property
   def fraction_remaining(self):
+    # type: () -> float
     if self._fraction is not None:
       return 1 - self._fraction
     else:
@@ -1405,67 +1428,94 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
 
   NOTE: This transform can only be used with beam_fn_api enabled.
   """
+
+  class _SDFBoundedSourceRestriction(object):
+    """ A restriction wraps SourceBundle and RangeTracker. """
+    def __init__(self, source_bundle, range_tracker=None):
+      self._source_bundle = source_bundle
+      self._range_tracker = range_tracker
+
+    def __reduce__(self):
+      # The instance of RangeTracker shouldn't be serialized.
+      return (self.__class__, (self._source_bundle, ))
+
+    def range_tracker(self):
+      if not self._range_tracker:
+        self._range_tracker = self._source_bundle.source.get_range_tracker(
+            self._source_bundle.start_position,
+            self._source_bundle.stop_position)
+      return self._range_tracker
+
+    def weight(self):
+      return self._source_bundle.weight
+
+    def source(self):
+      return self._source_bundle.source
+
+    def try_split(self, fraction_of_remainder):
+      consumed_fraction = self.range_tracker().fraction_consumed()
+      fraction = (consumed_fraction +
+                  (1 - consumed_fraction) * fraction_of_remainder)
+      position = self.range_tracker().position_at_fraction(fraction)
+      # Need to stash current stop_pos before splitting since
+      # range_tracker.split will update its stop_pos if splits
+      # successfully.
+      stop_pos = self._source_bundle.stop_position
+      split_result = self.range_tracker().try_split(position)
+      if split_result:
+        split_pos, split_fraction = split_result
+        primary_weight = self._source_bundle.weight * split_fraction
+        residual_weight = self._source_bundle.weight - primary_weight
+        # Update self to primary weight and end position.
+        self._source_bundle = SourceBundle(primary_weight,
+                                           self._source_bundle.source,
+                                           self._source_bundle.start_position,
+                                           split_pos)
+        return (self, _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction(
+            SourceBundle(residual_weight,
+                         self._source_bundle.source,
+                         split_pos,
+                         stop_pos)))
+
+
   class _SDFBoundedSourceRestrictionTracker(RestrictionTracker):
     """An `iobase.RestrictionTracker` implementations for wrapping BoundedSource
-    with SDF.
+    with SDF. The tracked restriction is a _SDFBoundedSourceRestriction, which
+    wraps SourceBundle and RangeTracker.
 
     Delegated RangeTracker guarantees synchronization safety.
     """
     def __init__(self, restriction):
-      if not isinstance(restriction, SourceBundle):
+      if not isinstance(restriction,
+                        _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction):
         raise ValueError('Initializing SDFBoundedSourceRestrictionTracker'
-                         'requires a SourceBundle')
-      self._delegate_range_tracker = restriction.source.get_range_tracker(
-          restriction.start_position, restriction.stop_position)
-      self._source = restriction.source
-      self._weight = restriction.weight
+                         ' requires a _SDFBoundedSourceRestriction')
+      self.restriction = restriction
 
     def current_progress(self):
+      # type: () -> RestrictionProgress
       return RestrictionProgress(
-          fraction=self._delegate_range_tracker.fraction_consumed())
+          fraction=self.restriction.range_tracker().fraction_consumed())
 
     def current_restriction(self):
-      start_pos = self._delegate_range_tracker.start_position()
-      stop_pos = self._delegate_range_tracker.stop_position()
-      return SourceBundle(
-          self._weight,
-          self._source,
-          start_pos,
-          stop_pos)
+      self.restriction.range_tracker()
+      return self.restriction
 
     def start_pos(self):
-      return self._delegate_range_tracker.start_position()
+      return self.restriction.range_tracker().start_position()
 
     def stop_pos(self):
-      return self._delegate_range_tracker.stop_position()
+      return self.restriction.range_tracker().stop_position()
 
     def try_claim(self, position):
-      return self._delegate_range_tracker.try_claim(position)
+      return self.restriction.range_tracker().try_claim(position)
 
     def try_split(self, fraction_of_remainder):
-      consumed_fraction = self._delegate_range_tracker.fraction_consumed()
-      fraction = (consumed_fraction +
-                  (1 - consumed_fraction) * fraction_of_remainder)
-      position = self._delegate_range_tracker.position_at_fraction(fraction)
-      # Need to stash current stop_pos before splitting since
-      # range_tracker.split will update its stop_pos if splits
-      # successfully.
-      start_pos = self.start_pos()
-      stop_pos = self.stop_pos()
-      split_result = self._delegate_range_tracker.try_split(position)
-      if split_result:
-        split_pos, split_fraction = split_result
-        primary_weight = self._weight * split_fraction
-        residual_weight = self._weight - primary_weight
-        # Update self._weight to primary weight
-        self._weight = primary_weight
-        return (SourceBundle(primary_weight, self._source, start_pos,
-                             split_pos),
-                SourceBundle(residual_weight, self._source, split_pos,
-                             stop_pos))
+      return self.restriction.try_split(fraction_of_remainder)
 
     def check_done(self):
-      return self._delegate_range_tracker.fraction_consumed() >= 1.0
+      return self.restriction.range_tracker().fraction_consumed() >= 1.0
+
 
   class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
     """A `RestrictionProvider` that is used by SDF for `BoundedSource`."""
@@ -1477,10 +1527,11 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
     def initial_restriction(self, element):
       # Get initial range_tracker from source
       range_tracker = self._source.get_range_tracker(None, None)
-      return SourceBundle(None,
-                          self._source,
-                          range_tracker.start_position(),
-                          range_tracker.stop_position())
+      return _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction(
+          SourceBundle(None,
+                       self._source,
+                       range_tracker.start_position(),
+                       range_tracker.stop_position()))
 
     def create_tracker(self, restriction):
       return _SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionTracker(
@@ -1490,10 +1541,11 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
       # Invoke source.split to get initial splitting results.
       source_bundles = self._source.split(self._desired_chunk_size)
       for source_bundle in source_bundles:
-        yield source_bundle
+        yield _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction(
+            source_bundle)
 
     def restriction_size(self, element, restriction):
-      return restriction.weight
+      return restriction.weight()
 
     def restriction_coder(self):
       return coders.DillCoder()
@@ -1506,7 +1558,11 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
 
   def _create_sdf_bounded_source_dofn(self):
     source = self.source
-    chunk_size = Read.get_desired_chunk_size(source.estimate_size())
+    try:
+      estimated_size = source.estimate_size()
+    except NotImplementedError:
+      estimated_size = None
+    chunk_size = Read.get_desired_chunk_size(estimated_size)
 
     class SDFBoundedSourceDoFn(core.DoFn):
       def __init__(self, read_source):
@@ -1519,12 +1575,10 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
               _SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionProvider(
                   source, chunk_size))):
         current_restriction = restriction_tracker.current_restriction()
-        assert isinstance(current_restriction, SourceBundle)
-        tracking_source = current_restriction.source
-        start = current_restriction.start_position
-        stop = current_restriction.stop_position
-        return tracking_source.read(tracking_source.get_range_tracker(start,
-                                                                      stop))
+        assert isinstance(current_restriction,
+                          _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction)
+        return current_restriction.source().read(
+            current_restriction.range_tracker())
 
     return SDFBoundedSourceDoFn(self.source)
 

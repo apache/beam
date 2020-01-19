@@ -46,7 +46,7 @@ import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -99,6 +99,8 @@ public class ExpansionServiceTest {
     assertEquals(TEST_NAMESPACE + TEST_NAME, expandedTransform.getUniqueName());
     // Verify it has the right input.
     assertEquals(inputPcollId, Iterables.getOnlyElement(expandedTransform.getInputsMap().values()));
+    // Verify it has the right output.
+    assertEquals("output", Iterables.getOnlyElement(expandedTransform.getOutputsMap().keySet()));
     // Loose check that it's composite, and its children are represented.
     assertNotEquals(expandedTransform.getSubtransformsCount(), 0);
     for (String subtransform : expandedTransform.getSubtransformsList()) {

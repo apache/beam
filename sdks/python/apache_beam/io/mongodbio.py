@@ -51,6 +51,8 @@ Example usage::
 No backward compatibility guarantees. Everything in this module is experimental.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -174,7 +176,7 @@ class _BoundedMongoSource(iobase.BoundedSource):
     for split_key_id in split_keys:
       if bundle_start >= stop_position:
         break
-      bundle_end = min(stop_position, split_key_id)
+      bundle_end = min(stop_position, split_key_id['_id'])
       yield iobase.SourceBundle(weight=desired_bundle_size_in_mb,
                                 source=self,
                                 start_position=bundle_start,
@@ -195,7 +197,8 @@ class _BoundedMongoSource(iobase.BoundedSource):
   def read(self, range_tracker):
     with MongoClient(self.uri, **self.spec) as client:
       all_filters = self._merge_id_filter(range_tracker)
-      docs_cursor = client[self.db][self.coll].find(filter=all_filters)
+      docs_cursor = client[self.db][self.coll].find(filter=all_filters).sort(
+          [('_id', ASCENDING)])
       for doc in docs_cursor:
         if not range_tracker.try_claim(doc['_id']):
           return

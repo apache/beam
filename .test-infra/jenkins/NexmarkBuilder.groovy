@@ -59,8 +59,18 @@ class NexmarkBuilder {
     options.put('streaming', false)
 
     suite(context, "NEXMARK IN BATCH MODE USING ${runner} RUNNER", runner, sdk, options)
-
     options.put('queryLanguage', 'sql')
+    suite(context, "NEXMARK IN SQL BATCH MODE USING ${runner} RUNNER", runner, sdk, options)
+
+    runner = Runner.SPARK_STRUCTURED_STREAMING
+    options = getFullOptions(jobSpecificOptions, runner, triggeringContext)
+    options.put('streaming', false)
+
+    // Skip query 3 (SparkStructuredStreamingRunner does not support State/Timers yet)
+    options.put('skipQueries', '3')
+    suite(context, "NEXMARK IN BATCH MODE USING ${runner} RUNNER", runner, sdk, options)
+    options.put('queryLanguage', 'sql')
+    options.put('skipQueries', '')
     suite(context, "NEXMARK IN SQL BATCH MODE USING ${runner} RUNNER", runner, sdk, options)
   }
 
@@ -81,7 +91,7 @@ class NexmarkBuilder {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
         tasks(':sdks:java:testing:nexmark:run')
         commonJobProperties.setGradleSwitches(delegate)
-        switches("-Pnexmark.runner=${runner.getDepenedencyBySDK(sdk)}")
+        switches("-Pnexmark.runner=${runner.getDependencyBySDK(sdk)}")
         switches("-Pnexmark.args=\"${parseOptions(options)}\"")
       }
     }

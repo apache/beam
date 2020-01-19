@@ -37,6 +37,7 @@ configurations {
 
 test {
   systemProperty "beam.spark.test.reuseSparkContext", "true"
+  systemProperty "spark.sql.shuffle.partitions", "4"
   systemProperty "spark.ui.enabled", "false"
   systemProperty "spark.ui.showConsoleProgress", "false"
   systemProperty "beamTestPipelineOptions", """[
@@ -65,11 +66,11 @@ dependencies {
   compile library.java.joda_time
   compile library.java.args4j
   provided library.java.spark_core
+  provided library.java.spark_sql
   provided library.java.spark_streaming
   provided library.java.spark_network_common
   provided library.java.hadoop_common
-  provided library.java.commons_lang3
-  provided library.java.commons_io_2x
+  provided library.java.commons_io
   provided library.java.hamcrest_core
   provided library.java.hamcrest_library
   provided "com.esotericsoftware.kryo:kryo:2.21"
@@ -163,11 +164,68 @@ task validatesRunnerStreaming(type: Test) {
   }
 }
 
+task validatesStructuredStreamingRunnerBatch(type: Test) {
+  group = "Verification"
+  def pipelineOptions = JsonOutput.toJson([
+          "--runner=SparkStructuredStreamingRunner",
+          "--testMode=true",
+          "--streaming=false",
+  ])
+  systemProperty "beamTestPipelineOptions", pipelineOptions
+  systemProperty "spark.sql.shuffle.partitions", "4"
+  systemProperty "spark.ui.enabled", "false"
+  systemProperty "spark.ui.showConsoleProgress", "false"
+
+  classpath = configurations.validatesRunner
+  testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project.sourceSets.test.output.classesDirs)
+
+  // Only one SparkContext may be running in a JVM (SPARK-2243)
+  forkEvery 1
+  maxParallelForks 4
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    // Unbounded
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+    // State and Timers
+    excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+    // Metrics
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    // SDF
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+    // Portability
+    excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
+    excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+  }
+  filter {
+    // Combine with context not implemented
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineFnsTest.testComposedCombineWithContext'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$CombineWithContextTests.testSimpleCombineWithContext'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$CombineWithContextTests.testSimpleCombineWithContextEmpty'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testFixedWindowsCombineWithContext'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombineWithContext'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSlidingWindowsCombineWithContext'
+    // multiple coders bug BEAM-8894
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenMultipleCoders'
+    //SDF
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testLifecycleMethodsBounded'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexWindowedTimestampedBounded'
+  }
+}
+
 task validatesRunner {
   group = "Verification"
   description "Validates Spark runner"
   dependsOn validatesRunnerBatch
   dependsOn validatesRunnerStreaming
+  // It should be uncommented once all "validatesStructuredStreamingRunnerBatch" tests will pass. 
+  // Otherwise, it breaks Spark runner ValidatesRunner tests.
+  //dependsOn validatesStructuredStreamingRunnerBatch
 }
 
 // Generates :runners:spark:runQuickstartJavaSpark

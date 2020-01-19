@@ -49,7 +49,6 @@ import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
@@ -241,7 +240,8 @@ public class RowJson {
       }
 
       boolean isArrayType() {
-        return TypeName.ARRAY.equals(type().getTypeName());
+        return TypeName.ARRAY.equals(type().getTypeName())
+            || TypeName.ITERABLE.equals(type().getTypeName());
       }
 
       FieldType arrayElementType() {
@@ -350,8 +350,9 @@ public class RowJson {
           gen.writeNumber((BigDecimal) value);
           break;
         case ARRAY:
+        case ITERABLE:
           gen.writeStartArray();
-          for (Object element : (List<Object>) value) {
+          for (Object element : (Iterable<Object>) value) {
             writeValue(gen, type.getCollectionElementType(), element);
           }
           gen.writeEndArray();

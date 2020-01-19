@@ -40,6 +40,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /** Set of utilities for casting rows between schemas. */
@@ -403,8 +404,9 @@ public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row
         return castRow((Row) inputValue, input.getRowSchema(), output.getRowSchema());
 
       case ARRAY:
-        List<Object> inputValues = (List<Object>) inputValue;
-        List<Object> outputValues = new ArrayList<>(inputValues.size());
+      case ITERABLE:;
+        Iterable<Object> inputValues = (Iterable<Object>) inputValue;
+        List<Object> outputValues = new ArrayList<>(Iterables.size(inputValues));
 
         for (Object elem : inputValues) {
           outputValues.add(

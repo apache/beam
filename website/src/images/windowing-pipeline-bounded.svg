@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<svg width="1175px" height="443px" viewBox="0 0 1175 443" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>GroupByKey and ParDo with windowing, on a bounded collection.</title>
+	<g id="windowing-pipeline-bounded" transform="translate(1.000000, 0.000000)">
+	    <path d="M204.5,296 L204.5,316" id="Directed-edge" stroke="#3062A8" stroke-width="2" stroke-linecap="square" transform="translate(204.500000, 306.000000) rotate(-90.000000) translate(-204.500000, -306.000000) "></path>
+	    <g id="PCollection" transform="translate(214.000000, 271.000000)">
+	        <circle id="PCollection-symbol" stroke="#757575" stroke-width="2" fill="#FFFFFF" cx="35" cy="35" r="35"></circle>
+	        <text id="Rows-after-ParDo" font-family="Roboto-Regular, Roboto" font-size="15" font-weight="normal" fill="#000000">
+	            <tspan x="17.1015625" y="21">Rows </tspan>
+	            <tspan x="19.8554688" y="39">after </tspan>
+	            <tspan x="14.9555664" y="57">ParDo</tspan>
+	        </text>
+	    </g>
+	    <g id="PTransform" transform="translate(0.000000, 244.000000)">
+	        <rect id="PTransform-symbol" fill="#3062A8" x="0" y="0" width="194" height="124"></rect>
+	        <text id="ParDo" font-family="Roboto-Regular, Roboto" font-size="24" font-weight="normal" fill="#FFFFFF">
+	            <tspan x="64.5" y="70">ParDo</tspan>
+	        </text>
+	    </g>
+	    <g id="Directed-edge" transform="translate(90.550000, 90.765000)">
+	        <path id="Line" d="M-0.55,139.235 L-0.55,127.735 L1036.45058,127.735 L1036.5,42.4994202 L1038.5,42.5005798 L1038.44942,129.735 L1.45,129.735 L1.45,139.235 L7.45,139.235 L0.45,153.235 L-6.55,139.235 L-0.55,139.235 Z" fill="#757575" fill-rule="nonzero"></path>
+	        <path d="M983.5,-9 L983.5,11" id="Line" stroke="#3062A8" stroke-width="2" stroke-linecap="square" transform="translate(983.500000, 1.000000) rotate(-90.000000) translate(-983.500000, -1.000000) "></path>
+	    </g>
+	    <g id="PCollection" transform="translate(1085.550000, 48.265000)">
+	        <circle id="PCollection-symbol" stroke="#757575" stroke-width="2" fill="#FFFFFF" cx="42.5" cy="42.5" r="42.5"></circle>
+	        <text id="Grouped-by-key-and-w" font-family="Roboto-Regular, Roboto" font-size="15" font-weight="normal" fill="#000000">
+	            <tspan x="14.0307617" y="30">Grouped </tspan>
+	            <tspan x="7.25952148" y="48">by key and </tspan>
+	            <tspan x="16.7626953" y="66">window</tspan>
+	        </text>
+	    </g>
+	    <g id="PTransform" transform="translate(804.000000, 0.000000)">
+	        <polygon id="Aggregation-PTransform-symbol" fill="#3062A8" points="128.813953 0 261 91.7333333 128.813953 184 0 92.2666667"></polygon>
+	        <text id="GroupByKey-(per-wind" font-family="Roboto-Regular, Roboto" font-size="23" font-weight="normal" fill="#FFFFFF">
+	            <tspan x="67.6310547" y="84.265">GroupByKey </tspan>
+	            <tspan x="63.374707" y="111.265">(per window)</tspan>
+	        </text>
+	    </g>
+	    <g id="Directed-edge" transform="translate(675.500000, 90.500000)">
+	        <path d="M11,-8.5 L11,11.5" id="Line" stroke="#3062A8" stroke-width="2" stroke-linecap="square" transform="translate(11.000000, 1.500000) rotate(-90.000000) translate(-11.000000, -1.500000) "></path>
+	        <path id="Path-2" d="M115,2.5 L83,2.5 L83,0.5 L115,0.5 L115,-5.5 L129,1.5 L115,8.5 L115,2.5 Z" fill="#757575" fill-rule="nonzero"></path>
+	    </g>
+	    <g id="PCollection" transform="translate(696.500000, 61.000000)">
+	        <circle id="PCollection-symbol" stroke="#757575" stroke-width="2" fill="#FFFFFF" cx="31" cy="31" r="31"></circle>
+	        <text id="Table-rows" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#000000">
+	            <tspan x="11.7070312" y="28">Table </tspan>
+	            <tspan x="14.09375" y="47">rows</tspan>
+	        </text>
+	    </g>
+	    <g id="PTransform" transform="translate(482.000000, 30.000000)">
+	        <path d="M0,0 L194,0 L194,124 L0,124 L0,0 Z" id="PTransform-symbol" fill="#3062A8"></path>
+	        <text id="Apply-windows" font-family="Roboto-Regular, Roboto" font-size="24" font-weight="normal" fill="#FFFFFF">
+	            <tspan x="48" y="54">Apply </tspan>
+	            <tspan x="48" y="82">windows</tspan>
+	        </text>
+	    </g>
+	    <g id="Directed-edge" transform="translate(353.000000, 90.500000)">
+	        <path d="M11,-8.5 L11,11.5" id="Line" stroke="#3062A8" stroke-width="2" stroke-linecap="square" transform="translate(11.000000, 1.500000) rotate(-90.000000) translate(-11.000000, -1.500000) "></path>
+	        <path id="Path-2" d="M115,2.5 L83,2.5 L83,0.5 L115,0.5 L115,-5.5 L129,1.5 L115,8.5 L115,2.5 Z" fill="#757575" fill-rule="nonzero"></path>
+	    </g>
+	    <g id="PCollection" transform="translate(374.000000, 61.000000)">
+	        <circle id="PCollection-symbol" stroke="#757575" stroke-width="2" fill="#FFFFFF" cx="31" cy="31" r="31"></circle>
+	        <text id="Table-rows" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#000000">
+	            <tspan x="11.2070312" y="28">Table </tspan>
+	            <tspan x="13.59375" y="47">rows</tspan>
+	        </text>
+	    </g>
+	    <g id="PTransform" transform="translate(160.000000, 30.000000)">
+	        <rect id="PTransform-symbol" fill="#3062A8" x="0" y="0" width="194" height="124"></rect>
+	        <text id="Read-from-Kafka-IO" font-family="Roboto-Regular, Roboto" font-size="24" font-weight="normal" fill="#FFFFFF">
+	            <tspan x="44" y="55">Read from </tspan>
+	            <tspan x="44" y="83">Kafka IO</tspan>
+	        </text>
+	    </g>
+	    <path id="Directed-edge" d="M146,92 L113,92 L113,90 L146,90 L146,84 L160,91 L146,98 L146,92 Z" fill="#E0E0E0" fill-rule="nonzero"></path>
+	    <g id="Database" transform="translate(0.000000, 40.000000)">
+	        <g id="Database-symbol" transform="translate(0.000000, 0.000000)">
+	            <ellipse id="Oval" fill="#E0E0E0" cx="56.5" cy="83.2631579" rx="56.5" ry="17.8421053"></ellipse>
+	            <rect id="Rectangle" fill="#E0E0E0" x="0" y="17.8421053" width="113" height="65.4210526"></rect>
+	            <ellipse id="Oval" fill="#EFEFEF" cx="56.5" cy="17.8421053" rx="56.5" ry="17.8421053"></ellipse>
+	        </g>
+	        <text id="Database-table" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#414141">
+	            <tspan x="18" y="61">Database </tspan>
+	            <tspan x="18" y="82">table</tspan>
+	        </text>
+	    </g>
+	    <g id="Legend" transform="translate(0.000000, 388.000000)">
+	        <rect id="PTransform-symbol" fill="#3062A8" x="0" y="4" width="15" height="15"></rect>
+	        <text id="PTransform" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">
+	            <tspan x="22" y="17">PTransform</tspan>
+	        </text>
+	        <text id="Aggregation" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">
+	            <tspan x="162" y="17">Aggregating PTransform</tspan>
+	        </text>
+	        <text id="PCollection" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">
+	            <tspan x="22" y="52">PCollection</tspan>
+	        </text>
+	        <circle id="PCollection-symbol" fill="#FFFFFF" stroke="#757575" stroke-width="2" cx="7.5" cy="46.5" r="7.5"></circle>
+	        <path d="M143.364341,5 L154,12.4782609 L143.364341,20 L133,12.5217391 L143.364341,5 Z" id="Rectangle" fill="#3062A8"></path>
+	    </g>
+	</g>
+</svg>

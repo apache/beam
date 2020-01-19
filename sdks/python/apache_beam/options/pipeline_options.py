@@ -17,6 +17,8 @@
 
 """Pipeline options obtained from command line parsing."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse
@@ -26,6 +28,13 @@ import os
 import subprocess
 from builtins import list
 from builtins import object
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Type
+from typing import TypeVar
 
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
@@ -46,6 +55,8 @@ __all__ = [
     'SetupOptions',
     'TestOptions',
     ]
+
+PipelineOptionsT = TypeVar('PipelineOptionsT', bound='PipelineOptions')
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -161,6 +172,7 @@ class PipelineOptions(HasDisplayData):
   the options.
   """
   def __init__(self, flags=None, **kwargs):
+    # type: (Optional[List[str]], **Any) -> None
     """Initialize an options class.
 
     The initializer will traverse all subclasses, add all their argparse
@@ -175,6 +187,9 @@ class PipelineOptions(HasDisplayData):
 
       **kwargs: Add overrides for arguments passed in flags.
     """
+    # Initializing logging configuration in case the user did not set it up.
+    logging.basicConfig()
+
     # self._flags stores a list of not yet parsed arguments, typically,
     # command-line flags. This list is shared across different views.
     # See: view_as().
@@ -187,7 +202,7 @@ class PipelineOptions(HasDisplayData):
       if cls == PipelineOptions:
         break
       elif '_add_argparse_args' in cls.__dict__:
-        cls._add_argparse_args(parser)
+        cls._add_argparse_args(parser)  # type: ignore
 
     # The _visible_options attribute will contain options that were recognized
     # by the parser.
@@ -211,6 +226,7 @@ class PipelineOptions(HasDisplayData):
 
   @classmethod
   def _add_argparse_args(cls, parser):
+    # type: (_BeamArgumentParser) -> None
     # Override this in subclasses to provide options.
     pass
 
@@ -237,7 +253,11 @@ class PipelineOptions(HasDisplayData):
 
     return cls(flags)
 
-  def get_all_options(self, drop_default=False, add_extra_args_fn=None):
+  def get_all_options(self,
+                      drop_default=False,
+                      add_extra_args_fn=None  # type: Optional[Callable[[_BeamArgumentParser], None]]
+                     ):
+    # type: (...) -> Dict[str, Any]
     """Returns a dictionary of all defined arguments.
 
     Returns a dictionary of all defined arguments (arguments that are defined in
@@ -283,6 +303,7 @@ class PipelineOptions(HasDisplayData):
     return self.get_all_options(True)
 
   def view_as(self, cls):
+    # type: (Type[PipelineOptionsT]) -> PipelineOptionsT
     """Returns a view of current object as provided PipelineOption subclass.
 
     Example Usage::
@@ -321,10 +342,12 @@ class PipelineOptions(HasDisplayData):
     return view
 
   def _visible_option_list(self):
+    # type: () -> List[str]
     return sorted(option
                   for option in dir(self._visible_options) if option[0] != '_')
 
   def __dir__(self):
+    # type: () -> List[str]
     return sorted(dir(type(self)) + list(self.__dict__) +
                   self._visible_option_list())
 
@@ -417,6 +440,12 @@ class DirectOptions(PipelineOptions):
         type=int,
         default=1,
         help='number of parallel running workers.')
+    parser.add_argument(
+        '--direct_running_mode',
+        default='in_memory',
+        choices=['in_memory', 'multi_threading', 'multi_processing'],
+        help='Workers running environment.'
+        )
 
 
 class GoogleCloudOptions(PipelineOptions):
@@ -465,7 +494,11 @@ class GoogleCloudOptions(PipelineOptions):
     parser.add_argument('--service_account_email',
                         default=None,
                         help='Identity to run virtual machines as.')
-    parser.add_argument('--no_auth', dest='no_auth', type=bool, default=False)
+    parser.add_argument('--no_auth',
+                        dest='no_auth',
+                        action='store_true',
+                        default=False,
+                        help='Skips authorizing credentials with Google Cloud.')
     # Option to run templated pipelines
     parser.add_argument('--template_location',
                         default=None,
@@ -919,6 +952,77 @@ class PortableOptions(PipelineOptions):
               'the pipeline.'))
 
 
+class JobServerOptions(PipelineOptions):
+  """Options for starting a Beam job server. Roughly corresponds to
+  JobServerDriver.ServerConfiguration in Java.
+  """
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument('--artifacts_dir', default=None,
+                        help='The location to store staged artifact files. '
+                             'Any Beam-supported file system is allowed. '
+                             'If unset, the local temp dir will be used.')
+    parser.add_argument('--job_port', default=0,
+                        help='Port to use for the job service. 0 to use a '
+                             'dynamic port.')
+    parser.add_argument('--artifact_port', default=0,
+                        help='Port to use for artifact staging. 0 to use a '
+                             'dynamic port.')
+    parser.add_argument('--expansion_port', default=0,
+                        help='Port to use for artifact staging. 0 to use a '
+                             'dynamic port.')
+
+
+class FlinkRunnerOptions(PipelineOptions):
+
+  PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8', '1.9']
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument('--flink_master',
+                        default='[auto]',
+                        help='Flink master address (http://host:port)'
+                             ' Use "[local]" to start a local cluster'
+                             ' for the execution. Use "[auto]" if you'
+                             ' plan to either execute locally or let the'
+                             ' Flink job server infer the cluster address.')
+    parser.add_argument('--flink_version',
+                        default=cls.PUBLISHED_FLINK_VERSIONS[-1],
+                        choices=cls.PUBLISHED_FLINK_VERSIONS,
+                        help='Flink version to use.')
+    parser.add_argument('--flink_job_server_jar',
+                        help='Path or URL to a flink jobserver jar.')
+    parser.add_argument('--flink_submit_uber_jar',
+                        default=False,
+                        action='store_true',
+                        help='Create and upload an uberjar to the flink master'
+                             ' directly, rather than starting up a job server.'
+                             ' Only applies when flink_master is set to a'
+                             ' cluster address.  Requires Python 3.6+.')
+
+
+class SparkRunnerOptions(PipelineOptions):
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument('--spark_master_url',
+                        default='local[4]',
+                        help='Spark master URL (spark://HOST:PORT). '
+                             'Use "local" (single-threaded) or "local[*]" '
+                             '(multi-threaded) to start a local cluster for '
+                             'the execution.')
+    parser.add_argument('--spark_job_server_jar',
+                        help='Path or URL to a Beam Spark jobserver jar.')
+    parser.add_argument('--spark_submit_uber_jar',
+                        default=False,
+                        action='store_true',
+                        help='Create and upload an uber jar to the Spark REST'
+                             ' endpoint, rather than starting up a job server.'
+                             ' Requires Python 3.6+.')
+    parser.add_argument('--spark_rest_url',
+                        help='URL for the Spark REST endpoint. '
+                             'Only required when using spark_submit_uber_jar.')
+
+
 class TestOptions(PipelineOptions):
 
   @classmethod
@@ -981,7 +1085,7 @@ class OptionsContext(object):
 
   Can also be used as a decorator.
   """
-  overrides = []
+  overrides = []  # type: List[Dict[str, Any]]
 
   def __init__(self, **options):
     self.options = options

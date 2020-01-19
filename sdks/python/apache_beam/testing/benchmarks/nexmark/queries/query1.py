@@ -23,6 +23,8 @@ on a simulation of auction events.
 This query converts bid prices from dollars to euros.
 It illustrates a simple map.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import apache_beam as beam

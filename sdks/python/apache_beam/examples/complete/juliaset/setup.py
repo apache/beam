@@ -25,14 +25,15 @@ This behavior is triggered by specifying the --setup_file command line option
 when running the workflow for remote execution.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
 import subprocess
-from distutils.command.build import build as _build
+from distutils.command.build import build as _build  # type: ignore
 
-# TODO: (BEAM-8411): re-enable lint check.
-import setuptools  # pylint: disable-all
+import setuptools
 
 
 # This class handles the pip install mechanism.

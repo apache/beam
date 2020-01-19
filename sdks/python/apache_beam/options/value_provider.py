@@ -19,10 +19,13 @@
 and dynamically provided values.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from builtins import object
 from functools import wraps
+from typing import Set
 
 from apache_beam import error
 
@@ -79,7 +82,7 @@ class StaticValueProvider(ValueProvider):
 
 class RuntimeValueProvider(ValueProvider):
   runtime_options = None
-  experiments = set()
+  experiments = set()  # type: Set[str]
 
   def __init__(self, option_name, value_type, default_value):
     self.option_name = option_name

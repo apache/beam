@@ -17,6 +17,8 @@
 
 """PubSub verifier used for end-to-end test."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -49,9 +51,9 @@ class PubSubMessageMatcher(BaseMatcher):
   subscription until all expected messages are shown or timeout.
   """
 
-  def __init__(self, project, sub_name, expected_msg,
-               timeout=DEFAULT_TIMEOUT, with_attributes=False,
-               strip_attributes=None):
+  def __init__(self, project, sub_name, expected_msg=None,
+               expected_msg_len=None, timeout=DEFAULT_TIMEOUT,
+               with_attributes=False, strip_attributes=None):
     """Initialize PubSubMessageMatcher object.
 
     Args:
@@ -75,12 +77,18 @@ class PubSubMessageMatcher(BaseMatcher):
       raise ValueError('Invalid project %s.' % project)
     if not sub_name:
       raise ValueError('Invalid subscription %s.' % sub_name)
-    if not isinstance(expected_msg, list):
+    if not expected_msg_len and not expected_msg:
+      raise ValueError('Required expected_msg: {} or expected_msg_len: {}.'
+                       .format(expected_msg, expected_msg_len))
+    if expected_msg and not isinstance(expected_msg, list):
       raise ValueError('Invalid expected messages %s.' % expected_msg)
+    if expected_msg_len and not isinstance(expected_msg_len, int):
+      raise ValueError('Invalid expected messages %s.' % expected_msg_len)
 
     self.project = project
     self.sub_name = sub_name
     self.expected_msg = expected_msg
+    self.expected_msg_len = expected_msg_len or len(self.expected_msg)
     self.timeout = timeout
     self.messages = None
     self.with_attributes = with_attributes
@@ -88,9 +96,12 @@ class PubSubMessageMatcher(BaseMatcher):
 
   def _matches(self, _):
     if self.messages is None:
-      self.messages = self._wait_for_messages(len(self.expected_msg),
+      self.messages = self._wait_for_messages(self.expected_msg_len,
                                               self.timeout)
-    return Counter(self.messages) == Counter(self.expected_msg)
+    if self.expected_msg:
+      return Counter(self.messages) == Counter(self.expected_msg)
+    else:
+      return len(self.messages) == self.expected_msg_len
 
   def _wait_for_messages(self, expected_num, timeout):
     """Wait for messages from given subscription."""
@@ -131,18 +142,21 @@ class PubSubMessageMatcher(BaseMatcher):
 
   def describe_to(self, description):
     description.append_text(
-        'Expected %d messages.' % len(self.expected_msg))
+        'Expected %d messages.' % self.expected_msg_len)
 
   def describe_mismatch(self, _, mismatch_description):
     c_expected = Counter(self.expected_msg)
     c_actual = Counter(self.messages)
     mismatch_description.append_text(
-        "Got %d messages. "
-        "Diffs (item, count):\n"
-        "  Expected but not in actual: %s\n"
-        "  Unexpected: %s" % (
-            len(self.messages), (c_expected - c_actual).items(),
-            (c_actual - c_expected).items()))
+        "Got %d messages. " % (
+            len(self.messages)))
+    if self.expected_msg:
+      mismatch_description.append_text(
+          "Diffs (item, count):\n"
+          "  Expected but not in actual: %s\n"
+          "  Unexpected: %s" % (
+              (c_expected - c_actual).items(),
+              (c_actual - c_expected).items()))
     if self.with_attributes and self.strip_attributes:
       mismatch_description.append_text(
           '\n  Stripped attributes: %r' % self.strip_attributes)

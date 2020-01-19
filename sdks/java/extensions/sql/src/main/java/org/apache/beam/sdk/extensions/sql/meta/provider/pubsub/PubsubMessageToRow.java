@@ -22,8 +22,11 @@ import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
+import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
@@ -31,33 +34,39 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer.UnsupportedRowJsonException;
 import org.apache.beam.sdk.util.RowJsonUtils;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Instant;
 
-/** A {@link DoFn} to convert {@link PubsubMessage} with JSON payload to {@link Row}. */
+/** Read side converter for {@link PubsubMessage} with JSON payload. */
 @Internal
 @Experimental
 @AutoValue
-public abstract class PubsubMessageToRow extends DoFn<PubsubMessage, Row> {
+public abstract class PubsubMessageToRow
+    extends PTransform<PCollection<PubsubMessage>, PCollectionTuple> implements Serializable {
   static final String TIMESTAMP_FIELD = "event_timestamp";
   static final String ATTRIBUTES_FIELD = "attributes";
   static final String PAYLOAD_FIELD = "payload";
   static final TupleTag<PubsubMessage> DLQ_TAG = new TupleTag<PubsubMessage>() {};
   static final TupleTag<Row> MAIN_TAG = new TupleTag<Row>() {};
 
-  private transient volatile @Nullable ObjectMapper objectMapper;
-
   /**
    * Schema of the Pubsub message.
    *
-   * <p>Required to have exactly 3 top level fields at the moment:
+   * <p>Required to have at least 'event_timestamp' field of type {@link Schema.FieldType#DATETIME}.
+   *
+   * <p>If {@code useFlatSchema()} is set every other field is assumed to be part of the payload.
+   * Otherwise, the schema must contain exactly:
    *
    * <ul>
-   *   <li>'event_timestamp' of type {@link Schema.FieldType#DATETIME}
    *   <li>'attributes' of type {@link TypeName#MAP MAP&lt;VARCHAR,VARCHAR&gt;}
    *   <li>'payload' of type {@link TypeName#ROW ROW&lt;...&gt;}
    * </ul>
@@ -68,66 +77,164 @@ public abstract class PubsubMessageToRow extends DoFn<PubsubMessage, Row> {
 
   public abstract boolean useDlq();
 
-  private Schema payloadSchema() {
-    return messageSchema().getField(PAYLOAD_FIELD).getType().getRowSchema();
-  }
+  public abstract boolean useFlatSchema();
 
   public static Builder builder() {
     return new AutoValue_PubsubMessageToRow.Builder();
   }
 
-  @DoFn.ProcessElement
-  public void processElement(ProcessContext context) {
-    try {
-      List<Object> values = getFieldValues(context);
-      context.output(Row.withSchema(messageSchema()).addValues(values).build());
-    } catch (UnsupportedRowJsonException jsonException) {
-      if (useDlq()) {
-        context.output(DLQ_TAG, context.element());
+  @Override
+  public PCollectionTuple expand(PCollection<PubsubMessage> input) {
+    PCollectionTuple rows =
+        input.apply(
+            ParDo.of(
+                    useFlatSchema()
+                        ? new FlatSchemaPubsubMessageToRoW(messageSchema(), useDlq())
+                        : new NestedSchemaPubsubMessageToRow(messageSchema(), useDlq()))
+                .withOutputTags(
+                    MAIN_TAG, useDlq() ? TupleTagList.of(DLQ_TAG) : TupleTagList.empty()));
+    return rows;
+  }
+
+  /**
+   * A {@link DoFn} to convert a flat schema{@link PubsubMessage} with JSON payload to {@link Row}.
+   */
+  @Internal
+  private static class FlatSchemaPubsubMessageToRoW extends DoFn<PubsubMessage, Row> {
+
+    private final Schema messageSchema;
+
+    private final boolean useDlq;
+
+    private transient volatile @Nullable ObjectMapper objectMapper;
+
+    protected FlatSchemaPubsubMessageToRoW(Schema messageSchema, boolean useDlq) {
+      this.messageSchema = messageSchema;
+      this.useDlq = useDlq;
+    }
+
+    /**
+     * Get the value for a field from a given payload in the order they're specified in the flat
+     * schema.
+     */
+    private Object getValueForFieldFlatSchema(Schema.Field field, Instant timestamp, Row payload) {
+      String fieldName = field.getName();
+      if (TIMESTAMP_FIELD.equals(fieldName)) {
+        return timestamp;
       } else {
-        throw new RuntimeException("Error parsing message", jsonException);
+        return payload.getValue(fieldName);
+      }
+    }
+
+    private Row parsePayload(PubsubMessage pubsubMessage) {
+      String payloadJson = new String(pubsubMessage.getPayload(), StandardCharsets.UTF_8);
+      // Construct flat payload schema.
+      Schema payloadSchema =
+          new Schema(
+              messageSchema.getFields().stream()
+                  .filter(f -> !f.getName().equals(TIMESTAMP_FIELD))
+                  .collect(Collectors.toList()));
+      ;
+
+      if (objectMapper == null) {
+        objectMapper = newObjectMapperWith(RowJsonDeserializer.forSchema(payloadSchema));
+      }
+
+      return RowJsonUtils.jsonToRow(objectMapper, payloadJson);
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext context) {
+      try {
+        Row payload = parsePayload(context.element());
+        List<Object> values =
+            messageSchema.getFields().stream()
+                .map(field -> getValueForFieldFlatSchema(field, context.timestamp(), payload))
+                .collect(toList());
+        context.output(Row.withSchema(messageSchema).addValues(values).build());
+      } catch (UnsupportedRowJsonException jsonException) {
+        if (useDlq) {
+          context.output(DLQ_TAG, context.element());
+        } else {
+          throw new RuntimeException("Error parsing message", jsonException);
+        }
       }
     }
   }
 
   /**
-   * Get values for fields in the same order they're specified in schema, including timestamp,
-   * payload, and attributes.
+   * A {@link DoFn} to convert a nested schema {@link PubsubMessage} with JSON payload to {@link
+   * Row}.
    */
-  private List<Object> getFieldValues(ProcessContext context) {
-    return messageSchema().getFields().stream()
-        .map(field -> getValueForField(field, context.timestamp(), context.element()))
-        .collect(toList());
-  }
+  @Internal
+  private static class NestedSchemaPubsubMessageToRow extends DoFn<PubsubMessage, Row> {
 
-  private Object getValueForField(
-      Schema.Field field, Instant timestamp, PubsubMessage pubsubMessage) {
+    private final Schema messageSchema;
 
-    switch (field.getName()) {
-      case TIMESTAMP_FIELD:
-        return timestamp;
-      case ATTRIBUTES_FIELD:
-        return pubsubMessage.getAttributeMap();
-      case PAYLOAD_FIELD:
-        return parsePayloadJsonRow(pubsubMessage);
-      default:
-        throw new IllegalArgumentException(
-            "Unexpected field '"
-                + field.getName()
-                + "' in top level schema"
-                + " for Pubsub message. Top level schema should only contain "
-                + "'timestamp', 'attributes', and 'payload' fields");
-    }
-  }
+    private final boolean useDlq;
 
-  private Row parsePayloadJsonRow(PubsubMessage pubsubMessage) {
-    String payloadJson = new String(pubsubMessage.getPayload(), StandardCharsets.UTF_8);
+    private transient volatile @Nullable ObjectMapper objectMapper;
 
-    if (objectMapper == null) {
-      objectMapper = newObjectMapperWith(RowJsonDeserializer.forSchema(payloadSchema()));
+    protected NestedSchemaPubsubMessageToRow(Schema messageSchema, boolean useDlq) {
+      this.messageSchema = messageSchema;
+      this.useDlq = useDlq;
     }
 
-    return RowJsonUtils.jsonToRow(objectMapper, payloadJson);
+    /** Get the value for a field int the order they're specified in the nested schema. */
+    private Object getValueForFieldNestedSchema(
+        Schema.Field field, Instant timestamp, Map<String, String> attributeMap, Row payload) {
+      switch (field.getName()) {
+        case TIMESTAMP_FIELD:
+          return timestamp;
+        case ATTRIBUTES_FIELD:
+          return attributeMap;
+        case PAYLOAD_FIELD:
+          return payload;
+        default:
+          throw new IllegalArgumentException(
+              "Unexpected field '"
+                  + field.getName()
+                  + "' in top level schema"
+                  + " for Pubsub message. Top level schema should only contain "
+                  + "'timestamp', 'attributes', and 'payload' fields");
+      }
+    }
+
+    private Row parsePayload(PubsubMessage pubsubMessage) {
+      String payloadJson = new String(pubsubMessage.getPayload(), StandardCharsets.UTF_8);
+      // Retrieve nested payload schema.
+      Schema payloadSchema = messageSchema.getField(PAYLOAD_FIELD).getType().getRowSchema();
+
+      if (objectMapper == null) {
+        objectMapper = newObjectMapperWith(RowJsonDeserializer.forSchema(payloadSchema));
+      }
+
+      return RowJsonUtils.jsonToRow(objectMapper, payloadJson);
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext context) {
+      try {
+        Row payload = parsePayload(context.element());
+        List<Object> values =
+            messageSchema.getFields().stream()
+                .map(
+                    field ->
+                        getValueForFieldNestedSchema(
+                            field,
+                            context.timestamp(),
+                            context.element().getAttributeMap(),
+                            payload))
+                .collect(toList());
+        context.output(Row.withSchema(messageSchema).addValues(values).build());
+      } catch (UnsupportedRowJsonException jsonException) {
+        if (useDlq) {
+          context.output(DLQ_TAG, context.element());
+        } else {
+          throw new RuntimeException("Error parsing message", jsonException);
+        }
+      }
+    }
   }
 
   @AutoValue.Builder
@@ -135,6 +242,8 @@ public abstract class PubsubMessageToRow extends DoFn<PubsubMessage, Row> {
     public abstract Builder messageSchema(Schema messageSchema);
 
     public abstract Builder useDlq(boolean useDlq);
+
+    public abstract Builder useFlatSchema(boolean useFlatSchema);
 
     public abstract PubsubMessageToRow build();
   }

@@ -18,6 +18,8 @@
 
 """Unit tests for PubSub sources and sinks."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -326,7 +328,7 @@ class TestPubSubReadEvaluator(object):
 
 
 transform_evaluator.TransformEvaluatorRegistry._test_evaluators_overrides = {
-    _DirectReadFromPubSub: TestPubSubReadEvaluator,
+    _DirectReadFromPubSub: TestPubSubReadEvaluator,  # type: ignore[dict-item]
 }
 
 
@@ -352,12 +354,11 @@ class TestReadFromPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    pcoll = (p
-             | ReadFromPubSub('projects/fakeprj/topics/a_topic',
-                              None, None, with_attributes=True))
-    assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
-    p.run()
+    with TestPipeline(options=options) as p:
+      pcoll = (p
+               | ReadFromPubSub('projects/fakeprj/topics/a_topic',
+                                None, None, with_attributes=True))
+      assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
 
@@ -376,12 +377,11 @@ class TestReadFromPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    pcoll = (p
-             | ReadStringsFromPubSub('projects/fakeprj/topics/a_topic',
-                                     None, None))
-    assert_that(pcoll, equal_to(expected_elements))
-    p.run()
+    with TestPipeline(options=options) as p:
+      pcoll = (p
+               | ReadStringsFromPubSub('projects/fakeprj/topics/a_topic',
+                                       None, None))
+      assert_that(pcoll, equal_to(expected_elements))
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
 
@@ -398,11 +398,10 @@ class TestReadFromPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    pcoll = (p
-             | ReadFromPubSub('projects/fakeprj/topics/a_topic', None, None))
-    assert_that(pcoll, equal_to(expected_elements))
-    p.run()
+    with TestPipeline(options=options) as p:
+      pcoll = (p
+               | ReadFromPubSub('projects/fakeprj/topics/a_topic', None, None))
+      assert_that(pcoll, equal_to(expected_elements))
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
 
@@ -429,13 +428,12 @@ class TestReadFromPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    pcoll = (p
-             | ReadFromPubSub(
-                 'projects/fakeprj/topics/a_topic', None, None,
-                 with_attributes=True, timestamp_attribute='time'))
-    assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
-    p.run()
+    with TestPipeline(options=options) as p:
+      pcoll = (p
+               | ReadFromPubSub(
+                   'projects/fakeprj/topics/a_topic', None, None,
+                   with_attributes=True, timestamp_attribute='time'))
+      assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
 
@@ -462,13 +460,12 @@ class TestReadFromPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    pcoll = (p
-             | ReadFromPubSub(
-                 'projects/fakeprj/topics/a_topic', None, None,
-                 with_attributes=True, timestamp_attribute='time'))
-    assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
-    p.run()
+    with TestPipeline(options=options) as p:
+      pcoll = (p
+               | ReadFromPubSub(
+                   'projects/fakeprj/topics/a_topic', None, None,
+                   with_attributes=True, timestamp_attribute='time'))
+      assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
 
@@ -496,13 +493,12 @@ class TestReadFromPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    pcoll = (p
-             | ReadFromPubSub(
-                 'projects/fakeprj/topics/a_topic', None, None,
-                 with_attributes=True, timestamp_attribute='nonexistent'))
-    assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
-    p.run()
+    with TestPipeline(options=options) as p:
+      pcoll = (p
+               | ReadFromPubSub(
+                   'projects/fakeprj/topics/a_topic', None, None,
+                   with_attributes=True, timestamp_attribute='nonexistent'))
+      assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     mock_pubsub.return_value.acknowledge.assert_has_calls([
         mock.call(mock.ANY, [ack_id])])
 
@@ -539,11 +535,11 @@ class TestReadFromPubSub(unittest.TestCase):
     # id_label is unsupported in DirectRunner.
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    _ = (p | ReadFromPubSub('projects/fakeprj/topics/a_topic', None, 'a_label'))
     with self.assertRaisesRegex(NotImplementedError,
                                 r'id_label is not supported'):
-      p.run()
+      with TestPipeline(options=options) as p:
+        _ = (p | ReadFromPubSub(
+            'projects/fakeprj/topics/a_topic', None, 'a_label'))
 
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
@@ -556,12 +552,11 @@ class TestWriteToPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    _ = (p
-         | Create(payloads)
-         | WriteToPubSub('projects/fakeprj/topics/a_topic',
-                         with_attributes=False))
-    p.run()
+    with TestPipeline(options=options) as p:
+      _ = (p
+           | Create(payloads)
+           | WriteToPubSub('projects/fakeprj/topics/a_topic',
+                           with_attributes=False))
     mock_pubsub.return_value.publish.assert_has_calls([
         mock.call(mock.ANY, data)])
 
@@ -571,11 +566,10 @@ class TestWriteToPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    _ = (p
-         | Create(payloads)
-         | WriteStringsToPubSub('projects/fakeprj/topics/a_topic'))
-    p.run()
+    with TestPipeline(options=options) as p:
+      _ = (p
+           | Create(payloads)
+           | WriteStringsToPubSub('projects/fakeprj/topics/a_topic'))
     mock_pubsub.return_value.publish.assert_has_calls([
         mock.call(mock.ANY, data)])
 
@@ -586,12 +580,11 @@ class TestWriteToPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    _ = (p
-         | Create(payloads)
-         | WriteToPubSub('projects/fakeprj/topics/a_topic',
-                         with_attributes=True))
-    p.run()
+    with TestPipeline(options=options) as p:
+      _ = (p
+           | Create(payloads)
+           | WriteToPubSub('projects/fakeprj/topics/a_topic',
+                           with_attributes=True))
     mock_pubsub.return_value.publish.assert_has_calls([
         mock.call(mock.ANY, data, **attributes)])
 
@@ -602,14 +595,13 @@ class TestWriteToPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    _ = (p
-         | Create(payloads)
-         | WriteToPubSub('projects/fakeprj/topics/a_topic',
-                         with_attributes=True))
     with self.assertRaisesRegex(AttributeError,
                                 r'str.*has no attribute.*data'):
-      p.run()
+      with TestPipeline(options=options) as p:
+        _ = (p
+             | Create(payloads)
+             | WriteToPubSub('projects/fakeprj/topics/a_topic',
+                             with_attributes=True))
 
   def test_write_messages_unsupported_features(self, mock_pubsub):
     data = b'data'
@@ -618,24 +610,23 @@ class TestWriteToPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    _ = (p
-         | Create(payloads)
-         | WriteToPubSub('projects/fakeprj/topics/a_topic',
-                         id_label='a_label'))
     with self.assertRaisesRegex(NotImplementedError,
                                 r'id_label is not supported'):
-      p.run()
+      with TestPipeline(options=options) as p:
+        _ = (p
+             | Create(payloads)
+             | WriteToPubSub('projects/fakeprj/topics/a_topic',
+                             id_label='a_label'))
+
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    p = TestPipeline(options=options)
-    _ = (p
-         | Create(payloads)
-         | WriteToPubSub('projects/fakeprj/topics/a_topic',
-                         timestamp_attribute='timestamp'))
     with self.assertRaisesRegex(NotImplementedError,
                                 r'timestamp_attribute is not supported'):
-      p.run()
+      with TestPipeline(options=options) as p:
+        _ = (p
+             | Create(payloads)
+             | WriteToPubSub('projects/fakeprj/topics/a_topic',
+                             timestamp_attribute='timestamp'))
 
 
 if __name__ == '__main__':

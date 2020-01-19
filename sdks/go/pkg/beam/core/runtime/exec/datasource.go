@@ -262,7 +262,7 @@ func (n *DataSource) Progress() ProgressReportSnapshot {
 // Split takes a sorted set of potential split indices, selects and actuates
 // split on an appropriate split index, and returns the selected split index
 // if successful. Returns an error when unable to split.
-func (n *DataSource) Split(splits []int64, frac float32) (int64, error) {
+func (n *DataSource) Split(splits []int64, frac float64) (int64, error) {
 	if splits == nil {
 		return 0, fmt.Errorf("failed to split: requested splits were empty")
 	}
@@ -275,7 +275,7 @@ func (n *DataSource) Split(splits []int64, frac float32) (int64, error) {
 	// the promised split index to this value.
 	for _, s := range splits {
 		// // Never split on the first element, or the current element.
-		if s > 0 && s > c && s < n.splitIdx {
+		if s > 0 && s > c && s <= n.splitIdx {
 			n.splitIdx = s
 			fs := n.splitIdx
 			n.mu.Unlock()

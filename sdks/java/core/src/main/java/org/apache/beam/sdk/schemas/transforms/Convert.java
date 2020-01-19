@@ -23,6 +23,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.ConvertHelpers;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -39,7 +40,7 @@ public class Convert {
    * Convert a {@link PCollection}{@literal <InputT>} into a {@link PCollection}{@literal <Row>}.
    *
    * <p>The input {@link PCollection} must have a schema attached. The output collection will have
-   * the same schema as the iput.
+   * the same schema as the input.
    */
   public static <InputT> PTransform<PCollection<InputT>, PCollection<Row>> toRows() {
     return to(Row.class);
@@ -150,7 +151,8 @@ public class Convert {
                 converted.outputSchemaCoder.getFromRowFunction());
       } else {
         SerializableFunction<?, OutputT> convertPrimitive =
-            ConvertHelpers.getConvertPrimitive(converted.unboxedType, outputTypeDescriptor);
+            ConvertHelpers.getConvertPrimitive(
+                converted.unboxedType, outputTypeDescriptor, new DefaultTypeConversionsFactory());
         output =
             input.apply(
                 ParDo.of(

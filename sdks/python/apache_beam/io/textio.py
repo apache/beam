@@ -18,12 +18,15 @@
 """A source and a sink for reading from and writing to text files."""
 
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
 from builtins import object
 from builtins import range
 from functools import partial
+from typing import Optional
 
 from past.builtins import long
 
@@ -95,7 +98,7 @@ class _TextSource(filebasedsource.FileBasedSource):
                min_bundle_size,
                compression_type,
                strip_trailing_newlines,
-               coder,
+               coder,  # type: coders.Coder
                buffer_size=DEFAULT_READ_BUFFER_SIZE,
                validate=True,
                skip_header_lines=0,
@@ -341,7 +344,7 @@ class _TextSink(filebasedsink.FileBasedSink):
                append_trailing_newlines=True,
                num_shards=0,
                shard_name_template=None,
-               coder=coders.ToStringCoder(),
+               coder=coders.ToStringCoder(),  # type: coders.Coder
                compression_type=CompressionTypes.AUTO,
                header=None):
     """Initialize a _TextSink.
@@ -443,7 +446,7 @@ class ReadAllFromText(PTransform):
       desired_bundle_size=DEFAULT_DESIRED_BUNDLE_SIZE,
       compression_type=CompressionTypes.AUTO,
       strip_trailing_newlines=True,
-      coder=coders.StrUtf8Coder(),
+      coder=coders.StrUtf8Coder(),  # type: coders.Coder
       skip_header_lines=0,
       **kwargs):
     """Initialize the ``ReadAllFromText`` transform.
@@ -504,7 +507,7 @@ class ReadFromText(PTransform):
       min_bundle_size=0,
       compression_type=CompressionTypes.AUTO,
       strip_trailing_newlines=True,
-      coder=coders.StrUtf8Coder(),
+      coder=coders.StrUtf8Coder(),  # type: coders.Coder
       validate=True,
       skip_header_lines=0,
       **kwargs):
@@ -559,12 +562,12 @@ class WriteToText(PTransform):
 
   def __init__(
       self,
-      file_path_prefix,
+      file_path_prefix,  # type: str
       file_name_suffix='',
       append_trailing_newlines=True,
       num_shards=0,
-      shard_name_template=None,
-      coder=coders.ToStringCoder(),
+      shard_name_template=None,  # type: Optional[str]
+      coder=coders.ToStringCoder(),  # type: coders.Coder
       compression_type=CompressionTypes.AUTO,
       header=None):
     r"""Initialize a :class:`WriteToText` transform.

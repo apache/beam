@@ -22,6 +22,8 @@ fields. Also, shows how to generate data to be written to a BigQuery table with
 nested and repeated fields.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse

@@ -46,7 +46,10 @@ dependencies {
   compile project(":sdks:java:core")
   compile project(":sdks:java:extensions:join-library")
   compile project(path: ":runners:direct-java", configuration: "shadow")
+  compile library.java.commons_codec
   compile library.java.commons_csv
+  compile library.java.jackson_databind
+  compile library.java.joda_time
   compile library.java.vendored_calcite_1_20_0
   compile "com.alibaba:fastjson:1.2.49"
   compile "org.codehaus.janino:janino:3.0.11"
@@ -158,7 +161,6 @@ task integrationTest(type: Test) {
 
   include '**/*IT.class'
   exclude '**/KafkaCSVTableIT.java'
-  exclude '**/MongoDbReadWriteIT.java'
   maxParallelForks 4
   classpath = project(":sdks:java:extensions:sql")
           .sourceSets

@@ -17,14 +17,18 @@
 
 """A runner for executing portable pipelines on Spark."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
 import re
+import sys
 
 from apache_beam.options import pipeline_options
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
+from apache_beam.runners.portability import spark_uber_jar_job_server
 
 # https://spark.apache.org/docs/latest/submitting-applications.html#master-urls
 LOCAL_MASTER_PATTERN = r'^local(\[.+\])?$'
@@ -32,7 +36,7 @@ LOCAL_MASTER_PATTERN = r'^local(\[.+\])?$'
 
 class SparkRunner(portable_runner.PortableRunner):
   def run_pipeline(self, pipeline, options):
-    spark_options = options.view_as(SparkRunnerOptions)
+    spark_options = options.view_as(pipeline_options.SparkRunnerOptions)
     portable_options = options.view_as(pipeline_options.PortableOptions)
     if (re.match(LOCAL_MASTER_PATTERN, spark_options.spark_master_url)
         and not portable_options.environment_type
@@ -41,31 +45,25 @@ class SparkRunner(portable_runner.PortableRunner):
     return super(SparkRunner, self).run_pipeline(pipeline, options)
 
   def default_job_server(self, options):
-    # TODO(BEAM-8139) submit a Spark jar to a cluster
+    spark_options = options.view_as(pipeline_options.SparkRunnerOptions)
+    if spark_options.spark_submit_uber_jar:
+      if sys.version_info < (3, 6):
+        raise ValueError(
+            'spark_submit_uber_jar requires Python 3.6+, current version %s'
+            % sys.version)
+      if not spark_options.spark_rest_url:
+        raise ValueError('Option spark_rest_url must be set.')
+      return spark_uber_jar_job_server.SparkUberJarJobServer(
+          spark_options.spark_rest_url, options)
     return job_server.StopOnExitJobServer(SparkJarJobServer(options))
-
-
-class SparkRunnerOptions(pipeline_options.PipelineOptions):
-  @classmethod
-  def _add_argparse_args(cls, parser):
-    parser.add_argument('--spark_master_url',
-                        default='local[4]',
-                        help='Spark master URL (spark://HOST:PORT). '
-                             'Use "local" (single-threaded) or "local[*]" '
-                             '(multi-threaded) to start a local cluster for '
-                             'the execution.')
-    parser.add_argument('--spark_job_server_jar',
-                        help='Path or URL to a Beam Spark jobserver jar.')
-    parser.add_argument('--artifacts_dir', default=None)
 
 
 class SparkJarJobServer(job_server.JavaJarJobServer):
   def __init__(self, options):
-    super(SparkJarJobServer, self).__init__()
-    options = options.view_as(SparkRunnerOptions)
+    super(SparkJarJobServer, self).__init__(options)
+    options = options.view_as(pipeline_options.SparkRunnerOptions)
     self._jar = options.spark_job_server_jar
     self._master_url = options.spark_master_url
-    self._artifacts_dir = options.artifacts_dir
 
   def path_to_jar(self):
     if self._jar:
@@ -73,12 +71,12 @@ class SparkJarJobServer(job_server.JavaJarJobServer):
     else:
       return self.path_to_beam_jar('runners:spark:job-server:shadowJar')
 
-  def java_arguments(self, job_port, artifacts_dir):
+  def java_arguments(
+      self, job_port, artifact_port, expansion_port, artifacts_dir):
     return [
         '--spark-master-url', self._master_url,
-        '--artifacts-dir', (self._artifacts_dir
-                            if self._artifacts_dir else artifacts_dir),
+        '--artifacts-dir', artifacts_dir,
         '--job-port', job_port,
-        '--artifact-port', 0,
-        '--expansion-port', 0
+        '--artifact-port', artifact_port,
+        '--expansion-port', expansion_port
     ]

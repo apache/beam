@@ -17,6 +17,8 @@
 
 """Unit tests for the metric_result_matchers."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import unittest

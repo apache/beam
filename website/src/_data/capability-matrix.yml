@@ -18,8 +18,10 @@ columns:
     name: Google Cloud Dataflow
   - class: flink
     name: Apache Flink
-  - class: spark
-    name: Apache Spark
+  - class: spark-rdd
+    name: Apache Spark (RDD/DStream based)
+  - class: spark-dataset
+    name: Apache Spark Structured Streaming (Dataset based)
   - class: apex
     name: Apache Apex
   - class: gearpump
@@ -59,9 +61,13 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ParDo itself, as per-element transformation with UDFs, is fully supported by Flink for both batch and streaming.
-          - class: spark
+          - class: spark-rdd
             l1: 'Yes'
             l2: fully supported
+            l3: ParDo applies per-element transformations as Spark FlatMapFunction.
+          - class: spark-dataset
+            l1: 'Partially'
+            l2: fully supported in batch mode
             l3: ParDo applies per-element transformations as Spark FlatMapFunction.
           - class: apex
             l1: 'Yes'
@@ -109,10 +115,14 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: "Uses Flink's keyBy for key grouping. When grouping by window in streaming (creating the panes) the Flink runner uses the Beam code. This guarantees support for all windowing and triggering mechanisms."
-          - class: spark
+          - class: spark-rdd
             l1: 'Partially'
             l2: fully supported in batch mode
             l3: "Using Spark's <tt>groupByKey</tt>. GroupByKey with multiple trigger firings in streaming mode is a work in progress." 
+          - class: spark-dataset
+            l1: 'Partially'
+            l2: fully supported in batch mode
+            l3: "Using Spark's <tt>groupByKey</tt>."
           - class: apex
             l1: 'Yes'
             l2: fully supported
@@ -159,10 +169,14 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
-          - class: spark
+          - class: spark-rdd
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: spark-dataset
+            l1: 'Partially'
+            l2: fully supported in batch mode
+            l3: Some corner cases like flatten on empty collections are not yet supported.
           - class: apex
             l1: 'Yes'
             l2: fully supported
@@ -209,10 +223,14 @@ categories:
             l1: 'Yes'
             l2: 'fully supported'
             l3: Uses a combiner for pre-aggregation for batch and streaming.
-          - class: spark
+          - class: spark-rdd
             l1: 'Yes'
             l2: fully supported
             l3: "Using Spark's <tt>combineByKey</tt> and <tt>aggregate</tt> functions."
+          - class: spark-dataset
+            l1: 'Partially'
+            l2: fully supported in batch mode
+            l3: "Using Spark's <tt>Aggregator</tt> and agg function"
           - class: apex
             l1: 'Yes'
             l2: 'fully supported'
@@ -259,9 +277,13 @@ categories:
             l1: 'Partially'
             l2: supported via inlining
             l3: ''
-          - class: spark
+          - class: spark-rdd
             l1: 'Partially'
             l2: supported via inlining
+            l3: ''
+          - class: spark-dataset
+            l1: 'Partially'
+            l2: supported via inlining only in batch mode
             l3: ''
           - class: apex
             l1: 'Partially'
@@ -309,10 +331,14 @@ categories:
             l1: 'Yes'
             l2: some size restrictions in streaming
             l3: Batch mode supports a distributed implementation, but streaming mode may force some size restrictions. Neither mode is able to push lookups directly up into key-based sources.
-          - class: spark
+          - class: spark-rdd
             l1: 'Yes'
             l2: fully supported
             l3: "Using Spark's broadcast variables. In streaming mode, side inputs may update but only between micro-batches."
+          - class: spark-dataset
+            l1: 'Partially'
+            l2: fully supported in batch mode
+            l3: "Using Spark's broadcast variables."
           - class: apex
             l1: 'Yes'
             l2: size restrictions
@@ -359,10 +385,14 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3:
-          - class: spark
+          - class: spark-rdd
             l1: 'Yes'
             l2: fully supported
-            l3: 
+            l3:
+          - class: spark-dataset
+            l1: 'Partially'
+            l2: bounded source only
+            l3: "Using Spark's DatasourceV2 API in microbatch mode (Continuous streaming mode is tagged experimental in spark and does not support aggregation)."
           - class: apex
             l1: 'Yes'
             l2: fully supported
@@ -409,9 +439,13 @@ categories:
             l1: 'Yes'
             l2:
             l3:
-          - class: spark
+          - class: spark-rdd
             l1: 'Partially'
             l2: supports bounded-per-element SDFs
+            l3:
+          - class: spark-dataset
+            l1: 'No'
+            l2: not implemented
             l3:
           - class: apex
             l1: 'Partially'
@@ -459,9 +493,13 @@ categories:
             l1: 'Partially'
             l2: All metrics types are supported.
             l3: Only attempted values are supported. No committed values for metrics.
-          - class: spark
+          - class: spark-rdd
             l1: 'Partially'
             l2: All metric types are supported.
+            l3: Only attempted values are supported. No committed values for metrics.
+          - class: spark-dataset
+            l1: 'Partially'
+            l2: All metric types are supported in batch mode.
             l3: Only attempted values are supported. No committed values for metrics.
           - class: apex
             l1: 'No'
@@ -509,10 +547,14 @@ categories:
             l1: 'Partially'
             l2: non-merging windows
             l3: State is supported for non-merging windows. SetState and MapState are not yet supported.
-          - class: spark
+          - class: spark-rdd
+            l1: 'Partially'
+            l2: full support in batch mode
+            l3:
+          - class: spark-dataset
             l1: 'No'
             l2: not implemented
-            l3: Spark supports per-key state with <tt>mapWithState()</tt> so support should be straightforward.
+            l3:
           - class: apex
             l1: 'Partially'
             l2: non-merging windows
@@ -566,9 +608,13 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
-          - class: spark
+          - class: spark-rdd
             l1: 'Yes'
             l2: supported
+            l3: ''
+          - class: spark-dataset
+            l1: 'Partially'
+            l2: fully supported in batch mode
             l3: ''
           - class: apex
             l1: 'Yes'
@@ -616,9 +662,13 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
-          - class: spark
+          - class: spark-rdd
             l1: 'Yes'
             l2: supported
+            l3: ''
+          - class: spark-dataset
+            l1: 'Partially'
+            l2: fully supported in batch mode
             l3: ''
           - class: apex
             l1: 'Yes'
@@ -666,9 +716,13 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
-          - class: spark
+          - class: spark-rdd
             l1: 'Yes'
             l2: supported
+            l3: ''
+          - class: spark-dataset
+            l1: 'Partially'
+            l2: fully supported in batch mode
             l3: ''
           - class: apex
             l1: 'Yes'
@@ -716,9 +770,13 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
-          - class: spark
+          - class: spark-rdd
             l1: 'Yes'
             l2: supported
+            l3: ''
+          - class: spark-dataset
+            l1: 'Partially'
+            l2: fully supported in batch mode
             l3: ''
           - class: apex
             l1: 'Yes'
@@ -766,9 +824,13 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
-          - class: spark
+          - class: spark-rdd
             l1: 'Yes'
             l2: supported
+            l3: ''
+          - class: spark-dataset
+            l1: 'Partially'
+            l2: fully supported in batch mode
             l3: ''
           - class: apex
             l1: 'Yes'
@@ -816,9 +878,13 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
-          - class: spark
+          - class: spark-rdd
             l1: 'Yes'
             l2: supported
+            l3: ''
+          - class: spark-dataset
+            l1: 'Partially'
+            l2: fully supported in batch mode
             l3: ''
           - class: apex
             l1: 'Yes'
@@ -866,9 +932,13 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
-          - class: spark
+          - class: spark-rdd
             l1: 'Yes'
             l2: supported
+            l3: ''
+          - class: spark-dataset
+            l1: 'Partially'
+            l2: fully supported in batch mode
             l3: ''
           - class: apex
             l1: 'Yes'
@@ -925,9 +995,13 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
-          - class: spark
-            l1: 'No'
-            l2: ''
+          - class: spark-rdd
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: spark-dataset
+            l1: 'Partially'
+            l2: fully supported in batch mode
             l3: ''
           - class: apex
             l1: 'Yes'
@@ -976,9 +1050,13 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
-          - class: spark
-            l1: 'No'
-            l2: ''
+          - class: spark-rdd
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: spark-dataset
+            l1: 'Partially'
+            l2: fully supported in batch mode
             l3: ''
           - class: apex
             l1: 'Yes'
@@ -1027,10 +1105,14 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
-          - class: spark
+          - class: spark-rdd
             l1: 'Yes'
             l2: "This is Spark streaming's native model"
             l3: "Spark processes streams in micro-batches. The micro-batch size is actually a pre-set, fixed, time interval. Currently, the runner takes the first window size in the pipeline and sets it's size as the batch interval. Any following window operations will be considered processing time windows and will affect triggering."
+          - class: spark-dataset
+            l1: 'Partially'
+            l2: fully supported in batch mode
+            l3:
           - class: apex
             l1: 'Yes'
             l2: fully supported
@@ -1078,9 +1160,13 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
-          - class: spark
-            l1: 'No'
-            l2: ''
+          - class: spark-rdd
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: spark-dataset
+            l1: 'Partially'
+            l2: fully supported in batch mode
             l3: ''
           - class: apex
             l1: 'Yes'
@@ -1130,10 +1216,14 @@ categories:
             l1: 'No'
             l2: pending model support
             l3: 
-          - class: spark
+          - class: spark-rdd
             l1: 'No'
             l2: pending model support
             l3: 
+          - class: spark-dataset
+            l1: 'No'
+            l2: pending model support
+            l3:
           - class: apex
             l1: 'No'
             l2: pending model support
@@ -1181,9 +1271,13 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
-          - class: spark
-            l1: 'No'
-            l2: ''
+          - class: spark-rdd
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: spark-dataset
+            l1: 'Partially'
+            l2: fully supported in batch mode
             l3: ''
           - class: apex
             l1: 'Yes'
@@ -1232,9 +1326,13 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
-          - class: spark
+          - class: spark-rdd
             l1: 'No'
             l2: ''
+            l3: ''
+          - class: spark-dataset
+            l1: 'No'
+            l2: no streaming support in the runner
             l3: ''
           - class: apex
             l1: 'Yes'
@@ -1283,7 +1381,11 @@ categories:
             l1: 'Partially'
             l2: non-merging windows
             l3: The Flink Runner supports timers in non-merging windows.
-          - class: spark
+          - class: spark-rdd
+            l1: 'Partially'
+            l2: fully supported in batch mode
+            l3: ''
+          - class: spark-dataset
             l1: 'No'
             l2: not implemented
             l3: ''
@@ -1342,10 +1444,14 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
-          - class: spark
+          - class: spark-rdd
             l1: 'Yes'
             l2: fully supported
             l3: 'Spark streaming natively discards elements after firing.'
+          - class: spark-dataset
+            l1: 'Partially'
+            l2: fully supported in batch mode
+            l3: ''
           - class: apex
             l1: 'Yes'
             l2: fully supported
@@ -1393,7 +1499,11 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
-          - class: spark
+          - class: spark-rdd
+            l1: 'No'
+            l2: ''
+            l3: ''
+          - class: spark-dataset
             l1: 'No'
             l2: ''
             l3: ''
@@ -1445,7 +1555,11 @@ categories:
             l1: 'No'
             l2: pending model support
             l3: ''
-          - class: spark
+          - class: spark-rdd
+            l1: 'No'
+            l2: pending model support
+            l3: ''
+          - class: spark-dataset
             l1: 'No'
             l2: pending model support
             l3: ''
@@ -1502,10 +1616,14 @@ categories:
             l1: 'Partially'
             l2: 
             l3: Flink supports taking a "savepoint" of the pipeline and shutting the pipeline down after its completion.
-          - class: spark
+          - class: spark-rdd
             l1: 
             l2: 
             l3: 
+          - class: spark-dataset
+            l1:
+            l2:
+            l3:
           - class: apex
             l1: 
             l2: 
@@ -1548,10 +1666,14 @@ categories:
             l1: 'Partially'
             l2: 
             l3: Flink has a native savepoint capability.
-          - class: spark
+          - class: spark-rdd
             l1: 'Partially'
             l2: 
             l3: Spark has a native savepoint capability.
+          - class: spark-dataset
+            l1: 'No'
+            l2:
+            l3: not implemented
           - class: apex
             l1: 
             l2: 

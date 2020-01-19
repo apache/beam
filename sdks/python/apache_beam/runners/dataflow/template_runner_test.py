@@ -17,6 +17,8 @@
 
 """Unit tests for templated pipelines."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import json
@@ -33,7 +35,7 @@ from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
 try:
   from apache_beam.runners.dataflow.internal import apiclient
 except ImportError:
-  apiclient = None
+  apiclient = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -52,19 +54,19 @@ class TemplatingDataflowRunnerTest(unittest.TestCase):
     dummy_dir = tempfile.mkdtemp()
 
     remote_runner = DataflowRunner()
-    pipeline = Pipeline(remote_runner,
-                        options=PipelineOptions([
-                            '--dataflow_endpoint=ignored',
-                            '--sdk_location=' + dummy_file_name,
-                            '--job_name=test-job',
-                            '--project=test-project',
-                            '--staging_location=' + dummy_dir,
-                            '--temp_location=/dev/null',
-                            '--template_location=' + dummy_file_name,
-                            '--no_auth=True']))
+    with Pipeline(remote_runner,
+                  options=PipelineOptions([
+                      '--dataflow_endpoint=ignored',
+                      '--sdk_location=' + dummy_file_name,
+                      '--job_name=test-job',
+                      '--project=test-project',
+                      '--staging_location=' + dummy_dir,
+                      '--temp_location=/dev/null',
+                      '--template_location=' + dummy_file_name,
+                      '--no_auth'])) as pipeline:
 
-    pipeline | beam.Create([1, 2, 3]) | beam.Map(lambda x: x) # pylint: disable=expression-not-assigned
-    pipeline.run().wait_until_finish()
+      pipeline | beam.Create([1, 2, 3]) | beam.Map(lambda x: x) # pylint: disable=expression-not-assigned
+
     with open(dummy_file_name) as template_file:
       saved_job_dict = json.load(template_file)
       self.assertEqual(
@@ -86,7 +88,7 @@ class TemplatingDataflowRunnerTest(unittest.TestCase):
                             '--staging_location=ignored',
                             '--temp_location=/dev/null',
                             '--template_location=/bad/path',
-                            '--no_auth=True']))
+                            '--no_auth']))
     remote_runner.job = apiclient.Job(pipeline._options,
                                       pipeline.to_runner_api())
 

@@ -26,35 +26,20 @@ applyPythonNature()
 // Required to setup a Python 3 virtualenv.
 pythonVersion = '3.5'
 
+// TODO(BEAM-3713): Migrate to -pytest env variant.
 toxTask "testPython35", "py35"
 test.dependsOn testPython35
 
-toxTask "testPy35Gcp", "py35-gcp"
+toxTask "testPy35Gcp", "py35-gcp-pytest"
 test.dependsOn testPy35Gcp
 
-toxTask "testPy35Cython", "py35-cython"
+toxTask "testPy35Cython", "py35-cython-pytest"
 test.dependsOn testPy35Cython
 
-// Ensure that testPy35Cython runs exclusively to other tests. This line is not
-// actually required, since gradle doesn't do parallel execution within a
-// project.
+// TODO(BEAM-8954): Remove this once tox uses isolated builds.
 testPy35Cython.mustRunAfter testPython35, testPy35Gcp
-
-// TODO(BEAM-3713): Temporary pytest tasks that should eventually replace
-//  nose-based test tasks.
-toxTask "testPy35GcpPytest", "py35-gcp-pytest"
-toxTask "testPython35Pytest", "py35-pytest"
-toxTask "testPy35CythonPytest", "py35-cython-pytest"
-// Ensure that cython tests run exclusively to other tests.
-testPy35CythonPytest.mustRunAfter testPython35Pytest, testPy35GcpPytest
 
 task preCommitPy35() {
     dependsOn "testPy35Gcp"
     dependsOn "testPy35Cython"
-}
-
-task preCommitPy35Pytest {
-  dependsOn "testPy35GcpPytest"
-  dependsOn "testPy35CythonPytest"
-  dependsOn "lint"
 }

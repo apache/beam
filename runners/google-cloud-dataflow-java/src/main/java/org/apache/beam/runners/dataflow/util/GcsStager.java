@@ -93,9 +93,10 @@ public class GcsStager implements Stager {
   }
 
   private GcsCreateOptions buildCreateOptions() {
+    // Default is 1M, to avoid excessive memory use when uploading, but can be changed with
+    // {@link DataflowPipelineOptions#getGcsUploadBufferSizeBytes()}.
     int uploadSizeBytes = firstNonNull(options.getGcsUploadBufferSizeBytes(), 1024 * 1024);
     checkArgument(uploadSizeBytes > 0, "gcsUploadBufferSizeBytes must be > 0");
-    uploadSizeBytes = Math.min(uploadSizeBytes, 1024 * 1024);
 
     return GcsCreateOptions.builder()
         .setGcsUploadBufferSizeBytes(uploadSizeBytes)

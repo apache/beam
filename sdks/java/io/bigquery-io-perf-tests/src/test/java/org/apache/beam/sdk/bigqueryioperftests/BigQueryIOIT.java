@@ -68,6 +68,7 @@ import org.junit.runners.JUnit4;
  *    "--metricsBigQueryDataset=metrics_dataset", \
  *    "--metricsBigQueryTable=metrics_table", \
  *    "--writeMethod=FILE_LOADS", \
+ *    "--writeFormat=AVRO", \
  *    "--sourceOptions={\"numRecords\":\"1000\", \"keySizeBytes\":\"1\", \"valueSizeBytes\":\"1024\"}" \
  *    ]' \
  *  --tests org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT \
@@ -90,6 +91,7 @@ public class BigQueryIOIT {
   private static String tableQualifier;
   private static String tempRoot;
   private static BigQueryPerfTestOptions options;
+  private static WriteFormat writeFormat;
 
   @BeforeClass
   public static void setup() throws IOException {
@@ -100,7 +102,8 @@ public class BigQueryIOIT {
     metricsBigQueryDataset = options.getMetricsBigQueryDataset();
     metricsBigQueryTable = options.getMetricsBigQueryTable();
     testBigQueryDataset = options.getTestBigQueryDataset();
-    testBigQueryTable = String.format("%s_%s", options.getTestBigQueryTable(), TEST_ID);
+    testBigQueryTable = options.getTestBigQueryTable();
+    writeFormat = WriteFormat.valueOf(options.getWriteFormat());
     BigQueryOptions bigQueryOptions = BigQueryOptions.newBuilder().build();
     tableQualifier =
         String.format(
@@ -117,8 +120,14 @@ public class BigQueryIOIT {
 
   @Test
   public void testWriteThenRead() {
-    testJsonWrite();
-    testAvroWrite();
+    switch (writeFormat) {
+      case AVRO:
+        testAvroWrite();
+        break;
+      case JSON:
+        testJsonWrite();
+        break;
+    }
     testRead();
   }
 
@@ -154,7 +163,7 @@ public class BigQueryIOIT {
     BigQueryIO.Write.Method method = BigQueryIO.Write.Method.valueOf(options.getWriteMethod());
     pipeline
         .apply("Read from source", Read.from(new SyntheticBoundedSource(sourceOptions)))
-        .apply("Gather time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
+        .apply("Gather time", ParDo.of(new TimeMonitor<>(NAMESPACE, metricName)))
         .apply("Map records", ParDo.of(new MapKVToV()))
         .apply(
             "Write to BQ",
@@ -235,6 +244,11 @@ public class BigQueryIOIT {
     String getWriteMethod();
 
     void setWriteMethod(String value);
+
+    String getWriteFormat();
+
+    @Description("Write Avro or JSON to BQ")
+    void setWriteFormat(String value);
   }
 
   private static class MapKVToV extends DoFn<KV<byte[], byte[]>, byte[]> {
@@ -242,5 +256,10 @@ public class BigQueryIOIT {
     public void process(ProcessContext context) {
       context.output(context.element().getValue());
     }
+  }
+
+  private enum WriteFormat {
+    AVRO,
+    JSON
   }
 }

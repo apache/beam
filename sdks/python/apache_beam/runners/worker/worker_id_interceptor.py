@@ -15,12 +15,15 @@
 # limitations under the License.
 #
 """Client Interceptor to inject worker_id"""
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
 import collections
 import os
+from typing import Optional
 
 import grpc
 
@@ -41,6 +44,7 @@ class WorkerIdInterceptor(grpc.StreamStreamClientInterceptor):
   _worker_id = os.environ.get('WORKER_ID')
 
   def __init__(self, worker_id=None):
+    # type: (Optional[str]) -> None
     if worker_id:
       self._worker_id = worker_id
 

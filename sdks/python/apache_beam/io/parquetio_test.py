@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import json
@@ -312,7 +314,7 @@ class TestParquet(unittest.TestCase):
       path = dst.name
       with TestPipeline() as p:
         _ = p \
-        | Create(self.RECORDS) \
+        | Create(self.RECORDS, reshuffle=False) \
         | WriteToParquet(
             path, self.SCHEMA, num_shards=1, shard_name_template='')
       with TestPipeline() as p:

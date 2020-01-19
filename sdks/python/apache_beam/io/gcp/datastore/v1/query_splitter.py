@@ -16,6 +16,8 @@
 #
 
 """Implements a Cloud Datastore query splitter."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -37,7 +39,7 @@ try:
                            PropertyFilter.GREATER_THAN,
                            PropertyFilter.GREATER_THAN_OR_EQUAL]
 except ImportError:
-  UNSUPPORTED_OPERATORS = None
+  UNSUPPORTED_OPERATORS = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 

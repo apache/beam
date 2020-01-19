@@ -74,4 +74,15 @@ public class GaugeCellTest {
     Assert.assertNotEquals(gaugeCell, differentName);
     Assert.assertNotEquals(gaugeCell.hashCode(), differentName.hashCode());
   }
+
+  @Test
+  public void testReset() {
+    GaugeCell gaugeCell = new GaugeCell(MetricName.named("namespace", "name"));
+    gaugeCell.set(2);
+    assertThat(gaugeCell.getCumulative().value(), equalTo(GaugeData.create(2).value()));
+
+    gaugeCell.reset();
+    assertThat(gaugeCell.getCumulative(), equalTo(GaugeData.empty()));
+    assertThat(gaugeCell.getDirty(), equalTo(new DirtyState()));
+  }
 }

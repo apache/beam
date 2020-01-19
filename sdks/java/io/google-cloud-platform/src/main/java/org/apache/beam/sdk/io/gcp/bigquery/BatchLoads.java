@@ -22,7 +22,9 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.TableRow;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
@@ -36,6 +38,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -115,6 +118,7 @@ class BatchLoads<DestinationT, ElementT>
   private BigQueryServices bigQueryServices;
   private final WriteDisposition writeDisposition;
   private final CreateDisposition createDisposition;
+  private Set<SchemaUpdateOption> schemaUpdateOptions;
   private final boolean ignoreUnknownValues;
   // Indicates that we are writing to a constant single table. If this is the case, we will create
   // the table, even if there is no data in it.
@@ -132,6 +136,7 @@ class BatchLoads<DestinationT, ElementT>
   private final Coder<ElementT> elementCoder;
   private final RowWriterFactory<ElementT, DestinationT> rowWriterFactory;
   private String kmsKey;
+  private boolean clusteringEnabled;
 
   // The maximum number of times to retry failed load or copy jobs.
   private int maxRetryJobs = DEFAULT_MAX_RETRY_JOBS;
@@ -147,7 +152,8 @@ class BatchLoads<DestinationT, ElementT>
       boolean ignoreUnknownValues,
       Coder<ElementT> elementCoder,
       RowWriterFactory<ElementT, DestinationT> rowWriterFactory,
-      @Nullable String kmsKey) {
+      @Nullable String kmsKey,
+      boolean clusteringEnabled) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
@@ -166,6 +172,12 @@ class BatchLoads<DestinationT, ElementT>
     this.elementCoder = elementCoder;
     this.kmsKey = kmsKey;
     this.rowWriterFactory = rowWriterFactory;
+    this.clusteringEnabled = clusteringEnabled;
+    schemaUpdateOptions = Collections.emptySet();
+  }
+
+  void setSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions) {
+    this.schemaUpdateOptions = schemaUpdateOptions;
   }
 
   void setTestServices(BigQueryServices bigQueryServices) {
@@ -310,6 +322,9 @@ class BatchLoads<DestinationT, ElementT>
                     .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
     PCollection<KV<TableDestination, String>> tempTables =
         writeTempTables(partitions.get(multiPartitionsTag), loadJobIdPrefixView);
+
+    Coder<TableDestination> tableDestinationCoder =
+        clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
     tempTables
         // Now that the load job has happened, we want the rename to happen immediately.
         .apply(
@@ -317,8 +332,7 @@ class BatchLoads<DestinationT, ElementT>
                 .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1))))
         .apply(WithKeys.of((Void) null))
         .setCoder(
-            KvCoder.of(
-                VoidCoder.of(), KvCoder.of(TableDestinationCoderV2.of(), StringUtf8Coder.of())))
+            KvCoder.of(VoidCoder.of(), KvCoder.of(tableDestinationCoder, StringUtf8Coder.of())))
         .apply(GroupByKey.create())
         .apply(Values.create())
         .apply(
@@ -382,9 +396,11 @@ class BatchLoads<DestinationT, ElementT>
     PCollection<KV<TableDestination, String>> tempTables =
         writeTempTables(partitions.get(multiPartitionsTag), loadJobIdPrefixView);
 
+    Coder<TableDestination> tableDestinationCoder =
+        clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
     tempTables
         .apply("ReifyRenameInput", new ReifyAsIterable<>())
-        .setCoder(IterableCoder.of(KvCoder.of(TableDestinationCoderV2.of(), StringUtf8Coder.of())))
+        .setCoder(IterableCoder.of(KvCoder.of(tableDestinationCoder, StringUtf8Coder.of())))
         .apply(
             "WriteRenameUntriggered",
             ParDo.of(
@@ -587,7 +603,8 @@ class BatchLoads<DestinationT, ElementT>
                 maxRetryJobs,
                 ignoreUnknownValues,
                 kmsKey,
-                rowWriterFactory.getSourceFormat()));
+                rowWriterFactory.getSourceFormat(),
+                schemaUpdateOptions));
   }
 
   // In the case where the files fit into a single load job, there's no need to write temporary
@@ -621,7 +638,8 @@ class BatchLoads<DestinationT, ElementT>
                 maxRetryJobs,
                 ignoreUnknownValues,
                 kmsKey,
-                rowWriterFactory.getSourceFormat()));
+                rowWriterFactory.getSourceFormat(),
+                schemaUpdateOptions));
   }
 
   private WriteResult writeResult(Pipeline p) {

@@ -25,6 +25,7 @@ import platform
 import sys
 import warnings
 from distutils import log
+from distutils.errors import DistutilsError
 from distutils.version import StrictVersion
 
 # Pylint and isort disagree here.
@@ -32,11 +33,42 @@ from distutils.version import StrictVersion
 import setuptools
 from pkg_resources import DistributionNotFound
 from pkg_resources import get_distribution
+from pkg_resources import normalize_path
+from pkg_resources import to_filename
+from setuptools import Command
 from setuptools.command.build_py import build_py
-# TODO: (BEAM-8411): re-enable lint check.
-from setuptools.command.develop import develop  # pylint: disable-all
+from setuptools.command.develop import develop
 from setuptools.command.egg_info import egg_info
 from setuptools.command.test import test
+
+
+class mypy(Command):
+  user_options = []
+
+  def initialize_options(self):
+    """Abstract method that is required to be overwritten"""
+
+  def finalize_options(self):
+    """Abstract method that is required to be overwritten"""
+
+  def get_project_path(self):
+    self.run_command('egg_info')
+
+    # Build extensions in-place
+    self.reinitialize_command('build_ext', inplace=1)
+    self.run_command('build_ext')
+
+    ei_cmd = self.get_finalized_command("egg_info")
+
+    project_path = normalize_path(ei_cmd.egg_base)
+    return os.path.join(project_path, to_filename(ei_cmd.egg_name))
+
+  def run(self):
+    import subprocess
+    args = ['mypy', self.get_project_path()]
+    result = subprocess.call(args)
+    if result != 0:
+      raise DistutilsError("mypy exited with status %d" % result)
 
 
 def get_version():
@@ -106,7 +138,10 @@ REQUIRED_PACKAGES = [
     'avro>=1.8.1,<2.0.0; python_version < "3.0"',
     'avro-python3>=1.8.1,<2.0.0; python_version >= "3.0"',
     'crcmod>=1.7,<2.0',
-    # Dill doesn't guarantee compatibility between releases within minor version.
+    # Dill doesn't have forwards-compatibility guarantees within minor version.
+    # Pickles created with a new version of dill may not unpickle using older
+    # version of dill. It is best to use the same version of dill on client and
+    # server, therefore list of allowed versions is very narrow.
     # See: https://github.com/uqfoundation/dill/issues/341.
     'dill>=0.3.1.1,<0.3.2',
     'fastavro>=0.21.4,<0.22',
@@ -129,7 +164,9 @@ REQUIRED_PACKAGES = [
     'pytz>=2018.3',
     # [BEAM-5628] Beam VCF IO is not supported in Python 3.
     'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
-    'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
+    # fixes and additions have been made since typing 3.5
+    'typing>=3.7.0,<3.8.0; python_version < "3.8.0"',
+    'typing-extensions>=3.7.0,<3.8.0; python_version < "3.8.0"',
     ]
 
 # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
@@ -139,11 +176,14 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
   ]
 
 REQUIRED_TEST_PACKAGES = [
+    'freezegun>=0.3.12',
     'nose>=1.3.7',
     'nose_xunitmp>=0.4.1',
     'pandas>=0.23.4,<0.25',
-    'parameterized>=0.6.0,<0.7.0',
-    'pyhamcrest>=1.9,<2.0',
+    'parameterized>=0.6.0,<0.8.0',
+    # pyhamcrest==1.10.0 doesn't work on Py2. Beam still supports Py2.
+    # See: https://github.com/hamcrest/PyHamcrest/issues/131.
+    'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
     'pyyaml>=3.12,<6.0.0',
     'requests_mock>=1.7,<2.0',
     'tenacity>=5.0.2,<6.0',
@@ -164,6 +204,8 @@ GCP_REQUIREMENTS = [
     'google-cloud-bigtable>=0.31.1,<1.1.0',
     # [BEAM-4543] googledatastore is not supported in Python 3.
     'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4; python_version < "3.0"',
+    'google-cloud-spanner>=1.7.1<1.8.0',
+    'grpcio-gcp>=0.2.2,<1',
 ]
 
 INTERACTIVE_BEAM = [
@@ -173,6 +215,10 @@ INTERACTIVE_BEAM = [
     'jsons>=1.0.0,<2; python_version >= "3.5.3"',
     'timeloop>=1.0.2,<2',
 ]
+AWS_REQUIREMENTS = [
+    'boto3 >=1.9'
+]
+
 
 # We must generate protos after setup_requires are installed.
 def generate_protos_first(original_cmd):
@@ -227,16 +273,13 @@ setuptools.setup(
     install_requires=REQUIRED_PACKAGES,
     python_requires=python_requires,
     test_suite='nose.collector',
-    setup_requires=['pytest_runner'],
-    tests_require= [
-        REQUIRED_TEST_PACKAGES,
-        INTERACTIVE_BEAM,
-    ],
+    # BEAM-8840: Do NOT use tests_require or setup_requires.
     extras_require={
         'docs': ['Sphinx>=1.5.2,<2.0'],
         'test': REQUIRED_TEST_PACKAGES,
         'gcp': GCP_REQUIREMENTS,
         'interactive': INTERACTIVE_BEAM,
+        'aws': AWS_REQUIREMENTS
     },
     zip_safe=False,
     # PyPI package information.
@@ -262,5 +305,6 @@ setuptools.setup(
         'develop': generate_protos_first(develop),
         'egg_info': generate_protos_first(egg_info),
         'test': generate_protos_first(test),
+        'mypy': generate_protos_first(mypy),
     },
 )

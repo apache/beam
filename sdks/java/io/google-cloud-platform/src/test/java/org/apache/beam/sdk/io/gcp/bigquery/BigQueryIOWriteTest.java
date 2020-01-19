@@ -36,6 +36,8 @@ import static org.junit.Assert.fail;
 
 import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.ErrorProto;
+import com.google.api.services.bigquery.model.Job;
+import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -54,11 +56,14 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -68,6 +73,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
@@ -678,6 +684,35 @@ public class BigQueryIOWriteTest implements Serializable {
     p.run();
   }
 
+  @Test
+  public void testWriteWithoutInsertId() throws Exception {
+    TableRow row1 = new TableRow().set("name", "a").set("number", 1);
+    TableRow row2 = new TableRow().set("name", "b").set("number", 2);
+    TableRow row3 = new TableRow().set("name", "c").set("number", 3);
+    p.apply(Create.of(row1, row2, row3).withCoder(TableRowJsonCoder.of()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table-id")
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS)
+                .withSchema(
+                    new TableSchema()
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema().setName("name").setType("STRING"),
+                                new TableFieldSchema().setName("number").setType("INTEGER"))))
+                .withTestServices(fakeBqServices)
+                .ignoreInsertIds()
+                .withoutValidation());
+    p.run();
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(row1, row2, row3));
+    // Verify no insert id is added.
+    assertThat(
+        fakeDatasetService.getAllIds("project-id", "dataset-id", "table-id"), containsInAnyOrder());
+  }
+
   @AutoValue
   abstract static class InputRecord implements Serializable {
 
@@ -1179,6 +1214,8 @@ public class BigQueryIOWriteTest implements Serializable {
             .withSchema(schema)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
             .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+            .withSchemaUpdateOptions(
+                EnumSet.of(BigQueryIO.Write.SchemaUpdateOption.ALLOW_FIELD_ADDITION))
             .withTableDescription(tblDescription)
             .withoutValidation();
 
@@ -1194,6 +1231,11 @@ public class BigQueryIOWriteTest implements Serializable {
         displayData,
         hasDisplayItem(
             "writeDisposition", BigQueryIO.Write.WriteDisposition.WRITE_APPEND.toString()));
+    assertThat(
+        displayData,
+        hasDisplayItem(
+            "schemaUpdateOptions",
+            EnumSet.of(BigQueryIO.Write.SchemaUpdateOption.ALLOW_FIELD_ADDITION).toString()));
     assertThat(displayData, hasDisplayItem("tableDescription", tblDescription));
     assertThat(displayData, hasDisplayItem("validation", false));
   }
@@ -1571,7 +1613,8 @@ public class BigQueryIOWriteTest implements Serializable {
             4,
             false,
             null,
-            "NEWLINE_DELIMITED_JSON");
+            "NEWLINE_DELIMITED_JSON",
+            Collections.emptySet());
 
     PCollection<KV<TableDestination, String>> writeTablesOutput =
         writeTablesInput.apply(writeTables);
@@ -1853,5 +1896,60 @@ public class BigQueryIOWriteTest implements Serializable {
               "Cannot use getFailedInserts as this WriteResult "
                   + "uses extended errors information. Use getFailedInsertsWithErr instead"));
     }
+  }
+
+  void schemaUpdateOptionsTest(
+      BigQueryIO.Write.Method insertMethod, Set<SchemaUpdateOption> schemaUpdateOptions)
+      throws Exception {
+    TableRow row = new TableRow().set("date", "2019-01-01").set("number", "1");
+
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema()
+                        .setName("date")
+                        .setType("DATE")
+                        .setName("number")
+                        .setType("INTEGER")));
+
+    Write<TableRow> writeTransform =
+        BigQueryIO.writeTableRows()
+            .to("project-id:dataset-id.table-id")
+            .withTestServices(fakeBqServices)
+            .withMethod(insertMethod)
+            .withSchema(schema)
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+            .withSchemaUpdateOptions(schemaUpdateOptions);
+
+    p.apply(Create.<TableRow>of(row)).apply(writeTransform);
+    p.run();
+
+    List<String> expectedOptions =
+        schemaUpdateOptions.stream().map(Enum::name).collect(Collectors.toList());
+
+    for (Job job : fakeJobService.getAllJobs()) {
+      JobConfigurationLoad configuration = job.getConfiguration().getLoad();
+      assertEquals(expectedOptions, configuration.getSchemaUpdateOptions());
+    }
+  }
+
+  @Test
+  public void testWriteFileSchemaUpdateOptionAllowFieldAddition() throws Exception {
+    Set<SchemaUpdateOption> options = EnumSet.of(SchemaUpdateOption.ALLOW_FIELD_ADDITION);
+    schemaUpdateOptionsTest(BigQueryIO.Write.Method.FILE_LOADS, options);
+  }
+
+  @Test
+  public void testWriteFileSchemaUpdateOptionAllowFieldRelaxation() throws Exception {
+    Set<SchemaUpdateOption> options = EnumSet.of(SchemaUpdateOption.ALLOW_FIELD_RELAXATION);
+    schemaUpdateOptionsTest(BigQueryIO.Write.Method.FILE_LOADS, options);
+  }
+
+  @Test
+  public void testWriteFileSchemaUpdateOptionAll() throws Exception {
+    Set<SchemaUpdateOption> options = EnumSet.allOf(SchemaUpdateOption.class);
+    schemaUpdateOptionsTest(BigQueryIO.Write.Method.FILE_LOADS, options);
   }
 }

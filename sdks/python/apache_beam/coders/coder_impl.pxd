@@ -211,5 +211,12 @@ cdef class WindowedValueCoderImpl(StreamCoderImpl):
   cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
 
 
+cdef class ParamWindowedValueCoderImpl(WindowedValueCoderImpl):
+  """A coder for windowed values with constant timestamp, windows and pane info."""
+  cdef readonly libc.stdint.int64_t _timestamp
+  cdef readonly object _windows
+  cdef readonly windowed_value.PaneInfo _pane_info
+
+
 cdef class LengthPrefixCoderImpl(StreamCoderImpl):
   cdef CoderImpl _value_coder

@@ -29,7 +29,7 @@ import java.util.Set;
 import org.apache.beam.runners.apex.translation.operators.ApexTimerInternals.TimerProcessor;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.core.TimerInternals.TimerDataCoder;
+import org.apache.beam.runners.core.TimerInternals.TimerDataCoderV2;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -46,7 +46,7 @@ public class ApexTimerInternalsTest {
     final Map<String, Collection<TimerData>> firedTimers = new HashMap<>();
     TimerProcessor<String> timerProcessor = firedTimers::put;
 
-    TimerDataCoder timerDataCoder = TimerDataCoder.of(GlobalWindow.Coder.INSTANCE);
+    TimerDataCoderV2 timerDataCoder = TimerDataCoderV2.of(GlobalWindow.Coder.INSTANCE);
     String key1 = "key1";
     Instant instant0 = new Instant(0);
     Instant instant1 = new Instant(1);
@@ -56,11 +56,13 @@ public class ApexTimerInternalsTest {
     timerInternals.setContext(key1, StringUtf8Coder.of(), Instant.now(), null);
 
     TimerData timerData0 =
-        TimerData.of("timerData0", StateNamespaces.global(), instant0, TimeDomain.EVENT_TIME);
+        TimerData.of(
+            "timerData0", StateNamespaces.global(), instant0, instant0, TimeDomain.EVENT_TIME);
     timerInternals.setTimer(timerData0);
 
     TimerData timerData1 =
-        TimerData.of("timerData1", StateNamespaces.global(), instant1, TimeDomain.EVENT_TIME);
+        TimerData.of(
+            "timerData1", StateNamespaces.global(), instant1, instant1, TimeDomain.EVENT_TIME);
     timerInternals.setTimer(timerData1);
 
     timerInternals.fireReadyTimers(instant0.getMillis(), timerProcessor, TimeDomain.EVENT_TIME);
@@ -85,7 +87,7 @@ public class ApexTimerInternalsTest {
 
   @Test
   public void testDeleteTimer() {
-    TimerDataCoder timerDataCoder = TimerDataCoder.of(GlobalWindow.Coder.INSTANCE);
+    TimerDataCoderV2 timerDataCoder = TimerDataCoderV2.of(GlobalWindow.Coder.INSTANCE);
     String key1 = "key1";
     Instant instant0 = new Instant(0);
     Instant instant1 = new Instant(1);
@@ -94,18 +96,20 @@ public class ApexTimerInternalsTest {
     timerInternals.setContext(key1, StringUtf8Coder.of(), Instant.now(), null);
 
     TimerData timerData0 =
-        TimerData.of("timerData0", StateNamespaces.global(), instant0, TimeDomain.EVENT_TIME);
+        TimerData.of(
+            "timerData0", StateNamespaces.global(), instant0, instant0, TimeDomain.EVENT_TIME);
     timerInternals.setTimer(timerData0);
 
     TimerData timerData1 =
-        TimerData.of("timerData1", StateNamespaces.global(), instant1, TimeDomain.EVENT_TIME);
+        TimerData.of(
+            "timerData1", StateNamespaces.global(), instant1, instant1, TimeDomain.EVENT_TIME);
     timerInternals.setTimer(timerData1);
 
     Map<?, Set<Slice>> timerMap = timerInternals.getTimerSet(TimeDomain.EVENT_TIME).getMap();
     assertEquals(1, timerMap.size());
     assertEquals(2, timerMap.values().iterator().next().size());
 
-    timerInternals.deleteTimer(timerData0.getNamespace(), timerData0.getTimerId());
+    timerInternals.deleteTimer(timerData0.getNamespace(), timerData0.getTimerId(), "");
     assertEquals(1, timerMap.size());
     assertEquals(1, timerMap.values().iterator().next().size());
 
@@ -121,7 +125,7 @@ public class ApexTimerInternalsTest {
 
   @Test
   public void testSerialization() {
-    TimerDataCoder timerDataCoder = TimerDataCoder.of(GlobalWindow.Coder.INSTANCE);
+    TimerDataCoderV2 timerDataCoder = TimerDataCoderV2.of(GlobalWindow.Coder.INSTANCE);
     TimerData timerData =
         TimerData.of(
             "arbitrary-id", StateNamespaces.global(), new Instant(0), TimeDomain.EVENT_TIME);

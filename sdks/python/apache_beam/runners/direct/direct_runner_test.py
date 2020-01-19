@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import threading
@@ -79,7 +81,7 @@ class DirectPipelineResultTest(unittest.TestCase):
         return [element]
 
     p = Pipeline(DirectRunner())
-    pcoll = (p | beam.Create([1, 2, 3, 4, 5])
+    pcoll = (p | beam.Create([1, 2, 3, 4, 5], reshuffle=False)
              | 'Do' >> beam.ParDo(MyDoFn()))
     assert_that(pcoll, equal_to([1, 2, 3, 4, 5]))
     result = p.run()
@@ -131,6 +133,10 @@ class BundleBasedRunnerTest(unittest.TestCase):
       _ = (p
            | beam.Create([[]]).with_output_types(beam.typehints.List[int])
            | beam.combiners.Count.Globally())
+
+  def test_impulse(self):
+    with test_pipeline.TestPipeline(runner='BundleBasedDirectRunner') as p:
+      assert_that(p | beam.Impulse(), equal_to([b'']))
 
 
 class DirectRunnerRetryTests(unittest.TestCase):

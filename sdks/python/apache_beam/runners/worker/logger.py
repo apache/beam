@@ -19,12 +19,16 @@
 
 """Python worker logging."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import json
 import logging
 import threading
 import traceback
+from typing import Any
+from typing import Dict
 
 from apache_beam.runners.worker import statesampler
 
@@ -115,7 +119,7 @@ class JsonLogFormatter(logging.Formatter):
         Python thread object. Nevertheless having this value can allow to
         filter log statement from only one specific thread.
     """
-    output = {}
+    output = {}  # type: Dict[str, Any]
     output['timestamp'] = {
         'seconds': int(record.created),
         'nanos': int(record.msecs * 1000000)}

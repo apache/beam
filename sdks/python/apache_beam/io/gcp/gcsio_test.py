@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 """Tests for Google Cloud Storage client."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -108,7 +110,7 @@ class FakeGcsObjects(object):
   def Get(self, get_request, download=None):  # pylint: disable=invalid-name
     f = self.get_file(get_request.bucket, get_request.object)
     if f is None:
-      # Failing with a HTTP 404 if file does not exist.
+      # Failing with an HTTP 404 if file does not exist.
       raise HttpError({'status': 404}, None, None)
     if download is None:
       return f.get_metadata()

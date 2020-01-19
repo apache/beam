@@ -18,11 +18,16 @@
 # cython: language_level=3
 # cython: profile=True
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections
 import time
 from functools import reduce
+from typing import FrozenSet
+from typing import Hashable
+from typing import List
 
 from google.protobuf import timestamp_pb2
 
@@ -129,6 +134,7 @@ def create_labels(ptransform=None, tag=None, namespace=None, name=None):
 
 
 def int64_user_counter(namespace, name, metric, ptransform=None, tag=None):
+  # type: (...) -> metrics_pb2.MonitoringInfo
   """Return the counter monitoring info for the specifed URN, metric and labels.
 
   Args:
@@ -151,6 +157,7 @@ def int64_user_counter(namespace, name, metric, ptransform=None, tag=None):
 
 
 def int64_counter(urn, metric, ptransform=None, tag=None):
+  # type: (...) -> metrics_pb2.MonitoringInfo
   """Return the counter monitoring info for the specifed URN, metric and labels.
 
   Args:
@@ -187,6 +194,7 @@ def int64_user_distribution(namespace, name, metric, ptransform=None, tag=None):
 
 
 def int64_distribution(urn, metric, ptransform=None, tag=None):
+  # type: (...) -> metrics_pb2.MonitoringInfo
   """Return a distribution monitoring info for the URN, metric and labels.
 
   Args:
@@ -201,6 +209,7 @@ def int64_distribution(urn, metric, ptransform=None, tag=None):
 
 
 def int64_user_gauge(namespace, name, metric, ptransform=None, tag=None):
+  # type: (...) -> metrics_pb2.MonitoringInfo
   """Return the gauge monitoring info for the URN, metric and labels.
 
   Args:
@@ -237,6 +246,7 @@ def int64_gauge(urn, metric, ptransform=None, tag=None):
 
 
 def create_monitoring_info(urn, type_urn, metric_proto, labels=None):
+  # type: (...) -> metrics_pb2.MonitoringInfo
   """Return the gauge monitoring info for the URN, type, metric and labels.
 
   Args:
@@ -327,11 +337,12 @@ def get_step_name(monitoring_info_proto):
 
 
 def to_key(monitoring_info_proto):
+  # type: (metrics_pb2.MonitoringInfo) -> FrozenSet[Hashable]
   """Returns a key based on the URN and labels.
 
   This is useful in maps to prevent reporting the same MonitoringInfo twice.
   """
-  key_items = list(monitoring_info_proto.labels.items())
+  key_items = list(monitoring_info_proto.labels.items())  # type: List[Hashable]
   key_items.append(monitoring_info_proto.urn)
   return frozenset(key_items)
 

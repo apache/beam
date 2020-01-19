@@ -16,6 +16,8 @@
 #
 """Tests for apache_beam.runners.worker.sdk_worker."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -105,10 +107,9 @@ class SdkWorkerTest(unittest.TestCase):
           "localhost:%s" % test_port, state_cache_size=100)
       harness.run()
 
-      for worker in harness.workers.queue:
-        self.assertEqual(worker.bundle_processor_cache.fns,
-                         {item.id: item
-                          for item in process_bundle_descriptors})
+      self.assertEqual(harness._bundle_processor_cache.fns,
+                       {item.id: item
+                        for item in process_bundle_descriptors})
 
   def test_fn_registration(self):
     self._check_fn_registration_multi_request((1, 4), (4, 4))

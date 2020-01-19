@@ -20,6 +20,8 @@
 For internal use only; no backwards-compatibility guarantees.
 Only works with Python 3.5+.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import base64
@@ -74,11 +76,14 @@ _OVERVIEW_HTML_TEMPLATE = """
             </script>"""
 _DATAFRAME_PAGINATION_TEMPLATE = """
             <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.2/jquery.min.js"></script>
-            <script src="https://cdn.datatables.net/1.10.16/js/jquery.dataTables.js"></script>
-            <link rel="stylesheet" href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.css">
+            <script src="https://cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js"></script>
+            <link rel="stylesheet" href="https://cdn.datatables.net/1.10.20/css/jquery.dataTables.min.css">
             {dataframe_html}
             <script>
-              $("#{table_id}").DataTable();
+              $(document).ready(
+                function() {{
+                  $("#{table_id}").DataTable();
+                }});
             </script>"""
 
 

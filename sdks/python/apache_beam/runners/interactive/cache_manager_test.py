@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -41,7 +43,7 @@ class FileBasedCacheManagerTest(object):
   tested with InteractiveRunner as a part of integration tests instead.
   """
 
-  cache_format = None
+  cache_format = None  # type: str
 
   def setUp(self):
     self.test_dir = tempfile.mkdtemp()

@@ -42,6 +42,8 @@ Usage:
       "
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -161,43 +163,42 @@ class FastavroIT(unittest.TestCase):
     result.wait_until_finish()
     assert result.state == PipelineState.DONE
 
-    fastavro_read_pipeline = TestPipeline(is_integration_test=True)
+    with TestPipeline(is_integration_test=True) as fastavro_read_pipeline:
 
-    fastavro_records = \
-        fastavro_read_pipeline \
-        | 'create-fastavro' >> Create(['%s*' % fastavro_output]) \
-        | 'read-fastavro' >> ReadAllFromAvro(use_fastavro=True) \
-        | Map(lambda rec: (rec['number'], rec))
+      fastavro_records = \
+          fastavro_read_pipeline \
+          | 'create-fastavro' >> Create(['%s*' % fastavro_output]) \
+          | 'read-fastavro' >> ReadAllFromAvro(use_fastavro=True) \
+          | Map(lambda rec: (rec['number'], rec))
 
-    avro_records = \
-        fastavro_read_pipeline \
-        | 'create-avro' >> Create(['%s*' % avro_output]) \
-        | 'read-avro' >> ReadAllFromAvro(use_fastavro=False) \
-        | Map(lambda rec: (rec['number'], rec))
+      avro_records = \
+          fastavro_read_pipeline \
+          | 'create-avro' >> Create(['%s*' % avro_output]) \
+          | 'read-avro' >> ReadAllFromAvro(use_fastavro=False) \
+          | Map(lambda rec: (rec['number'], rec))
 
-    def check(elem):
-      v = elem[1]
+      def check(elem):
+        v = elem[1]
 
-      def assertEqual(l, r):
-        if l != r:
-          raise BeamAssertException('Assertion failed: %s == %s' % (l, r))
+        def assertEqual(l, r):
+          if l != r:
+            raise BeamAssertException('Assertion failed: %s == %s' % (l, r))
 
-      assertEqual(v.keys(), ['avro', 'fastavro'])
-      avro_values = v['avro']
-      fastavro_values = v['fastavro']
-      assertEqual(avro_values, fastavro_values)
-      assertEqual(len(avro_values), 1)
+        assertEqual(v.keys(), ['avro', 'fastavro'])
+        avro_values = v['avro']
+        fastavro_values = v['fastavro']
+        assertEqual(avro_values, fastavro_values)
+        assertEqual(len(avro_values), 1)
 
-    # pylint: disable=expression-not-assigned
-    {
-        'avro': avro_records,
-        'fastavro': fastavro_records
-    } \
-    | CoGroupByKey() \
-    | Map(check)
+      # pylint: disable=expression-not-assigned
+      {
+          'avro': avro_records,
+          'fastavro': fastavro_records
+      } \
+      | CoGroupByKey() \
+      | Map(check)
 
-    self.addCleanup(delete_files, [self.output])
-    fastavro_read_pipeline.run().wait_until_finish()
+      self.addCleanup(delete_files, [self.output])
     assert result.state == PipelineState.DONE
 
 

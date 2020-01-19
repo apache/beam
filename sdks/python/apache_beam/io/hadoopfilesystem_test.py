@@ -17,6 +17,8 @@
 
 """Unit tests for :class:`HadoopFileSystem`."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import io
@@ -38,7 +40,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 
 class FakeFile(io.BytesIO):
   """File object for FakeHdfs"""
-  __hash__ = None
+  __hash__ = None  # type: ignore[assignment]
 
   def __init__(self, path, mode='', type='FILE'):
     io.BytesIO.__init__(self)

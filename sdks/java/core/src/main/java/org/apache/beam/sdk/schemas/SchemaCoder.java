@@ -37,6 +37,7 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.FloatCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.RowCoder;
@@ -101,7 +102,8 @@ public class SchemaCoder<T> extends CustomCoder<T> {
 
   /**
    * Returns a {@link SchemaCoder} for the specified class. If no schema is registered for this
-   * class, then throws {@link NoSuchSchemaException}.
+   * class, then throws {@link NoSuchSchemaException}. The parameter functions to convert from and
+   * to Rows <b>must</b> implement the equals contract.
    */
   public static <T> SchemaCoder<T> of(
       Schema schema,
@@ -123,6 +125,8 @@ public class SchemaCoder<T> extends CustomCoder<T> {
         return (Coder<T>) SchemaCoder.of(fieldType.getRowSchema());
       case ARRAY:
         return (Coder<T>) ListCoder.of(coderForFieldType(fieldType.getCollectionElementType()));
+      case ITERABLE:
+        return (Coder<T>) IterableCoder.of(coderForFieldType(fieldType.getCollectionElementType()));
       case MAP:
         return (Coder<T>)
             MapCoder.of(
@@ -224,6 +228,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
         return;
 
       case ARRAY:
+      case ITERABLE:;
         setSchemaIds(fieldType.getCollectionElementType());
         return;
 

@@ -16,6 +16,8 @@
 #
 """UnitTests for DoFn lifecycle and bundle methods"""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import unittest
@@ -76,12 +78,10 @@ class CallSequenceEnforcingDoFn(beam.DoFn):
 @attr('ValidatesRunner')
 class DoFnLifecycleTest(unittest.TestCase):
   def test_dofn_lifecycle(self):
-    p = TestPipeline()
-    _ = (p
-         | 'Start' >> beam.Create([1, 2, 3])
-         | 'Do' >> beam.ParDo(CallSequenceEnforcingDoFn()))
-    result = p.run()
-    result.wait_until_finish()
+    with TestPipeline() as p:
+      _ = (p
+           | 'Start' >> beam.Create([1, 2, 3])
+           | 'Do' >> beam.ParDo(CallSequenceEnforcingDoFn()))
     # Assumes that the worker is run in the same process as the test.
 
 

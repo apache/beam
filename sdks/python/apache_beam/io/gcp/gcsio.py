@@ -20,6 +20,8 @@ This library evolved from the Google App Engine GCS client available at
 https://github.com/GoogleCloudPlatform/appengine-gcs-client.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import errno

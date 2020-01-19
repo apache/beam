@@ -17,15 +17,20 @@
 
 """Module to convert Python's native typing types to Beam types."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections
+import logging
 import sys
 import typing
 from builtins import next
 from builtins import range
 
 from apache_beam.typehints import typehints
+
+_LOGGER = logging.getLogger(__name__)
 
 # Describes an entry in the type map in convert_to_beam_type.
 # match is a function that takes a user type and returns whether the conversion
@@ -44,7 +49,10 @@ def _get_compatible_args(typ):
   # __union_params__ argument respectively.
   if (3, 0, 0) <= sys.version_info[0:3] < (3, 5, 3):
     if getattr(typ, '__tuple_params__', None) is not None:
-      return typ.__tuple_params__
+      if typ.__tuple_use_ellipsis__:
+        return typ.__tuple_params__ + (Ellipsis,)
+      else:
+        return typ.__tuple_params__
     elif getattr(typ, '__union_params__', None) is not None:
       return typ.__union_params__
   return None
@@ -176,14 +184,15 @@ def _match_is_union(user_type):
 
 # Mapping from typing.TypeVar/typehints.TypeVariable ids to an object of the
 # other type. Bidirectional mapping preserves typing.TypeVar instances.
-_type_var_cache = {}
+_type_var_cache = {}  # type: typing.Dict[int, typehints.TypeVariable]
 
 
 def convert_to_beam_type(typ):
   """Convert a given typing type to a Beam type.
 
   Args:
-    typ (type): typing type.
+    typ (`typing.Union[type, str]`): typing type or string literal representing
+      a type.
 
   Returns:
     type: The given type converted to a Beam type as far as we can do the
@@ -203,6 +212,11 @@ def convert_to_beam_type(typ):
       _type_var_cache[id(typ)] = new_type_variable
       _type_var_cache[id(new_type_variable)] = typ
     return _type_var_cache[id(typ)]
+  elif isinstance(typ, str):
+    # Special case for forward references.
+    # TODO(BEAM-8487): Currently unhandled.
+    _LOGGER.info('Converting string literal type hint to Any: "%s"', typ)
+    return typehints.Any
   elif getattr(typ, '__module__', None) != 'typing':
     # Only translate types from the typing module.
     return typ
@@ -251,8 +265,9 @@ def convert_to_beam_type(typ):
   # Find the first matching entry.
   matched_entry = next((entry for entry in type_map if entry.match(typ)), None)
   if not matched_entry:
-    # No match: return original type.
-    return typ
+    # Please add missing type support if you see this message.
+    _LOGGER.info('Using Any for unsupported type: %s', typ)
+    return typehints.Any
 
   if matched_entry.arity == -1:
     arity = _len_arg(typ)

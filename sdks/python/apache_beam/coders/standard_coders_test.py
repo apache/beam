@@ -17,6 +17,8 @@
 
 """Unit tests for coders that must be consistent across all Beam SDKs.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -27,6 +29,8 @@ import os.path
 import sys
 import unittest
 from builtins import map
+from typing import Dict
+from typing import Tuple
 
 import yaml
 
@@ -39,6 +43,8 @@ from apache_beam.transforms.window import IntervalWindow
 from apache_beam.typehints import schemas
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import Timestamp
+from apache_beam.utils.windowed_value import PaneInfo
+from apache_beam.utils.windowed_value import PaneInfoTiming
 
 STANDARD_CODERS_YAML = os.path.normpath(os.path.join(
     os.path.dirname(__file__), '../portability/api/standard_coders.yaml'))
@@ -123,6 +129,16 @@ class StandardCodersTest(unittest.TestCase):
           lambda x, value_parser, window_parser: windowed_value.create(
               value_parser(x['value']), x['timestamp'] * 1000,
               tuple([window_parser(w) for w in x['windows']])),
+      'beam:coder:param_windowed_value:v1':
+          lambda x, value_parser, window_parser: windowed_value.create(
+              value_parser(x['value']), x['timestamp'] * 1000,
+              tuple([window_parser(w) for w in x['windows']]),
+              PaneInfo(
+                  x['pane']['is_first'],
+                  x['pane']['is_last'],
+                  PaneInfoTiming.from_string(x['pane']['timing']),
+                  x['pane']['index'],
+                  x['pane']['on_time_index'])),
       'beam:coder:timer:v1':
           lambda x, payload_parser: dict(
               payload=payload_parser(x['payload']),
@@ -191,7 +207,7 @@ class StandardCodersTest(unittest.TestCase):
   # Used when --fix is passed.
 
   fix = False
-  to_fix = {}
+  to_fix = {}  # type: Dict[Tuple[int, bytes], bytes]
 
   @classmethod
   def tearDownClass(cls):

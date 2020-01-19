@@ -20,6 +20,8 @@
 The 4.2 spec is available at https://samtools.github.io/hts-specs/VCFv4.2.pdf.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -82,7 +84,7 @@ class Variant(object):
 
   Each object corresponds to a single record in a VCF file.
   """
-  __hash__ = None
+  __hash__ = None  # type: ignore[assignment]
 
   def __init__(self,
                reference_name=None,
@@ -179,9 +181,6 @@ class Variant(object):
 
     return self < other or self == other
 
-  def __ne__(self, other):
-    return not self == other
-
   def __gt__(self, other):
     if not isinstance(other, Variant):
       return NotImplemented
@@ -202,7 +201,7 @@ class VariantCall(object):
   variant. It may include associated information such as quality and phasing.
   """
 
-  __hash__ = None
+  __hash__ = None  # type: ignore[assignment]
 
   def __init__(self, name=None, genotype=None, phaseset=None, info=None):
     """Initialize the :class:`VariantCall` object.

@@ -17,9 +17,16 @@
 
 """A factory that creates UncommittedBundles."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from builtins import object
+from typing import Iterable
+from typing import Iterator
+from typing import List
+from typing import Union
+from typing import cast
 
 from apache_beam import pvalue
 from apache_beam.runners import common
@@ -38,12 +45,15 @@ class BundleFactory(object):
   """
 
   def __init__(self, stacked):
+    # type: (bool) -> None
     self._stacked = stacked
 
   def create_bundle(self, output_pcollection):
+    # type: (Union[pvalue.PBegin, pvalue.PCollection]) -> _Bundle
     return _Bundle(output_pcollection, self._stacked)
 
   def create_empty_committed_bundle(self, output_pcollection):
+    # type: (Union[pvalue.PBegin, pvalue.PCollection]) -> _Bundle
     bundle = self.create_bundle(output_pcollection)
     bundle.commit(None)
     return bundle
@@ -107,6 +117,7 @@ class _Bundle(common.Receiver):
       self._appended_values.append(value)
 
     def windowed_values(self):
+      # type: () -> Iterator[WindowedValue]
       # yield first windowed_value as is, then iterate through
       # _appended_values to yield WindowedValue on the fly.
       yield self._initial_windowed_value
@@ -114,14 +125,16 @@ class _Bundle(common.Receiver):
         yield self._initial_windowed_value.with_value(v)
 
   def __init__(self, pcollection, stacked=True):
+    # type: (Union[pvalue.PBegin, pvalue.PCollection], bool) -> None
     assert isinstance(pcollection, (pvalue.PBegin, pvalue.PCollection))
     self._pcollection = pcollection
-    self._elements = []
+    self._elements = []  # type: List[Union[WindowedValue, _Bundle._StackedWindowedValues]]
     self._stacked = stacked
     self._committed = False
     self._tag = None  # optional tag information for this bundle
 
   def get_elements_iterable(self, make_copy=False):
+    # type: (bool) -> Iterable[WindowedValue]
     """Returns iterable elements.
 
     Args:
@@ -133,9 +146,11 @@ class _Bundle(common.Receiver):
       or as a list of copied WindowedValues.
     """
     if not self._stacked:
+      # we can safely assume self._elements contains only WindowedValues
+      elements = cast('List[WindowedValue]', self._elements)
       if self._committed and not make_copy:
-        return self._elements
-      return list(self._elements)
+        return elements
+      return list(elements)
 
     def iterable_stacked_or_elements(elements):
       for e in elements:
@@ -193,6 +208,7 @@ class _Bundle(common.Receiver):
     self.add(element)
 
   def receive(self, element):
+    # type: (WindowedValue) -> None
     self.add(element)
 
   def commit(self, synchronized_processing_time):

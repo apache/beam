@@ -13,6 +13,8 @@
 # limitations under the License.
 """Runs a batch job for performing Tensorflow Model Analysis."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import, division, print_function
 
 import argparse
@@ -137,7 +139,7 @@ def MapEvalToPCollection(  # pylint: disable=invalid-name
 
 
 def main():
-  tf.logging.set_verbosity(tf.logging.INFO)
+  tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
 
   parser = argparse.ArgumentParser()
 

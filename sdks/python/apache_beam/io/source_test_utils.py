@@ -43,6 +43,8 @@ For example usages, see the unit tests of modules such as
  * apache_beam.io.source_test_utils_test.py
  * apache_beam.io.avroio_test.py
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 

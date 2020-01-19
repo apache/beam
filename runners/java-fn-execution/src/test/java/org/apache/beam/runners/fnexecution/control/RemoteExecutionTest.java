@@ -60,7 +60,6 @@ import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
-import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.ActiveBundle;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
@@ -70,7 +69,8 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.BagUserStateHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.BagUserStateHandlerFactory;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.SideInputHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.IterableSideInputHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.MultimapSideInputHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.SideInputHandlerFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -111,7 +111,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Collections2;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -164,7 +164,10 @@ public class RemoteExecutionTest implements Serializable {
     InProcessServerFactory serverFactory = InProcessServerFactory.create();
     dataServer =
         GrpcFnServer.allocatePortAndCreateFor(
-            GrpcDataService.create(serverExecutor, OutboundObserverFactory.serverDirect()),
+            GrpcDataService.create(
+                PipelineOptionsFactory.create(),
+                serverExecutor,
+                OutboundObserverFactory.serverDirect()),
             serverFactory);
     loggingServer =
         GrpcFnServer.allocatePortAndCreateFor(
@@ -282,7 +285,7 @@ public class RemoteExecutionTest implements Serializable {
     }
     // The impulse example
 
-    try (ActiveBundle bundle =
+    try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(WindowedValue.valueInGlobalWindow(new byte[0]));
@@ -346,7 +349,7 @@ public class RemoteExecutionTest implements Serializable {
               (FnDataReceiver<? super WindowedValue<?>>) outputContents::add));
     }
 
-    try (ActiveBundle bundle =
+    try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(
@@ -355,7 +358,7 @@ public class RemoteExecutionTest implements Serializable {
     }
 
     try {
-      try (ActiveBundle bundle =
+      try (RemoteBundle bundle =
           processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
         Iterables.getOnlyElement(bundle.getInputReceivers().values())
             .accept(
@@ -368,7 +371,7 @@ public class RemoteExecutionTest implements Serializable {
       assertTrue(e.getMessage().contains("testBundleExecutionFailure"));
     }
 
-    try (ActiveBundle bundle =
+    try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(
@@ -459,28 +462,48 @@ public class RemoteExecutionTest implements Serializable {
             descriptor.getSideInputSpecs(),
             new SideInputHandlerFactory() {
               @Override
-              public <T, V, W extends BoundedWindow> SideInputHandler<V, W> forSideInput(
-                  String pTransformId,
-                  String sideInputId,
-                  RunnerApi.FunctionSpec accessPattern,
-                  Coder<T> elementCoder,
-                  Coder<W> windowCoder) {
-                return new SideInputHandler<V, W>() {
+              public <V, W extends BoundedWindow>
+                  IterableSideInputHandler<V, W> forIterableSideInput(
+                      String pTransformId,
+                      String sideInputId,
+                      Coder<V> elementCoder,
+                      Coder<W> windowCoder) {
+                throw new UnsupportedOperationException();
+              }
+
+              @Override
+              public <K, V, W extends BoundedWindow>
+                  MultimapSideInputHandler<K, V, W> forMultimapSideInput(
+                      String pTransformId,
+                      String sideInputId,
+                      KvCoder<K, V> elementCoder,
+                      Coder<W> windowCoder) {
+                return new MultimapSideInputHandler<K, V, W>() {
                   @Override
-                  public Iterable<V> get(byte[] key, W window) {
+                  public Iterable<K> get(W window) {
+                    throw new UnsupportedOperationException();
+                  }
+
+                  @Override
+                  public Iterable<V> get(K key, W window) {
                     return (Iterable) sideInputData;
                   }
 
                   @Override
-                  public Coder<V> resultCoder() {
-                    return ((KvCoder) elementCoder).getValueCoder();
+                  public Coder<K> keyCoder() {
+                    return elementCoder.getKeyCoder();
+                  }
+
+                  @Override
+                  public Coder<V> valueCoder() {
+                    return elementCoder.getValueCoder();
                   }
                 };
               }
             });
     BundleProgressHandler progressHandler = BundleProgressHandler.ignored();
 
-    try (ActiveBundle bundle =
+    try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(WindowedValue.valueInGlobalWindow("X"));
@@ -610,21 +633,41 @@ public class RemoteExecutionTest implements Serializable {
             descriptor.getSideInputSpecs(),
             new SideInputHandlerFactory() {
               @Override
-              public <T, V, W extends BoundedWindow> SideInputHandler<V, W> forSideInput(
-                  String pTransformId,
-                  String sideInputId,
-                  RunnerApi.FunctionSpec accessPattern,
-                  Coder<T> elementCoder,
-                  Coder<W> windowCoder) {
-                return new SideInputHandler<V, W>() {
+              public <V, W extends BoundedWindow>
+                  IterableSideInputHandler<V, W> forIterableSideInput(
+                      String pTransformId,
+                      String sideInputId,
+                      Coder<V> elementCoder,
+                      Coder<W> windowCoder) {
+                throw new UnsupportedOperationException();
+              }
+
+              @Override
+              public <K, V, W extends BoundedWindow>
+                  MultimapSideInputHandler<K, V, W> forMultimapSideInput(
+                      String pTransformId,
+                      String sideInputId,
+                      KvCoder<K, V> elementCoder,
+                      Coder<W> windowCoder) {
+                return new MultimapSideInputHandler<K, V, W>() {
                   @Override
-                  public Iterable<V> get(byte[] key, W window) {
-                    return (Iterable) sideInputData;
+                  public Iterable<V> get(BoundedWindow window) {
+                    return null;
                   }
 
                   @Override
-                  public Coder<V> resultCoder() {
-                    return ((KvCoder) elementCoder).getValueCoder();
+                  public Coder<K> keyCoder() {
+                    return elementCoder.getKeyCoder();
+                  }
+
+                  @Override
+                  public Coder<V> valueCoder() {
+                    return elementCoder.getValueCoder();
+                  }
+
+                  @Override
+                  public Iterable<V> get(K key, W window) {
+                    return (Iterable) sideInputData;
                   }
                 };
               }
@@ -774,7 +817,7 @@ public class RemoteExecutionTest implements Serializable {
           }
         };
 
-    try (ActiveBundle bundle =
+    try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(
@@ -915,7 +958,7 @@ public class RemoteExecutionTest implements Serializable {
               }
             });
 
-    try (ActiveBundle bundle =
+    try (RemoteBundle bundle =
         processor.newBundle(
             outputReceivers, stateRequestHandler, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
@@ -1058,7 +1101,7 @@ public class RemoteExecutionTest implements Serializable {
     // output.
     DateTimeUtils.setCurrentMillisFixed(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
 
-    try (ActiveBundle bundle =
+    try (RemoteBundle bundle =
         processor.newBundle(
             outputReceivers, StateRequestHandler.unsupported(), BundleProgressHandler.ignored())) {
       bundle
@@ -1178,7 +1221,7 @@ public class RemoteExecutionTest implements Serializable {
                 (Coder<WindowedValue<?>>) remoteOutputCoder.getValue(), outputValues::add));
       }
 
-      try (ActiveBundle bundle =
+      try (RemoteBundle bundle =
           processor.newBundle(
               outputReceivers,
               StateRequestHandler.unsupported(),

@@ -1016,7 +1016,7 @@ public class PubsubIO {
      * Max batch byte size. Messages are base64 encoded which encodes each set of three bytes into
      * four bytes.
      */
-    private static final int MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT = ((10 * 1024 * 1024) / 4) * 3;
+    private static final int MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT = ((10 * 1000 * 1000) / 4) * 3;
 
     private static final int MAX_PUBLISH_BATCH_SIZE = 100;
 
@@ -1303,7 +1303,14 @@ public class PubsubIO {
         }
 
         // NOTE: The record id is always null.
-        output.add(new OutgoingMessage(payload, attributes, c.timestamp().getMillis(), null));
+        output.add(
+            OutgoingMessage.of(
+                com.google.pubsub.v1.PubsubMessage.newBuilder()
+                    .setData(ByteString.copyFrom(payload))
+                    .putAllAttributes(attributes)
+                    .build(),
+                c.timestamp().getMillis(),
+                null));
         currentOutputBytes += payload.length;
       }
 

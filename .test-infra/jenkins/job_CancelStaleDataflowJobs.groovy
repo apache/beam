@@ -25,7 +25,7 @@ job("beam_CancelStaleDataflowJobs") {
     commonJobProperties.setTopLevelMainJobProperties(delegate)
 
     // Sets that this is a cron job, run once randomly per day.
-    commonJobProperties.setCronJob(delegate, 'H H * * *')
+    commonJobProperties.setCronJob(delegate, '0 */4 * * *')
 
     // Allows triggering this build against pull requests.
     commonJobProperties.enablePhraseTriggeringFromPullRequest(
@@ -37,7 +37,6 @@ job("beam_CancelStaleDataflowJobs") {
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-test-tools:check')
       tasks(':beam-test-tools:cancelStaleDataflowJobs')
       commonJobProperties.setGradleSwitches(delegate)
     }

@@ -17,6 +17,8 @@
 
 """Unit tests for the type-hint objects and decorators."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import sys
@@ -135,19 +137,18 @@ class MainInputTest(unittest.TestCase):
     self.assertEqual([1, 3], [1, 2, 3] | beam.Filter(filter_fn))
 
   def test_partition(self):
-    p = TestPipeline()
-    even, odd = (p
-                 | beam.Create([1, 2, 3])
-                 | 'even_odd' >> beam.Partition(lambda e, _: e % 2, 2))
-    self.assertIsNotNone(even.element_type)
-    self.assertIsNotNone(odd.element_type)
-    res_even = (even
-                | 'id_even' >> beam.ParDo(lambda e: [e]).with_input_types(int))
-    res_odd = (odd
-               | 'id_odd' >> beam.ParDo(lambda e: [e]).with_input_types(int))
-    assert_that(res_even, equal_to([2]), label='even_check')
-    assert_that(res_odd, equal_to([1, 3]), label='odd_check')
-    p.run()
+    with TestPipeline() as p:
+      even, odd = (p
+                   | beam.Create([1, 2, 3])
+                   | 'even_odd' >> beam.Partition(lambda e, _: e % 2, 2))
+      self.assertIsNotNone(even.element_type)
+      self.assertIsNotNone(odd.element_type)
+      res_even = (even
+                  | 'IdEven' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+      res_odd = (odd
+                 | 'IdOdd' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+      assert_that(res_even, equal_to([2]), label='even_check')
+      assert_that(res_odd, equal_to([1, 3]), label='odd_check')
 
   def test_typed_dofn_multi_output(self):
     class MyDoFn(beam.DoFn):
@@ -161,12 +162,45 @@ class MainInputTest(unittest.TestCase):
     res = (p
            | beam.Create([1, 2, 3])
            | beam.ParDo(MyDoFn()).with_outputs('odd', 'even'))
+    self.assertIsNotNone(res[None].element_type)
     self.assertIsNotNone(res['even'].element_type)
     self.assertIsNotNone(res['odd'].element_type)
+    res_main = (res[None]
+                | 'id_none' >> beam.ParDo(lambda e: [e]).with_input_types(int))
     res_even = (res['even']
                 | 'id_even' >> beam.ParDo(lambda e: [e]).with_input_types(int))
     res_odd = (res['odd']
                | 'id_odd' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+    assert_that(res_main, equal_to([]), label='none_check')
+    assert_that(res_even, equal_to([2]), label='even_check')
+    assert_that(res_odd, equal_to([1, 3]), label='odd_check')
+    p.run()
+
+    with self.assertRaises(ValueError):
+      _ = res['undeclared tag']
+
+  def test_typed_dofn_multi_output_no_tags(self):
+    class MyDoFn(beam.DoFn):
+      def process(self, element):
+        if element % 2:
+          yield beam.pvalue.TaggedOutput('odd', element)
+        else:
+          yield beam.pvalue.TaggedOutput('even', element)
+
+    p = TestPipeline()
+    res = (p
+           | beam.Create([1, 2, 3])
+           | beam.ParDo(MyDoFn()).with_outputs())
+    self.assertIsNotNone(res[None].element_type)
+    self.assertIsNotNone(res['even'].element_type)
+    self.assertIsNotNone(res['odd'].element_type)
+    res_main = (res[None]
+                | 'id_none' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+    res_even = (res['even']
+                | 'id_even' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+    res_odd = (res['odd']
+               | 'id_odd' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+    assert_that(res_main, equal_to([]), label='none_check')
     assert_that(res_even, equal_to([2]), label='even_check')
     assert_that(res_odd, equal_to([1, 3]), label='odd_check')
     p.run()

@@ -15,6 +15,8 @@
 #
 """Test cases for :module:`artifact_service_client`."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -219,7 +221,7 @@ class AbstractArtifactServiceTest(unittest.TestCase):
 class ZipFileArtifactServiceTest(AbstractArtifactServiceTest):
   def create_service(self, staging_dir):
     return artifact_service.ZipFileArtifactService(
-        os.path.join(staging_dir, 'test.zip'), chunk_size=10)
+        os.path.join(staging_dir, 'test.zip'), 'root', chunk_size=10)
 
 
 class BeamFilesystemArtifactServiceTest(AbstractArtifactServiceTest):

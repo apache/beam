@@ -554,7 +554,8 @@ public class WatchTest implements Serializable {
 
     assertTrue(tracker.tryClaim(KV.of(claim, 1 /* termination state */)));
 
-    PollingGrowthState<Integer> residual = (PollingGrowthState<Integer>) tracker.checkpoint();
+    PollingGrowthState<Integer> residual =
+        (PollingGrowthState<Integer>) tracker.trySplit(0).getResidual();
     NonPollingGrowthState<String> primary =
         (NonPollingGrowthState<String>) tracker.currentRestriction();
     tracker.checkDone();
@@ -574,7 +575,8 @@ public class WatchTest implements Serializable {
   public void testPollingGrowthTrackerCheckpointEmpty() {
     GrowthTracker<String, Integer> tracker = newPollingGrowthTracker();
 
-    PollingGrowthState<Integer> residual = (PollingGrowthState<Integer>) tracker.checkpoint();
+    PollingGrowthState<Integer> residual =
+        (PollingGrowthState<Integer>) tracker.trySplit(0).getResidual();
     GrowthState primary = tracker.currentRestriction();
     tracker.checkDone();
 
@@ -603,7 +605,8 @@ public class WatchTest implements Serializable {
 
     assertTrue(tracker.tryClaim(KV.of(claim, 1 /* termination state */)));
 
-    PollingGrowthState<Integer> residual = (PollingGrowthState<Integer>) tracker.checkpoint();
+    PollingGrowthState<Integer> residual =
+        (PollingGrowthState<Integer>) tracker.trySplit(0).getResidual();
 
     assertFalse(newTracker(residual).tryClaim(KV.of(claim, 2)));
   }
@@ -623,7 +626,7 @@ public class WatchTest implements Serializable {
     GrowthTracker<String, Integer> tracker = newTracker(NonPollingGrowthState.of(claim));
 
     assertTrue(tracker.tryClaim(KV.of(claim, 1 /* termination state */)));
-    GrowthState residual = tracker.checkpoint();
+    GrowthState residual = tracker.trySplit(0).getResidual();
     NonPollingGrowthState<String> primary =
         (NonPollingGrowthState<String>) tracker.currentRestriction();
     tracker.checkDone();
@@ -649,7 +652,8 @@ public class WatchTest implements Serializable {
 
     GrowthTracker<String, Integer> tracker = newTracker(NonPollingGrowthState.of(claim));
 
-    NonPollingGrowthState<String> residual = (NonPollingGrowthState<String>) tracker.checkpoint();
+    NonPollingGrowthState<String> residual =
+        (NonPollingGrowthState<String>) tracker.trySplit(0).getResidual();
     GrowthState primary = tracker.currentRestriction();
     tracker.checkDone();
 

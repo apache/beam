@@ -33,9 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamJavaTypeFactory;
-import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateType;
@@ -65,16 +63,12 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Mem
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.ParameterExpression;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Types;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPredicateList;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLocalRef;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexProgram;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexSimplify;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexUtil;
@@ -91,8 +85,8 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.ReadableInstant;
 
-/** BeamRelNode to replace a {@code Project} node. */
-public class BeamCalcRel extends Calc implements BeamRelNode {
+/** BeamRelNode to replace {@code Project} and {@code Filter} node. */
+public class BeamCalcRel extends AbstractBeamCalcRel {
 
   private static final ParameterExpression outputSchemaParam =
       Expressions.parameter(Schema.class, "outputSchema");
@@ -148,7 +142,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
       final RelMetadataQuery mq = RelMetadataQuery.instance();
       final RelOptPredicateList predicates = mq.getPulledUpPredicates(getInput());
       final RexSimplify simplify = new RexSimplify(rexBuilder, predicates, RexUtil.EXECUTOR);
-      final RexProgram program = BeamCalcRel.this.program.normalize(rexBuilder, simplify);
+      final RexProgram program = getProgram().normalize(rexBuilder, simplify);
 
       Expression condition =
           RexToLixTranslator.translateCondition(
@@ -211,69 +205,6 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
     }
   }
 
-  public int getLimitCountOfSortRel() {
-    if (input instanceof BeamSortRel) {
-      return ((BeamSortRel) input).getCount();
-    }
-
-    throw new RuntimeException("Could not get the limit count from a non BeamSortRel input.");
-  }
-
-  @Override
-  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
-    NodeStats inputStat = BeamSqlRelUtils.getNodeStats(this.input, mq);
-    double selectivity = estimateFilterSelectivity(getInput(), program, mq);
-
-    return inputStat.multiply(selectivity);
-  }
-
-  private static double estimateFilterSelectivity(
-      RelNode child, RexProgram program, RelMetadataQuery mq) {
-    // Similar to calcite, if the calc node is representing filter operation we estimate the filter
-    // selectivity based on the number of equality conditions, number of inequality conditions, ....
-    RexLocalRef programCondition = program.getCondition();
-    RexNode condition;
-    if (programCondition == null) {
-      condition = null;
-    } else {
-      condition = program.expandLocalRef(programCondition);
-    }
-    // Currently this gets the selectivity based on Calcite's Selectivity Handler (RelMdSelectivity)
-    return mq.getSelectivity(child, condition);
-  }
-
-  @Override
-  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
-    NodeStats inputStat = BeamSqlRelUtils.getNodeStats(this.input, mq);
-    return BeamCostModel.FACTORY
-        .makeCost(inputStat.getRowCount(), inputStat.getRate())
-        // Increase cost by the small factor of the number of expressions involved in predicate.
-        // Helps favor Calcs with smaller filters.
-        .plus(
-            BeamCostModel.FACTORY
-                .makeTinyCost()
-                .multiplyBy(expressionsInFilter(getProgram().split().right)));
-  }
-
-  public boolean isInputSortRelAndLimitOnly() {
-    return (input instanceof BeamSortRel) && ((BeamSortRel) input).isLimitOnly();
-  }
-
-  /**
-   * Recursively count the number of expressions involved in conditions.
-   *
-   * @param filterNodes A list of conditions in a CNF.
-   * @return Number of expressions used by conditions.
-   */
-  private int expressionsInFilter(List<RexNode> filterNodes) {
-    int childSum =
-        filterNodes.stream()
-            .filter(n -> n instanceof RexCall)
-            .mapToInt(n -> expressionsInFilter(((RexCall) n).getOperands()))
-            .sum();
-    return filterNodes.size() + childSum;
-  }
-
   /** {@code CalcFn} is the executor for a {@link BeamCalcRel} step. */
   private static class CalcFn extends DoFn<Row, Row> {
     private final String processElementBlock;
@@ -329,7 +260,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
           .put(TypeName.DOUBLE, Double.class)
           .build();
 
-  private Expression castOutput(Expression value, FieldType toType) {
+  private static Expression castOutput(Expression value, FieldType toType) {
     if (value.getType() == Object.class || !(value.getType() instanceof Class)) {
       // fast copy path, just pass object through
       return value;
@@ -357,7 +288,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
     return value;
   }
 
-  private Expression castOutputTime(Expression value, FieldType toType) {
+  private static Expression castOutputTime(Expression value, FieldType toType) {
     Expression valueDateTime = value;
 
     // First, convert to millis
@@ -413,6 +344,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
             .put(TypeName.BOOLEAN, "getBoolean")
             .put(TypeName.MAP, "getMap")
             .put(TypeName.ARRAY, "getArray")
+            .put(TypeName.ITERABLE, "getIterable")
             .put(TypeName.ROW, "getRow")
             .build();
 

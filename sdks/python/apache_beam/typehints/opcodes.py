@@ -18,7 +18,8 @@
 """Defines the actions various bytecodes have on the frame.
 
 Each function here corresponds to a bytecode documented in
-https://docs.python.org/2/library/dis.html.  The first argument is a (mutable)
+https://docs.python.org/2/library/dis.html or
+https://docs.python.org/3/library/dis.html. The first argument is a (mutable)
 FrameState object, the second the integer opcode argument.
 
 Bytecodes with more complicated behavior (e.g. modifying the program counter)
@@ -26,6 +27,8 @@ are handled inline rather than here.
 
 For internal use only; no backwards-compatibility guarantees.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import inspect
@@ -36,17 +39,17 @@ from functools import reduce
 
 from past.builtins import unicode
 
-from . import typehints
-from .trivial_inference import BoundMethod
-from .trivial_inference import Const
-from .trivial_inference import element_type
-from .trivial_inference import union
-from .typehints import Any
-from .typehints import Dict
-from .typehints import Iterable
-from .typehints import List
-from .typehints import Tuple
-from .typehints import Union
+from apache_beam.typehints import typehints
+from apache_beam.typehints.trivial_inference import BoundMethod
+from apache_beam.typehints.trivial_inference import Const
+from apache_beam.typehints.trivial_inference import element_type
+from apache_beam.typehints.trivial_inference import union
+from apache_beam.typehints.typehints import Any
+from apache_beam.typehints.typehints import Dict
+from apache_beam.typehints.typehints import Iterable
+from apache_beam.typehints.typehints import List
+from apache_beam.typehints.typehints import Tuple
+from apache_beam.typehints.typehints import Union
 
 
 def pop_one(state, unused_arg):
@@ -152,7 +155,7 @@ binary_subtract = inplace_subtract = symmetric_binary_op
 
 def binary_subscr(state, unused_arg):
   index = state.stack.pop()
-  base = state.stack.pop()
+  base = Const.unwrap(state.stack.pop())
   if base in (str, unicode):
     out = base
   elif (isinstance(index, Const) and isinstance(index.value, int)
@@ -175,33 +178,16 @@ binary_and = inplace_and = symmetric_binary_op
 binary_xor = inplace_xor = symmetric_binary_op
 binary_or = inpalce_or = symmetric_binary_op
 
-# As far as types are concerned.
-slice_0 = nop
-slice_1 = slice_2 = pop_top
-slice_3 = pop_two
-store_slice_0 = store_slice_1 = store_slice_2 = store_slice_3 = nop
-delete_slice_0 = delete_slice_1 = delete_slice_2 = delete_slice_3 = nop
-
 
 def store_subscr(unused_state, unused_args):
   # TODO(robertwb): Update element/value type of iterable/dict.
   pass
 
 
-binary_divide = binary_floor_divide = binary_modulo = symmetric_binary_op
-binary_divide = binary_floor_divide = binary_modulo = symmetric_binary_op
-binary_divide = binary_floor_divide = binary_modulo = symmetric_binary_op
-
-# print_expr
 print_item = pop_top
-# print_item_to
 print_newline = nop
 
-# print_newline_to
 
-
-# break_loop
-# continue_loop
 def list_append(state, arg):
   new_element_type = Const.unwrap(state.stack.pop())
   state.stack[-arg] = List[Union[element_type(state.stack[-arg]),
@@ -217,21 +203,10 @@ def map_add(state, arg):
 
 
 load_locals = push_value(Dict[str, Any])
-
-# return_value
-# yield_value
-# import_star
 exec_stmt = pop_three
-# pop_block
-# end_finally
 build_class = pop_three
 
-# setup_with
-# with_cleanup
 
-
-# store_name
-# delete_name
 def unpack_sequence(state, arg):
   t = state.stack.pop()
   if isinstance(t, Const):
@@ -331,18 +306,11 @@ def import_name(state, unused_arg):
 
 import_from = push_value(Any)
 
-# jump
-
-# for_iter
-
 
 def load_global(state, arg):
   state.stack.append(state.get_global(arg))
 
 
-# setup_loop
-# setup_except
-# setup_finally
 store_map = pop_two
 
 
@@ -364,7 +332,6 @@ def load_closure(state, arg):
 
 def load_deref(state, arg):
   state.stack.append(state.closure_type(arg))
-# raise_varargs
 
 
 def make_function(state, arg):

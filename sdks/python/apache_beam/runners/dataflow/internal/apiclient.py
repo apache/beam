@@ -19,6 +19,8 @@
 
 Dataflow client utility functions."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import codecs
@@ -147,6 +149,10 @@ class Environment(object):
         self.google_cloud_options.temp_location.replace(
             'gs:/',
             GoogleCloudOptions.STORAGE_API_SERVICE))
+    if self.worker_options.worker_region:
+      self.proto.workerRegion = self.worker_options.worker_region
+    if self.worker_options.worker_zone:
+      self.proto.workerZone = self.worker_options.worker_zone
     # User agent information.
     self.proto.userAgent = dataflow.Environment.UserAgentValue()
     self.local = 'localhost' in self.google_cloud_options.dataflow_endpoint
@@ -475,8 +481,9 @@ class DataflowApplicationClient(object):
   @retry.no_retries  # Using no_retries marks this as an integration point.
   def _gcs_file_copy(self, from_path, to_path):
     to_folder, to_name = os.path.split(to_path)
+    total_size = os.path.getsize(from_path)
     with open(from_path, 'rb') as f:
-      self.stage_file(to_folder, to_name, f)
+      self.stage_file(to_folder, to_name, f, total_size=total_size)
 
   def _stage_resources(self, options):
     google_cloud_options = options.view_as(GoogleCloudOptions)
@@ -493,7 +500,7 @@ class DataflowApplicationClient(object):
     return resources
 
   def stage_file(self, gcs_or_local_path, file_name, stream,
-                 mime_type='application/octet-stream'):
+                 mime_type='application/octet-stream', total_size=None):
     """Stages a file at a GCS or local path with stream-supplied contents."""
     if not gcs_or_local_path.startswith('gs://'):
       local_path = FileSystems.join(gcs_or_local_path, file_name)
@@ -508,7 +515,7 @@ class DataflowApplicationClient(object):
         bucket=bucket, name=name)
     start_time = time.time()
     _LOGGER.info('Starting GCS upload to %s...', gcs_location)
-    upload = storage.Upload(stream, mime_type)
+    upload = storage.Upload(stream, mime_type, total_size)
     try:
       response = self._storage_client.objects.Insert(request, upload=upload)
     except exceptions.HttpError as e:
@@ -888,13 +895,6 @@ def _use_unified_worker(pipeline_options):
   return _use_fnapi(pipeline_options) and (
       debug_options.experiments and
       'use_unified_worker' in debug_options.experiments)
-
-
-def _use_sdf_bounded_source(pipeline_options):
-  debug_options = pipeline_options.view_as(DebugOptions)
-  return _use_fnapi(pipeline_options) and (
-      debug_options.experiments and
-      'use_sdf_bounded_source' in debug_options.experiments)
 
 
 def _get_container_image_tag():

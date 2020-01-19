@@ -21,10 +21,11 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.model.pipeline.v1.SchemaApi;
-import org.apache.beam.sdk.schemas.LogicalTypes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.SchemaTranslation;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -65,13 +66,17 @@ public class SchemaTranslationTest {
                       FieldType.array(FieldType.array(FieldType.INT64.withNullable(true))))))
           .add(
               Schema.of(
+                  Field.of(
+                      "iter(iter(int64)))",
+                      FieldType.iterable(FieldType.iterable(FieldType.INT64.withNullable(true))))))
+          .add(
+              Schema.of(
                   Field.of("nullable", FieldType.STRING.withNullable(true)),
                   Field.of("non_nullable", FieldType.STRING.withNullable(false))))
           .add(
               Schema.of(
                   Field.of("decimal", FieldType.DECIMAL), Field.of("datetime", FieldType.DATETIME)))
-          .add(
-              Schema.of(Field.of("logical", FieldType.logicalType(LogicalTypes.FixedBytes.of(24)))))
+          .add(Schema.of(Field.of("logical", FieldType.logicalType(FixedBytes.of(24)))))
           .build();
     }
 
@@ -80,7 +85,7 @@ public class SchemaTranslationTest {
 
     @Test
     public void toAndFromProto() throws Exception {
-      SchemaApi.Schema schemaProto = SchemaTranslation.schemaToProto(schema);
+      SchemaApi.Schema schemaProto = SchemaTranslation.schemaToProto(schema, true);
 
       Schema decodedSchema = SchemaTranslation.fromProto(schemaProto);
       assertThat(decodedSchema, equalTo(schema));

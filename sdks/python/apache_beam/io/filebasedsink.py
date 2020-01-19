@@ -17,6 +17,8 @@
 
 """File-based sink."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -63,7 +65,7 @@ class FileBasedSink(iobase.Sink):
 
   # Max number of threads to be used for renaming.
   _MAX_RENAME_THREADS = 64
-  __hash__ = None
+  __hash__ = None  # type: ignore[assignment]
 
   def __init__(self,
                file_path_prefix,

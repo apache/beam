@@ -26,6 +26,7 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -114,6 +115,16 @@ public class PipelineTest {
     public PipelineResult run(Pipeline pipeline) {
       throw new IllegalStateException("SDK exception");
     }
+  }
+
+  @Test
+  public void testPipelineOptionsImplException() {
+    PipelineOptions pipelineOptions = mock(PipelineOptions.class);
+
+    // Check pipeline creation correctly throws exception
+    // since it doesn't accept user-implemented PipelineOptions.
+    thrown.expect(IllegalArgumentException.class);
+    Pipeline.create(pipelineOptions);
   }
 
   @Test

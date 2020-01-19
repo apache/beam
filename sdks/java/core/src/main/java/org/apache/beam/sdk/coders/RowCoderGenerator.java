@@ -98,6 +98,7 @@ public abstract class RowCoderGenerator {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
   private static final ForLoadedType CODER_TYPE = new ForLoadedType(Coder.class);
   private static final ForLoadedType LIST_CODER_TYPE = new ForLoadedType(ListCoder.class);
+  private static final ForLoadedType ITERABLE_CODER_TYPE = new ForLoadedType(IterableCoder.class);
   private static final ForLoadedType MAP_CODER_TYPE = new ForLoadedType(MapCoder.class);
   private static final BitSetCoder NULL_LIST_CODER = BitSetCoder.of();
   private static final VarIntCoder VAR_INT_CODER = VarIntCoder.of();
@@ -370,7 +371,10 @@ public abstract class RowCoderGenerator {
       return getCoder(fieldType.getLogicalType().getBaseType());
     } else if (TypeName.ARRAY.equals(fieldType.getTypeName())) {
       return listCoder(fieldType.getCollectionElementType());
-    } else if (TypeName.MAP.equals(fieldType.getTypeName())) {
+    } else if (TypeName.ITERABLE.equals(fieldType.getTypeName())) {
+      return iterableCoder(fieldType.getCollectionElementType());
+    }
+    if (TypeName.MAP.equals(fieldType.getTypeName())) {;
       return mapCoder(fieldType.getMapKeyType(), fieldType.getMapValueType());
     } else if (TypeName.ROW.equals(fieldType.getTypeName())) {
       checkState(fieldType.getRowSchema().getUUID() != null);
@@ -400,6 +404,17 @@ public abstract class RowCoderGenerator {
         componentCoder,
         MethodInvocation.invoke(
             LIST_CODER_TYPE.getDeclaredMethods().filter(ElementMatchers.named("of")).getOnly()));
+  }
+
+  private static StackManipulation iterableCoder(Schema.FieldType fieldType) {
+    StackManipulation componentCoder = getCoder(fieldType);
+    return new Compound(
+        componentCoder,
+        MethodInvocation.invoke(
+            ITERABLE_CODER_TYPE
+                .getDeclaredMethods()
+                .filter(ElementMatchers.named("of"))
+                .getOnly()));
   }
 
   static StackManipulation coderForPrimitiveType(Schema.TypeName typeName) {

@@ -18,6 +18,8 @@
 """:class:`~apache_beam.io.filesystem.FileSystem` implementation for accessing
 Hadoop Distributed File System files."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import io
@@ -25,6 +27,7 @@ import logging
 import posixpath
 import re
 from builtins import zip
+from typing import BinaryIO  # pylint: disable=unused-import
 
 import hdfs
 
@@ -209,6 +212,7 @@ class HadoopFileSystem(FileSystem):
 
   def create(self, url, mime_type='application/octet-stream',
              compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
     """
     Returns:
       A Python File-like object.
@@ -226,6 +230,7 @@ class HadoopFileSystem(FileSystem):
 
   def open(self, url, mime_type='application/octet-stream',
            compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
     """
     Returns:
       A Python File-like object.
@@ -316,6 +321,7 @@ class HadoopFileSystem(FileSystem):
       raise BeamIOError('Rename operation failed', exceptions)
 
   def exists(self, url):
+    # type: (str) -> bool
     """Checks existence of url in HDFS.
 
     Args:

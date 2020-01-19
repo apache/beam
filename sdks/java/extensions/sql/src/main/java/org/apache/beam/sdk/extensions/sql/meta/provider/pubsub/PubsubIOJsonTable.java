@@ -20,25 +20,22 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.DLQ_TAG;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubMessageToRow.MAIN_TAG;
 
-import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubJsonTableProvider.PubsubIOTableConfiguration;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTagList;
 
 /**
  * <i>Experimental</i>
@@ -65,7 +62,7 @@ import org.apache.beam.sdk.values.TupleTagList;
  *  }
  * </pre>
  *
- * <p>Then SQL statements to declare and query such topic will look like this:
+ * <p>Then SQL statements to declare and query such a topic will look like this:
  *
  * <pre>
  *  CREATE TABLE topic_table (
@@ -85,49 +82,54 @@ import org.apache.beam.sdk.values.TupleTagList;
  * the value of that attribute. If it is not specified, then message publish time will be used as
  * event timestamp. 'attributes' map contains Pubsub message attributes map unchanged and can be
  * referenced in the queries as well.
+ *
+ * <p>Alternatively, one can use a flattened schema to model the pubsub messages (meaning {@link
+ * PubsubIOTableConfiguration#getUseFlatSchema()} is set).
+ *
+ * <p>In this configuration, only {@code event_timestamp} is required to be specified in the table
+ * schema. All other fields are assumed to be part of the message payload. SQL statements to declare
+ * and query the same topic as above will look like this:
+ *
+ * <pre>
+ *  CREATE TABLE topic_table (
+ *        event_timestamp TIMESTAMP,
+ *        name VARCHAR,
+ *        age INTEGER
+ *     )
+ *     TYPE 'pubsub'
+ *     LOCATION projects/&lt;GCP project id&gt;/topics/&lt;topic name&gt;
+ *     TBLPROPERTIES '{ \"timestampAttributeKey\" : &lt;timestamp attribute&gt; }';
+ *
+ *  SELECT event_timestamp, name FROM topic_table;
+ * </pre>
+ *
+ * <p>If 'timestampAttributeKey' is specified in TBLPROPERTIES then 'event_timestamp' will be set to
+ * the value of that attribute. If it is not specified, then message publish time will be used as
+ * event timestamp.
+ *
+ * <p>In order to write to the same table you can use an INSERT statement like this:
+ *
+ * <pre>
+ *   INSERT INTO topic_table VALUES (TIMESTAMP '2019-11-13 10:14:14', 'Brian', 30)
+ * </pre>
+ *
+ * <p>Note that when writing, the value for {@code event_timestamp} is ignored by default, since the
+ * Pubsub-managed publish time will be used to populate {@code event_timestamp} on read. In order to
+ * ensure the {@code event_timestamp} you specified is used, you should specify
+ * 'timestampAttributeKey' in TBLPROPERTIES.
  */
-@AutoValue
 @Internal
 @Experimental
-abstract class PubsubIOJsonTable extends BaseBeamTable implements Serializable {
+class PubsubIOJsonTable extends BaseBeamTable implements Serializable {
 
-  /**
-   * Optional attribute key of the Pubsub message from which to extract the event timestamp.
-   *
-   * <p>This attribute has to conform to the same requirements as in {@link
-   * PubsubIO.Read.Builder#withTimestampAttribute}.
-   *
-   * <p>Short version: it has to be either millis since epoch or string in RFC 3339 format.
-   *
-   * <p>If the attribute is specified then event timestamps will be extracted from the specified
-   * attribute. If it is not specified then message publish timestamp will be used.
-   */
-  @Nullable
-  abstract String getTimestampAttribute();
+  protected final PubsubIOTableConfiguration config;
 
-  /**
-   * Optional topic path which will be used as a dead letter queue.
-   *
-   * <p>Messages that cannot be processed will be sent to this topic. If it is not specified then
-   * exception will be thrown for errors during processing causing the pipeline to crash.
-   */
-  @Nullable
-  abstract String getDeadLetterQueue();
-
-  private boolean useDlq() {
-    return getDeadLetterQueue() != null;
+  private PubsubIOJsonTable(PubsubIOTableConfiguration config) {
+    this.config = config;
   }
 
-  /**
-   * Pubsub topic name.
-   *
-   * <p>Topic is the only way to specify the Pubsub source. Explicitly specifying the subscription
-   * is not supported at the moment. Subscriptions are automatically created (but not deleted).
-   */
-  abstract String getTopic();
-
-  static Builder builder() {
-    return new AutoValue_PubsubIOJsonTable.Builder();
+  static PubsubIOJsonTable withConfiguration(PubsubIOTableConfiguration config) {
+    return new PubsubIOJsonTable(config);
   }
 
   @Override
@@ -135,75 +137,71 @@ abstract class PubsubIOJsonTable extends BaseBeamTable implements Serializable {
     return PCollection.IsBounded.UNBOUNDED;
   }
 
-  /**
-   * Table schema, describes Pubsub message schema.
-   *
-   * <p>Includes fields 'event_timestamp', 'attributes, and 'payload'. See {@link
-   * PubsubMessageToRow}.
-   */
   @Override
-  public abstract Schema getSchema();
+  public Schema getSchema() {
+    return config.getSchema();
+  }
 
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
     PCollectionTuple rowsWithDlq =
         begin
-            .apply("readFromPubsub", readMessagesWithAttributes())
-            .apply("parseMessageToRow", createParserParDo());
+            .apply("ReadFromPubsub", readMessagesWithAttributes())
+            .apply(
+                "PubsubMessageToRow",
+                PubsubMessageToRow.builder()
+                    .messageSchema(getSchema())
+                    .useDlq(config.useDlq())
+                    .useFlatSchema(config.getUseFlatSchema())
+                    .build());
     rowsWithDlq.get(MAIN_TAG).setRowSchema(getSchema());
 
-    if (useDlq()) {
+    if (config.useDlq()) {
       rowsWithDlq.get(DLQ_TAG).apply(writeMessagesToDlq());
     }
 
     return rowsWithDlq.get(MAIN_TAG);
   }
 
-  private ParDo.MultiOutput<PubsubMessage, Row> createParserParDo() {
-    return ParDo.of(
-            PubsubMessageToRow.builder()
-                .messageSchema(getSchema())
-                .useDlq(getDeadLetterQueue() != null)
-                .build())
-        .withOutputTags(MAIN_TAG, useDlq() ? TupleTagList.of(DLQ_TAG) : TupleTagList.empty());
-  }
-
   private PubsubIO.Read<PubsubMessage> readMessagesWithAttributes() {
-    PubsubIO.Read<PubsubMessage> read = PubsubIO.readMessagesWithAttributes().fromTopic(getTopic());
+    PubsubIO.Read<PubsubMessage> read =
+        PubsubIO.readMessagesWithAttributes().fromTopic(config.getTopic());
 
-    return (getTimestampAttribute() == null)
-        ? read
-        : read.withTimestampAttribute(getTimestampAttribute());
+    return config.useTimestampAttribute()
+        ? read.withTimestampAttribute(config.getTimestampAttribute())
+        : read;
   }
 
   private PubsubIO.Write<PubsubMessage> writeMessagesToDlq() {
-    PubsubIO.Write<PubsubMessage> write = PubsubIO.writeMessages().to(getDeadLetterQueue());
+    PubsubIO.Write<PubsubMessage> write = PubsubIO.writeMessages().to(config.getDeadLetterQueue());
 
-    return (getTimestampAttribute() == null)
-        ? write
-        : write.withTimestampAttribute(getTimestampAttribute());
+    return config.useTimestampAttribute()
+        ? write.withTimestampAttribute(config.getTimestampAttribute())
+        : write;
   }
 
   @Override
   public POutput buildIOWriter(PCollection<Row> input) {
-    throw new UnsupportedOperationException("Writing to a Pubsub topic is not supported");
+    if (!config.getUseFlatSchema()) {
+      throw new UnsupportedOperationException(
+          "Writing to a Pubsub topic is only supported for flattened schemas");
+    }
+
+    return input
+        .apply(RowToPubsubMessage.fromTableConfig(config))
+        .apply(createPubsubMessageWrite());
+  }
+
+  private PubsubIO.Write<PubsubMessage> createPubsubMessageWrite() {
+    PubsubIO.Write<PubsubMessage> write = PubsubIO.writeMessages().to(config.getTopic());
+    if (config.useTimestampAttribute()) {
+      write = write.withTimestampAttribute(config.getTimestampAttribute());
+    }
+    return write;
   }
 
   @Override
   public BeamTableStatistics getTableStatistics(PipelineOptions options) {
     return BeamTableStatistics.UNBOUNDED_UNKNOWN;
-  }
-
-  @AutoValue.Builder
-  abstract static class Builder {
-    abstract Builder setSchema(Schema schema);
-
-    abstract Builder setTimestampAttribute(String timestampAttribute);
-
-    abstract Builder setDeadLetterQueue(String deadLetterQueue);
-
-    abstract Builder setTopic(String topic);
-
-    abstract PubsubIOJsonTable build();
   }
 }

@@ -82,6 +82,7 @@ public abstract class SchemaZipFold<T> implements Serializable {
 
     switch (left.getTypeName()) {
       case ARRAY:
+      case ITERABLE:
         return zipFold.accumulate(
             zipFold.accept(context, left, right),
             visit(

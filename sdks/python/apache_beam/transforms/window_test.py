@@ -16,13 +16,13 @@
 #
 
 """Unit tests for the windowing classes."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
 import unittest
 from builtins import range
-
-from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.coders import coders
@@ -198,6 +198,7 @@ class WindowTest(unittest.TestCase):
       result = (pcoll
                 | 'w' >> WindowInto(SlidingWindows(period=2, size=4))
                 | GroupByKey()
+                | beam.MapTuple(lambda k, vs: (k, sorted(vs)))
                 | reify_windows)
       expected = [('key @ [-2.0, 2.0)', [1]),
                   ('key @ [0.0, 4.0)', [1, 2, 3]),
@@ -224,7 +225,8 @@ class WindowTest(unittest.TestCase):
                 | Map(lambda x_t: TimestampedValue(x_t[0], x_t[1]))
                 | 'w' >> WindowInto(FixedWindows(5))
                 | Map(lambda v: ('key', v))
-                | GroupByKey())
+                | GroupByKey()
+                | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
       assert_that(result, equal_to([('key', [0, 1, 2, 3, 4]),
                                     ('key', [5, 6, 7, 8, 9])]))
 
@@ -239,7 +241,8 @@ class WindowTest(unittest.TestCase):
                 | 'rewindow' >> WindowInto(FixedWindows(5))
                 | 'rewindow2' >> WindowInto(FixedWindows(5))
                 | Map(lambda v: ('key', v))
-                | GroupByKey())
+                | GroupByKey()
+                | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
       assert_that(result, equal_to([('key', sorted([0, 1, 2, 3, 4] * 3)),
                                     ('key', sorted([5, 6, 7, 8, 9] * 3))]))
 
@@ -302,7 +305,6 @@ class WindowTest(unittest.TestCase):
       assert_that(mean_per_window, equal_to([(0, 2.0), (1, 7.0)]),
                   label='assert:mean')
 
-  @attr('ValidatesRunner')
   def test_custom_windows(self):
     with TestPipeline() as p:
       pcoll = self.timestamped_key_values(p, 'key', 0, 1, 2, 3, 4, 5, 6)
@@ -316,7 +318,6 @@ class WindowTest(unittest.TestCase):
                                     ('key', [5]),
                                     ('key', [6])]))
 
-  @attr('ValidatesRunner')
   def test_window_assignment_idempotency(self):
     with TestPipeline() as p:
       pcoll = self.timestamped_key_values(p, 'key', 0, 2, 4)
@@ -330,7 +331,6 @@ class WindowTest(unittest.TestCase):
                                     ('key', [2]),
                                     ('key', [4])]))
 
-  @attr('ValidatesRunner')
   def test_window_assignment_through_multiple_gbk_idempotency(self):
     with TestPipeline() as p:
       pcoll = self.timestamped_key_values(p, 'key', 0, 2, 4)

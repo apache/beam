@@ -20,6 +20,8 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import cProfile  # pylint: disable=bad-python3-import
@@ -33,6 +35,8 @@ import time
 import warnings
 from builtins import object
 from threading import Timer
+from typing import Callable
+from typing import Optional
 
 from apache_beam.io import filesystems
 
@@ -97,11 +101,13 @@ class Profile(object):
 
   @staticmethod
   def factory_from_options(options):
+    # type: (...) -> Optional[Callable[..., Profile]]
     if options.profile_cpu:
       def create_profiler(profile_id, **kwargs):
         if random.random() < options.profile_sample_rate:
           return Profile(profile_id, options.profile_location, **kwargs)
       return create_profiler
+    return None
 
 
 class MemoryReporter(object):

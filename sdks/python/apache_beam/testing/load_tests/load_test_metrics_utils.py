@@ -27,11 +27,14 @@ Currently it is possible to have following metrics types:
 * total_bytes_count
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
 import time
 import uuid
+from typing import List
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
@@ -170,7 +173,7 @@ class MetricsReader(object):
   A :class:`MetricsReader` retrieves metrics from pipeline result,
   prepares it for publishers and setup publishers.
   """
-  publishers = []
+  publishers = []  # type: List[ConsoleMetricsPublisher]
 
   def __init__(self, project_name=None, bq_table=None, bq_dataset=None,
                publish_to_bq=False, filters=None):
@@ -201,7 +204,7 @@ class MetricsReader(object):
     # required to prepare metrics for publishing purposes. Expected is to have
     # a list of dictionaries matching the schema.
     insert_dicts = self._prepare_all_metrics(metrics)
-    if len(insert_dicts):
+    if len(insert_dicts) > 0:
       for publisher in self.publishers:
         publisher.publish(insert_dicts)
 
@@ -224,10 +227,11 @@ class MetricsReader(object):
     matching_namsespace, not_matching_namespace = \
       split_metrics_by_namespace_and_name(distributions, self._namespace,
                                           RUNTIME_METRIC)
-    runtime_metric = RuntimeMetric(matching_namsespace, metric_id)
-    rows.append(runtime_metric.as_dict())
-
-    rows += get_generic_distributions(not_matching_namespace, metric_id)
+    if len(matching_namsespace) > 0:
+      runtime_metric = RuntimeMetric(matching_namsespace, metric_id)
+      rows.append(runtime_metric.as_dict())
+    if len(not_matching_namespace) > 0:
+      rows += get_generic_distributions(not_matching_namespace, metric_id)
     return rows
 
 

@@ -1,6 +1,6 @@
 ---
 layout: section
-title: "Runtime environments"
+title: "Container environments"
 section_menu: section-menu/documentation.html
 permalink: /documentation/runtime/environments/
 ---
@@ -18,7 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Runtime environments
+# Container environments
 
 The Beam SDK runtime environment is isolated from other runtime systems because the SDK runtime environment is [containerized](https://s.apache.org/beam-fn-api-container-contract) with [Docker](https://www.docker.com/). This means that any execution engine can run the Beam SDK.
 
@@ -99,7 +99,9 @@ python -m apache_beam.examples.wordcount \
 --environment_config=path/to/container/image
 ```
 
-To test a customized image on the Google Cloud Dataflow runner, use the `DataflowRunner` option and the `worker_harness_container_image` flag:
+To test a customized image on the Google Cloud Dataflow runner, use
+`DataflowRunner` with the `beam_fn_api` experiment and set
+`worker_harness_container_image` to the custom container:
 
 ```
 python -m apache_beam.examples.wordcount \ 

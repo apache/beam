@@ -20,6 +20,8 @@
 This can only be used with the Flink portable runner.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse
@@ -73,24 +75,22 @@ def run(argv=None):
 
   pipeline_options = PipelineOptions(pipeline_args)
 
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  messages = (p | FlinkStreamingImpulseSource()
-              .set_message_count(known_args.count)
-              .set_interval_ms(known_args.interval_ms))
+    messages = (p | FlinkStreamingImpulseSource()
+                .set_message_count(known_args.count)
+                .set_interval_ms(known_args.interval_ms))
 
-  _ = (messages | 'decode' >> beam.Map(lambda x: ('', 1))
-       | 'window' >> beam.WindowInto(window.GlobalWindows(),
-                                     trigger=Repeatedly(
-                                         AfterProcessingTime(5 * 1000)),
-                                     accumulation_mode=
-                                     AccumulationMode.DISCARDING)
-       | 'group' >> beam.GroupByKey()
-       | 'count' >> beam.Map(count)
-       | 'log' >> beam.Map(lambda x: logging.info("%d" % x[1])))
+    _ = (messages | 'decode' >> beam.Map(lambda x: ('', 1))
+         | 'window' >> beam.WindowInto(window.GlobalWindows(),
+                                       trigger=Repeatedly(
+                                           AfterProcessingTime(5 * 1000)),
+                                       accumulation_mode=
+                                       AccumulationMode.DISCARDING)
+         | 'group' >> beam.GroupByKey()
+         | 'count' >> beam.Map(count)
+         | 'log' >> beam.Map(lambda x: logging.info("%d" % x[1])))
 
-  result = p.run()
-  result.wait_until_finish()
 
 
 if __name__ == '__main__':

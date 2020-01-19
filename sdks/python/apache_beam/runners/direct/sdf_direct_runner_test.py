@@ -17,6 +17,8 @@
 
 """Unit tests for SDF implementation for DirectRunner."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -147,8 +149,16 @@ class SDFDirectRunnerTest(unittest.TestCase):
     super(SDFDirectRunnerTest, self).setUp()
     # Importing following for DirectRunner SDF implemenation for testing.
     from apache_beam.runners.direct import transform_evaluator
-    self._default_max_num_outputs = (
+    self._old_default_max_num_outputs = (
         transform_evaluator._ProcessElementsEvaluator.DEFAULT_MAX_NUM_OUTPUTS)
+    self._default_max_num_outputs = (
+        transform_evaluator._ProcessElementsEvaluator.DEFAULT_MAX_NUM_OUTPUTS
+        ) = 100
+
+  def tearDown(self):
+    from apache_beam.runners.direct import transform_evaluator
+    transform_evaluator._ProcessElementsEvaluator.DEFAULT_MAX_NUM_OUTPUTS = (
+        self._old_default_max_num_outputs)
 
   def run_sdf_read_pipeline(
       self, num_files, num_records_per_file, resume_count=None):

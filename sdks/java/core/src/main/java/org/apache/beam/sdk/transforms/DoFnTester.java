@@ -33,10 +33,12 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -266,6 +268,12 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
+            public String timerId(DoFn<InputT, OutputT> doFn) {
+              throw new UnsupportedOperationException(
+                  "Cannot access timerId as parameter outside of @OnTimer method.");
+            }
+
+            @Override
             public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
               throw new UnsupportedOperationException(
                   "Not expected to access TimeDomain from @ProcessElement");
@@ -305,6 +313,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             @Override
             public Timer timer(String timerId) {
               throw new UnsupportedOperationException("DoFnTester doesn't support timers yet");
+            }
+
+            @Override
+            public TimerMap timerFamily(String tagId) {
+              throw new UnsupportedOperationException("DoFnTester doesn't support timerFamily yet");
             }
           });
     } catch (UserCodeException e) {
@@ -520,7 +533,18 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
           Materializations.MULTIMAP_MATERIALIZATION_URN,
           view.getViewFn().getMaterialization().getUrn());
       return ((ViewFn<Materializations.MultimapView, T>) view.getViewFn())
-          .apply(o -> Collections.emptyList());
+          .apply(
+              new MultimapView() {
+                @Override
+                public Iterable get() {
+                  return Collections.emptyList();
+                }
+
+                @Override
+                public Iterable get(@Nullable Object o) {
+                  return Collections.emptyList();
+                }
+              });
     }
 
     @Override
@@ -672,6 +696,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             @Override
             @Nullable
             public Void dispatch(DoFnSignature.Parameter.PaneInfoParameter p) {
+              return null;
+            }
+
+            @Override
+            public Void dispatch(DoFnSignature.Parameter.TimerIdParameter p) {
               return null;
             }
 

@@ -22,6 +22,8 @@ Provides interfaces to interact with existing Interactive Beam environment.
 External Interactive Beam users please use interactive_beam module in
 application code or notebook.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import atexit
@@ -31,13 +33,13 @@ import sys
 
 import apache_beam as beam
 from apache_beam.runners import runner
-from apache_beam.runners.utils import is_interactive
+from apache_beam.utils.interactive_utils import is_in_ipython
+from apache_beam.utils.interactive_utils import is_in_notebook
 
 # Interactive Beam user flow is data-centric rather than pipeline-centric, so
 # there is only one global interactive environment instance that manages
 # implementation that enables interactivity.
 _interactive_beam_env = None
-
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -79,11 +81,18 @@ class InteractiveEnvironment(object):
     self._watching_set = set()
     # Holds variables list of (Dict[str, object]).
     self._watching_dict_list = []
-    # Holds results of pipeline runs as Dict[Pipeline, PipelineResult].
+    # Holds results of main jobs as Dict[Pipeline, PipelineResult].
     # Each key is a pipeline instance defined by the end user. The
     # InteractiveRunner is responsible for populating this dictionary
     # implicitly.
-    self._pipeline_results = {}
+    self._main_pipeline_results = {}
+    # Holds results of background caching jobs as
+    # Dict[Pipeline, PipelineResult]. Each key is a pipeline instance defined by
+    # the end user. The InteractiveRunner is responsible for populating this
+    # dictionary implicitly when a background caching jobs is started.
+    self._background_caching_pipeline_results = {}
+    self._cached_source_signature = {}
+    self._tracked_user_pipelines = set()
     # Always watch __main__ module.
     self.watch('__main__')
     # Do a warning level logging if current python version is below 3.6.
@@ -106,7 +115,8 @@ class InteractiveEnvironment(object):
                       'install apache-beam[interactive]` to install necessary '
                       'dependencies to enable all data visualization features.')
 
-    self._is_in_ipython, self._is_in_notebook = is_interactive()
+    self._is_in_ipython = is_in_ipython()
+    self._is_in_notebook = is_in_notebook()
     if not self._is_in_ipython:
       _LOGGER.warning('You cannot use Interactive Beam features when you are '
                       'not in an interactive environment such as a Jupyter '
@@ -197,27 +207,74 @@ class InteractiveEnvironment(object):
     """Gets the cache manager held by current Interactive Environment."""
     return self._cache_manager
 
-  def set_pipeline_result(self, pipeline, result):
-    """Sets the pipeline run result. Adds one if absent. Otherwise, replace."""
+  def set_pipeline_result(self, pipeline, result, is_main_job):
+    """Sets the pipeline run result. Adds one if absent. Otherwise, replace.
+
+    When is_main_job is True, set the result for the main job; otherwise, set
+    the result for the background caching job.
+    """
     assert issubclass(type(pipeline), beam.Pipeline), (
         'pipeline must be an instance of apache_beam.Pipeline or its subclass')
     assert issubclass(type(result), runner.PipelineResult), (
         'result must be an instance of '
         'apache_beam.runners.runner.PipelineResult or its subclass')
-    self._pipeline_results[pipeline] = result
+    if is_main_job:
+      self._main_pipeline_results[pipeline] = result
+    else:
+      self._background_caching_pipeline_results[pipeline] = result
 
-  def evict_pipeline_result(self, pipeline):
+  def evict_pipeline_result(self, pipeline, is_main_job=True):
     """Evicts the tracking of given pipeline run. Noop if absent."""
-    return self._pipeline_results.pop(pipeline, None)
+    if is_main_job:
+      return self._main_pipeline_results.pop(pipeline, None)
+    return self._background_caching_pipeline_results.pop(pipeline, None)
 
-  def pipeline_result(self, pipeline):
+  def pipeline_result(self, pipeline, is_main_job=True):
     """Gets the pipeline run result. None if absent."""
-    return self._pipeline_results.get(pipeline, None)
+    if is_main_job:
+      return self._main_pipeline_results.get(pipeline, None)
+    return self._background_caching_pipeline_results.get(pipeline, None)
 
-  def is_terminated(self, pipeline):
+  def is_terminated(self, pipeline, is_main_job=True):
     """Queries if the most recent job (by executing the given pipeline) state
     is in a terminal state. True if absent."""
-    result = self.pipeline_result(pipeline)
+    result = self.pipeline_result(pipeline, is_main_job=is_main_job)
     if result:
       return runner.PipelineState.is_terminal(result.state)
     return True
+
+  def set_cached_source_signature(self, pipeline, signature):
+    self._cached_source_signature[pipeline] = signature
+
+  def get_cached_source_signature(self, pipeline):
+    return self._cached_source_signature.get(pipeline, set())
+
+  def track_user_pipelines(self):
+    """Record references to all user-defined pipeline instances watched in
+    current environment.
+
+    Current static global singleton interactive environment holds references to
+    a set of pipeline instances defined by the user in the watched scope.
+    Interactive Beam features could use the references to determine if a given
+    pipeline is defined by user or implicitly created by Beam SDK or runners,
+    then handle them differently.
+
+    This is invoked every time a PTransform is to be applied if the current
+    code execution is under ipython due to the possibility that any user-defined
+    pipeline can be re-evaluated through notebook cell re-execution at any time.
+
+    Each time this is invoked, the tracked user pipelines are refreshed to
+    remove any pipeline instances that are no longer in watched scope. For
+    example, after a notebook cell re-execution re-evaluating a pipeline
+    creation, the last pipeline reference created by last evaluation will not be
+    in watched scope anymore.
+    """
+    self._tracked_user_pipelines = set()
+    for watching in self.watching():
+      for _, val in watching:
+        if isinstance(val, beam.pipeline.Pipeline):
+          self._tracked_user_pipelines.add(val)
+
+  @property
+  def tracked_user_pipelines(self):
+    return self._tracked_user_pipelines

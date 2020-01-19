@@ -67,7 +67,7 @@ if [[ -z "$IS_SNAPSHOT_VERSION" ]] ; then
   sed -i -e "s/version=.*/version=$TARGET_VERSION/" gradle.properties
   sed -i -e "s/project.version = .*/project.version = '$TARGET_VERSION'/" buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
   sed -i -e "s/^__version__ = .*/__version__ = '${TARGET_VERSION}'/" sdks/python/apache_beam/version.py
-  sed -i -e "s/python_sdk_version=.*/python_sdk_version=$TARGET_VERSION/" gradle.properties
+  sed -i -e "s/sdk_version=.*/sdk_version=$TARGET_VERSION/" gradle.properties
   # TODO: [BEAM-4767]
   sed -i -e "s/'dataflow.container_version' : .*/'dataflow.container_version' : 'beam-${RELEASE}'/" runners/google-cloud-dataflow-java/build.gradle
 else
@@ -79,7 +79,7 @@ else
   sed -i -e "s/version=.*/version=$TARGET_VERSION-SNAPSHOT/" gradle.properties
   sed -i -e "s/project.version = .*/project.version = '$TARGET_VERSION'/" buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
   sed -i -e "s/^__version__ = .*/__version__ = '${TARGET_VERSION}.dev'/" sdks/python/apache_beam/version.py
-  sed -i -e "s/python_sdk_version=.*/python_sdk_version=$TARGET_VERSION.dev/" gradle.properties
+  sed -i -e "s/sdk_version=.*/sdk_version=$TARGET_VERSION.dev/" gradle.properties
   sed -i -e "s/'dataflow.container_version' : .*/'dataflow.container_version' : 'beam-master-.*'/" runners/google-cloud-dataflow-java/build.gradle
 fi
 

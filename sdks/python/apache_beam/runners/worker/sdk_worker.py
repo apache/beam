@@ -16,6 +16,8 @@
 #
 """SDK harness for executing Python Fns via the Fn API."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -29,6 +31,17 @@ import sys
 import threading
 import traceback
 from builtins import object
+from concurrent import futures
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Callable
+from typing import DefaultDict
+from typing import Dict
+from typing import Iterable
+from typing import Iterator
+from typing import List
+from typing import Optional
+from typing import Tuple
 
 import grpc
 from future.utils import raise_
@@ -39,10 +52,15 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
+from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
+
+if TYPE_CHECKING:
+  from apache_beam.portability.api import endpoints_pb2
+  from apache_beam.utils.profiler import Profile
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,13 +73,16 @@ DEFAULT_LOG_LULL_TIMEOUT_NS = 5 * 60 * 1000 * 1000 * 1000
 class SdkHarness(object):
   REQUEST_METHOD_PREFIX = '_request_'
 
-  def __init__(
-      self, control_address,
-      credentials=None,
-      worker_id=None,
-      # Caching is disabled by default
-      state_cache_size=0,
-      profiler_factory=None):
+  def __init__(self,
+               control_address,  # type: str
+               credentials=None,
+               worker_id=None,  # type: Optional[str]
+               # Caching is disabled by default
+               state_cache_size=0,
+               # time-based data buffering is disabled by default
+               data_buffer_time_limit_ms=0,
+               profiler_factory=None  # type: Optional[Callable[..., Profile]]
+               ):
     self._alive = True
     self._worker_index = 0
     self._worker_id = worker_id
@@ -80,20 +101,22 @@ class SdkHarness(object):
     self._control_channel = grpc.intercept_channel(
         self._control_channel, WorkerIdInterceptor(self._worker_id))
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
-        credentials, self._worker_id)
+        credentials, self._worker_id, data_buffer_time_limit_ms)
     self._state_handler_factory = GrpcStateHandlerFactory(self._state_cache,
                                                           credentials)
     self._profiler_factory = profiler_factory
-    self._fns = {}
+    self._fns = {}  # type: Dict[str, beam_fn_api_pb2.ProcessBundleDescriptor]
     # BundleProcessor cache across all workers.
     self._bundle_processor_cache = BundleProcessorCache(
         state_handler_factory=self._state_handler_factory,
         data_channel_factory=self._data_channel_factory,
         fns=self._fns)
-    # workers for process/finalize bundle.
-    self.workers = queue.Queue()
+
+    # TODO(BEAM-8998) use common UnboundedThreadPoolExecutor to process bundle
+    #  progress once dataflow runner's excessive progress polling is removed.
+    self._report_progress_executor = futures.ThreadPoolExecutor(max_workers=1)
     self._worker_thread_pool = UnboundedThreadPoolExecutor()
-    self._responses = queue.Queue()
+    self._responses = queue.Queue()  # type: queue.Queue[beam_fn_api_pb2.InstructionResponse]
     _LOGGER.info('Initializing SDKHarness with unbounded number of workers.')
 
   def run(self):
@@ -101,6 +124,7 @@ class SdkHarness(object):
     no_more_work = object()
 
     def get_responses():
+      # type: () -> Iterator[beam_fn_api_pb2.InstructionResponse]
       while True:
         response = self._responses.get()
         if response is no_more_work:
@@ -130,44 +154,47 @@ class SdkHarness(object):
     # Stop all the workers and clean all the associated resources
     self._data_channel_factory.close()
     self._state_handler_factory.close()
+    self._bundle_processor_cache.shutdown()
     _LOGGER.info('Done consuming work.')
 
-  def _execute(self, task, request):
-    try:
-      response = task()
-    except Exception:  # pylint: disable=broad-except
-      traceback_string = traceback.format_exc()
-      print(traceback_string, file=sys.stderr)
-      _LOGGER.error(
-          'Error processing instruction %s. Original traceback is\n%s\n',
-          request.instruction_id, traceback_string)
-      response = beam_fn_api_pb2.InstructionResponse(
-          instruction_id=request.instruction_id, error=traceback_string)
-    self._responses.put(response)
+  def _execute(self,
+               task,  # type: Callable[[], beam_fn_api_pb2.InstructionResponse]
+               request  # type:  beam_fn_api_pb2.InstructionRequest
+              ):
+    # type: (...) -> None
+    with statesampler.instruction_id(request.instruction_id):
+      try:
+        response = task()
+      except Exception:  # pylint: disable=broad-except
+        traceback_string = traceback.format_exc()
+        print(traceback_string, file=sys.stderr)
+        _LOGGER.error(
+            'Error processing instruction %s. Original traceback is\n%s\n',
+            request.instruction_id, traceback_string)
+        response = beam_fn_api_pb2.InstructionResponse(
+            instruction_id=request.instruction_id, error=traceback_string)
+      self._responses.put(response)
 
   def _request_register(self, request):
-    self._request_execute(request)
+    # type: (beam_fn_api_pb2.InstructionRequest) -> None
+    # registration request is handled synchronously
+    self._execute(
+        lambda: self.create_worker().do_instruction(request), request)
 
   def _request_process_bundle(self, request):
-
-    def task():
-      worker = self._get_or_create_worker()
-      try:
-        self._execute(lambda: worker.do_instruction(request), request)
-      finally:
-        # Put the worker back in the free worker pool
-        self.workers.put(worker)
-    self._worker_thread_pool.submit(task)
-    _LOGGER.debug(
-        "Currently using %s threads." % len(self._worker_thread_pool._workers))
+    # type: (beam_fn_api_pb2.InstructionRequest) -> None
+    self._request_execute(request)
 
   def _request_process_bundle_split(self, request):
+    # type: (beam_fn_api_pb2.InstructionRequest) -> None
     self._request_process_bundle_action(request)
 
   def _request_process_bundle_progress(self, request):
+    # type: (beam_fn_api_pb2.InstructionRequest) -> None
     self._request_process_bundle_action(request)
 
   def _request_process_bundle_action(self, request):
+    # type: (beam_fn_api_pb2.InstructionRequest) -> None
 
     def task():
       instruction_id = getattr(
@@ -175,44 +202,35 @@ class SdkHarness(object):
       # only process progress/split request when a bundle is in processing.
       if (instruction_id in
           self._bundle_processor_cache.active_bundle_processors):
-        worker = self._get_or_create_worker()
-        try:
-          self._execute(lambda: worker.do_instruction(request), request)
-        finally:
-          # Put the worker back in the free worker pool
-          self.workers.put(worker)
+        self._execute(
+            lambda: self.create_worker().do_instruction(request), request)
       else:
         self._execute(lambda: beam_fn_api_pb2.InstructionResponse(
             instruction_id=request.instruction_id, error=(
                 'Unknown process bundle instruction {}').format(
                     instruction_id)), request)
 
-    self._worker_thread_pool.submit(task)
+    self._report_progress_executor.submit(task)
 
   def _request_finalize_bundle(self, request):
+    # type: (beam_fn_api_pb2.InstructionRequest) -> None
     self._request_execute(request)
 
   def _request_execute(self, request):
 
     def task():
-      # Get one available worker.
-      worker = self._get_or_create_worker()
-      try:
-        self._execute(lambda: worker.do_instruction(request), request)
-      finally:
-        # Put the worker back in the free worker pool.
-        self.workers.put(worker)
+      self._execute(
+          lambda: self.create_worker().do_instruction(request), request)
 
     self._worker_thread_pool.submit(task)
+    _LOGGER.debug(
+        "Currently using %s threads." % len(self._worker_thread_pool._workers))
 
-  def _get_or_create_worker(self):
-    try:
-      return self.workers.get_nowait()
-    except queue.Empty:
-      return SdkWorker(self._bundle_processor_cache,
-                       state_cache_metrics_fn=
-                       self._state_cache.get_monitoring_infos,
-                       profiler_factory=self._profiler_factory)
+  def create_worker(self):
+    return SdkWorker(
+        self._bundle_processor_cache,
+        state_cache_metrics_fn=self._state_cache.get_monitoring_infos,
+        profiler_factory=self._profiler_factory)
 
 
 class BundleProcessorCache(object):
@@ -236,18 +254,29 @@ class BundleProcessorCache(object):
       performing processing.
   """
 
-  def __init__(self, state_handler_factory, data_channel_factory, fns):
+  def __init__(self,
+               state_handler_factory,  # type: StateHandlerFactory
+               data_channel_factory,  # type: data_plane.DataChannelFactory
+               fns  # type: Dict[str, beam_fn_api_pb2.ProcessBundleDescriptor]
+              ):
     self.fns = fns
     self.state_handler_factory = state_handler_factory
     self.data_channel_factory = data_channel_factory
-    self.active_bundle_processors = {}
-    self.cached_bundle_processors = collections.defaultdict(list)
+    self.active_bundle_processors = {}  # type: Dict[str, Tuple[str, bundle_processor.BundleProcessor]]
+    self.cached_bundle_processors = collections.defaultdict(list)  # type: DefaultDict[str, List[bundle_processor.BundleProcessor]]
 
   def register(self, bundle_descriptor):
+    # type: (beam_fn_api_pb2.ProcessBundleDescriptor) -> None
     """Register a ``beam_fn_api_pb2.ProcessBundleDescriptor`` by its id."""
     self.fns[bundle_descriptor.id] = bundle_descriptor
 
   def get(self, instruction_id, bundle_descriptor_id):
+    # type: (str, str) -> bundle_processor.BundleProcessor
+    """
+    Return the requested ``BundleProcessor``, creating it if necessary.
+
+    Moves the ``BundleProcessor`` from the inactive to the active cache.
+    """
     try:
       # pop() is threadsafe
       processor = self.cached_bundle_processors[bundle_descriptor_id].pop()
@@ -262,18 +291,36 @@ class BundleProcessorCache(object):
     return processor
 
   def lookup(self, instruction_id):
+    # type: (str) -> Optional[bundle_processor.BundleProcessor]
+    """
+    Return the requested ``BundleProcessor`` from the cache.
+    """
     return self.active_bundle_processors.get(instruction_id, (None, None))[-1]
 
   def discard(self, instruction_id):
+    # type: (str) -> None
+    """
+    Remove the ``BundleProcessor`` from the cache.
+    """
     self.active_bundle_processors[instruction_id][1].shutdown()
     del self.active_bundle_processors[instruction_id]
 
   def release(self, instruction_id):
+    # type: (str) -> None
+    """
+    Release the requested ``BundleProcessor``.
+
+    Resets the ``BundleProcessor`` and moves it from the active to the
+    inactive cache.
+    """
     descriptor_id, processor = self.active_bundle_processors.pop(instruction_id)
     processor.reset()
     self.cached_bundle_processors[descriptor_id].append(processor)
 
   def shutdown(self):
+    """
+    Shutdown all ``BundleProcessor``s in the cache.
+    """
     for instruction_id in self.active_bundle_processors:
       self.active_bundle_processors[instruction_id][1].shutdown()
       del self.active_bundle_processors[instruction_id]
@@ -285,10 +332,11 @@ class BundleProcessorCache(object):
 class SdkWorker(object):
 
   def __init__(self,
-               bundle_processor_cache,
+               bundle_processor_cache,  # type: BundleProcessorCache
                state_cache_metrics_fn=list,
-               profiler_factory=None,
-               log_lull_timeout_ns=None):
+               profiler_factory=None,  # type: Optional[Callable[..., Profile]]
+               log_lull_timeout_ns=None,
+              ):
     self.bundle_processor_cache = bundle_processor_cache
     self.state_cache_metrics_fn = state_cache_metrics_fn
     self.profiler_factory = profiler_factory
@@ -296,6 +344,7 @@ class SdkWorker(object):
                                 or DEFAULT_LOG_LULL_TIMEOUT_NS)
 
   def do_instruction(self, request):
+    # type: (beam_fn_api_pb2.InstructionRequest) -> beam_fn_api_pb2.InstructionResponse
     request_type = request.WhichOneof('request')
     if request_type:
       # E.g. if register is set, this will call self.register(request.register))
@@ -304,7 +353,11 @@ class SdkWorker(object):
     else:
       raise NotImplementedError
 
-  def register(self, request, instruction_id):
+  def register(self,
+               request,  # type: beam_fn_api_pb2.RegisterRequest
+               instruction_id  # type: str
+              ):
+    # type: (...) -> beam_fn_api_pb2.InstructionResponse
     """Registers a set of ``beam_fn_api_pb2.ProcessBundleDescriptor``s.
 
     This set of ``beam_fn_api_pb2.ProcessBundleDescriptor`` come as part of a
@@ -318,7 +371,11 @@ class SdkWorker(object):
         instruction_id=instruction_id,
         register=beam_fn_api_pb2.RegisterResponse())
 
-  def process_bundle(self, request, instruction_id):
+  def process_bundle(self,
+                     request,  # type: beam_fn_api_pb2.ProcessBundleRequest
+                     instruction_id  # type: str
+                    ):
+    # type: (...) -> beam_fn_api_pb2.InstructionResponse
     bundle_processor = self.bundle_processor_cache.get(
         instruction_id, request.process_bundle_descriptor_id)
     try:
@@ -345,7 +402,11 @@ class SdkWorker(object):
       self.bundle_processor_cache.discard(instruction_id)
       raise
 
-  def process_bundle_split(self, request, instruction_id):
+  def process_bundle_split(self,
+                           request,  # type: beam_fn_api_pb2.ProcessBundleSplitRequest
+                           instruction_id  # type: str
+                          ):
+    # type: (...) -> beam_fn_api_pb2.InstructionResponse
     processor = self.bundle_processor_cache.lookup(
         request.instruction_id)
     if processor:
@@ -366,7 +427,7 @@ class SdkWorker(object):
       step_name = sampler_info.state_name.step_name
       state_name = sampler_info.state_name.name
       state_lull_log = (
-          'There has been a processing lull of over %.2f seconds in state %s'
+          'Operation ongoing for over %.2f seconds in state %s'
           % (sampler_info.time_since_transition / 1e9, state_name))
       step_name_log = (' in step %s ' % step_name) if step_name else ''
 
@@ -379,9 +440,14 @@ class SdkWorker(object):
         stack_trace = '-NOT AVAILABLE-'
 
       _LOGGER.warning(
-          '%s%s. Traceback:\n%s', state_lull_log, step_name_log, stack_trace)
+          '%s%s without returning. Current Traceback:\n%s',
+          state_lull_log, step_name_log, stack_trace)
 
-  def process_bundle_progress(self, request, instruction_id):
+  def process_bundle_progress(self,
+                              request,  # type: beam_fn_api_pb2.ProcessBundleProgressRequest
+                              instruction_id  # type: str
+                             ):
+    # type: (...) -> beam_fn_api_pb2.InstructionResponse
     # It is an error to get progress for a not-in-flight bundle.
     processor = self.bundle_processor_cache.lookup(request.instruction_id)
     if processor:
@@ -392,7 +458,11 @@ class SdkWorker(object):
             metrics=processor.metrics() if processor else None,
             monitoring_infos=processor.monitoring_infos() if processor else []))
 
-  def finalize_bundle(self, request, instruction_id):
+  def finalize_bundle(self,
+                      request,  # type: beam_fn_api_pb2.FinalizeBundleRequest
+                      instruction_id  # type: str
+                     ):
+    # type: (...) -> beam_fn_api_pb2.InstructionResponse
     processor = self.bundle_processor_cache.lookup(
         request.instruction_id)
     if processor:
@@ -410,9 +480,6 @@ class SdkWorker(object):
           instruction_id=instruction_id,
           error='Instruction not running: %s' % instruction_id)
 
-  def stop(self):
-    self.bundle_processor_cache.shutdown()
-
   @contextlib.contextmanager
   def maybe_profile(self, instruction_id):
     if self.profiler_factory:
@@ -426,16 +493,43 @@ class SdkWorker(object):
       yield
 
 
-class StateHandlerFactory(with_metaclass(abc.ABCMeta, object)):
+class StateHandler(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
+  """An abstract object representing a ``StateHandler``."""
+
+  @abc.abstractmethod
+  def get_raw(self,
+              state_key,  # type: beam_fn_api_pb2.StateKey
+              continuation_token=None  # type: Optional[bytes]
+             ):
+    # type: (...) -> Tuple[bytes, Optional[bytes]]
+    raise NotImplementedError(type(self))
+
+  @abc.abstractmethod
+  def append_raw(self,
+                 state_key,  # type: beam_fn_api_pb2.StateKey
+                 data  # type: bytes
+                ):
+    # type: (...) -> _Future
+    raise NotImplementedError(type(self))
+
+  @abc.abstractmethod
+  def clear(self, state_key):
+    # type: (beam_fn_api_pb2.StateKey) -> _Future
+    raise NotImplementedError(type(self))
+
+
+class StateHandlerFactory(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
   """An abstract factory for creating ``DataChannel``."""
 
   @abc.abstractmethod
   def create_state_handler(self, api_service_descriptor):
+    # type: (endpoints_pb2.ApiServiceDescriptor) -> CachingStateHandler
     """Returns a ``StateHandler`` from the given ApiServiceDescriptor."""
     raise NotImplementedError(type(self))
 
   @abc.abstractmethod
   def close(self):
+    # type: () -> None
     """Close all channels that this factory owns."""
     raise NotImplementedError(type(self))
 
@@ -447,13 +541,14 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
   """
 
   def __init__(self, state_cache, credentials=None):
-    self._state_handler_cache = {}
+    self._state_handler_cache = {}  # type: Dict[str, CachingStateHandler]
     self._lock = threading.Lock()
     self._throwing_state_handler = ThrowingStateHandler()
     self._credentials = credentials
     self._state_cache = state_cache
 
   def create_state_handler(self, api_service_descriptor):
+    # type: (endpoints_pb2.ApiServiceDescriptor) -> CachingStateHandler
     if not api_service_descriptor:
       return self._throwing_state_handler
     url = api_service_descriptor.url
@@ -484,6 +579,7 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
     return self._state_handler_cache[url]
 
   def close(self):
+    # type: () -> None
     _LOGGER.info('Closing all cached gRPC state handlers.')
     for _, state_handler in self._state_handler_cache.items():
       state_handler.done()
@@ -491,15 +587,15 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
     self._state_cache.evict_all()
 
 
-class ThrowingStateHandler(object):
+class ThrowingStateHandler(StateHandler):
   """A state handler that errors on any requests."""
 
-  def blocking_get(self, state_key, coder):
+  def get_raw(self, state_key, coder):
     raise RuntimeError(
         'Unable to handle state requests for ProcessBundleDescriptor without '
         'state ApiServiceDescriptor for state key %s.' % state_key)
 
-  def append(self, state_key, coder, elements):
+  def append_raw(self, state_key, coder, elements):
     raise RuntimeError(
         'Unable to handle state requests for ProcessBundleDescriptor without '
         'state ApiServiceDescriptor for state key %s.' % state_key)
@@ -510,15 +606,16 @@ class ThrowingStateHandler(object):
         'state ApiServiceDescriptor for state key %s.' % state_key)
 
 
-class GrpcStateHandler(object):
+class GrpcStateHandler(StateHandler):
 
   _DONE = object()
 
   def __init__(self, state_stub):
+    # type: (beam_fn_api_pb2_grpc.BeamFnStateStub) -> None
     self._lock = threading.Lock()
     self._state_stub = state_stub
-    self._requests = queue.Queue()
-    self._responses_by_id = {}
+    self._requests = queue.Queue()  # type: queue.Queue[beam_fn_api_pb2.StateRequest]
+    self._responses_by_id = {}  # type: Dict[str, _Future]
     self._last_id = 0
     self._exc_info = None
     self._context = threading.local()
@@ -567,7 +664,11 @@ class GrpcStateHandler(object):
     self._done = True
     self._requests.put(self._DONE)
 
-  def get_raw(self, state_key, continuation_token=None):
+  def get_raw(self,
+              state_key,  # type: beam_fn_api_pb2.StateKey
+              continuation_token=None  # type: Optional[bytes]
+             ):
+    # type: (...) -> Tuple[bytes, Optional[bytes]]
     response = self._blocking_request(
         beam_fn_api_pb2.StateRequest(
             state_key=state_key,
@@ -575,19 +676,25 @@ class GrpcStateHandler(object):
                 continuation_token=continuation_token)))
     return response.get.data, response.get.continuation_token
 
-  def append_raw(self, state_key, data):
+  def append_raw(self,
+                 state_key,  # type: Optional[beam_fn_api_pb2.StateKey]
+                 data  # type: bytes
+                ):
+    # type: (...) -> _Future
     return self._request(
         beam_fn_api_pb2.StateRequest(
             state_key=state_key,
             append=beam_fn_api_pb2.StateAppendRequest(data=data)))
 
   def clear(self, state_key):
+    # type: (Optional[beam_fn_api_pb2.StateKey]) -> _Future
     return self._request(
         beam_fn_api_pb2.StateRequest(
             state_key=state_key,
             clear=beam_fn_api_pb2.StateClearRequest()))
 
   def _request(self, request):
+    # type: (beam_fn_api_pb2.StateRequest) -> _Future
     request.id = self._next_id()
     request.instruction_id = self._context.process_instruction_id
     # Adding a new item to a dictionary is atomic in cPython
@@ -597,6 +704,7 @@ class GrpcStateHandler(object):
     return future
 
   def _blocking_request(self, request):
+    # type: (beam_fn_api_pb2.StateRequest) -> beam_fn_api_pb2.StateResponse
     req_future = self._request(request)
     while not req_future.wait(timeout=1):
       if self._exc_info:
@@ -611,6 +719,7 @@ class GrpcStateHandler(object):
       return response
 
   def _next_id(self):
+    # type: () -> str
     with self._lock:
       # Use a lock here because this GrpcStateHandler is shared across all
       # requests which have the same process bundle descriptor. State requests
@@ -624,7 +733,10 @@ class GrpcStateHandler(object):
 class CachingStateHandler(object):
   """ A State handler which retrieves and caches state. """
 
-  def __init__(self, global_state_cache, underlying_state):
+  def __init__(self,
+               global_state_cache,  # type: StateCache
+               underlying_state  # type: StateHandler
+              ):
     self._underlying = underlying_state
     self._state_cache = global_state_cache
     self._context = threading.local()
@@ -650,7 +762,12 @@ class CachingStateHandler(object):
     finally:
       self._context.cache_token = None
 
-  def blocking_get(self, state_key, coder, is_cached=False):
+  def blocking_get(self,
+                   state_key,  # type: beam_fn_api_pb2.StateKey
+                   coder,  # type: coder_impl.CoderImpl
+                   is_cached=False
+                  ):
+    # type: (...) -> Iterator[Any]
     if not self._should_be_cached(is_cached):
       # Cache disabled / no cache token. Can't do a lookup/store in the cache.
       # Fall back to lazily materializing the state, one element at a time.
@@ -673,7 +790,13 @@ class CachingStateHandler(object):
           materialized)
     return iter(cached_value)
 
-  def extend(self, state_key, coder, elements, is_cached=False):
+  def extend(self,
+             state_key,  # type: beam_fn_api_pb2.StateKey
+             coder,  # type: coder_impl.CoderImpl
+             elements,  # type: Iterable[Any]
+             is_cached=False
+            ):
+    # type: (...) -> _Future
     if self._should_be_cached(is_cached):
       # Update the cache
       cache_key = self._convert_to_cache_key(state_key)
@@ -685,15 +808,21 @@ class CachingStateHandler(object):
     return self._underlying.append_raw(state_key, out.get())
 
   def clear(self, state_key, is_cached=False):
+    # type: (beam_fn_api_pb2.StateKey, bool) -> _Future
     if self._should_be_cached(is_cached):
       cache_key = self._convert_to_cache_key(state_key)
       self._state_cache.clear(cache_key, self._context.cache_token)
     return self._underlying.clear(state_key)
 
   def done(self):
+    # type: () -> None
     self._underlying.done()
 
-  def _materialize_iter(self, state_key, coder):
+  def _materialize_iter(self,
+                        state_key,  # type: beam_fn_api_pb2.StateKey
+                        coder  # type: coder_impl.CoderImpl
+                       ):
+    # type: (...) -> Iterator[Any]
     """Materializes the state lazily, one element at a time.
        :return A generator which returns the next element if advanced.
     """
@@ -739,8 +868,9 @@ class _Future(object):
 
   @classmethod
   def done(cls):
+    # type: () -> _Future
     if not hasattr(cls, 'DONE'):
       done_future = _Future()
       done_future.set(None)
-      cls.DONE = done_future
-    return cls.DONE
+      cls.DONE = done_future  # type: ignore[attr-defined]
+    return cls.DONE  # type: ignore[attr-defined]

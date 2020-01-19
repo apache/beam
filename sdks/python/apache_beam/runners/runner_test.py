@@ -22,6 +22,8 @@ the other unit tests. In this file we choose to test only aspects related to
 caching and clearing values that are not tested elsewhere.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import unittest
@@ -39,7 +41,7 @@ class RunnerTest(unittest.TestCase):
       '--project=test-project',
       '--staging_location=ignored',
       '--temp_location=/dev/null',
-      '--no_auth=True']
+      '--no_auth']
 
   def test_create_runner(self):
     self.assertTrue(

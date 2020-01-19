@@ -17,6 +17,8 @@
 
 """Unit tests for the transform.external classes."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse
@@ -56,7 +58,7 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 try:
   from apache_beam.runners.dataflow.internal import apiclient
 except ImportError:
-  apiclient = None
+  apiclient = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -227,8 +229,8 @@ class ExternalImplicitPayloadTest(unittest.TestCase):
 class ExternalTransformTest(unittest.TestCase):
 
   # This will be overwritten if set via a flag.
-  expansion_service_jar = None
-  expansion_service_port = None
+  expansion_service_jar = None  # type: str
+  expansion_service_port = None  # type: int
 
   class _RunWithExpansion(object):
 
@@ -320,6 +322,17 @@ class ExternalTransformTest(unittest.TestCase):
     with beam.Pipeline() as p:
       assert_that(p | FibTransform(6), equal_to([8]))
 
+  def test_unique_name(self):
+    p = beam.Pipeline()
+    _ = p | FibTransform(6)
+    proto = p.to_runner_api()
+    xforms = [x.unique_name for x in proto.components.transforms.values()]
+    self.assertEqual(
+        len(set(xforms)), len(xforms), msg='Transform names are not unique.')
+    pcolls = [x.unique_name for x in proto.components.pcollections.values()]
+    self.assertEqual(
+        len(set(pcolls)), len(pcolls), msg='PCollection names are not unique.')
+
   def test_java_expansion_portable_runner(self):
     ExternalTransformTest.expansion_service_port = os.environ.get(
         'EXPANSION_PORT')
@@ -381,12 +394,8 @@ class ExternalTransformTest(unittest.TestCase):
         p
         | beam.Create(list('aaabccxyyzzz'))
         | beam.Map(unicode)
-        # TODO(BEAM-6587): Use strings directly rather than ints.
-        | beam.Map(lambda x: int(ord(x)))
         | beam.ExternalTransform(TEST_FILTER_URN, b'middle', expansion_service)
         | beam.ExternalTransform(TEST_COUNT_URN, None, expansion_service)
-        # # TODO(BEAM-6587): Remove when above is removed.
-        | beam.Map(lambda kv: (chr(kv[0]), kv[1]))
         | beam.Map(lambda kv: '%s: %s' % kv))
 
     assert_that(res, equal_to(['a: 3', 'b: 1', 'c: 2']))

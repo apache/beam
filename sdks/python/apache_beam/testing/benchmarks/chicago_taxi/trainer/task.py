@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Trainer for the chicago_taxi demo."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -175,10 +177,10 @@ def main():
   args = parser.parse_args()
 
   # Set python level verbosity
-  tf.logging.set_verbosity(args.verbosity)
+  tf.compat.v1.logging.set_verbosity(args.verbosity)
   # Set C++ Graph Execution level verbosity
   os.environ['TF_CPP_MIN_LOG_LEVEL'] = str(
-      tf.logging.__dict__[args.verbosity] / 10)
+      getattr(tf.compat.v1.logging, args.verbosity) / 10)
 
   # Run the training job
   hparams = tf.contrib.training.HParams(**args.__dict__)

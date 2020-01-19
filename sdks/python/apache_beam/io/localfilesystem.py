@@ -16,11 +16,14 @@
 #
 """Local File system implementation for accessing files on disk."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import os
 import shutil
 from builtins import zip
+from typing import BinaryIO  # pylint: disable=unused-import
 
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressedFile
@@ -139,6 +142,7 @@ class LocalFileSystem(FileSystem):
 
   def create(self, path, mime_type='application/octet-stream',
              compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
     """Returns a write channel for the given file path.
 
     Args:
@@ -152,6 +156,7 @@ class LocalFileSystem(FileSystem):
 
   def open(self, path, mime_type='application/octet-stream',
            compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
     """Returns a read channel for the given file path.
 
     Args:

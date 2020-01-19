@@ -20,6 +20,8 @@
 This module is experimental. No backwards-compatibility guarantees.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -27,6 +29,7 @@ from __future__ import print_function
 import collections
 import threading
 import time
+from typing import TYPE_CHECKING
 
 from apache_beam.runners.interactive.display import interactive_pipeline_graph
 
@@ -37,11 +40,12 @@ try:
   # _display_progress defines how outputs are printed on the frontend.
   _display_progress = ip_display
 
-  def _formatter(string, pp, cycle):  # pylint: disable=unused-argument
-    pp.text(string)
-  if get_ipython():
-    plain = get_ipython().display_formatter.formatters['text/plain']  # pylint: disable=undefined-variable
-    plain.for_type(str, _formatter)
+  if not TYPE_CHECKING:
+    def _formatter(string, pp, cycle):  # pylint: disable=unused-argument
+      pp.text(string)
+    if get_ipython():
+      plain = get_ipython().display_formatter.formatters['text/plain']  # pylint: disable=undefined-variable
+      plain.for_type(str, _formatter)
 
 except ImportError:
   IPython = None

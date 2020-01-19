@@ -34,7 +34,6 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
@@ -79,11 +78,11 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
 
   @AutoValue
   public abstract static class CacheKey {
-    public static CacheKey create(SdkFunctionSpec windowMappingFn, BoundedWindow mainWindow) {
+    public static CacheKey create(FunctionSpec windowMappingFn, BoundedWindow mainWindow) {
       return new AutoValue_FnApiWindowMappingFn_CacheKey(windowMappingFn, mainWindow);
     }
 
-    public abstract SdkFunctionSpec getWindowMappingFn();
+    public abstract FunctionSpec getWindowMappingFn();
 
     public abstract BoundedWindow getMainWindow();
   }
@@ -94,7 +93,7 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
   private final IdGenerator idGenerator;
   private final FnDataService beamFnDataService;
   private final InstructionRequestHandler instructionRequestHandler;
-  private final SdkFunctionSpec windowMappingFn;
+  private final FunctionSpec windowMappingFn;
   private final Coder<WindowedValue<KV<byte[], BoundedWindow>>> outboundCoder;
   private final Coder<WindowedValue<KV<byte[], TargetWindowT>>> inboundCoder;
   private final ProcessBundleDescriptor processBundleDescriptor;
@@ -104,7 +103,7 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
       InstructionRequestHandler instructionRequestHandler,
       ApiServiceDescriptor dataServiceApiServiceDescriptor,
       FnDataService beamFnDataService,
-      SdkFunctionSpec windowMappingFn,
+      FunctionSpec windowMappingFn,
       Coder<BoundedWindow> mainInputWindowCoder,
       Coder<TargetWindowT> sideInputWindowCoder) {
     this.idGenerator = idGenerator;
@@ -219,7 +218,7 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
     }
   }
 
-  private TargetWindowT loadIfNeeded(SdkFunctionSpec windowMappingFn, BoundedWindow mainWindow) {
+  private TargetWindowT loadIfNeeded(FunctionSpec windowMappingFn, BoundedWindow mainWindow) {
     try {
       String processRequestInstructionId = idGenerator.getId();
       InstructionRequest processRequest =

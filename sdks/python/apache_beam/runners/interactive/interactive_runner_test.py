@@ -20,6 +20,8 @@
 This module is experimental. No backwards-compatibility guarantees.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -28,11 +30,12 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.runners.direct import direct_runner
+from apache_beam.runners.interactive import interactive_beam as ib
+from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner
 
 
 def print_with_message(msg):
-
   def printer(elem):
     print(msg, elem)
     return elem
@@ -42,15 +45,20 @@ def print_with_message(msg):
 
 class InteractiveRunnerTest(unittest.TestCase):
 
+  def setUp(self):
+    ie.new_env()
+
   def test_basic(self):
     p = beam.Pipeline(
         runner=interactive_runner.InteractiveRunner(
             direct_runner.DirectRunner()))
+    ib.watch({'p': p})
     p.run().wait_until_finish()
     pc0 = (
         p | 'read' >> beam.Create([1, 2, 3])
         | 'Print1.1' >> beam.Map(print_with_message('Run1.1')))
     pc = pc0 | 'Print1.2' >> beam.Map(print_with_message('Run1.2'))
+    ib.watch(locals())
     p.run().wait_until_finish()
     _ = pc | 'Print2' >> beam.Map(print_with_message('Run2'))
     p.run().wait_until_finish()
@@ -58,7 +66,6 @@ class InteractiveRunnerTest(unittest.TestCase):
     p.run().wait_until_finish()
 
   def test_wordcount(self):
-
     class WordExtractingDoFn(beam.DoFn):
 
       def process(self, element):
@@ -78,6 +85,9 @@ class InteractiveRunnerTest(unittest.TestCase):
         | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
         | 'group' >> beam.GroupByKey()
         | 'count' >> beam.Map(lambda wordones: (wordones[0], sum(wordones[1]))))
+
+    # Watch the local scope for Interactive Beam so that counts will be cached.
+    ib.watch(locals())
 
     result = p.run()
     result.wait_until_finish()

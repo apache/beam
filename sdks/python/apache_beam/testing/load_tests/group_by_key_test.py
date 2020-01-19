@@ -118,6 +118,8 @@ apache_beam.testing.load_tests.group_by_key_test \
 -Prunner=TestDataflowRunner :sdks:python:apache_beam:testing:load-tests:run
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging

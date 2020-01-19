@@ -16,6 +16,8 @@
 #
 
 """Tests for state sampler."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -123,15 +125,11 @@ class StateSamplerTest(unittest.TestCase):
     state_transition_count = sampler.get_info().transition_count
     overhead_us = 1000000.0 * elapsed_time / state_transition_count
 
-    # TODO: This test is flaky when it is run under load. A better solution
-    # would be to change the test structure to not depend on specific timings.
-    overhead_us = 2 * overhead_us
-
     _LOGGER.info('Overhead per transition: %fus', overhead_us)
     # Conservative upper bound on overhead in microseconds (we expect this to
     # take 0.17us when compiled in opt mode or 0.48 us when compiled with in
     # debug mode).
-    self.assertLess(overhead_us, 10.0)
+    self.assertLess(overhead_us, 20.0)
 
 
 if __name__ == '__main__':

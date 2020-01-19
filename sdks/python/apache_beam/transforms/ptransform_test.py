@@ -17,6 +17,8 @@
 
 """Unit tests for the PTransform and descendants."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -48,14 +50,17 @@ from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import WindowInto
 from apache_beam.transforms import window
 from apache_beam.transforms.core import _GroupByKeyOnly
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 from apache_beam.typehints.typehints_test import TypeHintTestCase
+from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
 # Disable frequent lint warning due to pipe operator for chaining transforms.
@@ -81,29 +86,29 @@ class PTransformTest(unittest.TestCase):
                      str(PTransform()))
 
     pa = TestPipeline()
-    res = pa | 'ALabel' >> beam.Create([1, 2])
-    self.assertEqual('AppliedPTransform(ALabel/Read, Read)',
+    res = pa | 'ALabel' >> beam.Impulse()
+    self.assertEqual('AppliedPTransform(ALabel, Impulse)',
                      str(res.producer))
 
     pc = TestPipeline()
-    res = pc | beam.Create([1, 2])
+    res = pc | beam.Impulse()
     inputs_tr = res.producer.transform
     inputs_tr.inputs = ('ci',)
     self.assertEqual(
-        """<Read(PTransform) label=[Read] inputs=('ci',)>""",
+        "<Impulse(PTransform) label=[Impulse] inputs=('ci',)>",
         str(inputs_tr))
 
     pd = TestPipeline()
-    res = pd | beam.Create([1, 2])
+    res = pd | beam.Impulse()
     side_tr = res.producer.transform
     side_tr.side_inputs = (4,)
     self.assertEqual(
-        '<Read(PTransform) label=[Read] side_inputs=(4,)>',
+        '<Impulse(PTransform) label=[Impulse] side_inputs=(4,)>',
         str(side_tr))
 
     inputs_tr.side_inputs = ('cs',)
     self.assertEqual(
-        """<Read(PTransform) label=[Read] """
+        """<Impulse(PTransform) label=[Impulse] """
         """inputs=('ci',) side_inputs=('cs',)>""",
         str(inputs_tr))
 
@@ -113,11 +118,10 @@ class PTransformTest(unittest.TestCase):
       def process(self, element, addon):
         return [element + addon]
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
-    result = pcoll | 'Do' >> beam.ParDo(AddNDoFn(), 10)
-    assert_that(result, equal_to([11, 12, 13]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
+      result = pcoll | 'Do' >> beam.ParDo(AddNDoFn(), 10)
+      assert_that(result, equal_to([11, 12, 13]))
 
   def test_do_with_unconstructed_do_fn(self):
     class MyDoFn(beam.DoFn):
@@ -125,81 +129,74 @@ class PTransformTest(unittest.TestCase):
       def process(self):
         pass
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
     with self.assertRaises(ValueError):
-      pcoll | 'Do' >> beam.ParDo(MyDoFn)  # Note the lack of ()'s
+      with TestPipeline() as pipeline:
+        pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
+        pcoll | 'Do' >> beam.ParDo(MyDoFn)  # Note the lack of ()'s
 
   def test_do_with_callable(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
-    result = pcoll | 'Do' >> beam.FlatMap(lambda x, addon: [x + addon], 10)
-    assert_that(result, equal_to([11, 12, 13]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
+      result = pcoll | 'Do' >> beam.FlatMap(lambda x, addon: [x + addon], 10)
+      assert_that(result, equal_to([11, 12, 13]))
 
   def test_do_with_side_input_as_arg(self):
-    pipeline = TestPipeline()
-    side = pipeline | 'Side' >> beam.Create([10])
-    pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
-    result = pcoll | 'Do' >> beam.FlatMap(
-        lambda x, addon: [x + addon], pvalue.AsSingleton(side))
-    assert_that(result, equal_to([11, 12, 13]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      side = pipeline | 'Side' >> beam.Create([10])
+      pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
+      result = pcoll | 'Do' >> beam.FlatMap(
+          lambda x, addon: [x + addon], pvalue.AsSingleton(side))
+      assert_that(result, equal_to([11, 12, 13]))
 
   def test_do_with_side_input_as_keyword_arg(self):
-    pipeline = TestPipeline()
-    side = pipeline | 'Side' >> beam.Create([10])
-    pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
-    result = pcoll | 'Do' >> beam.FlatMap(
-        lambda x, addon: [x + addon], addon=pvalue.AsSingleton(side))
-    assert_that(result, equal_to([11, 12, 13]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      side = pipeline | 'Side' >> beam.Create([10])
+      pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
+      result = pcoll | 'Do' >> beam.FlatMap(
+          lambda x, addon: [x + addon], addon=pvalue.AsSingleton(side))
+      assert_that(result, equal_to([11, 12, 13]))
 
   def test_do_with_do_fn_returning_string_raises_warning(self):
-    pipeline = TestPipeline()
-    pipeline._options.view_as(TypeOptions).runtime_type_check = True
-    pcoll = pipeline | 'Start' >> beam.Create(['2', '9', '3'])
-    pcoll | 'Do' >> beam.FlatMap(lambda x: x + '1')
-
-    # Since the DoFn directly returns a string we should get an error warning
-    # us.
     with self.assertRaises(typehints.TypeCheckError) as cm:
-      pipeline.run()
+      with TestPipeline() as pipeline:
+        pipeline._options.view_as(TypeOptions).runtime_type_check = True
+        pcoll = pipeline | 'Start' >> beam.Create(['2', '9', '3'])
+        pcoll | 'Do' >> beam.FlatMap(lambda x: x + '1')
+
+        # Since the DoFn directly returns a string we should get an
+        # error warning us when the pipeliene runs.
 
     expected_error_prefix = ('Returning a str from a ParDo or FlatMap '
                              'is discouraged.')
     self.assertStartswith(cm.exception.args[0], expected_error_prefix)
 
   def test_do_with_do_fn_returning_dict_raises_warning(self):
-    pipeline = TestPipeline()
-    pipeline._options.view_as(TypeOptions).runtime_type_check = True
-    pcoll = pipeline | 'Start' >> beam.Create(['2', '9', '3'])
-    pcoll | 'Do' >> beam.FlatMap(lambda x: {x: '1'})
-
-    # Since the DoFn directly returns a dict we should get an error warning
-    # us.
     with self.assertRaises(typehints.TypeCheckError) as cm:
-      pipeline.run()
+      with TestPipeline() as pipeline:
+        pipeline._options.view_as(TypeOptions).runtime_type_check = True
+        pcoll = pipeline | 'Start' >> beam.Create(['2', '9', '3'])
+        pcoll | 'Do' >> beam.FlatMap(lambda x: {x: '1'})
+
+        # Since the DoFn directly returns a dict we should get an error warning
+        # us when the pipeliene runs.
 
     expected_error_prefix = ('Returning a dict from a ParDo or FlatMap '
                              'is discouraged.')
     self.assertStartswith(cm.exception.args[0], expected_error_prefix)
 
   def test_do_with_multiple_outputs_maintains_unique_name(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
-    r1 = pcoll | 'A' >> beam.FlatMap(lambda x: [x + 1]).with_outputs(main='m')
-    r2 = pcoll | 'B' >> beam.FlatMap(lambda x: [x + 2]).with_outputs(main='m')
-    assert_that(r1.m, equal_to([2, 3, 4]), label='r1')
-    assert_that(r2.m, equal_to([3, 4, 5]), label='r2')
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
+      r1 = pcoll | 'A' >> beam.FlatMap(lambda x: [x + 1]).with_outputs(main='m')
+      r2 = pcoll | 'B' >> beam.FlatMap(lambda x: [x + 2]).with_outputs(main='m')
+      assert_that(r1.m, equal_to([2, 3, 4]), label='r1')
+      assert_that(r2.m, equal_to([3, 4, 5]), label='r2')
 
   @attr('ValidatesRunner')
   def test_impulse(self):
-    pipeline = TestPipeline()
-    result = pipeline | beam.Impulse() | beam.Map(lambda _: 0)
-    assert_that(result, equal_to([0]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      result = pipeline | beam.Impulse() | beam.Map(lambda _: 0)
+      assert_that(result, equal_to([0]))
 
   # TODO(BEAM-3544): Disable this test in streaming temporarily.
   # Remove sickbay-streaming tag after it's resolved.
@@ -241,14 +238,13 @@ class PTransformTest(unittest.TestCase):
         else:
           yield pvalue.TaggedOutput('odd', element)
 
-    pipeline = TestPipeline()
-    nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
-    results = nums | 'ClassifyNumbers' >> beam.ParDo(
-        SomeDoFn()).with_outputs('odd', 'even', main='main')
-    assert_that(results.main, equal_to([1, 2, 3, 4]))
-    assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
-    assert_that(results.even, equal_to([2, 4]), label='assert:even')
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
+      results = nums | 'ClassifyNumbers' >> beam.ParDo(
+          SomeDoFn()).with_outputs('odd', 'even', main='main')
+      assert_that(results.main, equal_to([1, 2, 3, 4]))
+      assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
+      assert_that(results.even, equal_to([2, 4]), label='assert:even')
 
   @attr('ValidatesRunner')
   def test_par_do_with_multiple_outputs_and_using_return(self):
@@ -257,55 +253,51 @@ class PTransformTest(unittest.TestCase):
         return [v, pvalue.TaggedOutput('even', v)]
       return [v, pvalue.TaggedOutput('odd', v)]
 
-    pipeline = TestPipeline()
-    nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
-    results = nums | 'ClassifyNumbers' >> beam.FlatMap(
-        some_fn).with_outputs('odd', 'even', main='main')
-    assert_that(results.main, equal_to([1, 2, 3, 4]))
-    assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
-    assert_that(results.even, equal_to([2, 4]), label='assert:even')
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
+      results = nums | 'ClassifyNumbers' >> beam.FlatMap(
+          some_fn).with_outputs('odd', 'even', main='main')
+      assert_that(results.main, equal_to([1, 2, 3, 4]))
+      assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
+      assert_that(results.even, equal_to([2, 4]), label='assert:even')
 
   @attr('ValidatesRunner')
   def test_undeclared_outputs(self):
-    pipeline = TestPipeline()
-    nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
-    results = nums | 'ClassifyNumbers' >> beam.FlatMap(
-        lambda x: [x,
-                   pvalue.TaggedOutput('even' if x % 2 == 0 else 'odd', x),
-                   pvalue.TaggedOutput('extra', x)]
-    ).with_outputs()
-    assert_that(results[None], equal_to([1, 2, 3, 4]))
-    assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
-    assert_that(results.even, equal_to([2, 4]), label='assert:even')
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
+      results = nums | 'ClassifyNumbers' >> beam.FlatMap(
+          lambda x: [x,
+                     pvalue.TaggedOutput('even' if x % 2 == 0 else 'odd', x),
+                     pvalue.TaggedOutput('extra', x)]
+      ).with_outputs()
+      assert_that(results[None], equal_to([1, 2, 3, 4]))
+      assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
+      assert_that(results.even, equal_to([2, 4]), label='assert:even')
 
   @attr('ValidatesRunner')
   def test_multiple_empty_outputs(self):
-    pipeline = TestPipeline()
-    nums = pipeline | 'Some Numbers' >> beam.Create([1, 3, 5])
-    results = nums | 'ClassifyNumbers' >> beam.FlatMap(
-        lambda x: [x,
-                   pvalue.TaggedOutput('even' if x % 2 == 0 else 'odd', x)]
-    ).with_outputs()
-    assert_that(results[None], equal_to([1, 3, 5]))
-    assert_that(results.odd, equal_to([1, 3, 5]), label='assert:odd')
-    assert_that(results.even, equal_to([]), label='assert:even')
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      nums = pipeline | 'Some Numbers' >> beam.Create([1, 3, 5])
+      results = nums | 'ClassifyNumbers' >> beam.FlatMap(
+          lambda x: [x,
+                     pvalue.TaggedOutput('even' if x % 2 == 0 else 'odd', x)]
+      ).with_outputs()
+      assert_that(results[None], equal_to([1, 3, 5]))
+      assert_that(results.odd, equal_to([1, 3, 5]), label='assert:odd')
+      assert_that(results.even, equal_to([]), label='assert:even')
 
   def test_do_requires_do_fn_returning_iterable(self):
     # This function is incorrect because it returns an object that isn't an
     # iterable.
     def incorrect_par_do_fn(x):
       return x + 5
-    pipeline = TestPipeline()
-    pipeline._options.view_as(TypeOptions).runtime_type_check = True
-    pcoll = pipeline | 'Start' >> beam.Create([2, 9, 3])
-    pcoll | 'Do' >> beam.FlatMap(incorrect_par_do_fn)
-    # It's a requirement that all user-defined functions to a ParDo return
-    # an iterable.
     with self.assertRaises(typehints.TypeCheckError) as cm:
-      pipeline.run()
+      with TestPipeline() as pipeline:
+        pipeline._options.view_as(TypeOptions).runtime_type_check = True
+        pcoll = pipeline | 'Start' >> beam.Create([2, 9, 3])
+        pcoll | 'Do' >> beam.FlatMap(incorrect_par_do_fn)
+        # It's a requirement that all user-defined functions to a ParDo return
+        # an iterable.
 
     expected_error_prefix = 'FlatMap and ParDo must return an iterable.'
     self.assertStartswith(cm.exception.args[0], expected_error_prefix)
@@ -318,18 +310,42 @@ class PTransformTest(unittest.TestCase):
       def finish_bundle(self):
         yield WindowedValue('finish', -1, [window.GlobalWindow()])
 
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
+      result = pcoll | 'Do' >> beam.ParDo(MyDoFn())
+
+      # May have many bundles, but each has a start and finish.
+      def  matcher():
+        def match(actual):
+          equal_to(['finish'])(list(set(actual)))
+          equal_to([1])([actual.count('finish')])
+        return match
+
+      assert_that(result, matcher())
+
+  def test_do_fn_with_windowing_in_finish_bundle(self):
+    windowfn = window.FixedWindows(2)
+
+    class MyDoFn(beam.DoFn):
+      def process(self, element):
+        yield TimestampedValue('process'+ str(element), 5)
+
+      def finish_bundle(self):
+        yield WindowedValue('finish', 1, [windowfn])
+
     pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
-    result = pcoll | 'Do' >> beam.ParDo(MyDoFn())
+    result = (pipeline
+              | 'Start' >> beam.Create([1])
+              | beam.ParDo(MyDoFn())
+              | WindowInto(windowfn)
+              | 'create tuple' >> beam.Map(
+                  lambda v, t=beam.DoFn.TimestampParam, w=beam.DoFn.WindowParam:
+                  (v, t, w.start, w.end)))
+    expected_process = [('process1', Timestamp(5), Timestamp(4),
+                         Timestamp(6))]
+    expected_finish = [('finish', Timestamp(1), Timestamp(0), Timestamp(2))]
 
-    # May have many bundles, but each has a start and finish.
-    def  matcher():
-      def match(actual):
-        equal_to(['finish'])(list(set(actual)))
-        equal_to([1])([actual.count('finish')])
-      return match
-
-    assert_that(result, matcher())
+    assert_that(result, equal_to(expected_process + expected_finish))
     pipeline.run()
 
   def test_do_fn_with_start(self):
@@ -345,19 +361,18 @@ class PTransformTest(unittest.TestCase):
           yield 'started'
         self.state = 'process'
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
-    result = pcoll | 'Do' >> beam.ParDo(MyDoFn())
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
+      result = pcoll | 'Do' >> beam.ParDo(MyDoFn())
 
-    # May have many bundles, but each has a start and finish.
-    def  matcher():
-      def match(actual):
-        equal_to(['started'])(list(set(actual)))
-        equal_to([1])([actual.count('started')])
-      return match
+      # May have many bundles, but each has a start and finish.
+      def  matcher():
+        def match(actual):
+          equal_to(['started'])(list(set(actual)))
+          equal_to([1])([actual.count('started')])
+        return match
 
-    assert_that(result, matcher())
-    pipeline.run()
+      assert_that(result, matcher())
 
   def test_do_fn_with_start_error(self):
     class MyDoFn(beam.DoFn):
@@ -367,17 +382,15 @@ class PTransformTest(unittest.TestCase):
       def process(self, element):
         pass
 
-    pipeline = TestPipeline()
-    pipeline | 'Start' >> beam.Create([1, 2, 3]) | 'Do' >> beam.ParDo(MyDoFn())
     with self.assertRaises(RuntimeError):
-      pipeline.run()
+      with TestPipeline() as p:
+        p | 'Start' >> beam.Create([1, 2, 3]) | 'Do' >> beam.ParDo(MyDoFn())
 
   def test_filter(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3, 4])
-    result = pcoll | 'Filter' >> beam.Filter(lambda x: x % 2 == 0)
-    assert_that(result, equal_to([2, 4]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3, 4])
+      result = pcoll | 'Filter' >> beam.Filter(lambda x: x % 2 == 0)
+      assert_that(result, equal_to([2, 4]))
 
   class _MeanCombineFn(beam.CombineFn):
 
@@ -400,76 +413,87 @@ class PTransformTest(unittest.TestCase):
 
   def test_combine_with_combine_fn(self):
     vals = [1, 2, 3, 4, 5, 6, 7]
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create(vals)
-    result = pcoll | 'Mean' >> beam.CombineGlobally(self._MeanCombineFn())
-    assert_that(result, equal_to([sum(vals) // len(vals)]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create(vals)
+      result = pcoll | 'Mean' >> beam.CombineGlobally(self._MeanCombineFn())
+      assert_that(result, equal_to([sum(vals) // len(vals)]))
 
   def test_combine_with_callable(self):
     vals = [1, 2, 3, 4, 5, 6, 7]
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create(vals)
-    result = pcoll | beam.CombineGlobally(sum)
-    assert_that(result, equal_to([sum(vals)]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create(vals)
+      result = pcoll | beam.CombineGlobally(sum)
+      assert_that(result, equal_to([sum(vals)]))
 
   def test_combine_with_side_input_as_arg(self):
     values = [1, 2, 3, 4, 5, 6, 7]
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create(values)
-    divisor = pipeline | 'Divisor' >> beam.Create([2])
-    result = pcoll | 'Max' >> beam.CombineGlobally(
-        # Multiples of divisor only.
-        lambda vals, d: max(v for v in vals if v % d == 0),
-        pvalue.AsSingleton(divisor)).without_defaults()
-    filt_vals = [v for v in values if v % 2 == 0]
-    assert_that(result, equal_to([max(filt_vals)]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create(values)
+      divisor = pipeline | 'Divisor' >> beam.Create([2])
+      result = pcoll | 'Max' >> beam.CombineGlobally(
+          # Multiples of divisor only.
+          lambda vals, d: max(v for v in vals if v % d == 0),
+          pvalue.AsSingleton(divisor)).without_defaults()
+      filt_vals = [v for v in values if v % 2 == 0]
+      assert_that(result, equal_to([max(filt_vals)]))
 
   def test_combine_per_key_with_combine_fn(self):
     vals_1 = [1, 2, 3, 4, 5, 6, 7]
     vals_2 = [2, 4, 6, 8, 10, 12, 14]
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create(([('a', x) for x in vals_1] +
-                                               [('b', x) for x in vals_2]))
-    result = pcoll | 'Mean' >> beam.CombinePerKey(self._MeanCombineFn())
-    assert_that(result, equal_to([('a', sum(vals_1) // len(vals_1)),
-                                  ('b', sum(vals_2) // len(vals_2))]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create(([('a', x) for x in vals_1] +
+                                                 [('b', x) for x in vals_2]))
+      result = pcoll | 'Mean' >> beam.CombinePerKey(self._MeanCombineFn())
+      assert_that(result, equal_to([('a', sum(vals_1) // len(vals_1)),
+                                    ('b', sum(vals_2) // len(vals_2))]))
 
   def test_combine_per_key_with_callable(self):
     vals_1 = [1, 2, 3, 4, 5, 6, 7]
     vals_2 = [2, 4, 6, 8, 10, 12, 14]
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create(([('a', x) for x in vals_1] +
-                                               [('b', x) for x in vals_2]))
-    result = pcoll | beam.CombinePerKey(sum)
-    assert_that(result, equal_to([('a', sum(vals_1)), ('b', sum(vals_2))]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create(([('a', x) for x in vals_1] +
+                                                 [('b', x) for x in vals_2]))
+      result = pcoll | beam.CombinePerKey(sum)
+      assert_that(result, equal_to([('a', sum(vals_1)), ('b', sum(vals_2))]))
 
   def test_combine_per_key_with_side_input_as_arg(self):
     vals_1 = [1, 2, 3, 4, 5, 6, 7]
     vals_2 = [2, 4, 6, 8, 10, 12, 14]
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create(([('a', x) for x in vals_1] +
-                                               [('b', x) for x in vals_2]))
-    divisor = pipeline | 'Divisor' >> beam.Create([2])
-    result = pcoll | beam.CombinePerKey(
-        lambda vals, d: max(v for v in vals if v % d == 0),
-        pvalue.AsSingleton(divisor))  # Multiples of divisor only.
-    m_1 = max(v for v in vals_1 if v % 2 == 0)
-    m_2 = max(v for v in vals_2 if v % 2 == 0)
-    assert_that(result, equal_to([('a', m_1), ('b', m_2)]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create(([('a', x) for x in vals_1] +
+                                                 [('b', x) for x in vals_2]))
+      divisor = pipeline | 'Divisor' >> beam.Create([2])
+      result = pcoll | beam.CombinePerKey(
+          lambda vals, d: max(v for v in vals if v % d == 0),
+          pvalue.AsSingleton(divisor))  # Multiples of divisor only.
+      m_1 = max(v for v in vals_1 if v % 2 == 0)
+      m_2 = max(v for v in vals_2 if v % 2 == 0)
+      assert_that(result, equal_to([('a', m_1), ('b', m_2)]))
 
   def test_group_by_key(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'start' >> beam.Create(
         [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 3)])
-    result = pcoll | 'Group' >> beam.GroupByKey()
+    result = pcoll | 'Group' >> beam.GroupByKey() | _SortLists
     assert_that(result, equal_to([(1, [1, 2, 3]), (2, [1, 2]), (3, [1])]))
     pipeline.run()
+
+  def test_group_by_key_reiteration(self):
+    class MyDoFn(beam.DoFn):
+      def process(self, gbk_result):
+        key, value_list = gbk_result
+        sum_val = 0
+        # Iterate the GBK result for multiple times.
+        for _ in range(0, 17):
+          sum_val += sum(value_list)
+        return [(key, sum_val)]
+
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> beam.Create(
+          [(1, 1), (1, 2), (1, 3), (1, 4)])
+      result = (pcoll | 'Group' >> beam.GroupByKey()
+                | 'Reiteration-Sum' >> beam.ParDo(MyDoFn()))
+      assert_that(result, equal_to([(1, 170)]))
 
   def test_partition_with_partition_fn(self):
 
@@ -478,36 +502,33 @@ class PTransformTest(unittest.TestCase):
       def partition_for(self, element, num_partitions, offset):
         return (element % 3) + offset
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create([0, 1, 2, 3, 4, 5, 6, 7, 8])
-    # Attempt nominal partition operation.
-    partitions = pcoll | 'Part 1' >> beam.Partition(SomePartitionFn(), 4, 1)
-    assert_that(partitions[0], equal_to([]))
-    assert_that(partitions[1], equal_to([0, 3, 6]), label='p1')
-    assert_that(partitions[2], equal_to([1, 4, 7]), label='p2')
-    assert_that(partitions[3], equal_to([2, 5, 8]), label='p3')
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create([0, 1, 2, 3, 4, 5, 6, 7, 8])
+      # Attempt nominal partition operation.
+      partitions = pcoll | 'Part 1' >> beam.Partition(SomePartitionFn(), 4, 1)
+      assert_that(partitions[0], equal_to([]))
+      assert_that(partitions[1], equal_to([0, 3, 6]), label='p1')
+      assert_that(partitions[2], equal_to([1, 4, 7]), label='p2')
+      assert_that(partitions[3], equal_to([2, 5, 8]), label='p3')
 
     # Check that a bad partition label will yield an error. For the
     # DirectRunner, this error manifests as an exception.
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create([0, 1, 2, 3, 4, 5, 6, 7, 8])
-    partitions = pcoll | 'Part 2' >> beam.Partition(SomePartitionFn(), 4, 10000)
     with self.assertRaises(ValueError):
-      pipeline.run()
+      with TestPipeline() as pipeline:
+        pcoll = pipeline | 'Start' >> beam.Create([0, 1, 2, 3, 4, 5, 6, 7, 8])
+        partitions = pcoll | beam.Partition(SomePartitionFn(), 4, 10000)
 
   def test_partition_with_callable(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create([0, 1, 2, 3, 4, 5, 6, 7, 8])
-    partitions = (
-        pcoll | 'part' >> beam.Partition(
-            lambda e, n, offset: (e % 3) + offset, 4,
-            1))
-    assert_that(partitions[0], equal_to([]))
-    assert_that(partitions[1], equal_to([0, 3, 6]), label='p1')
-    assert_that(partitions[2], equal_to([1, 4, 7]), label='p2')
-    assert_that(partitions[3], equal_to([2, 5, 8]), label='p3')
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create([0, 1, 2, 3, 4, 5, 6, 7, 8])
+      partitions = (
+          pcoll | 'part' >> beam.Partition(
+              lambda e, n, offset: (e % 3) + offset, 4,
+              1))
+      assert_that(partitions[0], equal_to([]))
+      assert_that(partitions[1], equal_to([0, 3, 6]), label='p1')
+      assert_that(partitions[2], equal_to([1, 4, 7]), label='p2')
+      assert_that(partitions[3], equal_to([2, 5, 8]), label='p3')
 
   def test_partition_followed_by_flatten_and_groupbykey(self):
     """Regression test for an issue with how partitions are handled."""
@@ -516,39 +537,56 @@ class PTransformTest(unittest.TestCase):
     created = pipeline | 'A' >> beam.Create(contents)
     partitioned = created | 'B' >> beam.Partition(lambda x, n: len(x) % n, 3)
     flattened = partitioned | 'C' >> beam.Flatten()
-    grouped = flattened | 'D' >> beam.GroupByKey()
+    grouped = flattened | 'D' >> beam.GroupByKey() | _SortLists
     assert_that(grouped, equal_to([('aa', [1, 2]), ('bb', [2])]))
     pipeline.run()
 
+  @attr('ValidatesRunner')
   def test_flatten_pcollections(self):
-    pipeline = TestPipeline()
-    pcoll_1 = pipeline | 'Start 1' >> beam.Create([0, 1, 2, 3])
-    pcoll_2 = pipeline | 'Start 2' >> beam.Create([4, 5, 6, 7])
-    result = (pcoll_1, pcoll_2) | 'Flatten' >> beam.Flatten()
-    assert_that(result, equal_to([0, 1, 2, 3, 4, 5, 6, 7]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([0, 1, 2, 3])
+      pcoll_2 = pipeline | 'Start 2' >> beam.Create([4, 5, 6, 7])
+      result = (pcoll_1, pcoll_2) | 'Flatten' >> beam.Flatten()
+      assert_that(result, equal_to([0, 1, 2, 3, 4, 5, 6, 7]))
 
   def test_flatten_no_pcollections(self):
-    pipeline = TestPipeline()
-    with self.assertRaises(ValueError):
-      () | 'PipelineArgMissing' >> beam.Flatten()
-    result = () | 'Empty' >> beam.Flatten(pipeline=pipeline)
-    assert_that(result, equal_to([]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      with self.assertRaises(ValueError):
+        () | 'PipelineArgMissing' >> beam.Flatten()
+      result = () | 'Empty' >> beam.Flatten(pipeline=pipeline)
+      assert_that(result, equal_to([]))
 
+  @attr('ValidatesRunner')
+  def test_flatten_one_single_pcollection(self):
+    with TestPipeline() as pipeline:
+      input = [0, 1, 2, 3]
+      pcoll = pipeline | 'Input' >> beam.Create(input)
+      result = (pcoll,)| 'Single Flatten' >> beam.Flatten()
+      assert_that(result, equal_to(input))
+
+  # TODO(BEAM-9002): Does not work in streaming mode on Dataflow.
+  @attr('ValidatesRunner', 'sickbay-streaming')
   def test_flatten_same_pcollections(self):
-    pipeline = TestPipeline()
-    pc = pipeline | beam.Create(['a', 'b'])
-    assert_that((pc, pc, pc) | beam.Flatten(), equal_to(['a', 'b'] * 3))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pc = pipeline | beam.Create(['a', 'b'])
+      assert_that((pc, pc, pc) | beam.Flatten(), equal_to(['a', 'b'] * 3))
 
   def test_flatten_pcollections_in_iterable(self):
-    pipeline = TestPipeline()
-    pcoll_1 = pipeline | 'Start 1' >> beam.Create([0, 1, 2, 3])
-    pcoll_2 = pipeline | 'Start 2' >> beam.Create([4, 5, 6, 7])
-    result = [pcoll for pcoll in (pcoll_1, pcoll_2)] | beam.Flatten()
-    assert_that(result, equal_to([0, 1, 2, 3, 4, 5, 6, 7]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([0, 1, 2, 3])
+      pcoll_2 = pipeline | 'Start 2' >> beam.Create([4, 5, 6, 7])
+      result = [pcoll for pcoll in (pcoll_1, pcoll_2)] | beam.Flatten()
+      assert_that(result, equal_to([0, 1, 2, 3, 4, 5, 6, 7]))
+
+  @attr('ValidatesRunner')
+  def test_flatten_a_flattened_pcollection(self):
+    with TestPipeline() as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([0, 1, 2, 3])
+      pcoll_2 = pipeline | 'Start 2' >> beam.Create([4, 5, 6, 7])
+      pcoll_3 = pipeline | 'Start 3' >> beam.Create([8, 9])
+      pcoll_12 = (pcoll_1, pcoll_2) | 'Flatten' >> beam.Flatten()
+      pcoll_123 = (pcoll_12, pcoll_3) | 'Flatten again' >> beam.Flatten()
+      assert_that(pcoll_123, equal_to([x for x in range(10)]))
 
   def test_flatten_input_type_must_be_iterable(self):
     # Inputs to flatten *must* be an iterable.
@@ -564,21 +602,20 @@ class PTransformTest(unittest.TestCase):
 
   @attr('ValidatesRunner')
   def test_flatten_multiple_pcollections_having_multiple_consumers(self):
-    pipeline = TestPipeline()
-    input = pipeline | 'Start' >> beam.Create(['AA', 'BBB', 'CC'])
+    with TestPipeline() as pipeline:
+      input = pipeline | 'Start' >> beam.Create(['AA', 'BBB', 'CC'])
 
-    def split_even_odd(element):
-      tag = 'even_length' if len(element) % 2 == 0 else 'odd_length'
-      return pvalue.TaggedOutput(tag, element)
+      def split_even_odd(element):
+        tag = 'even_length' if len(element) % 2 == 0 else 'odd_length'
+        return pvalue.TaggedOutput(tag, element)
 
-    even_length, odd_length = (input | beam.Map(split_even_odd)
-                               .with_outputs('even_length', 'odd_length'))
-    merged = (even_length, odd_length) | 'Flatten' >> beam.Flatten()
+      even_length, odd_length = (input | beam.Map(split_even_odd)
+                                 .with_outputs('even_length', 'odd_length'))
+      merged = (even_length, odd_length) | 'Flatten' >> beam.Flatten()
 
-    assert_that(merged, equal_to(['AA', 'BBB', 'CC']))
-    assert_that(even_length, equal_to(['AA', 'CC']), label='assert:even')
-    assert_that(odd_length, equal_to(['BBB']), label='assert:odd')
-    pipeline.run()
+      assert_that(merged, equal_to(['AA', 'BBB', 'CC']))
+      assert_that(even_length, equal_to(['AA', 'CC']), label='assert:even')
+      assert_that(odd_length, equal_to(['BBB']), label='assert:odd')
 
   def test_co_group_by_key_on_list(self):
     pipeline = TestPipeline()
@@ -586,7 +623,7 @@ class PTransformTest(unittest.TestCase):
         [('a', 1), ('a', 2), ('b', 3), ('c', 4)])
     pcoll_2 = pipeline | 'Start 2' >> beam.Create(
         [('a', 5), ('a', 6), ('c', 7), ('c', 8)])
-    result = (pcoll_1, pcoll_2) | beam.CoGroupByKey()
+    result = (pcoll_1, pcoll_2) | beam.CoGroupByKey() | _SortLists
     assert_that(result, equal_to([('a', ([1, 2], [5, 6])),
                                   ('b', ([3], [])),
                                   ('c', ([4], [7, 8]))]))
@@ -599,6 +636,7 @@ class PTransformTest(unittest.TestCase):
     pcoll_2 = pipeline | 'Start 2' >> beam.Create(
         [('a', 5), ('a', 6), ('c', 7), ('c', 8)])
     result = [pc for pc in (pcoll_1, pcoll_2)] | beam.CoGroupByKey()
+    result |= _SortLists
     assert_that(result, equal_to([('a', ([1, 2], [5, 6])),
                                   ('b', ([3], [])),
                                   ('c', ([4], [7, 8]))]))
@@ -611,18 +649,17 @@ class PTransformTest(unittest.TestCase):
     pcoll_2 = pipeline | 'Start 2' >> beam.Create(
         [('a', 5), ('a', 6), ('c', 7), ('c', 8)])
     result = {'X': pcoll_1, 'Y': pcoll_2} | beam.CoGroupByKey()
+    result |= _SortLists
     assert_that(result, equal_to([('a', {'X': [1, 2], 'Y': [5, 6]}),
                                   ('b', {'X': [3], 'Y': []}),
                                   ('c', {'X': [4], 'Y': [7, 8]})]))
     pipeline.run()
 
   def test_group_by_key_input_must_be_kv_pairs(self):
-    pipeline = TestPipeline()
-    pcolls = pipeline | 'A' >> beam.Create([1, 2, 3, 4, 5])
-
     with self.assertRaises(typehints.TypeCheckError) as e:
-      pcolls | 'D' >> beam.GroupByKey()
-      pipeline.run()
+      with TestPipeline() as pipeline:
+        pcolls = pipeline | 'A' >> beam.Create([1, 2, 3, 4, 5])
+        pcolls | 'D' >> beam.GroupByKey()
 
     self.assertStartswith(
         e.exception.args[0],
@@ -630,58 +667,52 @@ class PTransformTest(unittest.TestCase):
         'Tuple[TypeVariable[K], TypeVariable[V]]')
 
   def test_group_by_key_only_input_must_be_kv_pairs(self):
-    pipeline = TestPipeline()
-    pcolls = pipeline | 'A' >> beam.Create(['a', 'b', 'f'])
     with self.assertRaises(typehints.TypeCheckError) as cm:
-      pcolls | 'D' >> _GroupByKeyOnly()
-      pipeline.run()
+      with TestPipeline() as pipeline:
+        pcolls = pipeline | 'A' >> beam.Create(['a', 'b', 'f'])
+        pcolls | 'D' >> _GroupByKeyOnly()
 
     expected_error_prefix = ('Input type hint violation at D: expected '
                              'Tuple[TypeVariable[K], TypeVariable[V]]')
     self.assertStartswith(cm.exception.args[0], expected_error_prefix)
 
   def test_keys_and_values(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create(
-        [(3, 1), (2, 1), (1, 1), (3, 2), (2, 2), (3, 3)])
-    keys = pcoll.apply(beam.Keys('keys'))
-    vals = pcoll.apply(beam.Values('vals'))
-    assert_that(keys, equal_to([1, 2, 2, 3, 3, 3]), label='assert:keys')
-    assert_that(vals, equal_to([1, 1, 1, 2, 2, 3]), label='assert:vals')
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create(
+          [(3, 1), (2, 1), (1, 1), (3, 2), (2, 2), (3, 3)])
+      keys = pcoll.apply(beam.Keys('keys'))
+      vals = pcoll.apply(beam.Values('vals'))
+      assert_that(keys, equal_to([1, 2, 2, 3, 3, 3]), label='assert:keys')
+      assert_that(vals, equal_to([1, 1, 1, 2, 2, 3]), label='assert:vals')
 
   def test_kv_swap(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create(
-        [(6, 3), (1, 2), (7, 1), (5, 2), (3, 2)])
-    result = pcoll.apply(beam.KvSwap(), label='swap')
-    assert_that(result, equal_to([(1, 7), (2, 1), (2, 3), (2, 5), (3, 6)]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create(
+          [(6, 3), (1, 2), (7, 1), (5, 2), (3, 2)])
+      result = pcoll.apply(beam.KvSwap(), label='swap')
+      assert_that(result, equal_to([(1, 7), (2, 1), (2, 3), (2, 5), (3, 6)]))
 
   def test_distinct(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create(
-        [6, 3, 1, 1, 9, 'pleat', 'pleat', 'kazoo', 'navel'])
-    result = pcoll.apply(beam.Distinct())
-    assert_that(result, equal_to([1, 3, 6, 9, 'pleat', 'kazoo', 'navel']))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create(
+          [6, 3, 1, 1, 9, 'pleat', 'pleat', 'kazoo', 'navel'])
+      result = pcoll.apply(beam.Distinct())
+      assert_that(result, equal_to([1, 3, 6, 9, 'pleat', 'kazoo', 'navel']))
 
   def test_remove_duplicates(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create(
-        [6, 3, 1, 1, 9, 'pleat', 'pleat', 'kazoo', 'navel'])
-    result = pcoll.apply(beam.RemoveDuplicates())
-    assert_that(result, equal_to([1, 3, 6, 9, 'pleat', 'kazoo', 'navel']))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create(
+          [6, 3, 1, 1, 9, 'pleat', 'pleat', 'kazoo', 'navel'])
+      result = pcoll.apply(beam.RemoveDuplicates())
+      assert_that(result, equal_to([1, 3, 6, 9, 'pleat', 'kazoo', 'navel']))
 
   def test_chained_ptransforms(self):
-    pipeline = TestPipeline()
-    t = (beam.Map(lambda x: (x, 1))
-         | beam.GroupByKey()
-         | beam.Map(lambda x_ones: (x_ones[0], sum(x_ones[1]))))
-    result = pipeline | 'Start' >> beam.Create(['a', 'a', 'b']) | t
-    assert_that(result, equal_to([('a', 2), ('b', 1)]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      t = (beam.Map(lambda x: (x, 1))
+           | beam.GroupByKey()
+           | beam.Map(lambda x_ones: (x_ones[0], sum(x_ones[1]))))
+      result = pipeline | 'Start' >> beam.Create(['a', 'a', 'b']) | t
+      assert_that(result, equal_to([('a', 2), ('b', 1)]))
 
   def test_apply_to_list(self):
     self.assertCountEqual(
@@ -692,8 +723,9 @@ class PTransformTest(unittest.TestCase):
                           ([1, 2, 3], [100]) | beam.Flatten())
     join_input = ([('k', 'a')],
                   [('k', 'b'), ('k', 'c')])
-    self.assertCountEqual([('k', (['a'], ['b', 'c']))],
-                          join_input | beam.CoGroupByKey())
+    self.assertCountEqual(
+        [('k', (['a'], ['b', 'c']))],
+        join_input | beam.CoGroupByKey() | _SortLists)
 
   def test_multi_input_ptransform(self):
     class DisjointUnion(PTransform):
@@ -776,47 +808,43 @@ class PTransformLabelsTest(unittest.TestCase):
 
   def test_chained_ptransforms(self):
     """Tests that chaining gets proper nesting."""
-    pipeline = TestPipeline()
-    map1 = 'Map1' >> beam.Map(lambda x: (x, 1))
-    gbk = 'Gbk' >> beam.GroupByKey()
-    map2 = 'Map2' >> beam.Map(lambda x_ones2: (x_ones2[0], sum(x_ones2[1])))
-    t = (map1 | gbk | map2)
-    result = pipeline | 'Start' >> beam.Create(['a', 'a', 'b']) | t
-    self.assertTrue('Map1|Gbk|Map2/Map1' in pipeline.applied_labels)
-    self.assertTrue('Map1|Gbk|Map2/Gbk' in pipeline.applied_labels)
-    self.assertTrue('Map1|Gbk|Map2/Map2' in pipeline.applied_labels)
-    assert_that(result, equal_to([('a', 2), ('b', 1)]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      map1 = 'Map1' >> beam.Map(lambda x: (x, 1))
+      gbk = 'Gbk' >> beam.GroupByKey()
+      map2 = 'Map2' >> beam.Map(lambda x_ones2: (x_ones2[0], sum(x_ones2[1])))
+      t = (map1 | gbk | map2)
+      result = pipeline | 'Start' >> beam.Create(['a', 'a', 'b']) | t
+      self.assertTrue('Map1|Gbk|Map2/Map1' in pipeline.applied_labels)
+      self.assertTrue('Map1|Gbk|Map2/Gbk' in pipeline.applied_labels)
+      self.assertTrue('Map1|Gbk|Map2/Map2' in pipeline.applied_labels)
+      assert_that(result, equal_to([('a', 2), ('b', 1)]))
 
   def test_apply_custom_transform_without_label(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'PColl' >> beam.Create([1, 2, 3])
-    custom = PTransformLabelsTest.CustomTransform()
-    result = pipeline.apply(custom, pcoll)
-    self.assertTrue('CustomTransform' in pipeline.applied_labels)
-    self.assertTrue('CustomTransform/*Do*' in pipeline.applied_labels)
-    assert_that(result, equal_to([2, 3, 4]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'PColl' >> beam.Create([1, 2, 3])
+      custom = PTransformLabelsTest.CustomTransform()
+      result = pipeline.apply(custom, pcoll)
+      self.assertTrue('CustomTransform' in pipeline.applied_labels)
+      self.assertTrue('CustomTransform/*Do*' in pipeline.applied_labels)
+      assert_that(result, equal_to([2, 3, 4]))
 
   def test_apply_custom_transform_with_label(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'PColl' >> beam.Create([1, 2, 3])
-    custom = PTransformLabelsTest.CustomTransform('*Custom*')
-    result = pipeline.apply(custom, pcoll)
-    self.assertTrue('*Custom*' in pipeline.applied_labels)
-    self.assertTrue('*Custom*/*Do*' in pipeline.applied_labels)
-    assert_that(result, equal_to([2, 3, 4]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'PColl' >> beam.Create([1, 2, 3])
+      custom = PTransformLabelsTest.CustomTransform('*Custom*')
+      result = pipeline.apply(custom, pcoll)
+      self.assertTrue('*Custom*' in pipeline.applied_labels)
+      self.assertTrue('*Custom*/*Do*' in pipeline.applied_labels)
+      assert_that(result, equal_to([2, 3, 4]))
 
   def test_combine_without_label(self):
     vals = [1, 2, 3, 4, 5, 6, 7]
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create(vals)
-    combine = beam.CombineGlobally(sum)
-    result = pcoll | combine
-    self.assertTrue('CombineGlobally(sum)' in pipeline.applied_labels)
-    assert_that(result, equal_to([sum(vals)]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create(vals)
+      combine = beam.CombineGlobally(sum)
+      result = pcoll | combine
+      self.assertTrue('CombineGlobally(sum)' in pipeline.applied_labels)
+      assert_that(result, equal_to([sum(vals)]))
 
   def test_apply_ptransform_using_decorator(self):
     pipeline = TestPipeline()
@@ -829,18 +857,19 @@ class PTransformLabelsTest(unittest.TestCase):
 
   def test_combine_with_label(self):
     vals = [1, 2, 3, 4, 5, 6, 7]
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Start' >> beam.Create(vals)
-    combine = '*Sum*' >> beam.CombineGlobally(sum)
-    result = pcoll | combine
-    self.assertTrue('*Sum*' in pipeline.applied_labels)
-    assert_that(result, equal_to([sum(vals)]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Start' >> beam.Create(vals)
+      combine = '*Sum*' >> beam.CombineGlobally(sum)
+      result = pcoll | combine
+      self.assertTrue('*Sum*' in pipeline.applied_labels)
+      assert_that(result, equal_to([sum(vals)]))
 
   def check_label(self, ptransform, expected_label):
     pipeline = TestPipeline()
     pipeline | 'Start' >> beam.Create([('a', 1)]) | ptransform
-    actual_label = sorted(pipeline.applied_labels - {'Start', 'Start/Read'})[0]
+    actual_label = sorted(
+        label for label in pipeline.applied_labels
+        if not label.startswith('Start'))[0]
     self.assertEqual(expected_label, re.sub(r'\d{3,}', '#', actual_label))
 
   def test_default_labels(self):
@@ -1297,11 +1326,12 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
               | 'T' >> beam.Create(['t', 'e', 's', 't', 'i', 'n', 'g'])
               .with_output_types(str)
               | 'GenKeys' >> beam.Map(group_with_upper_ord)
-              | 'O' >> beam.GroupByKey())
+              | 'O' >> beam.GroupByKey()
+              | _SortLists)
 
     assert_that(result, equal_to([(1, ['g']),
-                                  (3, ['s', 'i', 'n']),
-                                  (4, ['t', 'e', 't'])]))
+                                  (3, ['i', 'n', 's']),
+                                  (4, ['e', 't', 't'])]))
     self.p.run()
 
   def test_pipeline_checking_satisfied_but_run_time_types_violate(self):
@@ -1347,7 +1377,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     result = (self.p
               | 'Nums' >> beam.Create(range(5)).with_output_types(int)
               | 'IsEven' >> beam.Map(is_even_as_key)
-              | 'Parity' >> beam.GroupByKey())
+              | 'Parity' >> beam.GroupByKey()
+              | _SortLists)
 
     assert_that(result, equal_to([(False, [1, 3]), (True, [0, 2, 4])]))
     self.p.run()
@@ -1361,7 +1392,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     # passed instead.
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
-       | beam.Create([1, 2, 3])
+       | beam.Create([1, 1, 1])
        | ('ToInt' >> beam.FlatMap(lambda x: [int(x)])
           .with_input_types(str).with_output_types(int)))
       self.p.run()
@@ -1406,7 +1437,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
             int)).get_type_hints())
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
-       | beam.Create([1, 2, 3])
+       | beam.Create([1, 1, 1])
        | ('ToInt' >> beam.FlatMap(lambda x: [float(x)])
           .with_input_types(int).with_output_types(int))
       )
@@ -1613,7 +1644,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
-       | beam.Create(range(3)).with_output_types(int)
+       | beam.Create([0]).with_output_types(int)
        | ('SortJoin' >> beam.CombineGlobally(lambda s: ''.join(sorted(s)))
           .with_input_types(str).with_output_types(str)))
       self.p.run()
@@ -2148,11 +2179,10 @@ class TestPTransformFn(TypeHintTestCase):
     def MyTransform(pcoll):
       return pcoll | beam.ParDo(lambda x: [x]).with_output_types(int)
 
-    p = TestPipeline()
-    _ = (p
-         | beam.Create([1, 2])
-         | MyTransform().with_output_types(int))
-    p.run()
+    with TestPipeline() as p:
+      _ = (p
+           | beam.Create([1, 2])
+           | MyTransform().with_output_types(int))
 
   def test_type_hints_arg(self):
     # Tests passing type hints via the magic 'type_hints' argument name.
@@ -2163,11 +2193,24 @@ class TestPTransformFn(TypeHintTestCase):
               | beam.ParDo(lambda x: [x]).with_output_types(
                   type_hints.output_types[0][0]))
 
-    p = TestPipeline()
-    _ = (p
-         | beam.Create([1, 2])
-         | MyTransform('test').with_output_types(int))
-    p.run()
+    with TestPipeline() as p:
+      _ = (p
+           | beam.Create([1, 2])
+           | MyTransform('test').with_output_types(int))
+
+
+def _sort_lists(result):
+  if isinstance(result, list):
+    return sorted(result)
+  elif isinstance(result, tuple):
+    return tuple(_sort_lists(e) for e in result)
+  elif isinstance(result, dict):
+    return {k: _sort_lists(v) for k, v in result.items()}
+  else:
+    return result
+
+
+_SortLists = beam.Map(_sort_lists)
 
 
 if __name__ == '__main__':

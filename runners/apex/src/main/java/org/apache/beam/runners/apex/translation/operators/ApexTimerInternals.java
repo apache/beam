@@ -57,7 +57,7 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
   private transient Instant currentOutputWatermark;
   private transient Coder<K> keyCoder;
 
-  public ApexTimerInternals(TimerDataCoder timerDataCoder) {
+  public ApexTimerInternals(TimerDataCoderV2 timerDataCoder) {
     this.eventTimeTimeTimers = new TimerSet(timerDataCoder);
     this.processingTimeTimers = new TimerSet(timerDataCoder);
   }
@@ -77,8 +77,14 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
 
   @Override
   public void setTimer(
-      StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
-    TimerData timerData = TimerData.of(timerId, namespace, target, timeDomain);
+      StateNamespace namespace,
+      String timerId,
+      String timerFamilyId,
+      Instant target,
+      Instant outputTimestamp,
+      TimeDomain timeDomain) {
+    TimerData timerData =
+        TimerData.of(timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain);
     setTimer(timerData);
   }
 
@@ -93,7 +99,7 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
   }
 
   @Override
-  public void deleteTimer(StateNamespace namespace, String timerId) {
+  public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
     this.eventTimeTimeTimers.deleteTimer(getKeyBytes(this.currentKey), namespace, timerId);
     this.processingTimeTimers.deleteTimer(getKeyBytes(this.currentKey), namespace, timerId);
   }
@@ -196,10 +202,10 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
 
   protected static class TimerSet implements Serializable {
     private final Map<Slice, Set<Slice>> activeTimers = new HashMap<>();
-    private final TimerDataCoder timerDataCoder;
+    private final TimerDataCoderV2 timerDataCoder;
     private long minTimestamp = Long.MAX_VALUE;
 
-    protected TimerSet(TimerDataCoder timerDataCoder) {
+    protected TimerSet(TimerDataCoderV2 timerDataCoder) {
       this.timerDataCoder = timerDataCoder;
     }
 

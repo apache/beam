@@ -30,7 +30,6 @@ import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamRequest;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamResponse;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.Stream;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.StreamPosition;
-import com.google.protobuf.UnknownFieldSet;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
@@ -52,7 +51,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -292,16 +290,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       SplitReadStreamRequest splitRequest =
           SplitReadStreamRequest.newBuilder()
               .setOriginalStream(source.stream)
-              // TODO(aryann): Once we rebuild the generated client code, we should change this to
-              // use setFraction().
-              .setUnknownFields(
-                  UnknownFieldSet.newBuilder()
-                      .addField(
-                          2,
-                          UnknownFieldSet.Field.newBuilder()
-                              .addFixed32(java.lang.Float.floatToIntBits((float) fraction))
-                              .build())
-                      .build())
+              .setFraction((float) fraction)
               .build();
       SplitReadStreamResponse splitResponse = storageClient.splitReadStream(splitRequest);
 
@@ -390,16 +379,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     }
 
     private static float getFractionConsumed(ReadRowsResponse response) {
-      // TODO(aryann): Once we rebuild the generated client code, we should change this to
-      // use getFractionConsumed().
-      List<Integer> fractionConsumedField =
-          response.getStatus().getUnknownFields().getField(2).getFixed32List();
-      if (fractionConsumedField.isEmpty()) {
-        Metrics.counter(BigQueryStorageStreamReader.class, "fraction-consumed-not-set").inc();
-        return 0f;
-      }
-
-      return Float.intBitsToFloat(Iterables.getOnlyElement(fractionConsumedField));
+      return response.getStatus().getFractionConsumed();
     }
   }
 }

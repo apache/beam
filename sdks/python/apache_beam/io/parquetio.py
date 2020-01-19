@@ -27,6 +27,8 @@ Additionally, this module provides a write ``PTransform`` ``WriteToParquet``
 that can be used to write a given ``PCollection`` of Python objects to a
 Parquet file.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from functools import partial

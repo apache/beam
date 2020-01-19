@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -28,6 +29,9 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Collections2;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
@@ -43,7 +47,8 @@ public class RowWithGetters extends Row {
   private final Object getterTarget;
   private final List<FieldValueGetter> getters;
 
-  private final Map<Integer, List> cachedLists = Maps.newHashMap();
+  private final Map<Integer, Collection> cachedCollections = Maps.newHashMap();
+  private final Map<Integer, Iterable> cachedIterables = Maps.newHashMap();
   private final Map<Integer, Map> cachedMaps = Maps.newHashMap();
 
   RowWithGetters(
@@ -67,13 +72,22 @@ public class RowWithGetters extends Row {
     return fieldValue != null ? getValue(type, fieldValue, fieldIdx) : null;
   }
 
-  private List getListValue(FieldType elementType, Object fieldValue) {
-    Iterable iterable = (Iterable) fieldValue;
-    List<Object> list = Lists.newArrayList();
-    for (Object o : iterable) {
-      list.add(getValue(elementType, o, null));
+  private Collection getCollectionValue(FieldType elementType, Object fieldValue) {
+    Collection collection = (Collection) fieldValue;
+    if (collection instanceof List) {
+      // For performance reasons if the input is a list, make sure that we produce a list. Otherwise
+      // Row forwarding
+      // is forced to physically copy the collection into a new List object.
+      return Lists.transform((List) collection, v -> getValue(elementType, v, null));
+    } else {
+      return Collections2.transform(collection, v -> getValue(elementType, v, null));
     }
-    return list;
+  }
+
+  private Iterable getIterableValue(FieldType elementType, Object fieldValue) {
+    Iterable iterable = (Iterable) fieldValue;
+    // Wrap the iterable to avoid having to materialize the entire collection.
+    return Iterables.transform(iterable, v -> getValue(elementType, v, null));
   }
 
   private Map<?, ?> getMapValue(FieldType keyType, FieldType valueType, Map<?, ?> fieldValue) {
@@ -92,9 +106,15 @@ public class RowWithGetters extends Row {
     } else if (type.getTypeName().equals(TypeName.ARRAY)) {
       return cacheKey != null
           ? (T)
-              cachedLists.computeIfAbsent(
-                  cacheKey, i -> getListValue(type.getCollectionElementType(), fieldValue))
-          : (T) getListValue(type.getCollectionElementType(), fieldValue);
+              cachedCollections.computeIfAbsent(
+                  cacheKey, i -> getCollectionValue(type.getCollectionElementType(), fieldValue))
+          : (T) getCollectionValue(type.getCollectionElementType(), fieldValue);
+    } else if (type.getTypeName().equals(TypeName.ITERABLE)) {
+      return cacheKey != null
+          ? (T)
+              cachedIterables.computeIfAbsent(
+                  cacheKey, i -> getIterableValue(type.getCollectionElementType(), fieldValue))
+          : (T) getIterableValue(type.getCollectionElementType(), fieldValue);
     } else if (type.getTypeName().equals(TypeName.MAP)) {
       Map map = (Map) fieldValue;
       return cacheKey != null
@@ -103,6 +123,15 @@ public class RowWithGetters extends Row {
                   cacheKey, i -> getMapValue(type.getMapKeyType(), type.getMapValueType(), map))
           : (T) getMapValue(type.getMapKeyType(), type.getMapValueType(), map);
     } else {
+      if (type.isLogicalType(OneOfType.IDENTIFIER)) {
+        OneOfType oneOfType = type.getLogicalType(OneOfType.class);
+        OneOfType.Value oneOfValue = (OneOfType.Value) fieldValue;
+        Object convertedOneOfField =
+            getValue(oneOfValue.getFieldType(), oneOfValue.getValue(), null);
+        return (T)
+            oneOfType.toBaseType(
+                oneOfType.createValue(oneOfValue.getCaseType(), convertedOneOfField));
+      }
       return (T) fieldValue;
     }
   }

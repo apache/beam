@@ -30,6 +30,8 @@ Available classes:
     unit-of-commit (bundle).
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from builtins import object

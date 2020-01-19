@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Preprocessor applying tf.transform to the chicago_taxi data."""
+# pytype: skip-file
+
 from __future__ import absolute_import, division, print_function
 
 import argparse
@@ -184,7 +186,7 @@ def transform_data(input_handle,
 
 
 def main():
-  tf.logging.set_verbosity(tf.logging.INFO)
+  tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--input',

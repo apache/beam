@@ -18,6 +18,9 @@
 package org.apache.beam.runners.core.metrics;
 
 import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -80,5 +83,19 @@ public class SimpleStateRegistryTest {
     for (Matcher<MonitoringInfo> matcher : matchers) {
       assertThat(testOutput, Matchers.hasItem(matcher));
     }
+  }
+
+  @Test
+  public void testResetRegistry() {
+    SimpleExecutionState state1 = mock(SimpleExecutionState.class);
+    SimpleExecutionState state2 = mock(SimpleExecutionState.class);
+
+    SimpleStateRegistry testObject = new SimpleStateRegistry();
+    testObject.register(state1);
+    testObject.register(state2);
+
+    testObject.reset();
+    verify(state1, times(1)).reset();
+    verify(state2, times(1)).reset();
   }
 }

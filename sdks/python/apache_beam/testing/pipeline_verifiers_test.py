@@ -17,6 +17,8 @@
 
 """Unit tests for the test pipeline verifiers"""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -42,7 +44,7 @@ try:
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
 except ImportError:
   HttpError = None
-  GCSFileSystem = None
+  GCSFileSystem = None  # type: ignore
 
 
 class PipelineVerifiersTest(unittest.TestCase):

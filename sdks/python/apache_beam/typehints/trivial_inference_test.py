@@ -17,9 +17,12 @@
 
 """Tests for apache_beam.typehints.trivial_inference."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import sys
+import types
 import unittest
 
 from apache_beam.typehints import trivial_inference
@@ -69,6 +72,11 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(str, lambda v: v[::-1], [str])
     self.assertReturnType(typehints.Any, lambda v: v[::-1], [typehints.Any])
     self.assertReturnType(typehints.Any, lambda v: v[::-1], [object])
+    if sys.version_info >= (3,):
+      # Test binary_subscr on a slice of a Const. On Py2.7 this will use the
+      # unsupported opcode SLICE+0.
+      test_list = ['a', 'b']
+      self.assertReturnType(typehints.List[str], lambda: test_list[:], [])
 
   def testUnpack(self):
     def reverse(a_b):
@@ -274,6 +282,35 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(typehints.Any,
                           lambda x1, x2, _dict: fn(x1, x2, **_dict),
                           [str, float, typehints.List[int]])
+
+  def testInstanceToType(self):
+    class MyClass(object):
+      def method(self):
+        pass
+
+    test_cases = [
+        (typehints.Dict[str, int], {'a': 1}),
+        (typehints.Dict[str, typehints.Union[str, int]], {'a': 1, 'b': 'c'}),
+        (typehints.Dict[typehints.Any, typehints.Any], {}),
+        (typehints.Set[str], {'a'}),
+        (typehints.Set[typehints.Union[str, float]], {'a', 0.4}),
+        (typehints.Set[typehints.Any], set()),
+        (typehints.Tuple[int], (1, )),
+        (typehints.Tuple[int, int, str], (1, 2, '3')),
+        (typehints.Tuple[()], ()),
+        (typehints.List[int], [1]),
+        (typehints.List[typehints.Union[int, str]], [1, 'a']),
+        (typehints.List[typehints.Any], []),
+        (type(None), None),
+        (type(MyClass), MyClass),
+        (MyClass, MyClass()),
+        (type(MyClass.method), MyClass.method),
+        (types.MethodType, MyClass().method),
+    ]
+    for expected_type, instance in test_cases:
+      self.assertEqual(expected_type,
+                       trivial_inference.instance_to_type(instance),
+                       msg=instance)
 
 
 if __name__ == '__main__':

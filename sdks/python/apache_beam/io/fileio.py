@@ -88,12 +88,21 @@ parameter can be anything, as long as elements can be grouped by it.
 No backward compatibility guarantees. Everything in this module is experimental.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections
 import logging
 import random
 import uuid
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import BinaryIO  # pylint: disable=unused-import
+from typing import Callable
+from typing import DefaultDict
+from typing import Dict
+from typing import Tuple
 
 from past.builtins import unicode
 
@@ -106,6 +115,9 @@ from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.annotations import experimental
+
+if TYPE_CHECKING:
+  from apache_beam.transforms.window import BoundedWindow
 
 __all__ = ['EmptyMatchTreatment',
            'MatchFiles',
@@ -272,6 +284,7 @@ class FileSink(object):
    """
 
   def open(self, fh):
+    # type: (BinaryIO) -> None
     raise NotImplementedError
 
   def write(self, record):
@@ -454,6 +467,7 @@ class WriteToFiles(beam.PTransform):
 
   @staticmethod
   def _get_sink_fn(input_sink):
+    # type: (...) -> Callable[[Any], FileSink]
     if isinstance(input_sink, FileSink):
       return lambda x: input_sink
     elif callable(input_sink):
@@ -463,6 +477,7 @@ class WriteToFiles(beam.PTransform):
 
   @staticmethod
   def _get_destination_fn(destination):
+    # type: (...) -> Callable[[Any], str]
     if isinstance(destination, ValueProvider):
       return lambda elm: destination.get()
     elif callable(destination):
@@ -603,7 +618,11 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
 
 class _WriteShardedRecordsFn(beam.DoFn):
 
-  def __init__(self, base_path, sink_fn, shards):
+  def __init__(self,
+               base_path,
+               sink_fn,  # type: Callable[[Any], FileSink]
+               shards  # type: int
+              ):
     self.base_path = base_path
     self.sink_fn = sink_fn
     self.shards = shards
@@ -641,13 +660,16 @@ class _WriteShardedRecordsFn(beam.DoFn):
 
 class _AppendShardedDestination(beam.DoFn):
 
-  def __init__(self, destination, shards):
+  def __init__(self,
+               destination,  # type: Callable[[Any], str]
+               shards  # type: int
+              ):
     self.destination_fn = destination
     self.shards = shards
 
     # We start the shards for a single destination at an arbitrary point.
     self._shard_counter = collections.defaultdict(
-        lambda: random.randrange(self.shards))
+        lambda: random.randrange(self.shards))  # type: DefaultDict[str, int]
 
   def _next_shard_for_destination(self, destination):
     self._shard_counter[destination] = (
@@ -666,6 +688,9 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
 
   SPILLED_RECORDS = 'spilled_records'
   WRITTEN_FILES = 'written_files'
+
+  _writers_and_sinks = None  # type: Dict[Tuple[str, BoundedWindow], Tuple[BinaryIO, FileSink]]
+  _file_names = None  # type: Dict[Tuple[str, BoundedWindow], str]
 
   def __init__(self,
                base_path,

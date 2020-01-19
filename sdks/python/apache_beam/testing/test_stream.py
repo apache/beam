@@ -19,6 +19,8 @@
 
 For internal use only; no backwards-compatibility guarantees.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from abc import ABCMeta
@@ -29,11 +31,11 @@ from functools import total_ordering
 from future.utils import with_metaclass
 
 from apache_beam import coders
-from apache_beam import core
 from apache_beam import pvalue
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import PTransform
+from apache_beam.transforms import core
 from apache_beam.transforms import window
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
@@ -49,7 +51,7 @@ __all__ = [
 
 
 @total_ordering
-class Event(with_metaclass(ABCMeta, object)):
+class Event(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
   """Test stream event to be emitted during execution of a TestStream."""
 
   @abstractmethod
@@ -94,11 +96,13 @@ class Event(with_metaclass(ABCMeta, object)):
 class ElementEvent(Event):
   """Element-producing test stream event."""
 
-  def __init__(self, timestamped_values):
+  def __init__(self, timestamped_values, tag=None):
     self.timestamped_values = timestamped_values
+    self.tag = tag
 
   def __eq__(self, other):
-    return self.timestamped_values == other.timestamped_values
+    return (self.timestamped_values == other.timestamped_values and
+            self.tag == other.tag)
 
   def __hash__(self):
     return hash(self.timestamped_values)
@@ -119,11 +123,12 @@ class ElementEvent(Event):
 class WatermarkEvent(Event):
   """Watermark-advancing test stream event."""
 
-  def __init__(self, new_watermark):
+  def __init__(self, new_watermark, tag=None):
     self.new_watermark = timestamp.Timestamp.of(new_watermark)
+    self.tag = tag
 
   def __eq__(self, other):
-    return self.new_watermark == other.new_watermark
+    return self.new_watermark == other.new_watermark and self.tag == other.tag
 
   def __hash__(self):
     return hash(self.new_watermark)
@@ -163,27 +168,28 @@ class TestStream(PTransform):
   """Test stream that generates events on an unbounded PCollection of elements.
 
   Each event emits elements, advances the watermark or advances the processing
-  time.  After all of the specified elements are emitted, ceases to produce
+  time. After all of the specified elements are emitted, ceases to produce
   output.
   """
 
-  def __init__(self, coder=coders.FastPrimitivesCoder(), events=()):
+  def __init__(self, coder=coders.FastPrimitivesCoder(), events=None):
     super(TestStream, self).__init__()
     assert coder is not None
     self.coder = coder
-    self.current_watermark = timestamp.MIN_TIMESTAMP
-    self.events = list(events)
+    self.watermarks = {None: timestamp.MIN_TIMESTAMP}
+    self._events = [] if events is None else list(events)
+    self.output_tags = set()
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
+
+  def _infer_output_coder(self, input_type=None, input_coder=None):
+    return self.coder
 
   def expand(self, pbegin):
     assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
     return pvalue.PCollection(self.pipeline, is_bounded=False)
-
-  def _infer_output_coder(self, input_type=None, input_coder=None):
-    return self.coder
 
   def _add(self, event):
     if isinstance(event, ElementEvent):
@@ -191,17 +197,19 @@ class TestStream(PTransform):
         assert tv.timestamp < timestamp.MAX_TIMESTAMP, (
             'Element timestamp must be before timestamp.MAX_TIMESTAMP.')
     elif isinstance(event, WatermarkEvent):
-      assert event.new_watermark > self.current_watermark, (
+      if event.tag not in self.watermarks:
+        self.watermarks[event.tag] = timestamp.MIN_TIMESTAMP
+      assert event.new_watermark > self.watermarks[event.tag], (
           'Watermark must strictly-monotonically advance.')
-      self.current_watermark = event.new_watermark
+      self.watermarks[event.tag] = event.new_watermark
     elif isinstance(event, ProcessingTimeEvent):
       assert event.advance_by > 0, (
           'Must advance processing time by positive amount.')
     else:
       raise ValueError('Unknown event: %s' % event)
-    self.events.append(event)
+    self._events.append(event)
 
-  def add_elements(self, elements):
+  def add_elements(self, elements, tag=None, event_timestamp=None):
     """Add elements to the TestStream.
 
     Elements added to the TestStream will be produced during pipeline execution.
@@ -213,7 +221,11 @@ class TestStream(PTransform):
     element.  The windows of a given WindowedValue are ignored by the
     TestStream.
     """
+    self.output_tags.add(tag)
     timestamped_values = []
+    if tag not in self.watermarks:
+      self.watermarks[tag] = timestamp.MIN_TIMESTAMP
+
     for element in elements:
       if isinstance(element, TimestampedValue):
         timestamped_values.append(element)
@@ -223,24 +235,26 @@ class TestStream(PTransform):
             TimestampedValue(element.value, element.timestamp))
       else:
         # Add elements with timestamp equal to current watermark.
-        timestamped_values.append(
-            TimestampedValue(element, self.current_watermark))
-    self._add(ElementEvent(timestamped_values))
+        if event_timestamp is None:
+          event_timestamp = self.watermarks[tag]
+        timestamped_values.append(TimestampedValue(element, event_timestamp))
+    self._add(ElementEvent(timestamped_values, tag))
     return self
 
-  def advance_watermark_to(self, new_watermark):
+  def advance_watermark_to(self, new_watermark, tag=None):
     """Advance the watermark to a given Unix timestamp.
 
     The Unix timestamp value used must be later than the previous watermark
     value and should be given as an int, float or utils.timestamp.Timestamp
     object.
     """
-    self._add(WatermarkEvent(new_watermark))
+    self.output_tags.add(tag)
+    self._add(WatermarkEvent(new_watermark, tag))
     return self
 
-  def advance_watermark_to_infinity(self):
+  def advance_watermark_to_infinity(self, tag=None):
     """Advance the watermark to the end of time, completing this TestStream."""
-    self.advance_watermark_to(timestamp.MAX_TIMESTAMP)
+    self.advance_watermark_to(timestamp.MAX_TIMESTAMP, tag)
     return self
 
   def advance_processing_time(self, advance_by):
@@ -257,7 +271,7 @@ class TestStream(PTransform):
         common_urns.primitives.TEST_STREAM.urn,
         beam_runner_api_pb2.TestStreamPayload(
             coder_id=context.coders.get_id(self.coder),
-            events=[e.to_runner_api(self.coder) for e in self.events]))
+            events=[e.to_runner_api(self.coder) for e in self._events]))
 
   @PTransform.register_urn(
       common_urns.primitives.TEST_STREAM.urn,

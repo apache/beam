@@ -17,6 +17,8 @@
 
 """Unittest for testing utilities,"""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging

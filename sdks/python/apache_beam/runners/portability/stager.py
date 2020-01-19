@@ -44,6 +44,8 @@ one-time manual trimming is desirable.
 TODO(silviuc): Should we allow several setup packages?
 TODO(silviuc): We should allow customizing the exact command for setup build.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import glob
@@ -52,6 +54,8 @@ import os
 import shutil
 import sys
 import tempfile
+from typing import List
+from typing import Optional
 
 import pkg_resources
 
@@ -59,6 +63,7 @@ from apache_beam.internal import pickler
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import PipelineOptions  # pylint: disable=unused-import
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 # TODO(angoenka): Remove reference to dataflow internal names
@@ -94,6 +99,7 @@ class Stager(object):
   """
 
   def stage_artifact(self, local_path_to_artifact, artifact_name):
+    # type: (str, str) -> None
     """ Stages the artifact to Stager._staging_location and adds artifact_name
         to the manifest of artifacts that have been staged."""
     raise NotImplementedError
@@ -109,11 +115,12 @@ class Stager(object):
     return names.BEAM_PACKAGE_NAME
 
   def stage_job_resources(self,
-                          options,
-                          build_setup_args=None,
-                          temp_dir=None,
-                          populate_requirements_cache=None,
-                          staging_location=None):
+                          options,  # type: PipelineOptions
+                          build_setup_args=None,  # type: Optional[List[str]]
+                          temp_dir=None,  # type: Optional[str]
+                          populate_requirements_cache=None,  # type: Optional[str]
+                          staging_location=None  # type: Optional[str]
+                         ):
     """For internal use only; no backwards-compatibility guarantees.
 
         Creates (if needed) and stages job resources to staging_location.
@@ -141,7 +148,7 @@ class Stager(object):
           while trying to create the resources (e.g., build a setup package).
         """
     temp_dir = temp_dir or tempfile.mkdtemp()
-    resources = []
+    resources = []  # type: List[str]
 
     setup_options = options.view_as(SetupOptions)
     # Make sure that all required options are specified.
@@ -322,6 +329,7 @@ class Stager(object):
     return path.find('://') != -1
 
   def _stage_jar_packages(self, jar_packages, staging_location, temp_dir):
+    # type: (...) -> List[str]
     """Stages a list of local jar packages for Java SDK Harness.
 
     :param jar_packages: Ordered list of local paths to jar packages to be
@@ -334,9 +342,9 @@ class Stager(object):
       RuntimeError: If files specified are not found or do not have expected
         name patterns.
     """
-    resources = []
+    resources = []  # type: List[str]
     staging_temp_dir = tempfile.mkdtemp(dir=temp_dir)
-    local_packages = []
+    local_packages = []  # type: List[str]
     for package in jar_packages:
       if not os.path.basename(package).endswith('.jar'):
         raise RuntimeError(
@@ -372,6 +380,7 @@ class Stager(object):
     return resources
 
   def _stage_extra_packages(self, extra_packages, staging_location, temp_dir):
+    # type: (...) -> List[str]
     """Stages a list of local extra packages.
 
       Args:
@@ -390,9 +399,9 @@ class Stager(object):
         RuntimeError: If files specified are not found or do not have expected
           name patterns.
       """
-    resources = []
+    resources = []  # type: List[str]
     staging_temp_dir = tempfile.mkdtemp(dir=temp_dir)
-    local_packages = []
+    local_packages = []  # type: List[str]
     for package in extra_packages:
       if not (os.path.basename(package).endswith('.tar') or
               os.path.basename(package).endswith('.tar.gz') or
@@ -490,7 +499,11 @@ class Stager(object):
     processes.check_output(cmd_args, stderr=processes.STDOUT)
 
   @staticmethod
-  def _build_setup_package(setup_file, temp_dir, build_setup_args=None):
+  def _build_setup_package(setup_file,  # type: str
+                           temp_dir,  # type: str
+                           build_setup_args=None  # type: Optional[List[str]]
+                          ):
+    # type: (...) -> str
     saved_current_directory = os.getcwd()
     try:
       os.chdir(os.path.dirname(setup_file))
@@ -511,6 +524,7 @@ class Stager(object):
 
   @staticmethod
   def _desired_sdk_filename_in_staging_location(sdk_location):
+    # type: (...) -> str
     """Returns the name that SDK file should have in the staging location.
       Args:
         sdk_location: Full path to SDK file.
@@ -525,6 +539,7 @@ class Stager(object):
       return DATAFLOW_SDK_TARBALL_FILE
 
   def _stage_beam_sdk(self, sdk_remote_location, staging_location, temp_dir):
+    # type: (...) -> List[str]
     """Stages a Beam SDK file with the appropriate version.
 
       Args:

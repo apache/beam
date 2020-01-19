@@ -18,6 +18,8 @@
 
 """Unit tests for file sinks."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import glob

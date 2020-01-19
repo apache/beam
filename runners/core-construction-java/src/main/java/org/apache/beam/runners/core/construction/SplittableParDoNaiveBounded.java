@@ -29,6 +29,7 @@ import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -147,7 +148,7 @@ public class SplittableParDoNaiveBounded {
         ProcessContinuation continuation =
             invoker.invokeProcessElement(new NestedProcessContext<>(fn, c, element, w, tracker));
         if (continuation.shouldResume()) {
-          restriction = tracker.checkpoint();
+          restriction = tracker.trySplit(0).getResidual();
           Uninterruptibles.sleepUninterruptibly(
               continuation.resumeDelay().getMillis(), TimeUnit.MILLISECONDS);
         } else {
@@ -243,6 +244,11 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public TimerMap timerFamily(String tagId) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
       public Object schemaElement(int index) {
         throw new UnsupportedOperationException();
       }
@@ -250,6 +256,11 @@ public class SplittableParDoNaiveBounded {
       @Override
       public Instant timestamp(DoFn<InputT, OutputT> doFn) {
         return outerContext.timestamp();
+      }
+
+      @Override
+      public String timerId(DoFn<InputT, OutputT> doFn) {
+        throw new UnsupportedOperationException();
       }
 
       @Override
