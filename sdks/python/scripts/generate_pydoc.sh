@@ -94,7 +94,6 @@ import sys
 import sphinx_rtd_theme
 
 import numpy
-import IPython
 
 sys.path.insert(0, os.path.abspath('../../..'))
 
