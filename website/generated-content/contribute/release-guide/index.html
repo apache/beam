@@ -276,6 +276,7 @@
     <ul>
       <li><a href="#deploy-artifacts-to-maven-central-repository">Deploy artifacts to Maven Central Repository</a></li>
       <li><a href="#deploy-python-artifacts-to-pypi">Deploy Python artifacts to PyPI</a></li>
+      <li><a href="#deploy-source-release-to-distapacheorg">Deploy source release to dist.apache.org</a></li>
       <li><a href="#deploy-sdk-docker-images-to-dockerhub">Deploy SDK docker images to DockerHub</a></li>
       <li><a href="#git-tag">Git tag</a></li>
       <li><a href="#merge-website-pull-request">Merge website pull request</a></li>
@@ -399,10 +400,8 @@ limitations under the License.
   </li>
   <li><a href="#8-finalize-the-release" id="markdown-toc-8-finalize-the-release">8. Finalize the release</a>    <ul>
       <li><a href="#deploy-artifacts-to-maven-central-repository" id="markdown-toc-deploy-artifacts-to-maven-central-repository">Deploy artifacts to Maven Central Repository</a></li>
-      <li><a href="#deploy-python-artifacts-to-pypi" id="markdown-toc-deploy-python-artifacts-to-pypi">Deploy Python artifacts to PyPI</a>        <ul>
-          <li><a href="#deploy-source-release-to-distapacheorg" id="markdown-toc-deploy-source-release-to-distapacheorg">Deploy source release to dist.apache.org</a></li>
-        </ul>
-      </li>
+      <li><a href="#deploy-python-artifacts-to-pypi" id="markdown-toc-deploy-python-artifacts-to-pypi">Deploy Python artifacts to PyPI</a></li>
+      <li><a href="#deploy-source-release-to-distapacheorg" id="markdown-toc-deploy-source-release-to-distapacheorg">Deploy source release to dist.apache.org</a></li>
       <li><a href="#deploy-sdk-docker-images-to-dockerhub" id="markdown-toc-deploy-sdk-docker-images-to-dockerhub">Deploy SDK docker images to DockerHub</a></li>
       <li><a href="#git-tag" id="markdown-toc-git-tag">Git tag</a></li>
       <li><a href="#merge-website-pull-request" id="markdown-toc-merge-website-pull-request">Merge website pull request</a></li>
@@ -1834,7 +1833,7 @@ delete the <code class="highlighter-rouge">.asc</code>, <code class="highlighter
   <li>Upload the new release <code class="highlighter-rouge">twine upload *</code> from the directory with the <code class="highlighter-rouge">.zip</code> and <code class="highlighter-rouge">.whl</code> files;</li>
 </ol>
 
-<h4 id="deploy-source-release-to-distapacheorg">Deploy source release to dist.apache.org</h4>
+<h3 id="deploy-source-release-to-distapacheorg">Deploy source release to dist.apache.org</h3>
 
 <p>Copy the source release from the <code class="highlighter-rouge">dev</code> repository to the <code class="highlighter-rouge">release</code> repository at <code class="highlighter-rouge">dist.apache.org</code> using Subversion.</p>
 
