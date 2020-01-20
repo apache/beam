@@ -19,5 +19,11 @@
 #
 set -euo pipefail
 
-gcloud dataflow jobs list --created-before=-P3H --format='value(JOB_ID)' \
---status=active --region=us-central1 | xargs gcloud dataflow jobs cancel
+STALE_JOBS=$(gcloud dataflow jobs list --created-before=-P3H \
+--format='value(JOB_ID)' --status=active --region=us-central1)
+
+if [[ ${STALE_JOBS} ]]; then
+  gcloud dataflow jobs cancel --region=us-central1 ${STALE_JOBS}
+else
+  echo "No stale jobs found."
+fi
