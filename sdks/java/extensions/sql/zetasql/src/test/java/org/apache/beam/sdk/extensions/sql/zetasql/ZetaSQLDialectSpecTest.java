@@ -1348,6 +1348,44 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testAggregateWithAndWithoutColumnRefs() {
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+
+    String sql =
+        "SELECT \n"
+            + "  id, \n"
+            + "  SUM(has_f1) as f1_count, \n"
+            + "  SUM(has_f2) as f2_count, \n"
+            + "  SUM(has_f3) as f3_count, \n"
+            + "  SUM(has_f4) as f4_count, \n"
+            + "  SUM(has_f5) as f5_count, \n"
+            + "  COUNT(*) as count, \n"
+            + "  SUM(has_f6) as f6_count  \n"
+            + "FROM (select 0 as id, 1 as has_f1, 2 as has_f2, 3 as has_f3, 4 as has_f4, 5 as has_f5, 6 as has_f6)\n"
+            + "GROUP BY id";
+
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    final Schema schema =
+        Schema.builder()
+            .addInt64Field("id")
+            .addInt64Field("f1_count")
+            .addInt64Field("f2_count")
+            .addInt64Field("f3_count")
+            .addInt64Field("f4_count")
+            .addInt64Field("f5_count")
+            .addInt64Field("count")
+            .addInt64Field("f6_count")
+            .build();
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues(0L, 1L, 2L, 3L, 4L, 5L, 1L, 6L).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testZetaSQLStructFieldAccessInGroupBy() {
     String sql = "SELECT rowCol.row_id, COUNT(*) FROM table_with_struct_two GROUP BY rowCol.row_id";
 
