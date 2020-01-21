@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
-import static org.apache.beam.runners.core.construction.graph.ExecutableStage.DEFAULT_WIRE_CODER_SETTING;
+import static org.apache.beam.runners.core.construction.graph.ExecutableStage.DEFAULT_WIRE_CODER_SETTINGS;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -106,7 +106,7 @@ public class ExecutableStageTest {
             Collections.singleton(timerRef),
             Collections.singleton(PipelineNode.pTransform("pt", pt)),
             Collections.singleton(PipelineNode.pCollection("output.out", output)),
-            DEFAULT_WIRE_CODER_SETTING);
+            DEFAULT_WIRE_CODER_SETTINGS);
 
     PTransform stagePTransform = stage.toPTransform("foo");
     assertThat(stagePTransform.getOutputsMap(), hasValue("output.out"));

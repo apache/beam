@@ -31,8 +31,8 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
@@ -57,11 +57,7 @@ public class TestExpansionService {
       Schema schema = new Schema.Parser().parse(rawSchema);
       return ImmutableMap.of(
           TEST_COUNT_URN, spec -> Count.perElement(),
-          TEST_FILTER_URN,
-              spec ->
-                  Filter.lessThanEq(
-                      // TODO(BEAM-6587): Use strings directly rather than longs.
-                      (long) spec.getPayload().toStringUtf8().charAt(0)),
+          TEST_FILTER_URN, spec -> Filter.lessThanEq(spec.getPayload().toStringUtf8()),
           TEST_PARQUET_READ_URN,
               spec ->
                   new PTransform<PBegin, PCollection<GenericRecord>>() {

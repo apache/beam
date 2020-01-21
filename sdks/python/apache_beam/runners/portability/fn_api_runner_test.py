@@ -566,6 +566,12 @@ class FnApiRunnerTest(unittest.TestCase):
              p | 'd' >> beam.Create(additional)) | beam.Flatten()
       assert_that(res, equal_to(['a', 'b', 'c'] + additional))
 
+  def test_flatten_same_pcollections(self, with_transcoding=True):
+    with self.create_pipeline() as p:
+      pc = p | beam.Create(['a', 'b'])
+      assert_that((pc, pc, pc) | beam.Flatten(), equal_to(['a', 'b'] * 3))
+
+
   def test_combine_per_key(self):
     with self.create_pipeline() as p:
       res = (p
@@ -1588,7 +1594,7 @@ class FnApiBasedLullLoggingTest(unittest.TestCase):
 
     self.assertRegex(
         ''.join(logs.output),
-        '.*There has been a processing lull of over.*',
+        '.*Operation ongoing for over.*',
         'Unable to find a lull logged for this job.')
 
 class StateBackedTestElementType(object):

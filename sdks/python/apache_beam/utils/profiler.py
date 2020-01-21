@@ -107,6 +107,7 @@ class Profile(object):
         if random.random() < options.profile_sample_rate:
           return Profile(profile_id, options.profile_location, **kwargs)
       return create_profiler
+    return None
 
 
 class MemoryReporter(object):

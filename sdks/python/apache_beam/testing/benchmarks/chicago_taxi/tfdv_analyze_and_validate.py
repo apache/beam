@@ -27,6 +27,7 @@ import tensorflow_data_validation as tfdv
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 import apache_beam as beam
+from apache_beam.io.gcp.bigquery import _ReadFromBigQuery as ReadFromBigQuery
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
@@ -97,6 +98,7 @@ def compute_stats(input_handle,
   metrics_monitor = None
   if publish_to_bq:
     metrics_monitor = MetricsReader(
+        publish_to_bq=publish_to_bq,
         project_name=project,
         bq_table=metrics_table,
         bq_dataset=metrics_dataset,
@@ -107,8 +109,8 @@ def compute_stats(input_handle,
       table_name=input_handle, max_rows=max_rows, for_eval=for_eval)
   raw_data = (
       pipeline
-      | 'ReadBigQuery' >> beam.io.Read(
-          beam.io.BigQuerySource(query=query, use_standard_sql=True))
+      | 'ReadBigQuery' >> ReadFromBigQuery(query=query, project=project,
+                                           use_standard_sql=True)
       | 'Measure time: Start' >> beam.ParDo(MeasureTime(namespace))
       | 'ConvertToTFDVInput' >> beam.Map(
           lambda x: {key: np.asarray([x[key]])

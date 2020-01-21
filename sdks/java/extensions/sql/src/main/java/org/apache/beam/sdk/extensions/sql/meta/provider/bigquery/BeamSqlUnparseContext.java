@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rel2
 
 import java.util.function.IntFunction;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rel2sql.SqlImplementor;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
@@ -53,6 +54,15 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
       } else if (SqlTypeFamily.CHARACTER.equals(family)) {
         String escaped = StringEscapeUtils.escapeJava(literal.getValueAs(String.class));
         return SqlLiteral.createCharString(escaped, POS);
+      } else if (SqlTypeName.SYMBOL.equals(literal.getTypeName())) {
+        Enum symbol = literal.getValueAs(Enum.class);
+        if (TimeUnitRange.DOW.equals(symbol)) {
+          return new ReplaceLiteral(literal, POS, "DAYOFWEEK");
+        } else if (TimeUnitRange.DOY.equals(symbol)) {
+          return new ReplaceLiteral(literal, POS, "DAYOFYEAR");
+        } else if (TimeUnitRange.WEEK.equals(symbol)) {
+          return new ReplaceLiteral(literal, POS, "ISOWEEK");
+        }
       }
     }
 
@@ -81,6 +91,37 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
       builder.append("'");
 
       writer.literal(builder.toString());
+    }
+  }
+
+  private static class ReplaceLiteral extends SqlLiteral {
+
+    private final String newValue;
+
+    ReplaceLiteral(RexLiteral literal, SqlParserPos pos, String newValue) {
+      super(literal.getValue(), literal.getTypeName(), pos);
+      this.newValue = newValue;
+    }
+
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+      writer.literal(newValue);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!(obj instanceof ReplaceLiteral)) {
+        return false;
+      }
+      if (!newValue.equals(((ReplaceLiteral) obj).newValue)) {
+        return false;
+      }
+      return super.equals(obj);
+    }
+
+    @Override
+    public int hashCode() {
+      return super.hashCode();
     }
   }
 }

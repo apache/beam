@@ -41,6 +41,9 @@ def print_testsuite(testsuite):
       if child.tag == 'skipped':
         assert status == ''
         status = 'S'
+      elif child.tag == 'failure':
+        assert status == ''
+        status = 'F'
       elif child.tag in ['system-err', 'system-out']:
         pass
       else:
