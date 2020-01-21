@@ -1253,7 +1253,7 @@ please follow [the guide](https://help.github.com/articles/creating-a-personal-a
    delete the `.asc`, `.sha512`;
 3. Upload the new release `twine upload *` from the directory with the `.zip` and `.whl` files;
 
-[Installing twine](https://packaging.python.org/tutorials/packaging-projects/#uploading-the-distribution-archives): `pip install twine`. You can install twine under [virtualenv](https://virtualenv.pypa.io/en/latest/)bb if preferred. 
+[Installing twine](https://packaging.python.org/tutorials/packaging-projects/#uploading-the-distribution-archives): `pip install twine`. You can install twine under [virtualenv](https://virtualenv.pypa.io/en/latest/) if preferred. 
 
 
 #### Deploy source release to dist.apache.org
