@@ -35,6 +35,7 @@ import org.apache.beam.sdk.util.*
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists
+import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Description
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.TypeSafeMatcher
