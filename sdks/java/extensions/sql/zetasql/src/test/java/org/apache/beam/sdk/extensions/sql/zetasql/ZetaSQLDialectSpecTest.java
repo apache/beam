@@ -1348,6 +1348,7 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  // Used to validate fix for [BEAM-8042].
   public void testAggregateWithAndWithoutColumnRefs() {
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
 
