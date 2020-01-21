@@ -175,6 +175,30 @@ import org.slf4j.LoggerFactory;
  * <br>
  * 3. Start from <em>latest</em> offset by default;
  *
+ * <h3>Use Avro schema with Confluent Schema Registry</h3>
+ *
+ * <p>If the message keys or/and values in a topic were serialised by Avro schema stored in
+ * Confluent Schema Registry, KafkaIO source can fetch this schema from specified Schema Registry
+ * URL and use it for deserialization further. As an output, it will return a {@link PCollection} of
+ * {@link KafkaRecord}s where key or/and value will be typed as {@link
+ * org.apache.avro.generic.GenericRecord}. In this case, users don't need to specify key or/and
+ * value deserializers and coders since they will be set to {@link KafkaAvroDeserializer} and {@link
+ * AvroCoder} by default accordingly.
+ *
+ * <p>For example, below topic values are serialized with Avro schema stored in Schema Registry,
+ * keys are typed as {@link Long}:
+ *
+ * <pre>{@code
+ * PCollection<KafkaRecord<Long, GenericRecord>> input = pipeline
+ *   .apply(KafkaIO.<Long, GenericRecord>read()
+ *      .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *      .withTopic("my_topic")
+ *      .withSchemaRegistry(""http://localhost:8081"") // Confluent Schema Registry URL
+ *      .withKeyDeserializer(LongDeserializer.class)
+ *      .withValueSchemaSubject("my_topic-value") // no need to set value deserializer and coder
+ *    ...
+ * }</pre>
+ *
  * <h3>Writing to Kafka</h3>
  *
  * <p>KafkaIO sink supports writing key-value pairs to a Kafka topic. Users can also write just the
@@ -893,12 +917,8 @@ public class KafkaIO {
     }
 
     private Schema fetchAvroSchema(String schemaRegistryUrl, String subject) {
-      SchemaRegistryClient registryClient;
-      if (getSchemaRegistryClientFactoryFn() != null) {
-        registryClient = getSchemaRegistryClientFactoryFn().apply(schemaRegistryUrl);
-      } else {
-        registryClient = new CachedSchemaRegistryClient(schemaRegistryUrl, Integer.MAX_VALUE);
-      }
+      SchemaRegistryClient registryClient =
+          getSchemaRegistryClient(schemaRegistryUrl, getSchemaRegistryClientFactoryFn());
 
       SchemaMetadata latestSchemaMetadata;
       try {
@@ -911,6 +931,21 @@ public class KafkaIO {
       final Schema avroSchema = new Schema.Parser().parse(latestSchemaMetadata.getSchema());
       checkArgument(avroSchema != null, "Avro schema can't be null");
       return avroSchema;
+    }
+
+    static SchemaRegistryClient getSchemaRegistryClient(
+        String schemaRegistryUrl,
+        SerializableFunction<String, SchemaRegistryClient> schemaRegistryClientFactoryFn) {
+      SchemaRegistryClient registryClient;
+      if (schemaRegistryUrl == null) {
+        return null;
+      }
+      if (schemaRegistryClientFactoryFn != null) {
+        registryClient = schemaRegistryClientFactoryFn.apply(schemaRegistryUrl);
+      } else {
+        registryClient = new CachedSchemaRegistryClient(schemaRegistryUrl, Integer.MAX_VALUE);
+      }
+      return registryClient;
     }
 
     @Override
@@ -956,58 +991,12 @@ public class KafkaIO {
       }
 
       // Infer key/value coders if not specified explicitly
-      CoderRegistry registry = input.getPipeline().getCoderRegistry();
-
+      CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
       final String schemaRegistryURL =
           (String) getConsumerConfig().get(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG);
 
-      // Set up key coder
-      Schema avroKeySchema = null;
-      if (schemaRegistryURL != null && getKeySchemaSubject() != null) {
-        avroKeySchema = fetchAvroSchema(schemaRegistryURL, getKeySchemaSubject());
-        checkArgument(avroKeySchema != null, "Avro key schema can't be null");
-      }
-
-      Coder<K> keyCoder;
-      if (avroKeySchema != null) {
-        keyCoder = (Coder<K>) AvroCoder.of(avroKeySchema);
-        checkArgument(
-            keyCoder != null,
-            "Key coder could not be inferred from key Avro schema. Please provide"
-                + "key coder explicitly using withKeyDeserializerAndCoder()");
-      } else {
-        keyCoder =
-            getKeyCoder() != null ? getKeyCoder() : inferCoder(registry, getKeyDeserializer());
-        checkArgument(
-            keyCoder != null,
-            "Key coder could not be inferred from key deserializer. Please provide"
-                + "key coder explicitly using withKeyDeserializerAndCoder()");
-      }
-
-      // Set up value coder
-      Schema avroValueSchema = null;
-      if (schemaRegistryURL != null && getValueSchemaSubject() != null) {
-        avroValueSchema = fetchAvroSchema(schemaRegistryURL, getValueSchemaSubject());
-        checkArgument(avroValueSchema != null, "Avro value schema can't be null");
-      }
-
-      Coder<V> valueCoder;
-      if (avroValueSchema != null) {
-        valueCoder = (Coder<V>) AvroCoder.of(avroValueSchema);
-        checkArgument(
-            valueCoder != null,
-            "Value coder could not be inferred from value Avro schema. Please provide"
-                + "value coder explicitly using withValueDeserializerAndCoder()");
-      } else {
-        valueCoder =
-            getValueCoder() != null
-                ? getValueCoder()
-                : inferCoder(registry, getValueDeserializer());
-        checkArgument(
-            valueCoder != null,
-            "Value coder could not be inferred from value deserializer. Please provide"
-                + "value coder explicitly using withValueDeserializerAndCoder()");
-      }
+      Coder<K> keyCoder = getKeyCoder(coderRegistry, schemaRegistryURL);
+      Coder<V> valueCoder = getValueCoder(coderRegistry, schemaRegistryURL);
 
       // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
       Unbounded<KafkaRecord<K, V>> unbounded =
@@ -1022,6 +1011,50 @@ public class KafkaIO {
       }
 
       return input.getPipeline().apply(transform);
+    }
+
+    private Coder<K> getKeyCoder(CoderRegistry coderRegistry, String schemaRegistryURL) {
+      Schema avroKeySchema = null;
+      if (schemaRegistryURL != null && getKeySchemaSubject() != null) {
+        avroKeySchema = fetchAvroSchema(schemaRegistryURL, getKeySchemaSubject());
+        checkArgument(avroKeySchema != null, "Avro key schema can't be null");
+      }
+
+      Coder<K> keyCoder;
+      if (avroKeySchema != null) {
+        keyCoder = (Coder<K>) AvroCoder.of(avroKeySchema);
+      } else {
+        keyCoder =
+            getKeyCoder() != null ? getKeyCoder() : inferCoder(coderRegistry, getKeyDeserializer());
+      }
+      checkArgument(
+          keyCoder != null,
+          "Key coder could not be inferred from key deserializer. Please provide"
+              + "key coder explicitly using withKeyDeserializerAndCoder()");
+      return keyCoder;
+    }
+
+    private Coder<V> getValueCoder(CoderRegistry coderRegistry, String schemaRegistryURL) {
+      Schema avroValueSchema = null;
+      if (schemaRegistryURL != null && getValueSchemaSubject() != null) {
+        avroValueSchema = fetchAvroSchema(schemaRegistryURL, getValueSchemaSubject());
+        checkArgument(avroValueSchema != null, "Avro value schema can't be null");
+      }
+
+      Coder<V> valueCoder;
+      if (avroValueSchema != null) {
+        valueCoder = (Coder<V>) AvroCoder.of(avroValueSchema);
+      } else {
+        valueCoder =
+            getValueCoder() != null
+                ? getValueCoder()
+                : inferCoder(coderRegistry, getValueDeserializer());
+      }
+      checkArgument(
+          valueCoder != null,
+          "Value coder could not be inferred from value deserializer. Please provide"
+              + "value coder explicitly using withValueDeserializerAndCoder()");
+      return valueCoder;
     }
 
     /**

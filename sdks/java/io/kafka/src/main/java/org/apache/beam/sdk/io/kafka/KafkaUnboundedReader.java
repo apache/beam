@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
-import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
 import java.io.IOException;
@@ -91,22 +90,34 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig());
     consumerSpEL.evaluateAssign(consumer, spec.getTopicPartitions());
 
+    String schemaRegistryURL =
+        (String)
+            spec.getConsumerConfig().get(KafkaAvroDeserializerConfig.SCHEMA_REGISTRY_URL_CONFIG);
+    SchemaRegistryClient registryClient =
+        KafkaIO.Read.getSchemaRegistryClient(
+            schemaRegistryURL, spec.getSchemaRegistryClientFactoryFn());
+
     try {
       if (spec.getKeyDeserializer().equals(KafkaAvroDeserializer.class)) {
-        SchemaRegistryClient registryClient = getSchemaRegistryClient(spec);
+        if (registryClient == null) {
+          throw new IOException(
+              "Schema registry client can't be null when KafkaAvroDeserializer is used for key.");
+        }
         keyDeserializerInstance = (Deserializer) new KafkaAvroDeserializer(registryClient);
       } else {
         keyDeserializerInstance = spec.getKeyDeserializer().getDeclaredConstructor().newInstance();
       }
 
       if (spec.getValueDeserializer().equals(KafkaAvroDeserializer.class)) {
-        SchemaRegistryClient registryClient = getSchemaRegistryClient(spec);
+        if (registryClient == null) {
+          throw new IOException(
+              "Schema registry client can't be null when KafkaAvroDeserializer is used for value.");
+        }
         valueDeserializerInstance = (Deserializer) new KafkaAvroDeserializer(registryClient);
       } else {
         valueDeserializerInstance =
             spec.getValueDeserializer().getDeclaredConstructor().newInstance();
       }
-
     } catch (InstantiationException
         | IllegalAccessException
         | InvocationTargetException
@@ -176,17 +187,12 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     SchemaRegistryClient registryClient;
     String schemaRegistryURL =
         (String)
-            spec.getConsumerConfig().get(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG);
+            spec.getConsumerConfig().get(KafkaAvroDeserializerConfig.SCHEMA_REGISTRY_URL_CONFIG);
 
     if (spec.getSchemaRegistryClientFactoryFn() != null) {
       registryClient = spec.getSchemaRegistryClientFactoryFn().apply(schemaRegistryURL);
     } else {
-      registryClient =
-          new CachedSchemaRegistryClient(
-              (String)
-                  spec.getConsumerConfig()
-                      .get(KafkaAvroDeserializerConfig.SCHEMA_REGISTRY_URL_CONFIG),
-              Integer.MAX_VALUE);
+      registryClient = new CachedSchemaRegistryClient(schemaRegistryURL, Integer.MAX_VALUE);
     }
     return registryClient;
   }

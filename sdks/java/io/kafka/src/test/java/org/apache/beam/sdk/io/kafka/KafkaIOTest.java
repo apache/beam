@@ -198,7 +198,7 @@ public class KafkaIOTest {
       int numElements,
       OffsetResetStrategy offsetResetStrategy,
       Map<String, Object> config,
-      boolean isAvro) {
+      boolean useAvro) {
 
     final List<TopicPartition> partitions = new ArrayList<>();
     final Map<TopicPartition, List<ConsumerRecord<byte[], byte[]>>> records = new HashMap<>();
@@ -236,7 +236,7 @@ public class KafkaIOTest {
 
       byte[] key;
       byte[] value;
-      if (isAvro) {
+      if (useAvro) {
         key =
             serializer.serialize(tp.topic(), new AvroGeneratedUser("KeyName" + i, i, "color" + i));
         value =
@@ -470,9 +470,9 @@ public class KafkaIOTest {
     private final String keySchemaSubject;
     private final String valueSchemaSubject;
 
-    private MockSchemaRegistryClientFactoryFn(String keySubject, String valueSubject) {
-      this.keySchemaSubject = keySubject;
-      this.valueSchemaSubject = valueSubject;
+    private MockSchemaRegistryClientFactoryFn(String keySchemaSubject, String valueSchemaSubject) {
+      this.keySchemaSubject = keySchemaSubject;
+      this.valueSchemaSubject = valueSchemaSubject;
     }
 
     @Override
@@ -498,8 +498,8 @@ public class KafkaIOTest {
   public void testReadAvroKeyValuesWithSchemaRegistry() {
     int numElements = 100;
     String topic = "my_topic";
-    String keySubject = topic + "-key";
-    String valueSubject = topic + "-value";
+    String keySchemaSubject = topic + "-key";
+    String valueSchemaSubject = topic + "-value";
 
     List<KV<GenericRecord, GenericRecord>> inputs = new ArrayList<>();
     for (int i = 0; i < numElements; i++) {
@@ -518,10 +518,10 @@ public class KafkaIOTest {
                     ImmutableList.of(topic), 1, numElements, OffsetResetStrategy.EARLIEST, true))
             .withMaxNumRecords(numElements)
             .withSchemaRegistry("mock://my-scope-name")
-            .withKeySchemaSubject(keySubject)
-            .withValueSchemaSubject(valueSubject)
+            .withKeySchemaSubject(keySchemaSubject)
+            .withValueSchemaSubject(valueSchemaSubject)
             .withSchemaRegistryClientFactoryFn(
-                new MockSchemaRegistryClientFactoryFn(keySubject, valueSubject));
+                new MockSchemaRegistryClientFactoryFn(keySchemaSubject, valueSchemaSubject));
 
     PCollection<KV<GenericRecord, GenericRecord>> input = p.apply(reader.withoutMetadata());
 
