@@ -38,7 +38,6 @@ import javax.jms.MessageProducer;
 import javax.jms.Session;
 import javax.jms.TextMessage;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.Read.Unbounded;
@@ -406,7 +405,7 @@ public class JmsIO {
 
   /** An unbounded JMS source. */
   @VisibleForTesting
-  protected static class UnboundedJmsSource<T> extends UnboundedSource<T, JmsCheckpointMark> {
+  static class UnboundedJmsSource<T> extends UnboundedSource<T, JmsCheckpointMark> {
 
     private final Read<T> spec;
 
@@ -439,7 +438,7 @@ public class JmsIO {
 
     @Override
     public Coder<JmsCheckpointMark> getCheckpointMarkCoder() {
-      return AvroCoder.of(JmsCheckpointMark.class);
+      return SerializableCoder.of(JmsCheckpointMark.class);
     }
 
     @Override
@@ -516,7 +515,7 @@ public class JmsIO {
           return false;
         }
 
-        checkpointMark.addMessage(message);
+        checkpointMark.add(message);
 
         currentMessage = this.source.spec.getMessageMapper().mapMessage(message);
         currentTimestamp = new Instant(message.getJMSTimestamp());
@@ -537,7 +536,7 @@ public class JmsIO {
 
     @Override
     public Instant getWatermark() {
-      return checkpointMark.getOldestPendingTimestamp();
+      return checkpointMark.getOldestMessageTimestamp();
     }
 
     @Override
