@@ -227,11 +227,12 @@ class S3FileSystemTest(unittest.TestCase):
     problematic_directory = 's3://nonexistent-bucket/tree/'
     exception = messages.S3ClientError('Not found', 404)
 
-    s3io_mock.delete_paths.return_value = [
-        (problematic_directory, exception),
-        ('s3://bucket/object1', None),
-        ('s3://bucket/object2', None)
-    ]
+    s3io_mock.delete_paths.return_value = {
+        problematic_directory: exception,
+        's3://bucket/object1': None,
+        's3://bucket/object2': None,
+    }
+
     s3io_mock.size.return_value = 0
     files = [
         problematic_directory,
