@@ -120,7 +120,18 @@ class S3IO(object):
     logging.info("Starting the size estimation of the input")
 
     while True:
-      response = self.client.list(request)
+      #The list operation will raise an exception
+      #when trying to list a nonexistent S3 path.
+      #This should not be an issue here.
+      #Ignore this exception or it will break the procedure.
+      try:
+        response = self.client.list(request)
+      except messages.S3ClientError as e:
+        if e.code == 404:
+          break
+        else:
+          raise e
+
       for item in response.items:
         file_name = 's3://%s/%s' % (bucket, item.key)
         file_sizes[file_name] = item.size
