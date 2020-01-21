@@ -3817,17 +3817,16 @@ public class ParDoTest implements Serializable {
       UsesTestStreamWithProcessingTime.class
     })
     public void testOutputTimestampWithProcessingTime() {
-      final String timerFoo = "foo";
-      final String timerBar = "bar";
+      final String timerId = "foo";
       DoFn<KV<String, Integer>, KV<String, Integer>> fn1 =
           new DoFn<KV<String, Integer>, KV<String, Integer>>() {
 
-            @TimerId(timerFoo)
+            @TimerId(timerId)
             private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
             @ProcessElement
             public void processElement(
-                @TimerId(timerFoo) Timer timer, OutputReceiver<KV<String, Integer>> o) {
+                @TimerId(timerId) Timer timer, OutputReceiver<KV<String, Integer>> o) {
               timer
                   .withOutputTimestampOffset(Duration.standardSeconds(5))
                   .offset(Duration.standardSeconds(10))
@@ -3836,14 +3835,14 @@ public class ParDoTest implements Serializable {
               o.output(KV.of("foo", 100));
             }
 
-            @OnTimer(timerFoo)
+            @OnTimer(timerId)
             public void onTimer(OnTimerContext c, BoundedWindow w) {}
           };
 
       DoFn<KV<String, Integer>, Integer> fn2 =
           new DoFn<KV<String, Integer>, Integer>() {
 
-            @TimerId(timerBar)
+            @TimerId(timerId)
             private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
             @StateId("timerFired")
@@ -3851,7 +3850,7 @@ public class ParDoTest implements Serializable {
 
             @ProcessElement
             public void processElement(
-                @TimerId(timerBar) Timer timer,
+                @TimerId(timerId) Timer timer,
                 @StateId("timerFired") ValueState<Boolean> timerFiredState) {
               Boolean timerFired = timerFiredState.read();
               assertTrue(timerFired == null || !timerFired);
@@ -3863,7 +3862,7 @@ public class ParDoTest implements Serializable {
               timer.offset(Duration.standardSeconds(8)).setRelative();
             }
 
-            @OnTimer(timerBar)
+            @OnTimer(timerId)
             public void onTimer(
                 @StateId("timerFired") ValueState<Boolean> timerFiredState,
                 OutputReceiver<Integer> o) {
