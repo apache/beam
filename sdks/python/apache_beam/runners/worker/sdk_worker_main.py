@@ -137,8 +137,9 @@ def main(unused_argv):
     status_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
     text_format.Merge(os.environ['CONTROL_API_SERVICE_DESCRIPTOR'],
                       control_service_descriptor)
-    text_format.Merge(os.environ['STATUS_API_SERVICE_DESCRIPTOR'],
-                      status_service_descriptor)
+    if 'STATUS_API_SERVICE_DESCRIPTOR' in os.environ:
+      text_format.Merge(os.environ['STATUS_API_SERVICE_DESCRIPTOR'],
+                        status_service_descriptor)
     # TODO(robertwb): Support credentials.
     assert not control_service_descriptor.oauth2_client_credentials_grant.url
     SdkHarness(

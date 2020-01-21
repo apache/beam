@@ -58,7 +58,7 @@ def thread_dump():
   return '\n'.join(x.encode('utf-8') for x in all_traces)
 
 
-def active_processing_bundles_state(bundle_process_cache):
+def _active_processing_bundles_state(bundle_process_cache):
   """Gather information about the currently in-processing active bundles.
 
   The result only keeps the longest lasting 10 bundles to avoid excessive
@@ -139,7 +139,7 @@ class FnApiWorkerStatusHandler(object):
 
   def generate_status_response(self):
     all_status_sections = [
-        active_processing_bundles_state(self._bundle_process_cache)
+        _active_processing_bundles_state(self._bundle_process_cache)
     ] if self._bundle_process_cache else []
     all_status_sections.append(thread_dump())
     return '\n'.join(all_status_sections)
