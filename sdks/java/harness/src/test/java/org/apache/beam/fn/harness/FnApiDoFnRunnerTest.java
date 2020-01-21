@@ -934,9 +934,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
             timerInGlobalWindow("A", new Instant(1400L), new Instant(2411L)),
             timerInGlobalWindow("B", new Instant(1500L), new Instant(2511L)),
             timerInGlobalWindow("A", new Instant(1600L), new Instant(2611L)),
-            timerInGlobalWindow("X", new Instant(2700L), new Instant(2721L)),
-            timerInGlobalWindow("C", new Instant(2800L), new Instant(2821L)),
-            timerInGlobalWindow("B", new Instant(2900L), new Instant(2921L))));
+            timerInGlobalWindow("X", new Instant(1700L), new Instant(1721L)),
+            timerInGlobalWindow("C", new Instant(1800L), new Instant(1821L)),
+            timerInGlobalWindow("B", new Instant(1900L), new Instant(1921L))));
     assertThat(
         processingTimerOutputValues,
         contains(
