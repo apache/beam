@@ -32,7 +32,7 @@ import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,7 +101,8 @@ public class SamzaJobServerDriver {
           }
         },
         stagingSessionToken -> {},
-        jobInvoker);
+        jobInvoker,
+        InMemoryJobService.DEFAULT_MAX_INVOCATION_HISTORY);
   }
 
   public void run() throws Exception {

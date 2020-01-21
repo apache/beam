@@ -175,6 +175,33 @@ task crossLanguageTests {
   dependsOn "crossLanguagePortableWordCount"
 }
 
+task installChicagoTaxiExampleRequirements {
+  dependsOn 'installGcpTest'
+
+  doLast {
+    exec {
+      workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pip install -r requirements.txt"
+    }
+  }
+}
+
+task chicagoTaxiExample {
+  dependsOn 'installChicagoTaxiExampleRequirements'
+
+  def gcsRoot = findProperty('gcsRoot')
+  def pipelineOptions = findProperty('pipelineOptions') ?: ""
+
+  doLast {
+    exec {
+      workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ./run_chicago.sh ${gcsRoot} PortableRunner ${pipelineOptions}"
+    }
+  }
+}
+
 /*************************************************************************************************/
 
 task createProcessWorker {

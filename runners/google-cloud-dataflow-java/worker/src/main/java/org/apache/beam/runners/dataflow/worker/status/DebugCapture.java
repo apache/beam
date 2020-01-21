@@ -30,6 +30,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -99,13 +100,13 @@ public class DebugCapture {
     private String project, job, host, region;
     private Dataflow client = null;
     private ScheduledExecutorService executor = null;
-    private List<Capturable> capturables;
+    private Collection<Capturable> capturables;
     private boolean enabled;
 
     private long lastCaptureUsec = 0;
     @VisibleForTesting Config captureConfig = new Config();
 
-    public Manager(DataflowWorkerHarnessOptions options, List<Capturable> capturables) {
+    public Manager(DataflowWorkerHarnessOptions options, Collection<Capturable> capturables) {
       try {
         client = options.getDataflowClient();
       } catch (Exception e) {

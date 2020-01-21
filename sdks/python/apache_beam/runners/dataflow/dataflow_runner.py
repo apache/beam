@@ -500,7 +500,9 @@ class DataflowRunner(PipelineRunner):
     test_options = options.view_as(TestOptions)
     # If it is a dry run, return without submitting the job.
     if test_options.dry_run:
-      return None
+      result = PipelineResult(PipelineState.DONE)
+      result.wait_until_finish = lambda duration=None: None
+      return result
 
     # Get a Dataflow API client and set its options
     self.dataflow_client = apiclient.DataflowApplicationClient(options)

@@ -711,9 +711,9 @@ done
 * Build Flink job server images and push to DockerHub.
 
 ```
-FLINK_VER=($(ls -1 runners/flink | awk '/^[0-9]+\.[0-9]+$/{print}'))
+FLINK_VER=("1.7" "1.8" "1.9")
 for ver in "${FLINK_VER[@]}"; do
-   ./gradlew ":runners:flink:${ver}:job-server-container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
+  ./gradlew ":runners:flink:${ver}:job-server-container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
 done
 ```
 
@@ -1256,7 +1256,7 @@ please follow [the guide](https://help.github.com/articles/creating-a-personal-a
 [Installing twine](https://packaging.python.org/tutorials/packaging-projects/#uploading-the-distribution-archives): `pip install twine`. You can install twine under [virtualenv](https://virtualenv.pypa.io/en/latest/) if preferred. 
 
 
-#### Deploy source release to dist.apache.org
+### Deploy source release to dist.apache.org
 
 Copy the source release from the `dev` repository to the `release` repository at `dist.apache.org` using Subversion.
 
