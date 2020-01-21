@@ -59,7 +59,7 @@ JOB_TRIGGER_PHRASES=(
   "Run Python Dataflow ValidatesContainer"
   "Run Python Dataflow ValidatesRunner"
   "Run Python 3.5 Flink ValidatesRunner"
-  # Postcommit versions match those in run_rc_validation.sh.
+  # Python versions match those in run_rc_validation.sh.
   "Run Python 2 PostCommit"
   "Run Python 3.5 PostCommit"
   "Run SQL PostCommit"

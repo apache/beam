@@ -977,7 +977,7 @@ Since there are a bunch of tests, we recommend you running validations using aut
      [script.config](https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config)
   1. Then run
       ```
-      ./release/src/main/scripts/run_rc_validation.sh
+      ./beam/release/src/main/scripts/run_rc_validation.sh
       ```
 
 * Tasks included
@@ -1014,7 +1014,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
   Apex Local Runner
   ```
   ./gradlew :runners:apex:runQuickstartJavaApex \
-  -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam${KEY} \
+  -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
   -Pver=${RELEASE_VERSION}
   ```
   Flink Local Runner
