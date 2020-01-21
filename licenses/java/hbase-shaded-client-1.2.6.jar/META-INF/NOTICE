@@ -1,0 +1,530 @@
+
+Apache HBase - Shaded - Client
+Copyright 2007-2017 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+====
+Apache HBase - Shaded - Client contained works
+
+This product contains additional works that are distributed under licenses
+other than ASL v2. See LICENSE for full details
+
+--
+This product includes portions of the Bootstrap project v3.0.0
+
+Copyright 2013 Twitter, Inc.
+
+Licensed under the Apache License v2.0
+
+This product uses the Glyphicons Halflings icon set.
+
+http://glyphicons.com/
+
+Copyright Jan Kovařík
+
+Licensed under the Apache License v2.0 as a part of the Bootstrap project.
+
+--
+This product includes the 'Findbugs Annotations under Apache License' project
+(https://github.com/stephenc/findbugs-annotations), version 1.3.9-1
+licensed under the Apache Software License, version 2.0.
+--
+This product includes findbugs-annotations
+
+Licensed under Apache License, Version 2.0, see LICENSE for details.
+
+incorporated from com.github.stephenc.findbugs:findbugs-annotations:jar:1.3.9-1
+
+For source see 'http://stephenc.github.com/findbugs-annotations/findbugs-annotations'.
+--
+This product includes guava
+
+incorporated from com.google.guava:guava:jar:12.0.1
+
+For source see 'http://code.google.com/p/guava-libraries/guava/guava'.
+--
+This product includes metrics-core
+
+incorporated from com.yammer.metrics:metrics-core:jar:2.2.0
+
+For source see 'http://metrics.codahale.com/metrics-core/metrics-core'.
+--
+This product includes commons-beanutils
+
+incorporated from commons-beanutils:commons-beanutils:jar:1.7.0
+
+For source see '${dep.url}'.
+--
+This product includes commons-beanutils-core
+
+incorporated from commons-beanutils:commons-beanutils-core:jar:1.8.0
+
+For source see 'http://commons.apache.org/beanutils/commons-beanutils-core'.
+--
+This product includes commons-cli
+
+incorporated from commons-cli:commons-cli:jar:1.2
+
+For source see 'http://commons.apache.org/cli/commons-cli'.
+--
+This product includes commons-codec
+
+incorporated from commons-codec:commons-codec:jar:1.9
+
+For source see 'http://commons.apache.org/proper/commons-codec/commons-codec'.
+--
+This product includes Apache Commons Collections
+
+incorporated from commons-collections:commons-collections:jar:3.2.2
+
+For source see 'http://commons.apache.org/collections/'.
+--
+This product includes commons-configuration
+
+incorporated from commons-configuration:commons-configuration:jar:1.6
+
+For source see 'http://commons.apache.org/${pom.artifactId.substring(8)}/commons-configuration'.
+--
+This product includes commons-digester
+
+incorporated from commons-digester:commons-digester:jar:1.8
+
+For source see 'http://jakarta.apache.org/commons/digester/commons-digester'.
+--
+This product includes Apache Commons El
+
+incorporated from commons-el:commons-el:jar:1.0
+
+For source see 'http://jakarta.apache.org/commons/el/commons-el'.
+--
+This product includes commons-httpclient
+
+incorporated from commons-httpclient:commons-httpclient:jar:3.1
+
+For source see 'http://jakarta.apache.org/httpcomponents/httpclient-3.x/commons-httpclient'.
+--
+This product includes commons-io
+
+incorporated from commons-io:commons-io:jar:2.4
+
+For source see 'http://commons.apache.org/io/commons-io'.
+--
+This product includes commons-lang
+
+incorporated from commons-lang:commons-lang:jar:2.6
+
+For source see 'http://commons.apache.org/lang/commons-lang'.
+--
+This product includes commons-logging
+
+incorporated from commons-logging:commons-logging:jar:1.2
+
+For source see 'http://commons.apache.org/proper/commons-logging/commons-logging'.
+--
+This product includes commons-net
+
+incorporated from commons-net:commons-net:jar:3.1
+
+For source see 'http://commons.apache.org/net/commons-net'.
+--
+This product includes portions of 'the Netty Project'
+
+  * http://netty.io/
+
+Copyright 2011 The Netty Project
+
+licensed under the Apache Software License, version 2.0.
+
+This product contains a modified version of Roland Kuhn's ASL2
+AbstractNodeQueue, which is based on Dmitriy Vyukov's non-intrusive MPSC queue.
+It can be obtained at:
+
+  * LICENSE Apache Software License, version 2.0.
+  * HOMEPAGE:
+    * https://github.com/akka/akka/blob/wip-2.2.3-for-scala-2.11/akka-actor/
+          src/main/java/akka/dispatch/AbstractNodeQueue.java
+
+The Netty Project includes additional subcomponents under additional licenses,
+noted in the LICENSE file.
+
+--
+This product includes netty-all
+
+incorporated from io.netty:netty-all:jar:4.0.23.Final
+
+For source see 'http://netty.io/netty-all/netty-all'.
+--
+This product includes JUnit
+
+Licensed under Eclipse Public License 1.0, see LICENSE for details.
+
+incorporated from junit:junit:jar:4.12
+
+For source see 'http://junit.org/'.
+--
+This product includes 'Apache log4j'
+Copyright 2010 The Apache Software Foundation
+
+--
+This product includes log4j
+
+incorporated from log4j:log4j:jar:1.2.17
+
+For source see 'http://logging.apache.org/log4j/1.2/log4j'.
+--
+This product includes avro
+
+incorporated from org.apache.avro:avro:jar:1.7.4
+
+For source see 'http://avro.apache.org/avro'.
+--
+This product includes commons-compress
+
+incorporated from org.apache.commons:commons-compress:jar:1.4.1
+
+For source see 'http://commons.apache.org/compress/commons-compress'.
+--
+This product includes commons-math3
+
+incorporated from org.apache.commons:commons-math3:jar:3.1.1
+
+For source see 'http://commons.apache.org/math/commons-math3'.
+--
+This product includes api-asn1-api
+
+incorporated from org.apache.directory.api:api-asn1-api:jar:1.0.0-M20
+
+For source see 'http://directory.apache.org/api-parent/api-asn1-parent/api-asn1-api/api-asn1-api'.
+--
+This product includes api-util
+
+incorporated from org.apache.directory.api:api-util:jar:1.0.0-M20
+
+For source see 'http://directory.apache.org/api-parent/api-util/api-util'.
+--
+This product includes apacheds-i18n
+
+incorporated from org.apache.directory.server:apacheds-i18n:jar:2.0.0-M15
+
+For source see 'http://directory.apache.org/apacheds/1.5/apacheds-i18n/apacheds-i18n'.
+--
+This product includes apacheds-kerberos-codec
+
+incorporated from org.apache.directory.server:apacheds-kerberos-codec:jar:2.0.0-M15
+
+For source see 'http://directory.apache.org/apacheds/1.5/apacheds-kerberos-codec/apacheds-kerberos-codec'.
+--
+This product includes hadoop-annotations
+
+incorporated from org.apache.hadoop:hadoop-annotations:jar:2.5.1
+
+For source see '${dep.url}'.
+--
+This product includes hadoop-auth
+
+incorporated from org.apache.hadoop:hadoop-auth:jar:2.5.1
+
+For source see '${dep.url}'.
+--
+This product includes hadoop-common
+
+incorporated from org.apache.hadoop:hadoop-common:jar:2.5.1
+
+For source see '${dep.url}'.
+--
+This product includes hadoop-mapreduce-client-core
+
+incorporated from org.apache.hadoop:hadoop-mapreduce-client-core:jar:2.5.1
+
+For source see '${dep.url}'.
+--
+This product includes hadoop-yarn-api
+
+incorporated from org.apache.hadoop:hadoop-yarn-api:jar:2.5.1
+
+For source see '${dep.url}'.
+--
+This product includes hadoop-yarn-common
+
+incorporated from org.apache.hadoop:hadoop-yarn-common:jar:2.5.1
+
+For source see '${dep.url}'.
+--
+This product includes Apache HBase - Annotations
+
+incorporated from org.apache.hbase:hbase-annotations:jar:1.2.6
+
+For source see 'http://hbase.apache.org/hbase-annotations'.
+--
+This product includes Apache HBase - Client
+
+incorporated from org.apache.hbase:hbase-client:jar:1.2.6
+
+For source see 'http://hbase.apache.org/hbase-client'.
+--
+This product includes Apache HBase - Common
+
+incorporated from org.apache.hbase:hbase-common:jar:1.2.6
+
+For source see 'http://hbase.apache.org/hbase-common'.
+--
+This product includes Apache HBase - Protocol
+
+incorporated from org.apache.hbase:hbase-protocol:jar:1.2.6
+
+For source see 'http://hbase.apache.org/hbase-protocol'.
+--
+This product includes Apache HBase - Resource Bundle
+
+incorporated from org.apache.hbase:hbase-resource-bundle:jar:1.2.6
+
+For source see 'http://hbase.apache.org/hbase-resource-bundle'.
+--
+This product includes 'Apache Commons Logging'
+Copyright The Apache Software Foundation
+
+--
+This product includes htrace-core
+
+incorporated from org.apache.htrace:htrace-core:jar:3.1.0-incubating
+
+For source see 'http://incubator.apache.org/projects/htrace.html/htrace-core'.
+--
+This product includes httpclient
+
+incorporated from org.apache.httpcomponents:httpclient:jar:4.2.5
+
+For source see 'http://hc.apache.org/httpcomponents-client/httpclient'.
+--
+This product includes httpcore
+
+incorporated from org.apache.httpcomponents:httpcore:jar:4.2.4
+
+For source see 'http://hc.apache.org/httpcomponents-core-ga/httpcore'.
+--
+This product includes 'Apache ZooKeeper'
+Copyright 2009-2012 The Apache Software Foundation
+
+--
+This product includes zookeeper
+
+incorporated from org.apache.zookeeper:zookeeper:jar:3.4.6
+
+For source see '${dep.url}'.
+--
+This product includes jackson-core-asl
+
+incorporated from org.codehaus.jackson:jackson-core-asl:jar:1.9.13
+
+For source see 'http://jackson.codehaus.org/jackson-core-asl'.
+--
+This product includes jackson-mapper-asl
+
+incorporated from org.codehaus.jackson:jackson-mapper-asl:jar:1.9.13
+
+For source see 'http://jackson.codehaus.org/jackson-mapper-asl'.
+--
+This product includes jetty-util
+
+incorporated from org.mortbay.jetty:jetty-util:jar:6.1.26
+
+For source see 'http://www.eclipse.org/jetty/jetty-parent/project/jetty-util/jetty-util'.
+--
+This product includes snappy-java
+
+incorporated from org.xerial.snappy:snappy-java:jar:1.0.4.1
+
+For source see 'http://code.google.com/p/snappy-java/snappy-java'.
+--
+This product includes portions of 'The Jetty Web Container'
+
+Copyright 1995-2009 Mort Bay Consulting Pty Ltd
+
+Some portions of the code are Copyright:
+  2006 Tim Vernum
+  1999 Jason Gilbert.
+
+.
+licensed under the Apache Software License, version 2.0.
+
+----
+----
+This product includes the following works licensed under the CDDL v1.0, see LICENSE for details:
+
+  * JavaBeans Activation Framework (JAF) incorporated from javax.activation:activation:jar:1.1
+    For source see: http://java.sun.com/products/javabeans/jaf/index.jsp
+----
+This product includes the following works licensed under the CDDL v1.1, see LICENSE for details:
+
+  * JAXB API bundle for GlassFish V3 incorporated from javax.xml.bind:jaxb-api:jar:2.2.2
+    For source see: https://jaxb.java.net/
+----
+Incorporated NOTICE files from bundled works below.
+----
+
+Apache HBase - Client
+Copyright 2007-2017 The Apache Software Foundation
+
+Apache HBase - Annotations
+Copyright 2007-2017 The Apache Software Foundation
+
+Apache HBase - Common
+Copyright 2007-2017 The Apache Software Foundation
+
+--
+This product includes portions of the Guava project v14, specifically
+'hbase-common/src/main/java/org/apache/hadoop/hbase/io/LimitInputStream.java'
+
+Copyright (C) 2007 The Guava Authors
+
+Licensed under the Apache License, Version 2.0
+
+Apache Commons Collections
+Copyright 2001-2015 The Apache Software Foundation
+
+This product includes software developed by
+The Apache Software Foundation (http://www.apache.org/).
+
+Apache HBase - Protocol
+Copyright 2007-2017 The Apache Software Foundation
+
+Apache Commons Codec
+Copyright 2002-2013 The Apache Software Foundation
+
+src/test/org/apache/commons/codec/language/DoubleMetaphoneTest.java
+contains test data from http://aspell.net/test/orig/batch0.tab.
+Copyright (C) 2002 Kevin Atkinson (kevina@gnu.org)
+
+Apache Commons IO
+Copyright 2002-2012 The Apache Software Foundation
+
+Apache Commons Lang
+Copyright 2001-2011 The Apache Software Foundation
+
+This product currently only contains code developed by authors
+of specific components, as identified by the source code files;
+if such notes are missing files have been created by
+Tatu Saloranta.
+
+For additional credits (generally to people who reported problems)
+see CREDITS file.
+
+Apache HttpComponents HttpClient
+Copyright 1999-2013 The Apache Software Foundation
+
+Apache HttpComponents HttpCore
+Copyright 2005-2013 The Apache Software Foundation
+
+This project contains annotations derived from JCIP-ANNOTATIONS
+Copyright (c) 2005 Brian Goetz and Tim Peierls. See http://www.jcip.net
+
+ApacheDS Protocol Kerberos Codec
+Copyright 2003-2013 The Apache Software Foundation
+
+ApacheDS I18n
+Copyright 2003-2013 The Apache Software Foundation
+
+Apache Directory API ASN.1 API
+Copyright 2003-2013 The Apache Software Foundation
+
+Apache Directory LDAP API Utilities
+Copyright 2003-2013 The Apache Software Foundation
+
+Apache Commons CLI
+Copyright 2001-2009 The Apache Software Foundation
+
+Apache Commons Math
+Copyright 2001-2012 The Apache Software Foundation
+
+===============================================================================
+
+The BracketFinder (package org.apache.commons.math3.optimization.univariate)
+and PowellOptimizer (package org.apache.commons.math3.optimization.general)
+classes are based on the Python code in module "optimize.py" (version 0.5)
+developed by Travis E. Oliphant for the SciPy library (http://www.scipy.org/)
+Copyright © 2003-2009 SciPy Developers.
+===============================================================================
+
+The LinearConstraint, LinearObjectiveFunction, LinearOptimizer,
+RelationShip, SimplexSolver and SimplexTableau classes in package
+org.apache.commons.math3.optimization.linear include software developed by
+Benjamin McCann (http://www.benmccann.com) and distributed with
+the following copyright: Copyright 2009 Google Inc.
+===============================================================================
+
+This product includes software developed by the
+University of Chicago, as Operator of Argonne National
+Laboratory.
+The LevenbergMarquardtOptimizer class in package
+org.apache.commons.math3.optimization.general includes software
+translated from the lmder, lmpar and qrsolv Fortran routines
+from the Minpack package
+Minpack Copyright Notice (1999) University of Chicago.  All rights reserved
+===============================================================================
+
+The GraggBulirschStoerIntegrator class in package
+org.apache.commons.math3.ode.nonstiff includes software translated
+from the odex Fortran routine developed by E. Hairer and G. Wanner.
+Original source copyright:
+Copyright (c) 2004, Ernst Hairer
+===============================================================================
+
+The EigenDecompositionImpl class in package
+org.apache.commons.math3.linear includes software translated
+from some LAPACK Fortran routines.  Original source copyright:
+Copyright (c) 1992-2008 The University of Tennessee.  All rights reserved.
+===============================================================================
+
+The MersenneTwister class in package org.apache.commons.math3.random
+includes software translated from the 2002-01-26 version of
+the Mersenne-Twister generator written in C by Makoto Matsumoto and Takuji
+Nishimura. Original source copyright:
+Copyright (C) 1997 - 2002, Makoto Matsumoto and Takuji Nishimura,
+All rights reserved
+===============================================================================
+
+The LocalizedFormatsTest class in the unit tests is an adapted version of
+the OrekitMessagesTest class from the orekit library distributed under the
+terms of the Apache 2 licence. Original source copyright:
+Copyright 2010 CS Systèmes d'Information
+===============================================================================
+
+The HermiteInterpolator class and its corresponding test have been imported from
+the orekit library distributed under the terms of the Apache 2 licence. Original
+source copyright:
+Copyright 2010-2012 CS Systèmes d'Information
+===============================================================================
+
+The creation of the package "o.a.c.m.analysis.integration.gauss" was inspired
+by an original code donated by Sébastien Brisard.
+===============================================================================
+
+The complete text of licenses and disclaimers associated with the the original
+sources enumerated above at the time of code translation are in the LICENSE.txt
+file.
+
+Apache Jakarta HttpClient
+Copyright 1999-2007 The Apache Software Foundation
+
+Apache Commons Net
+Copyright 2001-2012 The Apache Software Foundation
+
+Apache Commons Configuration
+Copyright 2001-2008 The Apache Software Foundation
+
+Apache Jakarta Commons Digester
+Copyright 2001-2006 The Apache Software Foundation
+
+Apache Commons BeanUtils
+Copyright 2000-2008 The Apache Software Foundation
+
+Apache Avro
+Copyright 2009-2013 The Apache Software Foundation
+
+Apache Commons Compress
+Copyright 2002-2012 The Apache Software Foundation
+

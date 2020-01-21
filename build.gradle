@@ -31,6 +31,7 @@ plugins {
   id 'net.researchgate.release' version '2.6.0'
   id 'org.apache.beam.module'
   id "org.sonarqube" version "2.7"
+  id 'com.github.jk1.dependency-license-report' version '1.13'
 }
 
 /*************************************************************************************************/
@@ -331,3 +332,12 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
     }
   }
 }
+
+//command: ./gradlew generateLicenseReport
+import com.github.jk1.license.render.*
+licenseReport {
+  outputDir = 'licenses/java'
+  renderers = [new InventoryHtmlReportRenderer()]
+  excludeOwnGroup = true
+}
+
