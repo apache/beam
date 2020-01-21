@@ -521,45 +521,6 @@ class PipelineExecutionContext(object):
     self.stages_per_name = {s.name: self._compute_stage_info(s) for s in stages}
     self.watermark_manager = _WatermarkManager(stages, self)
 
-  def show(self):
-    # TODO(pabloem, MUST): Figure out what to do about this. Maybe remove
-    #    or maybe keep.
-    import graphviz
-    g = graphviz.Digraph()
-    for s in self._stages:
-      stage_name = ('_'.join([t.unique_name for t in [s.transforms[0],
-                                                      s.transforms[1]]])
-                    .replace('(', '_').replace(')', '_').replace('/', '_')
-                    .replace('<', '_').replace('>', '_').replace(',', '_')
-                    .replace(' ', '_').replace('.', '_').replace(':', '_'))
-      stage_name = 'STAGE_' + stage_name
-      g.node(stage_name, shape='box')
-      data_input, data_output = self.endpoints_per_stage[s.name]
-
-      for _, buffer_id in data_input.items():
-        if buffer_id == IMPULSE_BUFFER:
-          pcoll_name = IMPULSE_BUFFER
-        else:
-          _, pcoll_name = split_buffer_id(buffer_id)
-        pcoll_name = 'PCOLL_' + str(pcoll_name)
-        g.node(pcoll_name)
-        g.edge(pcoll_name, stage_name)
-
-      for _, buffer_id in data_output.items():
-        _, pcoll_name = split_buffer_id(buffer_id)
-        pcoll_name = 'PCOLL_' + str(pcoll_name)
-        g.node(pcoll_name)
-        g.edge(stage_name, pcoll_name)
-
-      side_inputs = PipelineExecutionContext._get_data_side_input_per_pcoll_id(
-          s)
-      for si_name, _ in side_inputs:
-        pcoll_name = 'PCOLL_' + str(si_name)
-        g.node(pcoll_name)
-        g.edge(pcoll_name, stage_name)
-
-    g.render('graph', format='png')
-
   def get_side_input_infos(self, pcoll_name):
     # type: (str) -> List[SideInputInfo]
     return self.pcoll_to_side_input_info.get(pcoll_name, [])

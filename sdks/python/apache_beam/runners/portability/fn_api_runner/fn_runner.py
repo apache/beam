@@ -615,8 +615,6 @@ class FnApiRunner(runner.PipelineRunner):
 
     execution_context = PipelineExecutionContext(stage_context.components,
                                                  stages)
-    #execution_context.show()
-
     self._enqueue_all_initial_inputs(stages,
                                      input_queue_manager,
                                      execution_context)
