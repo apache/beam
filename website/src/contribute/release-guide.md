@@ -687,7 +687,7 @@ Verify that files are [present](https://dist.apache.org/repos/dist/dev/beam).
 
 PYTHON_VER=("python2.7" "python3.5" "python3.6" "python3.7")
 for ver in "${PYTHON_VER[@]}"; do
-   docker push apache/beam-${ver}_sdk:${RELEASE}_rc{RC_NUM} &
+   docker push apache/beam_${ver}_sdk:${RELEASE}_rc{RC_NUM} &
 done
 ``` 
 
@@ -716,12 +716,12 @@ Clean up images from local
 
 ```
 for ver in "${PYTHON_VER[@]}"; do
-   docker rmi -f apache/beam-${ver}_sdk:${RELEASE}_rc{RC_NUM}
+   docker rmi -f apache/beam_${ver}_sdk:${RELEASE}_rc{RC_NUM}
 done
-docker rmi -f apache/beam-java_sdk:${RELEASE}_rc{RC_NUM}
-docker rmi -f apache/beam-go_sdk:${RELEASE}_rc{RC_NUM}
+docker rmi -f apache/beam_java_sdk:${RELEASE}_rc{RC_NUM}
+docker rmi -f apache/beam_go_sdk:${RELEASE}_rc{RC_NUM}
 for ver in "${FLINK_VER[@]}"; do
-   docker rmi -f "apache/beam-flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
+   docker rmi -f "apache/beam_flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
 done
 
 ```
@@ -894,7 +894,7 @@ You can (optionally) also do additional verification by:
 1. Pull docker images to make sure they are pullable.
 ```
 docker pull {image_name}
-docker pull apache/beam-python3.5_sdk:2.16.0_rc1
+docker pull apache/beam_python3.5_sdk:2.16.0_rc1
 ```
 
 

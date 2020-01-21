@@ -1408,8 +1408,8 @@ class BeamModulePlugin implements Plugin<Project> {
     // containerImageName returns a configurable container image name, by default a
     // development image at docker.io (see sdks/CONTAINERS.md):
     //
-    //    format: apache/beam-$NAME_sdk:latest
-    //    ie: apache/beam-python2.7_sdk:latest apache/beam-java_sdk:latest apache/beam-go_sdk:latest
+    //    format: apache/beam_$NAME_sdk:latest
+    //    ie: apache/beam_python2.7_sdk:latest apache/beam_java_sdk:latest apache/beam_go_sdk:latest
     //
     // Both the root and tag can be defined using properties or explicitly provided.
     project.ext.containerImageName = {
