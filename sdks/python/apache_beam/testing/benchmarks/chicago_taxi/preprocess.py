@@ -26,6 +26,7 @@ from tensorflow_transform.coders import example_proto_coder
 from tensorflow_transform.tf_metadata import dataset_metadata, dataset_schema
 
 import apache_beam as beam
+from apache_beam.io.gcp.bigquery import _ReadFromBigQuery as ReadFromBigQuery
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.load_tests.load_test_metrics_utils import (
     MeasureTime, MetricsReader)
@@ -127,6 +128,7 @@ def transform_data(input_handle,
   metrics_monitor = None
   if publish_to_bq:
     metrics_monitor = MetricsReader(
+        publish_to_bq=publish_to_bq,
         project_name=project,
         bq_table=metrics_table,
         bq_dataset=metrics_dataset,
@@ -142,9 +144,8 @@ def transform_data(input_handle,
     query = taxi.make_sql(input_handle, max_rows, for_eval=False)
     raw_data = (
         pipeline
-        | 'ReadBigQuery' >> beam.io.Read(
-            beam.io.BigQuerySource(query=query,
-                                   use_standard_sql=True))
+        | 'ReadBigQuery' >> ReadFromBigQuery(query=query, project=project,
+                                             use_standard_sql=True)
         | 'Measure time: start' >> beam.ParDo(MeasureTime(namespace)))
     decode_transform = beam.Map(
         taxi.clean_raw_data_dict, raw_feature_spec=raw_feature_spec)
