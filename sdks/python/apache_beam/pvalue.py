@@ -316,7 +316,8 @@ class DoOutputsTuple(object):
     else:
       # Main output is output of inner ParDo.
       pval = self.producer.parts[0].outputs[None]
-      assert isinstance(pval, PCollection), "DoOutputsTuple should follow a ParDo."
+      assert isinstance(pval, PCollection), (
+          "DoOutputsTuple should follow a ParDo.")
       pcoll = pval
     self._pcolls[tag] = pcoll
     return pcoll
