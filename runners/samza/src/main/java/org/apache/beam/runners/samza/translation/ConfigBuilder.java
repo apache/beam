@@ -292,7 +292,8 @@ public class ConfigBuilder {
    * Ensure applications with max bundle size &gt; 1 does not configure
    * <i>job.container.thread.pool.size</i> to &gt; 1.
    */
-  private static void validateBundleAndThreadPoolConfiguration(
+  @VisibleForTesting
+  static void validateBundleAndThreadPoolConfiguration(
       SamzaPipelineOptions options, Map<String, String> config) {
     try {
       if (options.getMaxBundleSize() > 1) {

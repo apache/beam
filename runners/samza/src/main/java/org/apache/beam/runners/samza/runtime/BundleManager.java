@@ -30,6 +30,7 @@ import org.apache.beam.runners.samza.util.FutureUtils;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.samza.operators.Scheduler;
 import org.joda.time.Duration;
@@ -158,7 +159,6 @@ public class BundleManager<OutT> {
     if (bundleCheckTimerId.equals(keyedTimerData.getTimerData().getTimerId())) {
       tryFinishBundle(emitter);
       scheduleNextBundleCheck();
-      return;
     }
   }
 
@@ -199,6 +199,21 @@ public class BundleManager<OutT> {
 
     // emit the future to the propagate it to rest of the DAG
     emitter.emitFuture(outputFuture);
+  }
+
+  @VisibleForTesting
+  long getCurrentBundleElementCount() {
+    return currentBundleElementCount.longValue();
+  }
+
+  @VisibleForTesting
+  long getPendingBundleCount() {
+    return pendingBundleCount.longValue();
+  }
+
+  @VisibleForTesting
+  boolean isBundleStarted() {
+    return isBundleStarted.get();
   }
 
   private boolean shouldFinishBundle() {
