@@ -74,7 +74,7 @@ public abstract class ReleaseInfo implements Serializable {
   private static final String DEFAULT_NAME = "Apache Beam SDK for Java";
   private static final String DEFAULT_VERSION = "Unknown";
   private static final String DEFAULT_DOCKER_IMAGE_ROOT = "apache";
-  private static final String DEFAULT_DOCKER_IMAGE_PREFIX = "beam-";
+  private static final String DEFAULT_DOCKER_IMAGE_PREFIX = "beam_";
 
   private static class LazyInit {
     private static final ReleaseInfo INSTANCE;
