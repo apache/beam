@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Adaptor class that runs a Samza {@link Op} for BEAM in the Samza {@link AsyncFlatMapFunction}.
+ * This class is initialized once for each Op within a Task for each Task.
  */
 public class OpAdapter<InT, OutT, K>
     implements AsyncFlatMapFunction<OpMessage<InT>, OpMessage<OutT>>,
@@ -79,7 +80,7 @@ public class OpAdapter<InT, OutT, K>
   }
 
   @Override
-  public CompletionStage<Collection<OpMessage<OutT>>> apply(OpMessage<InT> message) {
+  public synchronized CompletionStage<Collection<OpMessage<OutT>>> apply(OpMessage<InT> message) {
     assert outputList.isEmpty();
 
     try {
@@ -121,7 +122,7 @@ public class OpAdapter<InT, OutT, K>
   }
 
   @Override
-  public Collection<OpMessage<OutT>> processWatermark(long time) {
+  public synchronized Collection<OpMessage<OutT>> processWatermark(long time) {
     assert outputList.isEmpty();
 
     try {
@@ -138,12 +139,13 @@ public class OpAdapter<InT, OutT, K>
   }
 
   @Override
-  public Long getOutputWatermark() {
+  public synchronized Long getOutputWatermark() {
     return outputWatermark != null ? outputWatermark.getMillis() : null;
   }
 
   @Override
-  public Collection<OpMessage<OutT>> onCallback(KeyedTimerData<K> keyedTimerData, long time) {
+  public synchronized Collection<OpMessage<OutT>> onCallback(
+      KeyedTimerData<K> keyedTimerData, long time) {
     assert outputList.isEmpty();
 
     try {
