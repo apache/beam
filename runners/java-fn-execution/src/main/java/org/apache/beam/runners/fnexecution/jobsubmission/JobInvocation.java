@@ -57,7 +57,6 @@ public class JobInvocation {
   private final List<JobMessage> messageHistory;
   private final List<Consumer<JobStateEvent>> stateObservers;
   private final List<Consumer<JobMessage>> messageObservers;
-
   private JobApi.MetricResults metrics;
   private PortablePipelineResult resultHandle;
   @Nullable private ListenableFuture<PortablePipelineResult> invocationFuture;
