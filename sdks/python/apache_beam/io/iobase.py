@@ -1289,9 +1289,9 @@ class RestrictionProgress(object):
   """
   def __init__(self, **kwargs):
     # Only accept keyword arguments.
-    self._fraction = kwargs.pop('fraction', None)
-    self._completed = kwargs.pop('completed', None)
-    self._remaining = kwargs.pop('remaining', None)
+    self._fraction = kwargs.pop('fraction', None)  # type: Optional[float]
+    self._completed = kwargs.pop('completed', None)  # type: Optional[int]
+    self._remaining = kwargs.pop('remaining', None)  # type: Optional[int]
     assert not kwargs
 
   def __repr__(self):
@@ -1336,6 +1336,7 @@ class RestrictionProgress(object):
       return float(self._remaining) / self.total_work
 
   def with_completed(self, completed):
+    # type: (int) -> RestrictionProgress
     return RestrictionProgress(
         fraction=self._fraction, remaining=self._remaining, completed=completed)
 

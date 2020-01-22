@@ -226,7 +226,7 @@ class ExternalTransform(ptransform.PTransform):
     Experimental; no backwards compatibility guarantees.
   """
   _namespace_counter = 0
-  _namespace = threading.local()
+  _namespace = threading.local()  # type: ignore[assignment]
 
   _IMPULSE_PREFIX = 'impulse'
 

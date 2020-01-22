@@ -34,7 +34,7 @@ from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pi
 try:
   from unittest.mock import patch
 except ImportError:
-  from mock import patch
+  from mock import patch  # type: ignore[misc]
 
 
 @unittest.skipIf(

@@ -49,6 +49,7 @@ from typing import Tuple
 from typing import Type
 from typing import TypeVar
 from typing import Union
+from typing import cast
 from typing import overload
 
 import grpc
@@ -1534,7 +1535,7 @@ class EmbeddedWorkerHandler(WorkerHandler):
                unused_payload,  # type: None
                state,  # type: sdk_worker.StateHandler
                provision_info,  # type: Optional[ExtendedProvisionInfo]
-               unused_grpc_server=None
+               unused_grpc_server  # type: GrpcServer
               ):
     # type: (...) -> None
     super(EmbeddedWorkerHandler, self).__init__(
@@ -1770,6 +1771,7 @@ class GrpcWorkerHandler(WorkerHandler):
         url=self.port_from_worker(self._grpc_server.logging_port))
 
   def close(self):
+    # type: () -> None
     self.control_conn.close()
     self.data_conn.close()
     super(GrpcWorkerHandler, self).close()
@@ -1940,7 +1942,8 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
             'docker', 'inspect', '-f', '{{.State.Status}}', self._container_id
         ]).strip()
         _LOGGER.info(
-            'Waiting for docker to start up.Current status is %s' % status)
+            'Waiting for docker to start up.Current status is %s' %
+            status.decode('utf-8'))
         if status == b'running':
           _LOGGER.info(
               'Docker container is running. container_id = %s, '
@@ -1950,7 +1953,9 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
           break
         elif status in (b'dead', b'exited'):
           subprocess.call(['docker', 'container', 'logs', self._container_id])
-          raise RuntimeError('SDK failed to start. Final status is %s' % status)
+          raise RuntimeError(
+              'SDK failed to start. Final status is %s' %
+              status.decode('utf-8'))
       time.sleep(1)
 
   def stop_worker(self):
@@ -1992,7 +1997,10 @@ class WorkerHandlerManager(object):
 
     # assume all environments except EMBEDDED_PYTHON use gRPC.
     if environment.urn == python_urns.EMBEDDED_PYTHON:
-      pass  # no need for a gRPC server
+      # special case for EmbeddedWorkerHandler: there's no need for a gRPC
+      # server, but to pass the type check on WorkerHandler.create() we
+      # make like we have a GrpcServer instance.
+      self._grpc_server = cast(GrpcServer, None)
     elif self._grpc_server is None:
       self._grpc_server = GrpcServer(
           self._state, self._job_provision_info, self)
@@ -2115,6 +2123,7 @@ class BundleManager(object):
                             read_transform_id,  # type: str
                             byte_streams
                            ):
+    # type: (...) -> None
     assert self._worker_handler is not None
     data_out = self._worker_handler.data_conn.output_stream(
         process_bundle_id, read_transform_id)
