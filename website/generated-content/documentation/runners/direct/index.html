@@ -302,7 +302,7 @@ interface for defaults and additional pipeline configuration options.</p>
 
 <p>Python <a href="https://beam.apache.org/contribute/runner-guide/#the-fn-api">FnApiRunner</a> supports multi-threading and multi-processing mode.</p>
 
-<h4 id="setting-parallelism">Setting parallelism</h4>
+<p><strong>Setting parallelism</strong></p>
 
 <p>Number of threads or subprocesses is defined by setting the <code class="highlighter-rouge">direct_num_workers</code> option. There are several ways to set this option.</p>
 
@@ -323,6 +323,21 @@ pipeline_options.view_as(DirectOptions).direct_num_workers = 2
 </code></pre></div>    </div>
   </li>
 </ul>
+
+<p><strong>Setting running mode</strong></p>
+
+<p>From 2.19, a new option was added to set running mode. We can use <code class="highlighter-rouge">direct_running_mode</code> option to set the running mode.
+<code class="highlighter-rouge">direct_running_mode</code> can be one of [<code class="highlighter-rouge">'in_memory'</code>, <code class="highlighter-rouge">'multi_threading'</code>, <code class="highlighter-rouge">'multi_processing'</code>].</p>
+
+<p><b>in_memory</b>: Runner and workers’ communication happens in memory (not through gRPC). This is a default mode.</p>
+
+<p><b>multi_threading</b>: Runner and workers communicate through gRPC and each worker runs in a thread.</p>
+
+<p><b>multi_processing</b>: Runner and workers communicate through gRPC and each worker runs in a subprocess.</p>
+
+<p>Same as other options, <code class="highlighter-rouge">direct_running_mode</code> can be passed through CLI or set with <code class="highlighter-rouge">PipelineOptions</code>.</p>
+
+<p>For the versions before 2.19.0, the running mode should be set with <code class="highlighter-rouge">FnApiRunner()</code>. Please refer following examples.</p>
 
 <h4 id="running-with-multi-threading-mode">Running with multi-threading mode</h4>
 
