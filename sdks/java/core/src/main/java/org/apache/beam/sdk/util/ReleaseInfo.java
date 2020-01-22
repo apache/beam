@@ -64,7 +64,7 @@ public abstract class ReleaseInfo implements Serializable {
     return getProperties().get("docker_image_default_repo_root");
   }
 
-  /** Provides docker image default repo prefix (beam-). */
+  /** Provides docker image default repo prefix (beam_). */
   public String getDefaultDockerRepoPrefix() {
     return getProperties().get("docker_image_default_repo_prefix");
   }
