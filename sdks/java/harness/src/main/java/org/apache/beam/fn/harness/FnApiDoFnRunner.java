@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
@@ -805,7 +806,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     private final Instant currentTimestamp;
     private final Duration allowedLateness;
     private final WindowedValue<?> currentElementOrTimer;
-    private Instant currentOutputTimestamp = null;
+    @Nullable private Instant currentOutputTimestamp;
 
     private Duration period = Duration.ZERO;
     private Duration offset = Duration.ZERO;
