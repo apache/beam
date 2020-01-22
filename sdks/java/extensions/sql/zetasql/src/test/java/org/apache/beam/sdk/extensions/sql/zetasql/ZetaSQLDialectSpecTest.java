@@ -194,7 +194,7 @@ public class ZetaSQLDialectSpecTest {
 
   @Test
   public void testStringLiterals() {
-    String sql = "SELECT 'abc\\n'";
+    String sql = "SELECT '\"America/Los_Angeles\"\\n'";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -202,7 +202,8 @@ public class ZetaSQLDialectSpecTest {
 
     final Schema schema = Schema.builder().addNullableField("ColA", FieldType.STRING).build();
 
-    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("abc\n").build());
+    PAssert.that(stream)
+        .containsInAnyOrder(Row.withSchema(schema).addValues("\"America/Los_Angeles\"\n").build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
