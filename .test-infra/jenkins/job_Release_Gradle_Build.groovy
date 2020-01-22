@@ -40,6 +40,10 @@ job('beam_Release_Gradle_Build') {
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks('clean')
+    }
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks('build')
       commonJobProperties.setGradleSwitches(delegate)
       switches('-PisRelease')
