@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
@@ -805,6 +806,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     private final Instant currentTimestamp;
     private final Duration allowedLateness;
     private final WindowedValue<?> currentElementOrTimer;
+    @Nullable private Instant currentOutputTimestamp;
 
     private Duration period = Duration.ZERO;
     private Duration offset = Duration.ZERO;
@@ -897,7 +899,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
 
     @Override
     public org.apache.beam.sdk.state.Timer withOutputTimestamp(Instant outputTime) {
-      throw new UnsupportedOperationException("TODO: Add support for timers");
+      Instant windowExpiry = LateDataUtils.garbageCollectionTime(currentWindow, allowedLateness);
+      checkArgument(
+          !outputTime.isAfter(windowExpiry),
+          "Attempted to set timer with output timestamp %s but that is after"
+              + " the expiration of window %s",
+          outputTime,
+          windowExpiry);
+
+      this.currentOutputTimestamp = outputTime;
+      return this;
     }
 
     /**
@@ -919,7 +930,20 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
       Collection<FnDataReceiver<WindowedValue<KV<Object, Timer>>>> consumers =
           (Collection) context.localNameToConsumer.get(timerId);
 
-      outputTo(consumers, currentElementOrTimer.withValue(KV.of(key, Timer.of(scheduledTime))));
+      if (currentOutputTimestamp == null) {
+        if (TimeDomain.EVENT_TIME.equals(timeDomain)) {
+          currentOutputTimestamp = scheduledTime;
+        } else {
+          currentOutputTimestamp = currentElementOrTimer.getTimestamp();
+        }
+      }
+      outputTo(
+          consumers,
+          WindowedValue.of(
+              KV.of(key, Timer.of(scheduledTime)),
+              currentOutputTimestamp,
+              currentElementOrTimer.getWindows(),
+              currentElementOrTimer.getPane()));
     }
   }
 
@@ -1317,6 +1341,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     @Override
     public TimeDomain timeDomain() {
       return currentTimeDomain;
+    }
+
+    @Override
+    public Instant fireTimestamp() {
+      return currentTimer.getValue().getValue().getTimestamp();
     }
 
     @Override
