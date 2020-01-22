@@ -48,6 +48,12 @@ class LoadTestsBuilder {
     }
   }
 
+  static String parseOptions(Map<String, ?> options) {
+    options.collect {
+      "--${it.key}=$it.value".replace('\"', '\\\"').replace('\'', '\\\'')
+    }.join(' ')
+  }
+
   static String getBigQueryDataset(String baseName, TriggeringContext triggeringContext) {
     if (triggeringContext == TriggeringContext.PR) {
       return baseName + '_PRs'
@@ -75,12 +81,6 @@ class LoadTestsBuilder {
     } else {
       throw new RuntimeException("No task name defined for SDK: $SDK")
     }
-  }
-
-  private static String parseOptions(Map<String, ?> options) {
-    options.collect {
-      "--${it.key}=$it.value".replace('\"', '\\\"').replace('\'', '\\\'')
-    }.join(' ')
   }
 }
 
