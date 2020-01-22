@@ -1248,7 +1248,7 @@ please follow [the guide](https://help.github.com/articles/creating-a-personal-a
    delete the `.asc`, `.sha512`;
 3. Upload the new release `twine upload *` from the directory with the `.zip` and `.whl` files;
 
-#### Deploy source release to dist.apache.org
+### Deploy source release to dist.apache.org
 
 Copy the source release from the `dev` repository to the `release` repository at `dist.apache.org` using Subversion.
 

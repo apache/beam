@@ -284,12 +284,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     // Mocking is not easily compatible with annotation analysis, so we manually record
     // the method call.
     runner.onTimer(
-        timerId,
-        timerId,
-        window,
-        new Instant(timestamp),
-        new Instant(timestamp),
-        TimeDomain.EVENT_TIME);
+        timerId, "", window, new Instant(timestamp), new Instant(timestamp), TimeDomain.EVENT_TIME);
 
     assertThat(
         underlying.firedTimers,

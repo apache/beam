@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
@@ -128,8 +129,8 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
@@ -818,7 +819,7 @@ public class StreamingDataflowWorker {
           new TimerTask() {
             @Override
             public void run() {
-              List<Capturable> pages = statusPages.getDebugCapturePages();
+              Collection<Capturable> pages = statusPages.getDebugCapturePages();
               if (pages.isEmpty()) {
                 LOG.warn("No captured status pages.");
               }
@@ -869,6 +870,13 @@ public class StreamingDataflowWorker {
     statusPages.addStatusDataProvider("streaming", "Streaming Rpcs", windmillServer);
 
     statusPages.start();
+  }
+
+  public void addWorkerStatusPage(BaseStatusServlet page) {
+    statusPages.addServlet(page);
+    if (page instanceof Capturable) {
+      statusPages.addCapturePage((Capturable) page);
+    }
   }
 
   public void stop() {

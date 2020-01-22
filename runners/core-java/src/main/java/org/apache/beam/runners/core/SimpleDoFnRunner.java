@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
@@ -212,8 +214,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     OnTimerArgumentProvider argumentProvider =
-        new OnTimerArgumentProvider(window, effectiveTimestamp, timeDomain);
-    invoker.invokeOnTimer(timerId, argumentProvider);
+        new OnTimerArgumentProvider(timerId, window, effectiveTimestamp, timeDomain);
+    invoker.invokeOnTimer(timerId, timerFamilyId, argumentProvider);
   }
 
   private void invokeProcessElement(WindowedValue<InputT> elem) {
@@ -328,6 +330,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public String timerId(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("Cannot access timerId outside of @OnTimer method.");
+    }
+
+    @Override
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access time domain outside of @ProcessTimer method.");
@@ -373,6 +380,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public Timer timer(String timerId) {
       throw new UnsupportedOperationException(
           "Cannot access timers outside of @ProcessElement and @OnTimer methods.");
+    }
+
+    @Override
+    public TimerMap timerFamily(String tagId) {
+      throw new UnsupportedOperationException(
+          "Cannot access timer family outside of @ProcessElement and @OnTimer methods");
     }
   }
 
@@ -448,6 +461,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public String timerId(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access timerId as parameter outside of @OnTimer method.");
+    }
+
+    @Override
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access time domain outside of @ProcessTimer method.");
@@ -493,6 +512,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public Timer timer(String timerId) {
       throw new UnsupportedOperationException(
           "Cannot access timers outside of @ProcessElement and @OnTimer methods.");
+    }
+
+    @Override
+    public TimerMap timerFamily(String tagId) {
+      throw new UnsupportedOperationException(
+          "Cannot access timerFamily outside of @ProcessElement and @OnTimer methods.");
     }
 
     @Override
@@ -668,6 +693,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public String timerId(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access timerId as parameter outside of @OnTimer method.");
+    }
+
+    @Override
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access time domain outside of @ProcessTimer method.");
@@ -722,6 +753,18 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         throw new RuntimeException(e);
       }
     }
+
+    @Override
+    public TimerMap timerFamily(String timerFamilyId) {
+      try {
+        TimerSpec spec =
+            (TimerSpec) signature.timerFamilyDeclarations().get(timerFamilyId).field().get(fn);
+        return new TimerInternalsTimerMap(
+            timerFamilyId, window(), getNamespace(), spec, stepContext.timerInternals());
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+    }
   }
 
   /**
@@ -733,6 +776,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final BoundedWindow window;
     private final Instant timestamp;
     private final TimeDomain timeDomain;
+    private final String timerId;
 
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
     private @Nullable StateNamespace namespace;
@@ -752,8 +796,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     private OnTimerArgumentProvider(
-        BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+        String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
       fn.super();
+      this.timerId = timerId;
       this.window = window;
       this.timestamp = timestamp;
       this.timeDomain = timeDomain;
@@ -822,6 +867,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public String timerId(DoFn<InputT, OutputT> doFn) {
+      return timerId;
+    }
+
+    @Override
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
       return timeDomain();
     }
@@ -876,6 +926,18 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public TimerMap timerFamily(String timerFamilyId) {
+      try {
+        TimerSpec spec =
+            (TimerSpec) signature.timerFamilyDeclarations().get(timerFamilyId).field().get(fn);
+        return new TimerInternalsTimerMap(
+            timerFamilyId, window(), getNamespace(), spec, stepContext.timerInternals());
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    @Override
     public PipelineOptions getPipelineOptions() {
       return options;
     }
@@ -910,6 +972,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final BoundedWindow window;
     private final StateNamespace namespace;
     private final String timerId;
+    private final String timerFamilyId;
     private final TimerSpec spec;
     private Instant target;
     private Instant outputTimestamp;
@@ -925,6 +988,22 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       this.window = window;
       this.namespace = namespace;
       this.timerId = timerId;
+      this.timerFamilyId = "";
+      this.spec = spec;
+      this.timerInternals = timerInternals;
+    }
+
+    public TimerInternalsTimer(
+        BoundedWindow window,
+        StateNamespace namespace,
+        String timerId,
+        String timerFamilyId,
+        TimerSpec spec,
+        TimerInternals timerInternals) {
+      this.window = window;
+      this.namespace = namespace;
+      this.timerId = timerId;
+      this.timerFamilyId = timerFamilyId;
       this.spec = spec;
       this.timerInternals = timerInternals;
     }
@@ -1029,7 +1108,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
      */
     private void setUnderlyingTimer() {
       timerInternals.setTimer(
-          namespace, timerId, "", target, outputTimestamp, spec.getTimeDomain());
+          namespace, timerId, timerFamilyId, target, outputTimestamp, spec.getTimeDomain());
     }
 
     private Instant getCurrentTime() {
@@ -1044,6 +1123,48 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
           throw new IllegalStateException(
               String.format("Timer created for unknown time domain %s", spec.getTimeDomain()));
       }
+    }
+  }
+
+  private class TimerInternalsTimerMap implements TimerMap {
+
+    Map<String, Timer> timers = new HashMap<>();
+    private final TimerInternals timerInternals;
+    private final BoundedWindow window;
+    private final StateNamespace namespace;
+    private final TimerSpec spec;
+    private final String timerFamilyId;
+
+    public TimerInternalsTimerMap(
+        String timerFamilyId,
+        BoundedWindow window,
+        StateNamespace namespace,
+        TimerSpec spec,
+        TimerInternals timerInternals) {
+      this.window = window;
+      this.namespace = namespace;
+      this.spec = spec;
+      this.timerInternals = timerInternals;
+      this.timerFamilyId = timerFamilyId;
+    }
+
+    @Override
+    public void set(String timerId, Instant absoluteTime) {
+      Timer timer =
+          new TimerInternalsTimer(window, namespace, timerId, timerFamilyId, spec, timerInternals);
+      timer.set(absoluteTime);
+      timers.put(timerId, timer);
+    }
+
+    @Override
+    public Timer get(String timerId) {
+      if (timers.get(timerId) == null) {
+        Timer timer =
+            new TimerInternalsTimer(
+                window, namespace, timerId, timerFamilyId, spec, timerInternals);
+        timers.put(timerId, timer);
+      }
+      return timers.get(timerId);
     }
   }
 }

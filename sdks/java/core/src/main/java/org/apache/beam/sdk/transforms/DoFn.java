@@ -433,6 +433,16 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Experimental(Kind.TIMERS)
   public @interface TimerId {
     /** The timer ID. */
+    String value() default "";
+  }
+
+  /** Parameter annotation for the TimerMap for a {@link ProcessElement} method. */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.FIELD, ElementType.PARAMETER})
+  @Experimental(Kind.TIMERS)
+  public @interface TimerFamily {
+    /** The TimerMap tag ID. */
     String value();
   }
 
@@ -459,6 +469,25 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Target(ElementType.METHOD)
   @Experimental(Kind.TIMERS)
   public @interface OnTimer {
+    /** The timer ID. */
+    String value();
+  }
+
+  /**
+   * Annotation for registering a callback for a timerFamily.
+   *
+   * <p>See the javadoc for {@link TimerFamily} for use in a full example.
+   *
+   * <p>The method annotated with {@code @OnTimerFamily} may have parameters according to the same
+   * logic as {@link ProcessElement}, but limited to the {@link BoundedWindow}, {@link State}
+   * subclasses, and {@link org.apache.beam.sdk.state.TimerMap}. State and timer parameters must be
+   * annotated with their {@link StateId} and {@link TimerId} respectively.
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  @Experimental(Kind.TIMERS)
+  public @interface OnTimerFamily {
     /** The timer ID. */
     String value();
   }
@@ -618,7 +647,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Target(ElementType.PARAMETER)
   public @interface Element {}
 
-  /** Parameter annotation for the input element timestamp for a {@link ProcessElement} method. */
+  /**
+   * Parameter annotation for the input element timestamp for {@link ProcessElement}, {@link
+   * GetInitialRestriction}, {@link SplitRestriction}, and {@link NewTracker} methods.
+   */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.PARAMETER)
@@ -723,7 +755,23 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * Annotation for the method that maps an element to an initial restriction for a <a
    * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
    *
-   * <p>Signature: {@code RestrictionT getInitialRestriction(InputT element);}
+   * <p>Signature: {@code RestrictionT getInitialRestriction(InputT element, <optional arguments>);}
+   *
+   * <p>The optional arguments are allowed to be:
+   *
+   * <ul>
+   *   <li>If one of its arguments is tagged with the {@link Timestamp} annotation, then it will be
+   *       passed the timestamp of the current element being processed; the argument must be of type
+   *       {@link Instant}.
+   *   <li>If one of its arguments is a subtype of {@link BoundedWindow}, then it will be passed the
+   *       window of the current element. When applied by {@link ParDo} the subtype of {@link
+   *       BoundedWindow} must match the type of windows on the input {@link PCollection}. If the
+   *       window is not accessed a runner may perform additional optimizations.
+   *   <li>If one of its arguments is of type {@link PaneInfo}, then it will be passed information
+   *       about the current triggering pane.
+   *   <li>If one of the parameters is of type {@link PipelineOptions}, then it will be passed the
+   *       options for the current pipeline.
+   * </ul>
    */
   // TODO: Make the InputT parameter optional.
   @Documented
@@ -788,7 +836,23 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * be processed in parallel.
    *
    * <p>Signature: {@code void splitRestriction(InputT element, RestrictionT restriction,
-   * OutputReceiver<RestrictionT> receiver);}
+   * OutputReceiver<RestrictionT> receiver, <optional arguments>);}
+   *
+   * <p>The optional arguments are allowed to be:
+   *
+   * <ul>
+   *   <li>If one of its arguments is tagged with the {@link Timestamp} annotation, then it will be
+   *       passed the timestamp of the current element being processed; the argument must be of type
+   *       {@link Instant}.
+   *   <li>If one of its arguments is a subtype of {@link BoundedWindow}, then it will be passed the
+   *       window of the current element. When applied by {@link ParDo} the subtype of {@link
+   *       BoundedWindow} must match the type of windows on the input {@link PCollection}. If the
+   *       window is not accessed a runner may perform additional optimizations.
+   *   <li>If one of its arguments is of type {@link PaneInfo}, then it will be passed information
+   *       about the current triggering pane.
+   *   <li>If one of the parameters is of type {@link PipelineOptions}, then it will be passed the
+   *       options for the current pipeline.
+   * </ul>
    *
    * <p>Optional: if this method is omitted, the restriction will not be split (equivalent to
    * defining the method and outputting the {@code restriction} unchanged).
@@ -804,8 +868,25 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * Annotation for the method that creates a new {@link RestrictionTracker} for the restriction of
    * a <a href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
    *
-   * <p>Signature: {@code MyRestrictionTracker newTracker(RestrictionT restriction);} where {@code
-   * MyRestrictionTracker} must be a subtype of {@code RestrictionTracker<RestrictionT>}.
+   * <p>Signature: {@code MyRestrictionTracker newTracker(RestrictionT restriction, <optional
+   * arguments>);} where {@code MyRestrictionTracker} must be a subtype of {@code
+   * RestrictionTracker<RestrictionT>}.
+   *
+   * <p>The optional arguments are allowed to be:
+   *
+   * <ul>
+   *   <li>If one of its arguments is tagged with the {@link Timestamp} annotation, then it will be
+   *       passed the timestamp of the current element being processed; the argument must be of type
+   *       {@link Instant}.
+   *   <li>If one of its arguments is a subtype of {@link BoundedWindow}, then it will be passed the
+   *       window of the current element. When applied by {@link ParDo} the subtype of {@link
+   *       BoundedWindow} must match the type of windows on the input {@link PCollection}. If the
+   *       window is not accessed a runner may perform additional optimizations.
+   *   <li>If one of its arguments is of type {@link PaneInfo}, then it will be passed information
+   *       about the current triggering pane.
+   *   <li>If one of the parameters is of type {@link PipelineOptions}, then it will be passed the
+   *       options for the current pipeline.
+   * </ul>
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)

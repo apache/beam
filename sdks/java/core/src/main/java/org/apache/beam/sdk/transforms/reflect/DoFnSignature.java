@@ -93,6 +93,9 @@ public abstract class DoFnSignature {
   /** Timer declarations present on the {@link DoFn} class. Immutable. */
   public abstract Map<String, TimerDeclaration> timerDeclarations();
 
+  /** TimerMap declarations present on the {@link DoFn} class. Immutable. */
+  public abstract Map<String, TimerFamilyDeclaration> timerFamilyDeclarations();
+
   /** Field access declaration. */
   @Nullable
   public abstract Map<String, FieldAccessDeclaration> fieldAccessDeclarations();
@@ -117,6 +120,10 @@ public abstract class DoFnSignature {
   @Nullable
   public abstract Map<String, OnTimerMethod> onTimerMethods();
 
+  /** Details about this {@link DoFn}'s {@link DoFn.OnTimerFamily} methods. */
+  @Nullable
+  public abstract Map<String, OnTimerFamilyMethod> onTimerFamilyMethods();
+
   /** @deprecated use {@link #usesState()}, it's cleaner */
   @Deprecated
   public boolean isStateful() {
@@ -130,7 +137,7 @@ public abstract class DoFnSignature {
 
   /** Whether the {@link DoFn} described by this signature uses timers. */
   public boolean usesTimers() {
-    return timerDeclarations().size() > 0;
+    return timerDeclarations().size() > 0 || timerFamilyDeclarations().size() > 0;
   }
 
   static Builder builder() {
@@ -167,10 +174,15 @@ public abstract class DoFnSignature {
 
     abstract Builder setTimerDeclarations(Map<String, TimerDeclaration> timerDeclarations);
 
+    abstract Builder setTimerFamilyDeclarations(
+        Map<String, TimerFamilyDeclaration> timerFamilyDeclarations);
+
     abstract Builder setFieldAccessDeclarations(
         Map<String, FieldAccessDeclaration> fieldAccessDeclaration);
 
     abstract Builder setOnTimerMethods(Map<String, OnTimerMethod> onTimerMethods);
+
+    abstract Builder setOnTimerFamilyMethods(Map<String, OnTimerFamilyMethod> onTimerFamilyMethods);
 
     abstract DoFnSignature build();
   }
@@ -245,6 +257,10 @@ public abstract class DoFnSignature {
         return cases.dispatch((TimeDomainParameter) this);
       } else if (this instanceof SideInputParameter) {
         return cases.dispatch((SideInputParameter) this);
+      } else if (this instanceof TimerFamilyParameter) {
+        return cases.dispatch((TimerFamilyParameter) this);
+      } else if (this instanceof TimerIdParameter) {
+        return cases.dispatch((TimerIdParameter) this);
       } else {
         throw new IllegalStateException(
             String.format(
@@ -288,6 +304,10 @@ public abstract class DoFnSignature {
       ResultT dispatch(PipelineOptionsParameter p);
 
       ResultT dispatch(SideInputParameter p);
+
+      ResultT dispatch(TimerFamilyParameter p);
+
+      ResultT dispatch(TimerIdParameter p);
 
       /** A base class for a visitor with a default method for cases it is not interested in. */
       abstract class WithDefault<ResultT> implements Cases<ResultT> {
@@ -335,6 +355,11 @@ public abstract class DoFnSignature {
         }
 
         @Override
+        public ResultT dispatch(TimerIdParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
         public ResultT dispatch(TimeDomainParameter p) {
           return dispatchDefault(p);
         }
@@ -378,6 +403,11 @@ public abstract class DoFnSignature {
         public ResultT dispatch(SideInputParameter p) {
           return dispatchDefault(p);
         }
+
+        @Override
+        public ResultT dispatch(TimerFamilyParameter p) {
+          return dispatchDefault(p);
+        }
       }
     }
 
@@ -392,6 +422,8 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_OnTimerContextParameter();
     private static final TimestampParameter TIMESTAMP_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_TimestampParameter();
+    private static final TimerIdParameter TIMER_ID_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_TimerIdParameter();
     private static final PaneInfoParameter PANE_INFO_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_PaneInfoParameter();
     private static final TimeDomainParameter TIME_DOMAIN_PARAMETER =
@@ -421,6 +453,10 @@ public abstract class DoFnSignature {
 
     public static TimestampParameter timestampParameter() {
       return TIMESTAMP_PARAMETER;
+    }
+
+    public static TimerIdParameter timerIdParameter() {
+      return TIMER_ID_PARAMETER;
     }
 
     public static SideInputParameter sideInputParameter(
@@ -474,6 +510,10 @@ public abstract class DoFnSignature {
 
     public static TimerParameter timerParameter(TimerDeclaration decl) {
       return new AutoValue_DoFnSignature_Parameter_TimerParameter(decl);
+    }
+
+    public static TimerFamilyParameter timerFamilyParameter(TimerFamilyDeclaration decl) {
+      return new AutoValue_DoFnSignature_Parameter_TimerFamilyParameter(decl);
     }
 
     /** Descriptor for a {@link Parameter} of a subtype of {@link PipelineOptions}. */
@@ -562,6 +602,11 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class TimestampParameter extends Parameter {
       TimestampParameter() {}
+    }
+
+    @AutoValue
+    public abstract static class TimerIdParameter extends Parameter {
+      TimerIdParameter() {}
     }
 
     /**
@@ -688,6 +733,15 @@ public abstract class DoFnSignature {
       TimerParameter() {}
 
       public abstract TimerDeclaration referent();
+    }
+
+    /** Descriptor for a {@link Parameter} of type {@link DoFn.TimerFamily}. */
+    @AutoValue
+    public abstract static class TimerFamilyParameter extends Parameter {
+      // Package visible for AutoValue
+      TimerFamilyParameter() {}
+
+      public abstract TimerFamilyDeclaration referent();
     }
   }
 
@@ -830,6 +884,48 @@ public abstract class DoFnSignature {
     }
   }
 
+  /** Describes a {@link DoFn.OnTimerFamily} method. */
+  @AutoValue
+  public abstract static class OnTimerFamilyMethod implements MethodWithExtraParameters {
+
+    /** The id on the method's {@link DoFn.TimerId} annotation. */
+    public abstract String id();
+
+    /** The annotated method itself. */
+    @Override
+    public abstract Method targetMethod();
+
+    /**
+     * Whether this method requires stable input, expressed via {@link
+     * org.apache.beam.sdk.transforms.DoFn.RequiresStableInput}. For timers, this means that any
+     * state must be stably persisted prior to calling it.
+     */
+    public abstract boolean requiresStableInput();
+
+    /** The window type used by this method, if any. */
+    @Nullable
+    @Override
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
+    /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
+    public abstract List<Parameter> extraParameters();
+
+    static OnTimerFamilyMethod create(
+        Method targetMethod,
+        String id,
+        boolean requiresStableInput,
+        TypeDescriptor<? extends BoundedWindow> windowT,
+        List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_OnTimerFamilyMethod(
+          id,
+          targetMethod,
+          requiresStableInput,
+          windowT,
+          Collections.unmodifiableList(extraParameters));
+    }
+  }
+
   /** Describes a {@link DoFn.OnWindowExpiration} method. */
   @AutoValue
   public abstract static class OnWindowExpirationMethod implements MethodWithExtraParameters {
@@ -880,6 +976,21 @@ public abstract class DoFnSignature {
 
     static TimerDeclaration create(String id, Field field) {
       return new AutoValue_DoFnSignature_TimerDeclaration(id, field);
+    }
+  }
+
+  /**
+   * Describes a timer family declaration; a field of type {@link TimerSpec} annotated with {@link
+   * DoFn.TimerFamily}.
+   */
+  @AutoValue
+  public abstract static class TimerFamilyDeclaration {
+    public abstract String id();
+
+    public abstract Field field();
+
+    static TimerFamilyDeclaration create(String id, Field field) {
+      return new AutoValue_DoFnSignature_TimerFamilyDeclaration(id, field);
     }
   }
 
@@ -945,7 +1056,7 @@ public abstract class DoFnSignature {
 
   /** Describes a {@link DoFn.GetInitialRestriction} method. */
   @AutoValue
-  public abstract static class GetInitialRestrictionMethod implements DoFnMethod {
+  public abstract static class GetInitialRestrictionMethod implements MethodWithExtraParameters {
     /** The annotated method itself. */
     @Override
     public abstract Method targetMethod();
@@ -953,14 +1064,28 @@ public abstract class DoFnSignature {
     /** Type of the returned restriction. */
     public abstract TypeDescriptor<?> restrictionT();
 
-    static GetInitialRestrictionMethod create(Method targetMethod, TypeDescriptor<?> restrictionT) {
-      return new AutoValue_DoFnSignature_GetInitialRestrictionMethod(targetMethod, restrictionT);
+    /** The window type used by this method, if any. */
+    @Nullable
+    @Override
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
+    /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
+    public abstract List<Parameter> extraParameters();
+
+    static GetInitialRestrictionMethod create(
+        Method targetMethod,
+        TypeDescriptor<?> restrictionT,
+        TypeDescriptor<? extends BoundedWindow> windowT,
+        List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_GetInitialRestrictionMethod(
+          targetMethod, restrictionT, windowT, extraParameters);
     }
   }
 
   /** Describes a {@link DoFn.SplitRestriction} method. */
   @AutoValue
-  public abstract static class SplitRestrictionMethod implements DoFnMethod {
+  public abstract static class SplitRestrictionMethod implements MethodWithExtraParameters {
     /** The annotated method itself. */
     @Override
     public abstract Method targetMethod();
@@ -968,14 +1093,28 @@ public abstract class DoFnSignature {
     /** Type of the restriction taken and returned. */
     public abstract TypeDescriptor<?> restrictionT();
 
-    static SplitRestrictionMethod create(Method targetMethod, TypeDescriptor<?> restrictionT) {
-      return new AutoValue_DoFnSignature_SplitRestrictionMethod(targetMethod, restrictionT);
+    /** The window type used by this method, if any. */
+    @Nullable
+    @Override
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
+    /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
+    public abstract List<Parameter> extraParameters();
+
+    static SplitRestrictionMethod create(
+        Method targetMethod,
+        TypeDescriptor<?> restrictionT,
+        TypeDescriptor<? extends BoundedWindow> windowT,
+        List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_SplitRestrictionMethod(
+          targetMethod, restrictionT, windowT, extraParameters);
     }
   }
 
   /** Describes a {@link DoFn.NewTracker} method. */
   @AutoValue
-  public abstract static class NewTrackerMethod implements DoFnMethod {
+  public abstract static class NewTrackerMethod implements MethodWithExtraParameters {
     /** The annotated method itself. */
     @Override
     public abstract Method targetMethod();
@@ -986,9 +1125,23 @@ public abstract class DoFnSignature {
     /** Type of the returned {@link RestrictionTracker}. */
     public abstract TypeDescriptor<?> trackerT();
 
+    /** The window type used by this method, if any. */
+    @Nullable
+    @Override
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
+    /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
+    public abstract List<Parameter> extraParameters();
+
     static NewTrackerMethod create(
-        Method targetMethod, TypeDescriptor<?> restrictionT, TypeDescriptor<?> trackerT) {
-      return new AutoValue_DoFnSignature_NewTrackerMethod(targetMethod, restrictionT, trackerT);
+        Method targetMethod,
+        TypeDescriptor<?> restrictionT,
+        TypeDescriptor<?> trackerT,
+        TypeDescriptor<? extends BoundedWindow> windowT,
+        List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_NewTrackerMethod(
+          targetMethod, restrictionT, trackerT, windowT, extraParameters);
     }
   }
 

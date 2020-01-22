@@ -225,11 +225,10 @@ class ConcatSourceTest(unittest.TestCase):
                            RangeSource(10, 100),
                            RangeSource(100, 1000),
                           ])
-    pipeline = TestPipeline()
-    pcoll = pipeline | beam.io.Read(source)
-    assert_that(pcoll, equal_to(list(range(1000))))
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | beam.io.Read(source)
+      assert_that(pcoll, equal_to(list(range(1000))))
 
-    pipeline.run()
 
   def test_conact_source_exhaustive(self):
     source = ConcatSource([RangeSource(0, 10),

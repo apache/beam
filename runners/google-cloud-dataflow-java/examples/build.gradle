@@ -56,7 +56,7 @@ def commonConfig = { dataflowWorkerJar, workerHarnessContainerImage = '', additi
                "--tempRoot=${gcsTempRoot}",
                "--runner=TestDataflowRunner",
                "--dataflowWorkerJar=${dataflowWorkerJar}",
-               workerHarnessContainerImage.isEmpty() ?'':"--workerHarnessContainerImage=${workerHarnessContainerImage}"
+               "--workerHarnessContainerImage=${workerHarnessContainerImage}"
                ] + additionalOptions
        systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
      }
