@@ -81,6 +81,7 @@ from apache_beam.runners import PipelineRunner
 from apache_beam.runners import create_runner
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import ptransform
+from apache_beam.transforms.core import RunnerAPIPTransformHolder
 from apache_beam.transforms.sideinputs import get_sideinput_index
 #from apache_beam.transforms import external
 from apache_beam.typehints import TypeCheckError
@@ -1050,7 +1051,9 @@ class AppliedPTransform(object):
         for tag, id in proto.outputs.items()}
     # This annotation is expected by some runners.
     if proto.spec.urn == common_urns.primitives.PAR_DO.urn:
-      assert isinstance(result.transform, ParDo)
+      # TODO(BEAM-9168): Figure out what to do for RunnerAPIPTransformHolder.
+      assert isinstance(result.transform, (ParDo, RunnerAPIPTransformHolder)),\
+        type(result.transform)
       result.transform.output_tags = set(proto.outputs.keys()).difference(
           {'None'})
     if not result.parts:
