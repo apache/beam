@@ -23,6 +23,8 @@ import argparse
 import logging
 import subprocess
 import sys
+import types  # pylint: disable=unused-import
+from typing import Optional
 
 import grpc
 from mock import patch
@@ -37,18 +39,19 @@ from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
+apiclient = None  # type: Optional[types.ModuleType]
 try:
   from apache_beam.runners.dataflow.internal import apiclient
 except ImportError:
-  apiclient = None
+  pass
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
 class JavaExternalTransformTest(object):
 
   # This will be overwritten if set via a flag.
-  expansion_service_jar = None
-  expansion_service_port = None
+  expansion_service_jar = None  # type: str
+  expansion_service_port = None  # type: int
 
   class _RunWithExpansion(object):
     def __init__(self):

@@ -1712,7 +1712,7 @@ def create_map_windows(
     factory,  # type: BeamTransformFactory
     transform_id,  # type: str
     transform_proto,  # type: beam_runner_api_pb2.PTransform
-    mapping_fn_spec,  # type: beam_runner_api_pb2.SdkFunctionSpec
+    mapping_fn_spec,  # type: beam_runner_api_pb2.FunctionSpec
     consumers  # type: Dict[str, List[operations.Operation]]
 ):
   assert mapping_fn_spec.urn == python_urns.PICKLED_WINDOW_MAPPING_FN

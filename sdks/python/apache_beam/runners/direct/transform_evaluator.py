@@ -33,7 +33,6 @@ from typing import Dict
 from typing import List
 from typing import Tuple
 from typing import Type
-from typing import Union
 
 from future.utils import iteritems
 
@@ -632,8 +631,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
       bundles = []
     assert self._applied_ptransform.transform is not None
     if self._applied_ptransform.inputs:
-      input_pvalue = self._applied_ptransform.inputs[
-          0]  # type: Union[pvalue.PBegin, pvalue.PCollection]
+      input_pvalue = self._applied_ptransform.inputs[0]
     else:
       input_pvalue = pvalue.PBegin(self._applied_ptransform.transform.pipeline)
     unprocessed_bundle = self._evaluation_context.create_bundle(input_pvalue)

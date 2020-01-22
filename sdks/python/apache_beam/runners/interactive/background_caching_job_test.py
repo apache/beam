@@ -40,7 +40,7 @@ from apache_beam.transforms.window import TimestampedValue
 try:
   from unittest.mock import patch
 except ImportError:
-  from mock import patch
+  from mock import patch  # type: ignore[misc]
 
 _FOO_PUBSUB_SUB = 'projects/test-project/subscriptions/foo'
 _BAR_PUBSUB_SUB = 'projects/test-project/subscriptions/bar'
