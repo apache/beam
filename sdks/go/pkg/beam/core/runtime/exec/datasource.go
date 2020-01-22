@@ -137,7 +137,7 @@ func (n *DataSource) makeReStream(ctx context.Context, key *FullValue, cv Elemen
 	switch {
 	case size >= 0:
 		// Single chunk streams are fully read in and buffered in memory.
-		var buf []FullValue
+		buf := make([]FullValue, 0, size)
 		buf, err = readStreamToBuffer(cv, r, int64(size), buf)
 		if err != nil {
 			return nil, err
@@ -156,10 +156,12 @@ func (n *DataSource) makeReStream(ctx context.Context, key *FullValue, cv Elemen
 			case chunk == 0: // End of stream, return buffer.
 				return &FixedReStream{Buf: buf}, nil
 			case chunk > 0: // Non-zero chunk, read that many elements from the stream, and buffer them.
-				buf, err = readStreamToBuffer(cv, r, chunk, buf)
+				chunkBuf := make([]FullValue, 0, chunk)
+				chunkBuf, err = readStreamToBuffer(cv, r, chunk, chunkBuf)
 				if err != nil {
 					return nil, err
 				}
+				buf = append(buf, chunkBuf...)
 			case chunk == -1: // State backed iterable!
 				chunk, err := coder.DecodeVarInt(r)
 				if err != nil {
