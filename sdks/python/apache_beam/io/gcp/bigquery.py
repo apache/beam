@@ -106,13 +106,13 @@ computed at pipeline runtime, one may do something like the following::
       ]))
 
       table_names = (p | beam.Create([
-        ('error', 'my_project.dataset1.error_table_for_today'),
-        ('user_log', 'my_project.dataset1.query_table_for_today'),
+        ('error', 'my_project:dataset1.error_table_for_today'),
+        ('user_log', 'my_project:dataset1.query_table_for_today'),
       ])
 
       table_names_dict = beam.pvalue.AsDict(table_names)
 
-      elements | beam.io.gcp.WriteToBigQuery(
+      elements | beam.io.gcp.bigquery.WriteToBigQuery(
         table=lambda row, table_dict: table_dict[row['type']],
         table_side_inputs=(table_names_dict,))
 
@@ -146,7 +146,7 @@ This allows to provide different schemas for different tables::
         {'type': 'user_log', 'timestamp': '12:34:59', 'query': 'flu symptom'},
       ]))
 
-      elements | beam.io.gcp.WriteToBigQuery(
+      elements | beam.io.gcp.bigquery.WriteToBigQuery(
         table=compute_table_name,
         schema=lambda table: (errors_schema
                               if 'errors' in table
@@ -183,8 +183,8 @@ clustering properties, one would do the following::
         {'country': 'canada', 'timestamp': '12:34:59', 'query': 'influenza'},
       ]))
 
-      elements | beam.io.gcp.WriteToBigQuery(
-        table='project_name1.dataset_2.query_events_table',
+      elements | beam.io.gcp.bigquery.WriteToBigQuery(
+        table='project_name1:dataset_2.query_events_table',
         additional_bq_parameters=additional_bq_parameters)
 
 Much like the schema case, the parameter with `additional_bq_parameters` can
