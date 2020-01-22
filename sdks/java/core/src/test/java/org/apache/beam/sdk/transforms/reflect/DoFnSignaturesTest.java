@@ -253,6 +253,29 @@ public class DoFnSignaturesTest {
   }
 
   @Test
+  public void testIsAsync() {
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<String, String>() {
+              @ProcessElement
+              public void process(OutputReceiver<CompletionStage<String>> asyncReceiver) {}
+            }.getClass());
+    assertThat(sig.processElement().getMainOutputReceiver().isAsync(), is(true));
+  }
+
+  @Test
+  public void testBadOutputTForAsync() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("OutputReceiver should be parameterized by java.lang.Integer");
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<String, Integer>() {
+              @ProcessElement
+              public void process(OutputReceiver<CompletionStage<String>> asyncReceiver) {}
+            }.getClass());
+  }
+
+  @Test
   public void testRequiresStableInputProcessElement() throws Exception {
     DoFnSignature sig =
         DoFnSignatures.getSignature(

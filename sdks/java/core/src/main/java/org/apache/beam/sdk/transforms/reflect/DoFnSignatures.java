@@ -1107,7 +1107,10 @@ public class DoFnSignatures {
       boolean schemaRowReceiver =
           paramT.equals(outputReceiverTypeOf(TypeDescriptor.of(Row.class)))
               && !outputT.equals(TypeDescriptor.of(Row.class));
-      if (!schemaRowReceiver) {
+
+      boolean async = outputReceiverTypeOf(completionStageTypeOf(outputT)).equals(paramT);
+
+      if (!schemaRowReceiver && !async) {
         TypeDescriptor<?> expectedReceiverT = outputReceiverTypeOf(outputT);
         paramErrors.checkArgument(
             paramT.equals(expectedReceiverT),
@@ -1407,6 +1410,15 @@ public class DoFnSignatures {
 
     return DoFnSignature.GetInitialRestrictionMethod.create(
         m, fnT.resolveType(m.getGenericReturnType()), windowT, methodContext.extraParameters);
+  }
+
+  /**
+   * Generates a {@link TypeDescriptor} for {@code CompletionStage<OutputT>} given {@code OutputT}.
+   */
+  private static <OutputT> TypeDescriptor<CompletionStage<OutputT>> completionStageTypeOf(
+      TypeDescriptor<OutputT> outputT) {
+    return new TypeDescriptor<CompletionStage<OutputT>>() {}.where(
+        new TypeParameter<OutputT>() {}, outputT);
   }
 
   /**

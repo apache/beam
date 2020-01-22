@@ -266,13 +266,39 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
 
     private BundleOutputManager(Map<TupleTag<?>, UncommittedBundle<?>> bundles) {
       this.bundles = bundles;
+      this.futures = new ArrayList<>();
+    }
+
+    void awaitFutures() {
+      CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0])).join();
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
       checkArgument(bundles.containsKey(tag), "Unknown output tag %s", tag);
-      ((UncommittedBundle) bundles.get(tag)).add(output);
+
+      if (output.getValue() instanceof CompletionStage) {
+        CompletionStage<?> outputFuture =
+            ((CompletionStage<?>) output.getValue())
+                .whenComplete(
+                    (res, ex) -> {
+                      if (ex != null) {
+                        throw new RuntimeException(ex);
+                      }
+
+                      ((UncommittedBundle) bundles.get(tag))
+                          .add(
+                              WindowedValue.of(
+                                  res,
+                                  output.getTimestamp(),
+                                  output.getWindows(),
+                                  output.getPane()));
+                    });
+        futures.add(outputFuture);
+      } else {
+        ((UncommittedBundle) bundles.get(tag)).add(output);
+      }
     }
   }
 }
