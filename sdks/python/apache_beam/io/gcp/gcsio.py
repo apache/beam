@@ -242,7 +242,7 @@ class GcsIO(object):
         Used for testing.
 
     Raises:
-      TimeoutError on timeout.
+      TimeoutError: on timeout.
     """
     src_bucket, src_path = parse_gcs_path(src)
     dest_bucket, dest_path = parse_gcs_path(dest)

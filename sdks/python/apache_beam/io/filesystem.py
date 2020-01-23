@@ -519,7 +519,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
       path: string path of the directory structure that should be created
 
     Raises:
-      IOError if leaf directory already exists.
+      IOError: if leaf directory already exists.
     """
     raise NotImplementedError
 
@@ -542,7 +542,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
       Generator of ``FileMetadata`` objects.
 
     Raises:
-      ``BeamIOError`` if listing fails, but not if no files were found.
+      ``BeamIOError``: if listing fails, but not if no files were found.
     """
     raise NotImplementedError
 
@@ -666,7 +666,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
     Returns: list of ``MatchResult`` objects.
 
     Raises:
-      ``BeamIOError`` if any of the pattern match operations fail
+      ``BeamIOError``: if any of the pattern match operations fail
     """
     if limits is None:
       limits = [None] * len(patterns)
@@ -759,7 +759,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
       destination_file_names: list of destination of the new object
 
     Raises:
-      ``BeamIOError`` if any of the copy operations fail
+      ``BeamIOError``: if any of the copy operations fail
     """
     raise NotImplementedError
 
@@ -773,7 +773,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
       destination_file_names: List of destination_file_names for the files
 
     Raises:
-      ``BeamIOError`` if any of the rename operations fail
+      ``BeamIOError``: if any of the rename operations fail
     """
     raise NotImplementedError
 
@@ -800,7 +800,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
     Returns: int size of file according to the FileSystem.
 
     Raises:
-      ``BeamIOError`` if path doesn't exist.
+      ``BeamIOError``: if path doesn't exist.
     """
     raise NotImplementedError
 
@@ -814,7 +814,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
     Returns: float UNIX Epoch time
 
     Raises:
-      ``BeamIOError`` if path doesn't exist.
+      ``BeamIOError``: if path doesn't exist.
     """
     raise NotImplementedError
 
@@ -835,7 +835,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
     Returns: string containing checksum
 
     Raises:
-      ``BeamIOError`` if path isn't a file or doesn't exist.
+      ``BeamIOError``: if path isn't a file or doesn't exist.
     """
     raise NotImplementedError
 
@@ -848,6 +848,6 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
       paths: list of paths that give the file objects to be deleted
 
     Raises:
-      ``BeamIOError`` if any of the delete operations fail
+      ``BeamIOError``: if any of the delete operations fail
     """
     raise NotImplementedError

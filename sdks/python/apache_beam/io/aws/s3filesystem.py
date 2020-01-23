@@ -98,7 +98,7 @@ class S3FileSystem(FileSystem):
       path: string path of the directory structure that should be created
 
     Raises:
-      IOError if leaf directory already exists.
+      IOError: if leaf directory already exists.
     """
     pass
 
@@ -119,7 +119,7 @@ class S3FileSystem(FileSystem):
       Generator of ``FileMetadata`` objects.
 
     Raises:
-      ``BeamIOError`` if listing fails, but not if no files were found.
+      ``BeamIOError``: if listing fails, but not if no files were found.
     """
     try:
       for path, size in iteritems(s3io.S3IO().list_prefix(dir_or_prefix)):
@@ -172,7 +172,7 @@ class S3FileSystem(FileSystem):
       destination_file_names: list of destination of the new object
 
     Raises:
-      ``BeamIOError`` if any of the copy operations fail
+      ``BeamIOError``: if any of the copy operations fail
     """
     if not len(source_file_names) == len(destination_file_names):
       message = 'Unable to copy unequal number of sources and destinations'
@@ -189,7 +189,7 @@ class S3FileSystem(FileSystem):
       destination_file_names: List of destination_file_names for the files
 
     Raises:
-      ``BeamIOError`` if any of the rename operations fail
+      ``BeamIOError``: if any of the rename operations fail
     """
     if not len(source_file_names) == len(destination_file_names):
       message = 'Unable to rename unequal number of sources and destinations'
@@ -223,7 +223,7 @@ class S3FileSystem(FileSystem):
     Returns: int size of path according to the FileSystem.
 
     Raises:
-      ``BeamIOError`` if path doesn't exist.
+      ``BeamIOError``: if path doesn't exist.
     """
     try:
       return s3io.S3IO().size(path)
@@ -239,7 +239,7 @@ class S3FileSystem(FileSystem):
     Returns: float UNIX Epoch time
 
     Raises:
-      ``BeamIOError`` if path doesn't exist.
+      ``BeamIOError``: if path doesn't exist.
     """
     try:
       return s3io.S3IO().last_updated(path)
@@ -256,7 +256,7 @@ class S3FileSystem(FileSystem):
     Returns: string containing checksum
 
     Raises:
-      ``BeamIOError`` if path isn't a file or doesn't exist.
+      ``BeamIOError``: if path isn't a file or doesn't exist.
     """
     try:
       return s3io.S3IO().checksum(path)

@@ -202,14 +202,18 @@ ignore_identifiers = [
   'google.cloud.datastore.batch.Batch',
   'is_in_ipython',
 ]
-
+ignore_references = [
+  'BeamIOError',
+  'HttpError',
+  'ValueError',
+]
 # When inferring a base class it will use ':py:class'; if inferring a function
 # argument type or return type, it will use ':py:obj'. We'll generate both.
 nitpicky = True
 nitpick_ignore = []
 nitpick_ignore += [('py:class', iden) for iden in ignore_identifiers]
 nitpick_ignore += [('py:obj', iden) for iden in ignore_identifiers]
-nitpick_ignore += [('py:exc', 'ValueError')]
+nitpick_ignore += [('py:exc', iden) for iden in ignore_references]
 
 # Monkey patch functools.wraps to retain original function argument signature
 # for documentation.

@@ -160,7 +160,7 @@ class S3IO(object):
       dest: S3 file path pattern in the form s3://<bucket>/<name>.
 
     Raises:
-      TimeoutError on timeout.
+      TimeoutError: on timeout.
     """
     src_bucket, src_key = parse_s3_path(src)
     dest_bucket, dest_key = parse_s3_path(dest)
