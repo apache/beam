@@ -55,7 +55,7 @@ def thread_dump():
     trace += stack
     all_traces.append(trace)
   all_traces.append('=' * 30)
-  return '\n'.join(x.encode('utf-8') for x in all_traces)
+  return '\n'.join(all_traces)
 
 
 def _active_processing_bundles_state(bundle_process_cache):
@@ -86,7 +86,7 @@ def _active_processing_bundles_state(bundle_process_cache):
       active_bundles.append(state)
 
   active_bundles.append('=' * 30)
-  return '\n'.join(x.encode('utf-8') for x in active_bundles)
+  return '\n'.join(active_bundles)
 
 
 DONE = object()

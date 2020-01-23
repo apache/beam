@@ -67,7 +67,7 @@ class StatusServer(object):
         self.send_header('Content-Type', 'text/plain')
         self.end_headers()
 
-        self.wfile.write(thread_dump())
+        self.wfile.write(thread_dump().encode('utf-8'))
 
       def log_message(self, f, *args):
         """Do not log any messages."""

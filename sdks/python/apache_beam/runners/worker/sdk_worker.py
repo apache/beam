@@ -123,6 +123,8 @@ class SdkHarness(object):
         _LOGGER.warning('Error creating worker status request handler, '
                         'skipping status report. Trace back: %s' %
                         traceback_string)
+    else:
+      self._status_handler = None
 
     # TODO(BEAM-8998) use common UnboundedThreadPoolExecutor to process bundle
     #  progress once dataflow runner's excessive progress polling is removed.
