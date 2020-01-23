@@ -29,7 +29,7 @@ class CommonTestProperties {
         DATAFLOW("DataflowRunner"),
         SPARK("SparkRunner"),
         SPARK_STRUCTURED_STREAMING("SparkStructuredStreamingRunner"),
-        FLINK("TestFlinkRunner"),
+        FLINK("FlinkRunner"),
         DIRECT("DirectRunner"),
         PORTABLE("PortableRunner")
 
