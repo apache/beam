@@ -17,6 +17,8 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import CommonTestProperties.Runner
+import CommonTestProperties.SDK
 import CommonTestProperties.TriggeringContext
 import NexmarkBigqueryProperties
 import NexmarkBuilder as Nexmark
@@ -111,7 +113,14 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Sp
           'suite'        : 'SMOKE',
           'streamTimeout': 60
   ]
-
   // Spark doesn't run streaming jobs, therefore run only batch variants.
-  Nexmark.batchOnlyJob(delegate, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
+  Nexmark.batchOnlyJob(delegate, Runner.SPARK, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
+
+  def final SPARK_STRUCTURED_STREAMING_JOB_SPECIFIC_OPTIONS = [
+          'suite'        : 'SMOKE',
+          'streamTimeout': 60,
+          // Skip query 3 (SparkStructuredStreamingRunner does not support State/Timers yet)
+          'skipQueries'  : 3,
+  ]
+  Nexmark.batchOnlyJob(delegate, Runner.SPARK_STRUCTURED_STREAMING, SDK.JAVA, SPARK_STRUCTURED_STREAMING_JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
 }
