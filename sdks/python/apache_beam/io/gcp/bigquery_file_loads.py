@@ -328,13 +328,16 @@ class TriggerCopyJobs(beam.DoFn):
         "Triggering copy job from %s to %s",
         copy_from_reference,
         copy_to_reference)
+    # Copy jobs must always WRITE_APPEND to the table. If they do not,
+    # subsequent copy jobs will clear out data appended by previous
+    # jobs.
     job_reference = self.bq_wrapper._insert_copy_job(
         copy_to_reference.projectId,
         copy_job_name,
         copy_from_reference,
         copy_to_reference,
         create_disposition=self.create_disposition,
-        write_disposition=self.write_disposition)
+        write_disposition='WRITE_APPEND')
 
     yield (destination, job_reference)
 
@@ -420,7 +423,11 @@ class TriggerLoadJobs(beam.DoFn):
     _LOGGER.debug(
         'Load job has %s files. Job name is %s.', len(files), job_name)
 
+    create_disposition = self.create_disposition
     if self.temporary_tables:
+      # If we are using temporary tables, then we must always create the
+      # temporary tables, so we replace the create_disposition.
+      create_disposition = 'CREATE_IF_NEEDED'
       # For temporary tables, we create a new table with the name with JobId.
       table_reference.tableId = job_name
       yield pvalue.TaggedOutput(TriggerLoadJobs.TEMP_TABLES, table_reference)
@@ -438,7 +445,7 @@ class TriggerLoadJobs(beam.DoFn):
         job_name,
         schema=schema,
         write_disposition=self.write_disposition,
-        create_disposition=self.create_disposition,
+        create_disposition=create_disposition,
         additional_load_parameters=additional_parameters)
     yield (destination, job_reference)
 
