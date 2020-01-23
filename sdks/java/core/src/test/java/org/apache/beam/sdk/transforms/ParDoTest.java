@@ -3881,6 +3881,7 @@ public class ParDoTest implements Serializable {
               .advanceProcessingTime(Duration.standardSeconds(9))
               // If the timer fired, then this would case fn2 to fail with an assertion error.
               .addElements(KV.of("key", 1))
+              .advanceProcessingTime(Duration.standardSeconds(100))
               .advanceWatermarkToInfinity();
       PCollection<Integer> output =
           pipeline.apply(stream).apply("first", ParDo.of(fn1)).apply("second", ParDo.of(fn2));

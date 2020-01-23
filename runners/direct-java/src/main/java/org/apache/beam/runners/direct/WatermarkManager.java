@@ -592,16 +592,16 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       Instant earliest = THE_END_OF_TIME.get();
       for (NavigableSet<TimerData> timers : processingTimers.values()) {
         if (!timers.isEmpty()) {
-          earliest = INSTANT_ORDERING.min(timers.first().getTimestamp(), earliest);
+          earliest = INSTANT_ORDERING.min(timers.first().getOutputTimestamp(), earliest);
         }
       }
       for (NavigableSet<TimerData> timers : synchronizedProcessingTimers.values()) {
         if (!timers.isEmpty()) {
-          earliest = INSTANT_ORDERING.min(timers.first().getTimestamp(), earliest);
+          earliest = INSTANT_ORDERING.min(timers.first().getOutputTimestamp(), earliest);
         }
       }
       if (!pendingTimers.isEmpty()) {
-        earliest = INSTANT_ORDERING.min(pendingTimers.first().getTimestamp(), earliest);
+        earliest = INSTANT_ORDERING.min(pendingTimers.first().getOutputTimestamp(), earliest);
       }
       return earliest;
     }
@@ -694,6 +694,10 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       return result;
     }
 
+    public Map<StructuralKey<?>, List<TimerData>> extractFiredProcessingTimers() {
+      return extractFiredDomainTimers(TimeDomain.PROCESSING_TIME, earliestHold.get());
+    }
+
     @Override
     public synchronized String toString() {
       return MoreObjects.toStringHelper(SynchronizedProcessingTimeInputWatermark.class)
@@ -724,13 +728,23 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     private final String name;
 
     private final SynchronizedProcessingTimeInputWatermark inputWm;
+    private final PerKeyHolds holds;
     private AtomicReference<Instant> latestRefresh;
 
     public SynchronizedProcessingTimeOutputWatermark(
         String name, SynchronizedProcessingTimeInputWatermark inputWm) {
       this.name = name;
       this.inputWm = inputWm;
+      holds = new PerKeyHolds();
       this.latestRefresh = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
+    }
+
+    public synchronized void updateHold(Object key, Instant newHold) {
+      if (newHold == null) {
+        holds.removeHold(key);
+      } else {
+        holds.updateHold(key, newHold);
+      }
     }
 
     @Override
@@ -766,7 +780,8 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       // downstream timers to.
       Instant oldRefresh = latestRefresh.get();
       Instant newTimestamp =
-          INSTANT_ORDERING.min(inputWm.get(), inputWm.getEarliestTimerTimestamp());
+          INSTANT_ORDERING.min(
+              inputWm.get(), holds.getMinHold(), inputWm.getEarliestTimerTimestamp());
       latestRefresh.set(newTimestamp);
       return updateAndTrace(getName(), oldRefresh, newTimestamp);
     }
@@ -774,6 +789,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     @Override
     public synchronized String toString() {
       return MoreObjects.toStringHelper(SynchronizedProcessingTimeOutputWatermark.class)
+          .add("holds", holds)
           .add("latestRefresh", latestRefresh)
           .toString();
     }
@@ -1119,6 +1135,9 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     TransformWatermarks transformWms = transformToWatermarks.get(executable);
     transformWms.setEventTimeHold(
         inputBundle == null ? null : inputBundle.getKey(), pending.getEarliestHold());
+
+    transformWms.setSynchronizedProcessingTimeHold(
+        inputBundle == null ? null : inputBundle.getKey(), pending.getEarliestHold());
   }
 
   /**
@@ -1423,6 +1442,10 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       outputWatermark.updateHold(key, newHold);
     }
 
+    private void setSynchronizedProcessingTimeHold(Object key, Instant newHold) {
+      synchronizedProcessingOutputWatermark.updateHold(key, newHold);
+    }
+
     private void removePending(Bundle<?, ?> bundle) {
       inputWatermark.removePending(bundle);
       synchronizedProcessingInputWatermark.removePending(bundle);
@@ -1438,9 +1461,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
           inputWatermark.extractFiredEventTimeTimers();
       Map<StructuralKey<?>, List<TimerData>> processingTimers;
       Map<StructuralKey<?>, List<TimerData>> synchronizedTimers;
-      processingTimers =
-          synchronizedProcessingInputWatermark.extractFiredDomainTimers(
-              TimeDomain.PROCESSING_TIME, clock.now());
+      processingTimers = synchronizedProcessingInputWatermark.extractFiredProcessingTimers();
       synchronizedTimers =
           synchronizedProcessingInputWatermark.extractFiredDomainTimers(
               TimeDomain.SYNCHRONIZED_PROCESSING_TIME, getSynchronizedProcessingInputTime());
