@@ -38,6 +38,7 @@ job('beam_Release_Gradle_Build') {
       'Run Release Gradle Build')
 
   steps {
+    shell('cd ' + commonJobProperties.checkoutDir + ' && git clean -fdx')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks('clean')
