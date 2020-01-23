@@ -376,7 +376,6 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_http_clients_version = "1.34.0"
     def grpc_version = "1.25.0"
     def google_cloud_firestore_version = "1.31.0"
-    def grpc_version = "1.17.1"
     def guava_version = "25.1-jre"
     def hadoop_version = "2.8.5"
     def hamcrest_version = "2.1"
