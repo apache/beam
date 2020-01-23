@@ -19,10 +19,8 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
-import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -90,29 +88,20 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig());
     consumerSpEL.evaluateAssign(consumer, spec.getTopicPartitions());
 
-    String schemaRegistryURL =
-        (String)
-            spec.getConsumerConfig().get(KafkaAvroDeserializerConfig.SCHEMA_REGISTRY_URL_CONFIG);
-    SchemaRegistryClient registryClient =
-        KafkaIO.Read.getSchemaRegistryClient(
-            schemaRegistryURL, spec.getSchemaRegistryClientFactoryFn());
+    SchemaRegistryClient registryClient = null;
+    if (spec.getCSRClientProvider() != null) {
+      registryClient = spec.getCSRClientProvider().getCSRClient();
+    }
 
     try {
-      if (spec.getKeyDeserializer().equals(KafkaAvroDeserializer.class)) {
-        if (registryClient == null) {
-          throw new IOException(
-              "Schema registry client can't be null when KafkaAvroDeserializer is used for key.");
-        }
+      if (registryClient != null && spec.getKeyDeserializer().equals(KafkaAvroDeserializer.class)) {
         keyDeserializerInstance = (Deserializer) new KafkaAvroDeserializer(registryClient);
       } else {
         keyDeserializerInstance = spec.getKeyDeserializer().getDeclaredConstructor().newInstance();
       }
 
-      if (spec.getValueDeserializer().equals(KafkaAvroDeserializer.class)) {
-        if (registryClient == null) {
-          throw new IOException(
-              "Schema registry client can't be null when KafkaAvroDeserializer is used for value.");
-        }
+      if (registryClient != null
+          && spec.getValueDeserializer().equals(KafkaAvroDeserializer.class)) {
         valueDeserializerInstance = (Deserializer) new KafkaAvroDeserializer(registryClient);
       } else {
         valueDeserializerInstance =
@@ -181,20 +170,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         this::updateLatestOffsets, 0, OFFSET_UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
 
     return advance();
-  }
-
-  private SchemaRegistryClient getSchemaRegistryClient(Read<K, V> spec) {
-    SchemaRegistryClient registryClient;
-    String schemaRegistryURL =
-        (String)
-            spec.getConsumerConfig().get(KafkaAvroDeserializerConfig.SCHEMA_REGISTRY_URL_CONFIG);
-
-    if (spec.getSchemaRegistryClientFactoryFn() != null) {
-      registryClient = spec.getSchemaRegistryClientFactoryFn().apply(schemaRegistryURL);
-    } else {
-      registryClient = new CachedSchemaRegistryClient(schemaRegistryURL, Integer.MAX_VALUE);
-    }
-    return registryClient;
   }
 
   @Override
