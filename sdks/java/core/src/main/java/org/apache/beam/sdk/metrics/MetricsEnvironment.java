@@ -20,6 +20,7 @@ package org.apache.beam.sdk.metrics;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -52,6 +53,13 @@ public class MetricsEnvironment {
   private static final AtomicBoolean REPORTED_MISSING_CONTAINER = new AtomicBoolean(false);
 
   private static final ThreadLocal<MetricsContainer> CONTAINER_FOR_THREAD = new ThreadLocal<>();
+  private static final AtomicReference<MetricsContainer> CONTAINER_GLOBAL =
+      new AtomicReference<>(null);
+
+  /** Set the global {@link MetricsContainer}. */
+  public static void setGlobalContainer(@Nullable MetricsContainer container) {
+    CONTAINER_GLOBAL.set(container);
+  }
 
   /**
    * Set the {@link MetricsContainer} for the current thread.
@@ -113,6 +121,9 @@ public class MetricsEnvironment {
   @Nullable
   public static MetricsContainer getCurrentContainer() {
     MetricsContainer container = CONTAINER_FOR_THREAD.get();
+    if (container == null) {
+      container = CONTAINER_GLOBAL.get();
+    }
     if (container == null && REPORTED_MISSING_CONTAINER.compareAndSet(false, true)) {
       if (isMetricsSupported()) {
         LOG.error(
