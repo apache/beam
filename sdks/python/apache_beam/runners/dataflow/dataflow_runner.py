@@ -321,10 +321,11 @@ class DataflowRunner(PipelineRunner):
             access_pattern = side_input._side_input_data().access_pattern
             if access_pattern == common_urns.side_inputs.ITERABLE.urn:
               if use_unified_worker:
-                # Patch up the access pattern to appease Dataflow when using
-                # the UW and hardcode the output type to be Any since
-                # the Dataflow JSON and pipeline proto can differ in coders
-                # which leads to encoding/decoding issues within the runner.
+                # TODO(BEAM-9173): Stop patching up the access pattern to
+                # appease Dataflow when using the UW and hardcode the output
+                # type to be Any since the Dataflow JSON and pipeline proto
+                # can differ in coders which leads to encoding/decoding issues
+                # within the runner.
                 side_input.pvalue.element_type = typehints.Any
                 new_side_input = _DataflowIterableSideInput(side_input)
               else:
