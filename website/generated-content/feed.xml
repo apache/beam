@@ -20,6 +20,131 @@
     <generator>Jekyll v3.6.3</generator>
     
       <item>
+        <title>Apache Beam 2.18.0</title>
+        <description>&lt;!--
+Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+
+&lt;p&gt;We are happy to present the new 2.18.0 release of Beam. This release includes both improvements and new functionality.
+See the &lt;a href=&quot;/get-started/downloads/#2180-2020-01-23&quot;&gt;download page&lt;/a&gt; for this release.&lt;!--more--&gt;
+For more information on changes in 2.18.0, check out the
+&lt;a href=&quot;https://issues.apache.org/jira/secure/ReleaseNote.jspa?version=12346383&amp;amp;projectId=12319527&quot;&gt;detailed release notes&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;highlights&quot;&gt;Highlights&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8470&quot;&gt;BEAM-8470&lt;/a&gt; - Create a new Spark runner based on Spark Structured streaming framework&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;ios&quot;&gt;I/Os&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7636&quot;&gt;BEAM-7636&lt;/a&gt; - Added SqsIO v2 support.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8513&quot;&gt;BEAM-8513&lt;/a&gt; - RabbitMqIO: Allow reads from exchange-bound queue without declaring the exchange.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8540&quot;&gt;BEAM-8540&lt;/a&gt; - Fix CSVSink example in FileIO docs&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;new-features--improvements&quot;&gt;New Features / Improvements&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-5878&quot;&gt;BEAM-5878&lt;/a&gt; - Added support DoFns with Keyword-only arguments in Python 3.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-6756&quot;&gt;BEAM-6756&lt;/a&gt; - Improved support for lazy iterables in schemas (Java).&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-4776&quot;&gt;BEAM-4776&lt;/a&gt; AND &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-4777&quot;&gt;BEAM-4777&lt;/a&gt; - Added metrics supports to portable runners.&lt;/li&gt;
+  &lt;li&gt;Various improvements to Interactive Beam: &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7760&quot;&gt;BEAM-7760&lt;/a&gt;, &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8379&quot;&gt;BEAM-8379&lt;/a&gt;, &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8016&quot;&gt;BEAM-8016&lt;/a&gt;, &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8016&quot;&gt;BEAM-8016&lt;/a&gt;.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8658&quot;&gt;BEAM-8658&lt;/a&gt; - Optionally set artifact staging port in FlinkUberJarJobServer.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8660&quot;&gt;BEAM-8660&lt;/a&gt; - Override returned artifact staging endpoint&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;sql&quot;&gt;SQL&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8343&quot;&gt;BEAM-8343&lt;/a&gt; - [SQL] Add means for IO APIs to support predicate and/or project push-down when running SQL pipelines. And &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8468&quot;&gt;BEAM-8468&lt;/a&gt;, &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8365&quot;&gt;BEAM-8365&lt;/a&gt;, &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8508&quot;&gt;BEAM-8508&lt;/a&gt;.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8427&quot;&gt;BEAM-8427&lt;/a&gt; - [SQL] Add support for MongoDB source.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8456&quot;&gt;BEAM-8456&lt;/a&gt; - Add pipeline option to control truncate of BigQuery data processed by Beam SQL.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;breaking-changes&quot;&gt;Breaking Changes&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8814&quot;&gt;BEAM-8814&lt;/a&gt; - –no_auth flag changed to boolean type.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;deprecations&quot;&gt;Deprecations&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8252&quot;&gt;BEAM-8252&lt;/a&gt; AND &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8254&quot;&gt;BEAM-8254&lt;/a&gt; Add worker_region and worker_zone options. Deprecated –zone flag and –worker_region experiment argument.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;dependency-changes&quot;&gt;Dependency Changes&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7078&quot;&gt;BEAM-7078&lt;/a&gt; - com.amazonaws:amazon-kinesis-client updated to 1.13.0.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8822&quot;&gt;BEAM-8822&lt;/a&gt; - Upgrade Hadoop dependencies to version 2.8.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;bugfixes&quot;&gt;Bugfixes&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7917&quot;&gt;BEAM-7917&lt;/a&gt; - Python datastore v1new fails on retry.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7981&quot;&gt;BEAM-7981&lt;/a&gt; - ParDo function wrapper doesn’t support Iterable output types.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8146&quot;&gt;BEAM-8146&lt;/a&gt; - SchemaCoder/RowCoder have no equals() function.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8347&quot;&gt;BEAM-8347&lt;/a&gt; - UnboundedRabbitMqReader can fail to advance watermark if no new data comes in.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8352&quot;&gt;BEAM-8352&lt;/a&gt; - Reading records in background may lead to OOM errors&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8480&quot;&gt;BEAM-8480&lt;/a&gt; - Explicitly set restriction coder for bounded reader wrapper SDF.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8515&quot;&gt;BEAM-8515&lt;/a&gt; - Ensure that ValueProvider types have equals/hashCode implemented for comparison reasons.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8579&quot;&gt;BEAM-8579&lt;/a&gt; - Strip UTF-8 BOM bytes (if present) in TextSource.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8657&quot;&gt;BEAM-8657&lt;/a&gt; - Not doing Combiner lifting for data-driven triggers.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8663&quot;&gt;BEAM-8663&lt;/a&gt; - BundleBasedRunner Stacked Bundles don’t respect PaneInfo.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8667&quot;&gt;BEAM-8667&lt;/a&gt; - Data channel should to avoid unlimited buffering in Python SDK.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8802&quot;&gt;BEAM-8802&lt;/a&gt; - Timestamp combiner not respected across bundles in streaming mode.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8803&quot;&gt;BEAM-8803&lt;/a&gt; - Default behaviour for Python BQ Streaming inserts sink should be to retry always.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8825&quot;&gt;BEAM-8825&lt;/a&gt; - OOM when writing large numbers of ‘narrow’ rows.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8835&quot;&gt;BEAM-8835&lt;/a&gt; - Artifact retrieval fails with FlinkUberJarJobServer&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8836&quot;&gt;BEAM-8836&lt;/a&gt; - ExternalTransform is not providing a unique name&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8884&quot;&gt;BEAM-8884&lt;/a&gt; - Python MongoDBIO TypeError when splitting.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9041&quot;&gt;BEAM-9041&lt;/a&gt; - SchemaCoder equals should not rely on from/toRowFunction equality.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9042&quot;&gt;BEAM-9042&lt;/a&gt; - AvroUtils.schemaCoder(schema) produces a not serializable SchemaCoder.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9065&quot;&gt;BEAM-9065&lt;/a&gt; - Spark runner accumulates metrics (incorrectly) between runs.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-6303&quot;&gt;BEAM-6303&lt;/a&gt; - Add .parquet extension to files in ParquetIO.&lt;/li&gt;
+  &lt;li&gt;Various bug fixes and performance improvements.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;known-issues&quot;&gt;Known Issues&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8882&quot;&gt;BEAM-8882&lt;/a&gt; - Python: &lt;code class=&quot;highlighter-rouge&quot;&gt;beam.Create&lt;/code&gt; no longer preserves order unless &lt;code class=&quot;highlighter-rouge&quot;&gt;reshuffle=False&lt;/code&gt; is passed in as an argument.&lt;/p&gt;
+
+    &lt;p&gt;You may encounter this issue when using DirectRunner.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9065&quot;&gt;BEAM-9065&lt;/a&gt; - Spark runner accumulates metrics (incorrectly) between runs&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9123&quot;&gt;BEAM-9123&lt;/a&gt; - HadoopResourceId returns wrong directory name&lt;/li&gt;
+  &lt;li&gt;See a full list of open &lt;a href=&quot;https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.18.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC&quot;&gt;issues that affect&lt;/a&gt; this version.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h2&gt;
+
+&lt;p&gt;According to git shortlog, the following people contributed to the 2.18.0 release. Thank you to all contributors!&lt;/p&gt;
+
+&lt;p&gt;Ahmet Altay, Aizhamal Nurmamat kyzy, Alan Myrvold, Alexey Romanenko, Alex Van Boxel, Andre Araujo, Andrew Crites, Andrew Pilloud, Aryan Naraghi, Boyuan Zhang, Brian Hulette, bumblebee-coming, Cerny Ondrej, Chad Dombrova, Chamikara Jayalath, Changming Ma, Chun Yang, cmachgodaddy, Colm O hEigeartaigh, Craig Chambers, Daniel Oliveira, Daniel Robert, David Cavazos, David Moravek, David Song, dependabot[bot], Derek, Dmytro Sadovnychyi, Elliotte Rusty Harold, Etienne Chauchot, Hai Lu, Henry Suryawirawan, Ismaël Mejía, Jack Whelpton, Jan Lukavský, Jean-Baptiste Onofré, Jeff Klukas, Jincheng Sun, Jing, Jing Chen, Joe Tsai, Jonathan Alvarez-Gutierrez, Kamil Wasilewski, KangZhiDong, Kasia Kucharczyk, Kenneth Knowles, kirillkozlov, Kirill Kozlov, Kyle Weaver, liumomo315, lostluck, Łukasz Gajowy, Luke Cwik, Mark Liu, Maximilian Michels, Michal Walenia, Mikhail Gryzykhin, Niel Markwick, Ning Kang, nlofeudo, pabloem, Pablo Estrada, Pankaj Gudlani, Piotr Szczepanik, Primevenn, Reuven Lax, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, RusOr10n, Ryan Skraba, Saikat Maitra, sambvfx, Sam Rohde, Samuel Husso, Stefano, Steve Koonce, Steve Niemitz, sunjincheng121, Thomas Weise, Tianyang Hu, Tim Robertson, Tomo Suzuki, tvalentyn, Udi Meiri, Valentyn Tymofieiev, Viola Lyu, Wenjia Liu, Yichi Zhang, Yifan Zou, yoshiki.obata, Yueyang Qiu, ziel, 康智冬&lt;/p&gt;
+</description>
+        <pubDate>Thu, 23 Jan 2020 00:00:01 -0800</pubDate>
+        <link>https://beam.apache.org/blog/2020/01/13/beam-2.18.0.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2020/01/13/beam-2.18.0.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
         <title>Apache Beam 2.17.0</title>
         <description>&lt;!--
 Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1226,99 +1351,6 @@ useful for people to learn more about Apache Beam, and eventually become Beam Ma
         <pubDate>Thu, 30 May 2019 01:00:01 -0700</pubDate>
         <link>https://beam.apache.org/blog/2019/05/30/beam-kata-release.html</link>
         <guid isPermaLink="true">https://beam.apache.org/blog/2019/05/30/beam-kata-release.html</guid>
-        
-        
-        <category>blog</category>
-        
-      </item>
-    
-      <item>
-        <title>Beam community update!</title>
-        <description>&lt;!--
-Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---&gt;
-
-&lt;h1 id=&quot;the-apache-beam-community-in-2019&quot;&gt;The Apache Beam community in 2019&lt;/h1&gt;
-
-&lt;p&gt;2019 has already been a busy time for the Apache Beam community. The ASF blog featured &lt;a href=&quot;https://blogs.apache.org/comdev/date/20190222&quot;&gt;our way of community building&lt;/a&gt; and we’ve had &lt;a href=&quot;https://www.meetup.com/San-Francisco-Apache-Beam/events/257482350&quot;&gt;more Beam meetups&lt;/a&gt;  around the world. Apache Beam also received the &lt;a href=&quot;https://www.infoworld.com/article/3336072/infoworlds-2019-technology-of-the-year-award-winners.html&quot;&gt;Technology of the Year Award&lt;/a&gt; from InfoWorld.&lt;/p&gt;
-
-&lt;p&gt;As these events happened, we were building up to the &lt;a href=&quot;https://opensource.googleblog.com/2019/03/celebrating-20-years-of-apache.html&quot;&gt;20th anniversary of the Apache Software Foundation&lt;/a&gt;.  The contributions of the Beam community were a part of Maximilian Michels blog post on the success of the ASF’s open source development model:&lt;/p&gt;
-
-&lt;blockquote class=&quot;twitter-tweet&quot; data-lang=&quot;nl&quot;&gt;&lt;p lang=&quot;en&quot; dir=&quot;ltr&quot;&gt;Success at Apache: What You Need to Know by Maximilian Michels &lt;a href=&quot;https://t.co/XjtVYgPAHX&quot;&gt;https://t.co/XjtVYgPAHX&lt;/a&gt; &lt;a href=&quot;https://twitter.com/hashtag/Apache?src=hash&amp;amp;ref_src=twsrc%5Etfw&quot;&gt;#Apache&lt;/a&gt; &lt;a href=&quot;https://twitter.com/hashtag/Open?src=hash&amp;amp;ref_src=twsrc%5Etfw&quot;&gt;#Open&lt;/a&gt; &lt;a href=&quot;https://twitter.com/hashtag/Innovation?src=hash&amp;amp;ref_src=twsrc%5Etfw&quot;&gt;#Innovation&lt;/a&gt; &lt;a href=&quot;https://twitter.com/hashtag/Community?src=hash&amp;amp;ref_src=twsrc%5Etfw&quot;&gt;#Community&lt;/a&gt; &lt;a href=&quot;https://twitter.com/hashtag/people?src=hash&amp;amp;ref_src=twsrc%5Etfw&quot;&gt;#people&lt;/a&gt; &lt;a href=&quot;https://twitter.com/hashtag/processes?src=hash&amp;amp;ref_src=twsrc%5Etfw&quot;&gt;#processes&lt;/a&gt; &lt;a href=&quot;https://twitter.com/hashtag/JustWorks?src=hash&amp;amp;ref_src=twsrc%5Etfw&quot;&gt;#JustWorks&lt;/a&gt; &lt;a href=&quot;https://twitter.com/stadtlegende?ref_src=twsrc%5Etfw&quot;&gt;@stadtlegende&lt;/a&gt; &lt;a href=&quot;https://t.co/xSibnyWAMe&quot;&gt;pic.twitter.com/xSibnyWAMe&lt;/a&gt;&lt;/p&gt;&amp;mdash; Apache - The ASF (@TheASF) &lt;a href=&quot;https://twitter.com/TheASF/status/1110364656143601664?ref_src=twsrc%5Etfw&quot;&gt;26 maart 2019&lt;/a&gt;&lt;/blockquote&gt;
-
-&lt;script async=&quot;&quot; src=&quot;https://platform.twitter.com/widgets.js&quot; charset=&quot;utf-8&quot;&gt;&lt;/script&gt;
-
-&lt;p&gt;In that spirit, let’s have an overview of the things that have happened, what the next few months look like, and how we can foster even more community growth.&lt;/p&gt;
-
-&lt;h2 id=&quot;meetups&quot;&gt;Meetups&lt;/h2&gt;
-&lt;p&gt;We’ve had a flurry of activity, with several meetups in the planning process and more popping up globally over time. As diversity of contributors is a core ASF value, this geographic spread is exciting for the community. Here’s a picture from the latest Apache Beam meetup organized at Lyft in San Francisco:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://secure.meetupstatic.com/photos/event/8/0/1/2/600_481292786.jpeg&quot; alt=&quot;Beam Meetup Bay Area&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;We have more &lt;a href=&quot;https://www.meetup.com/San-Francisco-Apache-Beam&quot;&gt;Bay Area meetups&lt;/a&gt; coming soon, and the community is looking into kicking off a meetup in Toronto!&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://www.meetup.com/London-Apache-Beam-Meetup&quot;&gt;London&lt;/a&gt; had its first meetup of 2019 at the start of April:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://secure.meetupstatic.com/photos/event/4/7/0/e/600_480318190.jpeg&quot; alt=&quot;Beam Meetup London&quot; height=&quot;360&quot; width=&quot;640&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;and &lt;a href=&quot;https://www.meetup.com/Apache-Beam-Stockholm/events/260634514&quot;&gt;Stockholm&lt;/a&gt; had its second meetup at the start of May:&lt;/p&gt;
-
-&lt;blockquote class=&quot;twitter-tweet&quot; data-lang=&quot;en-gb&quot;&gt;&lt;p lang=&quot;en&quot; dir=&quot;ltr&quot;&gt;Big audience for the second &lt;a href=&quot;https://twitter.com/ApacheBeam?ref_src=twsrc%5Etfw&quot;&gt;@ApacheBeam&lt;/a&gt; meetup in Stockholm! Gleb, &lt;a href=&quot;https://twitter.com/kanterov?ref_src=twsrc%5Etfw&quot;&gt;@kanterov&lt;/a&gt; from &lt;a href=&quot;https://twitter.com/SpotifyEng?ref_src=twsrc%5Etfw&quot;&gt;@SpotifyEng&lt;/a&gt; kicking off the first talk with Beam SQL.&lt;a href=&quot;https://twitter.com/hashtag/ApacheBeamStockholm?src=hash&amp;amp;ref_src=twsrc%5Etfw&quot;&gt;#ApacheBeamStockholm&lt;/a&gt; &lt;a href=&quot;https://t.co/fDqPPFh2gY&quot;&gt;pic.twitter.com/fDqPPFh2gY&lt;/a&gt;&lt;/p&gt;&amp;mdash; Matthias Baetens 🌆 (@matthiasbaetens) &lt;a href=&quot;https://twitter.com/matthiasbaetens/status/1125442916711915521?ref_src=twsrc%5Etfw&quot;&gt;6 May 2019&lt;/a&gt;&lt;/blockquote&gt;
-&lt;script async=&quot;&quot; src=&quot;https://platform.twitter.com/widgets.js&quot; charset=&quot;utf-8&quot;&gt;&lt;/script&gt;
-
-&lt;p&gt;Keep an eye out for a meetup in &lt;a href=&quot;https://www.meetup.com/Paris-Apache-Beam-Meetup&quot;&gt;Paris&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;If you are interested in starting your own meetup, feel free &lt;a href=&quot;https://beam.apache.org/community/contact-us&quot;&gt;to reach out&lt;/a&gt;! Good places to start include our Slack channel, the dev and user mailing lists, or the Apache Beam Twitter.&lt;/p&gt;
-
-&lt;p&gt;Even if you can’t travel to these meetups, you can stay informed on the happenings of the community.  The talks and sessions from previous conferences and meetups are archived on the &lt;a href=&quot;https://www.youtube.com/c/ApacheBeamYT&quot;&gt;Apache Beam YouTube channel&lt;/a&gt;. If you want your session added to the channel, don’t hesitate to get in touch! And in case you want to attend the next Beam event in style, you can also order your swag on the &lt;a href=&quot;https://store-beam.myshopify.com&quot;&gt;Beam swag store&lt;/a&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;summits&quot;&gt;Summits&lt;/h2&gt;
-&lt;p&gt;The first summit of the year will be held in Berlin:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://img.evbuc.com/https%3A%2F%2Fcdn.evbuc.com%2Fimages%2F58635346%2F70962106775%2F1%2Foriginal.20190317-212619?w=800&amp;amp;auto=compress&amp;amp;rect=0%2C115%2C2666%2C1333&amp;amp;s=2680f5036dcad9177b027cce026c0224&quot; alt=&quot;Beam Summit Europe Banner&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;You can find more info on the &lt;a href=&quot;https://beamsummit.org&quot;&gt;website&lt;/a&gt; and read about the inaugural edition of the Beam Summit Europe &lt;a href=&quot;https://beam.apache.org/blog/2018/10/31/beam-summit-aftermath.html&quot;&gt;here&lt;/a&gt;. At these summits, you have the opportunity to meet with other Apache Beam creators and users, get expert advice, learn from the speaker sessions, and participate in workshops.&lt;/p&gt;
-
-&lt;p&gt;We strongly encourage you to get involved again this year! You can participate in the following ways for the upcoming summit in Europe:&lt;/p&gt;
-
-&lt;p&gt;🎫 If you want to secure your ticket to attend the Beam Summit Europe 2019, check our &lt;a href=&quot;http://beam-summit-europe.eventbrite.com&quot;&gt;event page&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;💸 If you want to make the Summit even &lt;strong&gt;more&lt;/strong&gt; awesome, check out our &lt;a href=&quot;https://drive.google.com/file/d/1R3vvOHihQbpuzF2aaSV8WYg9YHRmJwxS/view&quot;&gt;sponsor booklet&lt;/a&gt;!&lt;/p&gt;
-
-&lt;p&gt;We also launched the CfP for our Beam Summit in North America, which will be held in collaboration with &lt;a href=&quot;https://www.apachecon.com&quot;&gt;ApacheCon&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;🎤 If you want to give a talk, take a look at our &lt;a href=&quot;https://www.apachecon.com/acna19/cfp.html&quot;&gt;CfP&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;Stay tuned for more information on the summit in North America and Asia.&lt;/p&gt;
-
-&lt;h2 id=&quot;why-community-engagement-matters&quot;&gt;Why community engagement matters&lt;/h2&gt;
-&lt;p&gt;Why we need a strong Apache Beam community:&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;We’re receiving lots of code contributions and need committers to review those and help onboard new contributors to the project.&lt;/li&gt;
-  &lt;li&gt;We want people to feel a sense of ownership to the project. By fostering this level of engagement, the work becomes even more exciting.&lt;/li&gt;
-  &lt;li&gt;A healthy community has a further reach and leads to more growth. More hours can be contributed to the project as we can spread the work and ownership.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Why are we organizing these summits:&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;We’d like to give folks a place to meet, congregate, and share ideas.&lt;/li&gt;
-  &lt;li&gt;We know that offline interactions often changes the nature of the online ones in a positive manner.&lt;/li&gt;
-  &lt;li&gt;Building an active and diverse community is part of the Apache Way. These summits provide an opportunity for us to engage people from different locations, companies, and backgrounds.&lt;/li&gt;
-&lt;/ul&gt;
-</description>
-        <pubDate>Sat, 11 May 2019 01:00:01 -0700</pubDate>
-        <link>https://beam.apache.org/blog/2019/05/11/beam-summit-europe-2019.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/blog/2019/05/11/beam-summit-europe-2019.html</guid>
         
         
         <category>blog</category>
