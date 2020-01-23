@@ -218,7 +218,7 @@ task buildAndPushDockerContainer() {
   def defaultDockerImageName = containerImageName(
           name: "java_sdk",
           root: "apachebeam",
-          tag: project.version)
+          tag: project.sdk_version)
   doLast {
     exec {
       commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerImageName}"
