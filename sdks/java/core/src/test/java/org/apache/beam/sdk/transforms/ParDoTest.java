@@ -3814,7 +3814,8 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
-      UsesTestStreamWithProcessingTime.class
+      UsesTestStreamWithProcessingTime.class,
+      UsesTestStreamWithOutputTimestamp.class
     })
     public void testOutputTimestampWithProcessingTime() {
       final String timerId = "foo";
