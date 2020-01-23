@@ -299,7 +299,7 @@ class PipelineOptions(HasDisplayData):
           not isinstance(parser.get_default(k), ValueProvider)):
         del result[k]
 
-    if  overrides:
+    if overrides:
       _LOGGER.warning("Discarding invalid overrides: %s", overrides)
 
     return result
