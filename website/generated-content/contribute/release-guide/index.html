@@ -536,7 +536,7 @@ sudo rngd -r /dev/urandom
   <li>
     <p>Determine your Apache GPG Key and Key ID, as follows:</p>
 
-    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gpg --list-keys
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gpg --list-sigs --keyid-format LONG
 </code></pre></div>    </div>
 
     <p>This will list your GPG keys. One of these should reflect your Apache account, for example:</p>
@@ -832,6 +832,8 @@ so builds will be broken until a new snapshot is available.</p>
 <p>After the release branch is cut you need to make sure it builds and has no significant issues that would block the creation of the release candidate.
 There are 2 ways to perform this verification, either running automation script(recommended), or running all commands manually.</p>
 
+<p>! Dataflow tests will fail if Dataflow worker container is not created and published by this time. (Should be done by Google)</p>
+
 <h4 id="run-automation-script-verify_release_buildsh">Run automation script (verify_release_build.sh)</h4>
 <ul>
   <li>
@@ -840,7 +842,8 @@ There are 2 ways to perform this verification, either running automation script(
   <li>Usage
     <ol>
       <li>Create a personal access token from your Github account. See instruction <a href="https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line">here</a>.
-It’ll be used by the script for accessing Github API.</li>
+It’ll be used by the script for accessing Github API.
+You don’t have to add any permissions to this token.</li>
       <li>Update required configurations listed in <code class="highlighter-rouge">RELEASE_BUILD_CONFIGS</code> in <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config">script.config</a></li>
       <li>Then run
         <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>cd beam/release/src/main/scripts &amp;&amp; ./verify_release_build.sh
@@ -861,6 +864,8 @@ for full list of phrases.</li>
 
 <p>Jenkins job <code class="highlighter-rouge">beam_Release_Gradle_Build</code> basically run <code class="highlighter-rouge">./gradlew build -PisRelease</code>.
 This only verifies that everything builds with unit tests passing.</p>
+
+<p>You can refer to <a href="https://gist.github.com/Ardagan/13e6031e8d1c9ebbd3029bf365c1a517">this script</a> to mass-comment on PR.</p>
 
 <h4 id="verify-the-build-succeeds">Verify the build succeeds</h4>
 
@@ -1079,12 +1084,7 @@ Make sure they have blocker JIRAs attached and are OK to get into the release by
     <p>The script will:</p>
     <ol>
       <li>Run gradle release to create rc tag and push source release into github repo.</li>
-      <li>
-        <p>Run gradle publish to push java artifacts into Maven staging repo.</p>
-
-        <p><strong>NOTE</strong>: In order to public staging artifacts, you need to goto the <a href="https://repository.apache.org/#stagingRepositories">staging repo</a> to close the staging repository on Apache Nexus. 
-When prompted for a description, enter “Apache Beam, version X, release candidate Y”.</p>
-      </li>
+      <li>Run gradle publish to push java artifacts into Maven staging repo.</li>
       <li>Stage source release into dist.apache.org dev <a href="https://dist.apache.org/repos/dist/dev/beam/">repo</a>.</li>
       <li>Stage,sign and hash python binaries into dist.apache.ord dev repo python dir</li>
       <li>Stage SDK docker images to <a href="https://hub.docker.com/u/apachebeam">https://hub.docker.com/u/apachebeam</a>.</li>
@@ -1105,6 +1105,12 @@ When prompted for a description, enter “Apache Beam, version X, release candid
   <li>Update last release download links in <code class="highlighter-rouge">website/src/get-started/downloads.md</code>.</li>
   <li>Update <code class="highlighter-rouge">website/src/.htaccess</code> to redirect to the new version.</li>
   <li>Build and stage python wheels.</li>
+  <li>Publish staging artifacts
+    <ol>
+      <li>Go to the staging repo to close the staging repository on <a href="https://repository.apache.org/#stagingRepositories">Apache Nexus</a>.</li>
+      <li>When prompted for a description, enter “Apache Beam, version X, release candidate Y”.</li>
+    </ol>
+  </li>
 </ol>
 
 <h3 id="alternative-run-all-steps-manually-1">(Alternative) Run all steps manually</h3>
@@ -1492,7 +1498,7 @@ Release Manager
 
 <p>If there are any issues found in the release candidate, reply on the vote thread to cancel the vote. There’s no need to wait 72 hours. Proceed to the <code class="highlighter-rouge">Fix Issues</code> step below and address the problem. However, some issues don’t require cancellation. For example, if an issue is found in the website pull request, just correct it on the spot and the vote can continue as-is.</p>
 
-<p>If there are no issues, reply on the vote thread to close the voting. Then, tally the votes in a separate email. Here’s an email template; please adjust as you see fit.</p>
+<p>If there are no issues, reply on the vote thread to close the voting. Then, tally the votes in a separate email thread. Here’s an email template; please adjust as you see fit.</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>From: Release Manager
 To: dev@beam.apache.org
@@ -1820,7 +1826,7 @@ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.in
 
 <h3 id="deploy-artifacts-to-maven-central-repository">Deploy artifacts to Maven Central Repository</h3>
 
-<p>Use the Apache Nexus repository to release the staged binary artifacts to the Maven Central repository. In the <code class="highlighter-rouge">Staging Repositories</code> section, find the relevant release candidate <code class="highlighter-rouge">orgapachebeam-XXX</code> entry and click <code class="highlighter-rouge">Release</code>. Drop all other release candidates that are not being released.
+<p>Use the <a href="https://repository.apache.org/#stagingRepositories">Apache Nexus repository manager</a> to release the staged binary artifacts to the Maven Central repository. In the <code class="highlighter-rouge">Staging Repositories</code> section, find the relevant release candidate <code class="highlighter-rouge">orgapachebeam-XXX</code> entry and click <code class="highlighter-rouge">Release</code>. Drop all other release candidates that are not being released.
 <strong>NOTE</strong>: If you are using <a href="https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/">GitHub two-factor authentication</a> and haven’t configure HTTPS access,
 please follow <a href="https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/">the guide</a> to configure command line access.</p>
 
@@ -1832,6 +1838,8 @@ please follow <a href="https://help.github.com/articles/creating-a-personal-acce
 delete the <code class="highlighter-rouge">.asc</code>, <code class="highlighter-rouge">.sha512</code>;</li>
   <li>Upload the new release <code class="highlighter-rouge">twine upload *</code> from the directory with the <code class="highlighter-rouge">.zip</code> and <code class="highlighter-rouge">.whl</code> files;</li>
 </ol>
+
+<p><a href="https://packaging.python.org/tutorials/packaging-projects/#uploading-the-distribution-archives">Installing twine</a>: <code class="highlighter-rouge">pip install twine</code>. You can install twine under <a href="https://virtualenv.pypa.io/en/latest/">virtualenv</a> if preferred.</p>
 
 <h3 id="deploy-source-release-to-distapacheorg">Deploy source release to dist.apache.org</h3>
 
@@ -1870,7 +1878,7 @@ git push github "$VERSION_TAG"
 
 <h3 id="merge-website-pull-request">Merge website pull request</h3>
 
-<p>Merge the website pull request to <a href="/get-started/downloads/">list the release</a>, publish the <a href="https://beam.apache.org/releases/pydoc/">Python API reference manual</a>, and the <a href="https://beam.apache.org/releases/javadoc/">Java API reference manual</a> created earlier.</p>
+<p>Merge the website pull request to <a href="/get-started/downloads/">list the release</a>, publish the <a href="https://beam.apache.org/releases/pydoc/">Python API reference manual</a>, the <a href="https://beam.apache.org/releases/javadoc/">Java API reference manual</a> and Blogpost created earlier.</p>
 
 <h3 id="mark-the-version-as-released-in-jira">Mark the version as released in JIRA</h3>
 
