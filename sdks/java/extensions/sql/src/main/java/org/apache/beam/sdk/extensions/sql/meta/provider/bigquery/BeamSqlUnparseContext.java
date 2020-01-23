@@ -56,7 +56,7 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
               })
           // \b, \n, \t, \f, \r
           .with(new LookupTranslator(EntityArrays.JAVA_CTRL_CHARS_ESCAPE()))
-          // TODO: Add support for \Uhhhhhhhh
+          // TODO(BEAM-9180): Add support for \Uhhhhhhhh
           // Unicode (only 4 hex digits)
           .with(JavaUnicodeEscaper.outsideOf(32, 0x7f));
 
@@ -74,7 +74,7 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
         BitString bitString = BitString.createFromHexString(byteString.toString(16));
         return new SqlByteStringLiteral(bitString, POS);
       } else if (SqlTypeFamily.CHARACTER.equals(family)) {
-        String escaped = escapeForZetaSql(literal.getValueAs(String.class));
+        String escaped = ESCAPE_FOR_ZETA_SQL.translate(literal.getValueAs(String.class));
         return SqlLiteral.createCharString(escaped, POS);
       } else if (SqlTypeName.SYMBOL.equals(literal.getTypeName())) {
         Enum symbol = literal.getValueAs(Enum.class);
@@ -89,10 +89,6 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
     }
 
     return super.toSql(program, rex);
-  }
-
-  private static String escapeForZetaSql(String input) {
-    return ESCAPE_FOR_ZETA_SQL.translate(input);
   }
 
   private static class SqlByteStringLiteral extends SqlLiteral {
