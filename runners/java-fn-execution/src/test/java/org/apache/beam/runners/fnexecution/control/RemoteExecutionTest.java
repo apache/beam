@@ -111,7 +111,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Collections2;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -1016,7 +1016,9 @@ public class RemoteExecutionTest implements Serializable {
                       @TimerId("event") Timer eventTimeTimer,
                       @TimerId("processing") Timer processingTimeTimer) {
                     context.output(KV.of("main" + context.element().getKey(), ""));
-                    eventTimeTimer.set(context.timestamp().plus(1L));
+                    eventTimeTimer
+                        .withOutputTimestamp(context.timestamp())
+                        .set(context.timestamp().plus(1L));
                     processingTimeTimer.offset(Duration.millis(2L));
                     processingTimeTimer.setRelative();
                   }
@@ -1027,7 +1029,9 @@ public class RemoteExecutionTest implements Serializable {
                       @TimerId("event") Timer eventTimeTimer,
                       @TimerId("processing") Timer processingTimeTimer) {
                     context.output(KV.of("event", ""));
-                    eventTimeTimer.set(context.timestamp().plus(11L));
+                    eventTimeTimer
+                        .withOutputTimestamp(context.timestamp())
+                        .set(context.timestamp().plus(11L));
                     processingTimeTimer.offset(Duration.millis(12L));
                     processingTimeTimer.setRelative();
                   }
@@ -1038,7 +1042,9 @@ public class RemoteExecutionTest implements Serializable {
                       @TimerId("event") Timer eventTimeTimer,
                       @TimerId("processing") Timer processingTimeTimer) {
                     context.output(KV.of("processing", ""));
-                    eventTimeTimer.set(context.timestamp().plus(21L));
+                    eventTimeTimer
+                        .withOutputTimestamp(context.timestamp())
+                        .set(context.timestamp().plus(21L));
                     processingTimeTimer.offset(Duration.millis(22L));
                     processingTimeTimer.setRelative();
                   }

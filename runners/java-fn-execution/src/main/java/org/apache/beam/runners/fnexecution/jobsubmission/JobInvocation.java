@@ -36,7 +36,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.util.Timestamps;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.Timestamps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.FutureCallback;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListenableFuture;
@@ -57,7 +57,6 @@ public class JobInvocation {
   private final List<JobMessage> messageHistory;
   private final List<Consumer<JobStateEvent>> stateObservers;
   private final List<Consumer<JobMessage>> messageObservers;
-
   private JobApi.MetricResults metrics;
   private PortablePipelineResult resultHandle;
   @Nullable private ListenableFuture<PortablePipelineResult> invocationFuture;

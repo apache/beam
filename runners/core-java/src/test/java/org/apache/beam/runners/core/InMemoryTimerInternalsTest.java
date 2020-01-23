@@ -71,15 +71,15 @@ public class InMemoryTimerInternalsTest {
     Instant laterTimestamp = new Instant(42);
 
     underTest.advanceInputWatermark(new Instant(0));
-    underTest.setTimer(NS1, ID1, ID1, earlyTimestamp, earlyTimestamp, TimeDomain.EVENT_TIME);
-    underTest.setTimer(NS1, ID1, ID1, laterTimestamp, laterTimestamp, TimeDomain.EVENT_TIME);
+    underTest.setTimer(NS1, ID1, "", earlyTimestamp, earlyTimestamp, TimeDomain.EVENT_TIME);
+    underTest.setTimer(NS1, ID1, "", laterTimestamp, laterTimestamp, TimeDomain.EVENT_TIME);
     underTest.advanceInputWatermark(earlyTimestamp.plus(1L));
     assertThat(underTest.removeNextEventTimer(), nullValue());
 
     underTest.advanceInputWatermark(laterTimestamp.plus(1L));
     assertThat(
         underTest.removeNextEventTimer(),
-        equalTo(TimerData.of(ID1, NS1, laterTimestamp, TimeDomain.EVENT_TIME)));
+        equalTo(TimerData.of(ID1, "", NS1, laterTimestamp, TimeDomain.EVENT_TIME)));
   }
 
   @Test
@@ -87,8 +87,8 @@ public class InMemoryTimerInternalsTest {
     InMemoryTimerInternals underTest = new InMemoryTimerInternals();
     Instant timestamp = new Instant(42);
     underTest.setTimer(NS1, ID1, ID1, timestamp, timestamp, TimeDomain.EVENT_TIME);
-    underTest.deleteTimer(NS1, ID1);
-    underTest.deleteTimer(NS1, ID1);
+    underTest.deleteTimer(NS1, ID1, ID1);
+    underTest.deleteTimer(NS1, ID1, ID1);
   }
 
   @Test
@@ -98,7 +98,7 @@ public class InMemoryTimerInternalsTest {
 
     underTest.advanceInputWatermark(new Instant(0));
     underTest.setTimer(NS1, ID1, ID1, timestamp, timestamp, TimeDomain.EVENT_TIME);
-    underTest.deleteTimer(NS1, ID1);
+    underTest.deleteTimer(NS1, ID1, ID1);
     underTest.advanceInputWatermark(new Instant(43));
 
     assertThat(underTest.removeNextEventTimer(), nullValue());

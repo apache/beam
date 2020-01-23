@@ -297,7 +297,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.19.0'
+    project.version = '2.20.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -364,6 +364,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def aws_java_sdk2_version = "2.5.71"
     def cassandra_driver_version = "3.8.0"
     def classgraph_version = "4.8.56"
+    def gax_version = "1.52.0"
     def generated_grpc_beta_version = "0.44.0"
     def generated_grpc_ga_version = "1.83.0"
     def generated_grpc_dc_beta_version = "0.27.0-alpha"
@@ -372,6 +373,8 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_cloud_bigdataoss_version = "1.9.16"
     def google_cloud_core_version = "1.61.0"
     def google_cloud_spanner_version = "1.6.0"
+    def google_http_clients_version = "1.34.0"
+    def grpc_version = "1.25.0"
     def google_cloud_firestore_version = "1.31.0"
     def grpc_version = "1.17.1"
     def guava_version = "25.1-jre"
@@ -435,7 +438,8 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.0.15",
-        gax_grpc                                    : "com.google.api:gax-grpc:1.38.0",
+        gax                                         : "com.google.api:gax:$gax_version",
+        gax_grpc                                    : "com.google.api:gax-grpc:$gax_version",
         google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version",
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
@@ -457,15 +461,16 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:1.6.3",
         google_cloud_firestore                      : "com.google.cloud:google-cloud-firestore:$google_cloud_firestore_version",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version",
-        google_http_client                          : "com.google.http-client:google-http-client:$google_clients_version",
-        google_http_client_jackson                  : "com.google.http-client:google-http-client-jackson:$google_clients_version",
-        google_http_client_jackson2                 : "com.google.http-client:google-http-client-jackson2:$google_clients_version",
-        google_http_client_protobuf                 : "com.google.http-client:google-http-client-protobuf:$google_clients_version",
+        google_http_client                          : "com.google.http-client:google-http-client:$google_http_clients_version",
+        google_http_client_jackson                  : "com.google.http-client:google-http-client-jackson:1.29.2",
+        google_http_client_jackson2                 : "com.google.http-client:google-http-client-jackson2:$google_http_clients_version",
+        google_http_client_protobuf                 : "com.google.http-client:google-http-client-protobuf:$google_http_clients_version",
         google_oauth_client                         : "com.google.oauth-client:google-oauth-client:$google_clients_version",
         google_oauth_client_java6                   : "com.google.oauth-client:google-oauth-client-java6:$google_clients_version",
         grpc_all                                    : "io.grpc:grpc-all:$grpc_version",
         grpc_auth                                   : "io.grpc:grpc-auth:$grpc_version",
         grpc_core                                   : "io.grpc:grpc-core:$grpc_version",
+        grpc_context                                : "io.grpc:grpc-context:$grpc_version",
         grpc_google_cloud_datacatalog_v1beta1       : "com.google.api.grpc:grpc-google-cloud-datacatalog-v1beta1:$generated_grpc_dc_beta_version",
         grpc_google_cloud_pubsub_v1                 : "com.google.api.grpc:grpc-google-cloud-pubsub-v1:$generated_grpc_ga_version",
         grpc_protobuf                               : "io.grpc:grpc-protobuf:$grpc_version",
@@ -526,7 +531,7 @@ class BeamModulePlugin implements Plugin<Project> {
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:3.1.4",
         vendored_bytebuddy_1_9_3                    : "org.apache.beam:beam-vendor-bytebuddy-1_9_3:0.1",
-        vendored_grpc_1_21_0                        : "org.apache.beam:beam-vendor-grpc-1_21_0:0.1",
+        vendored_grpc_1_26_0                        : "org.apache.beam:beam-vendor-grpc-1_26_0:0.1",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
         vendored_calcite_1_20_0                     : "org.apache.beam:beam-vendor-calcite-1_20_0:0.1",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
@@ -1434,19 +1439,21 @@ class BeamModulePlugin implements Plugin<Project> {
 
     /** ***********************************************************************************************/
 
+    // applyGrpcNature should only be applied to projects who wish to use
+    // unvendored gRPC / protobuf dependencies.
     project.ext.applyGrpcNature = {
       project.apply plugin: "com.google.protobuf"
       project.protobuf {
         protoc {
           // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:3.6.0" }
+          artifact = "com.google.protobuf:protoc:$protobuf_version" }
 
         // Configure the codegen plugins
         plugins {
           // An artifact spec for a protoc plugin, with "grpc" as
           // the identifier, which can be referred to in the "plugins"
           // container of the "generateProtoTasks" closure.
-          grpc { artifact = "io.grpc:protoc-gen-grpc-java:1.13.1" }
+          grpc { artifact = "io.grpc:protoc-gen-grpc-java:$grpc_version" }
         }
 
         generateProtoTasks {
@@ -1483,6 +1490,8 @@ class BeamModulePlugin implements Plugin<Project> {
 
     /** ***********************************************************************************************/
 
+    // applyPortabilityNature should only be applied to projects that want to use
+    // vendored gRPC / protobuf dependencies.
     project.ext.applyPortabilityNature = {
       PortabilityNatureConfiguration configuration = it ? it as PortabilityNatureConfiguration : new PortabilityNatureConfiguration()
 
@@ -1497,10 +1506,10 @@ class BeamModulePlugin implements Plugin<Project> {
               archivesBaseName: configuration.archivesBaseName,
               automaticModuleName: configuration.automaticModuleName,
               shadowJarValidationExcludes: it.shadowJarValidationExcludes,
-              shadowClosure: GrpcVendoring_1_21_0.shadowClosure() << {
+              shadowClosure: GrpcVendoring_1_26_0.shadowClosure() << {
                 // We perform all the code relocations but don't include
                 // any of the actual dependencies since they will be supplied
-                // by org.apache.beam:beam-vendor-grpc-v1p21p0:0.1
+                // by org.apache.beam:beam-vendor-grpc-v1p26p0:0.1
                 dependencies {
                   include(dependency { return false })
                 }
@@ -1517,14 +1526,14 @@ class BeamModulePlugin implements Plugin<Project> {
       project.protobuf {
         protoc {
           // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:3.7.1" }
+          artifact = "com.google.protobuf:protoc:${GrpcVendoring_1_26_0.protobuf_version}" }
 
         // Configure the codegen plugins
         plugins {
           // An artifact spec for a protoc plugin, with "grpc" as
           // the identifier, which can be referred to in the "plugins"
           // container of the "generateProtoTasks" closure.
-          grpc { artifact = "io.grpc:protoc-gen-grpc-java:1.21.0" }
+          grpc { artifact = "io.grpc:protoc-gen-grpc-java:${GrpcVendoring_1_26_0.grpc_version}" }
         }
 
         generateProtoTasks {
@@ -1538,7 +1547,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      project.dependencies GrpcVendoring_1_21_0.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_21_0 }
+      project.dependencies GrpcVendoring_1_26_0.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_26_0 }
     }
 
     /** ***********************************************************************************************/

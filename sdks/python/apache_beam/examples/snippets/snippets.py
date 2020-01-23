@@ -111,31 +111,29 @@ def construct_pipeline(renames):
   import apache_beam as beam
   from apache_beam.options.pipeline_options import PipelineOptions
 
-  p = beam.Pipeline(options=PipelineOptions())
-  # [END pipelines_constructing_creating]
+  with beam.Pipeline(options=PipelineOptions()) as p:
+    pass  # build your pipeline here
+    # [END pipelines_constructing_creating]
 
-  p = TestPipeline() # Use TestPipeline for testing.
+    with TestPipeline() as p:  # Use TestPipeline for testing.
+      # pylint: disable=line-too-long
 
-  # [START pipelines_constructing_reading]
-  lines = p | 'ReadMyFile' >> beam.io.ReadFromText('gs://some/inputData.txt')
-  # [END pipelines_constructing_reading]
+      # [START pipelines_constructing_reading]
+      lines = p | 'ReadMyFile' >> beam.io.ReadFromText('gs://some/inputData.txt')
+      # [END pipelines_constructing_reading]
 
-  # [START pipelines_constructing_applying]
-  words = lines | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-  reversed_words = words | ReverseWords()
-  # [END pipelines_constructing_applying]
+      # [START pipelines_constructing_applying]
+      words = lines | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+      reversed_words = words | ReverseWords()
+      # [END pipelines_constructing_applying]
 
-  # [START pipelines_constructing_writing]
-  filtered_words = reversed_words | 'FilterWords' >> beam.Filter(filter_words)
-  filtered_words | 'WriteMyFile' >> beam.io.WriteToText(
-      'gs://some/outputData.txt')
-  # [END pipelines_constructing_writing]
+      # [START pipelines_constructing_writing]
+      filtered_words = reversed_words | 'FilterWords' >> beam.Filter(filter_words)
+      filtered_words | 'WriteMyFile' >> beam.io.WriteToText(
+          'gs://some/outputData.txt')
+      # [END pipelines_constructing_writing]
 
-  p.visit(SnippetUtils.RenameFiles(renames))
-
-  # [START pipelines_constructing_running]
-  p.run()
-  # [END pipelines_constructing_running]
+      p.visit(SnippetUtils.RenameFiles(renames))
 
 
 def model_pipelines(argv):
@@ -249,12 +247,10 @@ def pipeline_options_remote(argv):
   my_input = my_options.input
   my_output = my_options.output
 
-  p = TestPipeline()  # Use TestPipeline for testing.
+  with TestPipeline() as p:  # Use TestPipeline for testing.
 
-  lines = p | beam.io.ReadFromText(my_input)
-  lines | beam.io.WriteToText(my_output)
-
-  p.run()
+    lines = p | beam.io.ReadFromText(my_input)
+    lines | beam.io.WriteToText(my_output)
 
 
 def pipeline_options_local(argv):
@@ -286,13 +282,12 @@ def pipeline_options_local(argv):
   # [START pipeline_options_local]
   # Create and set your Pipeline Options.
   options = PipelineOptions()
-  p = Pipeline(options=options)
-  # [END pipeline_options_local]
+  with Pipeline(options=options) as p:
+    # [END pipeline_options_local]
 
-  p = TestPipeline()  # Use TestPipeline for testing.
-  lines = p | beam.io.ReadFromText(my_input)
-  lines | beam.io.WriteToText(my_output)
-  p.run()
+    with TestPipeline() as p:  # Use TestPipeline for testing.
+      lines = p | beam.io.ReadFromText(my_input)
+      lines | beam.io.WriteToText(my_output)
 
 
 def pipeline_options_command_line(argv):
@@ -541,30 +536,28 @@ def examples_wordcount_templated(renames):
           required=True,
           help='Output file to write results to.')
   pipeline_options = PipelineOptions(['--output', 'some/output_path'])
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  wordcount_options = pipeline_options.view_as(WordcountTemplatedOptions)
-  lines = p | 'Read' >> ReadFromText(wordcount_options.input)
-  # [END example_wordcount_templated]
+    wordcount_options = pipeline_options.view_as(WordcountTemplatedOptions)
+    lines = p | 'Read' >> ReadFromText(wordcount_options.input)
+    # [END example_wordcount_templated]
 
-  def format_result(word_count):
-    (word, count) = word_count
-    return '%s: %s' % (word, count)
+    def format_result(word_count):
+      (word, count) = word_count
+      return '%s: %s' % (word, count)
 
-  (
-      lines
-      | 'ExtractWords' >> beam.FlatMap(
-          lambda x: re.findall(r'[A-Za-z\']+', x))
-      | 'PairWithOnes' >> beam.Map(lambda x: (x, 1))
-      | 'Group' >> beam.GroupByKey()
-      | 'Sum' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1])))
-      | 'Format' >> beam.Map(format_result)
-      | 'Write' >> WriteToText(wordcount_options.output)
-  )
+    (
+        lines
+        | 'ExtractWords' >> beam.FlatMap(
+            lambda x: re.findall(r'[A-Za-z\']+', x))
+        | 'PairWithOnes' >> beam.Map(lambda x: (x, 1))
+        | 'Group' >> beam.GroupByKey()
+        | 'Sum' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1])))
+        | 'Format' >> beam.Map(format_result)
+        | 'Write' >> WriteToText(wordcount_options.output)
+    )
 
-  p.visit(SnippetUtils.RenameFiles(renames))
-  result = p.run()
-  result.wait_until_finish()
+    p.visit(SnippetUtils.RenameFiles(renames))
 
 
 def examples_wordcount_debugging(renames):
@@ -713,25 +706,23 @@ def examples_ptransforms_templated(renames):
       yield self.templated_int.get() + an_int
 
   pipeline_options = PipelineOptions()
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  user_options = pipeline_options.view_as(TemplatedUserOptions)
-  my_sum_fn = MySumFn(user_options.templated_int)
-  sum = (p
-         | 'ReadCollection' >> beam.io.ReadFromText(
-             'gs://some/integer_collection')
-         | 'StringToInt' >> beam.Map(lambda w: int(w))
-         | 'AddGivenInt' >> beam.ParDo(my_sum_fn)
-         | 'WriteResultingCollection' >> WriteToText('some/output_path'))
-  # [END examples_ptransforms_templated]
+    user_options = pipeline_options.view_as(TemplatedUserOptions)
+    my_sum_fn = MySumFn(user_options.templated_int)
+    sum = (p
+           | 'ReadCollection' >> beam.io.ReadFromText(
+               'gs://some/integer_collection')
+           | 'StringToInt' >> beam.Map(lambda w: int(w))
+           | 'AddGivenInt' >> beam.ParDo(my_sum_fn)
+           | 'WriteResultingCollection' >> WriteToText('some/output_path'))
+    # [END examples_ptransforms_templated]
 
-  # Templates are not supported by DirectRunner (only by DataflowRunner)
-  # so a value must be provided at graph-construction time
-  my_sum_fn.templated_int = StaticValueProvider(int, 10)
+    # Templates are not supported by DirectRunner (only by DataflowRunner)
+    # so a value must be provided at graph-construction time
+    my_sum_fn.templated_int = StaticValueProvider(int, 10)
 
-  p.visit(SnippetUtils.RenameFiles(renames))
-  result = p.run()
-  result.wait_until_finish()
+    p.visit(SnippetUtils.RenameFiles(renames))
 
 
 # Defining a new source.
@@ -835,16 +826,15 @@ def model_custom_source(count):
             ['line ' + str(number) for number in range(0, count)]))
 
   # [START model_custom_source_use_ptransform]
-  p = beam.Pipeline(options=PipelineOptions())
-  numbers = p | 'ProduceNumbers' >> ReadFromCountingSource(count)
-  # [END model_custom_source_use_ptransform]
+  with beam.Pipeline(options=PipelineOptions()) as p:
+    numbers = p | 'ProduceNumbers' >> ReadFromCountingSource(count)
+    # [END model_custom_source_use_ptransform]
 
-  lines = numbers | beam.core.Map(lambda number: 'line %d' % number)
-  assert_that(
-      lines, equal_to(
-          ['line ' + str(number) for number in range(0, count)]))
+    lines = numbers | beam.core.Map(lambda number: 'line %d' % number)
+    assert_that(
+        lines, equal_to(
+            ['line ' + str(number) for number in range(0, count)]))
 
-  p.run().wait_until_finish()
 
 
 # Defining the new sink.
@@ -1402,20 +1392,19 @@ def accessing_valueprovider_info_after_run():
 
   pipeline_options = PipelineOptions()
   # Create pipeline.
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  my_options = pipeline_options.view_as(MyOptions)
-  # Add a branch for logging the ValueProvider value.
-  _ = (p
-       | beam.Create([None])
-       | 'LogValueProvs' >> beam.ParDo(
-           LogValueProvidersFn(my_options.string_value)))
+    my_options = pipeline_options.view_as(MyOptions)
+    # Add a branch for logging the ValueProvider value.
+    _ = (p
+         | beam.Create([None])
+         | 'LogValueProvs' >> beam.ParDo(
+             LogValueProvidersFn(my_options.string_value)))
 
-  # The main pipeline.
-  result_pc = (p
-               | "main_pc" >> beam.Create([1, 2, 3])
-               | beam.combiners.Sum.Globally())
+    # The main pipeline.
+    result_pc = (p
+                 | "main_pc" >> beam.Create([1, 2, 3])
+                 | beam.combiners.Sum.Globally())
 
-  p.run().wait_until_finish()
 
   # [END AccessingValueProviderInfoAfterRunSnip1]

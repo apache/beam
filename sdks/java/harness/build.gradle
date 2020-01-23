@@ -62,7 +62,7 @@ dependencies {
   shadowTest library.java.powermock_mockito
   compile library.java.joda_time
   compile library.java.slf4j_api
-  compile library.java.vendored_grpc_1_21_0
+  compile library.java.vendored_grpc_1_26_0
   provided library.java.error_prone_annotations
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library

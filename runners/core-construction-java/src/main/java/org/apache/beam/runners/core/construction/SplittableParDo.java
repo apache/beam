@@ -32,6 +32,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Parameter;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.TimerFamilySpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoLike;
@@ -394,6 +395,13 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
                 @Override
                 public Map<String, TimerSpec> translateTimerSpecs(SdkComponents components) {
+                  // SDFs don't have timers.
+                  return ImmutableMap.of();
+                }
+
+                @Override
+                public Map<String, TimerFamilySpec> translateTimerFamilySpecs(
+                    SdkComponents newComponents) {
                   // SDFs don't have timers.
                   return ImmutableMap.of();
                 }

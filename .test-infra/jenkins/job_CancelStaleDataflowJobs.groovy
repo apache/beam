@@ -37,7 +37,6 @@ job("beam_CancelStaleDataflowJobs") {
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-test-tools:check')
       tasks(':beam-test-tools:cancelStaleDataflowJobs')
       commonJobProperties.setGradleSwitches(delegate)
     }

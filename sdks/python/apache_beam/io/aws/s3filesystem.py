@@ -271,7 +271,7 @@ class S3FileSystem(FileSystem):
       paths: list of paths that give the file objects to be deleted
     """
     results = s3io.S3IO().delete_paths(paths)
-    exceptions = {path: error for (path, error) in results
+    exceptions = {path: error for (path, error) in results.items()
                   if error is not None}
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)

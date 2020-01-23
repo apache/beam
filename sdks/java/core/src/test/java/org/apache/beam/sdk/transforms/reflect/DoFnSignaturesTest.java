@@ -1026,6 +1026,11 @@ public class DoFnSignaturesTest {
                 assertThat(stateParam.referent(), equalTo(decl));
                 return null;
               }
+
+              @Override
+              public Void dispatch(Parameter.TimerIdParameter p) {
+                return null;
+              }
             });
   }
 
