@@ -20,7 +20,7 @@ import PostcommitJobBuilder
 import CommonJobProperties as commonJobProperties
 
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_Java11',
-        'Run Java examples on Dataflow with Java 11', 'Google Cloud Dataflow Runner Examples Java 11', this) {
+        'Run Java examples on Dataflow Java 11', 'Google Cloud Dataflow Runner Examples Java 11', this) {
 
     description('Runs the Java Examples suite on the Java 11 enabled Dataflow runner.')
 

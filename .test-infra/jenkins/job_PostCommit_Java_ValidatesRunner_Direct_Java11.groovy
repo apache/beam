@@ -23,7 +23,7 @@ import PostcommitJobBuilder
 // This job runs the suite of ValidatesRunner tests using Java 11 against the Direct
 // runner compiled with Java 8.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Direct_Java11',
-        'Run Direct ValidatesRunner in Java 11', 'Direct Runner ValidatesRunner Tests for Java 11', this) {
+        'Run Direct ValidatesRunner Java 11', 'Direct Runner ValidatesRunner Tests for Java 11', this) {
 
     description('Builds the Direct Runner with Java 8 and runs ValidatesRunner test suite in Java 11.')
 

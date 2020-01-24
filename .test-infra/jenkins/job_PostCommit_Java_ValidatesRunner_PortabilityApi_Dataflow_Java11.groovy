@@ -21,7 +21,7 @@ import PostcommitJobBuilder
 
 
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_PortabilityApi_Dataflow_Java11',
-  'Run Dataflow PortabilityApi ValidatesRunner with Java 11', 'Google Cloud Dataflow Runner PortabilityApi ValidatesRunner Java 11 Tests', this) {
+  'Run Dataflow PortabilityApi ValidatesRunner Java 11', 'Google Cloud Dataflow Runner PortabilityApi ValidatesRunner Java 11 Tests', this) {
 
   description('Runs the ValidatesRunner suite on the Java 11 enabled Dataflow PortabilityApi runner.')
 
