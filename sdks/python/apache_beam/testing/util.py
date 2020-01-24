@@ -155,11 +155,9 @@ def equal_to_per_window(expected_window_to_elements):
 # other. However, only permutations of the top level are checked. Therefore
 # [1,2] and [2,1] are considered equal and [[1,2]] and [[2,1]] are not.
 def equal_to(expected, equals_fn=None):
-  equal_to.equals_fn=equals_fn
 
-  def _equal(actual):
+  def _equal(actual, equals_fn=equals_fn):
     expected_list = list(expected)
-    equals_fn = equal_to.equals_fn
 
     # Try to compare actual and expected by sorting. This fails with a
     # TypeError in Python 3 if different types are present in the same
