@@ -427,7 +427,7 @@ public class GcsUtil {
    * @return a SeekableByteChannel that can read the object data
    */
   public SeekableByteChannel open(GcsPath path) throws IOException {
-    return googleCloudStorage.open(new StorageResourceId(path.getBucket()));
+    return googleCloudStorage.open(new StorageResourceId(path.getBucket(), path.getObject()));
   }
 
   /**
@@ -449,19 +449,18 @@ public class GcsUtil {
    */
   public WritableByteChannel create(GcsPath path, String type, Integer uploadBufferSizeBytes)
       throws IOException {
-    if (uploadBufferSizeBytes == null) {
-      return googleCloudStorage.create(new StorageResourceId(path.getBucket()));
-    }
-    // Building new instance of AsyncWriteChannelOptions can be switched to the following
-    // after the next release - which will include AsyncWriteChannelOptions.toBuilder() method.
+    // Soon, AsyncWriteChannelOptions will have toBuilder() method.
+    // At that point, AsyncWriteChannelOptions can be built from an existing instance, like so:
     //       AsyncWriteChannelOptions newOptions =
     //            wcOptions.toBuilder().setUploadChunkSize(uploadBufferSizeBytes).build();
     AsyncWriteChannelOptions wcOptions = googleCloudStorageOptions.getWriteChannelOptions();
+    int uploadChunkSize =
+        (uploadBufferSizeBytes == null) ? wcOptions.getUploadChunkSize() : uploadBufferSizeBytes;
     AsyncWriteChannelOptions newOptions =
         AsyncWriteChannelOptions.builder()
             .setBufferSize(wcOptions.getBufferSize())
             .setPipeBufferSize(wcOptions.getPipeBufferSize())
-            .setUploadChunkSize(uploadBufferSizeBytes)
+            .setUploadChunkSize(uploadChunkSize)
             .setDirectUploadEnabled(wcOptions.isDirectUploadEnabled())
             .build();
     // After grpc support is enabled in GoogleCloudDataproc/bigdata-interop repo,
@@ -471,7 +470,7 @@ public class GcsUtil {
         googleCloudStorageOptions.toBuilder().setWriteChannelOptions(newOptions).build();
     GoogleCloudStorage gcpStorage =
         new GoogleCloudStorageImpl(newGoogleCloudStorageOptions, this.storageClient);
-    return gcpStorage.create(new StorageResourceId(path.getBucket()));
+    return gcpStorage.create(new StorageResourceId(path.getBucket(), path.getObject()));
   }
 
   /** Returns whether the GCS bucket exists and is accessible. */
