@@ -44,10 +44,11 @@ public final class ZetaSqlUtils {
 
   private ZetaSqlUtils() {}
 
-  // Unsupported ZetaSQL types: INT32, UINT32, UINT64, FLOAT, ENUM, PROTO, GEOGRAPHY
+  // Unsupported ZetaSQL types: UINT32, UINT64, FLOAT, ENUM, PROTO, GEOGRAPHY
   // TODO[BEAM-8630]: support ZetaSQL types: DATE, TIME, DATETIME
   public static Type beamFieldTypeToZetaSqlType(FieldType fieldType) {
     switch (fieldType.getTypeName()) {
+      case INT32:
       case INT64:
         return TypeFactory.createSimpleType(TypeKind.TYPE_INT64);
       case DECIMAL:
@@ -95,6 +96,8 @@ public final class ZetaSqlUtils {
       return Value.createNullValue(beamFieldTypeToZetaSqlType(fieldType));
     }
     switch (fieldType.getTypeName()) {
+      case INT32:
+        return Value.createInt64Value((Integer) object);
       case INT64:
         return Value.createInt64Value((Long) object);
         // TODO[BEAM-8630]: Value.createNumericValue() is broken due to a dependency issue
