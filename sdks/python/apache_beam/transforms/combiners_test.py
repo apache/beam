@@ -350,7 +350,7 @@ class CombineTest(unittest.TestCase):
     pipeline = TestPipeline()
     the_list = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
     pcoll = pipeline | 'start' >> Create(the_list)
-    result = pcoll | 'to list' >> combine.ToSet()
+    result = pcoll | 'to set' >> combine.ToSet()
 
     def matcher(expected):
       def match(actual):
