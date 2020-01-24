@@ -52,25 +52,13 @@ class NexmarkBuilder {
     suite(context, "NEXMARK IN SQL STREAMING MODE USING ${runner} RUNNER", runner, sdk, options)
   }
 
-  static void batchOnlyJob(context, Map<String, Object> jobSpecificOptions, TriggeringContext triggeringContext) {
-    Runner runner = Runner.SPARK
-    SDK sdk = SDK.JAVA
+  static void batchOnlyJob(context, Runner runner, SDK sdk, Map<String, Object> jobSpecificOptions, TriggeringContext triggeringContext) {
     Map<String, Object> options = getFullOptions(jobSpecificOptions, runner, triggeringContext)
+
     options.put('streaming', false)
-
     suite(context, "NEXMARK IN BATCH MODE USING ${runner} RUNNER", runner, sdk, options)
-    options.put('queryLanguage', 'sql')
-    suite(context, "NEXMARK IN SQL BATCH MODE USING ${runner} RUNNER", runner, sdk, options)
 
-    runner = Runner.SPARK_STRUCTURED_STREAMING
-    options = getFullOptions(jobSpecificOptions, runner, triggeringContext)
-    options.put('streaming', false)
-
-    // Skip query 3 (SparkStructuredStreamingRunner does not support State/Timers yet)
-    options.put('skipQueries', '3')
-    suite(context, "NEXMARK IN BATCH MODE USING ${runner} RUNNER", runner, sdk, options)
     options.put('queryLanguage', 'sql')
-    options.put('skipQueries', '')
     suite(context, "NEXMARK IN SQL BATCH MODE USING ${runner} RUNNER", runner, sdk, options)
   }
 
