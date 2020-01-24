@@ -56,10 +56,12 @@ import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageWriteChannel;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
+import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
@@ -104,8 +106,10 @@ public class GcsUtilTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Mock private GoogleCloudStorage mockGoogleCloudStorage;
+  @Mock private GoogleCloudStorageOptions mockGoogleCloudStorageOptions;
   @Mock private GoogleCloudStorageReadChannel mockGoogleCloudStorageReadChannel;
   @Mock private GoogleCloudStorageWriteChannel mockGoogleCloudStorageWriteChannel;
+  @Mock private AsyncWriteChannelOptions mockAsyncWriteChannelOptions;
   private GcsUtil gcsUtilInstance;
   private GcsPath gcsPathInstance;
 
@@ -116,6 +120,8 @@ public class GcsUtilTest {
         .thenReturn(mockGoogleCloudStorageReadChannel);
     when(mockGoogleCloudStorage.create(any(StorageResourceId.class)))
         .thenReturn(mockGoogleCloudStorageWriteChannel);
+    when(mockGoogleCloudStorageOptions.getWriteChannelOptions())
+        .thenReturn(mockAsyncWriteChannelOptions);
 
     gcsUtilInstance = gcsOptionsWithTestCredential().getGcsUtil();
     gcsPathInstance = GcsPath.fromUri("gs://testbucket/testdirectory/otherfile");

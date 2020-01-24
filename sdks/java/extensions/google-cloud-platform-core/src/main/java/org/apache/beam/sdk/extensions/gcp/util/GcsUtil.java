@@ -35,12 +35,11 @@ import com.google.api.services.storage.model.RewriteResponse;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageGrpcWriteChannel;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageWriteChannel;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
+import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
 import java.io.FileNotFoundException;
@@ -100,17 +99,24 @@ public class GcsUtil {
           storageBuilder.build(),
           storageBuilder.getHttpRequestInitializer(),
           gcsOptions.getExecutorService(),
+          gcsOptions.getUseGrpcForGcs(),
           gcsOptions.getGcsUploadBufferSizeBytes());
     }
 
     /** Returns an instance of {@link GcsUtil} based on the given parameters. */
     public static GcsUtil create(
+        PipelineOptions options,
         Storage storageClient,
         HttpRequestInitializer httpRequestInitializer,
         ExecutorService executorService,
         @Nullable Integer uploadBufferSizeBytes) {
+      GcsOptions gcsOptions = options.as(GcsOptions.class);
       return new GcsUtil(
-          storageClient, httpRequestInitializer, executorService, uploadBufferSizeBytes);
+          storageClient,
+          httpRequestInitializer,
+          executorService,
+          gcsOptions.getUseGrpcForGcs(),
+          uploadBufferSizeBytes);
     }
   }
 
@@ -148,6 +154,8 @@ public class GcsUtil {
   final ExecutorService executorService;
 
   private GoogleCloudStorage googleCloudStorage;
+  private GoogleCloudStorageOptions googleCloudStorageOptions;
+  private final boolean shouldUseGrpc;
 
   /** Rewrite operation setting. For testing purposes only. */
   @VisibleForTesting @Nullable Long maxBytesRewrittenPerCall;
@@ -218,6 +226,7 @@ public class GcsUtil {
       Storage storageClient,
       HttpRequestInitializer httpRequestInitializer,
       ExecutorService executorService,
+      Boolean shouldUseGrpc,
       @Nullable Integer uploadBufferSizeBytes) {
     this.storageClient = storageClient;
     this.httpRequestInitializer = httpRequestInitializer;
@@ -225,6 +234,10 @@ public class GcsUtil {
     this.executorService = executorService;
     this.maxBytesRewrittenPerCall = null;
     this.numRewriteTokensUsed = null;
+    this.shouldUseGrpc = shouldUseGrpc;
+    googleCloudStorageOptions =
+        GoogleCloudStorageOptions.builder().setGrpcEnabled(shouldUseGrpc).build();
+    googleCloudStorage = new GoogleCloudStorageImpl(googleCloudStorageOptions, storageClient);
   }
 
   // Use this only for testing purposes.
@@ -393,20 +406,14 @@ public class GcsUtil {
     }
   }
 
-  // This method should not have to be synchronized really.
-  // But spotbugsMain task is not happy unless this test is also synchronized
-  // and thus guarding all accesses to googleCloudStorage guarded by mutex.
   @VisibleForTesting
-  synchronized void setCloudStorageImpl(GoogleCloudStorage g) {
+  void setCloudStorageImpl(GoogleCloudStorage g) {
     googleCloudStorage = g;
   }
 
-  private synchronized GoogleCloudStorage getCloudStorage() {
-    if (googleCloudStorage == null) {
-      googleCloudStorage =
-          new GoogleCloudStorageImpl(GoogleCloudStorageOptions.DEFAULT, this.storageClient);
-    }
-    return googleCloudStorage;
+  @VisibleForTesting
+  void setCloudStorageImpl(GoogleCloudStorageOptions g) {
+    googleCloudStorageOptions = g;
   }
 
   /**
@@ -418,7 +425,7 @@ public class GcsUtil {
    * @return a SeekableByteChannel that can read the object data
    */
   public SeekableByteChannel open(GcsPath path) throws IOException {
-    return getCloudStorage().open(new StorageResourceId(path.getBucket()));
+    return googleCloudStorage.open(new StorageResourceId(path.getBucket()));
   }
 
   /**
@@ -440,15 +447,21 @@ public class GcsUtil {
    */
   public WritableByteChannel create(GcsPath path, String type, Integer uploadBufferSizeBytes)
       throws IOException {
-    WritableByteChannel channel = getCloudStorage().create(new StorageResourceId(path.getBucket()));
-    if (uploadBufferSizeBytes != null) {
-      if (channel instanceof GoogleCloudStorageWriteChannel) {
-        ((GoogleCloudStorageWriteChannel) channel).setUploadBufferSize(uploadBufferSizeBytes);
-      } else if (channel instanceof GoogleCloudStorageGrpcWriteChannel) {
-        ((GoogleCloudStorageGrpcWriteChannel) channel).setUploadBufferSize(uploadBufferSizeBytes);
-      }
+    if (uploadBufferSizeBytes == null) {
+      return googleCloudStorage.create(new StorageResourceId(path.getBucket()));
     }
-    return channel;
+    AsyncWriteChannelOptions wcOptions = googleCloudStorageOptions.getWriteChannelOptions();
+    AsyncWriteChannelOptions newOptions =
+        wcOptions.toBuilder().setUploadChunkSize(uploadBufferSizeBytes).build();
+    GoogleCloudStorageOptions newGoogleCloudStorageOptions =
+        googleCloudStorageOptions
+            .toBuilder()
+            .setWriteChannelOptions(newOptions)
+            .setGrpcEnabled(this.shouldUseGrpc)
+            .build();
+    GoogleCloudStorage gcpStorage =
+        new GoogleCloudStorageImpl(newGoogleCloudStorageOptions, this.storageClient);
+    return gcpStorage.create(new StorageResourceId(path.getBucket()));
   }
 
   /** Returns whether the GCS bucket exists and is accessible. */
