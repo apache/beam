@@ -208,7 +208,7 @@ public class WorkerCustomSources {
     // If serialized size is too big, try splitting with a proportionally larger desiredBundleSize
     // to reduce the oversplitting.
     long serializedSize =
-        DataflowApiUtils.computeSerializedSizeBytes(wrapIntoSourceSplitResponse(bundles));
+        DataflowApiUtils.computeSerializedSizeBytes(wrapIntoSourceSplitResponse(bundles, options));
 
     // If split response is too large, scale desired size for expected DATAFLOW_API_SIZE_BYTES/2.
     if (serializedSize > apiByteLimit) {
@@ -227,7 +227,7 @@ public class WorkerCustomSources {
       desiredBundleSizeBytes = expandedBundleSizeBytes;
       bundles = splitAndValidate(source, desiredBundleSizeBytes, options);
       serializedSize =
-          DataflowApiUtils.computeSerializedSizeBytes(wrapIntoSourceSplitResponse(bundles));
+          DataflowApiUtils.computeSerializedSizeBytes(wrapIntoSourceSplitResponse(bundles, options));
       LOG.info(
           "Splitting with desiredBundleSizeBytes {} produced {} bundles "
               + "with total serialized size {} bytes",
@@ -251,7 +251,7 @@ public class WorkerCustomSources {
     }
 
     SourceOperationResponse response =
-        new SourceOperationResponse().setSplit(wrapIntoSourceSplitResponse(bundles));
+        new SourceOperationResponse().setSplit(wrapIntoSourceSplitResponse(bundles, options));
     long finalResponseSize = DataflowApiUtils.computeSerializedSizeBytes(response);
     LOG.info(
         "Splitting source {} produced {} bundles with total serialized response size {}",
@@ -299,18 +299,24 @@ public class WorkerCustomSources {
   }
 
   private static SourceSplitResponse wrapIntoSourceSplitResponse(
-      List<? extends BoundedSource<?>> bundles) throws Exception {
+      List<? extends BoundedSource<?>> bundles, PipelineOptions options) throws Exception {
     List<DerivedSource> splits = new ArrayList<>(bundles.size());
-    for (BoundedSource<?> split : bundles) {
-      splits.add(
-          new DerivedSource()
+
+    List<Callable<DerivedSource>> callables = new ArrayList<>(bundles.size());
+    for (final BoundedSource<?> split : bundles) {
+      callables.add(() -> new DerivedSource()
               .setDerivationMode("SOURCE_DERIVATION_MODE_INDEPENDENT")
               .setSource(
-                  serializeSplitToCloudSource(split)
+              serializeSplitToCloudSource(split)
                       .setDoesNotNeedSplitting(
-                          // We purposely set this to false when using SplittableOnlyBoundedSource
-                          // to tell the service that we need further splits.
-                          !(split instanceof SplittableOnlyBoundedSource))));
+                              // We purposely set this to false when using SplittableOnlyBoundedSource
+                              // to tell the service that we need further splits.
+                              !(split instanceof SplittableOnlyBoundedSource))));
+    }
+
+    for (Future<DerivedSource> result :
+            options.as(DataflowPipelineOptions.class).getExecutorService().invokeAll(callables)) {
+      splits.add(result.get());
     }
 
     // Return all the splits in the SourceSplitResponse.
