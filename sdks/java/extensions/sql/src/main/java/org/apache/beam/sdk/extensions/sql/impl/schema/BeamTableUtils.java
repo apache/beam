@@ -142,8 +142,6 @@ public final class BeamTableUtils {
       if (TypeName.BYTES.equals(type.getTypeName()) && rawObj instanceof ByteString) {
         return ((ByteString) rawObj).getBytes();
       }
-      throw new UnsupportedOperationException(
-          String.format("Column type %s is not supported yet!", type));
     }
     return rawObj;
   }
