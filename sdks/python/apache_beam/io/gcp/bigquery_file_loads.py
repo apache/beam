@@ -506,7 +506,7 @@ class WaitForBQJobs(beam.DoFn):
     for ref in job_references:
       # We must poll repeatedly until the job finishes or fails, thus setting
       # max_retries to 0.
-      self.bq_wrapper.wait_for_bq_job(ref, 
+      self.bq_wrapper.wait_for_bq_job(ref,
                                       sleep_duration_sec=10,
                                       max_retries=0)
 
