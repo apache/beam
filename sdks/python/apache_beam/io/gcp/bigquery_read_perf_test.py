@@ -117,17 +117,17 @@ class BigQueryReadPerfTest(LoadTest):
       # of the part
       return {'data': base64.b64encode(record[1])}
 
-    p = TestPipeline()
-    # pylint: disable=expression-not-assigned
-    (p
-     | 'Produce rows' >> Read(SyntheticSource(self.parseTestPipelineOptions()))
-     | 'Format' >> Map(format_record)
-     | 'Write to BigQuery' >> WriteToBigQuery(
-         dataset=self.input_dataset, table=self.input_table,
-         schema=SCHEMA,
-         create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
-         write_disposition=BigQueryDisposition.WRITE_EMPTY))
-    p.run().wait_until_finish()
+    with TestPipeline() as p:
+      # pylint: disable=expression-not-assigned
+      (p
+       | 'Produce rows' >> Read(SyntheticSource(
+           self.parseTestPipelineOptions()))
+       | 'Format' >> Map(format_record)
+       | 'Write to BigQuery' >> WriteToBigQuery(
+           dataset=self.input_dataset, table=self.input_table,
+           schema=SCHEMA,
+           create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
+           write_disposition=BigQueryDisposition.WRITE_EMPTY))
 
   def test(self):
     output = (self.pipeline

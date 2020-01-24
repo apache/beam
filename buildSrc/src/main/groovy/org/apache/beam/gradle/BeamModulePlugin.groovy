@@ -373,6 +373,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_cloud_bigdataoss_version = "1.9.16"
     def google_cloud_core_version = "1.61.0"
     def google_cloud_spanner_version = "1.6.0"
+    def google_http_clients_version = "1.34.0"
     def grpc_version = "1.25.0"
     def guava_version = "25.1-jre"
     def hadoop_version = "2.8.5"
@@ -457,10 +458,10 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
         google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:1.6.3",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version",
-        google_http_client                          : "com.google.http-client:google-http-client:$google_clients_version",
-        google_http_client_jackson                  : "com.google.http-client:google-http-client-jackson:$google_clients_version",
-        google_http_client_jackson2                 : "com.google.http-client:google-http-client-jackson2:$google_clients_version",
-        google_http_client_protobuf                 : "com.google.http-client:google-http-client-protobuf:$google_clients_version",
+        google_http_client                          : "com.google.http-client:google-http-client:$google_http_clients_version",
+        google_http_client_jackson                  : "com.google.http-client:google-http-client-jackson:1.29.2",
+        google_http_client_jackson2                 : "com.google.http-client:google-http-client-jackson2:$google_http_clients_version",
+        google_http_client_protobuf                 : "com.google.http-client:google-http-client-protobuf:$google_http_clients_version",
         google_oauth_client                         : "com.google.oauth-client:google-oauth-client:$google_clients_version",
         google_oauth_client_java6                   : "com.google.oauth-client:google-oauth-client-java6:$google_clients_version",
         grpc_all                                    : "io.grpc:grpc-all:$grpc_version",
@@ -734,7 +735,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // configurations because they are never required to be shaded or become a
       // dependency of the output.
       def compileOnlyAnnotationDeps = [
-        "com.google.auto.value:auto-value-annotations:1.6.3",
+        "com.google.auto.value:auto-value-annotations:1.7",
         "com.google.auto.service:auto-service-annotations:1.0-rc6",
         "com.google.j2objc:j2objc-annotations:1.3",
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
@@ -761,7 +762,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
         // Add common annotation processors to all Java projects
         def annotationProcessorDeps = [
-          "com.google.auto.value:auto-value:1.6.3",
+          "com.google.auto.value:auto-value:1.7",
           "com.google.auto.service:auto-service:1.0-rc6",
         ]
 
@@ -830,7 +831,7 @@ class BeamModulePlugin implements Plugin<Project> {
         project.apply plugin: 'com.github.spotbugs'
         project.dependencies {
           spotbugs "com.github.spotbugs:spotbugs:3.1.12"
-          spotbugs "com.google.auto.value:auto-value:1.6.3"
+          spotbugs "com.google.auto.value:auto-value:1.7"
           compileOnlyAnnotationDeps.each { dep -> spotbugs dep }
         }
         project.spotbugs {

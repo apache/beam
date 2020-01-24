@@ -88,8 +88,14 @@ class WindmillTimerInternals implements TimerInternals {
 
   @Override
   public void setTimer(TimerData timerKey) {
-    timers.put(timerKey.getTimerId(), timerKey.getNamespace(), timerKey);
-    timerStillPresent.put(timerKey.getTimerId(), timerKey.getNamespace(), true);
+    timers.put(
+        getTimerDataKey(timerKey.getTimerId(), timerKey.getTimerFamilyId()),
+        timerKey.getNamespace(),
+        timerKey);
+    timerStillPresent.put(
+        getTimerDataKey(timerKey.getTimerId(), timerKey.getTimerFamilyId()),
+        timerKey.getNamespace(),
+        true);
   }
 
   @Override
@@ -101,20 +107,31 @@ class WindmillTimerInternals implements TimerInternals {
       Instant outputTimestamp,
       TimeDomain timeDomain) {
     timers.put(
-        timerId,
+        getTimerDataKey(timerId, timerFamilyId),
         namespace,
         TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, timeDomain));
-    timerStillPresent.put(timerId, namespace, true);
+    timerStillPresent.put(getTimerDataKey(timerId, timerFamilyId), namespace, true);
+  }
+
+  private String getTimerDataKey(String timerId, String timerFamilyId) {
+    // Identifies timer uniquely with timerFamilyId
+    return timerId + '+' + timerFamilyId;
   }
 
   @Override
   public void deleteTimer(TimerData timerKey) {
-    timers.put(timerKey.getTimerId(), timerKey.getNamespace(), timerKey);
-    timerStillPresent.put(timerKey.getTimerId(), timerKey.getNamespace(), false);
+    timers.put(
+        getTimerDataKey(timerKey.getTimerId(), timerKey.getTimerFamilyId()),
+        timerKey.getNamespace(),
+        timerKey);
+    timerStillPresent.put(
+        getTimerDataKey(timerKey.getTimerId(), timerKey.getTimerFamilyId()),
+        timerKey.getNamespace(),
+        false);
   }
 
   @Override
-  public void deleteTimer(StateNamespace namespace, String timerId) {
+  public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
     throw new UnsupportedOperationException("Canceling a timer by ID is not yet supported.");
   }
 
@@ -246,7 +263,7 @@ class WindmillTimerInternals implements TimerInternals {
     // The tag is a path-structure string but cheaper to parse than a proper URI. It follows
     // this pattern, where no component but the ID can contain a slash
     //
-    //     prefix namespace '+' id
+    //     prefix namespace '+' id '+' familyId
     //
     //     prefix ::= '/' prefix_char
     //     namespace ::= '/' | '/' window '/'
@@ -269,13 +286,19 @@ class WindmillTimerInternals implements TimerInternals {
         prefix.byteString());
     int namespaceStart = prefix.byteString().size(); // drop the prefix, leave the begin slash
     int namespaceEnd = tag.indexOf('+', namespaceStart); // keep the end slash, drop the +
-
     String namespaceString = tag.substring(namespaceStart, namespaceEnd);
-    String id = tag.substring(namespaceEnd + 1);
+    String timerIdPlusTimerFamilyId = tag.substring(namespaceEnd + 1); // timerId+timerFamilyId
+    int timerIdEnd = timerIdPlusTimerFamilyId.indexOf('+'); // end of timerId
+    // if no '+' found then timerFamilyId is empty string else they have a '+' separator
+    String familyId = timerIdEnd == -1 ? "" : timerIdPlusTimerFamilyId.substring(timerIdEnd + 1);
+    String id =
+        timerIdEnd == -1
+            ? timerIdPlusTimerFamilyId
+            : timerIdPlusTimerFamilyId.substring(0, timerIdEnd);
     StateNamespace namespace = StateNamespaces.fromString(namespaceString, windowCoder);
     Instant timestamp = WindmillTimeUtils.windmillToHarnessTimestamp(timer.getTimestamp());
 
-    return TimerData.of(id, namespace, timestamp, timerTypeToTimeDomain(timer.getType()));
+    return TimerData.of(id, familyId, namespace, timestamp, timerTypeToTimeDomain(timer.getType()));
   }
 
   /**
@@ -285,13 +308,27 @@ class WindmillTimerInternals implements TimerInternals {
    * <p>This is necessary because Windmill will deduplicate based only on this tag.
    */
   public static ByteString timerTag(WindmillNamespacePrefix prefix, TimerData timerData) {
-    String tagString =
-        new StringBuilder()
-            .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
-            .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
-            .append('+')
-            .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
-            .toString();
+    String tagString;
+    // Timers without timerFamily would have timerFamily would be an empty string
+    if ("".equals(timerData.getTimerFamilyId())) {
+      tagString =
+          new StringBuilder()
+              .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
+              .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
+              .append('+')
+              .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
+              .toString();
+    } else {
+      tagString =
+          new StringBuilder()
+              .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
+              .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
+              .append('+')
+              .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
+              .append('+')
+              .append(timerData.getTimerFamilyId())
+              .toString();
+    }
     return ByteString.copyFromUtf8(tagString);
   }
 
@@ -300,14 +337,30 @@ class WindmillTimerInternals implements TimerInternals {
    * hold that is only freed after the timer fires.
    */
   public static ByteString timerHoldTag(WindmillNamespacePrefix prefix, TimerData timerData) {
-    String tagString =
-        new StringBuilder()
-            .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
-            .append(TIMER_HOLD_PREFIX) // this never ends with a slash
-            .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
-            .append('+')
-            .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
-            .toString();
+    String tagString;
+    if ("".equals(timerData.getTimerFamilyId())) {
+      tagString =
+          new StringBuilder()
+              .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
+              .append(TIMER_HOLD_PREFIX) // this never ends with a slash
+              .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
+              .append('+')
+              .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
+              .toString();
+    } else {
+      tagString =
+          new StringBuilder()
+              .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
+              .append(TIMER_HOLD_PREFIX) // this never ends with a slash
+              .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
+              .append('+')
+              .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
+              .append('+')
+              .append(
+                  timerData.getTimerFamilyId()) // use to differentiate same timerId in different
+              // timerMap
+              .toString();
+    }
     return ByteString.copyFromUtf8(tagString);
   }
 

@@ -16,27 +16,6 @@
  * limitations under the License.
  */
 
-plugins {
-  id 'org.apache.beam.module'
-}
-
-applyGoNature()
-
-repositories { mavenCentral() }
-
-clean {
-  delete '.gogradle'
-}
-
-golang {
-  packagePath = 'github.com/apache/beam/.test-infra/tools'
-}
-
-check.dependsOn goTest
-
-task cancelStaleDataflowJobs(type: com.github.blindpirate.gogradle.Go) {
-  dependsOn goVendor
-  go('get golang.org/x/oauth2/google')
-  go('get google.golang.org/api/dataflow/v1b3')
-  go('run stale_dataflow_jobs_cleaner.go')
+task cancelStaleDataflowJobs(type: Exec) {
+  commandLine './stale_dataflow_jobs_cleaner.sh'
 }

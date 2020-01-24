@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
@@ -60,6 +61,7 @@ import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -765,7 +767,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
           (Iterator<BoundedWindow>) timer.getWindows().iterator();
       while (windowIterator.hasNext()) {
         currentWindow = windowIterator.next();
-        doFnInvoker.invokeOnTimer(timerId, onTimerContext);
+        doFnInvoker.invokeOnTimer(timerId, timerId, onTimerContext);
       }
     } finally {
       currentTimer = null;
@@ -804,6 +806,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     private final Instant currentTimestamp;
     private final Duration allowedLateness;
     private final WindowedValue<?> currentElementOrTimer;
+    @Nullable private Instant currentOutputTimestamp;
 
     private Duration period = Duration.ZERO;
     private Duration offset = Duration.ZERO;
@@ -896,7 +899,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
 
     @Override
     public org.apache.beam.sdk.state.Timer withOutputTimestamp(Instant outputTime) {
-      throw new UnsupportedOperationException("TODO: Add support for timers");
+      Instant windowExpiry = LateDataUtils.garbageCollectionTime(currentWindow, allowedLateness);
+      checkArgument(
+          !outputTime.isAfter(windowExpiry),
+          "Attempted to set timer with output timestamp %s but that is after"
+              + " the expiration of window %s",
+          outputTime,
+          windowExpiry);
+
+      this.currentOutputTimestamp = outputTime;
+      return this;
     }
 
     @Override
@@ -924,7 +936,32 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
       Collection<FnDataReceiver<WindowedValue<KV<Object, Timer>>>> consumers =
           (Collection) context.localNameToConsumer.get(timerId);
 
-      outputTo(consumers, currentElementOrTimer.withValue(KV.of(key, Timer.of(scheduledTime))));
+      if (currentOutputTimestamp == null) {
+        if (TimeDomain.EVENT_TIME.equals(timeDomain)) {
+          currentOutputTimestamp = scheduledTime;
+        } else {
+          currentOutputTimestamp = currentElementOrTimer.getTimestamp();
+        }
+      }
+      outputTo(
+          consumers,
+          WindowedValue.of(
+              KV.of(key, Timer.of(scheduledTime)),
+              currentOutputTimestamp,
+              currentElementOrTimer.getWindows(),
+              currentElementOrTimer.getPane()));
+    }
+  }
+
+  private static class FnApiTimerMap implements TimerMap {
+    FnApiTimerMap() {}
+
+    @Override
+    public void set(String timerId, Instant absoluteTime) {}
+
+    @Override
+    public org.apache.beam.sdk.state.Timer get(String timerId) {
+      return null;
     }
   }
 
@@ -988,6 +1025,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     }
 
     @Override
+    public String timerId(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access timerId as parameter outside of @OnTimer method.");
+    }
+
+    @Override
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access time domain outside of @ProcessTimer method.");
@@ -1040,6 +1083,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
           currentElement.getValue());
 
       return new FnApiTimer(timerId, (WindowedValue) currentElement);
+    }
+
+    @Override
+    public TimerMap timerFamily(String tagId) {
+      // TODO: implement timerFamily
+      return null;
     }
 
     @Override
@@ -1176,6 +1225,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     }
 
     @Override
+    public String timerId(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("TimerId parameters are not supported.");
+    }
+
+    @Override
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
       return timeDomain();
     }
@@ -1226,6 +1280,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
           currentTimer);
 
       return new FnApiTimer(timerId, (WindowedValue) currentTimer);
+    }
+
+    @Override
+    public TimerMap timerFamily(String tagId) {
+      // TODO: implement timerFamily
+      throw new UnsupportedOperationException("TimerFamily parameters are not supported.");
     }
 
     @Override
@@ -1287,6 +1347,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     @Override
     public TimeDomain timeDomain() {
       return currentTimeDomain;
+    }
+
+    @Override
+    public Instant fireTimestamp() {
+      return currentTimer.getValue().getValue().getTimestamp();
     }
 
     @Override

@@ -63,7 +63,8 @@ public abstract class JobServerDriver implements Runnable {
             artifactStagingServer.getService().removeArtifacts(stagingSessionToken);
           }
         },
-        invoker);
+        invoker,
+        configuration.getMaxInvocationHistory());
   }
 
   /** Configuration for the jobServer. */
@@ -97,6 +98,9 @@ public abstract class JobServerDriver implements Runnable {
         handler = ExplicitBooleanOptionHandler.class)
     private boolean cleanArtifactsPerJob = true;
 
+    @Option(name = "--history-size", usage = "The maximum number of completed jobs to keep.")
+    private int maxInvocationHistory = 10;
+
     public String getHost() {
       return host;
     }
@@ -119,6 +123,10 @@ public abstract class JobServerDriver implements Runnable {
 
     public boolean isCleanArtifactsPerJob() {
       return cleanArtifactsPerJob;
+    }
+
+    public int getMaxInvocationHistory() {
+      return maxInvocationHistory;
     }
   }
 
