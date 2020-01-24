@@ -164,12 +164,13 @@ def equal_to(expected, equals_fn=None):
     # collection. It can also raise false negatives for types that don't have
     # a deterministic sort order, like pyarrow Tables as of 0.14.1
     if not equals_fn:
+      equals_fn = lambda e, a: e == a
       try:
         sorted_expected = sorted(expected)
         sorted_actual = sorted(actual)
         if sorted_expected == sorted_actual:
           return
-      except (BeamAssertException, TypeError):
+      except TypeError:
         pass
     # Slower method, used in two cases:
     # 1) If sorted expected != actual, use this method to verify the inequality.
@@ -177,8 +178,6 @@ def equal_to(expected, equals_fn=None):
     #    have a deterministic sort order.
     # 2) As a fallback if we encounter a TypeError in python 3. this method
     #    works on collections that have different types.
-    if not equals_fn:
-      equals_fn = lambda e, a: e == a
     unexpected = []
     for element in actual:
       found = False
