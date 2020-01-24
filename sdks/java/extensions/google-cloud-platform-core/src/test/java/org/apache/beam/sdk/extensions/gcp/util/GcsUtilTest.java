@@ -28,9 +28,6 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.api.client.googleapis.batch.BatchRequest;
@@ -55,13 +52,8 @@ import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageWriteChannel;
-import com.google.cloud.hadoop.gcsio.StorageResourceId;
-import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
@@ -90,43 +82,17 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
 
 /** Test case for {@link GcsUtil}. */
 @RunWith(JUnit4.class)
 public class GcsUtilTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
-
-  @Mock private GoogleCloudStorage mockGoogleCloudStorage;
-  @Mock private GoogleCloudStorageOptions mockGoogleCloudStorageOptions;
-  @Mock private GoogleCloudStorageReadChannel mockGoogleCloudStorageReadChannel;
-  @Mock private GoogleCloudStorageWriteChannel mockGoogleCloudStorageWriteChannel;
-  @Mock private AsyncWriteChannelOptions mockAsyncWriteChannelOptions;
-  private GcsUtil gcsUtilInstance;
-  private GcsPath gcsPathInstance;
-
-  @Before
-  public void setUp() throws Exception {
-    MockitoAnnotations.initMocks(this);
-    when(mockGoogleCloudStorage.open(any(StorageResourceId.class)))
-        .thenReturn(mockGoogleCloudStorageReadChannel);
-    when(mockGoogleCloudStorage.create(any(StorageResourceId.class)))
-        .thenReturn(mockGoogleCloudStorageWriteChannel);
-    when(mockGoogleCloudStorageOptions.getWriteChannelOptions())
-        .thenReturn(mockAsyncWriteChannelOptions);
-
-    gcsUtilInstance = gcsOptionsWithTestCredential().getGcsUtil();
-    gcsPathInstance = GcsPath.fromUri("gs://testbucket/testdirectory/otherfile");
-    gcsUtilInstance.setCloudStorageImpl(mockGoogleCloudStorage);
-  }
 
   @Test
   public void testGlobTranslation() {
@@ -995,19 +961,5 @@ public class GcsUtilTest {
   /** A helper to wrap a {@link GenericJson} object in a content stream. */
   private static InputStream toStream(String content) throws IOException {
     return new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
-  }
-
-  @Test
-  public void testOpen() throws IOException {
-    assertNotNull(gcsUtilInstance.open(gcsPathInstance));
-  }
-
-  @Test
-  public void testCreate() throws IOException {
-    assertNotNull(gcsUtilInstance.create(gcsPathInstance, null, null));
-
-    doNothing().when(mockGoogleCloudStorageWriteChannel).setUploadBufferSize(1);
-    assertNotNull(gcsUtilInstance.create(gcsPathInstance, null, 1));
-    verify(mockGoogleCloudStorageWriteChannel, times(1)).setUploadBufferSize(1);
   }
 }

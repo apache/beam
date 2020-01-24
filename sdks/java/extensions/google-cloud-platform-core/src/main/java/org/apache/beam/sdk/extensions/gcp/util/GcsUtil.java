@@ -235,8 +235,10 @@ public class GcsUtil {
     this.maxBytesRewrittenPerCall = null;
     this.numRewriteTokensUsed = null;
     this.shouldUseGrpc = shouldUseGrpc;
-    googleCloudStorageOptions =
-        GoogleCloudStorageOptions.builder().setGrpcEnabled(shouldUseGrpc).build();
+    // After grpc support is enabled in GoogleCloudDataproc/bigdata-interop repo,
+    // add this to the GoogleCloudStorageOptions.Builder object created here:
+    //    setGrpcEnabled(shouldUseGrpc)
+    googleCloudStorageOptions = GoogleCloudStorageOptions.newBuilder().setAppName("Beam").build();
     googleCloudStorage = new GoogleCloudStorageImpl(googleCloudStorageOptions, storageClient);
   }
 
@@ -450,15 +452,23 @@ public class GcsUtil {
     if (uploadBufferSizeBytes == null) {
       return googleCloudStorage.create(new StorageResourceId(path.getBucket()));
     }
+    // Building new instance of AsyncWriteChannelOptions can be switched to the following
+    // after the next release - which will include AsyncWriteChannelOptions.toBuilder() method.
+    //       AsyncWriteChannelOptions newOptions =
+    //            wcOptions.toBuilder().setUploadChunkSize(uploadBufferSizeBytes).build();
     AsyncWriteChannelOptions wcOptions = googleCloudStorageOptions.getWriteChannelOptions();
     AsyncWriteChannelOptions newOptions =
-        wcOptions.toBuilder().setUploadChunkSize(uploadBufferSizeBytes).build();
-    GoogleCloudStorageOptions newGoogleCloudStorageOptions =
-        googleCloudStorageOptions
-            .toBuilder()
-            .setWriteChannelOptions(newOptions)
-            .setGrpcEnabled(this.shouldUseGrpc)
+        AsyncWriteChannelOptions.builder()
+            .setBufferSize(wcOptions.getBufferSize())
+            .setPipeBufferSize(wcOptions.getPipeBufferSize())
+            .setUploadChunkSize(uploadBufferSizeBytes)
+            .setDirectUploadEnabled(wcOptions.isDirectUploadEnabled())
             .build();
+    // After grpc support is enabled in GoogleCloudDataproc/bigdata-interop repo,
+    // add this to the following:
+    //      .setGrpcEnabled(this.shouldUseGrpc)
+    GoogleCloudStorageOptions newGoogleCloudStorageOptions =
+        googleCloudStorageOptions.toBuilder().setWriteChannelOptions(newOptions).build();
     GoogleCloudStorage gcpStorage =
         new GoogleCloudStorageImpl(newGoogleCloudStorageOptions, this.storageClient);
     return gcpStorage.create(new StorageResourceId(path.getBucket()));
