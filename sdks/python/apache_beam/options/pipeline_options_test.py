@@ -264,6 +264,18 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual(options.get_all_options()['num_workers'], 5)
     self.assertTrue(options.get_all_options()['mock_flag'])
 
+  def test_override_init_options(self):
+    base_flags = ['--num_workers', '5']
+    options = PipelineOptions(base_flags, mock_flag=True)
+    self.assertEqual(options.get_all_options()['num_workers'], 5)
+    self.assertEqual(options.get_all_options()['mock_flag'], True)
+
+  def test_invalid_override_init_options(self):
+    base_flags = ['--num_workers', '5']
+    options = PipelineOptions(base_flags, mock_invalid_flag=True)
+    self.assertEqual(options.get_all_options()['num_workers'], 5)
+    self.assertEqual(options.get_all_options()['mock_flag'], False)
+
   def test_experiments(self):
     options = PipelineOptions(['--experiment', 'abc', '--experiment', 'def'])
     self.assertEqual(
