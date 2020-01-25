@@ -290,7 +290,6 @@ class TestFileBasedSource(unittest.TestCase):
     # Reset runtime options to avoid side-effects in other tests.
     RuntimeValueProvider.set_runtime_options(None)
 
-
     invalid_file_pattern = 123
     with self.assertRaises(TypeError):
       FileBasedSource(invalid_file_pattern)
