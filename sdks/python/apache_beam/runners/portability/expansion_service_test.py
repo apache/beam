@@ -56,7 +56,7 @@ TEST_PARTITION_URN = "beam:transforms:xlang:test:partition"
 @ptransform.PTransform.register_urn('beam:transforms:xlang:count', None)
 class CountPerElementTransform(ptransform.PTransform):
   def expand(self, pcoll):
-    return (pcoll | combine.Count.PerElement())
+    return pcoll | combine.Count.PerElement()
 
   def to_runner_api_parameter(self, unused_context):
     return 'beam:transforms:xlang:count', None

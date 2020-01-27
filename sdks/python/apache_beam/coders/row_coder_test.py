@@ -93,8 +93,8 @@ class RowCoderTest(unittest.TestCase):
     IntTester = typing.NamedTuple(
         'IntTester',
         [
-            # TODO(BEAM-7996): Test int8 and int16 here as well when those types are
-            # supported
+            # TODO(BEAM-7996): Test int8 and int16 here as well when those
+            # types are supported
             # ('i8', typing.Optional[np.int8]),
             # ('i16', typing.Optional[np.int16]),
             ('i32', typing.Optional[np.int32]),

@@ -100,19 +100,20 @@ def run(args=None, save_main_session=True):
     # the computation.
     coders.registry.register_coder(Player, PlayerCoder)
 
-    (
-        p  # pylint: disable=expression-not-assigned
+    (  # pylint: disable=expression-not-assigned
+        p
         | ReadFromText(known_args.input)
-        # The get_players function is annotated with a type hint above, so the type
-        # system knows the output type of the following operation is a key-value
-        # pair of a Player and an int. Please see the documentation for details on
-        # types that are inferred automatically as well as other ways to specify
-        # type hints.
+        # The get_players function is annotated with a type hint above,
+        # so the type system knows the output type of the following operation
+        # is a key-value pair of a Player and an int. Please see the
+        # documentation for details on types that are inferred automatically
+        # as well as other ways to specify type hints.
         | beam.Map(get_players)
-        # The output type hint of the previous step is used to infer that the key
-        # type of the following operation is the Player type. Since a custom coder
-        # is registered for the Player class above, a PlayerCoder will be used to
-        # encode Player objects as keys for this combine operation.
+        # The output type hint of the previous step is used to infer that the
+        # key type of the following operation is the Player type. Since a
+        # custom coder is registered for the Player class above,
+        # a PlayerCoder will be used to encode Player objects as keys for this
+        # combine operation.
         | beam.CombinePerKey(sum)
         | beam.Map(lambda k_v: '%s,%d' % (k_v[0].name, k_v[1]))
         | WriteToText(known_args.output))

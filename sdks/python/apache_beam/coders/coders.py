@@ -917,7 +917,7 @@ class AvroGenericCoder(FastCoder):
     return False
 
   def __eq__(self, other):
-    return (type(self) == type(other) and self.schema == other.schema)
+    return type(self) == type(other) and self.schema == other.schema
 
   def __hash__(self):
     return hash(self.schema)
@@ -1005,7 +1005,7 @@ class TupleCoder(FastCoder):
     return 'TupleCoder[%s]' % ', '.join(str(c) for c in self._coders)
 
   def __eq__(self, other):
-    return (type(self) == type(other) and self._coders == other.coders())
+    return type(self) == type(other) and self._coders == other.coders()
 
   def __hash__(self):
     return hash(self._coders)

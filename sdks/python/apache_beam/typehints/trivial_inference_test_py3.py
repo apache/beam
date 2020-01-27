@@ -42,11 +42,12 @@ class TrivialInferenceTest(unittest.TestCase):
 
   def testBuildTupleUnpack(self):
     # Lambda uses BUILD_TUPLE_UNPACK opcode in Python 3.
+    # yapf: disable
     self.assertReturnType(
         typehints.Tuple[int, str, str],
-        lambda _list1,
-        _list2: (*_list1, *_list2, *_list2),
+        lambda _list1, _list2: (*_list1, *_list2, *_list2),
         [typehints.List[int], typehints.List[str]])
+    # yapf: enable
 
 
 if __name__ == '__main__':

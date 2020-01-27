@@ -30,7 +30,7 @@ class AvroRecord(object):
     self.record = value
 
   def __eq__(self, other):
-    return (issubclass(type(other), AvroRecord) and self.record == other.record)
+    return issubclass(type(other), AvroRecord) and self.record == other.record
 
   def __hash__(self):
     return hash(self.record)

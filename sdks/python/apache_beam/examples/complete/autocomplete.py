@@ -50,8 +50,8 @@ def run(argv=None):
       (prefix, candidates) = prefix_candidates
       return '%s: %s' % (prefix, candidates)
 
-    (
-        p  # pylint: disable=expression-not-assigned
+    (  # pylint: disable=expression-not-assigned
+        p
         | 'read' >> ReadFromText(known_args.input)
         | 'split' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
         | 'TopPerPrefix' >> TopPerPrefix(5)

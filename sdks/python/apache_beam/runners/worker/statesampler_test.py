@@ -80,13 +80,16 @@ class StateSamplerTest(unittest.TestCase):
       return
 
     # Test that sampled state timings are close to their expected values.
+    # yapf: disable
     expected_counter_values = {
-        CounterName('statea-msecs', step_name='step1', stage_name='basic'): state_duration_ms,
+        CounterName('statea-msecs', step_name='step1', stage_name='basic'):
+            state_duration_ms,
         CounterName('stateb-msecs', step_name='step1', stage_name='basic'): 2 *
         state_duration_ms,
         CounterName('statec-msecs', step_name='step1', stage_name='basic'): 3 *
         state_duration_ms,
     }
+    # yapf: enable
     for counter in counter_factory.get_counters():
       self.assertIn(counter.name, expected_counter_values)
       expected_value = expected_counter_values[counter.name]

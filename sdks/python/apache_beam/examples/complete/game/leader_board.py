@@ -338,8 +338,8 @@ def run(argv=None, save_main_session=True):
             lambda elem: beam.window.TimestampedValue(elem, elem['timestamp'])))
 
     # Get team scores and write the results to BigQuery
-    (
-        events  # pylint: disable=expression-not-assigned
+    (  # pylint: disable=expression-not-assigned
+        events
         | 'CalculateTeamScores' >> CalculateTeamScores(
             args.team_window_duration, args.allowed_lateness)
         | 'TeamScoresDict' >> beam.ParDo(TeamScoresDict())
@@ -359,8 +359,8 @@ def run(argv=None, save_main_session=True):
       return {'user': user, 'total_score': score}
 
     # Get user scores and write the results to BigQuery
-    (
-        events  # pylint: disable=expression-not-assigned
+    (  # pylint: disable=expression-not-assigned
+        events
         | 'CalculateUserScores' >> CalculateUserScores(args.allowed_lateness)
         | 'FormatUserScoreSums' >> beam.Map(format_user_score_sums)
         | 'WriteUserScoreSums' >> WriteToBigQuery(

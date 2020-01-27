@@ -512,7 +512,7 @@ class SyntheticSDFSourceRestrictionProvider(RestrictionProvider):
     return bundle_ranges
 
   def restriction_size(self, element, restriction):
-    return ((element['key_size'] + element['value_size']) * restriction.size())
+    return (element['key_size'] + element['value_size']) * restriction.size()
 
 
 class SyntheticSDFAsSource(beam.DoFn):

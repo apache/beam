@@ -683,8 +683,9 @@ class WorkerOptions(PipelineOptions):
         type=int,
         default=None,
         help=(
-            'Remote worker disk size, in gigabytes, or 0 to use the default size. '
-            'If not set, the Dataflow service will use a reasonable default.'))
+            'Remote worker disk size, in gigabytes, or 0 to use the default '
+            'size. If not set, the Dataflow service will use a reasonable '
+            'default.'))
     parser.add_argument(
         '--worker_disk_type',
         '--disk_type',
@@ -695,21 +696,21 @@ class WorkerOptions(PipelineOptions):
         '--worker_region',
         default=None,
         help=(
-            'The Compute Engine region '
-            '(https://cloud.google.com/compute/docs/regions-zones/regions-zones) '
-            'in which worker processing should occur, e.g. "us-west1". Mutually '
-            'exclusive with worker_zone. If neither worker_region nor worker_zone '
-            'is specified, default to same value as --region.'))
+            'The Compute Engine region (https://cloud.google.com/compute/docs/'
+            'regions-zones/regions-zones) in which worker processing should '
+            'occur, e.g. "us-west1". Mutually exclusive with worker_zone. If '
+            'neither worker_region nor worker_zone is specified, default to '
+            'same value as --region.'))
     parser.add_argument(
         '--worker_zone',
         default=None,
         help=(
-            'The Compute Engine zone '
-            '(https://cloud.google.com/compute/docs/regions-zones/regions-zones) '
-            'in which worker processing should occur, e.g. "us-west1-a". Mutually '
-            'exclusive with worker_region. If neither worker_region nor '
-            'worker_zone is specified, the Dataflow service will choose a zone in '
-            '--region based on available capacity.'))
+            'The Compute Engine zone (https://cloud.google.com/compute/docs/'
+            'regions-zones/regions-zones) in which worker processing should '
+            'occur, e.g. "us-west1-a". Mutually exclusive with worker_region. '
+            'If neither worker_region nor worker_zone is specified, the '
+            'Dataflow service will choose a zone in --region based on '
+            'available capacity.'))
     parser.add_argument(
         '--zone',
         default=None,
@@ -870,12 +871,12 @@ class SetupOptions(PipelineOptions):
         help=(
             'Path to a setup Python file containing package dependencies. If '
             'specified, the file\'s containing folder is assumed to have the '
-            'structure required for a setuptools setup package. The file must be '
-            'named setup.py. More details: '
+            'structure required for a setuptools setup package. The file must '
+            'be named setup.py. More details: '
             'https://pythonhosted.org/an_example_pypi_project/setuptools.html '
-            'During job submission a source distribution will be built and the '
-            'worker will install the resulting package before running any custom '
-            'code.'))
+            'During job submission a source distribution will be built and '
+            'the worker will install the resulting package before running any '
+            'custom code.'))
     parser.add_argument(
         '--beam_plugin',
         '--beam_plugin',
@@ -883,12 +884,12 @@ class SetupOptions(PipelineOptions):
         action='append',
         default=None,
         help=(
-            'Bootstrap the python process before executing any code by importing '
-            'all the plugins used in the pipeline. Please pass a comma separated'
-            'list of import paths to be included. This is currently an '
-            'experimental flag and provides no stability. Multiple '
-            '--beam_plugin options can be specified if more than one plugin '
-            'is needed.'))
+            'Bootstrap the python process before executing any code by '
+            'importing all the plugins used in the pipeline. Please pass a '
+            'comma separatedlist of import paths to be included. This is '
+            'currently an experimental flag and provides no stability. '
+            'Multiple --beam_plugin options can be specified if more than '
+            'one plugin is needed.'))
     parser.add_argument(
         '--save_main_session',
         default=False,
@@ -897,17 +898,17 @@ class SetupOptions(PipelineOptions):
             'Save the main session state so that pickled functions and classes '
             'defined in __main__ (e.g. interactive session) can be unpickled. '
             'Some workflows do not need the session state if for instance all '
-            'their functions/classes are defined in proper modules (not __main__)'
-            ' and the modules are importable in the worker. '))
+            'their functions/classes are defined in proper modules '
+            '(not __main__) and the modules are importable in the worker. '))
     parser.add_argument(
         '--sdk_location',
         default='default',
         help=(
-            'Override the default location from where the Beam SDK is downloaded. '
-            'It can be a URL, a GCS path, or a local path to an SDK tarball. '
-            'Workflow submissions will download or copy an SDK tarball from here. '
-            'If set to the string "default", a standard SDK location is used. If '
-            'empty, no SDK is copied.'))
+            'Override the default location from where the Beam SDK is '
+            'downloaded. It can be a URL, a GCS path, or a local path to an '
+            'SDK tarball. Workflow submissions will download or copy an SDK '
+            'tarball from here. If set to the string "default", a standard '
+            'SDK location is used. If empty, no SDK is copied.'))
     parser.add_argument(
         '--extra_package',
         '--extra_packages',
@@ -915,15 +916,16 @@ class SetupOptions(PipelineOptions):
         action='append',
         default=None,
         help=(
-            'Local path to a Python package file. The file is expected to be (1) '
-            'a package tarball (".tar"), (2) a compressed package tarball '
-            '(".tar.gz"), (3) a Wheel file (".whl") or (4) a compressed package '
-            'zip file (".zip") which can be installed using the "pip install" '
-            'command  of the standard pip package. Multiple --extra_package '
-            'options can be specified if more than one package is needed. During '
-            'job submission, the files will be staged in the staging area '
-            '(--staging_location option) and the workers will install them in '
-            'same order they were specified on the command line.'))
+            'Local path to a Python package file. The file is expected to be '
+            '(1) a package tarball (".tar"), (2) a compressed package tarball '
+            '(".tar.gz"), (3) a Wheel file (".whl") or (4) a compressed '
+            'package zip file (".zip") which can be installed using the '
+            '"pip install" command  of the standard pip package. Multiple '
+            '--extra_package options can be specified if more than one '
+            'package is needed. During job submission, the files will be '
+            'staged in the staging area (--staging_location option) and the '
+            'workers will install them in same order they were specified on '
+            'the command line.'))
 
 
 class PortableOptions(PipelineOptions):

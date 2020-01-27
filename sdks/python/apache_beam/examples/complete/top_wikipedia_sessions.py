@@ -163,8 +163,8 @@ def run(argv=None):
   pipeline_options.view_as(SetupOptions).save_main_session = True
   with beam.Pipeline(options=pipeline_options) as p:
 
-    (
-        p  # pylint: disable=expression-not-assigned
+    (  # pylint: disable=expression-not-assigned
+        p
         | ReadFromText(known_args.input)
         | ComputeTopSessions(known_args.sampling_threshold)
         | WriteToText(known_args.output))
