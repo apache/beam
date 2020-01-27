@@ -33,6 +33,7 @@ from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import List
+from typing import Set
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
@@ -57,6 +58,7 @@ __all__ = [
     'Top',
     'ToDict',
     'ToList',
+    'ToSet',
     'Latest'
     ]
 
@@ -810,6 +812,35 @@ class ToDictCombineFn(core.CombineFn):
     for a in accumulators:
       result.update(a)
     return result
+
+  def extract_output(self, accumulator):
+    return accumulator
+
+
+class ToSet(ptransform.PTransform):
+  """A global CombineFn that condenses a PCollection into a set."""
+
+  def __init__(self, label='ToSet'):  # pylint: disable=useless-super-delegation
+    super(ToSet, self).__init__(label)
+
+  def expand(self, pcoll):
+    return pcoll | self.label >> core.CombineGlobally(ToSetCombineFn())
+
+
+@with_input_types(T)
+@with_output_types(Set[T])
+class ToSetCombineFn(core.CombineFn):
+  """CombineFn for ToSet."""
+
+  def create_accumulator(self):
+    return set()
+
+  def add_input(self, accumulator, element):
+    accumulator.add(element)
+    return accumulator
+
+  def merge_accumulators(self, accumulators):
+    return set.union(*accumulators)
 
   def extract_output(self, accumulator):
     return accumulator
