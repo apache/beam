@@ -287,6 +287,8 @@ class TestFileBasedSource(unittest.TestCase):
         default_value=str_file_pattern)
     self.assertEqual(runtime_vp_file_pattern,
                      FileBasedSource(runtime_vp_file_pattern)._pattern)
+    # Reset runtime options to avoid side-effects in other tests.
+    RuntimeValueProvider.set_runtime_options(None)
 
     invalid_file_pattern = 123
     with self.assertRaises(TypeError):
