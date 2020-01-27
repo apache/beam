@@ -489,21 +489,20 @@ public class ExpressionConverter {
         return rexBuilder()
             .makeInputRef(fieldList.get(windowFieldIndex).getType(), windowFieldIndex);
       case FIXED_WINDOW_END:
-        // WINDOW END is a function call
         operands.add(
             rexBuilder().makeInputRef(fieldList.get(windowFieldIndex).getType(), windowFieldIndex));
         // TODO: check window_end 's duration is the same as it's aggregate window.
         operands.add(
             convertIntervalToRexIntervalLiteral(
                 (ResolvedLiteral) functionCall.getArgumentList().get(0)));
-        return rexBuilder().makeCall(SqlStdOperatorTable.PLUS, operands);
+        return rexBuilder().makeCall(SqlOperators.TIMESTAMP_ADD_FN, operands);
       case SLIDING_WINDOW_END:
         operands.add(
             rexBuilder().makeInputRef(fieldList.get(windowFieldIndex).getType(), windowFieldIndex));
         operands.add(
             convertIntervalToRexIntervalLiteral(
                 (ResolvedLiteral) functionCall.getArgumentList().get(1)));
-        return rexBuilder().makeCall(SqlStdOperatorTable.PLUS, operands);
+        return rexBuilder().makeCall(SqlOperators.TIMESTAMP_ADD_FN, operands);
       default:
         throw new RuntimeException(
             "Does not support window start/end: " + functionCall.getFunction().getName());
