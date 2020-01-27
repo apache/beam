@@ -160,8 +160,8 @@ def run(argv=None, save_main_session=True):
       (user, score) = user_score
       return 'user: %s, total_score: %s' % (user, score)
 
-    (
-        p  # pylint: disable=expression-not-assigned
+    (  # pylint: disable=expression-not-assigned
+        p
         | 'ReadInputText' >> beam.io.ReadFromText(args.input)
         | 'UserScore' >> UserScore()
         | 'FormatUserScoreSums' >> beam.Map(format_user_score_sums)

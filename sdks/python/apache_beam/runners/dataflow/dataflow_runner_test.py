@@ -209,8 +209,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     remote_runner = DataflowRunner()
     with Pipeline(remote_runner,
                   options=PipelineOptions(self.default_properties)) as p:
-      (
-          p | ptransform.Create([1, 2, 3])  # pylint: disable=expression-not-assigned
+      (  # pylint: disable=expression-not-assigned
+          p | ptransform.Create([1, 2, 3])
           | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
           | ptransform.GroupByKey())
     self.assertEqual(
@@ -227,8 +227,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     with Pipeline(remote_runner,
                   options=PipelineOptions(self.default_properties)) as p:
 
-      (
-          p | ptransform.Create([1, 2, 3])  # pylint: disable=expression-not-assigned
+      (  # pylint: disable=expression-not-assigned
+          p | ptransform.Create([1, 2, 3])
           | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
           | ptransform.GroupByKey())
 

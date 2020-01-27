@@ -138,7 +138,7 @@ class Variant(object):
     self.calls = calls or []
 
   def __eq__(self, other):
-    return (isinstance(other, Variant) and vars(self) == vars(other))
+    return isinstance(other, Variant) and vars(self) == vars(other)
 
   def __ne__(self, other):
     # TODO(BEAM-5949): Needed for Python 2 compatibility.

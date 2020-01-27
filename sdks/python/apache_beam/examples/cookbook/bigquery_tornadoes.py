@@ -78,8 +78,8 @@ def run(argv=None):
       '--output',
       required=True,
       help=(
-          'Output BigQuery table for results specified as: PROJECT:DATASET.TABLE '
-          'or DATASET.TABLE.'))
+          'Output BigQuery table for results specified as: '
+          'PROJECT:DATASET.TABLE or DATASET.TABLE.'))
 
   parser.add_argument(
       '--gcs_location',

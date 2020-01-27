@@ -67,8 +67,8 @@ class SparkUberJarJobServerTest(unittest.TestCase):
         'http://host:6066',
         json={
             "action": "ErrorResponse",
-            "message": "Missing protocol version. Please submit requests through "
-            "http://[host]:[port]/v1/submissions/...",
+            "message": "Missing protocol version. Please submit requests "
+            "through http://[host]:[port]/v1/submissions/...",
             "serverSparkVersion": "1.2.3"
         },
         status_code=400)

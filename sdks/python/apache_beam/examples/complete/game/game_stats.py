@@ -343,12 +343,13 @@ def run(argv=None, save_main_session=True):
     # updates for late data. Uses the side input derived above --the set of
     # suspected robots-- to filter out scores from those users from the sum.
     # Write the results to BigQuery.
-    (
-        raw_events  # pylint: disable=expression-not-assigned
+    (  # pylint: disable=expression-not-assigned
+        raw_events
         | 'WindowIntoFixedWindows' >> beam.WindowInto(
             beam.window.FixedWindows(fixed_window_duration))
 
-        # Filter out the detected spammer users, using the side input derived above
+        # Filter out the detected spammer users, using the side input derived
+        # above
         | 'FilterOutSpammers' >> beam.Filter(
             lambda elem, spammers: elem['user'] not in spammers, spammers_view)
         # Extract and sum teamname/score pairs from the event data.
@@ -371,8 +372,8 @@ def run(argv=None, save_main_session=True):
     # from further activity. Find and record the mean session lengths.
     # This information could help the game designers track the changing user
     # engagement as their set of game changes.
-    (
-        user_events  # pylint: disable=expression-not-assigned
+    (  # pylint: disable=expression-not-assigned
+        user_events
         | 'WindowIntoSessions' >> beam.WindowInto(
             beam.window.Sessions(session_gap),
             timestamp_combiner=beam.window.TimestampCombiner.OUTPUT_AT_EOW)

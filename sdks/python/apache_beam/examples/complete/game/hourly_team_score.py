@@ -299,8 +299,8 @@ def run(argv=None, save_main_session=True):
   options.view_as(SetupOptions).save_main_session = save_main_session
 
   with beam.Pipeline(options=options) as p:
-    (
-        p  # pylint: disable=expression-not-assigned
+    (  # pylint: disable=expression-not-assigned
+        p
         | 'ReadInputText' >> beam.io.ReadFromText(args.input)
         | 'HourlyTeamScore' >> HourlyTeamScore(
             args.start_min, args.stop_min, args.window_duration)

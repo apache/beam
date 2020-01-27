@@ -409,7 +409,7 @@ class PipelineTest(unittest.TestCase):
         return isinstance(applied_ptransform.transform, DoubleParDo)
 
       def get_replacement_transform(self, ptransform):
-        return (ToStringParDo().with_input_types(int).with_output_types(str))
+        return ToStringParDo().with_input_types(int).with_output_types(str)
 
     for override, expected_type in [(NoTypeHintOverride(), typehints.Any),
                                     (WithTypeHintOverride(), str)]:

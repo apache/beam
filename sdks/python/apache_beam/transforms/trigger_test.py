@@ -156,7 +156,7 @@ class TriggerTest(unittest.TestCase):
 
     while state.timers:
       for timer_window, (name, time_domain,
-                         timestamp) in (state.get_and_clear_timers()):
+                         timestamp) in state.get_and_clear_timers():
         for wvalue in driver.process_timer(timer_window,
                                            name,
                                            time_domain,
@@ -178,7 +178,7 @@ class TriggerTest(unittest.TestCase):
 
       while state.timers:
         for timer_window, (name, time_domain,
-                           timestamp) in (state.get_and_clear_timers()):
+                           timestamp) in state.get_and_clear_timers():
           for wvalue in driver.process_timer(timer_window,
                                              name,
                                              time_domain,
@@ -610,9 +610,12 @@ class TranscriptTest(unittest.TestCase):
     from apache_beam.transforms import window as window_module
     # pylint: enable=wrong-import-order, wrong-import-position
     window_fn_names = dict(window_module.__dict__)
+    # yapf: disable
     window_fn_names.update({
-        'CustomTimestampingFixedWindowsWindowFn': CustomTimestampingFixedWindowsWindowFn
+        'CustomTimestampingFixedWindowsWindowFn':
+            CustomTimestampingFixedWindowsWindowFn
     })
+    # yapf: enable
     trigger_names = {'Default': DefaultTrigger}
     trigger_names.update(trigger.__dict__)
 

@@ -218,7 +218,7 @@ class UseSdfBoundedSourcesTests(unittest.TestCase):
   @mock.patch('apache_beam.io.iobase._SDFBoundedSourceWrapper.expand')
   def test_sdf_wrapper_overrides_read(self, sdf_wrapper_mock_expand):
     def _fake_wrapper_expand(pbegin):
-      return (pbegin | beam.Create(['fake']))
+      return pbegin | beam.Create(['fake'])
 
     sdf_wrapper_mock_expand.side_effect = _fake_wrapper_expand
     self._run_sdf_wrapper_pipeline(RangeSource(0, 4), ['fake'])

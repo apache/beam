@@ -184,7 +184,7 @@ class MatchFiles(beam.PTransform):
     self._empty_match_treatment = empty_match_treatment
 
   def expand(self, pcoll):
-    return (pcoll.pipeline | beam.Create([self._file_pattern]) | MatchAll())
+    return pcoll.pipeline | beam.Create([self._file_pattern]) | MatchAll()
 
 
 @experimental()
@@ -197,7 +197,7 @@ class MatchAll(beam.PTransform):
     self._empty_match_treatment = empty_match_treatment
 
   def expand(self, pcoll):
-    return (pcoll | beam.ParDo(_MatchAllFn(self._empty_match_treatment)))
+    return pcoll | beam.ParDo(_MatchAllFn(self._empty_match_treatment))
 
 
 class _ReadMatchesFn(beam.DoFn):
