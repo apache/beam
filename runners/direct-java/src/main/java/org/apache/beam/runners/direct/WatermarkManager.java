@@ -676,7 +676,9 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       Map<StructuralKey<?>, List<TimerData>> firedTimers;
       switch (domain) {
         case PROCESSING_TIME:
-          firedTimers = extractFiredTimers(firingTime, processingTimers);
+          firedTimers =
+              extractFiredTimers(
+                  INSTANT_ORDERING.min(firingTime, earliestHold.get()), processingTimers);
           break;
         case SYNCHRONIZED_PROCESSING_TIME:
           firedTimers =
@@ -706,10 +708,6 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       result.put(TimeDomain.PROCESSING_TIME, processingQueue);
       result.put(TimeDomain.SYNCHRONIZED_PROCESSING_TIME, synchronizedProcessingQueue);
       return result;
-    }
-
-    public Map<StructuralKey<?>, List<TimerData>> extractFiredProcessingTimers() {
-      return extractFiredDomainTimers(TimeDomain.PROCESSING_TIME, earliestHold.get());
     }
 
     @Override
@@ -1476,7 +1474,9 @@ public class WatermarkManager<ExecutableT, CollectionT> {
           inputWatermark.extractFiredEventTimeTimers();
       Map<StructuralKey<?>, List<TimerData>> processingTimers;
       Map<StructuralKey<?>, List<TimerData>> synchronizedTimers;
-      processingTimers = synchronizedProcessingInputWatermark.extractFiredProcessingTimers();
+      processingTimers =
+          synchronizedProcessingInputWatermark.extractFiredDomainTimers(
+              TimeDomain.PROCESSING_TIME, clock.now());
       synchronizedTimers =
           synchronizedProcessingInputWatermark.extractFiredDomainTimers(
               TimeDomain.SYNCHRONIZED_PROCESSING_TIME, getSynchronizedProcessingInputTime());
