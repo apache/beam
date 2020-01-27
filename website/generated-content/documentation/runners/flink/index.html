@@ -322,7 +322,7 @@ period.</p>
   <th>Artifact Id</th>
 </tr>
 <tr>
-  <td rowspan="3">2.17.0</td>
+  <td rowspan="3">2.17.0-2.18.0</td>
   <td>1.9.x</td>
   <td>beam-runners-flink-1.9</td>
 </tr>
@@ -481,27 +481,30 @@ If you have a Flink <code class="highlighter-rouge">JobManager</code> running on
 <code class="highlighter-rouge">flinkMaster</code>. Otherwise an embedded Flink cluster will be started for the job.
 </span></p>
 
-<p><span class="language-py">
-As of now you will need a copy of Apache Beam’s source code. You can
-download it on the <a href="/get-started/downloads/">Downloads page</a>.</span></p>
+<p><span class="language-py"></span></p>
 
-<p>Pre-built Docker images are available at Docker-Hub:
+<p>Starting with Beam 2.18.0, pre-built Docker images are available at Docker Hub.</p>
+
+<p>JobService:
+<a href="https://hub.docker.com/r/apachebeam/flink1.7_job_server">Flink 1.7</a>,
+<a href="https://hub.docker.com/r/apachebeam/flink1.8_job_server">Flink 1.8</a>,
+<a href="https://hub.docker.com/r/apachebeam/flink1.9_job_server">Flink 1.9</a>.</p>
+
+<p>Beam SDK:
 <a href="https://hub.docker.com/r/apachebeam/python2.7_sdk">Python 2.7</a>,
 <a href="https://hub.docker.com/r/apachebeam/python3.5_sdk">Python 3.5</a>,
 <a href="https://hub.docker.com/r/apachebeam/python3.6_sdk">Python 3.6</a>,
 <a href="https://hub.docker.com/r/apachebeam/python3.7_sdk">Python 3.7</a>.</p>
 
 <p>To run a pipeline on an embedded Flink cluster:
-&lt;/span&gt;</p>
+<!-- Span implictly ended --></p>
 
-<p><span class="language-py">1. Start the JobService endpoint: <code class="highlighter-rouge">./gradlew :runners:flink:1.9:job-server:runShadow</code>
+<p><span class="language-py">1. Start the JobService endpoint: <code class="highlighter-rouge">docker run --net=host apachebeam/flink1.9_job_server:latest</code>
 </span></p>
 
 <p><span class="language-py">
 The JobService is the central instance where you submit your Beam pipeline to.
 The JobService will create a Flink job for the pipeline and execute the job.
-To execute the job on a Flink cluster, the Beam JobService needs to be
-provided with the Flink JobManager address.
 </span></p>
 
 <p><span class="language-py">2. Submit the Python pipeline to the above endpoint by using the <code class="highlighter-rouge">PortableRunner</code>, <code class="highlighter-rouge">job_endpoint</code> set to <code class="highlighter-rouge">localhost:8099</code> (this is the default address of the JobService), and <code class="highlighter-rouge">environment_type</code> set to <code class="highlighter-rouge">LOOPBACK</code>. For example:
@@ -520,13 +523,13 @@ provided with the Flink JobManager address.
 </code></pre></div></div>
 
 <p><span class="language-py">
-To run on a separate <a href="https://ci.apache.org/projects/flink/flink-docs-release-1.8/tutorials/local_setup.html">Flink cluster</a>:
+To run on a separate <a href="https://ci.apache.org/projects/flink/flink-docs-release-1.9/getting-started/tutorials/local_setup.html">Flink cluster</a>:
 </span></p>
 
 <p><span class="language-py">1. Start a Flink cluster which exposes the Rest interface on <code class="highlighter-rouge">localhost:8081</code> by default.
 </span></p>
 
-<p><span class="language-py">2. Start JobService with Flink Rest endpoint: <code class="highlighter-rouge">./gradlew :runners:flink:1.9:job-server:runShadow -PflinkMasterUrl=localhost:8081</code>.
+<p><span class="language-py">2. Start JobService with Flink Rest endpoint: <code class="highlighter-rouge">docker run --net=host apachebeam/flink1.9_job_server:latest --flink-master=localhost:8081</code>.
 </span></p>
 
 <p><span class="language-py">3. Submit the pipeline as above.
@@ -535,7 +538,7 @@ See <a href="/roadmap/portability/#sdk-harness-config">here</a> for details.
 </span></p>
 
 <p><span class="language-py">Steps 2 and 3 can be automated in Python by using the <code class="highlighter-rouge">FlinkRunner</code>,
-plus the optional <code class="highlighter-rouge">flink_version</code> and <code class="highlighter-rouge">flink_master</code>* options, e.g.:
+plus the optional <code class="highlighter-rouge">flink_version</code> and <code class="highlighter-rouge">flink_master</code> options, e.g.:
 </span></p>
 
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
@@ -543,15 +546,13 @@ plus the optional <code class="highlighter-rouge">flink_version</code> and <code
 
 <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">([</span>
     <span class="s">"--runner=FlinkRunner"</span><span class="p">,</span>
-    <span class="s">"--flink_version=1.8"</span><span class="p">,</span>
+    <span class="s">"--flink_version=1.9"</span><span class="p">,</span>
     <span class="s">"--flink_master=localhost:8081"</span><span class="p">,</span>
     <span class="s">"--environment_type=LOOPBACK"</span>
 <span class="p">])</span>
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
     <span class="o">...</span>
 </code></pre></div></div>
-
-<p>* Note: For Beam versions &lt; 2.17.0, use <code class="highlighter-rouge">flink_master_url</code> instead of <code class="highlighter-rouge">flink_master</code>.</p>
 
 <h2 id="additional-information-and-caveats">Additional information and caveats</h2>
 
