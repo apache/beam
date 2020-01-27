@@ -77,11 +77,10 @@ task directRunnerIT {
 }
 
 task hdfsIntegrationTest {
-  dependsOn 'installGcpTest'
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ${rootDir}/sdks/python/apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh python:2"
+      args '-c', "${rootDir}/sdks/python/apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh python:2"
     }
   }
 }

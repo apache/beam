@@ -57,10 +57,9 @@ class TestPipeline(Pipeline):
 
   For example, use assert_that for test validation::
 
-    pipeline = TestPipeline()
-    pcoll = ...
-    assert_that(pcoll, equal_to(...))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = ...
+      assert_that(pcoll, equal_to(...))
   """
 
   def __init__(self,

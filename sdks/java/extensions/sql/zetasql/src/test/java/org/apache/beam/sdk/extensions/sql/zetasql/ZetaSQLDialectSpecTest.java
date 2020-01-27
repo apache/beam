@@ -58,6 +58,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
@@ -194,10 +195,28 @@ public class ZetaSQLDialectSpecTest {
 
   @Test
   public void testStringLiterals() {
-    String sql = "SELECT 'abc\\n'";
+    String sql = "SELECT '\"America/Los_Angeles\"\\n'";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addNullableField("ColA", FieldType.STRING).build();
+
+    PAssert.that(stream)
+        .containsInAnyOrder(Row.withSchema(schema).addValues("\"America/Los_Angeles\"\n").build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testParameterString() {
+    String sql = "SELECT ?";
+    ImmutableList<Value> params = ImmutableList.of(Value.createStringValue("abc\n"));
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode =
+        zetaSQLQueryPlanner.convertToBeamRel(sql, QueryParameters.ofPositional(params));
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
     final Schema schema = Schema.builder().addNullableField("ColA", FieldType.STRING).build();
@@ -306,6 +325,22 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testEQ6() {
+    String sql = "SELECT ? = ? AS ColA";
+    ImmutableList<Value> params =
+        ImmutableList.of(Value.createInt64Value(4L), Value.createInt64Value(5L));
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode =
+        zetaSQLQueryPlanner.convertToBeamRel(sql, QueryParameters.ofPositional(params));
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
+
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(false).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testIsNotNull1() {
     String sql = "SELECT @p0 IS NOT NULL AS ColA";
     ImmutableMap<String, Value> params =
@@ -377,6 +412,25 @@ public class ZetaSQLDialectSpecTest {
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addNullableField("field1", FieldType.INT64).build();
+
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(1L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testIfPositional() {
+    String sql = "SELECT IF(?, ?, ?) AS ColA";
+
+    ImmutableList<Value> params =
+        ImmutableList.of(
+            Value.createBoolValue(true), Value.createInt64Value(1), Value.createInt64Value(2));
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode =
+        zetaSQLQueryPlanner.convertToBeamRel(sql, QueryParameters.ofPositional(params));
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.INT64).build();
@@ -2928,7 +2982,7 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  public void testConcatParameterQuery() {
+  public void testConcatNamedParameterQuery() {
     String sql = "SELECT CONCAT(@p0, @p1) AS ColA";
     ImmutableMap<String, Value> params =
         ImmutableMap.of("p0", Value.createStringValue(""), "p1", Value.createStringValue("A"));
@@ -2938,6 +2992,24 @@ public class ZetaSQLDialectSpecTest {
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
     final Schema schema = Schema.builder().addStringField("field1").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("A").build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testConcatPositionalParameterQuery() {
+    String sql = "SELECT CONCAT(?, ?, ?) AS ColA";
+    ImmutableList<Value> params =
+        ImmutableList.of(
+            Value.createStringValue("a"),
+            Value.createStringValue("b"),
+            Value.createStringValue("c"));
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode =
+        zetaSQLQueryPlanner.convertToBeamRel(sql, QueryParameters.ofPositional(params));
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    final Schema schema = Schema.builder().addStringField("field1").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("abc").build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 

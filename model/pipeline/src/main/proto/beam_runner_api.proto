@@ -395,6 +395,9 @@ message ParDoPayload {
 
   // (Optional) Only set when this ParDo can request bundle finalization.
   bool requests_finalization = 8;
+
+  // (Optional) A mapping of local timer family names to timer specifications.
+  map<string, TimerFamilySpec> timer_family_specs = 9;
 }
 
 // Parameters that a UDF might require.
@@ -459,6 +462,11 @@ message SetStateSpec {
 message TimerSpec {
   TimeDomain.Enum time_domain = 1;
   string timer_coder_id = 2;
+}
+
+message TimerFamilySpec {
+  TimeDomain.Enum time_domain = 1;
+  string timer_family_coder_id = 2;
 }
 
 message IsBounded {
@@ -1318,6 +1326,10 @@ message ExecutableStagePayload {
   // this ExecutableStagePayload must be represented within this field.
   repeated TimerId timers = 8;
 
+  // The timerfamilies required for this executable stage. Each timer familyof each PTransform within
+  // this ExecutableStagePayload must be represented within this field.
+  repeated TimerFamilyId timerFamilies = 10;
+
   // A reference to a side input. Side inputs are uniquely identified by PTransform id and
   // local name.
   message SideInputId {
@@ -1348,6 +1360,15 @@ message ExecutableStagePayload {
     string local_name = 2;
   }
 
+  // A reference to a timer. Timers are uniquely identified by PTransform id and
+  // local name.
+  message TimerFamilyId {
+    // (Required) The id of the PTransform that references this timer family.
+    string transform_id = 1;
+
+    // (Required) The local name of this timer family for the PTransform that references it.
+    string local_name = 2;
+  }
   // Settings that decide the coder type of wire coder.
   message WireCoderSetting {
     // (Required) The URN of the wire coder.

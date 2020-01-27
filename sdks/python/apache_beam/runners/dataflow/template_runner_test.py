@@ -54,19 +54,19 @@ class TemplatingDataflowRunnerTest(unittest.TestCase):
     dummy_dir = tempfile.mkdtemp()
 
     remote_runner = DataflowRunner()
-    pipeline = Pipeline(remote_runner,
-                        options=PipelineOptions([
-                            '--dataflow_endpoint=ignored',
-                            '--sdk_location=' + dummy_file_name,
-                            '--job_name=test-job',
-                            '--project=test-project',
-                            '--staging_location=' + dummy_dir,
-                            '--temp_location=/dev/null',
-                            '--template_location=' + dummy_file_name,
-                            '--no_auth']))
+    with Pipeline(remote_runner,
+                  options=PipelineOptions([
+                      '--dataflow_endpoint=ignored',
+                      '--sdk_location=' + dummy_file_name,
+                      '--job_name=test-job',
+                      '--project=test-project',
+                      '--staging_location=' + dummy_dir,
+                      '--temp_location=/dev/null',
+                      '--template_location=' + dummy_file_name,
+                      '--no_auth'])) as pipeline:
 
-    pipeline | beam.Create([1, 2, 3]) | beam.Map(lambda x: x) # pylint: disable=expression-not-assigned
-    pipeline.run().wait_until_finish()
+      pipeline | beam.Create([1, 2, 3]) | beam.Map(lambda x: x) # pylint: disable=expression-not-assigned
+
     with open(dummy_file_name) as template_file:
       saved_job_dict = json.load(template_file)
       self.assertEqual(

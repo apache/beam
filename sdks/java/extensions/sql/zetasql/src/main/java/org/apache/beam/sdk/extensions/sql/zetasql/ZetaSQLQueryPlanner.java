@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import com.google.zetasql.Value;
-import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner.NonCumulativeCostImpl;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
@@ -97,11 +96,15 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     return ret;
   }
 
+  public BeamRelNode convertToBeamRel(String sqlStatement) {
+    return convertToBeamRel(sqlStatement, QueryParameters.ofNone());
+  }
+
   @Override
-  public BeamRelNode convertToBeamRel(String sqlStatement)
+  public BeamRelNode convertToBeamRel(String sqlStatement, QueryParameters queryParameters)
       throws ParseException, SqlConversionException {
     try {
-      return parseQuery(sqlStatement);
+      return parseQuery(sqlStatement, queryParameters);
     } catch (RelConversionException e) {
       throw new SqlConversionException(e.getCause());
     }
@@ -118,17 +121,17 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
   public BeamRelNode convertToBeamRel(String sqlStatement, Map<String, Value> queryParams)
       throws ParseException, SqlConversionException {
     try {
-      return parseQuery(sqlStatement, queryParams);
+      return parseQuery(sqlStatement, QueryParameters.ofNamed(queryParams));
     } catch (RelConversionException e) {
       throw new SqlConversionException(e.getCause());
     }
   }
 
   public BeamRelNode parseQuery(String sql) throws RelConversionException {
-    return parseQuery(sql, Collections.emptyMap());
+    return parseQuery(sql, QueryParameters.ofNone());
   }
 
-  public BeamRelNode parseQuery(String sql, Map<String, Value> queryParams)
+  public BeamRelNode parseQuery(String sql, QueryParameters queryParams)
       throws RelConversionException {
     RelRoot root = plannerImpl.rel(sql, queryParams);
     RelTraitSet desiredTraits =

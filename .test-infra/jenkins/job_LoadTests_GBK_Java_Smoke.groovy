@@ -85,9 +85,9 @@ def smokeTestConfigurations = { datasetName -> [
 
 // Runs a tiny version load test suite to ensure nothing is broken.
 PhraseTriggeringPostCommitBuilder.postCommitJob(
-        'beam_Java_LoadTests_Smoke',
-        'Run Java Load Tests Smoke',
-        'Java Load Tests Smoke',
+        'beam_Java_LoadTests_GBK_Smoke',
+        'Run Java Load Tests GBK Smoke',
+        'Java Load Tests GBK Smoke',
         this
 ) {
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test_SMOKE', CommonTestProperties.TriggeringContext.PR)

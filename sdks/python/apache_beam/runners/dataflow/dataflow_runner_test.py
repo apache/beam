@@ -210,12 +210,12 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.default_properties.append('--experiments=beam_fn_api')
     self.default_properties.append('--worker_harness_container_image=FOO')
     remote_runner = DataflowRunner()
-    p = Pipeline(remote_runner,
-                 options=PipelineOptions(self.default_properties))
-    (p | ptransform.Create([1, 2, 3])  # pylint: disable=expression-not-assigned
-     | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
-     | ptransform.GroupByKey())
-    p.run()
+    with Pipeline(
+        remote_runner,
+        options=PipelineOptions(self.default_properties)) as p:
+      (p | ptransform.Create([1, 2, 3])  # pylint: disable=expression-not-assigned
+       | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
+       | ptransform.GroupByKey())
     self.assertEqual(
         list(remote_runner.proto_pipeline.components.environments.values()),
         [beam_runner_api_pb2.Environment(
@@ -225,20 +225,19 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
   def test_remote_runner_translation(self):
     remote_runner = DataflowRunner()
-    p = Pipeline(remote_runner,
-                 options=PipelineOptions(self.default_properties))
+    with Pipeline(
+        remote_runner,
+        options=PipelineOptions(self.default_properties)) as p:
 
-    (p | ptransform.Create([1, 2, 3])  # pylint: disable=expression-not-assigned
-     | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
-     | ptransform.GroupByKey())
-    p.run()
+      (p | ptransform.Create([1, 2, 3])  # pylint: disable=expression-not-assigned
+       | 'Do' >> ptransform.FlatMap(lambda x: [(x, x)])
+       | ptransform.GroupByKey())
 
   def test_streaming_create_translation(self):
     remote_runner = DataflowRunner()
     self.default_properties.append("--streaming")
-    p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
-    p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
-    p.run()
+    with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:
+      p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
     job_dict = json.loads(str(remote_runner.job))
     self.assertEqual(len(job_dict[u'steps']), 3)
 
@@ -252,11 +251,12 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
   def test_biqquery_read_streaming_fail(self):
     remote_runner = DataflowRunner()
     self.default_properties.append("--streaming")
-    p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
-    _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
     with self.assertRaisesRegex(ValueError,
                                 r'source is not currently available'):
-      p.run()
+      with Pipeline(
+          remote_runner,
+          PipelineOptions(self.default_properties)) as p:
+        _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
 
   # TODO(BEAM-8095): Segfaults in Python 3.7 with xdist.
   @pytest.mark.no_xdist
@@ -422,9 +422,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     remote_runner = DataflowRunner()
     self.default_properties.append('--min_cpu_platform=Intel Haswell')
 
-    p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
-    p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
-    p.run()
+    with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:
+      p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
     self.assertIn('min_cpu_platform=Intel Haswell',
                   remote_runner.job.options.view_as(DebugOptions).experiments)
 
@@ -434,9 +433,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.default_properties.append('--enable_streaming_engine')
     self.default_properties.append('--experiment=some_other_experiment')
 
-    p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
-    p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
-    p.run()
+    with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:
+      p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
 
     experiments_for_job = (
         remote_runner.job.options.view_as(DebugOptions).experiments)
@@ -449,9 +447,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.default_properties.append('--experiment=some_other_experiment')
     self.default_properties.append('--dataflow_worker_jar=test.jar')
 
-    p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
-    p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
-    p.run()
+    with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:
+      p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
 
     experiments_for_job = (
         remote_runner.job.options.view_as(DebugOptions).experiments)
@@ -463,9 +460,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.default_properties.append('--experiment=beam_fn_api')
     self.default_properties.append('--dataflow_worker_jar=test.jar')
 
-    p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
-    p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
-    p.run()
+    with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:
+      p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
 
     experiments_for_job = (
         remote_runner.job.options.view_as(DebugOptions).experiments)
@@ -475,9 +471,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
   def test_use_fastavro_experiment_is_added_on_py3_and_onwards(self):
     remote_runner = DataflowRunner()
 
-    p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
-    p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
-    p.run()
+    with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:
+      p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
 
     self.assertEqual(
         sys.version_info[0] > 2,
@@ -488,9 +483,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     remote_runner = DataflowRunner()
     self.default_properties.append('--experiment=use_avro')
 
-    p = Pipeline(remote_runner, PipelineOptions(self.default_properties))
-    p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
-    p.run()
+    with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:
+      p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
 
     debug_options = remote_runner.job.options.view_as(DebugOptions)
 

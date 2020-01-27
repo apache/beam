@@ -109,7 +109,7 @@ public class ApexTimerInternalsTest {
     assertEquals(1, timerMap.size());
     assertEquals(2, timerMap.values().iterator().next().size());
 
-    timerInternals.deleteTimer(timerData0.getNamespace(), timerData0.getTimerId());
+    timerInternals.deleteTimer(timerData0.getNamespace(), timerData0.getTimerId(), "");
     assertEquals(1, timerMap.size());
     assertEquals(1, timerMap.values().iterator().next().size());
 

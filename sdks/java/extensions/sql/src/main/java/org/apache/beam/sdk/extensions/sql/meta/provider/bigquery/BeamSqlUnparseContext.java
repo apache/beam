@@ -20,6 +20,10 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rel2sql.SqlImplementor.POS;
 
 import java.util.function.IntFunction;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.text.translate.CharSequenceTranslator;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.text.translate.EntityArrays;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.text.translate.JavaUnicodeEscaper;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.text.translate.LookupTranslator;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rel2sql.SqlImplementor;
@@ -34,9 +38,27 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlP
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.BitString;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.commons.lang.StringEscapeUtils;
 
 public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
+
+  // More about escape sequences here:
+  // https://cloud.google.com/bigquery/docs/reference/standard-sql/lexical
+  // No need to escape: \`, \?, \v, \a, \ooo, \xhh (since this in not a thing in Java)
+  // TODO: Move away from deprecated classes.
+  // TODO: Escaping single quotes, SqlCharStringLiteral (produced by SqlLiteral.createCharString)
+  // introduces extra.
+  private static final CharSequenceTranslator ESCAPE_FOR_ZETA_SQL =
+      // ZetaSQL specific:
+      new LookupTranslator(
+              new String[][] {
+                {"\"", "\\\""},
+                {"\\", "\\\\"},
+              })
+          // \b, \n, \t, \f, \r
+          .with(new LookupTranslator(EntityArrays.JAVA_CTRL_CHARS_ESCAPE()))
+          // TODO(BEAM-9180): Add support for \Uhhhhhhhh
+          // Unicode (only 4 hex digits)
+          .with(JavaUnicodeEscaper.outsideOf(32, 0x7f));
 
   public BeamSqlUnparseContext(IntFunction<SqlNode> field) {
     super(BeamBigQuerySqlDialect.DEFAULT, field);
@@ -52,7 +74,7 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
         BitString bitString = BitString.createFromHexString(byteString.toString(16));
         return new SqlByteStringLiteral(bitString, POS);
       } else if (SqlTypeFamily.CHARACTER.equals(family)) {
-        String escaped = StringEscapeUtils.escapeJava(literal.getValueAs(String.class));
+        String escaped = ESCAPE_FOR_ZETA_SQL.translate(literal.getValueAs(String.class));
         return SqlLiteral.createCharString(escaped, POS);
       } else if (SqlTypeName.SYMBOL.equals(literal.getTypeName())) {
         Enum symbol = literal.getValueAs(Enum.class);
