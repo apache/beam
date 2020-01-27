@@ -39,9 +39,15 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 
 class PipelineOptionsTest(unittest.TestCase):
+  def setUp(self):
+    # Reset runtime options to avoid side-effects caused by other tests.
+    # Note that is_accessible assertions require runtime_options to
+    # be uninitialized.
+    RuntimeValueProvider.set_runtime_options(None)
+
   def tearDown(self):
-    # Clean up the global variable used by RuntimeValueProvider
-    RuntimeValueProvider.runtime_options = None
+    # Reset runtime options to avoid side-effects in other tests.
+    RuntimeValueProvider.set_runtime_options(None)
 
   TEST_CASES = [
       {'flags': ['--num_workers', '5'],
