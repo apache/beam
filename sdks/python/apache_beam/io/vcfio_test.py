@@ -17,6 +17,8 @@
 
 """Tests for vcfio module."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -494,26 +496,23 @@ class VcfSourceTest(unittest.TestCase):
     with TempDir() as tempdir:
       file_name = self._create_temp_vcf_file(_SAMPLE_HEADER_LINES +
                                              _SAMPLE_TEXT_LINES, tempdir)
-      pipeline = TestPipeline()
-      pcoll = pipeline | 'Read' >> ReadFromVcf(file_name)
-      assert_that(pcoll, _count_equals_to(len(_SAMPLE_TEXT_LINES)))
-      pipeline.run()
+      with TestPipeline() as pipeline:
+        pcoll = pipeline | 'Read' >> ReadFromVcf(file_name)
+        assert_that(pcoll, _count_equals_to(len(_SAMPLE_TEXT_LINES)))
 
   @unittest.skipIf(VCF_FILE_DIR_MISSING, 'VCF test file directory is missing')
   def test_pipeline_read_single_file_large(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> ReadFromVcf(
-        get_full_file_path('valid-4.0.vcf'))
-    assert_that(pcoll, _count_equals_to(5))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Read' >> ReadFromVcf(
+          get_full_file_path('valid-4.0.vcf'))
+      assert_that(pcoll, _count_equals_to(5))
 
   @unittest.skipIf(VCF_FILE_DIR_MISSING, 'VCF test file directory is missing')
   def test_pipeline_read_file_pattern_large(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> ReadFromVcf(
-        os.path.join(get_full_dir(), 'valid-*.vcf'))
-    assert_that(pcoll, _count_equals_to(9900))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Read' >> ReadFromVcf(
+          os.path.join(get_full_dir(), 'valid-*.vcf'))
+      assert_that(pcoll, _count_equals_to(9900))
 
   def test_read_reentrant_without_splitting(self):
     with TempDir() as tempdir:

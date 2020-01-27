@@ -24,6 +24,8 @@ square. A simple area calculation shows that this fraction should be π/4, so
 we multiply our counts ratio by four to estimate π.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 

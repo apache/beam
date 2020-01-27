@@ -106,7 +106,7 @@ function start_tunnel() {
   local job_server_config=`gcloud compute ssh --quiet --zone=$GCLOUD_ZONE yarn@$MASTER_NAME --command="curl -s \"http://$YARN_APPLICATION_MASTER/jobmanager/config\""`
   local key="jobmanager.rpc.port"
   local yarn_application_master_host=`echo $YARN_APPLICATION_MASTER | cut -d ":" -f1`
-  local jobmanager_rpc_port=`echo $job_server_config | python -c "import sys, json; print [ e['value'] for e in json.load(sys.stdin) if e['key'] == u'$key'][0]"`
+  local jobmanager_rpc_port=`echo $job_server_config | python -c "import sys, json; print([e['value'] for e in json.load(sys.stdin) if e['key'] == u'$key'][0])"`
 
   local detached_mode_params=$([[ $DETACHED_MODE == "true" ]] && echo " -Nf >& /dev/null" || echo "")
 

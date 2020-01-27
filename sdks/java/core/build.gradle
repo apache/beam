@@ -46,6 +46,7 @@ artifact includes entire Apache Beam Java SDK."""
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'pom.version': version,
+    'pom.sdk_version': sdk_version,
     'timestamp': new Date().format("yyyy-MM-dd HH:mm")
   ]
 }

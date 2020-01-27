@@ -18,6 +18,8 @@
 
 """Unit tests for the S3 File System"""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -129,7 +131,7 @@ class S3FileSystemTest(unittest.TestCase):
     with self.assertRaises(BeamIOError) as error:
       self.fs.match(['s3://bucket/'])
 
-    self.assertTrue('Match operation failed' in str(error.exception))
+    self.assertIn('Match operation failed', str(error.exception))
     s3io_mock.list_prefix.assert_called_once_with('s3://bucket/')
 
   @mock.patch('apache_beam.io.aws.s3filesystem.s3io')
@@ -225,11 +227,12 @@ class S3FileSystemTest(unittest.TestCase):
     problematic_directory = 's3://nonexistent-bucket/tree/'
     exception = messages.S3ClientError('Not found', 404)
 
-    s3io_mock.delete_paths.return_value = [
-        (problematic_directory, exception),
-        ('s3://bucket/object1', None),
-        ('s3://bucket/object2', None)
-    ]
+    s3io_mock.delete_paths.return_value = {
+        problematic_directory: exception,
+        's3://bucket/object1': None,
+        's3://bucket/object2': None,
+    }
+
     s3io_mock.size.return_value = 0
     files = [
         problematic_directory,
@@ -241,7 +244,7 @@ class S3FileSystemTest(unittest.TestCase):
     # Issue batch delete.
     with self.assertRaises(BeamIOError) as error:
       self.fs.delete(files)
-    self.assertTrue('Delete operation failed' in str(error.exception))
+    self.assertIn('Delete operation failed', str(error.exception))
     self.assertEqual(error.exception.exception_details, expected_results)
     s3io_mock.delete_paths.assert_called()
 

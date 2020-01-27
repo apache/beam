@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -66,12 +68,10 @@ class TestParquetIT(unittest.TestCase):
     file_prefix = "parquet_it_test"
     init_size = 10
     data_size = 20000
-    p = TestPipeline(is_integration_test=True)
-    pcol = self._generate_data(
-        p, file_prefix, init_size, data_size)
-    self._verify_data(pcol, init_size, data_size)
-    result = p.run()
-    result.wait_until_finish()
+    with TestPipeline(is_integration_test=True) as p:
+      pcol = self._generate_data(
+          p, file_prefix, init_size, data_size)
+      self._verify_data(pcol, init_size, data_size)
 
   @staticmethod
   def _sum_verifier(init_size, data_size, x):

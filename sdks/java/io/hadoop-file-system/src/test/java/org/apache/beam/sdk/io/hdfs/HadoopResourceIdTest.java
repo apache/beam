@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.hdfs;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+
 import java.net.URI;
 import java.util.Collections;
 import org.apache.beam.sdk.io.FileSystems;
@@ -64,5 +67,17 @@ public class HadoopResourceIdTest {
         FileSystems.matchNewResource(
             "hdfs://" + hdfsClusterBaseUri.getPath(), true /* isDirectory */);
     ResourceIdTester.runResourceIdBattery(baseDirectory);
+  }
+
+  @Test
+  public void testGetFilename() {
+    assertNull(toResourceIdentifier("").getFilename());
+    assertEquals("abc", toResourceIdentifier("/dirA/abc").getFilename());
+    assertEquals("abc", toResourceIdentifier("/dirA/abc/").getFilename());
+    assertEquals("xyz.txt", toResourceIdentifier("/dirA/abc/xyz.txt").getFilename());
+  }
+
+  private ResourceId toResourceIdentifier(String path) {
+    return new HadoopResourceId(hdfsClusterBaseUri.resolve(path));
   }
 }

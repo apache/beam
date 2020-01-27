@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.zetasketch;
 
+import static org.apache.beam.sdk.io.gcp.testing.BigqueryMatcher.createQueryUsingStandardSql;
+import static org.apache.beam.sdk.io.gcp.testing.BigqueryMatcher.queryResultHasChecksum;
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
@@ -36,7 +40,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
-import org.apache.beam.sdk.io.gcp.testing.BigqueryMatcher;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -234,11 +237,6 @@ public class BigQueryHllSketchCompatibilityIT {
 
     TestPipelineOptions options =
         TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
-    // After the pipeline finishes, BigqueryMatcher will send a query to retrieve the estimated
-    // count and verifies its correctness using checksum.
-    options.setOnSuccessMatcher(
-        BigqueryMatcher.createUsingStandardSql(APP_NAME, PROJECT_ID, query, expectedChecksum));
-
     Pipeline p = Pipeline.create(options);
     p.apply(Create.of(testData).withType(TypeDescriptor.of(String.class)))
         .apply(HllCount.Init.forStrings().globally())
@@ -253,5 +251,11 @@ public class BigQueryHllSketchCompatibilityIT {
                         new TableRow().set(SKETCH_FIELD_NAME, sketch.length == 0 ? null : sketch))
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
     p.run().waitUntilFinish();
+
+    // BigqueryMatcher will send a query to retrieve the estimated count and verifies its
+    // correctness using checksum.
+    assertThat(
+        createQueryUsingStandardSql(APP_NAME, PROJECT_ID, query),
+        queryResultHasChecksum(expectedChecksum));
   }
 }

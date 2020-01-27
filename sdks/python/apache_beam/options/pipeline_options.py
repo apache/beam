@@ -17,6 +17,8 @@
 
 """Pipeline options obtained from command line parsing."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse
@@ -286,14 +288,19 @@ class PipelineOptions(HasDisplayData):
       _LOGGER.warning("Discarding unparseable args: %s", unknown_args)
     result = vars(known_args)
 
+    overrides = self._all_options.copy()
     # Apply the overrides if any
     for k in list(result):
+      overrides.pop(k, None)
       if k in self._all_options:
         result[k] = self._all_options[k]
       if (drop_default and
           parser.get_default(k) == result[k] and
           not isinstance(parser.get_default(k), ValueProvider)):
         del result[k]
+
+    if overrides:
+      _LOGGER.warning("Discarding invalid overrides: %s", overrides)
 
     return result
 
@@ -438,6 +445,12 @@ class DirectOptions(PipelineOptions):
         type=int,
         default=1,
         help='number of parallel running workers.')
+    parser.add_argument(
+        '--direct_running_mode',
+        default='in_memory',
+        choices=['in_memory', 'multi_threading', 'multi_processing'],
+        help='Workers running environment.'
+        )
 
 
 class GoogleCloudOptions(PipelineOptions):
@@ -991,6 +1004,28 @@ class FlinkRunnerOptions(PipelineOptions):
                              ' directly, rather than starting up a job server.'
                              ' Only applies when flink_master is set to a'
                              ' cluster address.  Requires Python 3.6+.')
+
+
+class SparkRunnerOptions(PipelineOptions):
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument('--spark_master_url',
+                        default='local[4]',
+                        help='Spark master URL (spark://HOST:PORT). '
+                             'Use "local" (single-threaded) or "local[*]" '
+                             '(multi-threaded) to start a local cluster for '
+                             'the execution.')
+    parser.add_argument('--spark_job_server_jar',
+                        help='Path or URL to a Beam Spark jobserver jar.')
+    parser.add_argument('--spark_submit_uber_jar',
+                        default=False,
+                        action='store_true',
+                        help='Create and upload an uber jar to the Spark REST'
+                             ' endpoint, rather than starting up a job server.'
+                             ' Requires Python 3.6+.')
+    parser.add_argument('--spark_rest_url',
+                        help='URL for the Spark REST endpoint. '
+                             'Only required when using spark_submit_uber_jar.')
 
 
 class TestOptions(PipelineOptions):

@@ -14,31 +14,44 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import itertools
+import json
 import logging
+import shutil
+import tempfile
 import uuid
+import zipfile
 from builtins import object
+from concurrent import futures
 from typing import TYPE_CHECKING
 from typing import Dict
 from typing import Iterator
 from typing import Optional
+from typing import Tuple
 from typing import Union
 
+import grpc
+from google.protobuf import json_format
 from google.protobuf import timestamp_pb2
 
+from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
+from apache_beam.portability.api import endpoints_pb2
+from apache_beam.runners.portability import artifact_service
 from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
   from google.protobuf import struct_pb2  # pylint: disable=ungrouped-imports
   from apache_beam.portability.api import beam_runner_api_pb2
-  from apache_beam.portability.api import endpoints_pb2
 
 _LOGGER = logging.getLogger(__name__)
 
+StateEvent = Tuple[int, Union[timestamp_pb2.Timestamp, Timestamp]]
 
 def make_state_event(state, timestamp):
   if isinstance(timestamp, Timestamp):
@@ -118,7 +131,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
                request,  # type: beam_job_api_pb2.GetJobStateRequest
                context=None
               ):
-    # type: (...) -> beam_job_api_pb2.GetJobStateResponse
+    # type: (...) -> beam_job_api_pb2.JobStateEvent
     return beam_job_api_pb2.JobStateEvent(
         state=self._jobs[request.job_id].get_state())
 
@@ -142,7 +155,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
         state=self._jobs[request.job_id].get_state())
 
   def GetStateStream(self, request, context=None, timeout=None):
-    # type: (...) -> Iterator[beam_job_api_pb2.GetJobStateResponse]
+    # type: (...) -> Iterator[beam_job_api_pb2.JobStateEvent]
     """Yields state transitions since the stream started.
       """
     if request.job_id not in self._jobs:
@@ -207,11 +220,11 @@ class AbstractBeamJob(object):
     raise NotImplementedError(self)
 
   def get_state_stream(self):
-    # type: () -> Iterator[Optional[beam_job_api_pb2.JobState.Enum]]
+    # type: () -> Iterator[StateEvent]
     raise NotImplementedError(self)
 
   def get_message_stream(self):
-    # type: () -> Iterator[Union[int, Optional[beam_job_api_pb2.JobMessage]]]
+    # type: () -> Iterator[Union[StateEvent, Optional[beam_job_api_pb2.JobMessage]]]
     raise NotImplementedError(self)
 
 
@@ -260,3 +273,70 @@ class AbstractBeamJob(object):
         job_name=self._job_name,
         pipeline_options=self._pipeline_options,
         state=self.state)
+
+
+class UberJarBeamJob(AbstractBeamJob):
+  """Abstract baseclass for creating a Beam job. The resulting job will be
+  packaged and run in an executable uber jar."""
+
+  # These must agree with those defined in PortablePipelineJarUtils.java.
+  PIPELINE_FOLDER = 'BEAM-PIPELINE'
+  PIPELINE_MANIFEST = PIPELINE_FOLDER + '/pipeline-manifest.json'
+
+  # We only stage a single pipeline in the jar.
+  PIPELINE_NAME = 'pipeline'
+  PIPELINE_PATH = '/'.join(
+      [PIPELINE_FOLDER, PIPELINE_NAME, "pipeline.json"])
+  PIPELINE_OPTIONS_PATH = '/'.join(
+      [PIPELINE_FOLDER, PIPELINE_NAME, 'pipeline-options.json'])
+  ARTIFACT_MANIFEST_PATH = '/'.join(
+      [PIPELINE_FOLDER, PIPELINE_NAME, 'artifact-manifest.json'])
+  ARTIFACT_FOLDER = '/'.join([PIPELINE_FOLDER, PIPELINE_NAME, 'artifacts'])
+
+  def __init__(
+      self, executable_jar, job_id, job_name, pipeline, options,
+      artifact_port=0):
+    super(UberJarBeamJob, self).__init__(job_id, job_name, pipeline, options)
+    self._executable_jar = executable_jar
+    self._jar_uploaded = False
+    self._artifact_port = artifact_port
+
+  def prepare(self):
+    # Copy the executable jar, injecting the pipeline and options as resources.
+    with tempfile.NamedTemporaryFile(suffix='.jar') as tout:
+      self._jar = tout.name
+    shutil.copy(self._executable_jar, self._jar)
+    with zipfile.ZipFile(self._jar, 'a', compression=zipfile.ZIP_DEFLATED) as z:
+      with z.open(self.PIPELINE_PATH, 'w') as fout:
+        fout.write(json_format.MessageToJson(
+            self._pipeline_proto).encode('utf-8'))
+      with z.open(self.PIPELINE_OPTIONS_PATH, 'w') as fout:
+        fout.write(json_format.MessageToJson(
+            self._pipeline_options).encode('utf-8'))
+      with z.open(self.PIPELINE_MANIFEST, 'w') as fout:
+        fout.write(json.dumps(
+            {'defaultJobName': self.PIPELINE_NAME}).encode('utf-8'))
+    self._start_artifact_service(self._jar, self._artifact_port)
+
+  def _start_artifact_service(self, jar, requested_port):
+    self._artifact_staging_service = artifact_service.ZipFileArtifactService(
+        jar, self.ARTIFACT_FOLDER)
+    self._artifact_staging_server = grpc.server(futures.ThreadPoolExecutor())
+    port = self._artifact_staging_server.add_insecure_port(
+        '[::]:%s' % requested_port)
+    beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
+        self._artifact_staging_service, self._artifact_staging_server)
+    self._artifact_staging_endpoint = endpoints_pb2.ApiServiceDescriptor(
+        url='localhost:%d' % port)
+    self._artifact_staging_server.start()
+    _LOGGER.info('Artifact server started on port %s', port)
+    return port
+
+  def _stop_artifact_service(self):
+    self._artifact_staging_server.stop(1)
+    self._artifact_staging_service.close()
+    self._artifact_manifest_location = (
+        self._artifact_staging_service.retrieval_token(self._job_id))
+
+  def artifact_staging_endpoint(self):
+    return self._artifact_staging_endpoint

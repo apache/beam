@@ -17,13 +17,14 @@
 
 """Core PTransform subclasses, such as FlatMap, GroupByKey, and Map."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import copy
 import inspect
 import logging
 import random
-import re
 import types
 import typing
 from builtins import map
@@ -48,6 +49,7 @@ from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import PTransformWithSideInputs
+from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.userstate import StateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.window import GlobalWindows
@@ -419,9 +421,10 @@ class WatermarkEstimator(object):
   TODO(BEAM-8537): Create WatermarkEstimatorProvider to support different types.
   """
   def __init__(self):
-    self._watermark = None
+    self._watermark = None  # type: typing.Optional[timestamp.Timestamp]
 
   def set_watermark(self, watermark):
+    # type: (timestamp.Timestamp) -> None
     """Update tracking output_watermark with latest output_watermark.
     This function is called inside an SDF.Process() to track the watermark of
     output element.
@@ -437,6 +440,7 @@ class WatermarkEstimator(object):
       self._watermark = min(self._watermark, watermark)
 
   def current_watermark(self):
+    # type: () -> typing.Optional[timestamp.Timestamp]
     """Get current output_watermark. This function is called by system."""
     return self._watermark
 
@@ -1304,7 +1308,9 @@ class ParDo(PTransformWithSideInputs):
     return (
         common_urns.primitives.PAR_DO.urn,
         beam_runner_api_pb2.ParDoPayload(
-            do_fn=beam_runner_api_pb2.FunctionSpec(urn=python_urns.PICKLED_DOFN_INFO, payload=picked_pardo_fn_data),
+            do_fn=beam_runner_api_pb2.FunctionSpec(
+                urn=python_urns.PICKLED_DOFN_INFO,
+                payload=picked_pardo_fn_data),
             splittable=is_splittable,
             restriction_coder_id=restriction_coder_id,
             state_specs={spec.name: spec.to_runner_api(context)
@@ -1334,7 +1340,7 @@ class ParDo(PTransformWithSideInputs):
     # This is an ordered list stored as a dict (see the comments in
     # to_runner_api_parameter above).
     indexed_side_inputs = [
-        (int(re.match('side([0-9]+)(-.*)?$', tag).group(1)),
+        (get_sideinput_index(tag),
          pvalue.AsSideInput.from_runner_api(si, context))
         for tag, si in pardo_payload.side_inputs.items()]
     result.side_inputs = [si for _, si in sorted(indexed_side_inputs)]
@@ -2268,8 +2274,8 @@ class Windowing(object):
   def __init__(self,
                windowfn,  # type: WindowFn
                triggerfn=None,  # type: typing.Optional[TriggerFn]
-               accumulation_mode=None,  # typing.Optional[beam_runner_api_pb2.AccumulationMode]
-               timestamp_combiner=None,  # typing.Optional[beam_runner_api_pb2.OutputTime]
+               accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode]
+               timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime]
                allowed_lateness=0, # type: typing.Union[int, float]
                ):
     """Class representing the window strategy.

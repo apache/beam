@@ -483,12 +483,12 @@ const (
 	StandardCoders_WINDOWED_VALUE StandardCoders_Enum = 8
 	// A windowed value coder with parameterized timestamp, windows and pane info.
 	// Encodes an element with only the value of the windowed value.
-	// Decodes the value and assign the parameterized timestamp, windows and PaneInfo to the
-	// windowed value
+	// Decodes the value and assigns the parameterized timestamp, windows and pane info to the
+	// windowed value.
 	// Components: The element coder and the window coder, in that order
 	// The payload of this coder is an encoded windowed value using the
-	// beam:coder:windowed_value:v1 coder parameterized by beam:coder:bytes:v1
-	// elements coder and the window coder that this param_windowed_value uses.
+	// beam:coder:windowed_value:v1 coder parameterized by a beam:coder:bytes:v1
+	// element coder and the window coder that this param_windowed_value coder uses.
 	StandardCoders_PARAM_WINDOWED_VALUE StandardCoders_Enum = 14
 	// Encodes an iterable of elements, some of which may be stored elsewhere.
 	//
@@ -3973,8 +3973,8 @@ type WireCoderSetting struct {
 	// the URN is beam:coder:windowed_value:v1, this may be omitted. If the URN is
 	// beam:coder:param_windowed_value:v1, the payload is an encoded windowed
 	// value using the beam:coder:windowed_value:v1 coder parameterized by
-	// beam:coder:bytes:v1 elements coder and the window coder that this
-	// param_windowed_value uses.
+	// a beam:coder:bytes:v1 element coder and the window coder that this
+	// param_windowed_value coder uses.
 	Payload              []byte   `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`

@@ -33,8 +33,9 @@ import java.util.SortedMap;
 import java.util.SortedSet;
 import javax.annotation.Nullable;
 import org.apache.avro.AvroRuntimeException;
+import org.apache.avro.Conversion;
+import org.apache.avro.LogicalType;
 import org.apache.avro.Schema;
-import org.apache.avro.data.TimeConversions.TimestampConversion;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -59,6 +60,8 @@ import org.apache.beam.sdk.util.EmptyOnDeserializationThreadLocal;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 
 /**
  * A {@link Coder} using Avro binary format.
@@ -239,7 +242,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
     @Override
     public ReflectData get() {
       ReflectData reflectData = new ReflectData(clazz.getClassLoader());
-      reflectData.addLogicalTypeConversion(new TimestampConversion());
+      reflectData.addLogicalTypeConversion(new JodaTimestampConversion());
       return reflectData;
     }
   }
@@ -714,5 +717,36 @@ public class AvroCoder<T> extends CustomCoder<T> {
   @Override
   public int hashCode() {
     return Objects.hash(schemaSupplier.get(), typeDescriptor);
+  }
+
+  /**
+   * Conversion for DateTime.
+   *
+   * <p>This is a copy from Avro 1.8's TimestampConversion, which is renamed in Avro 1.9. Defining
+   * own copy gives flexibility for Beam Java SDK to work with Avro 1.8 and 1.9 at runtime.
+   *
+   * @see <a href="https://issues.apache.org/jira/browse/BEAM-9144">BEAM-9144: Beam's own Avro
+   *     TimeConversion class in beam-sdk-java-core</a>
+   */
+  public static class JodaTimestampConversion extends Conversion<DateTime> {
+    @Override
+    public Class<DateTime> getConvertedType() {
+      return DateTime.class;
+    }
+
+    @Override
+    public String getLogicalTypeName() {
+      return "timestamp-millis";
+    }
+
+    @Override
+    public DateTime fromLong(Long millisFromEpoch, Schema schema, LogicalType type) {
+      return new DateTime(millisFromEpoch, DateTimeZone.UTC);
+    }
+
+    @Override
+    public Long toLong(DateTime timestamp, Schema schema, LogicalType type) {
+      return timestamp.getMillis();
+    }
   }
 }

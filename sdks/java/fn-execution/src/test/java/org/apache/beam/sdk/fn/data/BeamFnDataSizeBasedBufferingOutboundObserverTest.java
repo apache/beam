@@ -40,7 +40,7 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -130,7 +130,7 @@ public class BeamFnDataSizeBasedBufferingOutboundObserverTest {
     PipelineOptions options = PipelineOptionsFactory.create();
     options
         .as(ExperimentalOptions.class)
-        .setExperiments(Arrays.asList("beam_fn_api_data_buffer_size_limit=100"));
+        .setExperiments(Arrays.asList("data_buffer_size_limit=100"));
     CloseableFnDataReceiver<WindowedValue<byte[]>> consumer =
         BeamFnDataBufferingOutboundObserver.forLocation(
             options,

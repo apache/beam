@@ -21,6 +21,8 @@
    Can be configured to simulate slow reading for a given number of rows.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -43,15 +45,20 @@ class BigqueryIOReadIT(unittest.TestCase):
                  "1G": 11110839,
                  "1T": 11110839000,}
 
-  def run_bigquery_io_read_pipeline(self, input_size):
+  def run_bigquery_io_read_pipeline(self, input_size, beam_bq_source=False):
     test_pipeline = TestPipeline(is_integration_test=True)
     pipeline_verifiers = [PipelineStateMatcher(),]
     extra_opts = {'input_table': self.DEFAULT_DATASET + "." +
                                  self.DEFAULT_TABLE_PREFIX + input_size,
                   'num_records': self.NUM_RECORDS[input_size],
+                  'beam_bq_source': str(beam_bq_source),
                   'on_success_matcher': all_of(*pipeline_verifiers)}
     bigquery_io_read_pipeline.run(test_pipeline.get_full_options_as_args(
         **extra_opts))
+
+  @attr('IT')
+  def test_bigquery_read_custom_1M_python(self):
+    self.run_bigquery_io_read_pipeline('1M', True)
 
   @attr('IT')
   def test_bigquery_read_1M_python(self):

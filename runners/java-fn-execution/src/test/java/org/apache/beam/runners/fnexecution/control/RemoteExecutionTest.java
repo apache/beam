@@ -60,7 +60,6 @@ import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
-import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.ActiveBundle;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
@@ -112,7 +111,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Collections2;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -286,7 +285,7 @@ public class RemoteExecutionTest implements Serializable {
     }
     // The impulse example
 
-    try (ActiveBundle bundle =
+    try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(WindowedValue.valueInGlobalWindow(new byte[0]));
@@ -350,7 +349,7 @@ public class RemoteExecutionTest implements Serializable {
               (FnDataReceiver<? super WindowedValue<?>>) outputContents::add));
     }
 
-    try (ActiveBundle bundle =
+    try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(
@@ -359,7 +358,7 @@ public class RemoteExecutionTest implements Serializable {
     }
 
     try {
-      try (ActiveBundle bundle =
+      try (RemoteBundle bundle =
           processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
         Iterables.getOnlyElement(bundle.getInputReceivers().values())
             .accept(
@@ -372,7 +371,7 @@ public class RemoteExecutionTest implements Serializable {
       assertTrue(e.getMessage().contains("testBundleExecutionFailure"));
     }
 
-    try (ActiveBundle bundle =
+    try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(
@@ -504,7 +503,7 @@ public class RemoteExecutionTest implements Serializable {
             });
     BundleProgressHandler progressHandler = BundleProgressHandler.ignored();
 
-    try (ActiveBundle bundle =
+    try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(WindowedValue.valueInGlobalWindow("X"));
@@ -818,7 +817,7 @@ public class RemoteExecutionTest implements Serializable {
           }
         };
 
-    try (ActiveBundle bundle =
+    try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(
@@ -959,7 +958,7 @@ public class RemoteExecutionTest implements Serializable {
               }
             });
 
-    try (ActiveBundle bundle =
+    try (RemoteBundle bundle =
         processor.newBundle(
             outputReceivers, stateRequestHandler, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
@@ -1017,7 +1016,9 @@ public class RemoteExecutionTest implements Serializable {
                       @TimerId("event") Timer eventTimeTimer,
                       @TimerId("processing") Timer processingTimeTimer) {
                     context.output(KV.of("main" + context.element().getKey(), ""));
-                    eventTimeTimer.set(context.timestamp().plus(1L));
+                    eventTimeTimer
+                        .withOutputTimestamp(context.timestamp())
+                        .set(context.timestamp().plus(1L));
                     processingTimeTimer.offset(Duration.millis(2L));
                     processingTimeTimer.setRelative();
                   }
@@ -1028,7 +1029,9 @@ public class RemoteExecutionTest implements Serializable {
                       @TimerId("event") Timer eventTimeTimer,
                       @TimerId("processing") Timer processingTimeTimer) {
                     context.output(KV.of("event", ""));
-                    eventTimeTimer.set(context.timestamp().plus(11L));
+                    eventTimeTimer
+                        .withOutputTimestamp(context.timestamp())
+                        .set(context.timestamp().plus(11L));
                     processingTimeTimer.offset(Duration.millis(12L));
                     processingTimeTimer.setRelative();
                   }
@@ -1039,7 +1042,9 @@ public class RemoteExecutionTest implements Serializable {
                       @TimerId("event") Timer eventTimeTimer,
                       @TimerId("processing") Timer processingTimeTimer) {
                     context.output(KV.of("processing", ""));
-                    eventTimeTimer.set(context.timestamp().plus(21L));
+                    eventTimeTimer
+                        .withOutputTimestamp(context.timestamp())
+                        .set(context.timestamp().plus(21L));
                     processingTimeTimer.offset(Duration.millis(22L));
                     processingTimeTimer.setRelative();
                   }
@@ -1102,7 +1107,7 @@ public class RemoteExecutionTest implements Serializable {
     // output.
     DateTimeUtils.setCurrentMillisFixed(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
 
-    try (ActiveBundle bundle =
+    try (RemoteBundle bundle =
         processor.newBundle(
             outputReceivers, StateRequestHandler.unsupported(), BundleProgressHandler.ignored())) {
       bundle
@@ -1222,7 +1227,7 @@ public class RemoteExecutionTest implements Serializable {
                 (Coder<WindowedValue<?>>) remoteOutputCoder.getValue(), outputValues::add));
       }
 
-      try (ActiveBundle bundle =
+      try (RemoteBundle bundle =
           processor.newBundle(
               outputReceivers,
               StateRequestHandler.unsupported(),

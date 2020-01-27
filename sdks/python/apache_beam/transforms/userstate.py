@@ -20,6 +20,8 @@
 Experimental; no backwards-compatibility guarantees.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import types
@@ -48,8 +50,14 @@ CallableT = TypeVar('CallableT', bound=Callable)
 class StateSpec(object):
   """Specification for a user DoFn state cell."""
 
-  def __init__(self):
-    raise NotImplementedError
+  def __init__(self, name, coder):
+    # type: (str, Coder) -> None
+    if not isinstance(name, str):
+      raise TypeError("name is not a string")
+    if not isinstance(coder, Coder):
+      raise TypeError("coder is not of type Coder")
+    self.name = name
+    self.coder = coder
 
   def __repr__(self):
     return '%s(%s)' % (self.__class__.__name__, self.name)
@@ -61,13 +69,6 @@ class StateSpec(object):
 class BagStateSpec(StateSpec):
   """Specification for a user DoFn bag state cell."""
 
-  def __init__(self, name, coder):
-    # type: (str, Coder) -> None
-    assert isinstance(name, str)
-    assert isinstance(coder, Coder)
-    self.name = name
-    self.coder = coder
-
   def to_runner_api(self, context):
     # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
     return beam_runner_api_pb2.StateSpec(
@@ -77,15 +78,6 @@ class BagStateSpec(StateSpec):
 
 class SetStateSpec(StateSpec):
   """Specification for a user DoFn Set State cell"""
-
-  def __init__(self, name, coder):
-    # type: (str, Coder) -> None
-    if not isinstance(name, str):
-      raise TypeError("SetState name is not a string")
-    if not isinstance(coder, Coder):
-      raise TypeError("SetState coder is not of type Coder")
-    self.name = name
-    self.coder = coder
 
   def to_runner_api(self, context):
     return beam_runner_api_pb2.StateSpec(
@@ -126,14 +118,11 @@ class CombiningValueStateSpec(StateSpec):
       else:
         coder, combine_fn = None, coder
     self.combine_fn = CombineFn.maybe_from_callable(combine_fn)
+    # The coder here should be for the accumulator type of the given CombineFn.
     if coder is None:
       coder = self.combine_fn.get_accumulator_coder()
 
-    assert isinstance(name, str)
-    assert isinstance(coder, Coder)
-    self.name = name
-    # The coder here should be for the accumulator type of the given CombineFn.
-    self.coder = coder
+    super(CombiningValueStateSpec, self).__init__(name, coder)
 
   def to_runner_api(self, context):
     # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec

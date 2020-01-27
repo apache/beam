@@ -24,6 +24,8 @@ transform (of type PTransform), which describes how the value will be
 produced when the pipeline gets executed.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections
@@ -158,6 +160,7 @@ class PCollection(PValue, Generic[T]):
   def windowing(self):
     # type: () -> Windowing
     if not hasattr(self, '_windowing'):
+      assert self.producer is not None and self.producer.transform is not None
       self._windowing = self.producer.transform.get_windowing(
           self.producer.inputs)
     return self._windowing
@@ -199,10 +202,14 @@ class PCollection(PValue, Generic[T]):
   @staticmethod
   def from_runner_api(proto, context):
     # type: (beam_runner_api_pb2.PCollection, PipelineContext) -> PCollection
-    # Producer and tag will be filled in later, the key point is that the
-    # same object is returned for the same pcollection id.
+    # Producer and tag will be filled in later, the key point is that the same
+    # object is returned for the same pcollection id.
+    # We pass None for the PCollection's Pipeline to avoid a cycle during
+    # deserialization.  It will be populated soon after this call, in
+    # Pipeline.from_runner_api(). This brief period is the only time that
+    # PCollection.pipeline is allowed to be None.
     return PCollection(
-        None,
+        None,  # type: ignore[arg-type]
         element_type=context.element_type_from_coder_id(proto.coder_id),
         windowing=context.windowing_strategies.get_by_id(
             proto.windowing_strategy_id),
@@ -247,7 +254,7 @@ class DoOutputsTuple(object):
     # gets applied.
     self.producer = None  # type: Optional[AppliedPTransform]
     # Dictionary of PCollections already associated with tags.
-    self._pcolls = {}  # type: Dict[Optional[str], PValue]
+    self._pcolls = {}  # type: Dict[Optional[str], PCollection]
 
   def __str__(self):
     return '<%s>' % self._str_internal()
@@ -260,15 +267,15 @@ class DoOutputsTuple(object):
         self.__class__.__name__, self._main_tag, self._tags, self._transform)
 
   def __iter__(self):
-    # type: () -> Iterator[PValue]
-    """Iterates over tags returning for each call a (tag, pvalue) pair."""
+    # type: () -> Iterator[PCollection]
+    """Iterates over tags returning for each call a (tag, pcollection) pair."""
     if self._main_tag is not None:
       yield self[self._main_tag]
     for tag in self._tags:
       yield self[tag]
 
   def __getattr__(self, tag):
-    # type: (str) -> PValue
+    # type: (str) -> PCollection
     # Special methods which may be accessed before the object is
     # fully constructed (e.g. in unpickling).
     if tag[:2] == tag[-2:] == '__':
@@ -276,7 +283,7 @@ class DoOutputsTuple(object):
     return self[tag]
 
   def __getitem__(self, tag):
-    # type: (Union[int, str, None]) -> PValue
+    # type: (Union[int, str, None]) -> PCollection
     # Accept int tags so that we can look at Partition tags with the
     # same ints that we used in the partition function.
     # TODO(gildea): Consider requiring string-based tags everywhere.
@@ -297,7 +304,7 @@ class DoOutputsTuple(object):
     assert self.producer is not None
     if tag is not None:
       self._transform.output_tags.add(tag)
-      pcoll = PCollection(self._pipeline, tag=tag, element_type=typehints.Any)  # type: PValue
+      pcoll = PCollection(self._pipeline, tag=tag, element_type=typehints.Any)
       # Transfer the producer from the DoOutputsTuple to the resulting
       # PCollection.
       pcoll.producer = self.producer.parts[0]
@@ -308,7 +315,10 @@ class DoOutputsTuple(object):
         self.producer.add_output(pcoll, tag)
     else:
       # Main output is output of inner ParDo.
-      pcoll = self.producer.parts[0].outputs[None]
+      pval = self.producer.parts[0].outputs[None]
+      assert isinstance(pval, PCollection), (
+          "DoOutputsTuple should follow a ParDo.")
+      pcoll = pval
     self._pcolls[tag] = pcoll
     return pcoll
 

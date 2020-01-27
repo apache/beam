@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.apache.beam.sdk.testing.FileChecksumMatcher.fileContentsHaveChecksum;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-import java.util.Collections;
 import java.util.Date;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -31,8 +31,6 @@ import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.FileChecksumMatcher;
-import org.apache.beam.sdk.testing.SerializableMatchers;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -167,12 +165,11 @@ public class FlinkRequiresStableInputTest {
     waitUntilJobIsDone();
 
     assertThat(
-        new FlinkRunnerResult(Collections.emptyMap(), 1L),
-        SerializableMatchers.allOf(
-            new FileChecksumMatcher(
-                VALUE_CHECKSUM, new FilePatternMatchingShardedFile(singleOutputPrefix + "*")),
-            new FileChecksumMatcher(
-                VALUE_CHECKSUM, new FilePatternMatchingShardedFile(multiOutputPrefix + "*"))));
+        new FilePatternMatchingShardedFile(singleOutputPrefix + "*"),
+        fileContentsHaveChecksum(VALUE_CHECKSUM));
+    assertThat(
+        new FilePatternMatchingShardedFile(multiOutputPrefix + "*"),
+        fileContentsHaveChecksum(VALUE_CHECKSUM));
   }
 
   private JobGraph getJobGraph(Pipeline pipeline) {

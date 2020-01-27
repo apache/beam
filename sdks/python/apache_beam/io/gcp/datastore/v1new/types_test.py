@@ -17,6 +17,8 @@
 
 """Unit tests for types module."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import datetime
@@ -197,6 +199,16 @@ class TypesTest(unittest.TestCase):
       self.assertEqual(exp_filter, cq.filters)
 
       _LOGGER.info('query: %s', q)  # Test __repr__()
+
+  def testValueProviderNamespace(self):
+    self.vp_namespace = StaticValueProvider(str, 'vp_namespace')
+    self.expected_namespace = 'vp_namespace'
+
+    q = Query(kind='kind', project=self._PROJECT, namespace=self.vp_namespace)
+    cq = q._to_client_query(self._test_client)
+    self.assertEqual(self.expected_namespace, cq.namespace)
+
+    _LOGGER.info('query: %s', q)  # Test __repr__()
 
   def testQueryEmptyNamespace(self):
     # Test that we can pass a namespace of None.

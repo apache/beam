@@ -17,6 +17,8 @@
 
 """Test for the top wikipedia sessions example."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import json

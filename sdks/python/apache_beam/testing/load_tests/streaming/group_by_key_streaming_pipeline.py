@@ -25,6 +25,8 @@ would be possible group it by key.
 Values have to be reparsed again to bytes
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse

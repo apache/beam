@@ -40,7 +40,9 @@ class TableContainer {
 
   long addRow(TableRow row, String id) {
     rows.add(row);
-    ids.add(id);
+    if (id != null) {
+      ids.add(id);
+    }
     long tableSize = table.getNumBytes() == null ? 0L : table.getNumBytes();
     try {
       long rowSize = TableRowJsonCoder.of().getEncodedElementByteSize(row);
@@ -57,5 +59,9 @@ class TableContainer {
 
   List<TableRow> getRows() {
     return rows;
+  }
+
+  List<String> getIds() {
+    return ids;
   }
 }

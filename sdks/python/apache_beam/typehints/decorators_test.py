@@ -17,6 +17,8 @@
 
 """Tests for decorators module."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import sys
@@ -88,8 +90,7 @@ class IOTypeHintsTest(unittest.TestCase):
       self._test_strip_iterable(before, None)
 
   def test_strip_iterable(self):
-    # TODO(BEAM-8492): Uncomment once #9895 is merged.
-    # self._test_strip_iterable(None, None)
+    self._test_strip_iterable(None, None)
     self._test_strip_iterable(typehints.Any, typehints.Any)
     self._test_strip_iterable(typehints.Iterable[str], str)
     self._test_strip_iterable(typehints.List[str], str)

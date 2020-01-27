@@ -17,6 +17,8 @@
 
 """Unit tests for the range_trackers module."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -137,13 +139,6 @@ class OffsetRestrictionTrackerTest(unittest.TestCase):
     self.assertTrue(tracker.try_claim(150))
     self.assertTrue(tracker.try_claim(175))
     self.assertFalse(tracker.try_claim(220))
-    tracker.check_done()
-
-  def test_check_done_after_try_claim_past_end_of_range(self):
-    tracker = OffsetRestrictionTracker(OffsetRange(100, 200))
-    self.assertTrue(tracker.try_claim(150))
-    self.assertTrue(tracker.try_claim(175))
-    self.assertFalse(tracker.try_claim(200))
     tracker.check_done()
 
   def test_check_done_after_try_claim_right_before_end_of_range(self):

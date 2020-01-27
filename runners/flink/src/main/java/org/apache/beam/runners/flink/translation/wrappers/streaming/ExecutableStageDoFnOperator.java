@@ -87,7 +87,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
@@ -661,7 +661,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     @Override
     public void onTimer(
-        String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+        String timerId,
+        String timerFamilyId,
+        BoundedWindow window,
+        Instant timestamp,
+        Instant outputTimestamp,
+        TimeDomain timeDomain) {
       Object timerKey = keyForTimer.get();
       Preconditions.checkNotNull(timerKey, "Key for timer needs to be set before calling onTimer");
       Preconditions.checkNotNull(remoteBundle, "Call to onTimer outside of a bundle");
@@ -674,7 +679,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       WindowedValue<KV<Object, Timer>> timerValue =
           WindowedValue.of(
               KV.of(timerKey, Timer.of(timestamp, new byte[0])),
-              timestamp,
+              outputTimestamp,
               Collections.singleton(window),
               PaneInfo.NO_FIRING);
       try {

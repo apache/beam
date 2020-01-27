@@ -20,6 +20,8 @@
 The runner will create a JSON description of the job graph and then submit it
 to the Dataflow Service for remote execution by a worker.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -50,6 +52,7 @@ from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
 from apache_beam.pvalue import AsSideInput
+from apache_beam.runners.common import DoFnSignature
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
 from apache_beam.runners.dataflow.internal.names import PropertyNames
@@ -299,7 +302,7 @@ class DataflowRunner(PipelineRunner):
     return SetPDoneVisitor(pipeline)
 
   @staticmethod
-  def side_input_visitor():
+  def side_input_visitor(use_unified_worker=False):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.pipeline import PipelineVisitor
@@ -317,24 +320,33 @@ class DataflowRunner(PipelineRunner):
           for ix, side_input in enumerate(transform_node.side_inputs):
             access_pattern = side_input._side_input_data().access_pattern
             if access_pattern == common_urns.side_inputs.ITERABLE.urn:
-              # Add a map to ('', value) as Dataflow currently only handles
-              # keyed side inputs.
-              pipeline = side_input.pvalue.pipeline
-              new_side_input = _DataflowIterableSideInput(side_input)
-              new_side_input.pvalue = beam.pvalue.PCollection(
-                  pipeline,
-                  element_type=typehints.KV[
-                      bytes, side_input.pvalue.element_type],
-                  is_bounded=side_input.pvalue.is_bounded)
-              parent = transform_node.parent or pipeline._root_transform()
-              map_to_void_key = beam.pipeline.AppliedPTransform(
-                  pipeline,
-                  beam.Map(lambda x: (b'', x)),
-                  transform_node.full_label + '/MapToVoidKey%s' % ix,
-                  (side_input.pvalue,))
-              new_side_input.pvalue.producer = map_to_void_key
-              map_to_void_key.add_output(new_side_input.pvalue)
-              parent.add_part(map_to_void_key)
+              if use_unified_worker:
+                # TODO(BEAM-9173): Stop patching up the access pattern to
+                # appease Dataflow when using the UW and hardcode the output
+                # type to be Any since the Dataflow JSON and pipeline proto
+                # can differ in coders which leads to encoding/decoding issues
+                # within the runner.
+                side_input.pvalue.element_type = typehints.Any
+                new_side_input = _DataflowIterableSideInput(side_input)
+              else:
+                # Add a map to ('', value) as Dataflow currently only handles
+                # keyed side inputs when using the JRH.
+                pipeline = side_input.pvalue.pipeline
+                new_side_input = _DataflowIterableAsMultimapSideInput(
+                    side_input)
+                new_side_input.pvalue = beam.pvalue.PCollection(
+                    pipeline,
+                    element_type=typehints.KV[bytes,
+                                              side_input.pvalue.element_type],
+                    is_bounded=side_input.pvalue.is_bounded)
+                parent = transform_node.parent or pipeline._root_transform()
+                map_to_void_key = beam.pipeline.AppliedPTransform(
+                    pipeline, beam.Map(lambda x: (b'', x)),
+                    transform_node.full_label + '/MapToVoidKey%s' % ix,
+                    (side_input.pvalue,))
+                new_side_input.pvalue.producer = map_to_void_key
+                map_to_void_key.add_output(new_side_input.pvalue)
+                parent.add_part(map_to_void_key)
             elif access_pattern == common_urns.side_inputs.MULTIMAP.urn:
               # Ensure the input coder is a KV coder and patch up the
               # access pattern to appease Dataflow.
@@ -394,7 +406,8 @@ class DataflowRunner(PipelineRunner):
 
     # Convert all side inputs into a form acceptable to Dataflow.
     if apiclient._use_fnapi(options):
-      pipeline.visit(self.side_input_visitor())
+      pipeline.visit(
+          self.side_input_visitor(apiclient._use_unified_worker(options)))
 
     # Performing configured PTransform overrides.  Note that this is currently
     # done before Runner API serialization, since the new proto needs to contain
@@ -498,7 +511,9 @@ class DataflowRunner(PipelineRunner):
     test_options = options.view_as(TestOptions)
     # If it is a dry run, return without submitting the job.
     if test_options.dry_run:
-      return None
+      result = PipelineResult(PipelineState.DONE)
+      result.wait_until_finish = lambda duration=None: None
+      return result
 
     # Get a Dataflow API client and set its options
     self.dataflow_client = apiclient.DataflowApplicationClient(options)
@@ -948,6 +963,10 @@ class DataflowRunner(PipelineRunner):
       step.add_property(PropertyNames.RESTRICTION_ENCODING,
                         self._get_cloud_encoding(restriction_coder))
 
+    if options.view_as(StandardOptions).streaming and DoFnSignature(
+        transform.dofn).is_stateful_dofn():
+      step.add_property(PropertyNames.USES_KEYED_STATE, "true")
+
   @staticmethod
   def _pardo_fn_data(transform_node, get_label):
     transform = transform_node.transform
@@ -1125,7 +1144,6 @@ class DataflowRunner(PipelineRunner):
         coders.registry.get_coder(transform_node.outputs[None].element_type),
         coders.coders.GlobalWindowCoder())
 
-    from apache_beam.runners.dataflow.internal import apiclient
     step.encoding = self._get_cloud_encoding(coder)
     step.add_property(
         PropertyNames.OUTPUT_INFO,
@@ -1211,7 +1229,6 @@ class DataflowRunner(PipelineRunner):
     # correct coder.
     coder = coders.WindowedValueCoder(transform.sink.coder,
                                       coders.coders.GlobalWindowCoder())
-    from apache_beam.runners.dataflow.internal import apiclient
     step.encoding = self._get_cloud_encoding(coder)
     step.add_property(PropertyNames.ENCODING, step.encoding)
     step.add_property(
@@ -1238,7 +1255,7 @@ class DataflowRunner(PipelineRunner):
     # TestStream source doesn't do any decoding of elements,
     # so we won't set test_stream_payload.coder_id.
     output_coder = transform._infer_output_coder()  # pylint: disable=protected-access
-    for event in transform.events:
+    for event in transform._events:
       new_event = test_stream_payload.events.add()
       if isinstance(event, ElementEvent):
         for tv in event.timestamped_values:
@@ -1313,12 +1330,12 @@ class _DataflowSideInput(beam.pvalue.AsSideInput):
     return self._data
 
 
-class _DataflowIterableSideInput(_DataflowSideInput):
+class _DataflowIterableAsMultimapSideInput(_DataflowSideInput):
   """Wraps an iterable side input as dataflow-compatible side input."""
 
-  def __init__(self, iterable_side_input):
+  def __init__(self, side_input):
     # pylint: disable=protected-access
-    side_input_data = iterable_side_input._side_input_data()
+    side_input_data = side_input._side_input_data()
     assert (
         side_input_data.access_pattern == common_urns.side_inputs.ITERABLE.urn)
     iterable_view_fn = side_input_data.view_fn
@@ -1326,6 +1343,20 @@ class _DataflowIterableSideInput(_DataflowSideInput):
         common_urns.side_inputs.MULTIMAP.urn,
         side_input_data.window_mapping_fn,
         lambda multimap: iterable_view_fn(multimap[b'']))
+
+
+class _DataflowIterableSideInput(_DataflowSideInput):
+  """Wraps an iterable side input as dataflow-compatible side input."""
+
+  def __init__(self, side_input):
+    # pylint: disable=protected-access
+    self.pvalue = side_input.pvalue
+    side_input_data = side_input._side_input_data()
+    assert (
+        side_input_data.access_pattern == common_urns.side_inputs.ITERABLE.urn)
+    self._data = beam.pvalue.SideInputData(common_urns.side_inputs.ITERABLE.urn,
+                                           side_input_data.window_mapping_fn,
+                                           side_input_data.view_fn)
 
 
 class _DataflowMultimapSideInput(_DataflowSideInput):

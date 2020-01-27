@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload

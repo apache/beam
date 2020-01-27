@@ -19,13 +19,12 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import com.google.zetasql.Analyzer;
 import com.google.zetasql.LanguageOptions;
-import com.google.zetasql.Value;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedQueryStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
 import java.io.Reader;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Logger;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ConversionContext;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ExpressionConverter;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.QueryStatementConverter;
@@ -130,7 +129,7 @@ public class ZetaSQLPlannerImpl implements Planner {
         String.format("%s.rel(SqlNode) is not implemented", this.getClass().getCanonicalName()));
   }
 
-  public RelRoot rel(String sql, Map<String, Value> params) {
+  public RelRoot rel(String sql, QueryParameters params) {
     this.cluster = RelOptCluster.create(planner, new RexBuilder(typeFactory));
     this.expressionConverter = new ExpressionConverter(cluster, params);
 
@@ -142,7 +141,8 @@ public class ZetaSQLPlannerImpl implements Planner {
     TableResolution.registerTables(this.defaultSchemaPlus, tables);
 
     ResolvedStatement statement =
-        SqlAnalyzer.withQueryParams(params)
+        SqlAnalyzer.getBuilder()
+            .withQueryParams(params)
             .withQueryTrait(trait)
             .withCalciteContext(config.getContext())
             .withTopLevelSchema(defaultSchemaPlus)

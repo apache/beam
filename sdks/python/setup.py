@@ -138,7 +138,10 @@ REQUIRED_PACKAGES = [
     'avro>=1.8.1,<2.0.0; python_version < "3.0"',
     'avro-python3>=1.8.1,<2.0.0; python_version >= "3.0"',
     'crcmod>=1.7,<2.0',
-    # Dill doesn't guarantee compatibility between releases within minor version.
+    # Dill doesn't have forwards-compatibility guarantees within minor version.
+    # Pickles created with a new version of dill may not unpickle using older
+    # version of dill. It is best to use the same version of dill on client and
+    # server, therefore list of allowed versions is very narrow.
     # See: https://github.com/uqfoundation/dill/issues/341.
     'dill>=0.3.1.1,<0.3.2',
     'fastavro>=0.21.4,<0.22',
@@ -173,11 +176,14 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
   ]
 
 REQUIRED_TEST_PACKAGES = [
+    'freezegun>=0.3.12',
     'nose>=1.3.7',
     'nose_xunitmp>=0.4.1',
     'pandas>=0.23.4,<0.25',
     'parameterized>=0.6.0,<0.8.0',
-    'pyhamcrest>=1.9,<2.0',
+    # pyhamcrest==1.10.0 doesn't work on Py2. Beam still supports Py2.
+    # See: https://github.com/hamcrest/PyHamcrest/issues/131.
+    'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
     'pyyaml>=3.12,<6.0.0',
     'requests_mock>=1.7,<2.0',
     'tenacity>=5.0.2,<6.0',
@@ -198,6 +204,8 @@ GCP_REQUIREMENTS = [
     'google-cloud-bigtable>=0.31.1,<1.1.0',
     # [BEAM-4543] googledatastore is not supported in Python 3.
     'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4; python_version < "3.0"',
+    'google-cloud-spanner>=1.7.1<1.8.0',
+    'grpcio-gcp>=0.2.2,<1',
 ]
 
 INTERACTIVE_BEAM = [

@@ -17,6 +17,8 @@
 
 """Unit tests for the transform.external classes."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse
@@ -392,12 +394,8 @@ class ExternalTransformTest(unittest.TestCase):
         p
         | beam.Create(list('aaabccxyyzzz'))
         | beam.Map(unicode)
-        # TODO(BEAM-6587): Use strings directly rather than ints.
-        | beam.Map(lambda x: int(ord(x)))
         | beam.ExternalTransform(TEST_FILTER_URN, b'middle', expansion_service)
         | beam.ExternalTransform(TEST_COUNT_URN, None, expansion_service)
-        # # TODO(BEAM-6587): Remove when above is removed.
-        | beam.Map(lambda kv: (chr(kv[0]), kv[1]))
         | beam.Map(lambda kv: '%s: %s' % kv))
 
     assert_that(res, equal_to(['a: 3', 'b: 1', 'c: 2']))

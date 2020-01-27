@@ -395,6 +395,9 @@ message ParDoPayload {
 
   // (Optional) Only set when this ParDo can request bundle finalization.
   bool requests_finalization = 8;
+
+  // (Optional) A mapping of local timer family names to timer specifications.
+  map<string, TimerFamilySpec> timer_family_specs = 9;
 }
 
 // Parameters that a UDF might require.
@@ -459,6 +462,11 @@ message SetStateSpec {
 message TimerSpec {
   TimeDomain.Enum time_domain = 1;
   string timer_coder_id = 2;
+}
+
+message TimerFamilySpec {
+  TimeDomain.Enum time_domain = 1;
+  string timer_family_coder_id = 2;
 }
 
 message IsBounded {
@@ -1079,21 +1087,6 @@ message SideInput {
   FunctionSpec window_mapping_fn = 3;
 }
 
-// Settings that decide the coder type of wire coder.
-message WireCoderSetting {
-  // (Required) The URN of the wire coder.
-  // Note that only windowed value coder or parameterized windowed value coder are supported.
-  string urn = 1;
-
-  // (Optional) The data specifying any parameters to the URN. If
-  // the URN is beam:coder:windowed_value:v1, this may be omitted. If the URN is
-  // beam:coder:param_windowed_value:v1, the payload is an encoded windowed
-  // value using the beam:coder:windowed_value:v1 coder parameterized by
-  // a beam:coder:bytes:v1 element coder and the window coder that this
-  // param_windowed_value coder uses.
-  bytes payload = 2;
-}
-
 // An environment for executing UDFs. By default, an SDK container URL, but
 // can also be a process forked by a command, or an externally managed process.
 message Environment {
@@ -1302,8 +1295,8 @@ message ExecutableStagePayload {
   // because ExecutableStages use environments directly. This may change in the future.
   Environment environment = 1;
 
-  // set the wire coder of this executable stage
-  WireCoderSetting wire_coder_setting = 9;
+  // The wire coder settings of this executable stage
+  repeated WireCoderSetting wire_coder_settings = 9;
 
   // (Required) Input PCollection id. This must be present as a value in the inputs of any
   // PTransform the ExecutableStagePayload is the payload of.
@@ -1333,6 +1326,10 @@ message ExecutableStagePayload {
   // this ExecutableStagePayload must be represented within this field.
   repeated TimerId timers = 8;
 
+  // The timerfamilies required for this executable stage. Each timer familyof each PTransform within
+  // this ExecutableStagePayload must be represented within this field.
+  repeated TimerFamilyId timerFamilies = 10;
+
   // A reference to a side input. Side inputs are uniquely identified by PTransform id and
   // local name.
   message SideInputId {
@@ -1361,5 +1358,37 @@ message ExecutableStagePayload {
 
     // (Required) The local name of this timer for the PTransform that references it.
     string local_name = 2;
+  }
+
+  // A reference to a timer. Timers are uniquely identified by PTransform id and
+  // local name.
+  message TimerFamilyId {
+    // (Required) The id of the PTransform that references this timer family.
+    string transform_id = 1;
+
+    // (Required) The local name of this timer family for the PTransform that references it.
+    string local_name = 2;
+  }
+  // Settings that decide the coder type of wire coder.
+  message WireCoderSetting {
+    // (Required) The URN of the wire coder.
+    // Note that only windowed value coder or parameterized windowed value coder are supported.
+    string urn = 1;
+
+    // (Optional) The data specifying any parameters to the URN. If
+    // the URN is beam:coder:windowed_value:v1, this may be omitted. If the URN is
+    // beam:coder:param_windowed_value:v1, the payload is an encoded windowed
+    // value using the beam:coder:windowed_value:v1 coder parameterized by
+    // a beam:coder:bytes:v1 element coder and the window coder that this
+    // param_windowed_value coder uses.
+    bytes payload = 2;
+
+    // (Required) The target(PCollection or Timer) this setting applies to.
+    oneof target {
+      // The input or output PCollection id this setting applies to.
+      string input_or_output_id = 3;
+      // The timer id this setting applies to.
+      TimerId timer = 4;
+    }
   }
 }

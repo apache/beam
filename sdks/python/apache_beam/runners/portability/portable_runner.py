@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import functools
@@ -86,7 +88,7 @@ class PortableRunner(runner.PipelineRunner):
 
   @staticmethod
   def _create_environment(options):
-    # type: (PipelineOptions) -> beam_runner_api_pb2.Environment
+    # type: (PipelineOptions) -> environments.Environment
     portable_options = options.view_as(PortableOptions)
     # Do not set a Runner. Otherwise this can cause problems in Java's
     # PipelineOptions, i.e. ClassNotFoundException, if the corresponding Runner
@@ -419,6 +421,7 @@ class PipelineResult(runner.PipelineResult):
   def wait_until_finish(self):
 
     def read_messages():
+      previous_state = -1
       for message in self._message_stream:
         if message.HasField('message_response'):
           logging.log(
@@ -426,10 +429,12 @@ class PipelineResult(runner.PipelineResult):
               "%s",
               message.message_response.message_text)
         else:
-          _LOGGER.info(
-              "Job state changed to %s",
-              self._runner_api_state_to_pipeline_state(
-                  message.state_response.state))
+          current_state = message.state_response.state
+          if current_state != previous_state:
+            _LOGGER.info(
+                "Job state changed to %s",
+                self._runner_api_state_to_pipeline_state(current_state))
+            previous_state = current_state
         self._messages.append(message)
 
     t = threading.Thread(target=read_messages, name='wait_until_finish_read')

@@ -20,6 +20,9 @@ package org.apache.beam.sdk.schemas.utils;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -27,6 +30,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -34,7 +38,6 @@ import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema.Type;
-import org.apache.avro.data.TimeConversions;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
@@ -47,6 +50,7 @@ import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.AvroCoder.JodaTimestampConversion;
 import org.apache.beam.sdk.schemas.AvroRecordSchema;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
@@ -90,8 +94,8 @@ public class AvroUtils {
   static {
     // This works around a bug in the Avro library (AVRO-1891) around SpecificRecord's handling
     // of DateTime types.
-    SpecificData.get().addLogicalTypeConversion(new TimeConversions.TimestampConversion());
-    GenericData.get().addLogicalTypeConversion(new TimeConversions.TimestampConversion());
+    SpecificData.get().addLogicalTypeConversion(new JodaTimestampConversion());
+    GenericData.get().addLogicalTypeConversion(new JodaTimestampConversion());
   }
 
   // Unwrap an AVRO schema into the base type an whether it is nullable.
@@ -422,7 +426,37 @@ public class AvroUtils {
    */
   public static SerializableFunction<GenericRecord, Row> getGenericRecordToRowFunction(
       @Nullable Schema schema) {
-    return g -> toBeamRowStrict(g, schema);
+    return new GenericRecordToRowFn(schema);
+  }
+
+  private static class GenericRecordToRowFn implements SerializableFunction<GenericRecord, Row> {
+    private final Schema schema;
+
+    GenericRecordToRowFn(Schema schema) {
+      this.schema = schema;
+    }
+
+    @Override
+    public Row apply(GenericRecord input) {
+      return toBeamRowStrict(input, schema);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (this == other) {
+        return true;
+      }
+      if (other == null || getClass() != other.getClass()) {
+        return false;
+      }
+      GenericRecordToRowFn that = (GenericRecordToRowFn) other;
+      return schema.equals(that.schema);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(schema);
+    }
   }
 
   /**
@@ -431,7 +465,50 @@ public class AvroUtils {
    */
   public static SerializableFunction<Row, GenericRecord> getRowToGenericRecordFunction(
       @Nullable org.apache.avro.Schema avroSchema) {
-    return g -> toGenericRecord(g, avroSchema);
+    return new RowToGenericRecordFn(avroSchema);
+  }
+
+  private static class RowToGenericRecordFn implements SerializableFunction<Row, GenericRecord> {
+    private transient org.apache.avro.Schema avroSchema;
+
+    RowToGenericRecordFn(@Nullable org.apache.avro.Schema avroSchema) {
+      this.avroSchema = avroSchema;
+    }
+
+    @Override
+    public GenericRecord apply(Row input) {
+      return toGenericRecord(input, avroSchema);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (this == other) {
+        return true;
+      }
+      if (other == null || getClass() != other.getClass()) {
+        return false;
+      }
+      RowToGenericRecordFn that = (RowToGenericRecordFn) other;
+      return avroSchema.equals(that.avroSchema);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(avroSchema);
+    }
+
+    private void writeObject(ObjectOutputStream out) throws IOException {
+      final String avroSchemaAsString = (avroSchema == null) ? null : avroSchema.toString();
+      out.writeObject(avroSchemaAsString);
+    }
+
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+      final String avroSchemaAsString = (String) in.readObject();
+      avroSchema =
+          (avroSchemaAsString == null)
+              ? null
+              : new org.apache.avro.Schema.Parser().parse(avroSchemaAsString);
+    }
   }
 
   /**

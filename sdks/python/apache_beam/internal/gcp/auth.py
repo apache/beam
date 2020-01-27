@@ -17,6 +17,8 @@
 
 """Dataflow credentials and authentication."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -126,7 +128,8 @@ class _Credentials(object):
           'https://www.googleapis.com/auth/cloud-platform',
           'https://www.googleapis.com/auth/devstorage.full_control',
           'https://www.googleapis.com/auth/userinfo.email',
-          'https://www.googleapis.com/auth/datastore'
+          'https://www.googleapis.com/auth/datastore',
+          'https://www.googleapis.com/auth/spanner'
       ]
       try:
         credentials = GoogleCredentials.get_application_default()

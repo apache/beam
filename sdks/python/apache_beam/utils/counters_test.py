@@ -17,6 +17,8 @@
 
 """Unit tests for counters and counter names."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import unittest

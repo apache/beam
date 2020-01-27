@@ -35,6 +35,8 @@ will run using the deterministic replay-able cached events until they are
 invalidated.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import apache_beam as beam
@@ -51,6 +53,8 @@ def attempt_to_run_background_caching_job(runner, user_pipeline, options=None):
   if is_background_caching_job_needed(user_pipeline):
     # Cancel non-terminal jobs if there is any before starting a new one.
     attempt_to_cancel_background_caching_job(user_pipeline)
+    # Evict all caches if there is any.
+    ie.current_env().cleanup()
     # TODO(BEAM-8335): refactor background caching job logic from
     # pipeline_instrument module to this module and aggregate tests.
     from apache_beam.runners.interactive import pipeline_instrument as instr
@@ -75,14 +79,16 @@ def is_background_caching_job_needed(user_pipeline):
   return (has_source_to_cache(user_pipeline) and
           # Checks if it's the first time running a job from the pipeline.
           (not background_caching_job_result or
-           # Or checks if there is no valid previous job.
+           # Or checks if there is no previous job.
            background_caching_job_result.state not in (
                # DONE means a previous job has completed successfully and the
                # cached events are still valid.
                runners.runner.PipelineState.DONE,
                # RUNNING means a previous job has been started and is still
                # running.
-               runners.runner.PipelineState.RUNNING)))
+               runners.runner.PipelineState.RUNNING) or
+           # Or checks if we can invalidate the previous job.
+           is_source_to_cache_changed(user_pipeline)))
 
 
 def has_source_to_cache(user_pipeline):
@@ -105,3 +111,49 @@ def attempt_to_cancel_background_caching_job(user_pipeline):
   if (background_caching_job_result and
       not ie.current_env().is_terminated(user_pipeline, is_main_job=False)):
     background_caching_job_result.cancel()
+
+
+def is_source_to_cache_changed(user_pipeline):
+  """Determines if there is any change in the sources that need to be cached
+  used by the user-defined pipeline.
+
+  Due to the expensiveness of computations and for the simplicity of usage, this
+  function is not idempotent because Interactive Beam automatically discards
+  previously tracked signature of transforms and tracks the current signature of
+  transforms for the user-defined pipeline if there is any change.
+
+  When it's True, there is addition/deletion/mutation of source transforms that
+  requires a new background caching job.
+  """
+  # By default gets empty set if the user_pipeline is first time seen because
+  # we can treat it as adding transforms.
+  recorded_signature = ie.current_env().get_cached_source_signature(
+      user_pipeline)
+  current_signature = extract_source_to_cache_signature(user_pipeline)
+  is_changed = not current_signature.issubset(recorded_signature)
+  # The computation of extract_unbounded_source_signature is expensive, track on
+  # change by default.
+  if is_changed:
+    ie.current_env().set_cached_source_signature(user_pipeline,
+                                                 current_signature)
+  return is_changed
+
+
+def extract_source_to_cache_signature(user_pipeline):
+  """Extracts a set of signature for sources that need to be cached in the
+  user-defined pipeline.
+
+  A signature is a str representation of urn and payload of a source.
+  """
+  from apache_beam.runners.interactive import pipeline_instrument as instr
+  # TODO(BEAM-8335): we temporarily only cache replaceable unbounded sources.
+  # Add logic for other cacheable sources here when they are available.
+  unbounded_sources_as_applied_transforms = instr.unbounded_sources(
+      user_pipeline)
+  unbounded_sources_as_ptransforms = set(
+      map(lambda x: x.transform, unbounded_sources_as_applied_transforms))
+  context, _ = user_pipeline.to_runner_api(
+      return_context=True, use_fake_coders=True)
+  signature = set(map(lambda transform: str(transform.to_runner_api(context)),
+                      unbounded_sources_as_ptransforms))
+  return signature

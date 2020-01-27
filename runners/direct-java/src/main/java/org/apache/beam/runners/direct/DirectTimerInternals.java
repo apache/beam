@@ -75,7 +75,7 @@ class DirectTimerInternals implements TimerInternals {
   /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
   @Deprecated
   @Override
-  public void deleteTimer(StateNamespace namespace, String timerId) {
+  public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
     throw new UnsupportedOperationException("Canceling of timer by ID is not yet supported.");
   }
 

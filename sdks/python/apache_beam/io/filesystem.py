@@ -21,6 +21,8 @@ Note to implementors:
   LocalFileSystem, which gets unix-style paths in the form /foo/bar.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 

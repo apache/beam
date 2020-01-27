@@ -117,6 +117,8 @@ apache_beam.testing.load_tests.combine_test \
 TestDataflowRunner :sdks:python:apache_beam:testing:load-tests:run
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging

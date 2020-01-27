@@ -20,6 +20,8 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import cProfile  # pylint: disable=bad-python3-import
@@ -105,6 +107,7 @@ class Profile(object):
         if random.random() < options.profile_sample_rate:
           return Profile(profile_id, options.profile_location, **kwargs)
       return create_profiler
+    return None
 
 
 class MemoryReporter(object):
