@@ -127,6 +127,7 @@ For more information on changes in 2.18.0, check out the
   &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9065&quot;&gt;BEAM-9065&lt;/a&gt; - Spark runner accumulates metrics (incorrectly) between runs&lt;/li&gt;
   &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9123&quot;&gt;BEAM-9123&lt;/a&gt; - HadoopResourceId returns wrong directory name&lt;/li&gt;
   &lt;li&gt;See a full list of open &lt;a href=&quot;https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.18.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC&quot;&gt;issues that affect&lt;/a&gt; this version.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9144&quot;&gt;BEAM-9144&lt;/a&gt; - If you are using Avro 1.9.x with Beam you should not upgrade to this version. There is an issue with timestamp conversions. A fix will be available in the next release.&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;h2 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h2&gt;
