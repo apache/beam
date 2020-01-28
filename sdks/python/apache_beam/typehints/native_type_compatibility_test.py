@@ -177,11 +177,11 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
 
   def test_is_any(self):
     test_cases = [
-      (True, typing.Any),
-      (False, typing.List[int]),
-      (False, typing.Union),
-      (False, 1),
-      (False, 'a'),
+        (True, typing.Any),
+        (False, typing.List[int]),
+        (False, typing.Union),
+        (False, 1),
+        (False, 'a'),
     ]
     for expected, typ in test_cases:
       self.assertEqual(expected, is_Any(typ), msg='%s' % typ)
