@@ -61,7 +61,10 @@ def _get_args(typ):
     # __union_params__ argument respectively.
     if (3, 0, 0) <= sys.version_info[0:3] < (3, 5, 3):
       if getattr(typ, '__tuple_params__', None) is not None:
-        return typ.__tuple_params__
+        if typ.__tuple_use_ellipsis__:
+          return typ.__tuple_params__ + (Ellipsis,)
+        else:
+          return typ.__tuple_params__
       elif getattr(typ, '__union_params__', None) is not None:
         return typ.__union_params__
     return ()
