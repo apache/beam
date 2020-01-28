@@ -464,7 +464,8 @@ class FnApiRunner(runner.PipelineRunner):
       try:
         worker_handler.state.checkpoint()
         testing_bundle_manager = ParallelBundleManager(
-            worker_handler_list, lambda pcoll_id: fn_api_runner_execution._ListBuffer(),
+            worker_handler_list,
+            lambda pcoll_id: fn_api_runner_execution._ListBuffer(),
             get_input_coder_callable, process_bundle_descriptor,
             self._progress_frequency, k,
             num_workers=self._num_workers,
