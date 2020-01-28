@@ -96,6 +96,11 @@ class UtilTest(unittest.TestCase):
         assert_that(p | Create(['a', 'b', 'c']),
                     equal_to(['a', 'b', 'd']))
 
+  def test_assert_with_custom_comparator(self):
+    with TestPipeline() as p:
+      assert_that(p | Create([1, 2, 3]), equal_to(
+          ['1', '2', '3'], equals_fn=lambda e, a: int(e) == int(a)))
+
   def test_reified_value_passes(self):
     expected = [TestWindowedValue(v, MIN_TIMESTAMP, [GlobalWindow()])
                 for v in [1, 2, 3]]
