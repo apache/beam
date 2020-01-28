@@ -55,7 +55,8 @@ class InteractiveRunner(runners.PipelineRunner):
                cache_dir=None,
                cache_format='text',
                render_option=None,
-               skip_display=False):
+               skip_display=False,
+               force_compute=True):
     """Constructor of InteractiveRunner.
 
     Args:
@@ -68,6 +69,12 @@ class InteractiveRunner(runners.PipelineRunner):
       skip_display: (bool) whether to skip display operations when running the
           pipeline. Useful if running large pipelines when display is not
           needed.
+      force_compute: (bool) whether sequential pipeline runs can use cached data
+          of PCollections computed from the previous runs including show API
+          invocation from interactive_beam module. If True, always run the whole
+          pipeline and compute data for PCollections forcefully. If False, use
+          available data and run minimum pipeline fragment to only compute data
+          not available.
     """
     self._underlying_runner = (underlying_runner
                                or direct_runner.DirectRunner())
@@ -79,6 +86,7 @@ class InteractiveRunner(runners.PipelineRunner):
     self._render_option = render_option
     self._in_session = False
     self._skip_display = skip_display
+    self._force_compute = force_compute
 
   def is_fnapi_compatible(self):
     # TODO(BEAM-8436): return self._underlying_runner.is_fnapi_compatible()
@@ -127,6 +135,9 @@ class InteractiveRunner(runners.PipelineRunner):
     return self._underlying_runner.apply(transform, pvalueish, options)
 
   def run_pipeline(self, pipeline, options):
+    if self._force_compute:
+      ie.current_env().evict_computed_pcollections()
+
     pipeline_instrument = inst.pin(pipeline, options)
 
     # The user_pipeline analyzed might be None if the pipeline given has nothing
@@ -162,6 +173,11 @@ class InteractiveRunner(runners.PipelineRunner):
           main_job_result,
           is_main_job=True)
     main_job_result.wait_until_finish()
+
+    if main_job_result.state is beam.runners.runner.PipelineState.DONE:
+      # pylint: disable=dict-values-not-iterating
+      ie.current_env().mark_pcollection_computed(
+          pipeline_instrument.runner_pcoll_to_user_pcoll.values())
 
     return main_job_result
 

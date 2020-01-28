@@ -107,6 +107,11 @@ class PipelineInstrument(object):
     # Note: the original pipeline is not the user pipeline.
     self._user_pipeline = None
 
+    # A dict from PCollections in the runner pipeline instance to their
+    # corresponding PCollections in the user pipeline instance. Populated
+    # after preprocess().
+    self._runner_pcoll_to_user_pcoll = {}
+
   def instrumented_pipeline_proto(self):
     """Always returns a new instance of portable instrumented proto."""
     return self._pipeline.to_runner_api(use_fake_coders=True)
@@ -279,6 +284,12 @@ class PipelineInstrument(object):
     """
     return self._user_pipeline
 
+  @property
+  def runner_pcoll_to_user_pcoll(self):
+    """Returns cacheable PCollections correlated from instances in the runner
+    pipeline to instances in the user pipeline."""
+    return self._runner_pcoll_to_user_pcoll
+
   def instrument(self):
     """Instruments original pipeline with cache.
 
@@ -349,12 +360,12 @@ class PipelineInstrument(object):
         pcoll_id = self._pin.pcolls_to_pcoll_id.get(str(pcoll), '')
         if pcoll_id in self._pin._pcoll_version_map:
           cacheable_key = self._pin._cacheable_key(pcoll)
-          if (cacheable_key in self._pin.cacheables and
-              self._pin.cacheables[cacheable_key]['pcoll'] != pcoll):
+          user_pcoll = self._pin.cacheables[cacheable_key]['pcoll']
+          if (cacheable_key in self._pin.cacheables and user_pcoll != pcoll):
             if not self._pin._user_pipeline:
               # Retrieve a reference to the user defined pipeline instance.
-              self._pin._user_pipeline = self._pin.cacheables[cacheable_key][
-                  'pcoll'].pipeline
+              self._pin._user_pipeline = user_pcoll.pipeline
+            self._pin._runner_pcoll_to_user_pcoll[pcoll] = user_pcoll
             self._pin.cacheables[cacheable_key]['pcoll'] = pcoll
 
     v = PreprocessVisitor(self)
@@ -397,8 +408,11 @@ class PipelineInstrument(object):
       return
     # The keyed cache is always valid within this instrumentation.
     key = self.cache_key(pcoll)
-    # Can only read from cache when the cache with expected key exists.
-    if self._cache_manager.exists('full', key):
+    # Can only read from cache when the cache with expected key exists and its
+    # computation has been completed.
+    if (self._cache_manager.exists('full', key) and
+        (self._runner_pcoll_to_user_pcoll[pcoll] in
+         ie.current_env().computed_pcollections)):
       if key not in self._cached_pcoll_read:
         # Mutates the pipeline with cache read transform attached
         # to root of the pipeline.

@@ -249,6 +249,9 @@ class PipelineInstrumentTest(unittest.TestCase):
         id(second_pcoll)) + '_' + str(id(second_pcoll.producer))
     self._mock_write_cache(second_pcoll, second_pcoll_cache_key)
     ie.current_env().cache_manager().exists = MagicMock(return_value=True)
+    # Mark the completeness of PCollections from the original(user) pipeline.
+    ie.current_env().mark_pcollection_computed(
+        (p_origin, init_pcoll, second_pcoll))
     instr.pin(p_copy)
 
     cached_init_pcoll = p_origin | (
