@@ -34,6 +34,7 @@ import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.RewriteResponse;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auto.value.AutoValue;
+import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
@@ -436,7 +437,7 @@ public class GcsUtil {
    * <p>Returns a WritableByteChannel that can be used to write data to the object.
    *
    * @param path the GCS file to write to
-   * @param type the type of object, eg "text/plain". This is unused.
+   * @param type the type of object, eg "text/plain".
    * @return a Callable object that encloses the operation.
    */
   public WritableByteChannel create(GcsPath path, String type) throws IOException {
@@ -449,8 +450,7 @@ public class GcsUtil {
    */
   public WritableByteChannel create(GcsPath path, String type, Integer uploadBufferSizeBytes)
       throws IOException {
-    // Soon, AsyncWriteChannelOptions will have toBuilder() method.
-    // At that point, AsyncWriteChannelOptions can be built from an existing instance, like so:
+    // When AsyncWriteChannelOptions has toBuilder() method, the following can be changed to:
     //       AsyncWriteChannelOptions newOptions =
     //            wcOptions.toBuilder().setUploadChunkSize(uploadBufferSizeBytes).build();
     AsyncWriteChannelOptions wcOptions = googleCloudStorageOptions.getWriteChannelOptions();
@@ -470,7 +470,9 @@ public class GcsUtil {
         googleCloudStorageOptions.toBuilder().setWriteChannelOptions(newOptions).build();
     GoogleCloudStorage gcpStorage =
         new GoogleCloudStorageImpl(newGoogleCloudStorageOptions, this.storageClient);
-    return gcpStorage.create(new StorageResourceId(path.getBucket(), path.getObject()));
+    return gcpStorage.create(
+        new StorageResourceId(path.getBucket(), path.getObject()),
+        new CreateObjectOptions(true, type, CreateObjectOptions.EMPTY_METADATA));
   }
 
   /** Returns whether the GCS bucket exists and is accessible. */
