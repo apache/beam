@@ -27,7 +27,6 @@ import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIMESTAMP;
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.convertDateValueToDateString;
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.convertTimeValueToTimeString;
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.safeMicrosToMillis;
-import static org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable.FUNCTION_FAMILY_DATE_ADD;
 import static org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLCastFunctionImpl.ZETASQL_CAST_OP;
 
 import com.google.common.base.Ascii;
@@ -52,7 +51,6 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedLiteral;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedOrderByScan;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedParameter;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedProjectScan;
-import io.grpc.Status;
 import java.math.BigDecimal;
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -68,6 +66,7 @@ import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperatorRewriter;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperators;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable;
 import org.apache.beam.sdk.extensions.sql.zetasql.TypeUtils;
+import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlUtils;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnitRange;
@@ -728,17 +727,16 @@ public class ExpressionConverter {
       ResolvedFunctionCall functionCall,
       List<ResolvedColumn> columnList,
       List<RelDataTypeField> fieldList) {
-    RexNode ret;
-    SqlOperator op;
+    final String funGroup = functionCall.getFunction().getGroup();
+    final String funName = functionCall.getFunction().getName();
+    SqlOperator op =
+        SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(funName);
     List<RexNode> operands = new ArrayList<>();
 
-    if (functionCall.getFunction().getGroup().equals(PRE_DEFINED_WINDOW_FUNCTIONS)) {
-      switch (functionCall.getFunction().getName()) {
+    if (PRE_DEFINED_WINDOW_FUNCTIONS.equals(funGroup)) {
+      switch (funName) {
         case FIXED_WINDOW:
         case SESSION_WINDOW:
-          op =
-              SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
-                  functionCall.getFunction().getName());
           // TODO: check size and type of window function argument list.
           // Add ts column reference to operands.
           operands.add(
@@ -750,9 +748,6 @@ public class ExpressionConverter {
                   (ResolvedLiteral) functionCall.getArgumentList().get(1)));
           break;
         case SLIDING_WINDOW:
-          op =
-              SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
-                  SLIDING_WINDOW);
           // Add ts column reference to operands.
           operands.add(
               convertRexNodeFromResolvedExpr(
@@ -770,88 +765,33 @@ public class ExpressionConverter {
           throw new UnsupportedOperationException(
               "Only support TUMBLE, HOP AND SESSION functions right now.");
       }
-    } else if (functionCall.getFunction().getGroup().equals("ZetaSQL")) {
-      op =
-          SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
-              functionCall.getFunction().getName());
-
+    } else if ("ZetaSQL".equals(funGroup)) {
       if (op == null) {
-        throw new UnsupportedOperationException(
-            "Does not support ZetaSQL function: " + functionCall.getFunction().getName());
-      }
-
-      // There are different processes to handle argument conversion because INTERVAL is not a
-      // type in ZetaSQL.
-      if (FUNCTION_FAMILY_DATE_ADD.contains(functionCall.getFunction().getName())) {
-        return convertTimestampAddFunction(functionCall, columnList, fieldList);
-      } else {
-        for (ResolvedExpr expr : functionCall.getArgumentList()) {
-          operands.add(convertRexNodeFromResolvedExpr(expr, columnList, fieldList));
+        Type returnType = functionCall.getSignature().getResultType().getType();
+        if (returnType != null) {
+          op =
+              SqlOperators.createSimpleSqlFunction(
+                  funName, ZetaSqlUtils.zetaSqlTypeToCalciteType(returnType.getKind()));
+        } else {
+          throw new UnsupportedOperationException("Does not support ZetaSQL function: " + funName);
         }
       }
+
+      for (ResolvedExpr expr : functionCall.getArgumentList()) {
+        operands.add(convertRexNodeFromResolvedExpr(expr, columnList, fieldList));
+      }
     } else {
-      throw new UnsupportedOperationException(
-          "Does not support function group: " + functionCall.getFunction().getGroup());
+      throw new UnsupportedOperationException("Does not support function group: " + funGroup);
     }
 
     SqlOperatorRewriter rewriter =
-        SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR_REWRITER.get(
-            functionCall.getFunction().getName());
+        SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR_REWRITER.get(funName);
 
     if (rewriter != null) {
-      ret = rewriter.apply(rexBuilder(), operands);
+      return rewriter.apply(rexBuilder(), operands);
     } else {
-      ret = rexBuilder().makeCall(op, operands);
+      return rexBuilder().makeCall(op, operands);
     }
-    return ret;
-  }
-
-  private RexNode convertTimestampAddFunction(
-      ResolvedFunctionCall functionCall,
-      List<ResolvedColumn> columnList,
-      List<RelDataTypeField> fieldList) {
-
-    TimeUnit unit =
-        TIME_UNIT_CASTING_MAP.get(
-            ((ResolvedLiteral) functionCall.getArgumentList().get(2)).getValue().getEnumValue());
-
-    if ((unit == TimeUnit.MICROSECOND) || (unit == TimeUnit.NANOSECOND)) {
-      throw Status.UNIMPLEMENTED
-          .withDescription("Micro and Nanoseconds are not supported by Beam ZetaSQL")
-          .asRuntimeException();
-    }
-
-    SqlIntervalQualifier qualifier = new SqlIntervalQualifier(unit, null, SqlParserPos.ZERO);
-
-    RexNode intervalArgumentNode =
-        convertRexNodeFromResolvedExpr(
-            functionCall.getArgumentList().get(1), columnList, fieldList);
-
-    RexNode validatedIntervalArgument =
-        rexBuilder()
-            .makeCall(
-                SqlOperators.VALIDATE_TIME_INTERVAL,
-                intervalArgumentNode,
-                rexBuilder().makeFlag(unit));
-
-    RexNode intervalNode =
-        rexBuilder()
-            .makeCall(
-                SqlStdOperatorTable.MULTIPLY,
-                rexBuilder().makeIntervalLiteral(unit.multiplier, qualifier),
-                validatedIntervalArgument);
-
-    RexNode timestampNode =
-        convertRexNodeFromResolvedExpr(
-            functionCall.getArgumentList().get(0), columnList, fieldList);
-
-    RexNode dateTimePlusResult =
-        rexBuilder().makeCall(SqlStdOperatorTable.DATETIME_PLUS, timestampNode, intervalNode);
-
-    RexNode validatedTimestampResult =
-        rexBuilder().makeCall(SqlOperators.VALIDATE_TIMESTAMP, dateTimePlusResult);
-
-    return validatedTimestampResult;
   }
 
   private RexNode convertIntervalToRexIntervalLiteral(ResolvedLiteral resolvedLiteral) {
