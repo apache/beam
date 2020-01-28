@@ -58,8 +58,10 @@ JOB_TRIGGER_PHRASES=(
   "Run Spark ValidatesRunner"
   "Run Python Dataflow ValidatesContainer"
   "Run Python Dataflow ValidatesRunner"
-  "Run Python Flink ValidatesRunner"
-  "Run Python PostCommit"
+  "Run Python 3.5 Flink ValidatesRunner"
+  # Python versions match those in run_rc_validation.sh.
+  "Run Python 2 PostCommit"
+  "Run Python 3.5 PostCommit"
   "Run SQL PostCommit"
   "Run Go PreCommit"
   "Run Java PreCommit"
