@@ -52,7 +52,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -386,7 +385,6 @@ public class JmsIO {
      * Creates an {@link UnboundedSource UnboundedSource&lt;JmsRecord, ?&gt;} with the configuration
      * in {@link Read}. Primary use case is unit tests, should not be used in an application.
      */
-    @VisibleForTesting
     UnboundedSource<T, JmsCheckpointMark> createSource() {
       return new UnboundedJmsSource<T>(this);
     }
@@ -404,7 +402,6 @@ public class JmsIO {
   }
 
   /** An unbounded JMS source. */
-  @VisibleForTesting
   static class UnboundedJmsSource<T> extends UnboundedSource<T, JmsCheckpointMark> {
 
     private final Read<T> spec;
@@ -447,7 +444,6 @@ public class JmsIO {
     }
   }
 
-  @VisibleForTesting
   static class UnboundedJmsReader<T> extends UnboundedReader<T> {
 
     private UnboundedJmsSource<T> source;

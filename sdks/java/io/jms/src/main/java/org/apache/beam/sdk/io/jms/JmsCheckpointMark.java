@@ -25,7 +25,6 @@ import java.util.Objects;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import javax.jms.Message;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,19 +33,18 @@ import org.slf4j.LoggerFactory;
  * Checkpoint for an unbounded JMS source. Consists of the JMS messages waiting to be acknowledged
  * and oldest pending message timestamp.
  */
-@VisibleForTesting
-public class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
+class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(JmsCheckpointMark.class);
 
-  @VisibleForTesting Instant oldestMessageTimestamp = Instant.now();
-  @VisibleForTesting transient List<Message> messages = new ArrayList<>();
+  private Instant oldestMessageTimestamp = Instant.now();
+  private transient List<Message> messages = new ArrayList<>();
 
   private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
-  public JmsCheckpointMark() {}
+  JmsCheckpointMark() {}
 
-  public void add(Message message) throws Exception {
+  void add(Message message) throws Exception {
     lock.writeLock().lock();
     try {
       Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
@@ -59,7 +57,7 @@ public class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serial
     }
   }
 
-  public Instant getOldestMessageTimestamp() {
+  Instant getOldestMessageTimestamp() {
     lock.readLock().lock();
     try {
       return this.oldestMessageTimestamp;
@@ -85,7 +83,7 @@ public class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serial
             oldestMessageTimestamp = currentMessageTimestamp;
           }
         } catch (Exception e) {
-          LOG.error("Exception while finalizing message: {}", e);
+          LOG.error("Exception while finalizing message: ", e);
         }
       }
       messages.clear();
@@ -102,17 +100,19 @@ public class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serial
   }
 
   @Override
-  public boolean equals(Object other) {
-    if (other instanceof JmsCheckpointMark) {
-      JmsCheckpointMark that = (JmsCheckpointMark) other;
-      return Objects.equals(this.oldestMessageTimestamp, that.oldestMessageTimestamp);
-    } else {
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
       return false;
     }
+    JmsCheckpointMark that = (JmsCheckpointMark) o;
+    return oldestMessageTimestamp.equals(that.oldestMessageTimestamp);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(oldestMessageTimestamp, messages);
+    return Objects.hash(oldestMessageTimestamp);
   }
 }
