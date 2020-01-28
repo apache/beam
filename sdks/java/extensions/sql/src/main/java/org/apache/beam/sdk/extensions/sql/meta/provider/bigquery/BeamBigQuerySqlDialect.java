@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.Casing;
@@ -75,103 +74,113 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
       new SqlSetOperator("INTERSECT DISTINCT", SqlKind.INTERSECT, 18, false);
 
   private static final List<String> RESERVED_KEYWORDS =
-      ImmutableList.copyOf(
-          Arrays.asList(
-              "ALL",
-              "AND",
-              "ANY",
-              "ARRAY",
-              "AS",
-              "ASC",
-              "ASSERT_ROWS_MODIFIED",
-              "AT",
-              "BETWEEN",
-              "BY",
-              "CASE",
-              "CAST",
-              "COLLATE",
-              "CONTAINS",
-              "CREATE",
-              "CROSS",
-              "CUBE",
-              "CURRENT",
-              "DEFAULT",
-              "DEFINE",
-              "DESC",
-              "DISTINCT",
-              "ELSE",
-              "END",
-              "ENUM",
-              "ESCAPE",
-              "EXCEPT",
-              "EXCLUDE",
-              "EXISTS",
-              "EXTRACT",
-              "FALSE",
-              "FETCH",
-              "FOLLOWING",
-              "FOR",
-              "FROM",
-              "FULL",
-              "GROUP",
-              "GROUPING",
-              "GROUPS",
-              "HASH",
-              "HAVING",
-              "IF",
-              "IGNORE",
-              "IN",
-              "INNER",
-              "INTERSECT",
-              "INTERVAL",
-              "INTO",
-              "IS",
-              "JOIN",
-              "LATERAL",
-              "LEFT",
-              "LIKE",
-              "LIMIT",
-              "LOOKUP",
-              "MERGE",
-              "NATURAL",
-              "NEW",
-              "NO",
-              "NOT",
-              "NULL",
-              "NULLS",
-              "OF",
-              "ON",
-              "OR",
-              "ORDER",
-              "OUTER",
-              "OVER",
-              "PARTITION",
-              "PRECEDING",
-              "PROTO",
-              "RANGE",
-              "RECURSIVE",
-              "RESPECT",
-              "RIGHT",
-              "ROLLUP",
-              "ROWS",
-              "SELECT",
-              "SET",
-              "SOME",
-              "STRUCT",
-              "TABLESAMPLE",
-              "THEN",
-              "TO",
-              "TREAT",
-              "TRUE",
-              "UNBOUNDED",
-              "UNION",
-              "UNNEST",
-              "USING",
-              "WHEN",
-              "WHERE",
-              "WINDOW",
-              "WITH",
-              "WITHIN"));
+      ImmutableList.of(
+          "ALL",
+          "AND",
+          "ANY",
+          "ARRAY",
+          "AS",
+          "ASC",
+          "ASSERT_ROWS_MODIFIED",
+          "AT",
+          "BETWEEN",
+          "BY",
+          "CASE",
+          "CAST",
+          "COLLATE",
+          "CONTAINS",
+          "CREATE",
+          "CROSS",
+          "CUBE",
+          "CURRENT",
+          "DEFAULT",
+          "DEFINE",
+          "DESC",
+          "DISTINCT",
+          "ELSE",
+          "END",
+          "ENUM",
+          "ESCAPE",
+          "EXCEPT",
+          "EXCLUDE",
+          "EXISTS",
+          "EXTRACT",
+          "FALSE",
+          "FETCH",
+          "FOLLOWING",
+          "FOR",
+          "FROM",
+          "FULL",
+          "GROUP",
+          "GROUPING",
+          "GROUPS",
+          "HASH",
+          "HAVING",
+          "IF",
+          "IGNORE",
+          "IN",
+          "INNER",
+          "INTERSECT",
+          "INTERVAL",
+          "INTO",
+          "IS",
+          "JOIN",
+          "LATERAL",
+          "LEFT",
+          "LIKE",
+          "LIMIT",
+          "LOOKUP",
+          "MERGE",
+          "NATURAL",
+          "NEW",
+          "NO",
+          "NOT",
+          "NULL",
+          "NULLS",
+          "OF",
+          "ON",
+          "OR",
+          "ORDER",
+          "OUTER",
+          "OVER",
+          "PARTITION",
+          "PRECEDING",
+          "PROTO",
+          "RANGE",
+          "RECURSIVE",
+          "RESPECT",
+          "RIGHT",
+          "ROLLUP",
+          "ROWS",
+          "SELECT",
+          "SET",
+          "SOME",
+          "STRUCT",
+          "TABLESAMPLE",
+          "THEN",
+          "TO",
+          "TREAT",
+          "TRUE",
+          "UNBOUNDED",
+          "UNION",
+          "UNNEST",
+          "USING",
+          "WHEN",
+          "WHERE",
+          "WINDOW",
+          "WITH",
+          "WITHIN");
+
+  private static final List<String> FUNCTIONS_USING_INTERVAL =
+      ImmutableList.of(
+          "date_add",
+          "date_sub",
+          "datetime_add",
+          "datetime_sub",
+          "time_add",
+          "time_sub",
+          "timestamp_add",
+          "timestamp_sub");
 
   public BeamBigQuerySqlDialect(Context context) {
     super(context);
@@ -231,6 +240,11 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
       case TRIM:
         unparseTrim(writer, call, leftPrec, rightPrec);
         break;
+      case OTHER_FUNCTION:
+        if (FUNCTIONS_USING_INTERVAL.contains(call.getOperator().getName())) {
+          unparseFunctionsUsingInterval(writer, call, leftPrec, rightPrec);
+          break;
+        } // fall through
       default:
         super.unparseCall(writer, call, leftPrec, rightPrec);
     }
@@ -300,6 +314,39 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
       call.operand(1).unparse(writer, leftPrec, rightPrec);
     }
     writer.endFunCall(trimFrame);
+  }
+
+  /**
+   * For usage of INTERVAL, see <a
+   * href="https://cloud.google.com/bigquery/docs/reference/standard-sql/functions-and-operators#timestamp_add">
+   * BQ TIMESTAMP_ADD function</a> for example.
+   */
+  private void unparseFunctionsUsingInterval(
+      SqlWriter writer, SqlCall call, int leftPrec, int rightPrec) {
+    // e.g. TIMESTAMP_ADD syntax:
+    // TIMESTAMP_ADD(timestamp_expression, INTERVAL int64_expression date_part)
+    int operandCount = call.operandCount();
+    if (operandCount == 2) {
+      // operand0: timestamp_expression
+      // operand1: SqlIntervalLiteral (INTERVAL int64_expression date_part)
+      super.unparseCall(writer, call, leftPrec, rightPrec);
+    } else if (operandCount == 3) {
+      // operand0: timestamp_expression
+      // operand1: int64_expression
+      // operand2: date_part
+      final SqlWriter.Frame frame = writer.startFunCall(call.getOperator().getName());
+      call.operand(0).unparse(writer, leftPrec, rightPrec);
+      writer.literal(",");
+      writer.literal("INTERVAL");
+      call.operand(1).unparse(writer, leftPrec, rightPrec);
+      call.operand(2).unparse(writer, leftPrec, rightPrec);
+      writer.endFunCall(frame);
+    } else {
+      throw new IllegalArgumentException(
+          String.format(
+              "Unable to unparse %s with %d operands.",
+              call.getOperator().getName(), operandCount));
+    }
   }
 
   private TimeUnit validate(TimeUnit timeUnit) {
