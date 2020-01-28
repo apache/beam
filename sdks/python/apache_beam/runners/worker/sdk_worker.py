@@ -763,14 +763,18 @@ class CachingStateHandler(object):
       raise RuntimeError(
           'Cache tokens already set to %s'
           % self._context.user_state_cache_token)
-    # TODO Also handle cache tokens for side input, if present:
-    # https://issues.apache.org/jira/browse/BEAM-8298
+    self._context.side_input_cache_tokens = {}
     user_state_cache_token = None
     for cache_token_struct in cache_tokens:
       if cache_token_struct.HasField("user_state"):
         # There should only be one user state token present
         assert not user_state_cache_token
         user_state_cache_token = cache_token_struct.token
+      elif cache_token_struct.HasField("side_input"):
+        self._context.side_input_cache_tokens[
+          cache_token_struct.side_input.transform_id,
+          cache_token_struct.side_input.side_input_id
+          ] = cache_token_struct.token
     self._context.bundle_cache_token = bundle_id
     try:
       self._state_cache.initialize_metrics()
@@ -778,6 +782,7 @@ class CachingStateHandler(object):
       with self._underlying.process_instruction_id(bundle_id):
         yield
     finally:
+      self._context.side_input_cache_tokens = {}
       self._context.user_state_cache_token = None
       self._context.bundle_cache_token = None
 
@@ -866,7 +871,10 @@ class CachingStateHandler(object):
       else:
         return self._context.bundle_cache_token
     elif state_key.WhichOneof('type').endswith('_side_input'):
-      return self._context.bundle_cache_token
+      side_input = getattr(state_key, state_key.WhichOneof('type'))
+      return self._context.side_input_cache_tokens.get(
+        (side_input.transform_id, side_input.side_input_id),
+        self._context.bundle_cache_token)
 
   def _partially_cached_iterable(
       self,
