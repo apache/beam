@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Tests for apache_beam.runners.worker.sdk_worker."""
 
 # pytype: skip-file
@@ -41,7 +42,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
-
   def __init__(self, requests, raise_errors=True):
     self.requests = requests
     self.instruction_ids = set(r.instruction_id for r in requests)
@@ -63,12 +63,12 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
         elif len(self.responses) == len(self.requests):
           _LOGGER.info("All %s instructions finished.", len(self.requests))
           return
-    raise RuntimeError("Missing responses: %s" %
-                       (self.instruction_ids - set(self.responses.keys())))
+    raise RuntimeError(
+        "Missing responses: %s" %
+        (self.instruction_ids - set(self.responses.keys())))
 
 
 class SdkWorkerTest(unittest.TestCase):
-
   def _get_process_bundles(self, prefix, size):
     return [
         beam_fn_api_pb2.ProcessBundleDescriptor(
@@ -110,9 +110,10 @@ class SdkWorkerTest(unittest.TestCase):
           "localhost:%s" % test_port, state_cache_size=100)
       harness.run()
 
-      self.assertEqual(harness._bundle_processor_cache.fns,
-                       {item.id: item
-                        for item in process_bundle_descriptors})
+      self.assertEqual(
+          harness._bundle_processor_cache.fns,
+          {item.id: item
+           for item in process_bundle_descriptors})
 
   def test_fn_registration(self):
     self._check_fn_registration_multi_request((1, 4), (4, 4))
@@ -127,7 +128,6 @@ class CachingStateHandlerTest(unittest.TestCase):
     class FakeUnderlyingState(object):
       """Simply returns an incremented counter as the state "value."
       """
-
       def set_counter(self, n):
         self._counter = n
 

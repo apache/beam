@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Tests for apache_beam.runners.worker.sdk_worker_main."""
 
 # pytype: skip-file
@@ -37,7 +38,6 @@ class SdkWorkerMainTest(unittest.TestCase):
 
   # Used for testing newly added flags.
   class MockOptions(PipelineOptions):
-
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_argument('--eam:option:m_option:v', help='mock option')
@@ -66,30 +66,25 @@ class SdkWorkerMainTest(unittest.TestCase):
     self.assertEqual(
         expected_options.get_all_options(),
         sdk_worker_main._parse_pipeline_options(
-            '{"options": {' +
-            '"m_option": "/tmp/requirements.txt", ' +
-            '"m_m_option":["beam_fn_api"]' +
-            '}}').get_all_options())
+            '{"options": {' + '"m_option": "/tmp/requirements.txt", ' +
+            '"m_m_option":["beam_fn_api"]' + '}}').get_all_options())
     self.assertEqual(
         expected_options.get_all_options(),
         sdk_worker_main._parse_pipeline_options(
             '{"beam:option:m_option:v1": "/tmp/requirements.txt", ' +
             '"beam:option:m_m_option:v1":["beam_fn_api"]}').get_all_options())
-    self.assertEqual(
-        {'beam:option:m_option:v': 'mock_val'},
-        sdk_worker_main._parse_pipeline_options(
-            '{"options": {"beam:option:m_option:v":"mock_val"}}')
-        .get_all_options(drop_default=True))
-    self.assertEqual(
-        {'eam:option:m_option:v1': 'mock_val'},
-        sdk_worker_main._parse_pipeline_options(
-            '{"options": {"eam:option:m_option:v1":"mock_val"}}')
-        .get_all_options(drop_default=True))
-    self.assertEqual(
-        {'eam:option:m_option:v': 'mock_val'},
-        sdk_worker_main._parse_pipeline_options(
-            '{"options": {"eam:option:m_option:v":"mock_val"}}')
-        .get_all_options(drop_default=True))
+    self.assertEqual({'beam:option:m_option:v': 'mock_val'},
+                     sdk_worker_main._parse_pipeline_options(
+                         '{"options": {"beam:option:m_option:v":"mock_val"}}').
+                     get_all_options(drop_default=True))
+    self.assertEqual({'eam:option:m_option:v1': 'mock_val'},
+                     sdk_worker_main._parse_pipeline_options(
+                         '{"options": {"eam:option:m_option:v1":"mock_val"}}').
+                     get_all_options(drop_default=True))
+    self.assertEqual({'eam:option:m_option:v': 'mock_val'},
+                     sdk_worker_main._parse_pipeline_options(
+                         '{"options": {"eam:option:m_option:v":"mock_val"}}').
+                     get_all_options(drop_default=True))
 
 
 if __name__ == '__main__':

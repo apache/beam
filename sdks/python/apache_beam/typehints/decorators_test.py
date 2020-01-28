@@ -37,11 +37,11 @@ decorators._enable_from_callable = True
 
 
 class IOTypeHintsTest(unittest.TestCase):
-
   def test_get_signature(self):
     # Basic coverage only to make sure function works in Py2 and Py3.
     def fn(a, b=1, *c, **d):
       return a, b, c, d
+
     s = decorators.get_signature(fn)
     self.assertListEqual(list(s.parameters), ['a', 'b', 'c', 'd'])
 
@@ -49,17 +49,18 @@ class IOTypeHintsTest(unittest.TestCase):
     # Tests a builtin function for 3.7+ and fallback result for older versions.
     s = decorators.get_signature(list)
     if sys.version_info < (3, 7):
-      self.assertListEqual(list(s.parameters),
-                           ['_', '__unknown__varargs', '__unknown__keywords'])
+      self.assertListEqual(
+          list(s.parameters),
+          ['_', '__unknown__varargs', '__unknown__keywords'])
     else:
-      self.assertListEqual(list(s.parameters),
-                           ['iterable'])
+      self.assertListEqual(list(s.parameters), ['iterable'])
     self.assertEqual(s.return_annotation, List[Any])
 
   def test_from_callable_without_annotations(self):
     # Python 2 doesn't support annotations. See decorators_test_py3.py for that.
     def fn(a, b=None, *args, **kwargs):
       return a, b, args, kwargs
+
     th = decorators.IOTypeHints.from_callable(fn)
     self.assertIsNone(th)
 
@@ -73,24 +74,22 @@ class IOTypeHintsTest(unittest.TestCase):
     if sys.version_info >= (3, 7):
       self.assertEqual(th.input_types, ((str, Any), {}))
     else:
-      self.assertEqual(th.input_types,
-                       ((str, decorators._ANY_VAR_POSITIONAL),
-                        {'__unknown__keywords': decorators._ANY_VAR_KEYWORD}))
-    self.assertEqual(th.output_types, ((Any,), {}))
+      self.assertEqual(
+          th.input_types,
+          ((str, decorators._ANY_VAR_POSITIONAL), {
+              '__unknown__keywords': decorators._ANY_VAR_KEYWORD
+          }))
+    self.assertEqual(th.output_types, ((Any, ), {}))
 
   def test_strip_iterable_not_simple_output_noop(self):
     th = decorators.IOTypeHints(
-        input_types=None,
-        output_types=((int, str), {}),
-        origin=[])
+        input_types=None, output_types=((int, str), {}), origin=[])
     th = th.strip_iterable()
     self.assertEqual(((int, str), {}), th.output_types)
 
   def _test_strip_iterable(self, before, expected_after):
     th = decorators.IOTypeHints(
-        input_types=None,
-        output_types=((before,), {}),
-        origin=[])
+        input_types=None, output_types=((before, ), {}), origin=[])
     after = th.strip_iterable()
     self.assertEqual(((expected_after, ), {}), after.output_types)
 
@@ -106,11 +105,10 @@ class IOTypeHintsTest(unittest.TestCase):
     self._test_strip_iterable(typehints.Iterator[str], str)
     self._test_strip_iterable(typehints.Generator[str], str)
     self._test_strip_iterable(typehints.Tuple[str], str)
-    self._test_strip_iterable(typehints.Tuple[str, int],
-                              typehints.Union[str, int])
+    self._test_strip_iterable(
+        typehints.Tuple[str, int], typehints.Union[str, int])
     self._test_strip_iterable(typehints.Tuple[str, ...], str)
-    self._test_strip_iterable(typehints.KV[str, int],
-                              typehints.Union[str, int])
+    self._test_strip_iterable(typehints.KV[str, int], typehints.Union[str, int])
     self._test_strip_iterable(typehints.Set[str], str)
 
     self._test_strip_iterable_fail(typehints.Union[str, int])
@@ -150,6 +148,7 @@ class IOTypeHintsTest(unittest.TestCase):
     th = th.with_defaults(th2)
     self.assertNotEqual(expected_id, id(th))
 
+
 class WithTypeHintsTest(unittest.TestCase):
   def test_get_type_hints_no_settings(self):
     class Base(WithTypeHints):
@@ -173,9 +172,7 @@ class WithTypeHintsTest(unittest.TestCase):
     class Base(WithTypeHints):
       def default_type_hints(self):
         return decorators.IOTypeHints(
-            input_types=((int, str), {}),
-            output_types=((int, ), {}),
-            origin=[])
+            input_types=((int, str), {}), output_types=((int, ), {}), origin=[])
 
     th = Base().get_type_hints()
     self.assertEqual(th.input_types, ((int, str), {}))
@@ -209,15 +206,14 @@ class WithTypeHintsTest(unittest.TestCase):
     class Subclass(WithTypeHints):
       def __init__(self):
         pass  # intentionally avoiding super call
+
     # These should be equal, but not the same object lest mutating the instance
     # mutates the class.
     self.assertIsNot(
         Subclass()._get_or_create_type_hints(), Subclass._type_hints)
-    self.assertEqual(
-        Subclass().get_type_hints(), Subclass._type_hints)
+    self.assertEqual(Subclass().get_type_hints(), Subclass._type_hints)
     self.assertNotEqual(
-        Subclass().with_input_types(str)._type_hints,
-        Subclass._type_hints)
+        Subclass().with_input_types(str)._type_hints, Subclass._type_hints)
 
 
 if __name__ == '__main__':

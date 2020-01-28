@@ -71,8 +71,8 @@ class _TestStream(PTransform):
   # TestStream.
   WATERMARK_CONTROL_TAG = '_TestStream_Watermark'
 
-  def __init__(self, output_tags, coder=coders.FastPrimitivesCoder(),
-               events=None):
+  def __init__(
+      self, output_tags, coder=coders.FastPrimitivesCoder(), events=None):
     assert coder is not None
     self.coder = coder
     self._raw_events = events
@@ -100,13 +100,18 @@ class _TestStream(PTransform):
     their holds. This is because the calculation of the output watermark is a
     min over all input watermarks.
     """
-    return [WatermarkEvent(timestamp.MAX_TIMESTAMP - timestamp.TIME_GRANULARITY,
-                           _TestStream.WATERMARK_CONTROL_TAG)]
+    return [
+        WatermarkEvent(
+            timestamp.MAX_TIMESTAMP - timestamp.TIME_GRANULARITY,
+            _TestStream.WATERMARK_CONTROL_TAG)
+    ]
 
   def _test_stream_stop(self):
     """Sentinel value to close the watermark of the TestStream."""
-    return [WatermarkEvent(timestamp.MAX_TIMESTAMP,
-                           _TestStream.WATERMARK_CONTROL_TAG)]
+    return [
+        WatermarkEvent(
+            timestamp.MAX_TIMESTAMP, _TestStream.WATERMARK_CONTROL_TAG)
+    ]
 
   def _test_stream_init(self):
     """Sentinel value to hold the watermark of the TestStream to -inf.
@@ -114,13 +119,15 @@ class _TestStream(PTransform):
     This sets a hold to ensure that the output watermarks of the output
     PCollections do not advance to +inf before their watermark holds are set.
     """
-    return [WatermarkEvent(timestamp.MIN_TIMESTAMP,
-                           _TestStream.WATERMARK_CONTROL_TAG)]
+    return [
+        WatermarkEvent(
+            timestamp.MIN_TIMESTAMP, _TestStream.WATERMARK_CONTROL_TAG)
+    ]
 
   def _set_up(self, output_tags):
-    return (self._test_stream_init()
-            + self._watermark_starts(output_tags)
-            + self._test_stream_start())
+    return (
+        self._test_stream_init() + self._watermark_starts(output_tags) +
+        self._test_stream_start())
 
   def _tear_down(self, output_tags):
     return self._watermark_stops(output_tags) + self._test_stream_stop()

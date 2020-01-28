@@ -48,8 +48,7 @@ PROCESS_BUNDLE_MSECS_URN = (
 FINISH_BUNDLE_MSECS_URN = (
     common_urns.monitoring_info_specs.FINISH_BUNDLE_MSECS.spec.urn)
 TOTAL_MSECS_URN = common_urns.monitoring_info_specs.TOTAL_MSECS.spec.urn
-USER_COUNTER_URN = (
-    common_urns.monitoring_info_specs.USER_COUNTER.spec.urn)
+USER_COUNTER_URN = (common_urns.monitoring_info_specs.USER_COUNTER.spec.urn)
 USER_DISTRIBUTION_COUNTER_URN = (
     common_urns.monitoring_info_specs.USER_DISTRIBUTION_COUNTER.spec.urn)
 
@@ -135,6 +134,7 @@ def create_labels(ptransform=None, tag=None, namespace=None, name=None):
 
 def int64_user_counter(namespace, name, metric, ptransform=None, tag=None):
   # type: (...) -> metrics_pb2.MonitoringInfo
+
   """Return the counter monitoring info for the specifed URN, metric and labels.
 
   Args:
@@ -144,20 +144,18 @@ def int64_user_counter(namespace, name, metric, ptransform=None, tag=None):
     ptransform: The ptransform/step name used as a label.
     tag: The output tag name, used as a label.
   """
-  labels = create_labels(ptransform=ptransform, tag=tag, namespace=namespace,
-                         name=name)
+  labels = create_labels(
+      ptransform=ptransform, tag=tag, namespace=namespace, name=name)
   if isinstance(metric, int):
     metric = metrics_pb2.Metric(
-        counter_data=metrics_pb2.CounterData(
-            int64_value=metric
-        )
-    )
-  return create_monitoring_info(USER_COUNTER_URN, SUM_INT64_TYPE, metric,
-                                labels)
+        counter_data=metrics_pb2.CounterData(int64_value=metric))
+  return create_monitoring_info(
+      USER_COUNTER_URN, SUM_INT64_TYPE, metric, labels)
 
 
 def int64_counter(urn, metric, ptransform=None, tag=None):
   # type: (...) -> metrics_pb2.MonitoringInfo
+
   """Return the counter monitoring info for the specifed URN, metric and labels.
 
   Args:
@@ -170,10 +168,7 @@ def int64_counter(urn, metric, ptransform=None, tag=None):
   labels = create_labels(ptransform=ptransform, tag=tag)
   if isinstance(metric, int):
     metric = metrics_pb2.Metric(
-        counter_data=metrics_pb2.CounterData(
-            int64_value=metric
-        )
-    )
+        counter_data=metrics_pb2.CounterData(int64_value=metric))
   return create_monitoring_info(urn, SUM_INT64_TYPE, metric, labels)
 
 
@@ -187,14 +182,15 @@ def int64_user_distribution(namespace, name, metric, ptransform=None, tag=None):
     ptransform: The ptransform/step name used as a label.
     tag: The output tag name, used as a label.
   """
-  labels = create_labels(ptransform=ptransform, tag=tag, namespace=namespace,
-                         name=name)
-  return create_monitoring_info(USER_DISTRIBUTION_COUNTER_URN,
-                                DISTRIBUTION_INT64_TYPE, metric, labels)
+  labels = create_labels(
+      ptransform=ptransform, tag=tag, namespace=namespace, name=name)
+  return create_monitoring_info(
+      USER_DISTRIBUTION_COUNTER_URN, DISTRIBUTION_INT64_TYPE, metric, labels)
 
 
 def int64_distribution(urn, metric, ptransform=None, tag=None):
   # type: (...) -> metrics_pb2.MonitoringInfo
+
   """Return a distribution monitoring info for the URN, metric and labels.
 
   Args:
@@ -204,12 +200,12 @@ def int64_distribution(urn, metric, ptransform=None, tag=None):
     tag: The output tag name, used as a label.
   """
   labels = create_labels(ptransform=ptransform, tag=tag)
-  return create_monitoring_info(
-      urn, DISTRIBUTION_INT64_TYPE, metric, labels)
+  return create_monitoring_info(urn, DISTRIBUTION_INT64_TYPE, metric, labels)
 
 
 def int64_user_gauge(namespace, name, metric, ptransform=None, tag=None):
   # type: (...) -> metrics_pb2.MonitoringInfo
+
   """Return the gauge monitoring info for the URN, metric and labels.
 
   Args:
@@ -220,10 +216,10 @@ def int64_user_gauge(namespace, name, metric, ptransform=None, tag=None):
     ptransform: The ptransform/step name used as a label.
     tag: The output tag name, used as a label.
   """
-  labels = create_labels(ptransform=ptransform, tag=tag, namespace=namespace,
-                         name=name)
-  return create_monitoring_info(USER_COUNTER_URN, LATEST_INT64_TYPE, metric,
-                                labels)
+  labels = create_labels(
+      ptransform=ptransform, tag=tag, namespace=namespace, name=name)
+  return create_monitoring_info(
+      USER_COUNTER_URN, LATEST_INT64_TYPE, metric, labels)
 
 
 def int64_gauge(urn, metric, ptransform=None, tag=None):
@@ -238,15 +234,13 @@ def int64_gauge(urn, metric, ptransform=None, tag=None):
   labels = create_labels(ptransform=ptransform, tag=tag)
   if isinstance(metric, int):
     metric = metrics_pb2.Metric(
-        counter_data=metrics_pb2.CounterData(
-            int64_value=metric
-        )
-    )
+        counter_data=metrics_pb2.CounterData(int64_value=metric))
   return create_monitoring_info(urn, LATEST_INT64_TYPE, metric, labels)
 
 
 def create_monitoring_info(urn, type_urn, metric_proto, labels=None):
   # type: (...) -> metrics_pb2.MonitoringInfo
+
   """Return the gauge monitoring info for the URN, type, metric and labels.
 
   Args:
@@ -262,8 +256,7 @@ def create_monitoring_info(urn, type_urn, metric_proto, labels=None):
       type=type_urn,
       labels=labels or dict(),
       metric=metric_proto,
-      timestamp=to_timestamp_proto(time.time())
-  )
+      timestamp=to_timestamp_proto(time.time()))
 
 
 def is_counter(monitoring_info_proto):
@@ -309,12 +302,15 @@ def extract_metric_result_map_value(monitoring_info_proto):
   if is_distribution(monitoring_info_proto):
     distribution_data = extract_distribution(monitoring_info_proto)
     return DistributionResult(
-        DistributionData(distribution_data.sum, distribution_data.count,
-                         distribution_data.min, distribution_data.max))
+        DistributionData(
+            distribution_data.sum,
+            distribution_data.count,
+            distribution_data.min,
+            distribution_data.max))
   if is_gauge(monitoring_info_proto):
     timestamp_secs = to_timestamp_secs(monitoring_info_proto.timestamp)
-    return GaugeResult(GaugeData(
-        extract_counter_value(monitoring_info_proto), timestamp_secs))
+    return GaugeResult(
+        GaugeData(extract_counter_value(monitoring_info_proto), timestamp_secs))
 
 
 def parse_namespace_and_name(monitoring_info_proto):
@@ -338,6 +334,7 @@ def get_step_name(monitoring_info_proto):
 
 def to_key(monitoring_info_proto):
   # type: (metrics_pb2.MonitoringInfo) -> FrozenSet[Hashable]
+
   """Returns a key based on the URN and labels.
 
   This is useful in maps to prevent reporting the same MonitoringInfo twice.
@@ -360,10 +357,11 @@ def distribution_combiner(metric_a, metric_b):
 
 
 _KNOWN_COMBINERS = {
-    SUM_INT64_TYPE: lambda a, b: metrics_pb2.Metric(
+    SUM_INT64_TYPE: lambda a,
+    b: metrics_pb2.Metric(
         counter_data=metrics_pb2.CounterData(
-            int64_value=
-            a.counter_data.int64_value + b.counter_data.int64_value)),
+            int64_value=a.counter_data.int64_value + b.counter_data.int64_value)
+    ),
     DISTRIBUTION_INT64_TYPE: distribution_combiner,
 }
 
@@ -385,15 +383,18 @@ def consolidate(metrics, key=to_key):
     else:
       combiner = _KNOWN_COMBINERS.get(values[0].type)
       if combiner:
+
         def merge(a, b):
           # pylint: disable=cell-var-from-loop
           return metrics_pb2.MonitoringInfo(
               urn=a.urn,
               type=a.type,
-              labels=dict((label, value) for label, value in a.labels.items()
+              labels=dict((label, value) for label,
+                          value in a.labels.items()
                           if b.labels.get(label) == value),
               metric=combiner(a.metric, b.metric),
               timestamp=max_timestamp(a.timestamp, b.timestamp))
+
         yield reduce(merge, values)
       else:
         for value in values:

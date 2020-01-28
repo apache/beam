@@ -46,8 +46,9 @@ from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import PaneInfo
 from apache_beam.utils.windowed_value import PaneInfoTiming
 
-STANDARD_CODERS_YAML = os.path.normpath(os.path.join(
-    os.path.dirname(__file__), '../portability/api/standard_coders.yaml'))
+STANDARD_CODERS_YAML = os.path.normpath(
+    os.path.join(
+        os.path.dirname(__file__), '../portability/api/standard_coders.yaml'))
 
 
 def _load_test_cases(test_yaml):
@@ -85,8 +86,8 @@ def value_parser_from_schema(schema):
     elif type_info == "map_type":
       key_parser = attribute_parser_from_type(type_.array_type.key_type)
       value_parser = attribute_parser_from_type(type_.array_type.value_type)
-      return lambda x: dict((key_parser(k), value_parser(v))
-                            for k, v in x.items())
+      return lambda x: dict(
+          (key_parser(k), value_parser(v)) for k, v in x.items())
 
   parsers = [(field.name, attribute_parser_from_type(field.type))
              for field in schema.fields]
@@ -101,8 +102,8 @@ def value_parser_from_schema(schema):
 
     if len(x):
       raise ValueError(
-          "Test data contains attributes that don't exist in the schema: {}"
-          .format(', '.join(x.keys())))
+          "Test data contains attributes that don't exist in the schema: {}".
+          format(', '.join(x.keys())))
 
     return constructor(*result)
 
@@ -116,33 +117,37 @@ class StandardCodersTest(unittest.TestCase):
       'beam:coder:bool:v1': lambda x: x,
       'beam:coder:string_utf8:v1': lambda x: x,
       'beam:coder:varint:v1': lambda x: x,
-      'beam:coder:kv:v1':
-          lambda x, key_parser, value_parser: (key_parser(x['key']),
-                                               value_parser(x['value'])),
-      'beam:coder:interval_window:v1':
-          lambda x: IntervalWindow(
-              start=Timestamp(micros=(x['end'] - x['span']) * 1000),
-              end=Timestamp(micros=x['end'] * 1000)),
-      'beam:coder:iterable:v1': lambda x, parser: list(map(parser, x)),
+      'beam:coder:kv:v1': lambda x,
+      key_parser,
+      value_parser: (key_parser(x['key']), value_parser(x['value'])),
+      'beam:coder:interval_window:v1': lambda x: IntervalWindow(
+          start=Timestamp(micros=(x['end'] - x['span']) * 1000),
+          end=Timestamp(micros=x['end'] * 1000)),
+      'beam:coder:iterable:v1': lambda x,
+      parser: list(map(parser, x)),
       'beam:coder:global_window:v1': lambda x: window.GlobalWindow(),
-      'beam:coder:windowed_value:v1':
-          lambda x, value_parser, window_parser: windowed_value.create(
-              value_parser(x['value']), x['timestamp'] * 1000,
-              tuple([window_parser(w) for w in x['windows']])),
-      'beam:coder:param_windowed_value:v1':
-          lambda x, value_parser, window_parser: windowed_value.create(
-              value_parser(x['value']), x['timestamp'] * 1000,
-              tuple([window_parser(w) for w in x['windows']]),
-              PaneInfo(
-                  x['pane']['is_first'],
-                  x['pane']['is_last'],
-                  PaneInfoTiming.from_string(x['pane']['timing']),
-                  x['pane']['index'],
-                  x['pane']['on_time_index'])),
-      'beam:coder:timer:v1':
-          lambda x, payload_parser: dict(
-              payload=payload_parser(x['payload']),
-              timestamp=Timestamp(micros=x['timestamp'] * 1000)),
+      'beam:coder:windowed_value:v1': lambda x,
+      value_parser,
+      window_parser: windowed_value.create(
+          value_parser(x['value']),
+          x['timestamp'] * 1000,
+          tuple([window_parser(w) for w in x['windows']])),
+      'beam:coder:param_windowed_value:v1': lambda x,
+      value_parser,
+      window_parser: windowed_value.create(
+          value_parser(x['value']),
+          x['timestamp'] * 1000,
+          tuple([window_parser(w) for w in x['windows']]),
+          PaneInfo(
+              x['pane']['is_first'],
+              x['pane']['is_last'],
+              PaneInfoTiming.from_string(x['pane']['timing']),
+              x['pane']['index'],
+              x['pane']['on_time_index'])),
+      'beam:coder:timer:v1': lambda x,
+      payload_parser: dict(
+          payload=payload_parser(x['payload']),
+          timestamp=Timestamp(micros=x['timestamp'] * 1000)),
       'beam:coder:double:v1': parse_float,
   }
 
@@ -154,10 +159,8 @@ class StandardCodersTest(unittest.TestCase):
   def _run_standard_coder(self, name, spec):
     def assert_equal(actual, expected):
       """Handle nan values which self.assertEqual fails on."""
-      if (isinstance(actual, float)
-          and isinstance(expected, float)
-          and math.isnan(actual)
-          and math.isnan(expected)):
+      if (isinstance(actual, float) and isinstance(expected, float) and
+          math.isnan(actual) and math.isnan(expected)):
         return
       self.assertEqual(actual, expected)
 
@@ -178,18 +181,23 @@ class StandardCodersTest(unittest.TestCase):
             assert_equal(decoded, value)
         else:
           # Only verify decoding for a non-deterministic coder
-          self.assertEqual(decode_nested(coder, expected_encoded, nested),
-                           value)
+          self.assertEqual(
+              decode_nested(coder, expected_encoded, nested), value)
 
   def parse_coder(self, spec):
     context = pipeline_context.PipelineContext()
     coder_id = str(hash(str(spec)))
-    component_ids = [context.coders.get_id(self.parse_coder(c))
-                     for c in spec.get('components', ())]
-    context.coders.put_proto(coder_id, beam_runner_api_pb2.Coder(
-        spec=beam_runner_api_pb2.FunctionSpec(
-            urn=spec['urn'], payload=spec.get('payload', '').encode('latin1')),
-        component_coder_ids=component_ids))
+    component_ids = [
+        context.coders.get_id(self.parse_coder(c))
+        for c in spec.get('components', ())
+    ]
+    context.coders.put_proto(
+        coder_id,
+        beam_runner_api_pb2.Coder(
+            spec=beam_runner_api_pb2.FunctionSpec(
+                urn=spec['urn'],
+                payload=spec.get('payload', '').encode('latin1')),
+            component_coder_ids=component_ids))
     return context.coders.get_by_id(coder_id)
 
   def json_value_parser(self, coder_spec):
@@ -200,7 +208,8 @@ class StandardCodersTest(unittest.TestCase):
       return value_parser_from_schema(schema)
 
     component_parsers = [
-        self.json_value_parser(c) for c in coder_spec.get('components', ())]
+        self.json_value_parser(c) for c in coder_spec.get('components', ())
+    ]
     return lambda x: self._urn_to_json_value_parser[coder_spec['urn']](
         x, *component_parsers)
 
@@ -218,6 +227,7 @@ class StandardCodersTest(unittest.TestCase):
 
       def quote(s):
         return json.dumps(s.decode('latin1')).replace(r'\u0000', r'\0')
+
       for (doc_ix, expected_encoded), actual_encoded in cls.to_fix.items():
         print(quote(expected_encoded), "->", quote(actual_encoded))
         docs[doc_ix] = docs[doc_ix].replace(

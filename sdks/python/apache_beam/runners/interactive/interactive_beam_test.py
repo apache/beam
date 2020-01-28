@@ -31,7 +31,6 @@ _module_name = 'apache_beam.runners.interactive.interactive_beam_test'
 
 
 class InteractiveBeamTest(unittest.TestCase):
-
   def setUp(self):
     self._var_in_class_instance = 'a var in class instance, not directly used'
     ie.new_env()

@@ -50,8 +50,15 @@ class PipelineOptionsValidator(object):
   """
 
   # Validator will call validate on these subclasses of PipelineOptions
-  OPTIONS = [DebugOptions, GoogleCloudOptions, SetupOptions, StandardOptions,
-             TypeOptions, WorkerOptions, TestOptions]
+  OPTIONS = [
+      DebugOptions,
+      GoogleCloudOptions,
+      SetupOptions,
+      StandardOptions,
+      TypeOptions,
+      WorkerOptions,
+      TestOptions
+  ]
 
   # Possible validation errors.
   ERR_MISSING_OPTION = 'Missing required option: %s.'
@@ -71,8 +78,9 @@ class PipelineOptionsValidator(object):
   ERR_INVALID_PROJECT_ID = (
       'Invalid Project ID (%s). Please make sure you specified the Project ID, '
       'not project description.')
-  ERR_INVALID_NOT_POSITIVE = ('Invalid value (%s) for option: %s. Value needs '
-                              'to be positive.')
+  ERR_INVALID_NOT_POSITIVE = (
+      'Invalid value (%s) for option: %s. Value needs '
+      'to be positive.')
   ERR_INVALID_TEST_MATCHER_TYPE = (
       'Invalid value (%s) for option: %s. Please extend your matcher object '
       'from hamcrest.core.base_matcher.BaseMatcher.')
@@ -115,16 +123,15 @@ class PipelineOptionsValidator(object):
 
   def is_service_runner(self):
     """True if pipeline will execute on the Google Cloud Dataflow service."""
-    is_service_runner = (self.runner is not None and
-                         type(self.runner).__name__ in [
-                             'DataflowRunner',
-                             'TestDataflowRunner'])
+    is_service_runner = (
+        self.runner is not None and
+        type(self.runner).__name__ in ['DataflowRunner', 'TestDataflowRunner'])
 
     dataflow_endpoint = (
         self.options.view_as(GoogleCloudOptions).dataflow_endpoint)
-    is_service_endpoint = (dataflow_endpoint is not None and
-                           self.is_full_string_match(
-                               self.ENDPOINT_PATTERN, dataflow_endpoint))
+    is_service_endpoint = (
+        dataflow_endpoint is not None and
+        self.is_full_string_match(self.ENDPOINT_PATTERN, dataflow_endpoint))
 
     return is_service_runner and is_service_endpoint
 
@@ -165,8 +172,8 @@ class PipelineOptionsValidator(object):
     errors = []
     if (view.job_name and
         not self.is_full_string_match(self.JOB_PATTERN, view.job_name)):
-      errors.extend(self._validate_error(self.ERR_INVALID_JOB_NAME,
-                                         view.job_name))
+      errors.extend(
+          self._validate_error(self.ERR_INVALID_JOB_NAME, view.job_name))
     project = view.project
     if project is None:
       errors.extend(self._validate_error(self.ERR_MISSING_OPTION, 'project'))
@@ -179,17 +186,20 @@ class PipelineOptionsValidator(object):
             self._validate_error(self.ERR_INVALID_PROJECT_ID, project))
     if view.update:
       if not view.job_name:
-        errors.extend(self._validate_error(
-            'Existing job name must be provided when updating a pipeline.'))
+        errors.extend(
+            self._validate_error(
+                'Existing job name must be provided when updating a pipeline.'))
     if view.transform_name_mapping:
       if not view.update or not self.options.view_as(StandardOptions).streaming:
-        errors.append('Transform name mapping option is only useful when '
-                      '--update and --streaming is specified')
+        errors.append(
+            'Transform name mapping option is only useful when '
+            '--update and --streaming is specified')
       for _, (key, value) in enumerate(view.transform_name_mapping.items()):
         if not isinstance(key, (str, unicode)) \
             or not isinstance(value, (str, unicode)):
-          errors.extend(self._validate_error(
-              self.ERR_INVALID_TRANSFORM_NAME_MAPPING, key, value))
+          errors.extend(
+              self._validate_error(
+                  self.ERR_INVALID_TRANSFORM_NAME_MAPPING, key, value))
           break
     return errors
 
@@ -197,17 +207,20 @@ class PipelineOptionsValidator(object):
     """Validates Dataflow worker region and zone arguments are consistent."""
     errors = []
     if view.zone and (view.worker_region or view.worker_zone):
-      errors.extend(self._validate_error(
-          'Cannot use deprecated flag --zone along with worker_region or '
-          'worker_zone.'))
+      errors.extend(
+          self._validate_error(
+              'Cannot use deprecated flag --zone along with worker_region or '
+              'worker_zone.'))
     if self.options.view_as(DebugOptions).lookup_experiment('worker_region')\
         and (view.worker_region or view.worker_zone):
-      errors.extend(self._validate_error(
-          'Cannot use deprecated experiment worker_region along with '
-          'worker_region or worker_zone.'))
+      errors.extend(
+          self._validate_error(
+              'Cannot use deprecated experiment worker_region along with '
+              'worker_region or worker_zone.'))
     if view.worker_region and view.worker_zone:
-      errors.extend(self._validate_error(
-          'worker_region and worker_zone are mutually exclusive.'))
+      errors.extend(
+          self._validate_error(
+              'worker_region and worker_zone are mutually exclusive.'))
     return errors
 
   def validate_optional_argument_positive(self, view, arg_name):
@@ -233,7 +246,7 @@ class PipelineOptionsValidator(object):
         errors.extend(
             self._validate_error(
                 self.ERR_INVALID_TEST_MATCHER_TYPE, matcher, arg_name))
-    except:   # pylint: disable=bare-except
+    except:  # pylint: disable=bare-except
       errors.extend(
           self._validate_error(
               self.ERR_INVALID_TEST_MATCHER_UNPICKLABLE,

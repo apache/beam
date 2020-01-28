@@ -119,25 +119,26 @@ class BigQueryReadPerfTest(LoadTest):
 
     with TestPipeline() as p:
       # pylint: disable=expression-not-assigned
-      (p
-       | 'Produce rows' >> Read(SyntheticSource(
-           self.parseTestPipelineOptions()))
-       | 'Format' >> Map(format_record)
-       | 'Write to BigQuery' >> WriteToBigQuery(
-           dataset=self.input_dataset, table=self.input_table,
-           schema=SCHEMA,
-           create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
-           write_disposition=BigQueryDisposition.WRITE_EMPTY))
+      (
+          p
+          | 'Produce rows' >> Read(
+              SyntheticSource(self.parseTestPipelineOptions()))
+          | 'Format' >> Map(format_record)
+          | 'Write to BigQuery' >> WriteToBigQuery(
+              dataset=self.input_dataset,
+              table=self.input_table,
+              schema=SCHEMA,
+              create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
+              write_disposition=BigQueryDisposition.WRITE_EMPTY))
 
   def test(self):
-    output = (self.pipeline
-              | 'Read from BigQuery' >> Read(BigQuerySource(
-                  dataset=self.input_dataset, table=self.input_table))
-              | 'Count messages' >> ParDo(CountMessages(
-                  self.metrics_namespace))
-              | 'Measure time' >> ParDo(MeasureTime(
-                  self.metrics_namespace))
-              | 'Count' >> Count.Globally())
+    output = (
+        self.pipeline
+        | 'Read from BigQuery' >> Read(
+            BigQuerySource(dataset=self.input_dataset, table=self.input_table))
+        | 'Count messages' >> ParDo(CountMessages(self.metrics_namespace))
+        | 'Measure time' >> ParDo(MeasureTime(self.metrics_namespace))
+        | 'Count' >> Count.Globally())
     assert_that(output, equal_to([self.input_options['num_records']]))
 
 

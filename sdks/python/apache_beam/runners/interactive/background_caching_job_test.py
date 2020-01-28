@@ -45,11 +45,10 @@ _BAR_PUBSUB_SUB = 'projects/test-project/subscriptions/bar'
 
 
 def _build_a_test_stream_pipeline():
-  test_stream = (TestStream()
-                 .advance_watermark_to(0)
-                 .add_elements([TimestampedValue('a', 1)])
-                 .advance_processing_time(5)
-                 .advance_watermark_to_infinity())
+  test_stream = (
+      TestStream().advance_watermark_to(0).add_elements([
+          TimestampedValue('a', 1)
+      ]).advance_processing_time(5).advance_watermark_to_infinity())
   p = beam.Pipeline(runner=interactive_runner.InteractiveRunner())
   events = p | test_stream  # pylint: disable=possibly-unused-variable
   ib.watch(locals())
@@ -61,64 +60,69 @@ def _build_an_empty_stream_pipeline():
   from apache_beam.options.pipeline_options import StandardOptions
   pipeline_options = PipelineOptions()
   pipeline_options.view_as(StandardOptions).streaming = True
-  p = beam.Pipeline(interactive_runner.InteractiveRunner(),
-                    options=pipeline_options)
+  p = beam.Pipeline(
+      interactive_runner.InteractiveRunner(), options=pipeline_options)
   ib.watch({'pipeline': p})
   return p
 
 
-@unittest.skipIf(not ie.current_env().is_interactive_ready,
-                 '[interactive] dependency is not installed.')
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
 class BackgroundCachingJobTest(unittest.TestCase):
-
   def tearDown(self):
     ie.new_env()
 
   # TODO(BEAM-8335): remove the patches when there are appropriate test sources
   # that meet the boundedness checks.
-  @patch('apache_beam.runners.interactive.pipeline_instrument'
-         '.has_unbounded_sources', lambda x: True)
+  @patch(
+      'apache_beam.runners.interactive.pipeline_instrument'
+      '.has_unbounded_sources',
+      lambda x: True)
   def test_background_caching_job_starts_when_none_such_job_exists(self):
     p = _build_a_test_stream_pipeline()
     p.run()
-    self.assertIsNotNone(
-        ie.current_env().pipeline_result(p, is_main_job=False))
+    self.assertIsNotNone(ie.current_env().pipeline_result(p, is_main_job=False))
 
-  @patch('apache_beam.runners.interactive.pipeline_instrument'
-         '.has_unbounded_sources', lambda x: False)
+  @patch(
+      'apache_beam.runners.interactive.pipeline_instrument'
+      '.has_unbounded_sources',
+      lambda x: False)
   def test_background_caching_job_not_start_for_batch_pipeline(self):
     p = _build_a_test_stream_pipeline()
     p.run()
-    self.assertIsNone(
-        ie.current_env().pipeline_result(p, is_main_job=False))
+    self.assertIsNone(ie.current_env().pipeline_result(p, is_main_job=False))
 
-  @patch('apache_beam.runners.interactive.pipeline_instrument'
-         '.has_unbounded_sources', lambda x: True)
+  @patch(
+      'apache_beam.runners.interactive.pipeline_instrument'
+      '.has_unbounded_sources',
+      lambda x: True)
   def test_background_caching_job_not_start_when_such_job_exists(self):
     p = _build_a_test_stream_pipeline()
     a_running_result = runner.PipelineResult(runner.PipelineState.RUNNING)
     ie.current_env().set_pipeline_result(p, a_running_result, is_main_job=False)
     main_job_result = p.run()
     # No background caching job is started so result is still the running one.
-    self.assertIs(a_running_result,
-                  ie.current_env().pipeline_result(p, is_main_job=False))
+    self.assertIs(
+        a_running_result,
+        ie.current_env().pipeline_result(p, is_main_job=False))
     # A new main job is started so result of the main job is set.
-    self.assertIs(main_job_result,
-                  ie.current_env().pipeline_result(p))
+    self.assertIs(main_job_result, ie.current_env().pipeline_result(p))
 
-  @patch('apache_beam.runners.interactive.pipeline_instrument'
-         '.has_unbounded_sources', lambda x: True)
+  @patch(
+      'apache_beam.runners.interactive.pipeline_instrument'
+      '.has_unbounded_sources',
+      lambda x: True)
   def test_background_caching_job_not_start_when_such_job_is_done(self):
     p = _build_a_test_stream_pipeline()
     a_done_result = runner.PipelineResult(runner.PipelineState.DONE)
     ie.current_env().set_pipeline_result(p, a_done_result, is_main_job=False)
     main_job_result = p.run()
     # No background caching job is started so result is still the running one.
-    self.assertIs(a_done_result,
-                  ie.current_env().pipeline_result(p, is_main_job=False))
+    self.assertIs(
+        a_done_result, ie.current_env().pipeline_result(p, is_main_job=False))
     # A new main job is started so result of the main job is set.
-    self.assertIs(main_job_result,
-                  ie.current_env().pipeline_result(p))
+    self.assertIs(main_job_result, ie.current_env().pipeline_result(p))
 
   @patch('IPython.get_ipython', new_callable=mock_get_ipython)
   def test_source_to_cache_changed_when_pipeline_is_first_time_seen(self, cell):
@@ -224,7 +228,6 @@ class BackgroundCachingJobTest(unittest.TestCase):
     self.assertNotEqual(signature_with_only_foo, signature_with_foo_bar)
 
     class BarPruneVisitor(PipelineVisitor):
-
       def enter_composite_transform(self, transform_node):
         pruned_parts = list(transform_node.parts)
         for part in transform_node.parts:

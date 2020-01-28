@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-
 """Observable base class for iterables.
 
 For internal use only; no backwards-compatibility guarantees.
@@ -34,7 +33,6 @@ class ObservableMixin(object):
 
   Subclasses need to call self.notify_observers with any object yielded.
   """
-
   def __init__(self):
     self.observers = []
 

@@ -43,7 +43,6 @@ EXPANSION_SERVICE_ADDR = 'localhost:%s' % EXPANSION_SERVICE_PORT
 
 class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""
-
   def process(self, element):
     """Returns an iterator over the words of this element.
 
@@ -63,11 +62,12 @@ def build_pipeline(p, input_file, output_file):
   # Read the text file[pattern] into a PCollection.
   lines = p | 'read' >> ReadFromText(input_file)
 
-  counts = (lines
-            | 'split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(unicode))
-            | 'count' >> beam.ExternalTransform(
-                'beam:transforms:xlang:count', None, EXPANSION_SERVICE_ADDR))
+  counts = (
+      lines
+      | 'split' >>
+      (beam.ParDo(WordExtractingDoFn()).with_output_types(unicode))
+      | 'count' >> beam.ExternalTransform(
+          'beam:transforms:xlang:count', None, EXPANSION_SERVICE_ADDR))
 
   # Format the counts into a PCollection of strings.
   def format_result(word_count):
@@ -85,18 +85,21 @@ def main():
   logging.getLogger().setLevel(logging.INFO)
 
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input',
-                      dest='input',
-                      default='gs://dataflow-samples/shakespeare/kinglear.txt',
-                      help='Input file to process.')
-  parser.add_argument('--output',
-                      dest='output',
-                      required=True,
-                      help='Output file to write results to.')
-  parser.add_argument('--expansion_service_jar',
-                      dest='expansion_service_jar',
-                      required=True,
-                      help='Jar file for expansion service')
+  parser.add_argument(
+      '--input',
+      dest='input',
+      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+      help='Input file to process.')
+  parser.add_argument(
+      '--output',
+      dest='output',
+      required=True,
+      help='Output file to write results to.')
+  parser.add_argument(
+      '--expansion_service_jar',
+      dest='expansion_service_jar',
+      required=True,
+      help='Jar file for expansion service')
 
   known_args, pipeline_args = parser.parse_known_args()
 
@@ -111,8 +114,11 @@ def main():
 
   try:
     server = subprocess.Popen([
-        'java', '-jar', known_args.expansion_service_jar,
-        EXPANSION_SERVICE_PORT])
+        'java',
+        '-jar',
+        known_args.expansion_service_jar,
+        EXPANSION_SERVICE_PORT
+    ])
 
     with grpc.insecure_channel(EXPANSION_SERVICE_ADDR) as channel:
       grpc.channel_ready_future(channel).result()

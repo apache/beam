@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """
 This is CoGroupByKey load test with Synthetic Source. Besides of the standard
 input options there are additional options:
@@ -186,31 +187,31 @@ class CoGroupByKeyTest(LoadTest):
             yield value
 
   def testCoGroupByKey(self):
-    pc1 = (self.pipeline
-           | 'Read ' + INPUT_TAG >> beam.io.Read(
-               synthetic_pipeline.SyntheticSource(
-                   self.parseTestPipelineOptions(self.input_options)))
-           | 'Make ' + INPUT_TAG + ' iterable' >> beam.Map(lambda x: (x, x))
-           | 'Measure time: Start pc1' >> beam.ParDo(
-               MeasureTime(self.metrics_namespace))
-          )
+    pc1 = (
+        self.pipeline
+        | 'Read ' + INPUT_TAG >> beam.io.Read(
+            synthetic_pipeline.SyntheticSource(
+                self.parseTestPipelineOptions(self.input_options)))
+        | 'Make ' + INPUT_TAG + ' iterable' >> beam.Map(lambda x: (x, x))
+        | 'Measure time: Start pc1' >> beam.ParDo(
+            MeasureTime(self.metrics_namespace)))
 
-    pc2 = (self.pipeline
-           | 'Read ' + CO_INPUT_TAG >> beam.io.Read(
-               synthetic_pipeline.SyntheticSource(
-                   self.parseTestPipelineOptions(self.co_input_options)))
-           | 'Make ' + CO_INPUT_TAG + ' iterable' >> beam.Map(
-               lambda x: (x, x))
-           | 'Measure time: Start pc2' >> beam.ParDo(
-               MeasureTime(self.metrics_namespace))
-          )
+    pc2 = (
+        self.pipeline
+        | 'Read ' + CO_INPUT_TAG >> beam.io.Read(
+            synthetic_pipeline.SyntheticSource(
+                self.parseTestPipelineOptions(self.co_input_options)))
+        | 'Make ' + CO_INPUT_TAG + ' iterable' >> beam.Map(lambda x: (x, x))
+        | 'Measure time: Start pc2' >> beam.ParDo(
+            MeasureTime(self.metrics_namespace)))
     # pylint: disable=expression-not-assigned
-    ({INPUT_TAG: pc1, CO_INPUT_TAG: pc2}
+    ({
+        INPUT_TAG: pc1, CO_INPUT_TAG: pc2
+    }
      | 'CoGroupByKey ' >> beam.CoGroupByKey()
-     | 'Consume Joined Collections' >> beam.ParDo(self._UngroupAndReiterate(),
-                                                  self.iterations)
-     | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
-    )
+     | 'Consume Joined Collections' >> beam.ParDo(
+         self._UngroupAndReiterate(), self.iterations)
+     | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace)))
 
 
 if __name__ == '__main__':

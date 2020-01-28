@@ -38,20 +38,19 @@ def get_payload(cls):
 
 
 class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
-
   def get_payload_from_typing_hints(self, values):
     class AnnotatedTransform(beam.ExternalTransform):
       URN = 'beam:external:fakeurn:v1'
 
-      def __init__(self,
-                   integer_example: int,
-                   boolean: bool,
-                   string_example: str,
-                   list_of_strings: typing.List[str],
-                   optional_kv: typing.Optional[
-                       typing.Tuple[str, float]] = None,
-                   optional_integer: typing.Optional[int] = None,
-                   expansion_service=None):
+      def __init__(
+          self,
+          integer_example: int,
+          boolean: bool,
+          string_example: str,
+          list_of_strings: typing.List[str],
+          optional_kv: typing.Optional[typing.Tuple[str, float]] = None,
+          optional_integer: typing.Optional[int] = None,
+          expansion_service=None):
         super(AnnotatedTransform, self).__init__(
             self.URN,
             AnnotationBasedPayloadBuilder(
@@ -63,8 +62,7 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
                 optional_kv=optional_kv,
                 optional_integer=optional_integer,
             ),
-            expansion_service
-        )
+            expansion_service)
 
     return get_payload(AnnotatedTransform(**values))
 
@@ -72,15 +70,15 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
     class AnnotatedTransform(beam.ExternalTransform):
       URN = 'beam:external:fakeurn:v1'
 
-      def __init__(self,
-                   integer_example: int,
-                   boolean: bool,
-                   string_example: str,
-                   list_of_strings: typehints.List[str],
-                   optional_kv: typehints.Optional[
-                       typehints.KV[str, float]] = None,
-                   optional_integer: typehints.Optional[int] = None,
-                   expansion_service=None):
+      def __init__(
+          self,
+          integer_example: int,
+          boolean: bool,
+          string_example: str,
+          list_of_strings: typehints.List[str],
+          optional_kv: typehints.Optional[typehints.KV[str, float]] = None,
+          optional_integer: typehints.Optional[int] = None,
+          expansion_service=None):
         super(AnnotatedTransform, self).__init__(
             self.URN,
             AnnotationBasedPayloadBuilder(
@@ -92,8 +90,7 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
                 optional_kv=optional_kv,
                 optional_integer=optional_integer,
             ),
-            expansion_service
-        )
+            expansion_service)
 
     return get_payload(AnnotatedTransform(**values))
 
