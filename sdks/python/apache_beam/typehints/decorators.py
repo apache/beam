@@ -311,6 +311,11 @@ class IOTypeHints(object):
     Only affects instances with simple output types, otherwise is a no-op.
     Does not modify self.
 
+    Designed to be used with type hints from callables of ParDo, FlatMap, DoFn.
+    Output type may be Optional[T], in which case the result of stripping T is
+    used as the output type.
+    Output type may be None/NoneType, in which case nothing is done.
+
     Example: Generator[Tuple(int, int)] becomes Tuple(int, int)
 
     Returns:
@@ -321,7 +326,20 @@ class IOTypeHints(object):
     """
     if not self.has_simple_output_type():
       return self
-    yielded_type = typehints.get_yielded_type(self.output_types[0][0])
+    output_type = self.output_types[0][0]
+    if output_type is None or isinstance(output_type, type(None)):
+      return self
+    # If output_type == Optional[T]: output_type = T.
+    if isinstance(output_type, typehints.UnionConstraint):
+      types = list(output_type.union_types)
+      if len(types) == 2:
+        try:
+          types.remove(type(None))
+          output_type = types[0]
+        except ValueError:
+          pass
+
+    yielded_type = typehints.get_yielded_type(output_type)
     res = self.copy()
     res.output_types = ((yielded_type,), {})
     return res

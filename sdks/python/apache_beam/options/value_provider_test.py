@@ -37,8 +37,13 @@ from apache_beam.options.value_provider import StaticValueProvider
 # The number will grow per file as tests are added.
 class ValueProviderTests(unittest.TestCase):
   def setUp(self):
-    # Reset runtime options, since the is_accessible assertions require them to
+    # Reset runtime options to avoid side-effects caused by other tests.
+    # Note that is_accessible assertions require runtime_options to
     # be uninitialized.
+    RuntimeValueProvider.set_runtime_options(None)
+
+  def tearDown(self):
+    # Reset runtime options to avoid side-effects in other tests.
     RuntimeValueProvider.set_runtime_options(None)
 
   def test_static_value_provider_keyword_argument(self):

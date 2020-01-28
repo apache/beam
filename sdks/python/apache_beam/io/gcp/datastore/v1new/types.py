@@ -44,7 +44,8 @@ class Query(object):
     Args:
       kind: (str) The kind to query.
       project: (str) Required. Project associated with query.
-      namespace: (str) (Optional) Namespace to restrict results to.
+      namespace: (str, ValueProvider(str)) (Optional) Namespace to restrict
+        results to.
       ancestor: (:class:`~apache_beam.io.gcp.datastore.v1new.types.Key`)
         (Optional) key of the ancestor to which this query's results are
         restricted.
@@ -83,7 +84,10 @@ class Query(object):
     if self.ancestor is not None:
       ancestor_client_key = self.ancestor.to_client_key()
 
+    # Resolve ValueProvider arguments.
     self.filters = self._set_runtime_filters()
+    if isinstance(self.namespace, ValueProvider):
+      self.namespace = self.namespace.get()
 
     return query.Query(
         client, kind=self.kind, project=self.project, namespace=self.namespace,

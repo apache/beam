@@ -24,7 +24,6 @@ import java.util.List;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Uncollect;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalProject;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
@@ -52,7 +51,7 @@ class ArrayScanToUncollectConverter extends RelConverter<ResolvedArrayScan> {
 
     RelNode projectNode =
         LogicalProject.create(
-            LogicalValues.createOneRow(getCluster()),
+            createOneRow(getCluster()),
             Collections.singletonList(arrayLiteralExpression),
             ImmutableList.of(fieldName));
 

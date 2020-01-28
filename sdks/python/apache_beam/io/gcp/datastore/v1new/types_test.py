@@ -200,6 +200,16 @@ class TypesTest(unittest.TestCase):
 
       _LOGGER.info('query: %s', q)  # Test __repr__()
 
+  def testValueProviderNamespace(self):
+    self.vp_namespace = StaticValueProvider(str, 'vp_namespace')
+    self.expected_namespace = 'vp_namespace'
+
+    q = Query(kind='kind', project=self._PROJECT, namespace=self.vp_namespace)
+    cq = q._to_client_query(self._test_client)
+    self.assertEqual(self.expected_namespace, cq.namespace)
+
+    _LOGGER.info('query: %s', q)  # Test __repr__()
+
   def testQueryEmptyNamespace(self):
     # Test that we can pass a namespace of None.
     self._test_client.namespace = None

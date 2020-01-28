@@ -29,6 +29,7 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.ConventionTraitDef;
@@ -81,13 +82,9 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
         //  requires the JoinCommuteRule, which doesn't work without struct flattening.
         if (rule instanceof JoinCommuteRule) {
           continue;
-        }
-        // TODO[BEAM-8630]: uncomment the next block once we have fully migrated to
-        //  BeamZetaSqlCalcRel
-        // else if (rule instanceof BeamCalcRule) {
-        //   bd.add(BeamZetaSqlCalcRule.INSTANCE);
-        // }
-        else {
+        } else if (rule instanceof BeamCalcRule) {
+          bd.add(BeamZetaSqlCalcRule.INSTANCE);
+        } else {
           bd.add(rule);
         }
       }
