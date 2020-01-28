@@ -359,6 +359,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public Object restriction() {
+      throw new UnsupportedOperationException("@Restriction parameters are not supported.");
+    }
+
+    @Override
     public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access OnTimerContext outside of @OnTimer methods.");
@@ -488,6 +493,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access outputReceiver in @FinishBundle method.");
+    }
+
+    @Override
+    public Object restriction() {
+      throw new UnsupportedOperationException("@Restriction parameters are not supported.");
     }
 
     @Override
@@ -720,6 +730,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public Object restriction() {
+      throw new UnsupportedOperationException(
+          "@Restriction parameters are not supported. Only the RestrictionTracker is accessible.");
+    }
+
+    @Override
     public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access OnTimerContext outside of @OnTimer methods.");
@@ -900,6 +916,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
       return DoFnOutputReceivers.windowedMultiReceiver(this, outputCoders);
+    }
+
+    @Override
+    public Object restriction() {
+      throw new UnsupportedOperationException("@Restriction parameters are not supported.");
     }
 
     @Override

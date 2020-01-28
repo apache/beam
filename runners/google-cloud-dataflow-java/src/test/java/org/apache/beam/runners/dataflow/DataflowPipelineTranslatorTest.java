@@ -1069,7 +1069,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRange(String element) {
+    public OffsetRange getInitialRange(@Element String element) {
       return null;
     }
   }
