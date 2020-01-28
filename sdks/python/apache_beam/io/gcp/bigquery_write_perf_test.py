@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """
 A pipeline that writes data from Synthetic Source to a BigQuery table.
 Besides of the standard options, there are options with special meaning:
@@ -87,8 +88,8 @@ class BigQueryWritePerfTest(LoadTest):
 
   def _cleanup_data(self):
     """Removes an output BQ table."""
-    utils.delete_bq_table(self.project_id, self.output_dataset,
-                          self.output_table)
+    utils.delete_bq_table(
+        self.project_id, self.output_dataset, self.output_table)
 
   def test(self):
     SCHEMA = parse_table_schema_from_json(
@@ -100,16 +101,19 @@ class BigQueryWritePerfTest(LoadTest):
       return {'data': base64.b64encode(record[1])}
 
     # pylint: disable=expression-not-assigned
-    (self.pipeline
-     | 'Produce rows' >> Read(SyntheticSource(self.parseTestPipelineOptions()))
-     | 'Count messages' >> ParDo(CountMessages(self.metrics_namespace))
-     | 'Format' >> Map(format_record)
-     | 'Measure time' >> ParDo(MeasureTime(self.metrics_namespace))
-     | 'Write to BigQuery' >> WriteToBigQuery(
-         dataset=self.output_dataset, table=self.output_table,
-         schema=SCHEMA,
-         create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
-         write_disposition=BigQueryDisposition.WRITE_TRUNCATE))
+    (
+        self.pipeline
+        | 'Produce rows' >> Read(
+            SyntheticSource(self.parseTestPipelineOptions()))
+        | 'Count messages' >> ParDo(CountMessages(self.metrics_namespace))
+        | 'Format' >> Map(format_record)
+        | 'Measure time' >> ParDo(MeasureTime(self.metrics_namespace))
+        | 'Write to BigQuery' >> WriteToBigQuery(
+            dataset=self.output_dataset,
+            table=self.output_table,
+            schema=SCHEMA,
+            create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
+            write_disposition=BigQueryDisposition.WRITE_TRUNCATE))
 
 
 if __name__ == '__main__':

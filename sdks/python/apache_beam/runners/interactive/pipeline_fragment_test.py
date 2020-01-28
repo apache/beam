@@ -37,10 +37,10 @@ except ImportError:
   from mock import patch
 
 
-@unittest.skipIf(not ie.current_env().is_interactive_ready,
-                 '[interactive] dependency is not installed.')
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
 class PipelineFragmentTest(unittest.TestCase):
-
   def setUp(self):
     # Assume a notebook frontend is connected to the mocked ipython kernel.
     ie.current_env()._is_in_ipython = True
@@ -61,7 +61,7 @@ class PipelineFragmentTest(unittest.TestCase):
 
     with cell:  # Cell 3
       square = init | 'Square' >> beam.Map(lambda x: x * x)
-      _ = init | 'Cube' >> beam.Map(lambda x: x ** 3)
+      _ = init | 'Cube' >> beam.Map(lambda x: x**3)
       _ = init_expected | 'Square' >> beam.Map(lambda x: x * x)
 
     # Watch every PCollection has been defined so far in local scope.
@@ -84,23 +84,20 @@ class PipelineFragmentTest(unittest.TestCase):
       square = init | 'Square' >> beam.Map(lambda x: x * x)
 
     with cell:  # Cell 4
-      cube = init | 'Cube' >> beam.Map(lambda x: x ** 3)
+      cube = init | 'Cube' >> beam.Map(lambda x: x**3)
 
     # Watch every PCollection has been defined so far in local scope without
     # calling locals().
-    ib.watch({
-        'init': init,
-        'square': square,
-        'cube': cube
-    })
+    ib.watch({'init': init, 'square': square, 'cube': cube})
     user_pipeline_proto_before_deducing_fragment = p.to_runner_api(
         return_context=False, use_fake_coders=True)
     _ = pf.PipelineFragment([square]).deduce_fragment()
     user_pipeline_proto_after_deducing_fragment = p.to_runner_api(
         return_context=False, use_fake_coders=True)
-    assert_pipeline_proto_equal(self,
-                                user_pipeline_proto_before_deducing_fragment,
-                                user_pipeline_proto_after_deducing_fragment)
+    assert_pipeline_proto_equal(
+        self,
+        user_pipeline_proto_before_deducing_fragment,
+        user_pipeline_proto_after_deducing_fragment)
 
   @patch('IPython.get_ipython', new_callable=mock_get_ipython)
   def test_pipeline_fragment_produces_correct_data(self, cell):
@@ -114,7 +111,7 @@ class PipelineFragmentTest(unittest.TestCase):
 
     with cell:  # Cell 3
       square = init | 'Square' >> beam.Map(lambda x: x * x)
-      _ = init | 'Cube' >> beam.Map(lambda x: x ** 3)
+      _ = init | 'Cube' >> beam.Map(lambda x: x**3)
 
     ib.watch(locals())
     result = pf.PipelineFragment([square]).run()

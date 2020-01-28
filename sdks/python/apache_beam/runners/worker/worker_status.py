@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Worker status api handler for reporting SDK harness debug info."""
 
 from __future__ import absolute_import
@@ -48,7 +49,9 @@ def thread_dump():
   for stack, identity in stack_traces.items():
     ident, name = identity[0]
     trace = '--- Thread #%s name: %s %s---\n' % (
-        ident, name, 'and other %d threads' %
+        ident,
+        name,
+        'and other %d threads' %
         (len(identity) - 1) if len(identity) > 1 else '')
     if len(identity) > 1:
       trace += 'threads: %s\n' % identity
@@ -74,8 +77,11 @@ def _active_processing_bundles_state(bundle_process_cache):
       processor = bundle_process_cache.lookup(instruction)
       if processor:
         info = processor.state_sampler.get_info()
-        cache.append((instruction, processor.process_bundle_descriptor.id,
-                      info.tracked_thread, info.time_since_transition))
+        cache.append((
+            instruction,
+            processor.process_bundle_descriptor.id,
+            info.tracked_thread,
+            info.time_since_transition))
     # reverse sort active bundle by time since last transition, keep top 10.
     cache.sort(key=lambda x: x[-1], reverse=True)
     for s in cache[:10]:
@@ -109,8 +115,8 @@ class FnApiWorkerStatusHandler(object):
     self._status_stub = beam_fn_api_pb2_grpc.BeamFnWorkerStatusStub(
         self._status_channel)
     self._responses = queue.Queue()
-    self._server = threading.Thread(target=lambda: self._serve(),
-                                    name='fn_api_status_handler')
+    self._server = threading.Thread(
+        target=lambda: self._serve(), name='fn_api_status_handler')
     self._server.daemon = True
     self._server.start()
 

@@ -56,9 +56,7 @@ TEST_PARTITION_URN = "beam:transforms:xlang:test:partition"
 @ptransform.PTransform.register_urn('beam:transforms:xlang:count', None)
 class CountPerElementTransform(ptransform.PTransform):
   def expand(self, pcoll):
-    return (
-        pcoll | combine.Count.PerElement()
-    )
+    return (pcoll | combine.Count.PerElement())
 
   def to_runner_api_parameter(self, unused_context):
     return 'beam:transforms:xlang:count', None
@@ -77,8 +75,7 @@ class FilterLessThanTransform(ptransform.PTransform):
   def expand(self, pcoll):
     return (
         pcoll | beam.Filter(
-            lambda elem, target: elem <= target, int(ord(self._payload[0])))
-    )
+            lambda elem, target: elem <= target, int(ord(self._payload[0]))))
 
   def to_runner_api_parameter(self, unused_context):
     return (
@@ -112,14 +109,12 @@ class PrefixTransform(ptransform.PTransform):
 class MutltiTransform(ptransform.PTransform):
   def expand(self, pcolls):
     return {
-        'main':
-            (pcolls['main1'], pcolls['main2'])
-            | beam.Flatten()
-            | beam.Map(lambda x, s: x + s,
-                       beam.pvalue.AsSingleton(pcolls['side'])
-                      ).with_output_types(unicode),
-        'side': pcolls['side'] | beam.Map(
-            lambda x: x + x).with_output_types(unicode),
+        'main': (pcolls['main1'], pcolls['main2'])
+        | beam.Flatten()
+        | beam.Map(lambda x, s: x + s, beam.pvalue.AsSingleton(
+            pcolls['side'])).with_output_types(unicode),
+        'side': pcolls['side']
+        | beam.Map(lambda x: x + x).with_output_types(unicode),
     }
 
   def to_runner_api_parameter(self, unused_context):
@@ -249,15 +244,16 @@ class FibTransform(ptransform.PTransform):
       return p | beam.Create([1])
     else:
       a = p | 'A' >> beam.ExternalTransform(
-          'fib', str(self._level - 1).encode('ascii'),
+          'fib',
+          str(self._level - 1).encode('ascii'),
           expansion_service.ExpansionServiceServicer())
       b = p | 'B' >> beam.ExternalTransform(
-          'fib', str(self._level - 2).encode('ascii'),
+          'fib',
+          str(self._level - 2).encode('ascii'),
           expansion_service.ExpansionServiceServicer())
-      return (
-          (a, b)
-          | beam.Flatten()
-          | beam.CombineGlobally(sum).without_defaults())
+      return ((a, b)
+              | beam.Flatten()
+              | beam.CombineGlobally(sum).without_defaults())
 
   def to_runner_api_parameter(self, unused_context):
     return 'fib', str(self._level).encode('ascii')
@@ -271,8 +267,12 @@ def parse_string_payload(input_byte):
   payload = ExternalConfigurationPayload()
   payload.ParseFromString(input_byte)
   coder = StrUtf8Coder()
-  return {k: coder.decode_nested(v.payload)
-          for k, v in payload.configuration.items()}
+  return {
+      k: coder.decode_nested(v.payload)
+      for k,
+      v in payload.configuration.items()
+  }
+
 
 server = None
 
@@ -284,17 +284,15 @@ def cleanup(unused_signum, unused_frame):
 
 def main(unused_argv):
   parser = argparse.ArgumentParser()
-  parser.add_argument('-p', '--port',
-                      type=int,
-                      help='port on which to serve the job api')
+  parser.add_argument(
+      '-p', '--port', type=int, help='port on which to serve the job api')
   options = parser.parse_args()
   global server
   server = grpc.server(UnboundedThreadPoolExecutor())
   beam_expansion_api_pb2_grpc.add_ExpansionServiceServicer_to_server(
-      expansion_service.ExpansionServiceServicer(PipelineOptions([
-          "--experiments", "beam_fn_api"
-      ])), server
-  )
+      expansion_service.ExpansionServiceServicer(
+          PipelineOptions(["--experiments", "beam_fn_api"])),
+      server)
   server.add_insecure_port('localhost:{}'.format(options.port))
   server.start()
   _LOGGER.info('Listening for expansion requests at %d', options.port)

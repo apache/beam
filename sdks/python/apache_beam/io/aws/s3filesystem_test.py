@@ -43,7 +43,6 @@ except ImportError:
 
 @unittest.skipIf(s3filesystem is None, 'AWS dependencies are not installed')
 class S3FileSystemTest(unittest.TestCase):
-
   def setUp(self):
     pipeline_options = PipelineOptions()
     self.fs = s3filesystem.S3FileSystem(pipeline_options=pipeline_options)
@@ -53,28 +52,30 @@ class S3FileSystemTest(unittest.TestCase):
     self.assertEqual(s3filesystem.S3FileSystem.scheme(), 's3')
 
   def test_join(self):
-    self.assertEqual('s3://bucket/path/to/file',
-                     self.fs.join('s3://bucket/path', 'to', 'file'))
-    self.assertEqual('s3://bucket/path/to/file',
-                     self.fs.join('s3://bucket/path', 'to/file'))
-    self.assertEqual('s3://bucket/path/to/file',
-                     self.fs.join('s3://bucket/path', '/to/file'))
-    self.assertEqual('s3://bucket/path/to/file',
-                     self.fs.join('s3://bucket/path/', 'to', 'file'))
-    self.assertEqual('s3://bucket/path/to/file',
-                     self.fs.join('s3://bucket/path/', 'to/file'))
-    self.assertEqual('s3://bucket/path/to/file',
-                     self.fs.join('s3://bucket/path/', '/to/file'))
+    self.assertEqual(
+        's3://bucket/path/to/file',
+        self.fs.join('s3://bucket/path', 'to', 'file'))
+    self.assertEqual(
+        's3://bucket/path/to/file', self.fs.join('s3://bucket/path', 'to/file'))
+    self.assertEqual(
+        's3://bucket/path/to/file',
+        self.fs.join('s3://bucket/path', '/to/file'))
+    self.assertEqual(
+        's3://bucket/path/to/file',
+        self.fs.join('s3://bucket/path/', 'to', 'file'))
+    self.assertEqual(
+        's3://bucket/path/to/file',
+        self.fs.join('s3://bucket/path/', 'to/file'))
+    self.assertEqual(
+        's3://bucket/path/to/file',
+        self.fs.join('s3://bucket/path/', '/to/file'))
     with self.assertRaises(ValueError):
       self.fs.join('/bucket/path/', '/to/file')
 
   def test_split(self):
-    self.assertEqual(('s3://foo/bar', 'baz'),
-                     self.fs.split('s3://foo/bar/baz'))
-    self.assertEqual(('s3://foo', ''),
-                     self.fs.split('s3://foo/'))
-    self.assertEqual(('s3://foo', ''),
-                     self.fs.split('s3://foo'))
+    self.assertEqual(('s3://foo/bar', 'baz'), self.fs.split('s3://foo/bar/baz'))
+    self.assertEqual(('s3://foo', ''), self.fs.split('s3://foo/'))
+    self.assertEqual(('s3://foo', ''), self.fs.split('s3://foo'))
 
     with self.assertRaises(ValueError):
       self.fs.split('/no/s3/prefix')
@@ -85,8 +86,7 @@ class S3FileSystemTest(unittest.TestCase):
     s3io_mock = mock.MagicMock()
     s3filesystem.s3io.S3IO = lambda: s3io_mock
     s3io_mock.list_prefix.return_value = {
-        's3://bucket/file1': 1,
-        's3://bucket/file2': 2
+        's3://bucket/file1': 1, 's3://bucket/file2': 2
     }
     expected_results = set([
         FileMetadata('s3://bucket/file1', 1),
@@ -94,9 +94,7 @@ class S3FileSystemTest(unittest.TestCase):
     ])
     match_result = self.fs.match(['s3://bucket/'])[0]
 
-    self.assertEqual(
-        set(match_result.metadata_list),
-        expected_results)
+    self.assertEqual(set(match_result.metadata_list), expected_results)
     s3io_mock.list_prefix.assert_called_once_with('s3://bucket/')
 
   @mock.patch('apache_beam.io.aws.s3filesystem.s3io')
@@ -105,19 +103,11 @@ class S3FileSystemTest(unittest.TestCase):
     s3io_mock = mock.MagicMock()
     limit = 1
     s3filesystem.s3io.S3IO = lambda: s3io_mock
-    s3io_mock.list_prefix.return_value = {
-        's3://bucket/file1': 1
-    }
-    expected_results = set([
-        FileMetadata('s3://bucket/file1', 1)
-    ])
+    s3io_mock.list_prefix.return_value = {'s3://bucket/file1': 1}
+    expected_results = set([FileMetadata('s3://bucket/file1', 1)])
     match_result = self.fs.match(['s3://bucket/'], [limit])[0]
-    self.assertEqual(
-        set(match_result.metadata_list),
-        expected_results)
-    self.assertEqual(
-        len(match_result.metadata_list),
-        limit)
+    self.assertEqual(set(match_result.metadata_list), expected_results)
+    self.assertEqual(len(match_result.metadata_list), limit)
     s3io_mock.list_prefix.assert_called_once_with('s3://bucket/')
 
   @mock.patch('apache_beam.io.aws.s3filesystem.s3io')
@@ -140,17 +130,17 @@ class S3FileSystemTest(unittest.TestCase):
     s3io_mock = mock.MagicMock()
     s3filesystem.s3io.S3IO = lambda: s3io_mock
     s3io_mock.list_prefix.side_effect = [
-        {'s3://bucket/file1': 1},
-        {'s3://bucket/file2': 2},
+        {
+            's3://bucket/file1': 1
+        },
+        {
+            's3://bucket/file2': 2
+        },
     ]
-    expected_results = [
-        [FileMetadata('s3://bucket/file1', 1)],
-        [FileMetadata('s3://bucket/file2', 2)]
-    ]
+    expected_results = [[FileMetadata('s3://bucket/file1', 1)],
+                        [FileMetadata('s3://bucket/file2', 2)]]
     result = self.fs.match(['s3://bucket/file1*', 's3://bucket/file2*'])
-    self.assertEqual(
-        [mr.metadata_list for mr in result],
-        expected_results)
+    self.assertEqual([mr.metadata_list for mr in result], expected_results)
 
   @mock.patch('apache_beam.io.aws.s3filesystem.s3io')
   def test_create(self, unused_mock_arg):
@@ -262,7 +252,6 @@ class S3FileSystemTest(unittest.TestCase):
 
     src_dest_pairs = list(zip(sources, destinations))
     s3io_mock.rename_files.assert_called_once_with(src_dest_pairs)
-
 
 
 if __name__ == '__main__':

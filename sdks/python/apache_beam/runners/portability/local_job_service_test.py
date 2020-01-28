@@ -37,7 +37,6 @@ def increment_iter(iter):
 
 
 class LocalJobServerTest(unittest.TestCase):
-
   def test_end_to_end(self):
 
     job_service = local_job_service.LocalJobServicer()
@@ -48,16 +47,14 @@ class LocalJobServerTest(unittest.TestCase):
     # Prepare the job.
     prepare_response = job_service.Prepare(
         beam_job_api_pb2.PrepareJobRequest(
-            job_name='job',
-            pipeline=beam_runner_api_pb2.Pipeline()))
+            job_name='job', pipeline=beam_runner_api_pb2.Pipeline()))
     channel = grpc.insecure_channel(
         prepare_response.artifact_staging_endpoint.url)
     retrieval_token = beam_artifact_api_pb2_grpc.ArtifactStagingServiceStub(
         channel).CommitManifest(
             beam_artifact_api_pb2.CommitManifestRequest(
                 staging_session_token=prepare_response.staging_session_token,
-                manifest=beam_artifact_api_pb2.Manifest())
-        ).retrieval_token
+                manifest=beam_artifact_api_pb2.Manifest())).retrieval_token
     channel.close()
 
     state_stream = job_service.GetStateStream(
@@ -86,13 +83,10 @@ class LocalJobServerTest(unittest.TestCase):
         beam_job_api_pb2.JobState.RUNNING,
         beam_job_api_pb2.JobState.DONE,
     ]
-    self.assertEqual(
-        [s.state for s in state_results],
-        expected_states)
+    self.assertEqual([s.state for s in state_results], expected_states)
 
-    self.assertEqual(
-        [s.state_response.state for s in message_results],
-        expected_states)
+    self.assertEqual([s.state_response.state for s in message_results],
+                     expected_states)
 
 
 if __name__ == '__main__':

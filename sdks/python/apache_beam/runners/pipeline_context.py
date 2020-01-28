@@ -152,24 +152,35 @@ class PipelineContext(object):
           environments=dict(proto.environments.items()))
 
     self.transforms = _PipelineContextMap(
-        self, pipeline.AppliedPTransform, namespace,
+        self,
+        pipeline.AppliedPTransform,
+        namespace,
         proto.transforms if proto is not None else None)
     self.pcollections = _PipelineContextMap(
-        self, pvalue.PCollection, namespace,
+        self,
+        pvalue.PCollection,
+        namespace,
         proto.pcollections if proto is not None else None)
     self.coders = _PipelineContextMap(
-        self, coders.Coder, namespace,
+        self,
+        coders.Coder,
+        namespace,
         proto.coders if proto is not None else None)
     self.windowing_strategies = _PipelineContextMap(
-        self, core.Windowing, namespace,
+        self,
+        core.Windowing,
+        namespace,
         proto.windowing_strategies if proto is not None else None)
     self.environments = _PipelineContextMap(
-        self, environments.Environment, namespace,
+        self,
+        environments.Environment,
+        namespace,
         proto.environments if proto is not None else None)
 
     if default_environment:
       self._default_environment_id = self.environments.get_id(
-          default_environment, label='default_environment')  # type: Optional[str]
+          default_environment,
+          label='default_environment')  # type: Optional[str]
     else:
       self._default_environment_id = None
     self.use_fake_coders = use_fake_coders

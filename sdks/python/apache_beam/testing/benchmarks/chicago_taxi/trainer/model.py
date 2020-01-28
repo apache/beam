@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """Defines the model used to predict who will tip in the Chicago Taxi demo."""
 # pytype: skip-file
 
@@ -119,8 +120,7 @@ def eval_input_receiver_fn(tf_transform_output, schema):
 
   # Now that we have our raw examples, process them through the tf-transform
   # function computed during the preprocessing step.
-  transformed_features = tf_transform_output.transform_raw_features(
-      features)
+  transformed_features = tf_transform_output.transform_raw_features(features)
 
   # The key name MUST be 'examples'.
   receiver_tensors = {'examples': serialized_tf_example}

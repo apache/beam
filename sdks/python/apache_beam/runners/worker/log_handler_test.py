@@ -38,7 +38,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
-
   def __init__(self):
     self.log_records_received = []
 
@@ -51,7 +50,6 @@ class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
 
 
 class FnApiLogRecordHandlerTest(unittest.TestCase):
-
   def setUp(self):
     self.test_logging_service = BeamFnLoggingServicer()
     self.server = grpc.server(UnboundedThreadPoolExecutor())
@@ -84,10 +82,10 @@ class FnApiLogRecordHandlerTest(unittest.TestCase):
     num_received_log_entries = 0
     for outer in self.test_logging_service.log_records_received:
       for log_entry in outer.log_entries:
-        self.assertEqual(beam_fn_api_pb2.LogEntry.Severity.INFO,
-                         log_entry.severity)
-        self.assertEqual('%s: %s' % (msg, num_received_log_entries),
-                         log_entry.message)
+        self.assertEqual(
+            beam_fn_api_pb2.LogEntry.Severity.INFO, log_entry.severity)
+        self.assertEqual(
+            '%s: %s' % (msg, num_received_log_entries), log_entry.message)
         self.assertTrue(
             re.match(r'.*/log_handler_test.py:\d+', log_entry.log_location),
             log_entry.log_location)
@@ -150,13 +148,14 @@ data = {
 
 
 def _create_test(name, num_logs):
-  setattr(FnApiLogRecordHandlerTest, 'test_%s' % name,
-          lambda self: self._verify_fn_log_handler(num_logs))
+  setattr(
+      FnApiLogRecordHandlerTest,
+      'test_%s' % name,
+      lambda self: self._verify_fn_log_handler(num_logs))
 
 
 for test_name, num_logs_entries in data.items():
   _create_test(test_name, num_logs_entries)
-
 
 if __name__ == '__main__':
   unittest.main()

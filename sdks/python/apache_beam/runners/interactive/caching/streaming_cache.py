@@ -50,15 +50,17 @@ class StreamingCache(object):
       # The file headers that are metadata for that particular PCollection.
       # The header allows for metadata about an entire stream, so that the data
       # isn't copied per record.
-      self._headers = {r.header().tag : r.header() for r in readers}
-      self._readers = {r.header().tag : r.read() for r in readers}
+      self._headers = {r.header().tag: r.header() for r in readers}
+      self._readers = {r.header().tag: r.read() for r in readers}
 
       # The watermarks per tag. Useful for introspection in the stream.
       self._watermarks = {tag: timestamp.MIN_TIMESTAMP for tag in self._headers}
 
       # The most recently read timestamp per tag.
-      self._stream_times = {tag: timestamp.MIN_TIMESTAMP
-                            for tag in self._headers}
+      self._stream_times = {
+          tag: timestamp.MIN_TIMESTAMP
+          for tag in self._headers
+      }
 
     def _test_stream_events_before_target(self, target_timestamp):
       """Reads the next iteration of elements from each stream.
@@ -85,14 +87,15 @@ class StreamingCache(object):
       return records
 
     def _merge_sort(self, previous_events, new_events):
-      return sorted(previous_events + new_events,
-                    key=lambda x: Timestamp.from_proto(
-                        x[1].processing_time),
-                    reverse=True)
+      return sorted(
+          previous_events + new_events,
+          key=lambda x: Timestamp.from_proto(x[1].processing_time),
+          reverse=True)
 
     def _min_timestamp_of(self, events):
-      return (Timestamp.from_proto(events[-1][1].processing_time)
-              if events else timestamp.MAX_TIMESTAMP)
+      return (
+          Timestamp.from_proto(events[-1][1].processing_time)
+          if events else timestamp.MAX_TIMESTAMP)
 
     def _event_stream_caught_up_to_target(self, events, target_timestamp):
       empty_events = not events
