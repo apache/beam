@@ -375,9 +375,15 @@ public class CassandraIO {
   static class CassandraSource<T> extends BoundedSource<T> {
     final Read<T> spec;
     final List<String> splitQueries;
+    final Long estimatedSize;
     private static final String MURMUR3PARTITIONER = "org.apache.cassandra.dht.Murmur3Partitioner";
 
     CassandraSource(Read<T> spec, List<String> splitQueries) {
+      this(spec, splitQueries, null);
+    }
+
+    private CassandraSource(Read<T> spec, List<String> splitQueries, Long estimatedSize) {
+      this.estimatedSize = estimatedSize;
       this.spec = spec;
       this.splitQueries = splitQueries;
     }
@@ -449,6 +455,10 @@ public class CassandraIO {
               .getPartitionKey().stream()
               .map(ColumnMetadata::getName)
               .collect(Collectors.joining(","));
+      
+      List<TokenRange> tokenRanges =
+                getTokenRanges(cluster, spec.keyspace().get(), spec.table().get());
+      final long estimatedSize = getEstimatedSizeBytesFromTokenRanges(tokenRanges);
 
       List<BoundedSource<T>> sources = new ArrayList<>();
       for (List<RingRange> split : splits) {
@@ -468,7 +478,7 @@ public class CassandraIO {
             queries.add(generateRangeQuery(spec, partitionKey, range.getStart(), range.getEnd()));
           }
         }
-        sources.add(new CassandraIO.CassandraSource<>(spec, queries));
+        sources.add(new CassandraIO.CassandraSource<>(spec, queries, estimatedSize));
       }
       return sources;
     }
@@ -508,26 +518,30 @@ public class CassandraIO {
 
     @Override
     public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) {
-      try (Cluster cluster =
-          getCluster(
-              spec.hosts(),
-              spec.port(),
-              spec.username(),
-              spec.password(),
-              spec.localDc(),
-              spec.consistencyLevel())) {
-        if (isMurmur3Partitioner(cluster)) {
-          try {
-            List<TokenRange> tokenRanges =
-                getTokenRanges(cluster, spec.keyspace().get(), spec.table().get());
-            return getEstimatedSizeBytesFromTokenRanges(tokenRanges);
-          } catch (Exception e) {
-            LOG.warn("Can't estimate the size", e);
+      if(estimatedSize!=null){
+        return estimatedSize;
+      } else {
+        try (Cluster cluster =
+            getCluster(
+                spec.hosts(),
+                spec.port(),
+                spec.username(),
+                spec.password(),
+                spec.localDc(),
+                spec.consistencyLevel())) {
+          if (isMurmur3Partitioner(cluster)) {
+            try {
+              List<TokenRange> tokenRanges =
+                  getTokenRanges(cluster, spec.keyspace().get(), spec.table().get());
+              return getEstimatedSizeBytesFromTokenRanges(tokenRanges);
+            } catch (Exception e) {
+              LOG.warn("Can't estimate the size", e);
+              return 0L;
+            }
+          } else {
+            LOG.warn("Only Murmur3 partitioner is supported, can't estimate the size");
             return 0L;
           }
-        } else {
-          LOG.warn("Only Murmur3 partitioner is supported, can't estimate the size");
-          return 0L;
         }
       }
     }
