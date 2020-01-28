@@ -29,6 +29,7 @@ import java.util.stream.Stream;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.InvalidTableException;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
@@ -123,7 +124,7 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
               .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
               .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of());
     } else {
-      throw new IllegalArgumentException("One of topics and topicPartitions must be configurated.");
+      throw new InvalidTableException("One of topics and topicPartitions must be configurated.");
     }
     return kafkaRead;
   }

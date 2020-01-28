@@ -212,7 +212,7 @@ public class BeamIOPushDownRule extends RelOptRule {
       } else if (node instanceof RexLiteral) {
         // Does not contain information about columns utilized by a Calc
       } else {
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             "Unexpected RexNode encountered: " + node.getClass().getSimpleName());
       }
     }
