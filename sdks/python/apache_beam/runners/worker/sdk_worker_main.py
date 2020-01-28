@@ -40,6 +40,7 @@ from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.internal import names
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
+from apache_beam.runners.worker.worker_status import thread_dump
 from apache_beam.utils import profiler
 
 # This module is experimental. No backwards-compatibility guarantees.
@@ -48,18 +49,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class StatusServer(object):
-
-  @classmethod
-  def get_thread_dump(cls):
-    lines = []
-    frames = sys._current_frames()  # pylint: disable=protected-access
-
-    for t in threading.enumerate():
-      lines.append('--- Thread #%s name: %s ---\n' % (t.ident, t.name))
-      if t.ident in frames:
-        lines.append(''.join(traceback.format_stack(frames[t.ident])))
-
-    return lines
 
   def start(self, status_http_port=0):
     """Executes the serving loop for the status server.
@@ -78,8 +67,7 @@ class StatusServer(object):
         self.send_header('Content-Type', 'text/plain')
         self.end_headers()
 
-        for line in StatusServer.get_thread_dump():
-          self.wfile.write(line.encode('utf-8'))
+        self.wfile.write(thread_dump().encode('utf-8'))
 
       def log_message(self, f, *args):
         """Do not log any messages."""
@@ -145,13 +133,18 @@ def main(unused_argv):
   try:
     _LOGGER.info('Python sdk harness started with pipeline_options: %s',
                  sdk_pipeline_options.get_all_options(drop_default=True))
-    service_descriptor = endpoints_pb2.ApiServiceDescriptor()
+    control_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
+    status_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
     text_format.Merge(os.environ['CONTROL_API_SERVICE_DESCRIPTOR'],
-                      service_descriptor)
+                      control_service_descriptor)
+    if 'STATUS_API_SERVICE_DESCRIPTOR' in os.environ:
+      text_format.Merge(os.environ['STATUS_API_SERVICE_DESCRIPTOR'],
+                        status_service_descriptor)
     # TODO(robertwb): Support credentials.
-    assert not service_descriptor.oauth2_client_credentials_grant.url
+    assert not control_service_descriptor.oauth2_client_credentials_grant.url
     SdkHarness(
-        control_address=service_descriptor.url,
+        control_address=control_service_descriptor.url,
+        status_address=status_service_descriptor.url,
         worker_id=_worker_id,
         state_cache_size=_get_state_cache_size(sdk_pipeline_options),
         data_buffer_time_limit_ms=_get_data_buffer_time_limit_ms(

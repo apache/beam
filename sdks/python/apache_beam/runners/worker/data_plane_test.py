@@ -25,40 +25,16 @@ from __future__ import print_function
 
 import itertools
 import logging
-import sys
-import threading
 import unittest
 
 import grpc
-from future.utils import raise_
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
+from apache_beam.testing.util import timeout
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
-
-
-def timeout(timeout_secs):
-  def decorate(fn):
-    exc_info = []
-
-    def wrapper(*args, **kwargs):
-      def call_fn():
-        try:
-          fn(*args, **kwargs)
-        except:  # pylint: disable=bare-except
-          exc_info[:] = sys.exc_info()
-      thread = threading.Thread(target=call_fn)
-      thread.daemon = True
-      thread.start()
-      thread.join(timeout_secs)
-      if exc_info:
-        t, v, tb = exc_info  # pylint: disable=unbalanced-tuple-unpacking
-        raise_(t, v, tb)
-      assert not thread.is_alive(), 'timed out after %s seconds' % timeout_secs
-    return wrapper
-  return decorate
 
 
 class DataChannelTest(unittest.TestCase):
