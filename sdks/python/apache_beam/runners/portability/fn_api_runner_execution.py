@@ -70,7 +70,8 @@ class _ListBuffer(List[bytes]):
 
 class _GroupingBuffer(object):
   """Used to accumulate groupded (shuffled) results."""
-  def __init__(self,
+  def __init__(
+      self,
       pre_grouped_coder,  # type: coders.Coder
       post_grouped_coder,  # type: coders.Coder
       windowing
@@ -152,7 +153,8 @@ class _GroupingBuffer(object):
 
 class _WindowGroupingBuffer(object):
   """Used to partition windowed side inputs."""
-  def __init__(self,
+  def __init__(
+      self,
       access_pattern,
       coder  # type: coders.WindowedValueCoder
   ):
@@ -287,7 +289,7 @@ def get_input_operation_name(
       'No IO transform feeds %s' % transform_id)
 
 
-def store_side_inputs_in_state(self,
+def store_side_inputs_in_state(
     worker_handler,  # type: WorkerHandler
     context,  # type: pipeline_context.PipelineContext
     pipeline_components,  # type: beam_runner_api_pb2.Components
@@ -299,7 +301,7 @@ def store_side_inputs_in_state(self,
   for (transform_id, tag), (buffer_id, si) in data_side_input.items():
     _, pcoll_id = split_buffer_id(buffer_id)
     value_coder = context.coders[safe_coders[
-      pipeline_components.pcollections[pcoll_id].coder_id]]
+        pipeline_components.pcollections[pcoll_id].coder_id]]
     elements_by_window = _WindowGroupingBuffer(si, value_coder)
     for element_data in pcoll_buffers[buffer_id]:
       elements_by_window.append(element_data)
