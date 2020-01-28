@@ -455,9 +455,9 @@ public class CassandraIO {
               .getPartitionKey().stream()
               .map(ColumnMetadata::getName)
               .collect(Collectors.joining(","));
-      
+
       List<TokenRange> tokenRanges =
-                getTokenRanges(cluster, spec.keyspace().get(), spec.table().get());
+          getTokenRanges(cluster, spec.keyspace().get(), spec.table().get());
       final long estimatedSize = getEstimatedSizeBytesFromTokenRanges(tokenRanges);
 
       List<BoundedSource<T>> sources = new ArrayList<>();
@@ -518,7 +518,7 @@ public class CassandraIO {
 
     @Override
     public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) {
-      if(estimatedSize!=null){
+      if (estimatedSize != null) {
         return estimatedSize;
       } else {
         try (Cluster cluster =
