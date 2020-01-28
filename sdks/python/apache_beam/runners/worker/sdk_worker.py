@@ -787,19 +787,18 @@ class CachingStateHandler(object):
     if not self._should_be_cached(is_cached):
       # Cache disabled / no cache token. Can't do a lookup/store in the cache.
       # Fall back to lazily materializing the state, one element at a time.
-      return self._materialize_iter(state_key, coder)
+      return self._lazy_iterator(state_key, coder)
     # Cache lookup
     cache_state_key = self._convert_to_cache_key(state_key)
     cached_value = self._state_cache.get(cache_state_key,
                                          self._context.cache_token)
     if cached_value is None:
       # Cache miss, need to retrieve from the Runner
-      # TODO If caching is enabled, this materializes the entire state.
       # Further size estimation or the use of the continuation token on the
       # runner side could fall back to materializing one item at a time.
       # https://jira.apache.org/jira/browse/BEAM-8297
-      materialized = cached_value = list(
-          self._materialize_iter(state_key, coder))
+      materialized = cached_value = (
+          self._partially_cached_iterable(state_key, coder))
       self._state_cache.put(
           cache_state_key,
           self._context.cache_token,
@@ -834,18 +833,19 @@ class CachingStateHandler(object):
     # type: () -> None
     self._underlying.done()
 
-  def _materialize_iter(self,
-                        state_key,  # type: beam_fn_api_pb2.StateKey
-                        coder  # type: coder_impl.CoderImpl
-                       ):
+  def _lazy_iterator(
+      self,
+      state_key,  # type: beam_fn_api_pb2.StateKey
+      coder,  # type: coder_impl.CoderImpl
+      continuation_token=None  # type: Optional[bytes]
+    ):
     # type: (...) -> Iterator[Any]
     """Materializes the state lazily, one element at a time.
        :return A generator which returns the next element if advanced.
     """
-    continuation_token = None
     while True:
-      data, continuation_token = \
-          self._underlying.get_raw(state_key, continuation_token)
+      data, continuation_token = (
+          self._underlying.get_raw(state_key, continuation_token))
       input_stream = coder_impl.create_InputStream(data)
       while input_stream.size() > 0:
         yield coder.decode_from_stream(input_stream, True)
@@ -857,9 +857,47 @@ class CachingStateHandler(object):
             request_is_cached and
             self._context.cache_token)
 
+  def _partially_cached_iterable(
+      self,
+      state_key,  # type: beam_fn_api_pb2.StateKey
+      coder  # type: coder_impl.CoderImpl
+    ):
+    # type: (...) -> Iterable[Any]
+    """Materialized the first page of data, concatinated with a lazy iterable
+    of the rest, if any.
+    """
+    data, continuation_token = (
+            self._underlying.get_raw(state_key, None))
+    head = []
+    input_stream = coder_impl.create_InputStream(data)
+    while input_stream.size() > 0:
+      head.append(coder.decode_from_stream(input_stream, True))
+
+    if continuation_token is None:
+      return head
+    else:
+      def iter_func():
+        for item in head:
+          yield item
+        for item in self._lazy_iterator(state_key, coder, continuation_token):
+          yield item
+      return _IterableFromIterator(iter_func)
+
   @staticmethod
   def _convert_to_cache_key(state_key):
     return state_key.SerializeToString()
+
+
+class _IterableFromIterator(object):
+  """Wraps an iterator as an iterable."""
+  def __init__(self, iter_func):
+    self._iter_func = iter_func
+  def __iter__(self):
+    return iter_func()
+
+
+coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(
+    _IterableFromIterator)
 
 
 class _Future(object):
