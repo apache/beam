@@ -202,9 +202,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     Instant effectiveTimestamp;
     switch (timeDomain) {
       case EVENT_TIME:
-      case PROCESSING_TIME:
         effectiveTimestamp = outputTimestamp;
         break;
+      case PROCESSING_TIME:
       case SYNCHRONIZED_PROCESSING_TIME:
         effectiveTimestamp = stepContext.timerInternals().currentInputWatermarkTime();
         break;
