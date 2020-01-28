@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters.Kind;
+import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.zetasql.TableResolution.SimpleTableWithPath;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Context;
@@ -191,7 +192,7 @@ class SqlAnalyzer {
         TableResolution.resolveCalciteTable(builder.topLevelSchema, tablePath);
 
     if (calciteTable == null) {
-      throw new RuntimeException(
+      throw new SqlConversionException(
           "Wasn't able to find resolve the path "
               + tablePath
               + " in "
