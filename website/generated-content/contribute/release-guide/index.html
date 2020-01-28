@@ -1532,7 +1532,7 @@ Thanks everyone!
       <li>First update required configurations listed in <code class="highlighter-rouge">RC_VALIDATE_CONFIGS</code> in 
 <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config">script.config</a></li>
       <li>Then run
-        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> cd beam/release/src/main/scripts &amp;&amp; ./run_rc_validation.sh
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> ./beam/release/src/main/scripts/run_rc_validation.sh
 </code></pre></div>        </div>
       </li>
     </ol>
@@ -1583,7 +1583,7 @@ Thanks everyone!
 </code></pre></div>    </div>
     <p>Apex Local Runner</p>
     <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :runners:apex:runQuickstartJavaApex \
--Prepourl=https://repository.apache.org/content/repositories/orgapachebeam${KEY} \
+-Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
 -Pver=${RELEASE_VERSION}
 </code></pre></div>    </div>
     <p>Flink Local Runner</p>
@@ -1610,7 +1610,7 @@ Thanks everyone!
     <p>Pre-request</p>
     <ul>
       <li>Create your own BigQuery dataset
-        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bq mk --project=${YOUR_GCP_PROJECT} ${YOUR_DATASET}
+        <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bq mk --project_id=${YOUR_GCP_PROJECT} ${YOUR_DATASET}
 </code></pre></div>        </div>
       </li>
       <li>Create yout PubSub topic
@@ -1686,7 +1686,7 @@ pip install dist/apache-beam-2.5.0.tar.gz[gcp]
         <p>Please repeat following steps for every following test.</p>
 
         <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bq rm -rf --project=${YOUR_PROJECT} ${USER}_test
-bq mk --project=${YOUR_PROJECT} ${USER}_test
+bq mk --project_id=${YOUR_PROJECT} ${USER}_test
 gsutil rm -rf ${YOUR_GS_STORAGE]
 gsutil mb -p ${YOUR_PROJECT} ${YOUR_GS_STORAGE}
 gcloud alpha pubsub topics create --project=${YOUR_PROJECT} ${YOUR_PUBSUB_TOPIC}
