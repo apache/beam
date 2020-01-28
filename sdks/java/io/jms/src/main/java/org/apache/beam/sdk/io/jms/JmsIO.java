@@ -38,7 +38,6 @@ import javax.jms.MessageProducer;
 import javax.jms.Session;
 import javax.jms.TextMessage;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.Read.Unbounded;
@@ -53,7 +52,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -387,7 +385,6 @@ public class JmsIO {
      * Creates an {@link UnboundedSource UnboundedSource&lt;JmsRecord, ?&gt;} with the configuration
      * in {@link Read}. Primary use case is unit tests, should not be used in an application.
      */
-    @VisibleForTesting
     UnboundedSource<T, JmsCheckpointMark> createSource() {
       return new UnboundedJmsSource<T>(this);
     }
@@ -405,8 +402,7 @@ public class JmsIO {
   }
 
   /** An unbounded JMS source. */
-  @VisibleForTesting
-  protected static class UnboundedJmsSource<T> extends UnboundedSource<T, JmsCheckpointMark> {
+  static class UnboundedJmsSource<T> extends UnboundedSource<T, JmsCheckpointMark> {
 
     private final Read<T> spec;
 
@@ -439,7 +435,7 @@ public class JmsIO {
 
     @Override
     public Coder<JmsCheckpointMark> getCheckpointMarkCoder() {
-      return AvroCoder.of(JmsCheckpointMark.class);
+      return SerializableCoder.of(JmsCheckpointMark.class);
     }
 
     @Override
@@ -448,7 +444,6 @@ public class JmsIO {
     }
   }
 
-  @VisibleForTesting
   static class UnboundedJmsReader<T> extends UnboundedReader<T> {
 
     private UnboundedJmsSource<T> source;
@@ -516,7 +511,7 @@ public class JmsIO {
           return false;
         }
 
-        checkpointMark.addMessage(message);
+        checkpointMark.add(message);
 
         currentMessage = this.source.spec.getMessageMapper().mapMessage(message);
         currentTimestamp = new Instant(message.getJMSTimestamp());
@@ -537,7 +532,7 @@ public class JmsIO {
 
     @Override
     public Instant getWatermark() {
-      return checkpointMark.getOldestPendingTimestamp();
+      return checkpointMark.getOldestMessageTimestamp();
     }
 
     @Override
