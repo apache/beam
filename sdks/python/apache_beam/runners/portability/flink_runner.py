@@ -51,8 +51,11 @@ class FlinkRunner(portable_runner.PortableRunner):
     flink_master = self.add_http_scheme(
         flink_options.flink_master)
     flink_options.flink_master = flink_master
-    if (flink_options.flink_submit_uber_jar
-        and flink_master not in MAGIC_HOST_NAMES):
+    if flink_options.flink_submit_uber_jar:
+      if flink_master in MAGIC_HOST_NAMES:
+        raise ValueError(
+            'Cannot use flink_submit_uber_jar with flink_master %s'
+            % flink_master)
       if sys.version_info < (3, 6):
         raise ValueError(
             'flink_submit_uber_jar requires Python 3.6+, current version %s'
