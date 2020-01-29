@@ -775,6 +775,8 @@ class CachingStateHandler(object):
             cache_token_struct.side_input.transform_id,
             cache_token_struct.side_input.side_input_id
         ] = cache_token_struct.token
+    # TODO: Consider a two-level cache to avoid extra logic and locking
+    # for items cached at the bundle level.
     self._context.bundle_cache_token = bundle_id
     try:
       self._state_cache.initialize_metrics()
