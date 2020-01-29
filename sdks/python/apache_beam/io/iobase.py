@@ -1176,7 +1176,7 @@ class RestrictionTracker(object):
 
     Returns: ``True`` if current restriction has been fully processed.
     Raises:
-      ~exceptions.ValueError: if there is still any unclaimed work remaining.
+      ValueError: if there is still any unclaimed work remaining.
     """
     raise NotImplementedError
 

@@ -77,11 +77,11 @@ class FileBasedSink(iobase.Sink):
                compression_type=CompressionTypes.AUTO):
     """
      Raises:
-      ~exceptions.TypeError: if file path parameters are not a :class:`str` or
+      TypeError: if file path parameters are not a :class:`str` or
         :class:`~apache_beam.options.value_provider.ValueProvider`, or if
         **compression_type** is not member of
         :class:`~apache_beam.io.filesystem.CompressionTypes`.
-      ~exceptions.ValueError: if **shard_name_template** is not of expected
+      ValueError: if **shard_name_template** is not of expected
         format.
     """
     if not isinstance(file_path_prefix, ((str, unicode), ValueProvider)):
