@@ -504,7 +504,11 @@ class WaitForBQJobs(beam.DoFn):
   def process(self, element, dest_ids_list):
     job_references = [elm[1] for elm in dest_ids_list]
     for ref in job_references:
-      self.bq_wrapper.wait_for_bq_job(ref, sleep_duration_sec=10)
+      # We must poll repeatedly until the job finishes or fails, thus setting
+      # max_retries to 0.
+      self.bq_wrapper.wait_for_bq_job(ref,
+                                      sleep_duration_sec=10,
+                                      max_retries=0)
 
     return dest_ids_list  # Pass the list of destination-jobs downstream
 
