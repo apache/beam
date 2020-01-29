@@ -882,11 +882,10 @@ class CachingStateHandler(object):
       coder  # type: coder_impl.CoderImpl
     ):
     # type: (...) -> Iterable[Any]
-    """Materialized the first page of data, concatinated with a lazy iterable
+    """Materialized the first page of data, concatenated with a lazy iterable
     of the rest, if any.
     """
-    data, continuation_token = (
-            self._underlying.get_raw(state_key, None))
+    data, continuation_token = self._underlying.get_raw(state_key, None)
     head = []
     input_stream = coder_impl.create_InputStream(data)
     while input_stream.size() > 0:
@@ -898,8 +897,9 @@ class CachingStateHandler(object):
       def iter_func():
         for item in head:
           yield item
-        for item in self._lazy_iterator(state_key, coder, continuation_token):
-          yield item
+        if continuation_token:
+          for item in self._lazy_iterator(state_key, coder, continuation_token):
+            yield item
       return _IterableFromIterator(iter_func)
 
   @staticmethod
@@ -912,7 +912,7 @@ class _IterableFromIterator(object):
   def __init__(self, iter_func):
     self._iter_func = iter_func
   def __iter__(self):
-    return iter_func()
+    return self._iter_func()
 
 
 coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(
