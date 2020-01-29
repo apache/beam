@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -32,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -151,13 +151,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   private transient DoFnInvoker<InputT, OutputT> doFnInvoker;
 
-  protected transient long currentInputWatermark;
-
-  protected transient long currentSideInputWatermark;
-
-  protected transient long currentOutputWatermark;
-
   protected transient FlinkStateInternals<?> keyedStateInternals;
+  protected transient FlinkTimerInternals timerInternals;
 
   protected final String stepName;
 
@@ -187,25 +182,38 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   protected transient InternalTimerService<TimerData> timerService;
 
-  protected transient FlinkTimerInternals timerInternals;
-
-  private transient long pushedBackWatermark;
-
   private transient PushedBackElementsHandler<WindowedValue<InputT>> pushedBackElementsHandler;
 
   /** Metrics container for reporting Beam metrics to Flink (null if metrics are disabled). */
   @Nullable transient FlinkMetricContainer flinkMetricContainer;
 
-  /** Use an AtomicBoolean because we start/stop bundles by a timer thread (see below). */
-  private transient AtomicBoolean bundleStarted;
-  /** Number of processed elements in the current bundle. */
-  private transient long elementCount;
   /** A timer that finishes the current bundle after a fixed amount of time. */
   private transient ScheduledFuture<?> checkFinishBundleTimer;
+
+  /**
+   * This and the below fields need to be volatile because we use multiple threads to access these.
+   * (a) the main processing thread (b) a timer thread to finish bundles by a timeout instead of the
+   * number of element However, we do not need a lock because Flink makes sure to acquire the
+   * "checkpointing" lock for the main processing but also for timer set via its {@code
+   * timerService}.
+   *
+   * <p>The volatile flag can be removed once https://issues.apache.org/jira/browse/FLINK-12481 has
+   * been addressed.
+   */
+  private transient volatile boolean bundleStarted;
+  /** Number of processed elements in the current bundle. */
+  private transient volatile long elementCount;
   /** Time that the last bundle was finished (to set the timer). */
-  private transient long lastFinishBundleTime;
+  private transient volatile long lastFinishBundleTime;
   /** Callback to be executed after the current bundle was finished. */
-  private transient Runnable bundleFinishedCallback;
+  private transient volatile Runnable bundleFinishedCallback;
+
+  // Watermark state.
+  // Volatile because these can be set in two mutually exclusive threads (see above).
+  protected transient volatile long currentInputWatermark;
+  protected transient volatile long currentSideInputWatermark;
+  protected transient volatile long currentOutputWatermark;
+  private transient volatile long pushedBackWatermark;
 
   /** Constructor for DoFnOperator. */
   public DoFnOperator(
@@ -443,7 +451,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, flinkMetricContainer);
     }
 
-    bundleStarted = new AtomicBoolean(false);
     elementCount = 0L;
     lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
 
@@ -721,14 +728,21 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
    * processWatermark.
    */
   private void checkInvokeStartBundle() {
-    if (bundleStarted.compareAndSet(false, true)) {
+    if (!bundleStarted) {
       outputManager.flushBuffer();
       pushbackDoFnRunner.startBundle();
+      bundleStarted = true;
     }
   }
 
   /** Check whether invoke finishBundle by elements count. Called in processElement. */
+  @SuppressWarnings("NonAtomicVolatileUpdate")
+  @SuppressFBWarnings("VO_VOLATILE_INCREMENT")
   private void checkInvokeFinishBundleByCount() {
+    // We do not access this statement concurrently but we want to make sure that each thread
+    // sees the latest value, which is why we use volatile. See the class field section above
+    // for more information.
+    //noinspection NonAtomicOperationOnVolatileField
     elementCount++;
     if (elementCount >= maxBundleSize) {
       invokeFinishBundle();
@@ -744,10 +758,11 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   }
 
   protected final void invokeFinishBundle() {
-    if (bundleStarted.compareAndSet(true, false)) {
+    if (bundleStarted) {
       pushbackDoFnRunner.finishBundle();
       elementCount = 0L;
       lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
+      bundleStarted = false;
       // callback only after current bundle was fully finalized
       // it could start a new bundle, for example resulting from timer processing
       if (bundleFinishedCallback != null) {
@@ -770,7 +785,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     try {
       outputManager.openBuffer();
       // Ensure that no new bundle gets started as part of finishing a bundle
-      while (bundleStarted.get()) {
+      while (bundleStarted) {
         invokeFinishBundle();
       }
       outputManager.closeBuffer();
