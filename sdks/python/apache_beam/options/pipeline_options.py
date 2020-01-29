@@ -288,14 +288,19 @@ class PipelineOptions(HasDisplayData):
       _LOGGER.warning("Discarding unparseable args: %s", unknown_args)
     result = vars(known_args)
 
+    overrides = self._all_options.copy()
     # Apply the overrides if any
     for k in list(result):
+      overrides.pop(k, None)
       if k in self._all_options:
         result[k] = self._all_options[k]
       if (drop_default and
           parser.get_default(k) == result[k] and
           not isinstance(parser.get_default(k), ValueProvider)):
         del result[k]
+
+    if overrides:
+      _LOGGER.warning("Discarding invalid overrides: %s", overrides)
 
     return result
 

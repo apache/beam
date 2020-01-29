@@ -254,7 +254,7 @@ class DoOutputsTuple(object):
     # gets applied.
     self.producer = None  # type: Optional[AppliedPTransform]
     # Dictionary of PCollections already associated with tags.
-    self._pcolls = {}  # type: Dict[Optional[str], PValue]
+    self._pcolls = {}  # type: Dict[Optional[str], PCollection]
 
   def __str__(self):
     return '<%s>' % self._str_internal()
@@ -267,15 +267,15 @@ class DoOutputsTuple(object):
         self.__class__.__name__, self._main_tag, self._tags, self._transform)
 
   def __iter__(self):
-    # type: () -> Iterator[PValue]
-    """Iterates over tags returning for each call a (tag, pvalue) pair."""
+    # type: () -> Iterator[PCollection]
+    """Iterates over tags returning for each call a (tag, pcollection) pair."""
     if self._main_tag is not None:
       yield self[self._main_tag]
     for tag in self._tags:
       yield self[tag]
 
   def __getattr__(self, tag):
-    # type: (str) -> PValue
+    # type: (str) -> PCollection
     # Special methods which may be accessed before the object is
     # fully constructed (e.g. in unpickling).
     if tag[:2] == tag[-2:] == '__':
@@ -283,7 +283,7 @@ class DoOutputsTuple(object):
     return self[tag]
 
   def __getitem__(self, tag):
-    # type: (Union[int, str, None]) -> PValue
+    # type: (Union[int, str, None]) -> PCollection
     # Accept int tags so that we can look at Partition tags with the
     # same ints that we used in the partition function.
     # TODO(gildea): Consider requiring string-based tags everywhere.
@@ -304,7 +304,7 @@ class DoOutputsTuple(object):
     assert self.producer is not None
     if tag is not None:
       self._transform.output_tags.add(tag)
-      pcoll = PCollection(self._pipeline, tag=tag, element_type=typehints.Any)  # type: PValue
+      pcoll = PCollection(self._pipeline, tag=tag, element_type=typehints.Any)
       # Transfer the producer from the DoOutputsTuple to the resulting
       # PCollection.
       pcoll.producer = self.producer.parts[0]
@@ -315,7 +315,10 @@ class DoOutputsTuple(object):
         self.producer.add_output(pcoll, tag)
     else:
       # Main output is output of inner ParDo.
-      pcoll = self.producer.parts[0].outputs[None]
+      pval = self.producer.parts[0].outputs[None]
+      assert isinstance(pval, PCollection), (
+          "DoOutputsTuple should follow a ParDo.")
+      pcoll = pval
     self._pcolls[tag] = pcoll
     return pcoll
 

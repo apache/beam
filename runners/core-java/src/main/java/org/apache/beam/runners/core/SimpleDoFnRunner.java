@@ -214,7 +214,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     OnTimerArgumentProvider argumentProvider =
-        new OnTimerArgumentProvider(timerId, window, effectiveTimestamp, timeDomain);
+        new OnTimerArgumentProvider(timerId, window, timestamp, effectiveTimestamp, timeDomain);
     invoker.invokeOnTimer(timerId, timerFamilyId, argumentProvider);
   }
 
@@ -774,6 +774,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   private class OnTimerArgumentProvider extends DoFn<InputT, OutputT>.OnTimerContext
       implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
     private final BoundedWindow window;
+    private final Instant fireTimestamp;
     private final Instant timestamp;
     private final TimeDomain timeDomain;
     private final String timerId;
@@ -796,10 +797,15 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     private OnTimerArgumentProvider(
-        String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+        String timerId,
+        BoundedWindow window,
+        Instant fireTimestamp,
+        Instant timestamp,
+        TimeDomain timeDomain) {
       fn.super();
       this.timerId = timerId;
       this.window = window;
+      this.fireTimestamp = fireTimestamp;
       this.timestamp = timestamp;
       this.timeDomain = timeDomain;
     }
@@ -807,6 +813,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public Instant timestamp() {
       return timestamp;
+    }
+
+    @Override
+    public Instant fireTimestamp() {
+      return fireTimestamp;
     }
 
     @Override

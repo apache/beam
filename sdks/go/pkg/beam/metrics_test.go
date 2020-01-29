@@ -29,8 +29,8 @@ var ctx = context.Background()
 
 func ctxWithPtransformID(id string) context.Context {
 	ctx := context.Background()
-	ctx = metrics.SetPTransformID(ctx, id)
 	ctx = metrics.SetBundleID(ctx, "exampleBundle")
+	ctx = metrics.SetPTransformID(ctx, id)
 	return ctx
 }
 
@@ -69,7 +69,7 @@ func Example_metricsDeclaredAnywhere() {
 
 func Example_metricsReusable() {
 
-	// Metrics can be used in multiple DoFns
+	// Metric proxies can be used in multiple DoFns
 	c := beam.NewCounter("example.reusable", "count")
 
 	extractWordsDofn := func(ctx context.Context, line string, emit func(string)) {

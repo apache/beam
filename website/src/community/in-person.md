@@ -34,10 +34,13 @@ We occasionally meet up in various locations around the globe. Active or to-be-s
 | ----------------- | ---------------|
 | Stockholm | [Apache Beam Stockholm](https://www.meetup.com/Apache-Beam-Stockholm/) |
 | London | [London Apache Beam Meetup](https://www.meetup.com/London-Apache-Beam-Meetup/) |
-| San Francisco | [Bay Area Apache Beam](https://www.meetup.com/San-Francisco-Apache-Beam/) |
+| San Francisco Bay Area| [Bay Area Apache Beam](https://www.meetup.com/San-Francisco-Apache-Beam/) |
 | Los Angeles | [Los Angeles Apache Beam](https://www.meetup.com/Los-Angeles-Apache-Beam/) |
 | Washington DC | [Washington DC Apache Beam Meetup](https://www.meetup.com/DC-Apache-Beam/) |
 | New York City | [New York Apache Beam](https://www.meetup.com/New-York-Apache-Beam/) |
+| Boston, MA | [Boston Apache Beam Meetup](https://www.meetup.com/Boston-Beam-Meetup/) |
+| Austin, TX | [Austin Apache Beam Meetup](https://www.meetup.com/Austin-Beam-Meetup/) |
+| Bangalore | [Bangalore Apache Beam Meetup](https://www.meetup.com/Bangalore-Apache-Beam/) |
 | Paris | [Paris Apache Beam](https://www.meetup.com/Paris-Apache-Beam-Meetup/) |:
 {:.table}
 

@@ -279,6 +279,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     /** Returns the timestamp of the current timer. */
     public abstract Instant timestamp();
 
+    /** Returns the output timestamp of the current timer. */
+    public abstract Instant fireTimestamp();
+
     /** Returns the window in which the timer is firing. */
     public abstract BoundedWindow window();
 

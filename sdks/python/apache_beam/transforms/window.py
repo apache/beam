@@ -382,6 +382,7 @@ class GlobalWindows(NonMergingWindowFn):
   def to_runner_api_parameter(self, context):
     return common_urns.global_windows.urn, None
 
+  @staticmethod
   @urns.RunnerApiFn.register_urn(common_urns.global_windows.urn, None)
   def from_runner_api_parameter(unused_fn_parameter, unused_context):
     return GlobalWindows()
@@ -446,6 +447,7 @@ class FixedWindows(NonMergingWindowFn):
                 offset=proto_utils.from_micros(
                     timestamp_pb2.Timestamp, self.offset.micros)))
 
+  @staticmethod
   @urns.RunnerApiFn.register_urn(
       common_urns.fixed_windows.urn,
       standard_window_fns_pb2.FixedWindowsPayload)
@@ -514,6 +516,7 @@ class SlidingWindows(NonMergingWindowFn):
                 period=proto_utils.from_micros(
                     duration_pb2.Duration, self.period.micros)))
 
+  @staticmethod
   @urns.RunnerApiFn.register_urn(
       common_urns.sliding_windows.urn,
       standard_window_fns_pb2.SlidingWindowsPayload)
@@ -585,6 +588,7 @@ class Sessions(WindowFn):
                 gap_size=proto_utils.from_micros(
                     duration_pb2.Duration, self.gap_size.micros)))
 
+  @staticmethod
   @urns.RunnerApiFn.register_urn(
       common_urns.session_windows.urn,
       standard_window_fns_pb2.SessionsPayload)

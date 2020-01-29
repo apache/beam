@@ -30,6 +30,7 @@ import future.tests.base  # pylint: disable=unused-import
 
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.worker import sdk_worker_main
+from apache_beam.runners.worker import worker_status
 
 
 class SdkWorkerMainTest(unittest.TestCase):
@@ -51,8 +52,7 @@ class SdkWorkerMainTest(unittest.TestCase):
 
     # Wrapping the method to see if it appears in threadump
     def wrapped_method_for_test():
-      lines = sdk_worker_main.StatusServer.get_thread_dump()
-      threaddump = '\n'.join(lines)
+      threaddump = worker_status.thread_dump()
       self.assertRegex(threaddump, '.*wrapped_method_for_test.*')
 
     wrapped_method_for_test()
