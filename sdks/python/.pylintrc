@@ -84,6 +84,7 @@ disable =
   attribute-defined-outside-init,
   bad-builtin,
   bad-super-call,
+  bad-continuation,
   broad-except,
   chained-comparison,
   comparison-with-callable,
