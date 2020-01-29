@@ -75,7 +75,7 @@ class Uploader(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
     File should be fully written upon return from this method.
 
     Raises:
-      :Any error encountered during the upload.
+      Any error encountered during the upload.
     """
 
 
@@ -213,7 +213,7 @@ class UploaderStream(io.RawIOBase):
     This method has no effect if the stream is already closed.
 
     Raises:
-      :Any error encountered by the uploader.
+      Any error encountered by the uploader.
     """
     if not self.closed:
       self._uploader.finish()
