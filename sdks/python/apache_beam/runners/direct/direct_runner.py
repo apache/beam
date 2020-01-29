@@ -197,6 +197,7 @@ class _StreamingGroupByKeyOnly(_GroupByKeyOnly):
   def to_runner_api_parameter(self, unused_context):
     return _StreamingGroupByKeyOnly.urn, None
 
+  @staticmethod
   @PTransform.register_urn(urn, None)
   def from_runner_api_parameter(unused_payload, unused_context):
     return _StreamingGroupByKeyOnly()
@@ -215,6 +216,7 @@ class _StreamingGroupAlsoByWindow(_GroupAlsoByWindow):
         wrappers_pb2.BytesValue(value=context.windowing_strategies.get_id(
             self.windowing)))
 
+  @staticmethod
   @PTransform.register_urn(urn, wrappers_pb2.BytesValue)
   def from_runner_api_parameter(payload, context):
     return _StreamingGroupAlsoByWindow(

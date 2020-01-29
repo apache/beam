@@ -273,6 +273,7 @@ class TestStream(PTransform):
             coder_id=context.coders.get_id(self.coder),
             events=[e.to_runner_api(self.coder) for e in self._events]))
 
+  @staticmethod
   @PTransform.register_urn(
       common_urns.primitives.TEST_STREAM.urn,
       beam_runner_api_pb2.TestStreamPayload)

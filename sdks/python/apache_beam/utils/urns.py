@@ -130,7 +130,7 @@ class RunnerApiFn(object):
     """
     def register(fn):
       cls._known_urns[urn] = parameter_type, fn
-      return staticmethod(fn)
+      return fn
     if fn:
       # Used as a statement.
       register(fn)
