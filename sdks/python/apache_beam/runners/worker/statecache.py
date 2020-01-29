@@ -179,18 +179,13 @@ class StateCache(object):
   def clear(self, state_key, cache_token):
     assert cache_token and self.is_cache_enabled()
     with self._lock:
-      value = self._cache.get((state_key, cache_token))
-      if value is not self._missing:
-        self._cache.put((state_key, cache_token), [])
-      else:
-        # Discard cached state if tokens do not match
-        self.evict((state_key, cache_token))
+      self._cache.put((state_key, cache_token), [])
 
   @Metrics.counter("evict")
-  def evict(self, state_key):
+  def evict(self, state_key, cache_token):
     assert self.is_cache_enabled()
     with self._lock:
-      self._cache.evict(state_key)
+      self._cache.evict((state_key, cache_token))
 
   def evict_all(self):
     with self._lock:
