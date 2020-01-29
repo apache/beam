@@ -772,9 +772,9 @@ class CachingStateHandler(object):
         user_state_cache_token = cache_token_struct.token
       elif cache_token_struct.HasField("side_input"):
         self._context.side_input_cache_tokens[
-          cache_token_struct.side_input.transform_id,
-          cache_token_struct.side_input.side_input_id
-          ] = cache_token_struct.token
+            cache_token_struct.side_input.transform_id,
+            cache_token_struct.side_input.side_input_id
+        ] = cache_token_struct.token
     self._context.bundle_cache_token = bundle_id
     try:
       self._state_cache.initialize_metrics()
@@ -873,8 +873,8 @@ class CachingStateHandler(object):
     elif state_key.WhichOneof('type').endswith('_side_input'):
       side_input = getattr(state_key, state_key.WhichOneof('type'))
       return self._context.side_input_cache_tokens.get(
-        (side_input.transform_id, side_input.side_input_id),
-        self._context.bundle_cache_token)
+          (side_input.transform_id, side_input.side_input_id),
+          self._context.bundle_cache_token)
 
   def _partially_cached_iterable(
       self,
