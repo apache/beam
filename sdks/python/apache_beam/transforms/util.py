@@ -710,6 +710,7 @@ class Reshuffle(PTransform):
     # type: (PipelineContext) -> Tuple[str, None]
     return common_urns.composites.RESHUFFLE.urn, None
 
+  @staticmethod
   @PTransform.register_urn(common_urns.composites.RESHUFFLE.urn, None)
   def from_runner_api_parameter(unused_parameter, unused_context):
     return Reshuffle()

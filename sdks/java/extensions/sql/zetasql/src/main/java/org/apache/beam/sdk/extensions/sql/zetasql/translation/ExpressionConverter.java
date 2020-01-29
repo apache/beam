@@ -31,6 +31,7 @@ import static org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTa
 import static org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLCastFunctionImpl.ZETASQL_CAST_OP;
 
 import com.google.common.base.Ascii;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -62,6 +63,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters.Kind;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperatorRewriter;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperators;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable;
@@ -173,9 +176,9 @@ public class ExpressionConverter {
           + INTERVAL_DATE_PART_MSG;
 
   private final RelOptCluster cluster;
-  private final Map<String, Value> queryParams;
+  private final QueryParameters queryParams;
 
-  public ExpressionConverter(RelOptCluster cluster, Map<String, Value> params) {
+  public ExpressionConverter(RelOptCluster cluster, QueryParameters params) {
     this.cluster = cluster;
     this.queryParams = params;
   }
@@ -486,21 +489,20 @@ public class ExpressionConverter {
         return rexBuilder()
             .makeInputRef(fieldList.get(windowFieldIndex).getType(), windowFieldIndex);
       case FIXED_WINDOW_END:
-        // WINDOW END is a function call
         operands.add(
             rexBuilder().makeInputRef(fieldList.get(windowFieldIndex).getType(), windowFieldIndex));
         // TODO: check window_end 's duration is the same as it's aggregate window.
         operands.add(
             convertIntervalToRexIntervalLiteral(
                 (ResolvedLiteral) functionCall.getArgumentList().get(0)));
-        return rexBuilder().makeCall(SqlStdOperatorTable.PLUS, operands);
+        return rexBuilder().makeCall(SqlOperators.TIMESTAMP_ADD_FN, operands);
       case SLIDING_WINDOW_END:
         operands.add(
             rexBuilder().makeInputRef(fieldList.get(windowFieldIndex).getType(), windowFieldIndex));
         operands.add(
             convertIntervalToRexIntervalLiteral(
                 (ResolvedLiteral) functionCall.getArgumentList().get(1)));
-        return rexBuilder().makeCall(SqlStdOperatorTable.PLUS, operands);
+        return rexBuilder().makeCall(SqlOperators.TIMESTAMP_ADD_FN, operands);
       default:
         throw new RuntimeException(
             "Does not support window start/end: " + functionCall.getFunction().getName());
@@ -1000,9 +1002,27 @@ public class ExpressionConverter {
   }
 
   private RexNode convertResolvedParameter(ResolvedParameter parameter) {
-    assert parameter.getType().equals(queryParams.get(parameter.getName()).getType());
-    return convertValueToRexNode(
-        queryParams.get(parameter.getName()).getType(), queryParams.get(parameter.getName()));
+    if (queryParams.getKind() == Kind.NAMED) {
+      Map<String, Value> queryParameterMap = (Map<String, Value>) queryParams.named();
+      Value value = queryParameterMap.get(parameter.getName());
+      Preconditions.checkState(
+          parameter.getType().equals(value.getType()),
+          String.format(
+              "Expected resolved parameter %s to have type %s, but it has type %s",
+              parameter.getName(), value.getType(), parameter.getType()));
+      return convertValueToRexNode(value.getType(), value);
+    } else if (queryParams.getKind() == Kind.POSITIONAL) {
+      List<Value> queryParameterList = (List<Value>) queryParams.positional();
+      // parameter is 1-indexed, while parameter list is 0-indexed.
+      Value value = queryParameterList.get((int) parameter.getPosition() - 1);
+      Preconditions.checkState(
+          parameter.getType().equals(value.getType()),
+          String.format(
+              "Expected resolved parameter %d to have type %s, but it has type %s",
+              parameter.getPosition(), value.getType(), parameter.getType()));
+      return convertValueToRexNode(value.getType(), value);
+    }
+    throw new IllegalArgumentException("Found unexpected parameter " + parameter);
   }
 
   private RexNode convertResolvedStructFieldAccess(ResolvedGetStructField resolvedGetStructField) {

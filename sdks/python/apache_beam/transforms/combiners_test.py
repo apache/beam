@@ -382,6 +382,18 @@ class CombineTest(unittest.TestCase):
         return match
       assert_that(result, matcher())
 
+  def test_to_set(self):
+    pipeline = TestPipeline()
+    the_list = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
+    pcoll = pipeline | 'start' >> Create(the_list)
+    result = pcoll | 'to set' >> combine.ToSet()
+
+    def matcher(expected):
+      def match(actual):
+        equal_to(expected[0])(actual[0])
+      return match
+    assert_that(result, matcher(set(the_list)))
+
   def test_combine_globally_with_default(self):
     with TestPipeline() as p:
       assert_that(p | Create([]) | CombineGlobally(sum), equal_to([0]))

@@ -56,6 +56,7 @@ from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
+from apache_beam.runners.worker.worker_status import FnApiWorkerStatusHandler
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 if TYPE_CHECKING:
@@ -81,7 +82,8 @@ class SdkHarness(object):
                state_cache_size=0,
                # time-based data buffering is disabled by default
                data_buffer_time_limit_ms=0,
-               profiler_factory=None  # type: Optional[Callable[..., Profile]]
+               profiler_factory=None,  # type: Optional[Callable[..., Profile]]
+               status_address=None,  # type: Optional[str, unicode]
                ):
     self._alive = True
     self._worker_index = 0
@@ -111,6 +113,18 @@ class SdkHarness(object):
         state_handler_factory=self._state_handler_factory,
         data_channel_factory=self._data_channel_factory,
         fns=self._fns)
+
+    if status_address:
+      try:
+        self._status_handler = FnApiWorkerStatusHandler(
+            status_address, self._bundle_processor_cache)
+      except Exception:
+        traceback_string = traceback.format_exc()
+        _LOGGER.warning('Error creating worker status request handler, '
+                        'skipping status report. Trace back: %s' %
+                        traceback_string)
+    else:
+      self._status_handler = None
 
     # TODO(BEAM-8998) use common UnboundedThreadPoolExecutor to process bundle
     #  progress once dataflow runner's excessive progress polling is removed.
@@ -155,6 +169,8 @@ class SdkHarness(object):
     self._data_channel_factory.close()
     self._state_handler_factory.close()
     self._bundle_processor_cache.shutdown()
+    if self._status_handler:
+      self._status_handler.close()
     _LOGGER.info('Done consuming work.')
 
   def _execute(self,

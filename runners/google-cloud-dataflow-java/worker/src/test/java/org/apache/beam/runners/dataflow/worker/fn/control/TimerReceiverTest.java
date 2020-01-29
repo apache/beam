@@ -234,7 +234,9 @@ public class TimerReceiverTest implements Serializable {
     long testTimerOffset = 123456;
     // Arbitrary key.
     Object timer = timerBytes("X", testTimerOffset);
-    Object windowedTimer = WindowedValue.valueInGlobalWindow(timer);
+    Object windowedTimer =
+        WindowedValue.timestampedValueInGlobalWindow(
+            timer, BoundedWindow.TIMESTAMP_MIN_VALUE.plus(testTimerOffset));
 
     // Simulate the SDK Harness sending a timer element to the Runner Harness.
     assertTrue(timerReceiver.receive(timerOutputPCollection, windowedTimer));
@@ -349,10 +351,14 @@ public class TimerReceiverTest implements Serializable {
     long testTimerOffset = 123456;
     // Arbitrary key.
     Object timer1 = timerBytes("X", testTimerOffset);
-    Object windowedTimer1 = WindowedValue.valueInGlobalWindow(timer1);
+    Object windowedTimer1 =
+        WindowedValue.timestampedValueInGlobalWindow(
+            timer1, BoundedWindow.TIMESTAMP_MIN_VALUE.plus(testTimerOffset));
 
     Object timer2 = timerBytes("Y", testTimerOffset);
-    Object windowedTimer2 = WindowedValue.valueInGlobalWindow(timer2);
+    Object windowedTimer2 =
+        WindowedValue.timestampedValueInGlobalWindow(
+            timer2, BoundedWindow.TIMESTAMP_MIN_VALUE.plus(testTimerOffset));
 
     // Simulate the SDK Harness sending a timer element to the Runner Harness.
     assertTrue(

@@ -99,11 +99,8 @@ def portableValidatesRunnerTask(String name) {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
       excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesCounterMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesDistributionMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
       excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
@@ -138,7 +135,7 @@ def addTestJavaJarCreator(String pyVersion) {
                 "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
                 "--python_root_dir ${project.rootDir}/sdks/python",
                 "--python_version ${pyVersion}",
-                "--python_container_image apachebeam/python${pyVersion}_sdk:${project['python_sdk_version']}",
+                "--python_container_image apachebeam/python${pyVersion}_sdk:${project.sdk_version}",
         ]
         args "-c", "./test_spark_pipeline_jar.sh ${options.join(' ')}"
       }

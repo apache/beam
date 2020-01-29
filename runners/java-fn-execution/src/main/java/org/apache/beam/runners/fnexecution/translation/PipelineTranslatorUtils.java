@@ -139,10 +139,11 @@ public final class PipelineTranslatorUtils {
     Preconditions.checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
     BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
     Instant timestamp = timer.getTimestamp();
+    Instant outputTimestamp = timer.getOutputTimestamp();
     WindowedValue<KV<Object, Timer>> timerValue =
         WindowedValue.of(
             KV.of(currentTimerKey, Timer.of(timestamp, new byte[0])),
-            timestamp,
+            outputTimestamp,
             Collections.singleton(window),
             PaneInfo.NO_FIRING);
     timerConsumer.accept(timer.getTimerId(), timerValue);

@@ -55,9 +55,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
- * TODO[BEAM-8630]: This class is currently a prototype and not used in runtime.
- *
- * <p>BeamRelNode to replace {@code Project} and {@code Filter} node based on the {@code ZetaSQL}
+ * BeamRelNode to replace {@code Project} and {@code Filter} node based on the {@code ZetaSQL}
  * expression evaluator.
  */
 @Internal

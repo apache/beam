@@ -744,7 +744,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         @TimerId("processing") Timer processingTimeTimer) {
       context.output("main" + context.element().getKey() + Iterables.toString(bagState.read()));
       bagState.add(context.element().getValue());
-      eventTimeTimer.set(context.timestamp().plus(1L));
+      eventTimeTimer.withOutputTimestamp(context.timestamp()).set(context.timestamp().plus(1L));
       processingTimeTimer.offset(Duration.millis(2L));
       processingTimeTimer.setRelative();
     }
@@ -757,7 +757,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
         @TimerId("processing") Timer processingTimeTimer) {
       context.output("event" + Iterables.toString(bagState.read()));
       bagState.add("event");
-      eventTimeTimer.set(context.timestamp().plus(11L));
+      eventTimeTimer
+          .withOutputTimestamp(context.timestamp())
+          .set(context.fireTimestamp().plus(11L));
       processingTimeTimer.offset(Duration.millis(12L));
       processingTimeTimer.setRelative();
     }
@@ -770,7 +772,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         @TimerId("processing") Timer processingTimeTimer) {
       context.output("processing" + Iterables.toString(bagState.read()));
       bagState.add("processing");
-      eventTimeTimer.set(context.timestamp().plus(21L));
+      eventTimeTimer.withOutputTimestamp(context.timestamp()).set(context.timestamp().plus(21L));
       processingTimeTimer.offset(Duration.millis(22L));
       processingTimeTimer.setRelative();
     }
@@ -929,9 +931,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
             timerInGlobalWindow("Y", new Instant(1100L), new Instant(1101L)),
             timerInGlobalWindow("X", new Instant(1200L), new Instant(1201L)),
             timerInGlobalWindow("Y", new Instant(1300L), new Instant(1301L)),
-            timerInGlobalWindow("A", new Instant(1400L), new Instant(1411L)),
-            timerInGlobalWindow("B", new Instant(1500L), new Instant(1511L)),
-            timerInGlobalWindow("A", new Instant(1600L), new Instant(1611L)),
+            timerInGlobalWindow("A", new Instant(1400L), new Instant(2411L)),
+            timerInGlobalWindow("B", new Instant(1500L), new Instant(2511L)),
+            timerInGlobalWindow("A", new Instant(1600L), new Instant(2611L)),
             timerInGlobalWindow("X", new Instant(1700L), new Instant(1721L)),
             timerInGlobalWindow("C", new Instant(1800L), new Instant(1821L)),
             timerInGlobalWindow("B", new Instant(1900L), new Instant(1921L))));

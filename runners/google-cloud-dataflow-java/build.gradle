@@ -39,7 +39,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '7',
     'dataflow.fnapi_environment_major_version' : '7',
-    'dataflow.container_version' : 'beam-master-20191226'
+    'dataflow.container_version' : 'beam-master-20200123'
   ]
 }
 
@@ -218,7 +218,7 @@ task buildAndPushDockerContainer() {
   def defaultDockerImageName = containerImageName(
           name: "java_sdk",
           root: "apachebeam",
-          tag: project.version)
+          tag: project.sdk_version)
   doLast {
     exec {
       commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerImageName}"
