@@ -375,7 +375,8 @@ public class CassandraIO {
   static class CassandraSource<T> extends BoundedSource<T> {
     final Read<T> spec;
     final List<String> splitQueries;
-    final Long estimatedSize;
+    // split source ached size - can't be calculated when already split
+    Long estimatedSize;
     private static final String MURMUR3PARTITIONER = "org.apache.cassandra.dht.Murmur3Partitioner";
 
     CassandraSource(Read<T> spec, List<String> splitQueries) {
@@ -458,7 +459,7 @@ public class CassandraIO {
 
       List<TokenRange> tokenRanges =
           getTokenRanges(cluster, spec.keyspace().get(), spec.table().get());
-      final long estimatedSize = getEstimatedSizeBytesFromTokenRanges(tokenRanges);
+      final long estimatedSize = getEstimatedSizeBytesFromTokenRanges(tokenRanges)/splits.size();
 
       List<BoundedSource<T>> sources = new ArrayList<>();
       for (List<RingRange> split : splits) {
@@ -516,6 +517,12 @@ public class CassandraIO {
       return minNumberOfSplits != null ? Math.max(numSplits, minNumberOfSplits.get()) : numSplits;
     }
 
+    /**
+     * Returns cached estimate for split or if missing calculate size for whole table.
+     * Highly innacurate if query is specified.
+     * @param pipelineOptions
+     * @return
+     */
     @Override
     public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) {
       if (estimatedSize != null) {
@@ -533,7 +540,8 @@ public class CassandraIO {
             try {
               List<TokenRange> tokenRanges =
                   getTokenRanges(cluster, spec.keyspace().get(), spec.table().get());
-              return getEstimatedSizeBytesFromTokenRanges(tokenRanges);
+              this.estimatedSize = getEstimatedSizeBytesFromTokenRanges(tokenRanges);
+              return this.estimatedSize;
             } catch (Exception e) {
               LOG.warn("Can't estimate the size", e);
               return 0L;
