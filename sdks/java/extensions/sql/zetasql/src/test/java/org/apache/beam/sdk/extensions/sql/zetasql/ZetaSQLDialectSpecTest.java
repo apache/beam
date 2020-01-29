@@ -58,7 +58,6 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
-import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
@@ -215,8 +214,7 @@ public class ZetaSQLDialectSpecTest {
     ImmutableList<Value> params = ImmutableList.of(Value.createStringValue("abc\n"));
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode =
-        zetaSQLQueryPlanner.convertToBeamRel(sql, QueryParameters.ofPositional(params));
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
     final Schema schema = Schema.builder().addNullableField("ColA", FieldType.STRING).build();
@@ -332,8 +330,7 @@ public class ZetaSQLDialectSpecTest {
     ImmutableList<Value> params =
         ImmutableList.of(Value.createInt64Value(4L), Value.createInt64Value(5L));
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode =
-        zetaSQLQueryPlanner.convertToBeamRel(sql, QueryParameters.ofPositional(params));
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
@@ -431,8 +428,7 @@ public class ZetaSQLDialectSpecTest {
             Value.createBoolValue(true), Value.createInt64Value(1), Value.createInt64Value(2));
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode =
-        zetaSQLQueryPlanner.convertToBeamRel(sql, QueryParameters.ofPositional(params));
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.INT64).build();
@@ -3012,8 +3008,7 @@ public class ZetaSQLDialectSpecTest {
             Value.createStringValue("c"));
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode =
-        zetaSQLQueryPlanner.convertToBeamRel(sql, QueryParameters.ofPositional(params));
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
     final Schema schema = Schema.builder().addStringField("field1").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("abc").build());
