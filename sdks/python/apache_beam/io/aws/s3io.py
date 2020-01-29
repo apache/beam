@@ -85,7 +85,7 @@ class S3IO(object):
       S3 file object.
 
     Raises:
-      ~exceptions.ValueError: Invalid open file mode.
+      ValueError: Invalid open file mode.
     """
     if mode == 'r' or mode == 'rb':
       downloader = S3Downloader(self.client, filename,
@@ -171,7 +171,7 @@ class S3IO(object):
       dest: S3 file path pattern in the form s3://<bucket>/<name>.
 
     Raises:
-      TimeoutError on timeout.
+      TimeoutError: on timeout.
     """
     src_bucket, src_key = parse_s3_path(src)
     dest_bucket, dest_key = parse_s3_path(dest)

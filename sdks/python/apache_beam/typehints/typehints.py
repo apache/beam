@@ -147,10 +147,10 @@ class TypeConstraint(object):
       instance: An instance of a Python object.
 
     Raises:
-      :class:`~exceptions.TypeError`: The passed **instance** doesn't satisfy
+      :class:`TypeError`: The passed **instance** doesn't satisfy
         this :class:`TypeConstraint`. Subclasses of
         :class:`TypeConstraint` are free to raise any of the subclasses of
-        :class:`~exceptions.TypeError` defined above, depending on
+        :class:`TypeError` defined above, depending on
         the manner of the type hint error.
 
     All :class:`TypeConstraint` sub-classes must define this method in other
@@ -345,7 +345,7 @@ def validate_composite_type_param(type_param, error_msg_prefix):
       message in the case of an exception.
 
   Raises:
-    ~exceptions.TypeError: If the passed **type_param** is not a valid type
+    TypeError: If the passed **type_param** is not a valid type
       parameter for a :class:`CompositeTypeHint`.
   """
   # Must either be a TypeConstraint instance or a basic Python type.

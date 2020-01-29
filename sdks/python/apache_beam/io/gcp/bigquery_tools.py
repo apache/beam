@@ -473,7 +473,7 @@ class BigQueryWrapper(object):
     Returns:
       bigquery.Table instance
     Raises:
-      HttpError if lookup failed.
+      HttpError: if lookup failed.
     """
     request = bigquery.BigqueryTablesGetRequest(
         projectId=project_id, datasetId=dataset_id, tableId=table_id)

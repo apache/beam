@@ -155,7 +155,7 @@ class GcsIO(object):
       GCS file object.
 
     Raises:
-      ~exceptions.ValueError: Invalid open file mode.
+      ValueError: Invalid open file mode.
     """
     if mode == 'r' or mode == 'rb':
       downloader = GcsDownloader(self.client, filename,
@@ -242,7 +242,7 @@ class GcsIO(object):
         Used for testing.
 
     Raises:
-      TimeoutError on timeout.
+      TimeoutError: on timeout.
     """
     src_bucket, src_path = parse_gcs_path(src)
     dest_bucket, dest_path = parse_gcs_path(dest)

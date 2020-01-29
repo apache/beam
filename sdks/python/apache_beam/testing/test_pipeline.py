@@ -93,7 +93,7 @@ class TestPipeline(Pipeline):
         included when construction the pipeline options object.
 
     Raises:
-      ~exceptions.ValueError: if either the runner or options argument is not
+      ValueError: if either the runner or options argument is not
         of the expected type.
     """
     self.is_integration_test = is_integration_test

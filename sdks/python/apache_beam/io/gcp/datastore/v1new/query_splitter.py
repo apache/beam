@@ -74,7 +74,7 @@ def get_splits(client, query, num_splits):
     A list of split queries, of a max length of `num_splits`
 
   Raises:
-    QuerySplitterError if split could not be performed owing to query or split
+    QuerySplitterError: if split could not be performed owing to query or split
       parameters.
   """
   if num_splits <= 1:
