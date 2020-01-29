@@ -615,16 +615,21 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <p>A splittable {@link DoFn} must obey the following constraints:
    *
    * <ul>
+   *   <li>The type of restrictions used by all of these methods must be the same.
    *   <li>It <i>must</i> define a {@link GetInitialRestriction} method.
    *   <li>It <i>should</i> define a {@link GetSize} method or ensure that the {@link
-   *       RestrictionTracker} implements {@link Sizes.HasSize}.
-   *   <li>It <i>should</i> define a {@link SplitRestriction} method.
+   *       RestrictionTracker} implements {@link Sizes.HasSize}. Poor auto-scaling of workers and/or
+   *       splitting may result if neither is defined or if the size is an inaccurate representation
+   *       of work. See {@link GetSize} and {@link Sizes.HasSize} for further details.
+   *   <li>It <i>should</i> define a {@link SplitRestriction} method. This method enables runners to
+   *       perform bulk splitting initially allowing for a rapid increase in parallelism. See {@link
+   *       RestrictionTracker#trySplit} for details about splitting when the current element and
+   *       restriction are actively being processed.
    *   <li>It <i>may</i> define a {@link NewTracker} method returning a subtype of {@code
    *       RestrictionTracker<R>} where {@code R} is the restriction type returned by {@link
-   *       GetInitialRestriction}. This method is optional in case the restriction type returned by
+   *       GetInitialRestriction}. This method is optional only if the restriction type returned by
    *       {@link GetInitialRestriction} implements {@link HasDefaultTracker}.
    *   <li>It <i>may</i> define a {@link GetRestrictionCoder} method.
-   *   <li>The type of restrictions used by all of these methods must be the same.
    *   <li>The {@link DoFn} itself <i>may</i> be annotated with {@link BoundedPerElement} or {@link
    *       UnboundedPerElement}, but not both at the same time. If it's not annotated with either of
    *       these, it's assumed to be {@link BoundedPerElement} if its {@link ProcessElement} method
@@ -633,9 +638,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *   <li>Timers and state must not be used.
    * </ul>
    *
-   * <p>A non-splittable {@link DoFn} <i>must not</i> define any of these methods.
-   *
-   * <p>This method must satisfy the following constraints:
+   * <p>If this DoFn is splittable, this method must satisfy the following constraints:
    *
    * <ul>
    *   <li>One of its arguments must be a {@link RestrictionTracker}. The argument must be of the
@@ -816,7 +819,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *       a square is a type of a shape).
    *   <li>If one of its arguments is tagged with the {@link Element} annotation, then it will be
    *       passed the current element being processed; the argument must be of type {@code InputT}.
-   *       Note that schema element parameters are currently unsupported.
+   *       Note that automatic conversion of {@link Row}s and {@link FieldAccess} parameters are
+   *       currently unsupported.
    *   <li>If one of its arguments is tagged with the {@link Timestamp} annotation, then it will be
    *       passed the timestamp of the current element being processed; the argument must be of type
    *       {@link Instant}.
@@ -847,7 +851,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <ul>
    *   <li>If one of its arguments is tagged with the {@link Element} annotation, then it will be
    *       passed the current element being processed; the argument must be of type {@code InputT}.
-   *       Note that schema element parameters are currently unsupported.
+   *       Note that automatic conversion of {@link Row}s and {@link FieldAccess} parameters are
+   *       currently unsupported.
    *   <li>If one of its arguments is tagged with the {@link Restriction} annotation, then it will
    *       be passed the current restriction being processed; the argument must be of type {@code
    *       RestrictionT}.
@@ -930,7 +935,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *       parameter.
    *   <li>If one of its arguments is tagged with the {@link Element} annotation, then it will be
    *       passed the current element being processed; the argument must be of type {@code InputT}.
-   *       Note that schema element parameters are currently unsupported.
+   *       Note that automatic conversion of {@link Row}s and {@link FieldAccess} parameters are
+   *       currently unsupported.
    *   <li>If one of its arguments is tagged with the {@link Restriction} annotation, then it will
    *       be passed the current restriction being processed; the argument must be of type {@code
    *       RestrictionT}.
@@ -970,7 +976,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *       prefer to use a square type over a shape type as a square is a type of a shape).
    *   <li>If one of its arguments is tagged with the {@link Element} annotation, then it will be
    *       passed the current element being processed; the argument must be of type {@code InputT}.
-   *       Note that schema element parameters are currently unsupported.
+   *       Note that automatic conversion of {@link Row}s and {@link FieldAccess} parameters are
+   *       currently unsupported.
    *   <li>If one of its arguments is tagged with the {@link Restriction} annotation, then it will
    *       be passed the current restriction being processed; the argument must be of type {@code
    *       RestrictionT}.
