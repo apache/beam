@@ -319,7 +319,7 @@ class Coder(object):
     """
     def register(fn):
       cls._known_urns[urn] = parameter_type, fn
-      return staticmethod(fn)
+      return fn
     if fn:
       # Used as a statement.
       register(fn)
@@ -925,6 +925,7 @@ class AvroGenericCoder(FastCoder):
   def to_runner_api_parameter(self, context):
     return AVRO_GENERIC_CODER_URN, self.schema, ()
 
+  @staticmethod
   @Coder.register_urn(AVRO_GENERIC_CODER_URN, bytes)
   def from_runner_api_parameter(payload, unused_components, unused_context):
     return AvroGenericCoder(payload)
@@ -1014,6 +1015,7 @@ class TupleCoder(FastCoder):
     else:
       return super(TupleCoder, self).to_runner_api_parameter(context)
 
+  @staticmethod
   @Coder.register_urn(common_urns.coders.KV.urn, None)
   def from_runner_api_parameter(unused_payload, components, unused_context):
     return TupleCoder(components)
@@ -1270,6 +1272,7 @@ class ParamWindowedValueCoder(WindowedValueCoder):
                  self.window_coder,
                  self.payload))
 
+  @staticmethod
   @Coder.register_urn(common_urns.coders.PARAM_WINDOWED_VALUE.urn, bytes)
   def from_runner_api_parameter(payload, components, unused_context):
     return ParamWindowedValueCoder(payload, components)
@@ -1376,6 +1379,7 @@ class StateBackedIterableCoder(FastCoder):
         str(self._write_state_threshold).encode('ascii'),
         self._get_component_coders())
 
+  @staticmethod
   @Coder.register_urn(common_urns.coders.STATE_BACKED_ITERABLE.urn, bytes)
   def from_runner_api_parameter(payload, components, context):
     return StateBackedIterableCoder(

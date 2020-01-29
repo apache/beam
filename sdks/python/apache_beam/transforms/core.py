@@ -1326,6 +1326,7 @@ class ParDo(PTransformWithSideInputs):
                 "side%s" % ix: si.to_runner_api(context)
                 for ix, si in enumerate(self.side_inputs)}))
 
+  @staticmethod
   @PTransform.register_urn(
       common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
   def from_runner_api_parameter(pardo_payload, context):
@@ -1900,6 +1901,7 @@ class CombinePerKey(PTransformWithSideInputs):
         common_urns.composites.COMBINE_PER_KEY.urn,
         _combine_payload(combine_fn, context))
 
+  @staticmethod
   @PTransform.register_urn(
       common_urns.composites.COMBINE_PER_KEY.urn,
       beam_runner_api_pb2.CombinePayload)
@@ -1942,6 +1944,7 @@ class CombineValues(PTransformWithSideInputs):
         common_urns.combine_components.COMBINE_GROUPED_VALUES.urn,
         _combine_payload(combine_fn, context))
 
+  @staticmethod
   @PTransform.register_urn(
       common_urns.combine_components.COMBINE_GROUPED_VALUES.urn,
       beam_runner_api_pb2.CombinePayload)
@@ -2170,6 +2173,7 @@ class GroupByKey(PTransform):
     # type: (PipelineContext) -> typing.Tuple[str, None]
     return common_urns.primitives.GROUP_BY_KEY.urn, None
 
+  @staticmethod
   @PTransform.register_urn(common_urns.primitives.GROUP_BY_KEY.urn, None)
   def from_runner_api_parameter(unused_payload, unused_context):
     return GroupByKey()
@@ -2641,6 +2645,7 @@ class Impulse(PTransform):
     # type: (PipelineContext) -> typing.Tuple[str, None]
     return common_urns.primitives.IMPULSE.urn, None
 
+  @staticmethod
   @PTransform.register_urn(common_urns.primitives.IMPULSE.urn, None)
   def from_runner_api_parameter(unused_parameter, unused_context):
     return Impulse()
