@@ -36,14 +36,11 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.typehints import WithTypeHints
-from apache_beam.typehints import decorators
 from apache_beam.typehints.decorators import get_signature
 
 # These test often construct a pipeline as value | PTransform to test side
 # effects (e.g. errors).
 # pylint: disable=expression-not-assigned
-
-decorators._enable_from_callable = True
 
 
 class MainInputTest(unittest.TestCase):

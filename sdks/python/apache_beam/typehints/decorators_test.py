@@ -33,8 +33,6 @@ from apache_beam.typehints import WithTypeHints
 from apache_beam.typehints import decorators
 from apache_beam.typehints import typehints
 
-decorators._enable_from_callable = True
-
 
 class IOTypeHintsTest(unittest.TestCase):
   def test_get_signature(self):
@@ -219,6 +217,16 @@ class WithTypeHintsTest(unittest.TestCase):
     self.assertEqual(Subclass().get_type_hints(), Subclass._type_hints)
     self.assertNotEqual(
         Subclass().with_input_types(str)._type_hints, Subclass._type_hints)
+
+
+class DecoratorsTest(unittest.TestCase):
+  def tearDown(self):
+    decorators._disable_from_callable = False
+
+  def test_disable_type_annotations(self):
+    self.assertFalse(decorators._disable_from_callable)
+    decorators.disable_type_annotations()
+    self.assertTrue(decorators._disable_from_callable)
 
 
 if __name__ == '__main__':
