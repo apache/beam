@@ -199,11 +199,11 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     return withTableProvider(name, tableProvider).toBuilder().setDefaultTableProvider(name).build();
   }
 
-  public SqlTransform withNamedParameters(Map parameters) {
+  public SqlTransform withNamedParameters(Map<String, ?> parameters) {
     return toBuilder().setQueryParameters(QueryParameters.ofNamed(parameters)).build();
   }
 
-  public SqlTransform withPositionalParameters(List parameters) {
+  public SqlTransform withPositionalParameters(List<?> parameters) {
     return toBuilder().setQueryParameters(QueryParameters.ofPositional(parameters)).build();
   }
 

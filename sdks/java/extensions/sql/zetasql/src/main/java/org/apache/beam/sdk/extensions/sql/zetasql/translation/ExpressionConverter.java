@@ -64,7 +64,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
-import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters.Kind;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperatorRewriter;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperators;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable;
@@ -1002,27 +1001,27 @@ public class ExpressionConverter {
   }
 
   private RexNode convertResolvedParameter(ResolvedParameter parameter) {
-    if (queryParams.getKind() == Kind.NAMED) {
-      Map<String, Value> queryParameterMap = (Map<String, Value>) queryParams.named();
-      Value value = queryParameterMap.get(parameter.getName());
-      Preconditions.checkState(
-          parameter.getType().equals(value.getType()),
-          String.format(
-              "Expected resolved parameter %s to have type %s, but it has type %s",
-              parameter.getName(), value.getType(), parameter.getType()));
-      return convertValueToRexNode(value.getType(), value);
-    } else if (queryParams.getKind() == Kind.POSITIONAL) {
-      List<Value> queryParameterList = (List<Value>) queryParams.positional();
-      // parameter is 1-indexed, while parameter list is 0-indexed.
-      Value value = queryParameterList.get((int) parameter.getPosition() - 1);
-      Preconditions.checkState(
-          parameter.getType().equals(value.getType()),
-          String.format(
-              "Expected resolved parameter %d to have type %s, but it has type %s",
-              parameter.getPosition(), value.getType(), parameter.getType()));
-      return convertValueToRexNode(value.getType(), value);
+    Value value;
+    String identifier;
+    switch (queryParams.getKind()) {
+      case NAMED:
+        value = ((Map<String, Value>) queryParams.named()).get(parameter.getName());
+        identifier = parameter.getName();
+        break;
+      case POSITIONAL:
+        // parameter is 1-indexed, while parameter list is 0-indexed.
+        value = ((List<Value>) queryParams.positional()).get((int) parameter.getPosition() - 1);
+        identifier = Long.toString(parameter.getPosition());
+        break;
+      default:
+        throw new IllegalArgumentException("Found unexpected parameter " + parameter);
     }
-    throw new IllegalArgumentException("Found unexpected parameter " + parameter);
+    Preconditions.checkState(
+        parameter.getType().equals(value.getType()),
+        String.format(
+            "Expected resolved parameter %s to have type %s, but it has type %s",
+            identifier, value.getType(), parameter.getType()));
+    return convertValueToRexNode(value.getType(), value);
   }
 
   private RexNode convertResolvedStructFieldAccess(ResolvedGetStructField resolvedGetStructField) {
