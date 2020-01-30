@@ -891,7 +891,7 @@ def _use_fnapi(pipeline_options):
 
 def _use_unified_worker(pipeline_options):
   if not _use_fnapi(pipeline_options):
-    return
+    return False
   debug_options = pipeline_options.view_as(DebugOptions)
   use_unified_worker_flag = 'use_unified_worker'
 
