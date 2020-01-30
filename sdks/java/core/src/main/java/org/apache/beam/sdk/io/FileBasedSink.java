@@ -965,8 +965,9 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       } catch (Exception e) {
         LOG.error("Closing channel for {} failed.", filename, e);
         prior.addSuppressed(e);
-        throw prior;
       }
+      // We should fail here regardless of whether above channel.close() call failed or not.
+      throw prior;
     }
 
     public final void cleanup() throws Exception {
