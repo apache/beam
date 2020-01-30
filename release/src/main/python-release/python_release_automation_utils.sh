@@ -307,7 +307,7 @@ function verify_hourly_team_score() {
       else
         retry=$(($retry-1))
         echo "Did not find team scores, retry left: $retry"
-        sleep 15
+        sleep 1m
       fi
     else
       echo "FAILED: HourlyTeamScore example failed running on $1-runner. \
