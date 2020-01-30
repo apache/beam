@@ -991,7 +991,7 @@ class _MakeMutationGroupsFn(DoFn):
 
 class _WriteGroup(PTransform):
 
-  def __init__(self, max_batch_size_bytes=1024):
+  def __init__(self, max_batch_size_bytes=1048576):
     self._max_batch_size_bytes = max_batch_size_bytes
 
   def expand(self, pcoll):
