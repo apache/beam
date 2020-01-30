@@ -63,9 +63,15 @@ def run_bq_pipeline(argv=None):
 
   # Note to future modifiers: Keep using BigQuerySource if known_args.native is
   # True.
-  data = p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
-      query=known_args.query, use_standard_sql=known_args.use_standard_sql,
-      kms_key=kms_key))
+  if known_args.native:
+    data = p | 'read' >> beam.io.gcp.bigquery._ReadFromBigQuery(
+        query=known_args.query,
+        use_standard_sql=known_args.use_standard_sql,
+        kms_key=kms_key)
+  else:
+    data = p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
+        query=known_args.query, use_standard_sql=known_args.use_standard_sql,
+        kms_key=kms_key))
   if known_args.native:
     _ = data | 'write' >> beam.io.Write(beam.io.BigQuerySink(
         known_args.output,
