@@ -249,7 +249,8 @@ function verify_steaming_result() {
         cleanup_pubsub
         kill -9 $2
         if [[ $1 = "DataflowRunner" ]]; then
-          gcloud dataflow jobs cancel $3
+          if [[ ! -z "$3" ]]; then
+            gcloud dataflow jobs cancel $3
         fi
         complete "failed when running streaming wordcount example with $1."
         exit 1
@@ -296,7 +297,7 @@ function verify_user_score() {
 #   Runner - direct, dataflow
 #######################################
 function verify_hourly_team_score() {
-  retry=10
+  retry=5
   should_see='AntiqueBrassPlatypus'
   while(( $retry >= 0 )); do
     if [[ $retry > 0 ]]; then
