@@ -198,6 +198,7 @@ function verify_streaming_wordcount_dataflow() {
         break
       fi
     fi
+  done
   # verify result
   run_pubsub_publish
   sleep 420
