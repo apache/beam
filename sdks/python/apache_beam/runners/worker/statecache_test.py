@@ -71,6 +71,14 @@ class StateCacheTest(unittest.TestCase):
                                 'evict': 0,
                                 'size': 2, 'capacity': 3})
 
+  def test_extend_non_list(self):
+    cache = self.get_cache(3)
+    cache.put("key", "cache_token", tuple(['val']))
+    cache.extend("key", "cache_token", ['yet', 'another', 'val'])
+    self.assertEqual(cache.size(), 1)
+    self.assertEqual(list(cache.get("key", "cache_token")),
+                     ['val', 'yet', 'another', 'val'])
+
   def test_clear(self):
     cache = self.get_cache(5)
     cache.clear("new-key", "cache_token")
