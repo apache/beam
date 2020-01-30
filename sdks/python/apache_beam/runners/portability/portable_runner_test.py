@@ -315,7 +315,8 @@ class PortableRunnerInternalTest(unittest.TestCase):
   def test__create_default_environment(self):
     docker_image = environments.DockerEnvironment.default_docker_image()
     self.assertEqual(
-        PortableRunner._create_environment(PipelineOptions.from_dictionary({})),
+        PortableRunner._create_environment(
+            PipelineOptions.from_dictionary({'sdk_location': 'container'})),
         environments.DockerEnvironment(container_image=docker_image))
 
   def test__create_docker_environment(self):
@@ -325,6 +326,7 @@ class PortableRunnerInternalTest(unittest.TestCase):
             PipelineOptions.from_dictionary({
                 'environment_type': 'DOCKER',
                 'environment_config': docker_image,
+                'sdk_location': 'container',
             })),
         environments.DockerEnvironment(container_image=docker_image))
 
@@ -336,6 +338,7 @@ class PortableRunnerInternalTest(unittest.TestCase):
                 'environment_config': '{"os": "linux", "arch": "amd64", '
                 '"command": "run.sh", '
                 '"env":{"k1": "v1"} }',
+                'sdk_location': 'container',
             })),
         environments.ProcessEnvironment(
             'run.sh', os='linux', arch='amd64', env={'k1': 'v1'}))
@@ -344,6 +347,7 @@ class PortableRunnerInternalTest(unittest.TestCase):
             PipelineOptions.from_dictionary({
                 'environment_type': 'PROCESS',
                 'environment_config': '{"command": "run.sh"}',
+                'sdk_location': 'container',
             })),
         environments.ProcessEnvironment('run.sh'))
 
@@ -353,6 +357,7 @@ class PortableRunnerInternalTest(unittest.TestCase):
             PipelineOptions.from_dictionary({
                 'environment_type': "EXTERNAL",
                 'environment_config': 'localhost:50000',
+                'sdk_location': 'container',
             })),
         environments.ExternalEnvironment('localhost:50000'))
     raw_config = ' {"url":"localhost:50000", "params":{"k1":"v1"}} '
@@ -362,6 +367,7 @@ class PortableRunnerInternalTest(unittest.TestCase):
               PipelineOptions.from_dictionary({
                   'environment_type': "EXTERNAL",
                   'environment_config': env_config,
+                  'sdk_location': 'container',
               })),
           environments.ExternalEnvironment(
               'localhost:50000', params={"k1": "v1"}))
@@ -370,12 +376,14 @@ class PortableRunnerInternalTest(unittest.TestCase):
           PipelineOptions.from_dictionary({
               'environment_type': "EXTERNAL",
               'environment_config': '{invalid}',
+              'sdk_location': 'container',
           }))
     with self.assertRaises(ValueError) as ctx:
       PortableRunner._create_environment(
           PipelineOptions.from_dictionary({
               'environment_type': "EXTERNAL",
               'environment_config': '{"params":{"k1":"v1"}}',
+              'sdk_location': 'container',
           }))
     self.assertIn(
         'External environment endpoint must be set.', ctx.exception.args)
