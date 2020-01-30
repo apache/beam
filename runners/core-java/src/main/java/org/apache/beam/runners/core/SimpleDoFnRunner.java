@@ -748,7 +748,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       try {
         TimerSpec spec = (TimerSpec) signature.timerDeclarations().get(timerId).field().get(fn);
         return new TimerInternalsTimer(
-            window(), getNamespace(), timerId, spec, stepContext.timerInternals());
+            window(), getNamespace(), timerId, spec, timestamp(), stepContext.timerInternals());
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
@@ -760,7 +760,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         TimerSpec spec =
             (TimerSpec) signature.timerFamilyDeclarations().get(timerFamilyId).field().get(fn);
         return new TimerInternalsTimerMap(
-            timerFamilyId, window(), getNamespace(), spec, stepContext.timerInternals());
+            timerFamilyId,
+            window(),
+            getNamespace(),
+            spec,
+            timestamp(),
+            stepContext.timerInternals());
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
@@ -930,7 +935,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       try {
         TimerSpec spec = (TimerSpec) signature.timerDeclarations().get(timerId).field().get(fn);
         return new TimerInternalsTimer(
-            window, getNamespace(), timerId, spec, stepContext.timerInternals());
+            window, getNamespace(), timerId, spec, fireTimestamp(), stepContext.timerInternals());
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
@@ -942,7 +947,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         TimerSpec spec =
             (TimerSpec) signature.timerFamilyDeclarations().get(timerFamilyId).field().get(fn);
         return new TimerInternalsTimerMap(
-            timerFamilyId, window(), getNamespace(), spec, stepContext.timerInternals());
+            timerFamilyId,
+            window(),
+            getNamespace(),
+            spec,
+            fireTimestamp(),
+            stepContext.timerInternals());
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
@@ -987,6 +997,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final TimerSpec spec;
     private Instant target;
     private Instant outputTimestamp;
+    private Instant elementInputTimestamp;
     private Duration period = Duration.ZERO;
     private Duration offset = Duration.ZERO;
 
@@ -995,12 +1006,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         StateNamespace namespace,
         String timerId,
         TimerSpec spec,
+        Instant elementInputTimestamp,
         TimerInternals timerInternals) {
       this.window = window;
       this.namespace = namespace;
       this.timerId = timerId;
       this.timerFamilyId = "";
       this.spec = spec;
+      this.elementInputTimestamp = elementInputTimestamp;
       this.timerInternals = timerInternals;
     }
 
@@ -1010,12 +1023,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         String timerId,
         String timerFamilyId,
         TimerSpec spec,
+        Instant elementInputTimestamp,
         TimerInternals timerInternals) {
       this.window = window;
       this.namespace = namespace;
       this.timerId = timerId;
       this.timerFamilyId = timerFamilyId;
       this.spec = spec;
+      this.elementInputTimestamp = elementInputTimestamp;
       this.timerInternals = timerInternals;
     }
 
@@ -1094,15 +1109,21 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private void setAndVerifyOutputTimestamp() {
 
       // Output timestamp is set to the delivery time if not initialized by an user.
-      if (outputTimestamp == null) {
+      if (outputTimestamp == null && TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
         outputTimestamp = target;
+      } else {
+        // For processing timers output timestamp will be:
+        // 1) timestamp of input element
+        // OR
+        // 2) output timestamp of firing timer.
+        outputTimestamp = elementInputTimestamp;
       }
 
       checkArgument(
-          !outputTimestamp.isAfter(target),
-          "Attempted to set output timestamp: %s after delivery timestamp: %s",
+          !outputTimestamp.isBefore(elementInputTimestamp),
+          "output timestamp %s should be after input message timestamp or output timestamp of firing timers %s",
           outputTimestamp,
-          target);
+          elementInputTimestamp);
 
       if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
         Instant windowExpiry = window.maxTimestamp().plus(allowedLateness);
@@ -1147,6 +1168,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final BoundedWindow window;
     private final StateNamespace namespace;
     private final TimerSpec spec;
+    private final Instant elementInputTimestamp;
     private final String timerFamilyId;
 
     public TimerInternalsTimerMap(
@@ -1154,10 +1176,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         BoundedWindow window,
         StateNamespace namespace,
         TimerSpec spec,
+        Instant elementInputTimestamp,
         TimerInternals timerInternals) {
       this.window = window;
       this.namespace = namespace;
       this.spec = spec;
+      this.elementInputTimestamp = elementInputTimestamp;
       this.timerInternals = timerInternals;
       this.timerFamilyId = timerFamilyId;
     }
@@ -1165,7 +1189,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public void set(String timerId, Instant absoluteTime) {
       Timer timer =
-          new TimerInternalsTimer(window, namespace, timerId, timerFamilyId, spec, timerInternals);
+          new TimerInternalsTimer(
+              window,
+              namespace,
+              timerId,
+              timerFamilyId,
+              spec,
+              elementInputTimestamp,
+              timerInternals);
       timer.set(absoluteTime);
       timers.put(timerId, timer);
     }
@@ -1175,7 +1206,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       if (timers.get(timerId) == null) {
         Timer timer =
             new TimerInternalsTimer(
-                window, namespace, timerId, timerFamilyId, spec, timerInternals);
+                window,
+                namespace,
+                timerId,
+                timerFamilyId,
+                spec,
+                elementInputTimestamp,
+                timerInternals);
         timers.put(timerId, timer);
       }
       return timers.get(timerId);
