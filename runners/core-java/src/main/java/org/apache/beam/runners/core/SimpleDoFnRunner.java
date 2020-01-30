@@ -131,9 +131,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     this.invoker = DoFnInvokers.invokerFor(fn);
     this.sideInputReader = sideInputReader;
     this.schemaCoder =
-        (inputCoder != null && inputCoder instanceof SchemaCoder)
-            ? (SchemaCoder<InputT>) inputCoder
-            : null;
+        (inputCoder instanceof SchemaCoder) ? (SchemaCoder<InputT>) inputCoder : null;
     this.outputCoders = outputCoders;
     if (outputCoders != null && !outputCoders.isEmpty()) {
       Coder<OutputT> outputCoder = (Coder<OutputT>) outputCoders.get(mainOutputTag);

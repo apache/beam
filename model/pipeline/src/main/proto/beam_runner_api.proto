@@ -175,7 +175,6 @@ message StandardPTransforms {
   enum Primitives {
     // Represents Beam's parallel do operation.
     // Payload: ParDoPayload.
-    // TODO(BEAM-3595): Change this to beam:transform:pardo:v1.
     PAR_DO = 0 [(beam_urn) = "beam:transform:pardo:v1"];
 
     // Represents Beam's flatten operation.
@@ -398,6 +397,9 @@ message ParDoPayload {
 
   // (Optional) A mapping of local timer family names to timer specifications.
   map<string, TimerFamilySpec> timer_family_specs = 9;
+  
+  // Whether this stage requires time sorted input
+  bool requires_time_sorted_input = 10;
 }
 
 // Parameters that a UDF might require.
