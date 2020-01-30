@@ -21,7 +21,8 @@
 
 from __future__ import absolute_import
 
-import abc
+# TODO(BEAM-2685): Issue with dill + local classes + abc metaclass
+# import abc
 import inspect
 from builtins import object
 from typing import TYPE_CHECKING
@@ -68,14 +69,20 @@ class RunnerApiFn(object):
 
   _known_urns = {}  # type: Dict[str, Tuple[Optional[type], ConstructorFn]]
 
-  @abc.abstractmethod
+  # @abc.abstractmethod is disabled here to avoid an error with mypy. mypy
+  # performs abc.abtractmethod/property checks even if a class does
+  # not use abc.ABCMeta, however, functions like `register_pickle_urn`
+  # dynamically patch `to_runner_api_parameter`, which mypy cannot track, so
+  # mypy incorrectly infers that this method has not been overridden with a
+  # concrete implementation.
+  # @abc.abstractmethod
   def to_runner_api_parameter(self, unused_context):
     # type: (PipelineContext) -> Tuple[str, Any]
     """Returns the urn and payload for this Fn.
 
     The returned urn(s) should be registered with `register_urn`.
     """
-    pass
+    raise NotImplementedError
 
   @classmethod
   @overload
