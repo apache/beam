@@ -74,7 +74,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                         project             : 'apache-beam-testing',
                         metrics_dataset     : datasetName,
                         metrics_table       : "python_flink_batch_GBK_3",
-                        input_options       : '\'{"num_records": 2000,"key_size": 100000,"value_size":900000}\'',
+                        input_options       : '\'{"num_records": 20000,"key_size": 10000,"value_size":90000}\'',
                         iterations          : 1,
                         fanout              : 1,
                         parallelism         : 5,
