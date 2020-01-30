@@ -75,7 +75,8 @@ class RunnerApiTest(unittest.TestCase):
     self.assertIn(common_urns.protocols.WORKER_STATUS.urn, sdk_capabilities)
 
   def test_default_capabilities(self):
-    environment = DockerEnvironment.from_options(PortableOptions())
+    environment = DockerEnvironment.from_options(
+        PortableOptions(sdk_location='container'))
     context = pipeline_context.PipelineContext()
     proto = environment.to_runner_api(context)
     self.assertEqual(
