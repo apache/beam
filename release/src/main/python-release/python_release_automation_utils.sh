@@ -300,7 +300,7 @@ function verify_hourly_team_score() {
   should_see='AntiqueBrassPlatypus'
   while(( $retry >= 0 )); do
     if [[ $retry > 0 ]]; then
-      bq_pull_result=$(bq head -n 500 $DATASET.hourly_team_score_python_$1)
+      bq_pull_result=$(bq head -n 1500 $DATASET.hourly_team_score_python_$1)
       if [[ $bq_pull_result = *"$should_see"* ]]; then
         echo "SUCCEED: hourly_team_score example successful run on $1-runner"
         break
@@ -312,8 +312,7 @@ function verify_hourly_team_score() {
     else
       echo "FAILED: HourlyTeamScore example failed running on $1-runner. \
         Did not found scores of team $should_see in $DATASET.leader_board"
-      complete "FAILED"
-      return
+      break
     fi
   done
 }
