@@ -989,7 +989,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private Instant outputTimestamp;
     private Duration period = Duration.ZERO;
     private Duration offset = Duration.ZERO;
-    private Duration outputTimestampOffset = Duration.ZERO;
 
     public TimerInternalsTimer(
         BoundedWindow window,
@@ -1075,12 +1074,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       return this;
     }
 
-    @Override
-    public Timer withOutputTimestampOffset(Duration outputTimestampOffset) {
-      this.outputTimestampOffset = outputTimestampOffset;
-      return this;
-    }
-
     /** Verifies that the time domain of this timer is acceptable for absolute timers. */
     private void verifyAbsoluteTimeDomain() {
       if (!TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
@@ -1101,16 +1094,10 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private void setAndVerifyOutputTimestamp() {
 
       // Output timestamp is set to the delivery time if not initialized by an user.
-      if (outputTimestamp == null && TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
+      if (outputTimestamp == null) {
         outputTimestamp = target;
       }
 
-      if (TimeDomain.PROCESSING_TIME.equals(spec.getTimeDomain())) {
-        outputTimestamp =
-            outputTimestampOffset.equals(Duration.ZERO)
-                ? target
-                : target.minus(offset.minus(outputTimestampOffset));
-      }
 
       if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
         Instant windowExpiry = window.maxTimestamp().plus(allowedLateness);

@@ -3825,9 +3825,9 @@ public class ParDoTest implements Serializable {
 
             @ProcessElement
             public void processElement(
-                @TimerId(timerId) Timer timer, OutputReceiver<KV<String, Integer>> o) {
+                @TimerId(timerId) Timer timer, @Timestamp Instant timestamp,OutputReceiver<KV<String, Integer>> o) {
               timer
-                  .withOutputTimestampOffset(Duration.standardSeconds(5))
+                  .withOutputTimestamp(timestamp.plus(Duration.standardSeconds(5)))
                   .offset(Duration.standardSeconds(10))
                   .setRelative();
               // Output a message. This will cause the next DoFn to set a timer as well.
