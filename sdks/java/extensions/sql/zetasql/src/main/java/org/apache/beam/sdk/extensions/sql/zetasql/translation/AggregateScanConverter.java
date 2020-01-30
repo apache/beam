@@ -88,8 +88,13 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
       // For aggregate calls, their input ref follow after GROUP BY input ref.
       int columnRefoff = groupFieldsListSize;
       for (ResolvedComputedColumn computedColumn : zetaNode.getAggregateList()) {
-        aggregateCalls.add(convertAggCall(computedColumn, columnRefoff));
-        columnRefoff++;
+        AggregateCall aggCall = convertAggCall(computedColumn, columnRefoff);
+        aggregateCalls.add(aggCall);
+        if (!aggCall.getArgList().isEmpty()) {
+          // Only increment column reference offset when aggregates use them (BEAM-8042).
+          // Ex: COUNT(*) does not have arguments, while COUNT(`field`) does.
+          columnRefoff++;
+        }
       }
     }
 
