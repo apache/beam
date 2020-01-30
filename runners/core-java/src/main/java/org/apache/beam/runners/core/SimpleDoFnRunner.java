@@ -1098,6 +1098,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         outputTimestamp = target;
       }
 
+      checkArgument(
+          !outputTimestamp.isAfter(target),
+          "Attempted to set output timestamp: %s after delivery timestamp: %s",
+          outputTimestamp,
+          target);
 
       if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
         Instant windowExpiry = window.maxTimestamp().plus(allowedLateness);

@@ -3825,7 +3825,9 @@ public class ParDoTest implements Serializable {
 
             @ProcessElement
             public void processElement(
-                @TimerId(timerId) Timer timer, @Timestamp Instant timestamp,OutputReceiver<KV<String, Integer>> o) {
+                @TimerId(timerId) Timer timer,
+                @Timestamp Instant timestamp,
+                OutputReceiver<KV<String, Integer>> o) {
               timer
                   .withOutputTimestamp(timestamp.plus(Duration.standardSeconds(5)))
                   .offset(Duration.standardSeconds(10))
