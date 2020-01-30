@@ -1538,6 +1538,13 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
           restriction)
 
     def split(self, element, restriction):
+      if self._desired_chunk_size is None:
+        try:
+          estimated_size = self._source.estimate_size()
+        except NotImplementedError:
+          estimated_size = None
+        self._desired_chunk_size = Read.get_desired_chunk_size(estimated_size)
+
       # Invoke source.split to get initial splitting results.
       source_bundles = self._source.split(self._desired_chunk_size)
       for source_bundle in source_bundles:
@@ -1558,11 +1565,6 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
 
   def _create_sdf_bounded_source_dofn(self):
     source = self.source
-    try:
-      estimated_size = source.estimate_size()
-    except NotImplementedError:
-      estimated_size = None
-    chunk_size = Read.get_desired_chunk_size(estimated_size)
 
     class SDFBoundedSourceDoFn(core.DoFn):
       def __init__(self, read_source):
@@ -1573,7 +1575,7 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
           element,
           restriction_tracker=core.DoFn.RestrictionParam(
               _SDFBoundedSourceWrapper._SDFBoundedSourceRestrictionProvider(
-                  source, chunk_size))):
+                  source))):
         current_restriction = restriction_tracker.current_restriction()
         assert isinstance(current_restriction,
                           _SDFBoundedSourceWrapper._SDFBoundedSourceRestriction)
