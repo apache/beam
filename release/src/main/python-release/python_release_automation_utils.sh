@@ -296,7 +296,7 @@ function verify_user_score() {
 #   Runner - direct, dataflow
 #######################################
 function verify_hourly_team_score() {
-  retry=3
+  retry=10
   should_see='AntiqueBrassPlatypus'
   while(( $retry >= 0 )); do
     if [[ $retry > 0 ]]; then
@@ -313,7 +313,7 @@ function verify_hourly_team_score() {
       echo "FAILED: HourlyTeamScore example failed running on $1-runner. \
         Did not found scores of team $should_see in $DATASET.leader_board"
       complete "FAILED"
-      exit 1
+      return
     fi
   done
 }
