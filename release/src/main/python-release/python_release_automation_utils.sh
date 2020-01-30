@@ -251,6 +251,7 @@ function verify_steaming_result() {
         if [[ $1 = "DataflowRunner" ]]; then
           if [[ ! -z "$3" ]]; then
             gcloud dataflow jobs cancel $3
+          fi
         fi
         complete "failed when running streaming wordcount example with $1."
         exit 1

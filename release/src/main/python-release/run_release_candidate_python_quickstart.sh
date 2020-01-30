@@ -196,6 +196,8 @@ function verify_streaming_wordcount_dataflow() {
       else
         echo "Get dataflow job_id = $running_job"
         break
+      fi
+    fi
   # verify result
   run_pubsub_publish
   sleep 420
