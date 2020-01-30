@@ -125,6 +125,8 @@ class CachingStateHandlerTest(unittest.TestCase):
     coder_impl = coder.get_impl()
 
     class FakeUnderlyingState(object):
+      """Simply returns an incremented counter as the state "value."
+      """
 
       def set_counter(self, n):
         self._counter = n
@@ -142,9 +144,6 @@ class CachingStateHandlerTest(unittest.TestCase):
     caching_state_hander = sdk_worker.CachingStateHandler(
         state_cache, underlying_state)
 
-#     underlying_state_handler = mock.MagicMock()
-#     underlying_state_handler.get_raw.return_value((coder.encode(37), None))
-
     state1 = beam_fn_api_pb2.StateKey(
         bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
             user_state_id='state1'))
@@ -159,19 +158,19 @@ class CachingStateHandlerTest(unittest.TestCase):
             transform_id='transform', side_input_id='side2'))
 
     state_token1 = beam_fn_api_pb2.ProcessBundleRequest.CacheToken(
-      token=b'state_token1',
-      user_state=beam_fn_api_pb2.ProcessBundleRequest.CacheToken.UserState())
+        token=b'state_token1',
+        user_state=beam_fn_api_pb2.ProcessBundleRequest.CacheToken.UserState())
     state_token2 = beam_fn_api_pb2.ProcessBundleRequest.CacheToken(
-      token=b'state_token2',
-      user_state=beam_fn_api_pb2.ProcessBundleRequest.CacheToken.UserState())
+        token=b'state_token2',
+        user_state=beam_fn_api_pb2.ProcessBundleRequest.CacheToken.UserState())
     side1_token1 = beam_fn_api_pb2.ProcessBundleRequest.CacheToken(
-      token=b'side1_token1',
-      side_input=beam_fn_api_pb2.ProcessBundleRequest.CacheToken.SideInput(
-          transform_id='transform', side_input_id='side1'))
+        token=b'side1_token1',
+        side_input=beam_fn_api_pb2.ProcessBundleRequest.CacheToken.SideInput(
+            transform_id='transform', side_input_id='side1'))
     side1_token2 = beam_fn_api_pb2.ProcessBundleRequest.CacheToken(
-      token=b'side1_token2',
-      side_input=beam_fn_api_pb2.ProcessBundleRequest.CacheToken.SideInput(
-          transform_id='transform', side_input_id='side1'))
+        token=b'side1_token2',
+        side_input=beam_fn_api_pb2.ProcessBundleRequest.CacheToken.SideInput(
+            transform_id='transform', side_input_id='side1'))
 
     def get_as_list(key):
       return list(caching_state_hander.blocking_get(key, coder_impl, True))
