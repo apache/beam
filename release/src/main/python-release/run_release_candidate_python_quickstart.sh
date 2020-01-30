@@ -206,6 +206,7 @@ function verify_streaming_wordcount_dataflow() {
   kill -9 $pid
   if [[ ! -z "$running_job" ]]; then
     gcloud dataflow jobs cancel $running_job
+  fi
 }
 
 
