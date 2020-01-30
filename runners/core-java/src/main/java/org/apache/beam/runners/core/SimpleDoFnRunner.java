@@ -1111,7 +1111,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       // Output timestamp is set to the delivery time if not initialized by an user.
       if (outputTimestamp == null && TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
         outputTimestamp = target;
-      } else {
+      }
+      // For processing timers
+      if (outputTimestamp == null) {
         // For processing timers output timestamp will be:
         // 1) timestamp of input element
         // OR
