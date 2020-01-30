@@ -886,11 +886,38 @@ class Read(ptransform.PTransform):
     return chunk_size
 
   def expand(self, pbegin):
-    if isinstance(self.source, BoundedSource):
-      return pbegin | _SDFBoundedSourceWrapper(self.source)
+    # if isinstance(self.source, BoundedSource):
+    #   return pbegin | _SDFBoundedSourceWrapper(self.source)
+    # else:
+    #   # Treat Read itself as a primitive.
+    #   return pvalue.PCollection(pbegin.pipeline,
+    #                             is_bounded=self.source.is_bounded())
+
+    from apache_beam.options.pipeline_options import DebugOptions
+    from apache_beam.transforms import util
+
+    assert isinstance(pbegin, pvalue.PBegin)
+    self.pipeline = pbegin.pipeline
+
+    debug_options = self.pipeline._options.view_as(DebugOptions)
+    if debug_options.experiments and 'beam_fn_api' in debug_options.experiments:
+      source = self.source
+
+      def split_source(unused_impulse):
+        return source.split(
+            self.get_desired_chunk_size(self.source.estimate_size()))
+
+      return (
+          pbegin
+          | core.Impulse()
+          | 'Split' >> core.FlatMap(split_source)
+          | util.Reshuffle()
+          | 'ReadSplits' >> core.FlatMap(lambda split: split.source.read(
+          split.source.get_range_tracker(
+              split.start_position, split.stop_position))))
     else:
       # Treat Read itself as a primitive.
-      return pvalue.PCollection(pbegin.pipeline,
+      return pvalue.PCollection(self.pipeline,
                                 is_bounded=self.source.is_bounded())
 
   def get_windowing(self, unused_inputs):
