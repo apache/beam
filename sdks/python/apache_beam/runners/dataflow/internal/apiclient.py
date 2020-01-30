@@ -890,11 +890,15 @@ def _use_fnapi(pipeline_options):
 
 
 def _use_unified_worker(pipeline_options):
+  if not _use_fnapi(pipeline_options):
+    return
   debug_options = pipeline_options.view_as(DebugOptions)
+  use_unified_worker_flag = 'use_unified_worker'
 
-  return _use_fnapi(pipeline_options) and (
-      debug_options.experiments and
-      'use_unified_worker' in debug_options.experiments)
+  if debug_options.lookup_experiment('use_runner_v2'):
+    debug_options.add_experiment(use_unified_worker_flag)
+
+  return debug_options.lookup_experiment(use_unified_worker_flag)
 
 
 def _get_container_image_tag():
