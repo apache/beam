@@ -88,11 +88,13 @@ public class SdkComponents {
   public static SdkComponents create(PipelineOptions options) {
     SdkComponents sdkComponents = new SdkComponents(RunnerApi.Components.getDefaultInstance(), "");
     PortablePipelineOptions portablePipelineOptions = options.as(PortablePipelineOptions.class);
-    sdkComponents.defaultEnvironmentId =
-        sdkComponents.registerEnvironment(
-            Environments.createOrGetDefaultEnvironment(
+    sdkComponents.registerEnvironment(
+        Environments.createOrGetDefaultEnvironment(
                 portablePipelineOptions.getDefaultEnvironmentType(),
-                portablePipelineOptions.getDefaultEnvironmentConfig()));
+                portablePipelineOptions.getDefaultEnvironmentConfig())
+            .toBuilder()
+            .addAllDependencies(Environments.getArtifacts(options))
+            .build());
     return sdkComponents;
   }
 
@@ -114,7 +116,7 @@ public class SdkComponents {
     reservedIds.addAll(components.getCodersMap().keySet());
     reservedIds.addAll(components.getEnvironmentsMap().keySet());
 
-    environmentIds.inverse().putAll(components.getEnvironmentsMap());
+    components.getEnvironmentsMap().forEach(environmentIds.inverse()::forcePut);
 
     componentsBuilder.mergeFrom(components);
   }
@@ -261,14 +263,20 @@ public class SdkComponents {
    * return the same unique ID.
    */
   public String registerEnvironment(Environment env) {
+    String environmentId;
     String existing = environmentIds.get(env);
     if (existing != null) {
-      return existing;
+      environmentId = existing;
+    } else {
+      String name = uniqify(env.getUrn(), environmentIds.values());
+      environmentIds.put(env, name);
+      componentsBuilder.putEnvironments(name, env);
+      environmentId = name;
     }
-    String name = uniqify(env.getUrn(), environmentIds.values());
-    environmentIds.put(env, name);
-    componentsBuilder.putEnvironments(name, env);
-    return name;
+    if (defaultEnvironmentId == null) {
+      defaultEnvironmentId = environmentId;
+    }
+    return environmentId;
   }
 
   public String getOnlyEnvironmentId() {

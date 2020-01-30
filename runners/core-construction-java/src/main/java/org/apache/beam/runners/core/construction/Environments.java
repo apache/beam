@@ -17,27 +17,49 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ArtifactInformation;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExternalPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ProcessPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardArtifacts;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.ReleaseInfo;
+import org.apache.beam.sdk.util.ZipFiles;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Utilities for interacting with portability {@link Environment environments}. */
 public class Environments {
+  private static final Logger LOG = LoggerFactory.getLogger(Environments.class);
+
   private static final ObjectMapper MAPPER =
       new ObjectMapper()
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
@@ -169,6 +191,90 @@ public class Environments {
       // as a GroupByKeyPayload, and we return null in this case.
       return Optional.of(components.getEnvironment(envId));
     }
+  }
+
+  public static Collection<ArtifactInformation> getArtifacts(PipelineOptions options) {
+    Set<String> pathsToStage = Sets.newHashSet();
+    // TODO(heejong): remove jar_packages experimental flag when cross-language dependency
+    //   management is implemented for all runners.
+    List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
+    if (experiments != null) {
+      Optional<String> jarPackages =
+          experiments.stream()
+              .filter((String flag) -> flag.startsWith("jar_packages="))
+              .findFirst();
+      jarPackages.ifPresent(
+          s -> pathsToStage.addAll(Arrays.asList(s.replaceFirst("jar_packages=", "").split(","))));
+    }
+    List<String> stagingFiles = options.as(PortablePipelineOptions.class).getFilesToStage();
+    if (stagingFiles == null) {
+      pathsToStage.addAll(
+          detectClassPathResourcesToStage(Environments.class.getClassLoader(), options));
+      if (pathsToStage.isEmpty()) {
+        throw new IllegalArgumentException("No classpath elements found.");
+      }
+      LOG.debug(
+          "PortablePipelineOptions.filesToStage was not specified. "
+              + "Defaulting to files from the classpath: {}",
+          pathsToStage.size());
+    } else {
+      pathsToStage.addAll(stagingFiles);
+    }
+
+    ImmutableList.Builder<ArtifactInformation> filesToStage = ImmutableList.builder();
+    for (String path : pathsToStage) {
+      File file = new File(path);
+      if (new File(path).exists()) {
+        // Spurious items get added to the classpath. Filter by just those that exist.
+        if (file.isDirectory()) {
+          // Zip up directories so we can upload them to the artifact service.
+          try {
+            filesToStage.add(createArtifactInformation(zipDirectory(file)));
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        } else {
+          filesToStage.add(createArtifactInformation(file));
+        }
+      }
+    }
+    return filesToStage.build();
+  }
+
+  private static File zipDirectory(File directory) throws IOException {
+    File zipFile = File.createTempFile(directory.getName(), ".zip");
+    try (FileOutputStream fos = new FileOutputStream(zipFile)) {
+      ZipFiles.zipDirectory(directory, fos);
+    }
+    return zipFile;
+  }
+
+  private static String createStagingFileName(File file) {
+    // TODO: https://issues.apache.org/jira/browse/BEAM-4109 Support arbitrary names in the staging
+    // service itself.
+    // HACK: Encode the path name ourselves because the local artifact staging service currently
+    // assumes artifact names correspond to a flat directory. Artifact staging services should
+    // generally accept arbitrary artifact names.
+    // NOTE: Base64 url encoding does not work here because the stage artifact names tend to be long
+    // and exceed file length limits on the artifact stager.
+    return UUID.randomUUID().toString();
+  }
+
+  private static ArtifactInformation createArtifactInformation(File file) {
+    ArtifactInformation.Builder artifactBuilder = ArtifactInformation.newBuilder();
+    artifactBuilder.setTypeUrn(BeamUrns.getUrn(StandardArtifacts.Types.FILE));
+    artifactBuilder.setTypePayload(
+        RunnerApi.ArtifactFilePayload.newBuilder()
+            .setPath(file.getAbsolutePath())
+            .build()
+            .toByteString());
+    artifactBuilder.setRoleUrn(BeamUrns.getUrn(StandardArtifacts.Roles.STAGING_TO));
+    artifactBuilder.setRolePayload(
+        RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+            .setStagedName(createStagingFileName(file))
+            .build()
+            .toByteString());
+    return artifactBuilder.build();
   }
 
   private static class ProcessPayloadReferenceJSON {

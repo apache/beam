@@ -22,6 +22,8 @@ from __future__ import absolute_import
 import functools
 import itertools
 import logging
+import shutil
+import tempfile
 import threading
 import time
 from typing import TYPE_CHECKING
@@ -37,12 +39,14 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_job_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import runner
 from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import fn_api_runner_transforms
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability import portable_stager
+from apache_beam.runners.portability import stager
 from apache_beam.runners.worker import sdk_worker_main
 from apache_beam.runners.worker import worker_pool_main
 from apache_beam.transforms import environments
@@ -87,7 +91,7 @@ class PortableRunner(runner.PipelineRunner):
     self._dockerized_job_server = None  # type: Optional[job_server.JobServer]
 
   @staticmethod
-  def _create_environment(options):
+  def _create_environment(options, tmp_dir=None):
     # type: (PipelineOptions) -> environments.Environment
     portable_options = options.view_as(PortableOptions)
     # Do not set a Runner. Otherwise this can cause problems in Java's
@@ -111,7 +115,20 @@ class PortableRunner(runner.PipelineRunner):
         raise ValueError('Unknown environment type: %s' % environment_type)
 
     env_class = environments.Environment.get_env_cls_from_urn(environment_urn)
-    return env_class.from_options(portable_options)
+    env = env_class.from_options(portable_options)
+    env.set_artifacts([
+        beam_runner_api_pb2.ArtifactInformation(
+            type_urn=common_urns.artifact_types.FILE.urn,
+            type_payload=beam_runner_api_pb2.ArtifactFilePayload(
+                path=local_path).SerializeToString(),
+            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+            role_payload=beam_runner_api_pb2.ArtifactStagingToRolePayload(
+                staged_name=staged_name).SerializeToString()) for local_path,
+        staged_name in (
+            stager.Stager.create_job_resources(options, tmp_dir
+                                               ) if tmp_dir else [])
+    ])
+    return env
 
   def default_job_server(self, portable_options):
     # type: (...) -> job_server.JobServer
@@ -158,9 +175,10 @@ class PortableRunner(runner.PipelineRunner):
     else:
       cleanup_callbacks = []
 
+    artifact_tmp_dir = tempfile.mkdtemp()
     proto_pipeline = pipeline.to_runner_api(
         default_environment=PortableRunner._create_environment(
-            portable_options))
+            portable_options, artifact_tmp_dir))
 
     # Some runners won't detect the GroupByKey transform unless it has no
     # subtransforms.  Remove all sub-transforms until BEAM-4605 is resolved.
@@ -287,11 +305,25 @@ class PortableRunner(runner.PipelineRunner):
       stager = portable_stager.PortableStager(
           grpc.insecure_channel(artifact_endpoint),
           prepare_response.staging_session_token)
-      retrieval_token, _ = stager.stage_job_resources(
-          options,
-          staging_location='')
+      resources = []
+      for _, env in proto_pipeline.components.environments.items():
+        for dep in env.dependencies:
+          if dep.type_urn != common_urns.artifact_types.FILE.urn:
+            raise RuntimeError('unsupported artifact type %s' % dep.type_urn)
+          if dep.role_urn != common_urns.artifact_roles.STAGING_TO.urn:
+            raise RuntimeError('unsupported role type %s' % dep.role_urn)
+          type_payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
+              dep.type_payload)
+          role_payload =\
+            beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
+                dep.role_payload)
+          resources.append((type_payload.path, role_payload.staged_name))
+      stager.stage_job_resources(resources, staging_location='')
+      retrieval_token = stager.commit_manifest()
     else:
       retrieval_token = None
+
+    shutil.rmtree(artifact_tmp_dir)
 
     try:
       state_stream = job_service.GetStateStream(

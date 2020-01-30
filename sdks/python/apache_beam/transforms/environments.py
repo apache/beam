@@ -81,6 +81,13 @@ class Environment(object):
 
   _known_urns = {}  # type: Dict[str, Tuple[Optional[type], ConstructorFn]]
   _urn_to_env_cls = {}  # type: Dict[str, type]
+  _artifacts = []  # type: List[beam_runner_api_pb2.ArtifactInformation]
+
+  def set_artifacts(self, artifacts):
+    self._artifacts = artifacts
+
+  def get_artifacts(self):
+    return self._artifacts
 
   def to_runner_api_parameter(self, context):
     # type: (PipelineContext) -> Tuple[str, Optional[Union[message.Message, bytes, str]]]
@@ -159,7 +166,8 @@ class Environment(object):
         payload=typed_param.SerializeToString() if isinstance(
             typed_param, message.Message) else typed_param if
         (isinstance(typed_param, bytes) or
-         typed_param is None) else typed_param.encode('utf-8'))
+         typed_param is None) else typed_param.encode('utf-8'),
+        dependencies=self._artifacts)
 
   @classmethod
   def from_runner_api(cls,
@@ -172,8 +180,10 @@ class Environment(object):
     parameter_type, constructor = cls._known_urns[proto.urn]
 
     try:
-      return constructor(
+      environment = constructor(
           proto_utils.parse_Bytes(proto.payload, parameter_type), context)
+      environment.set_artifacts(proto.dependencies)
+      return environment
     except Exception:
       if context.allow_proto_holders:
         return RunnerAPIEnvironmentHolder(proto)
