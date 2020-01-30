@@ -48,6 +48,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -689,6 +690,32 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
   public @interface RequiresStableInput {}
+
+  /**
+   * <b><i>Experimental - no backwards compatibility guarantees. The exact name or usage of this
+   * feature may change.</i></b>
+   *
+   * <p>Annotation that may be added to a {@link ProcessElement} method to indicate that the runner
+   * must ensure that the observable contents of the input {@link PCollection} is sorted by time, in
+   * ascending order. The time ordering is defined by element's timestamp, ordering of elements with
+   * equal timestamps is not defined.
+   *
+   * <p>Note that this annotation makes sense only for stateful {@code ParDo}s, because outcome of
+   * stateless functions cannot depend on the ordering.
+   *
+   * <p>This annotation respects specified <i>allowedLateness</i> defined in {@link
+   * WindowingStrategy}. All data is emitted <b>after</b> input watermark passes element's timestamp
+   * + allowedLateness. Output watermark is hold, so that the emitted data is not emitted as late
+   * data.
+   *
+   * <p>The ordering requirements implies that all data that arrives later than the allowed lateness
+   * will have to be dropped. This might change in the future with introduction of retractions.
+   */
+  @Documented
+  @Experimental
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  public @interface RequiresTimeSortedInput {}
 
   /**
    * Annotation for the method to use to finish processing a batch of elements. The method annotated

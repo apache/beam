@@ -762,6 +762,12 @@ public abstract class DoFnSignature {
      */
     public abstract boolean requiresStableInput();
 
+    /**
+     * Whether this method requires time sorted input, expressed via {@link
+     * org.apache.beam.sdk.transforms.DoFn.RequiresTimeSortedInput}.
+     */
+    public abstract boolean requiresTimeSortedInput();
+
     /** Concrete type of the {@link RestrictionTracker} parameter, if present. */
     @Nullable
     public abstract TypeDescriptor<?> trackerT();
@@ -778,6 +784,7 @@ public abstract class DoFnSignature {
         Method targetMethod,
         List<Parameter> extraParameters,
         boolean requiresStableInput,
+        boolean requiresTimeSortedInput,
         TypeDescriptor<?> trackerT,
         @Nullable TypeDescriptor<? extends BoundedWindow> windowT,
         boolean hasReturnValue) {
@@ -785,6 +792,7 @@ public abstract class DoFnSignature {
           targetMethod,
           Collections.unmodifiableList(extraParameters),
           requiresStableInput,
+          requiresTimeSortedInput,
           trackerT,
           windowT,
           hasReturnValue);

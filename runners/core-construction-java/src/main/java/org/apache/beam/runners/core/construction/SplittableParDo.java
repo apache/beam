@@ -412,6 +412,11 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
                 }
 
                 @Override
+                public boolean isRequiresTimeSortedInput() {
+                  return false;
+                }
+
+                @Override
                 public String translateRestrictionCoderId(SdkComponents newComponents) {
                   return restrictionCoderId;
                 }
