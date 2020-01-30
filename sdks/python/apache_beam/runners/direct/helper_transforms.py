@@ -77,15 +77,15 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
       yield WindowedValue((k, self._combine_fn.compact(va)), w.end, (w,))
 
   def default_type_hints(self):
-    hints = self._combine_fn.get_type_hints().copy()
+    hints = self._combine_fn.get_type_hints()
     K = typehints.TypeVariable('K')
     if hints.input_types:
       args, kwargs = hints.input_types
       args = (typehints.Tuple[K, args[0]],) + args[1:]
-      hints.set_input_types(*args, **kwargs)
+      hints = hints.with_input_types(*args, **kwargs)
     else:
-      hints.set_input_types(typehints.Tuple[K, typing.Any])
-    hints.set_output_types(typehints.Tuple[K, typing.Any])
+      hints = hints.with_input_types(typehints.Tuple[K, typing.Any])
+    hints = hints.with_output_types(typehints.Tuple[K, typing.Any])
     return hints
 
 
@@ -103,10 +103,10 @@ class FinishCombine(beam.DoFn):
             self._combine_fn.merge_accumulators(vs)))]
 
   def default_type_hints(self):
-    hints = self._combine_fn.get_type_hints().copy()
+    hints = self._combine_fn.get_type_hints()
     K = typehints.TypeVariable('K')
-    hints.set_input_types(typehints.Tuple[K, typing.Any])
+    hints = hints.with_input_types(typehints.Tuple[K, typing.Any])
     if hints.output_types:
       main_output_type = hints.simple_output_type('')
-      hints.set_output_types(typehints.Tuple[K, main_output_type])
+      hints = hints.with_output_types(typehints.Tuple[K, main_output_type])
     return hints

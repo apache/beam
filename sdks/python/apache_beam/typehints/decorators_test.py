@@ -21,8 +21,11 @@
 
 from __future__ import absolute_import
 
+import re
 import sys
 import unittest
+
+import future.tests.base  # pylint: disable=unused-import
 
 from apache_beam.typehints import Any
 from apache_beam.typehints import List
@@ -76,13 +79,16 @@ class IOTypeHintsTest(unittest.TestCase):
     self.assertEqual(th.output_types, ((Any,), {}))
 
   def test_strip_iterable_not_simple_output_noop(self):
-    th = decorators.IOTypeHints(output_types=((int, str), {}))
-    th.strip_iterable()
+    th = decorators.IOTypeHints(input_types=None, output_types=((int, str), {}), origin=[])
+    th = th.strip_iterable()
     self.assertEqual(((int, str), {}), th.output_types)
 
   def _test_strip_iterable(self, before, expected_after):
-    after = decorators.IOTypeHints(
-        output_types=((before,), {})).strip_iterable()
+    th = decorators.IOTypeHints(
+        input_types=None,
+        output_types=((before,), {}),
+        origin=[])
+    after = th.strip_iterable()
     self.assertEqual(((expected_after, ), {}), after.output_types)
 
   def _test_strip_iterable_fail(self, before):
@@ -109,6 +115,37 @@ class IOTypeHintsTest(unittest.TestCase):
     self._test_strip_iterable_fail(typehints.WindowedValue[str])
     self._test_strip_iterable_fail(typehints.Dict[str, int])
 
+  def test_make_traceback(self):
+    origin = ''.join(
+        decorators.IOTypeHints.empty().with_input_types(str).origin)
+    self.assertRegex(origin, __name__)
+    # TODO: use self.assertNotRegex once py2 support is removed.
+    self.assertIsNone(re.search(r'\b_make_traceback', origin), msg=origin)
+
+  def test_origin(self):
+    th = decorators.IOTypeHints.empty()
+    self.assertListEqual([], th.origin)
+    th = th.with_input_types(str)
+    self.assertRegex(th.debug_str(), r'with_input_types')
+    th = th.with_output_types(str)
+    self.assertRegex(th.debug_str(), r'(?s)with_output_types.*with_input_types')
+
+  def test_with_defaults_noop_does_not_grow_origin(self):
+    th = decorators.IOTypeHints.empty()
+    expected_id = id(th)
+    th = th.with_defaults(None)
+    self.assertEqual(expected_id, id(th))
+    th = th.with_defaults(decorators.IOTypeHints.empty())
+    self.assertEqual(expected_id, id(th))
+
+    th = th.with_input_types(str)
+    expected_id = id(th)
+    th = th.with_defaults(th)
+    self.assertEqual(expected_id, id(th))
+
+    th2 = th.with_output_types(int)
+    th = th.with_defaults(th2)
+    self.assertNotEqual(expected_id, id(th))
 
 class WithTypeHintsTest(unittest.TestCase):
   def test_get_type_hints_no_settings(self):
@@ -134,7 +171,8 @@ class WithTypeHintsTest(unittest.TestCase):
       def default_type_hints(self):
         return decorators.IOTypeHints(
             input_types=((int, str), {}),
-            output_types=((int, ), {}))
+            output_types=((int, ), {}),
+            origin=[])
 
     th = Base().get_type_hints()
     self.assertEqual(th.input_types, ((int, str), {}))
@@ -146,7 +184,7 @@ class WithTypeHintsTest(unittest.TestCase):
     class Base(WithTypeHints):
       def default_type_hints(self):
         return decorators.IOTypeHints(
-            input_types=((float, ), {}))
+            input_types=((float, ), {}), output_types=None, origin=[])
 
     th = Base().get_type_hints()
     self.assertEqual(th.input_types, ((float, ), {}))
@@ -156,7 +194,7 @@ class WithTypeHintsTest(unittest.TestCase):
     class Base(WithTypeHints):
       def default_type_hints(self):
         return decorators.IOTypeHints(
-            input_types=((float, ), {}), output_types=((str, ), {}))
+            input_types=((float, ), {}), output_types=((str, ), {}), origin=[])
 
     th = Base().with_input_types(int).get_type_hints()
     self.assertEqual(th.input_types, ((int, ), {}))
