@@ -696,6 +696,7 @@ public class PubsubIO {
     abstract SimpleFunction<PubsubMessage, T> getParseFn();
 
     @Nullable
+    @Experimental(Kind.SCHEMAS)
     abstract Schema getBeamSchema();
 
     @Nullable
@@ -733,6 +734,7 @@ public class PubsubIO {
 
       abstract Builder<T> setParseFn(SimpleFunction<PubsubMessage, T> parseFn);
 
+      @Experimental(Kind.SCHEMAS)
       abstract Builder<T> setBeamSchema(@Nullable Schema beamSchema);
 
       abstract Builder<T> setTypeDescriptor(@Nullable TypeDescriptor<T> typeDescriptor);

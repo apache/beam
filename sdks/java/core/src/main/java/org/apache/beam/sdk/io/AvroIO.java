@@ -563,6 +563,7 @@ public class AvroIO {
         .setNoSpilling(false);
   }
 
+  @Experimental(Kind.SCHEMAS)
   private static <T> PCollection<T> setBeamSchema(
       PCollection<T> pc, Class<T> clazz, @Nullable Schema schema) {
     org.apache.beam.sdk.schemas.Schema beamSchema =

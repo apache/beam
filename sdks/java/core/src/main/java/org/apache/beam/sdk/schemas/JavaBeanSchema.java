@@ -162,6 +162,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
   }
 
   /** A factory for creating {@link FieldValueSetter} objects for a JavaBean object. */
+  @Experimental(Kind.SCHEMAS)
   public static class JavaBeanSetterFactory implements FieldValueSetterFactory {
     @Override
     public List<FieldValueSetter> create(Class<?> targetClass, Schema schema) {

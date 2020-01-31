@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -47,6 +49,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Primi
 public class ReflectUtils {
   /** Represents a class and a schema. */
   @AutoValue
+  @Experimental(Kind.SCHEMAS)
   public abstract static class ClassWithSchema {
     public abstract Class getClazz();
 

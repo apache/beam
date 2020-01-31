@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -38,6 +40,7 @@ import org.apache.beam.sdk.values.Row;
  * containing one nullable field matching each input field, and one additional {@link
  * EnumerationType} logical type field that indicates which field is set.
  */
+@Experimental(Kind.SCHEMAS)
 public class OneOfType implements LogicalType<OneOfType.Value, Row> {
   public static final String IDENTIFIER = "OneOf";
 

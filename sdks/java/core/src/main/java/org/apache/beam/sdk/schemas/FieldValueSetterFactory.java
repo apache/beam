@@ -18,11 +18,14 @@
 package org.apache.beam.sdk.schemas;
 
 import java.util.List;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
  * A factory interface for creating {@link org.apache.beam.sdk.schemas.FieldValueSetter} objects
  * corresponding to a class.
  */
+@Experimental(Kind.SCHEMAS)
 public interface FieldValueSetterFactory extends Factory<List<FieldValueSetter>> {
   /**
    * Returns a list of {@link org.apache.beam.sdk.schemas.FieldValueGetter}s for the target class.
