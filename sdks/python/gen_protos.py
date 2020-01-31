@@ -297,6 +297,7 @@ def generate_proto_files(force=False, log=None):
           ['--proto_path=%s' % builtin_protos] +
           ['--proto_path=%s' % d for d in proto_dirs] +
           ['--python_out=%s' % out_dir] +
+          ['--mypy_out=%s' % out_dir] +
           # TODO(robertwb): Remove the prefix once it's the default.
           ['--grpc_python_out=grpc_2_0:%s' % out_dir] +
           proto_files)
