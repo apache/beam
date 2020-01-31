@@ -25,8 +25,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflo
 
   description('Runs the ValidatesRunner suite on the Dataflow runner with Java 11 worker harness.')
 
-  def JAVA_11_HOME = '/usr/lib/jvm/java-11-openjdk-amd64'
-  def JAVA_8_HOME = '/usr/lib/jvm/java-8-openjdk-amd64'
+  def JAVA_11_HOME = '/home/jenkins/tools/java/latest11'
+  def JAVA_8_HOME = '/home/jenkins/tools/java/latest1.8'
 
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 270)
   publishers {
