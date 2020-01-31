@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.metrics;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.MetricName;
@@ -33,7 +34,7 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
  * that case retrieving the underlying cell and reporting directly to it avoids a step of
  * indirection.
  */
-@Experimental(Experimental.Kind.METRICS)
+@Experimental(Kind.METRICS)
 public class GaugeCell implements Gauge, MetricCell<GaugeData> {
 
   private final DirtyState dirty = new DirtyState();

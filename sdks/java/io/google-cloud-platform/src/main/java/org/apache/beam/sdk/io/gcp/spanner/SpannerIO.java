@@ -46,6 +46,7 @@ import java.util.Comparator;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -249,7 +250,7 @@ import org.slf4j.LoggerFactory;
  * <p>{@link SpannerIO.Write} can be used as a streaming sink, however as with batch mode note that
  * the write order of individual {@link Mutation}/{@link MutationGroup} objects is not guaranteed.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class SpannerIO {
   private static final Logger LOG = LoggerFactory.getLogger(SpannerIO.class);
 
@@ -266,7 +267,6 @@ public class SpannerIO {
    * configured with a {@link Read#withInstanceId} and {@link Read#withDatabaseId} that identify the
    * Cloud Spanner database.
    */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   public static Read read() {
     return new AutoValue_SpannerIO_Read.Builder()
         .setSpannerConfig(SpannerConfig.create())
@@ -280,7 +280,6 @@ public class SpannerIO {
    * A {@link PTransform} that works like {@link #read}, but executes read operations coming from a
    * {@link PCollection}.
    */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   public static ReadAll readAll() {
     return new AutoValue_SpannerIO_ReadAll.Builder()
         .setSpannerConfig(SpannerConfig.create())
@@ -320,7 +319,6 @@ public class SpannerIO {
   }
 
   /** Implementation of {@link #readAll}. */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   @AutoValue
   public abstract static class ReadAll
       extends PTransform<PCollection<ReadOperation>, PCollection<Struct>> {
@@ -441,7 +439,6 @@ public class SpannerIO {
   }
 
   /** Implementation of {@link #read}. */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<Struct>> {
 
@@ -627,7 +624,6 @@ public class SpannerIO {
    *
    * @see SpannerIO
    */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   @AutoValue
   public abstract static class CreateTransaction
       extends PTransform<PBegin, PCollectionView<Transaction>> {
@@ -732,7 +728,6 @@ public class SpannerIO {
    *
    * @see SpannerIO
    */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<Mutation>, SpannerWriteResult> {
 

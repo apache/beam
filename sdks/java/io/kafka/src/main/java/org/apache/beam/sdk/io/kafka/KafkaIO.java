@@ -44,6 +44,7 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -281,7 +282,7 @@ import org.slf4j.LoggerFactory;
  * Kafka cluster. Kafka client usually fails to initialize with a clear error message in case of
  * incompatibility.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class KafkaIO {
 
   /**
