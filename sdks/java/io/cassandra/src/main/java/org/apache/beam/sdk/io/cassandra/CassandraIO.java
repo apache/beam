@@ -459,7 +459,7 @@ public class CassandraIO {
 
       List<TokenRange> tokenRanges =
           getTokenRanges(cluster, spec.keyspace().get(), spec.table().get());
-      final long estimatedSize = getEstimatedSizeBytesFromTokenRanges(tokenRanges)/splits.size();
+      final long estimatedSize = getEstimatedSizeBytesFromTokenRanges(tokenRanges) / splits.size();
 
       List<BoundedSource<T>> sources = new ArrayList<>();
       for (List<RingRange> split : splits) {
@@ -518,8 +518,9 @@ public class CassandraIO {
     }
 
     /**
-     * Returns cached estimate for split or if missing calculate size for whole table.
-     * Highly innacurate if query is specified.
+     * Returns cached estimate for split or if missing calculate size for whole table. Highly
+     * innacurate if query is specified.
+     *
      * @param pipelineOptions
      * @return
      */
