@@ -83,6 +83,7 @@ task appliancePreCommit(type: Test) {
 
 task preCommit(type: Test) {
   dependsOn appliancePreCommit
-  dependsOn windmillPreCommit
+  // TODO(BEAM-9235): Re-enable once streaming engine recovers
+  // dependsOn windmillPreCommit
 }
 
