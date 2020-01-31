@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -112,7 +113,7 @@ import org.joda.time.Instant;
  * used to write the data to the OutputStream. By default, it writes UTF-8 strings to the file
  * separated with line feeds.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class MongoDbGridFSIO {
 
   /** Callback for the parser to use to submit data. */
