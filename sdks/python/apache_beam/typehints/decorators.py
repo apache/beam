@@ -757,9 +757,9 @@ def with_input_types(*positional_hints, **keyword_hints):
         validate_composite_type_param(
             t, error_msg_prefix='All type hint arguments')
 
-    th = getattr(f, '_type_hints', IOTypeHints.empty())
-    f._type_hints = th.with_input_types(*converted_positional_hints,
-                                        **converted_keyword_hints)
+    th = getattr(f, '_type_hints', IOTypeHints.empty()).with_input_types(
+        *converted_positional_hints, **converted_keyword_hints)
+    f._type_hints = th  # pylint: disable=protected-access
     return f
   return annotate
 
@@ -843,7 +843,7 @@ def with_output_types(*return_type_hint, **kwargs):
 
   def annotate(f):
     th = getattr(f, '_type_hints', IOTypeHints.empty())
-    f._type_hints = th.with_output_types(return_type_hint)
+    f._type_hints = th.with_output_types(return_type_hint)  # pylint: disable=protected-access
     return f
 
   return annotate

@@ -79,7 +79,10 @@ class IOTypeHintsTest(unittest.TestCase):
     self.assertEqual(th.output_types, ((Any,), {}))
 
   def test_strip_iterable_not_simple_output_noop(self):
-    th = decorators.IOTypeHints(input_types=None, output_types=((int, str), {}), origin=[])
+    th = decorators.IOTypeHints(
+        input_types=None,
+        output_types=((int, str), {}),
+        origin=[])
     th = th.strip_iterable()
     self.assertEqual(((int, str), {}), th.output_types)
 
