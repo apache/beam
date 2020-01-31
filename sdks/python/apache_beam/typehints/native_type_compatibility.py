@@ -98,11 +98,6 @@ def _match_issubclass(match_against):
   return lambda user_type: _safe_issubclass(user_type, match_against)
 
 
-def _match_same_type(match_against):
-  # For types that can't be compared with isinstance or _safe_issubclass.
-  return lambda user_type: type(user_type) == type(match_against)
-
-
 def _match_is_exactly_mapping(user_type):
   # Avoid unintentionally catching all subtypes (e.g. strings and mappings).
   if sys.version_info < (3, 7):
