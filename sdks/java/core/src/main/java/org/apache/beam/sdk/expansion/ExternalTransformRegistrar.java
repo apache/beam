@@ -19,13 +19,14 @@ package org.apache.beam.sdk.expansion;
 
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 
 /**
  * A registrar which contains a mapping from URNs to available {@link ExternalTransformBuilder}s.
  * Should be used with {@link com.google.auto.service.AutoService}.
  */
-@Experimental
+@Experimental(Kind.PORTABILITY)
 public interface ExternalTransformRegistrar {
 
   /** A mapping from URN to an {@link ExternalTransformBuilder} class. */

@@ -109,5 +109,8 @@ public @interface Experimental {
 
     /** Experimental APIs related to exception handling in PTransforms. */
     WITH_EXCEPTIONS,
+
+    /** Portability related APIs. */
+    PORTABILITY,
   }
 }
