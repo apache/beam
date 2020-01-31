@@ -1127,6 +1127,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
           outputTimestamp,
           elementInputTimestamp);
 
+      checkArgument(
+          !outputTimestamp.isAfter(target),
+          "output timestamp %s should be before %s delivery timestamp %s",
+          outputTimestamp,
+          target);
+
       Instant windowExpiry = window.maxTimestamp().plus(allowedLateness);
       checkArgument(
           !target.isAfter(windowExpiry),
