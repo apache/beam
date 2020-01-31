@@ -676,9 +676,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       Map<StructuralKey<?>, List<TimerData>> firedTimers;
       switch (domain) {
         case PROCESSING_TIME:
-          firedTimers =
-              extractFiredTimers(
-                  INSTANT_ORDERING.min(firingTime, earliestHold.get()), processingTimers);
+          firedTimers = extractFiredTimers(firingTime, processingTimers);
           break;
         case SYNCHRONIZED_PROCESSING_TIME:
           firedTimers =

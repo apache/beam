@@ -935,7 +935,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       try {
         TimerSpec spec = (TimerSpec) signature.timerDeclarations().get(timerId).field().get(fn);
         return new TimerInternalsTimer(
-            window, getNamespace(), timerId, spec, fireTimestamp(), stepContext.timerInternals());
+            window, getNamespace(), timerId, spec, timestamp(), stepContext.timerInternals());
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
@@ -951,7 +951,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
             window(),
             getNamespace(),
             spec,
-            fireTimestamp(),
+            timestamp(),
             stepContext.timerInternals());
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
@@ -1127,15 +1127,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
           outputTimestamp,
           elementInputTimestamp);
 
-      if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
-        Instant windowExpiry = window.maxTimestamp().plus(allowedLateness);
-        checkArgument(
-            !target.isAfter(windowExpiry),
-            "Attempted to set event time timer that outputs for %s but that is"
-                + " after the expiration of window %s",
-            target,
-            windowExpiry);
-      }
+      Instant windowExpiry = window.maxTimestamp().plus(allowedLateness);
+      checkArgument(
+          !target.isAfter(windowExpiry),
+          "Attempted to set event time timer that outputs for %s but that is"
+              + " after the expiration of window %s",
+          target,
+          windowExpiry);
     }
 
     /**

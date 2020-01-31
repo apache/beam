@@ -3747,8 +3747,12 @@ public class ParDoTest implements Serializable {
 
             @ProcessElement
             public void processElement(
-                @TimerId(timerId) Timer timer, OutputReceiver<KV<String, Long>> o) {
-              timer.withOutputTimestamp(new Instant(5)).set(new Instant(10));
+                @TimerId(timerId) Timer timer,
+                @Timestamp Instant timestamp,
+                OutputReceiver<KV<String, Long>> o) {
+              timer
+                  .withOutputTimestamp(timestamp.plus(Duration.millis(5)))
+                  .set(timestamp.plus(Duration.millis(10)));
               // Output a message. This will cause the next DoFn to set a timer as well.
               o.output(KV.of("foo", 100L));
             }
@@ -3769,6 +3773,7 @@ public class ParDoTest implements Serializable {
             @ProcessElement
             public void processElement(
                 @TimerId(timerId) Timer timer,
+                @Timestamp Instant timestamp,
                 @StateId("timerFired") ValueState<Boolean> timerFiredState) {
               Boolean timerFired = timerFiredState.read();
               assertTrue(timerFired == null || !timerFired);
@@ -3777,7 +3782,7 @@ public class ParDoTest implements Serializable {
               // DoFn timer's watermark hold. This timer should not fire until the previous timer
               // fires and removes
               // the watermark hold.
-              timer.set(new Instant(8));
+              timer.set(timestamp.plus(Duration.millis(8)));
             }
 
             @OnTimer(timerId)
@@ -3844,7 +3849,7 @@ public class ParDoTest implements Serializable {
           new DoFn<KV<String, Integer>, Integer>() {
 
             @TimerId(timerId)
-            private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+            private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
             @StateId("timerFired")
             final StateSpec<ValueState<Boolean>> timerFiredState = StateSpecs.value();
