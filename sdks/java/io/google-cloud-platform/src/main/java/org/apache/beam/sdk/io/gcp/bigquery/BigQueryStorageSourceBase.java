@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
@@ -45,7 +46,7 @@ import org.slf4j.LoggerFactory;
  * A base class for {@link BoundedSource} implementations which read from BigQuery using the
  * BigQuery storage API.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryStorageSourceBase.class);

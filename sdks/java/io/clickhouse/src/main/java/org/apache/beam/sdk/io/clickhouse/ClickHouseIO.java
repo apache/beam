@@ -27,6 +27,7 @@ import java.util.Properties;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.DefaultType;
 import org.apache.beam.sdk.metrics.Counter;
@@ -116,7 +117,7 @@ import ru.yandex.clickhouse.settings.ClickHouseQueryParam;
  * Type casting should be done using {@link org.apache.beam.sdk.schemas.transforms.Cast} before
  * {@link ClickHouseIO}.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class ClickHouseIO {
 
   public static final long DEFAULT_MAX_INSERT_BLOCK_SIZE = 1000000;

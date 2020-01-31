@@ -26,6 +26,7 @@ import java.net.URI;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -79,7 +80,7 @@ import software.amazon.awssdk.services.sns.model.PublishResponse;
  *   <li>publishRequestFn, a function to convert your message into PublishRequest
  * </ul>
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public final class SnsIO {
 
   // Write data tp SNS
