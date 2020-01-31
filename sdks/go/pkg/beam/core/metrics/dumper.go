@@ -79,26 +79,6 @@ func dumperExtractor(store *Store, p func(format string, args ...interface{})) {
 	dumpTo(m, p)
 }
 
-type metricDumper struct {
-	store map[Labels]interface{}
-}
-
-func newDumper() *metricDumper {
-	return &metricDumper{store: make(map[Labels]interface{})}
-}
-
-func (dmp *metricDumper) SumCounter(l Labels, v int64) {
-	dmp.store[l] = &counter{value: v}
-}
-
-func (dmp *metricDumper) Distribution(l Labels, count, sum, min, max int64) {
-	dmp.store[l] = &distribution{count: count, sum: sum, min: min, max: max}
-}
-
-func (dmp *metricDumper) Gauge(l Labels, v int64, t time.Time) {
-	dmp.store[l] = &gauge{v: v, t: t}
-}
-
 func dumpTo(store map[Labels]interface{}, p func(format string, args ...interface{})) {
 	var ls []Labels
 	for l := range store {

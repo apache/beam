@@ -166,7 +166,8 @@ func getCounterSet(ctx context.Context) *ptCounterSet {
 	if set := ctx.Value(counterSetKey); set != nil {
 		return set.(*ptCounterSet)
 	}
-	// This isn't a beam context, so we can't store the metric.
+	// This isn't a beam context, so we don't have a
+	// useful counterset to return.
 	return nil
 }
 
