@@ -17,12 +17,12 @@
 #
 
 read -r -d '' USAGE <<END
-Usage: run_flink_job_server.sh (start|stop) [options]
+Usage: run_job_server.sh (start|stop) [options]
 Options:
   --group_id [unique id for stop services later]
   --job_port [port for job endpoint, default 8099]
   --artifact_port [port for artifact service, default 8098]
-  --flink_job_server_jar [path to Flink job server jar]
+  --job_server_jar [path to job server jar]
 END
 
 JOB_PORT=8099
@@ -46,8 +46,8 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
-    --flink_job_server_jar)
-      FLINK_JOB_SERVER_JAR="$2"
+    --job_server_jar)
+      JOB_SERVER_JAR="$2"
       shift
       shift
       ;;
@@ -67,7 +67,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-FILE_BASE="beam-flink-job-server"
+FILE_BASE="beam-job-server"
 if [ -v GROUP_ID ]; then
   FILE_BASE="$FILE_BASE-$GROUP_ID"
 fi
@@ -92,20 +92,20 @@ case $STARTSTOP in
       exit 0
     fi
 
-    echo "Launching Flink job server @ $JOB_PORT ..."
-    java -jar $FLINK_JOB_SERVER_JAR --flink-master=[local] --job-port=$JOB_PORT --artifact-port=$ARTIFACT_PORT --expansion-port=0 >$TEMP_DIR/$FILE_BASE.log 2>&1 </dev/null &
+    echo "Launching job server @ $JOB_PORT ..."
+    java -jar $JOB_SERVER_JAR --job-port=$JOB_PORT --artifact-port=$ARTIFACT_PORT --expansion-port=0 >$TEMP_DIR/$FILE_BASE.log 2>&1 </dev/null &
     mypid=$!
     if kill -0 $mypid >/dev/null 2>&1; then
       echo $mypid >> $pid
     else
-      echo "Can't start Flink job server."
+      echo "Can't start job server."
     fi
     ;;
   stop)
     if [ -f "$pid" ]; then
       while read stop_pid; do
         if kill -0 $stop_pid >/dev/null 2>&1; then
-          echo "Stopping Flink job server pid: $stop_pid."
+          echo "Stopping job server pid: $stop_pid."
           kill $stop_pid
         else
           echo "Skipping invalid pid: $stop_pid."
