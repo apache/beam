@@ -496,7 +496,7 @@ public class CassandraIOTest implements Serializable {
     }
 
     // due to division and cast estimateSize != sum but will be close. Exact equals checked below
-    assertEquals((long)(estimatedSize/splits.size())*splits.size(), sum);
+    assertEquals((long) (estimatedSize / splits.size()) * splits.size(), sum);
 
     int expectedNumSplits = (int) Math.ceil(expectedNumSplitsloat);
     assertEquals("Wrong number of splits", expectedNumSplits, splits.size());
@@ -602,7 +602,6 @@ public class CassandraIOTest implements Serializable {
         new TokenRange(2, 3000, new BigInteger("10001"), BigInteger.valueOf(Long.MAX_VALUE)));
     assertEquals(8000, getEstimatedSizeBytesFromTokenRanges(tokenRanges));
   }
-
 
   /** Simple Cassandra entity used in read tests. */
   @Table(name = CASSANDRA_TABLE, keyspace = CASSANDRA_KEYSPACE)
