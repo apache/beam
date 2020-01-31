@@ -273,6 +273,7 @@ public class HBaseIO {
    * A {@link PTransform} that works like {@link #read}, but executes read operations coming from a
    * {@link PCollection} of {@link HBaseQuery}.
    */
+  @Experimental(Kind.SPLITTABLE_DO_FN)
   public static ReadAll readAll() {
     return new ReadAll(null);
   }
