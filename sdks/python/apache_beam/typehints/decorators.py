@@ -242,13 +242,12 @@ class IOTypeHints(NamedTuple('IOTypeHints', [
 
   @classmethod
   def _make_traceback(cls, base):  # type: (Optional[IOTypeHints]) -> List[str]
-    # Don't include this method and the IOTypeHints method that called it.
+    # Omit this method and the IOTypeHints method that called it.
     num_frames_skip = 2
-    tb_lines = 'TH>' + ''.join(traceback.format_stack(
-        limit=cls.traceback_limit + num_frames_skip)[:-num_frames_skip]
-    ).replace('\n', '\nTH>')
+    tb = traceback.format_stack(limit=cls.traceback_limit + num_frames_skip)
+    tb_lines = 'TH>' + ''.join(tb[:-num_frames_skip]).replace('\n', '\nTH>')
 
-    res = [tb_lines +'\nbased on: ' + str(base)]
+    res = [tb_lines + '\nbased on: ' + str(base)]
     if base is not None:
       res += base.origin
     return res
