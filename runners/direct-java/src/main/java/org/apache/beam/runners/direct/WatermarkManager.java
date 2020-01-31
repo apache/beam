@@ -597,7 +597,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       Instant earliest = THE_END_OF_TIME.get();
       for (NavigableSet<TimerData> timers : processingTimers.values()) {
         if (!timers.isEmpty()) {
-          earliest = INSTANT_ORDERING.min(timers.first().getOutputTimestamp(), earliest);
+          earliest = INSTANT_ORDERING.min(getMinimumOutputTimestamp(timers), earliest);
         }
       }
       for (NavigableSet<TimerData> timers : synchronizedProcessingTimers.values()) {
@@ -609,6 +609,15 @@ public class WatermarkManager<ExecutableT, CollectionT> {
         earliest = INSTANT_ORDERING.min(pendingTimers.first().getOutputTimestamp(), earliest);
       }
       return earliest;
+    }
+
+    private Instant getMinimumOutputTimestamp(NavigableSet<TimerData> timers) {
+      Instant minimumOutputTimestamp = timers.first().getOutputTimestamp();
+      for (TimerData timerData : timers) {
+        minimumOutputTimestamp =
+            INSTANT_ORDERING.min(timerData.getOutputTimestamp(), minimumOutputTimestamp);
+      }
+      return minimumOutputTimestamp;
     }
 
     private synchronized void updateTimers(TimerUpdate update) {
