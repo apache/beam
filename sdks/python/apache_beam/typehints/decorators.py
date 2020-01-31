@@ -304,11 +304,13 @@ class IOTypeHints(NamedTuple('IOTypeHints', [
                        output_types=(tuple(output_args), {}),
                        origin=cls._make_traceback(None))
 
-  def with_input_types(self, *args, **kwargs):  # type: (...) -> IOTypeHints
+  def with_input_types(self, *args, **kwargs):
+    # type: (...) -> IOTypeHints
     return self._replace(input_types=(args, kwargs),
                          origin=self._make_traceback(self))
 
-  def with_output_types(self, *args, **kwargs):  # type: (...) -> IOTypeHints
+  def with_output_types(self, *args, **kwargs):
+    # type: (...) -> IOTypeHints
     return self._replace(output_types=(args, kwargs),
                          origin=self._make_traceback(self))
 
@@ -326,7 +328,8 @@ class IOTypeHints(NamedTuple('IOTypeHints', [
     return (self.output_types and len(self.output_types[0]) == 1 and
             not self.output_types[1])
 
-  def strip_iterable(self):  # type: (...) -> IOTypeHints
+  def strip_iterable(self):
+    # type: () -> IOTypeHints
     """Removes outer Iterable (or equivalent) from output type.
 
     Only affects instances with simple output types, otherwise is a no-op.
