@@ -24,7 +24,6 @@ import os
 import platform
 import sys
 import warnings
-from distutils import log
 from distutils.errors import DistutilsError
 from distutils.version import StrictVersion
 

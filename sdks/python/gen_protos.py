@@ -217,8 +217,8 @@ def generate_urn_files(log, out_dir):
 
 
 def _find_protoc_gen_mypy():
-  # NOTE: this shouldn't be necessary if the virtualenv and test environment
-  #  is setup correctly, since protoc will search the PATH itself
+  # NOTE: this shouldn't be necessary if the virtualenv's environment
+  #  is passed to tasks below it, since protoc will search the PATH itself
   fname = 'protoc-gen-mypy'
 
   pathstr = os.environ.get('PATH')
@@ -241,6 +241,7 @@ def generate_proto_files(force=False, log=None):
     warnings.warn('Installing grpcio-tools is recommended for development.')
 
   if log is None:
+    logging.basicConfig()
     log = logging.getLogger(__name__)
     log.setLevel(logging.INFO)
 
@@ -313,7 +314,6 @@ def generate_proto_files(force=False, log=None):
 
       protoc_gen_mypy = _find_protoc_gen_mypy()
 
-      log.info('Found protoc at %s' % protoc.__file__)
       log.info('Found protoc_gen_mypy at %s' % protoc_gen_mypy)
 
       args = (
