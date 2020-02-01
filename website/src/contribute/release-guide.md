@@ -825,6 +825,9 @@ This pull request is against the `apache/beam` repo, on the `master` branch.
 
 Write a blog post similar to https://beam.apache.org/blog/2019/08/22/beam-2.15.0.html
 
+- Update `CHANGES.md` by adding a new section for the next release.
+- Copy the changes for the current release from `CHANGES.md` to the blog post and edit as necessary.
+
 __Tip__: Use git log to find contributors to the releases. (e.g: `git log --pretty='%aN' ^v2.10.0 v2.11.0 | sort | uniq`).
 Make sure to clean it up, as there may be duplicate or incorrect user names.
 
@@ -857,7 +860,7 @@ Template:
     ### Breaking Changes
 
     * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-    * Y behavior was changed ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-X)).
+    * Y behavior was changed ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
 
     ### Deprecations
 
