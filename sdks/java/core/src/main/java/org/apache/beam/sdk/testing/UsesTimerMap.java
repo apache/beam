@@ -20,4 +20,4 @@ package org.apache.beam.sdk.testing;
  * Category tag for validation tests which use timerMap. Tests tagged with {@link UsesTimerMap}
  * should be run for runners which support timerMap.
  */
-public interface UsesTimerMap {}
+public interface UsesTimerMap extends UsesTimersInParDo {}
