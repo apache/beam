@@ -143,7 +143,7 @@ class Pipeline(object):
         This will only be used if argument **options** is :data:`None`.
 
     Raises:
-      ~exceptions.ValueError: if either the runner or options argument is not
+      ValueError: if either the runner or options argument is not
         of the expected type.
     """
     # Initializing logging configuration in case the user did not set it up.
@@ -494,7 +494,7 @@ class Pipeline(object):
         :class:`~apache_beam.pipeline.PipelineVisitor` comments.
 
     Raises:
-      ~exceptions.TypeError: if node is specified and is not a
+      TypeError: if node is specified and is not a
         :class:`~apache_beam.pvalue.PValue`.
       ~apache_beam.error.PipelineError: if node is specified and does not
         belong to this pipeline instance.
@@ -516,10 +516,10 @@ class Pipeline(object):
         :class:`~apache_beam.transforms.ptransform.PTransform`.
 
     Raises:
-      ~exceptions.TypeError: if the transform object extracted from the
+      TypeError: if the transform object extracted from the
         argument list is not a
         :class:`~apache_beam.transforms.ptransform.PTransform`.
-      ~exceptions.RuntimeError: if the transform object was already applied to
+      RuntimeError: if the transform object was already applied to
         this pipeline and needs to be cloned in order to apply again.
     """
     if isinstance(transform, ptransform._NamedPTransform):

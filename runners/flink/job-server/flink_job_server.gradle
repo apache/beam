@@ -195,7 +195,7 @@ def addTestJavaJarCreator(String pyVersion) {
                 "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
                 "--python_root_dir ${project.rootDir}/sdks/python",
                 "--python_version ${pyVersion}",
-                "--python_container_image apachebeam/python${pyVersion}_sdk:${project['python_sdk_version']}",
+                "--python_container_image apachebeam/python${pyVersion}_sdk:${project.sdk_version}",
         ]
         args "-c", "../../job-server/test_pipeline_jar.sh ${options.join(' ')}"
       }
@@ -237,7 +237,7 @@ def addTestFlinkUberJarPy(String pyVersion) {
                 "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
                 "--python_root_dir ${project.rootDir}/sdks/python",
                 "--python_version ${pyVersion}",
-                "--python_container_image apachebeam/python${pyVersion}_sdk:${project['python_sdk_version']}",
+                "--python_container_image apachebeam/python${pyVersion}_sdk:${project.sdk_version}",
         ]
         args "-c", "../../job-server/test_flink_uber_jar.sh ${options.join(' ')}"
       }

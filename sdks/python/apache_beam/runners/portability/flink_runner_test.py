@@ -270,7 +270,7 @@ if __name__ == '__main__':
             # once. Caching is only initialized after the first bundle. Caching
             # depends on the cache token which is lazily initialized by the
             # Runner's StateRequestHandlers.
-            'stateful.beam.metric:statecache:size: 10',
+            'stateful.beam.metric:statecache:size: 20',
             'stateful.beam.metric:statecache:get: 10',
             'stateful.beam.metric:statecache:miss: 0',
             'stateful.beam.metric:statecache:hit: 10',
@@ -278,15 +278,17 @@ if __name__ == '__main__':
             'stateful.beam.metric:statecache:extend: 10',
             'stateful.beam.metric:statecache:evict: 0',
             # Counters
-            # (total of get/hit will be off by 10 due to the caching
-            # only getting initialized after the first bundle.
-            # Caching depends on the cache token which is lazily
+            # (total of get/hit will be off by 10 due to the cross-bundle
+            # caching only getting initialized after the first bundle.
+            # Cross-bundle caching depends on the cache token which is lazily
             # initialized by the Runner's StateRequestHandlers).
-            'stateful.beam.metric:statecache:get_total: 100',
-            'stateful.beam.metric:statecache:miss_total: 10',
+            # If cross-bundle caching is not requested, caching is done
+            # at the bundle level.
+            'stateful.beam.metric:statecache:get_total: 110',
+            'stateful.beam.metric:statecache:miss_total: 20',
             'stateful.beam.metric:statecache:hit_total: 90',
-            'stateful.beam.metric:statecache:put_total: 10',
-            'stateful.beam.metric:statecache:extend_total: 100',
+            'stateful.beam.metric:statecache:put_total: 20',
+            'stateful.beam.metric:statecache:extend_total: 110',
             'stateful.beam.metric:statecache:evict_total: 0',
             ])
       else:
@@ -297,7 +299,7 @@ if __name__ == '__main__':
             'stateful).beam.metric:statecache:capacity: 123',
             # For the first key, the cache token will not be set yet.
             # It's lazily initialized after first access in StateRequestHandlers
-            'stateful).beam.metric:statecache:size: 9',
+            'stateful).beam.metric:statecache:size: 10',
             # We have 11 here because there are 110 / 10 elements per key
             'stateful).beam.metric:statecache:get: 11',
             'stateful).beam.metric:statecache:miss: 1',
@@ -307,21 +309,22 @@ if __name__ == '__main__':
             'stateful).beam.metric:statecache:extend: 1',
             'stateful).beam.metric:statecache:evict: 0',
             # Counters
-            'stateful).beam.metric:statecache:get_total: 99',
-            'stateful).beam.metric:statecache:miss_total: 9',
-            'stateful).beam.metric:statecache:hit_total: 90',
-            'stateful).beam.metric:statecache:put_total: 9',
-            'stateful).beam.metric:statecache:extend_total: 9',
+            'stateful).beam.metric:statecache:get_total: 110',
+            'stateful).beam.metric:statecache:miss_total: 10',
+            'stateful).beam.metric:statecache:hit_total: 100',
+            'stateful).beam.metric:statecache:put_total: 10',
+            'stateful).beam.metric:statecache:extend_total: 10',
             'stateful).beam.metric:statecache:evict_total: 0',
             ])
       lines_actual = set()
       with open(self.test_metrics_path, 'r') as f:
-        line = f.readline()
-        while line:
+        for line in f:
           for metric_str in lines_expected:
+            metric_name = metric_str.split()[0]
             if metric_str in line:
               lines_actual.add(metric_str)
-          line = f.readline()
+            elif metric_name in line:
+              lines_actual.add(line)
       self.assertSetEqual(lines_actual, lines_expected)
 
     def test_sdf_with_watermark_tracking(self):

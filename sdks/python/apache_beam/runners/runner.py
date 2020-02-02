@@ -395,9 +395,9 @@ class PipelineResult(object):
         is finished.
 
     Raises:
-      ~exceptions.IOError: If there is a persistent problem getting job
+      IOError: If there is a persistent problem getting job
         information.
-      ~exceptions.NotImplementedError: If the runner does not support this
+      NotImplementedError: If the runner does not support this
         operation.
 
     Returns:
@@ -409,9 +409,9 @@ class PipelineResult(object):
     """Cancels the pipeline execution.
 
     Raises:
-      ~exceptions.IOError: If there is a persistent problem getting job
+      IOError: If there is a persistent problem getting job
         information.
-      ~exceptions.NotImplementedError: If the runner does not support this
+      NotImplementedError: If the runner does not support this
         operation.
 
     Returns:
@@ -424,7 +424,7 @@ class PipelineResult(object):
     query metrics from the runner.
 
     Raises:
-      ~exceptions.NotImplementedError: If the runner does not support this
+      NotImplementedError: If the runner does not support this
         operation.
     """
     raise NotImplementedError

@@ -58,7 +58,6 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
-import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
@@ -215,8 +214,7 @@ public class ZetaSQLDialectSpecTest {
     ImmutableList<Value> params = ImmutableList.of(Value.createStringValue("abc\n"));
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode =
-        zetaSQLQueryPlanner.convertToBeamRel(sql, QueryParameters.ofPositional(params));
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
     final Schema schema = Schema.builder().addNullableField("ColA", FieldType.STRING).build();
@@ -332,8 +330,7 @@ public class ZetaSQLDialectSpecTest {
     ImmutableList<Value> params =
         ImmutableList.of(Value.createInt64Value(4L), Value.createInt64Value(5L));
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode =
-        zetaSQLQueryPlanner.convertToBeamRel(sql, QueryParameters.ofPositional(params));
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
@@ -431,8 +428,7 @@ public class ZetaSQLDialectSpecTest {
             Value.createBoolValue(true), Value.createInt64Value(1), Value.createInt64Value(2));
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode =
-        zetaSQLQueryPlanner.convertToBeamRel(sql, QueryParameters.ofPositional(params));
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.INT64).build();
@@ -1404,6 +1400,45 @@ public class ZetaSQLDialectSpecTest {
             Row.withSchema(schema)
                 .addValue(parseTimestampWithUTCTimeZone("2019-01-15 13:21:00"))
                 .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  // Used to validate fix for [BEAM-8042].
+  public void testAggregateWithAndWithoutColumnRefs() {
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+
+    String sql =
+        "SELECT \n"
+            + "  id, \n"
+            + "  SUM(has_f1) as f1_count, \n"
+            + "  SUM(has_f2) as f2_count, \n"
+            + "  SUM(has_f3) as f3_count, \n"
+            + "  SUM(has_f4) as f4_count, \n"
+            + "  SUM(has_f5) as f5_count, \n"
+            + "  COUNT(*) as count, \n"
+            + "  SUM(has_f6) as f6_count  \n"
+            + "FROM (select 0 as id, 1 as has_f1, 2 as has_f2, 3 as has_f3, 4 as has_f4, 5 as has_f5, 6 as has_f6)\n"
+            + "GROUP BY id";
+
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    final Schema schema =
+        Schema.builder()
+            .addInt64Field("id")
+            .addInt64Field("f1_count")
+            .addInt64Field("f2_count")
+            .addInt64Field("f3_count")
+            .addInt64Field("f4_count")
+            .addInt64Field("f5_count")
+            .addInt64Field("count")
+            .addInt64Field("f6_count")
+            .build();
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues(0L, 1L, 2L, 3L, 4L, 5L, 1L, 6L).build());
+
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
@@ -3012,8 +3047,7 @@ public class ZetaSQLDialectSpecTest {
             Value.createStringValue("c"));
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode =
-        zetaSQLQueryPlanner.convertToBeamRel(sql, QueryParameters.ofPositional(params));
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
     final Schema schema = Schema.builder().addStringField("field1").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("abc").build());

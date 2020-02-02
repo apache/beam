@@ -759,24 +759,34 @@ class CachingStateHandler(object):
 
   @contextlib.contextmanager
   def process_instruction_id(self, bundle_id, cache_tokens):
-    if getattr(self._context, 'cache_token', None) is not None:
+    if getattr(self._context, 'user_state_cache_token', None) is not None:
       raise RuntimeError(
-          'Cache tokens already set to %s' % self._context.cache_token)
-    # TODO Also handle cache tokens for side input, if present:
-    # https://issues.apache.org/jira/browse/BEAM-8298
+          'Cache tokens already set to %s'
+          % self._context.user_state_cache_token)
+    self._context.side_input_cache_tokens = {}
     user_state_cache_token = None
     for cache_token_struct in cache_tokens:
       if cache_token_struct.HasField("user_state"):
         # There should only be one user state token present
         assert not user_state_cache_token
         user_state_cache_token = cache_token_struct.token
+      elif cache_token_struct.HasField("side_input"):
+        self._context.side_input_cache_tokens[
+            cache_token_struct.side_input.transform_id,
+            cache_token_struct.side_input.side_input_id
+        ] = cache_token_struct.token
+    # TODO: Consider a two-level cache to avoid extra logic and locking
+    # for items cached at the bundle level.
+    self._context.bundle_cache_token = bundle_id
     try:
       self._state_cache.initialize_metrics()
-      self._context.cache_token = user_state_cache_token
+      self._context.user_state_cache_token = user_state_cache_token
       with self._underlying.process_instruction_id(bundle_id):
         yield
     finally:
-      self._context.cache_token = None
+      self._context.side_input_cache_tokens = {}
+      self._context.user_state_cache_token = None
+      self._context.bundle_cache_token = None
 
   def blocking_get(self,
                    state_key,  # type: beam_fn_api_pb2.StateKey
@@ -784,25 +794,24 @@ class CachingStateHandler(object):
                    is_cached=False
                   ):
     # type: (...) -> Iterator[Any]
-    if not self._should_be_cached(is_cached):
+    cache_token = self._get_cache_token(state_key, is_cached)
+    if not cache_token:
       # Cache disabled / no cache token. Can't do a lookup/store in the cache.
       # Fall back to lazily materializing the state, one element at a time.
-      return self._materialize_iter(state_key, coder)
+      return self._lazy_iterator(state_key, coder)
     # Cache lookup
     cache_state_key = self._convert_to_cache_key(state_key)
-    cached_value = self._state_cache.get(cache_state_key,
-                                         self._context.cache_token)
+    cached_value = self._state_cache.get(cache_state_key, cache_token)
     if cached_value is None:
       # Cache miss, need to retrieve from the Runner
-      # TODO If caching is enabled, this materializes the entire state.
       # Further size estimation or the use of the continuation token on the
       # runner side could fall back to materializing one item at a time.
       # https://jira.apache.org/jira/browse/BEAM-8297
-      materialized = cached_value = list(
-          self._materialize_iter(state_key, coder))
+      materialized = cached_value = (
+          self._partially_cached_iterable(state_key, coder))
       self._state_cache.put(
           cache_state_key,
-          self._context.cache_token,
+          cache_token,
           materialized)
     return iter(cached_value)
 
@@ -813,10 +822,11 @@ class CachingStateHandler(object):
              is_cached=False
             ):
     # type: (...) -> _Future
-    if self._should_be_cached(is_cached):
+    cache_token = self._get_cache_token(state_key, is_cached)
+    if cache_token:
       # Update the cache
       cache_key = self._convert_to_cache_key(state_key)
-      self._state_cache.extend(cache_key, self._context.cache_token, elements)
+      self._state_cache.extend(cache_key, cache_token, elements)
     # Write to state handler
     out = coder_impl.create_OutputStream()
     for element in elements:
@@ -825,41 +835,90 @@ class CachingStateHandler(object):
 
   def clear(self, state_key, is_cached=False):
     # type: (beam_fn_api_pb2.StateKey, bool) -> _Future
-    if self._should_be_cached(is_cached):
+    cache_token = self._get_cache_token(state_key, is_cached)
+    if cache_token:
       cache_key = self._convert_to_cache_key(state_key)
-      self._state_cache.clear(cache_key, self._context.cache_token)
+      self._state_cache.clear(cache_key, cache_token)
     return self._underlying.clear(state_key)
 
   def done(self):
     # type: () -> None
     self._underlying.done()
 
-  def _materialize_iter(self,
-                        state_key,  # type: beam_fn_api_pb2.StateKey
-                        coder  # type: coder_impl.CoderImpl
-                       ):
+  def _lazy_iterator(
+      self,
+      state_key,  # type: beam_fn_api_pb2.StateKey
+      coder,  # type: coder_impl.CoderImpl
+      continuation_token=None  # type: Optional[bytes]
+    ):
     # type: (...) -> Iterator[Any]
     """Materializes the state lazily, one element at a time.
        :return A generator which returns the next element if advanced.
     """
-    continuation_token = None
     while True:
-      data, continuation_token = \
-          self._underlying.get_raw(state_key, continuation_token)
+      data, continuation_token = (
+          self._underlying.get_raw(state_key, continuation_token))
       input_stream = coder_impl.create_InputStream(data)
       while input_stream.size() > 0:
         yield coder.decode_from_stream(input_stream, True)
       if not continuation_token:
         break
 
-  def _should_be_cached(self, request_is_cached):
-    return (self._state_cache.is_cache_enabled() and
-            request_is_cached and
-            self._context.cache_token)
+  def _get_cache_token(self, state_key, request_is_cached):
+    if not self._state_cache.is_cache_enabled():
+      return None
+    elif state_key.HasField('bag_user_state'):
+      if request_is_cached and self._context.user_state_cache_token:
+        return self._context.user_state_cache_token
+      else:
+        return self._context.bundle_cache_token
+    elif state_key.WhichOneof('type').endswith('_side_input'):
+      side_input = getattr(state_key, state_key.WhichOneof('type'))
+      return self._context.side_input_cache_tokens.get(
+          (side_input.transform_id, side_input.side_input_id),
+          self._context.bundle_cache_token)
+
+  def _partially_cached_iterable(
+      self,
+      state_key,  # type: beam_fn_api_pb2.StateKey
+      coder  # type: coder_impl.CoderImpl
+    ):
+    # type: (...) -> Iterable[Any]
+    """Materialized the first page of data, concatenated with a lazy iterable
+    of the rest, if any.
+    """
+    data, continuation_token = self._underlying.get_raw(state_key, None)
+    head = []
+    input_stream = coder_impl.create_InputStream(data)
+    while input_stream.size() > 0:
+      head.append(coder.decode_from_stream(input_stream, True))
+
+    if continuation_token is None:
+      return head
+    else:
+      def iter_func():
+        for item in head:
+          yield item
+        if continuation_token:
+          for item in self._lazy_iterator(state_key, coder, continuation_token):
+            yield item
+      return _IterableFromIterator(iter_func)
 
   @staticmethod
   def _convert_to_cache_key(state_key):
     return state_key.SerializeToString()
+
+
+class _IterableFromIterator(object):
+  """Wraps an iterator as an iterable."""
+  def __init__(self, iter_func):
+    self._iter_func = iter_func
+  def __iter__(self):
+    return self._iter_func()
+
+
+coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(
+    _IterableFromIterator)
 
 
 class _Future(object):

@@ -96,12 +96,12 @@ class FileBasedSource(iobase.BoundedSource):
         pipeline creation time.
 
     Raises:
-      ~exceptions.TypeError: when **compression_type** is not valid or if
+      TypeError: when **compression_type** is not valid or if
         **file_pattern** is not a :class:`str` or a
         :class:`~apache_beam.options.value_provider.ValueProvider`.
-      ~exceptions.ValueError: when compression and splittable files are
+      ValueError: when compression and splittable files are
         specified.
-      ~exceptions.IOError: when the file pattern specified yields an empty
+      IOError: when the file pattern specified yields an empty
         result.
     """
 

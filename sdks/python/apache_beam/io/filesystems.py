@@ -155,7 +155,7 @@ class FileSystems(object):
       path: string path of the directory structure that should be created
 
     Raises:
-      IOError if leaf directory already exists.
+      IOError: if leaf directory already exists.
     """
     filesystem = FileSystems.get_filesystem(path)
     return filesystem.mkdirs(path)
@@ -192,7 +192,7 @@ class FileSystems(object):
     Returns: list of ``MatchResult`` objects.
 
     Raises:
-      ``BeamIOError`` if any of the pattern match operations fail
+      ``BeamIOError``: if any of the pattern match operations fail
     """
     if len(patterns) == 0:
       return []
@@ -242,7 +242,7 @@ class FileSystems(object):
       destination_file_names: list of destination of the new object
 
     Raises:
-      ``BeamIOError`` if any of the copy operations fail
+      ``BeamIOError``: if any of the copy operations fail
     """
     if len(source_file_names) == 0:
       return
@@ -259,7 +259,7 @@ class FileSystems(object):
       destination_file_names: List of destination_file_names for the files
 
     Raises:
-      ``BeamIOError`` if any of the rename operations fail
+      ``BeamIOError``: if any of the rename operations fail
     """
     if len(source_file_names) == 0:
       return
@@ -288,7 +288,7 @@ class FileSystems(object):
     Returns: float UNIX Epoch time
 
     Raises:
-      ``BeamIOError`` if path doesn't exist.
+      ``BeamIOError``: if path doesn't exist.
     """
     filesystem = FileSystems.get_filesystem(path)
     return filesystem.last_updated(path)
@@ -308,7 +308,7 @@ class FileSystems(object):
     Returns: string containing checksum
 
     Raises:
-      ``BeamIOError`` if path isn't a file or doesn't exist.
+      ``BeamIOError``: if path isn't a file or doesn't exist.
     """
     filesystem = FileSystems.get_filesystem(path)
     return filesystem.checksum(path)
@@ -322,7 +322,7 @@ class FileSystems(object):
       paths: list of paths that give the file objects to be deleted
 
     Raises:
-      ``BeamIOError`` if any of the delete operations fail
+      ``BeamIOError``: if any of the delete operations fail
     """
     if isinstance(paths, (str, unicode)):
       raise BeamIOError('Delete passed string argument instead of list: %s' %

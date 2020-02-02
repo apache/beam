@@ -315,29 +315,20 @@ release of the BigQuery Storage API as an [experimental feature](https://beam.ap
 Beam's support for the BigQuery Storage API has the following limitations:
 
 * The SDK for Python does not support the BigQuery Storage API.
-* Dynamic work re-balancing is not currently supported. As a result, reads might
-  be less efficient in the presence of stragglers.
 * SDK versions 2.11.0 and 2.12.0 do not support reading with a query string; you
   can only read from a table.
+* SDK versions before 2.15.0 do not support dynamic work rebalancing. As a
+  result, reads might be less efficient in the presence of stragglers.
 
 Because this is currently a Beam experimental feature, export based reads are
 recommended for production jobs.
-
-#### Enabling the API
-
-The BigQuery Storage API is distinct from the existing BigQuery API. You must
-[enable the BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/#enabling_the_api)
-for your Google Cloud Platform project.
 
 #### Updating your code
 
 Use the following methods when you read from a table:
 
-* Required: Specify [withMethod(Method.DIRECT_READ)](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withMethod-org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method-) to use the BigQuery Storage API for
-  the read operation.
-* Optional: To use features such as [column projection and column filtering](https://cloud.google.com/bigquery/docs/reference/storage/),
-  you must also specify a [TableReadOptions](https://googleapis.github.io/google-cloud-java/google-api-grpc/apidocs/index.html?com/google/cloud/bigquery/storage/v1beta1/ReadOptions.TableReadOptions.html)
-  proto using the [withReadOptions](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withReadOptions-com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions-) method.
+* Required: Specify [withMethod(Method.DIRECT_READ)](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withMethod-org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method-) to use the BigQuery Storage API for the read operation.
+* Optional: To use features such as [column projection and column filtering](https://cloud.google.com/bigquery/docs/reference/storage/), you must specify [withSelectedFields](https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withSelectedFields-java.util.List-) and [withRowRestriction](https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withRowRestriction-java.lang.String-) respectively.
 
 The following code snippet reads from a table. This example is from the [BigQueryTornadoes
 example](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java).
@@ -347,17 +338,12 @@ data from a BigQuery table. You can view the [full source code on
 GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java).
 
 ```java
-   TableReadOptions tableReadOptions =
-       TableReadOptions.newBuilder()
-           .addAllSelectedFields(Lists.newArrayList("month", "tornado"))
-           .build();
-
    rowsFromBigQuery =
        p.apply(
             BigQueryIO.readTableRows()
                .from(options.getInput())
                .withMethod(Method.DIRECT_READ)
-               .withReadOptions(tableReadOptions));
+               .withSelectedFields(Lists.newArrayList("month", "tornado"));
 ```
 ```py
 # The SDK for Python does not support the BigQuery Storage API.

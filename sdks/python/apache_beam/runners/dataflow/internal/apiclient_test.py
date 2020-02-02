@@ -644,6 +644,30 @@ class UtilTest(unittest.TestCase):
         Exception,
         apiclient._verify_interpreter_version_is_supported, pipeline_options)
 
+  def test_use_unified_worker(self):
+    pipeline_options = PipelineOptions([])
+    self.assertFalse(apiclient._use_unified_worker(pipeline_options))
+
+    pipeline_options = PipelineOptions(['--experiments=beam_fn_api'])
+    self.assertFalse(apiclient._use_unified_worker(pipeline_options))
+
+    pipeline_options = PipelineOptions(['--experiments=use_unified_worker'])
+    self.assertFalse(apiclient._use_unified_worker(pipeline_options))
+
+    pipeline_options = PipelineOptions(
+        ['--experiments=use_unified_worker', '--experiments=beam_fn_api'])
+    self.assertTrue(apiclient._use_unified_worker(pipeline_options))
+
+    pipeline_options = PipelineOptions(
+        ['--experiments=use_runner_v2', '--experiments=beam_fn_api'])
+    self.assertTrue(apiclient._use_unified_worker(pipeline_options))
+
+    pipeline_options = PipelineOptions([
+        '--experiments=use_unified_worker', '--experiments=use_runner_v2',
+        '--experiments=beam_fn_api'
+    ])
+    self.assertTrue(apiclient._use_unified_worker(pipeline_options))
+
   def test_get_response_encoding(self):
     encoding = apiclient.get_response_encoding()
     version_to_encoding = {3: 'utf8',

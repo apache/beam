@@ -148,7 +148,8 @@ class StateCache(object):
 
   def __init__(self, max_entries):
     _LOGGER.info('Creating state cache with size %s', max_entries)
-    self._cache = self.LRUCache(max_entries, (None, None))
+    self._missing = None
+    self._cache = self.LRUCache(max_entries, self._missing)
     self._lock = threading.RLock()
     self._metrics = Metrics()
 
@@ -156,45 +157,44 @@ class StateCache(object):
   def get(self, state_key, cache_token):
     assert cache_token and self.is_cache_enabled()
     with self._lock:
-      token, value = self._cache.get(state_key)
-    return value if token == cache_token else None
+      return self._cache.get((state_key, cache_token))
 
   @Metrics.counter("put")
   def put(self, state_key, cache_token, value):
     assert cache_token and self.is_cache_enabled()
     with self._lock:
-      return self._cache.put(state_key, (cache_token, value))
+      return self._cache.put((state_key, cache_token), value)
 
   @Metrics.counter("extend")
   def extend(self, state_key, cache_token, elements):
     assert cache_token and self.is_cache_enabled()
     with self._lock:
-      token, value = self._cache.get(state_key)
-      if token in [cache_token, None]:
-        if value is None:
-          value = []
+      value = self._cache.get((state_key, cache_token))
+      if value is self._missing:
+        value = []
+        self._cache.put((state_key, cache_token), value)
+      if isinstance(value, list):
         value.extend(elements)
-        self._cache.put(state_key, (cache_token, value))
       else:
-        # Discard cached state if tokens do not match
-        self.evict(state_key)
+        class Extended:
+          def __iter__(self):
+            for item in value:
+              yield item
+            for item in elements:
+              yield item
+        self._cache.put((state_key, cache_token), Extended())
 
   @Metrics.counter("clear")
   def clear(self, state_key, cache_token):
     assert cache_token and self.is_cache_enabled()
     with self._lock:
-      token, _ = self._cache.get(state_key)
-      if token in [cache_token, None]:
-        self._cache.put(state_key, (cache_token, []))
-      else:
-        # Discard cached state if tokens do not match
-        self.evict(state_key)
+      self._cache.put((state_key, cache_token), [])
 
   @Metrics.counter("evict")
-  def evict(self, state_key):
+  def evict(self, state_key, cache_token):
     assert self.is_cache_enabled()
     with self._lock:
-      self._cache.evict(state_key)
+      self._cache.evict((state_key, cache_token))
 
   def evict_all(self):
     with self._lock:

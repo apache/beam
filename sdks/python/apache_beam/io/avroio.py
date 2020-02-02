@@ -110,7 +110,7 @@ class ReadFromAvro(PTransform):
 
       Traceback (most recent call last):
        ...
-      IOError: No files found based on the file pattern
+      OSError: No files found based on the file pattern
 
     Each record of this :class:`~apache_beam.pvalue.PCollection` will contain
     a single record read from a source. Records that are of simple types will be

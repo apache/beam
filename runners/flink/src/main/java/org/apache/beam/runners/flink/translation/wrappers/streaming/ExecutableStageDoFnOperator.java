@@ -88,6 +88,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusRuntimeException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
@@ -130,7 +131,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private transient StageBundleFactory stageBundleFactory;
   private transient ExecutableStage executableStage;
   private transient SdkHarnessDoFnRunner<InputT, OutputT> sdkHarnessRunner;
-  private transient long backupWatermarkHold = Long.MIN_VALUE;
+
+  /**
+   * Watermark held back due to async processing. Volatile due to multiple mutually exclusive
+   * threads. Please see the description in DoFnOperator.
+   */
+  private transient volatile long backupWatermarkHold = Long.MIN_VALUE;
 
   /** Constructor. */
   public ExecutableStageDoFnOperator(
@@ -590,8 +596,16 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     private final BiConsumer<WindowedValue<InputT>, TimerInternals.TimerData> timerRegistration;
     private final Supplier<Object> keyForTimer;
 
-    private RemoteBundle remoteBundle;
-    private FnDataReceiver<WindowedValue<?>> mainInputReceiver;
+    /**
+     * Current active bundle. Volatile to ensure mutually exclusive bundle processing threads see
+     * this consistent. Please see the description in DoFnOperator.
+     */
+    private volatile RemoteBundle remoteBundle;
+    /**
+     * Current main input receiver. Volatile to ensure mutually exclusive bundle processing threads
+     * see this consistent. Please see the description in DoFnOperator.
+     */
+    private volatile FnDataReceiver<WindowedValue<?>> mainInputReceiver;
 
     public SdkHarnessDoFnRunner(
         String mainInput,
@@ -698,6 +712,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         remoteBundle.close();
         emitResults();
       } catch (Exception e) {
+        if (e.getCause() instanceof StatusRuntimeException) {
+          throw new RuntimeException("SDK Harness connection lost.", e);
+        }
         throw new RuntimeException("Failed to finish remote bundle", e);
       } finally {
         remoteBundle = null;

@@ -1274,10 +1274,10 @@ class ParDo(PTransformWithSideInputs):
       using an ``object.tag`` syntax.
 
     Raises:
-      ~exceptions.TypeError: if the **self** object is not a
+      TypeError: if the **self** object is not a
         :class:`~apache_beam.pvalue.PCollection` that is the result of a
         :class:`ParDo` transform.
-      ~exceptions.ValueError: if **main_kw** contains any key other than
+      ValueError: if **main_kw** contains any key other than
         ``'main'``.
     """
     main_tag = main_kw.pop('main', None)
@@ -1326,6 +1326,7 @@ class ParDo(PTransformWithSideInputs):
                 "side%s" % ix: si.to_runner_api(context)
                 for ix, si in enumerate(self.side_inputs)}))
 
+  @staticmethod
   @PTransform.register_urn(
       common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
   def from_runner_api_parameter(pardo_payload, context):
@@ -1393,7 +1394,7 @@ def FlatMap(fn, *args, **kwargs):  # pylint: disable=invalid-name
     :func:`FlatMap` outputs.
 
   Raises:
-    ~exceptions.TypeError: If the **fn** passed as argument is not a callable.
+    TypeError: If the **fn** passed as argument is not a callable.
       Typical error is to pass a :class:`DoFn` instance which is supported only
       for :class:`ParDo`.
   """
@@ -1423,7 +1424,7 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
     :func:`Map` outputs.
 
   Raises:
-    ~exceptions.TypeError: If the **fn** passed as argument is not a callable.
+    TypeError: If the **fn** passed as argument is not a callable.
       Typical error is to pass a :class:`DoFn` instance which is supported only
       for :class:`ParDo`.
   """
@@ -1491,7 +1492,7 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
     :func:`MapTuple` outputs.
 
   Raises:
-    ~exceptions.TypeError: If the **fn** passed as argument is not a callable.
+    TypeError: If the **fn** passed as argument is not a callable.
       Typical error is to pass a :class:`DoFn` instance which is supported only
       for :class:`ParDo`.
   """
@@ -1561,7 +1562,7 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
     :func:`FlatMapTuple` outputs.
 
   Raises:
-    ~exceptions.TypeError: If the **fn** passed as argument is not a callable.
+    TypeError: If the **fn** passed as argument is not a callable.
       Typical error is to pass a :class:`DoFn` instance which is supported only
       for :class:`ParDo`.
   """
@@ -1615,7 +1616,7 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
     :func:`Filter` outputs.
 
   Raises:
-    ~exceptions.TypeError: If the **fn** passed as argument is not a callable.
+    TypeError: If the **fn** passed as argument is not a callable.
       Typical error is to pass a :class:`DoFn` instance which is supported only
       for :class:`ParDo`.
   """
@@ -1685,7 +1686,7 @@ class CombineGlobally(PTransform):
     **kwargs: keyword arguments passed to the :class:`CombineFn` object.
 
   Raises:
-    ~exceptions.TypeError: If the output type of the input
+    TypeError: If the output type of the input
       :class:`~apache_beam.pvalue.PCollection` is not compatible
       with ``Iterable[A]``.
 
@@ -1900,6 +1901,7 @@ class CombinePerKey(PTransformWithSideInputs):
         common_urns.composites.COMBINE_PER_KEY.urn,
         _combine_payload(combine_fn, context))
 
+  @staticmethod
   @PTransform.register_urn(
       common_urns.composites.COMBINE_PER_KEY.urn,
       beam_runner_api_pb2.CombinePayload)
@@ -1942,6 +1944,7 @@ class CombineValues(PTransformWithSideInputs):
         common_urns.combine_components.COMBINE_GROUPED_VALUES.urn,
         _combine_payload(combine_fn, context))
 
+  @staticmethod
   @PTransform.register_urn(
       common_urns.combine_components.COMBINE_GROUPED_VALUES.urn,
       beam_runner_api_pb2.CombinePayload)
@@ -2170,6 +2173,7 @@ class GroupByKey(PTransform):
     # type: (PipelineContext) -> typing.Tuple[str, None]
     return common_urns.primitives.GROUP_BY_KEY.urn, None
 
+  @staticmethod
   @PTransform.register_urn(common_urns.primitives.GROUP_BY_KEY.urn, None)
   def from_runner_api_parameter(unused_payload, unused_context):
     return GroupByKey()
@@ -2641,6 +2645,7 @@ class Impulse(PTransform):
     # type: (PipelineContext) -> typing.Tuple[str, None]
     return common_urns.primitives.IMPULSE.urn, None
 
+  @staticmethod
   @PTransform.register_urn(common_urns.primitives.IMPULSE.urn, None)
   def from_runner_api_parameter(unused_parameter, unused_context):
     return Impulse()

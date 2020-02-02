@@ -780,7 +780,7 @@ class DebugOptions(PipelineOptions):
         ('Number of threads per worker to use on the runner. If left '
          'unspecified, the runner will compute an appropriate number of '
          'threads to use. Currently only enabled for DataflowRunner when '
-         'experiment \'use_unified_worker\' is enabled.'))
+         'experiment \'use_runner_v2\' is enabled.'))
 
   def add_experiment(self, experiment):
     # pylint: disable=access-member-before-definition

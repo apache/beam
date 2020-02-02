@@ -444,7 +444,7 @@ class BigQuerySource(dataflow_io.NativeSource):
         creating new tables.
 
     Raises:
-      ~exceptions.ValueError: if any of the following is true:
+      ValueError: if any of the following is true:
 
         1) the table reference as a string does not match the expected format
         2) neither a table nor a query is specified
@@ -770,10 +770,10 @@ bigquery_v2_messages.TableSchema` object or a single string  of the form
         creating new tables.
 
     Raises:
-      ~exceptions.TypeError: if the schema argument is not a :class:`str` or a
+      TypeError: if the schema argument is not a :class:`str` or a
         :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
 bigquery_v2_messages.TableSchema` object.
-      ~exceptions.ValueError: if the table reference as a string does not
+      ValueError: if the table reference as a string does not
         match the expected format.
     """
     # Import here to avoid adding the dependency for local running scenarios.

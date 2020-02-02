@@ -701,7 +701,7 @@ def with_input_types(*positional_hints, **keyword_hints):
       with a type parameter.
 
   Raises:
-    :class:`~exceptions.ValueError`: If not all function arguments have
+    :class:`ValueError`: If not all function arguments have
       corresponding type-hints specified. Or if the inner wrapper function isn't
       passed a function object.
     :class:`TypeCheckError`: If the any of the passed type-hint
@@ -783,7 +783,7 @@ def with_output_types(*return_type_hint, **kwargs):
     **kwargs: Not used.
 
   Raises:
-    :class:`~exceptions.ValueError`: If any kwarg parameters are passed in,
+    :class:`ValueError`: If any kwarg parameters are passed in,
       or the length of **return_type_hint** is greater than ``1``. Or if the
       inner wrapper function isn't passed a function object.
     :class:`TypeCheckError`: If the **return_type_hint** object is
