@@ -22,6 +22,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -145,6 +147,7 @@ class CoderTranslators {
     };
   }
 
+  @Experimental(Kind.SCHEMAS)
   static CoderTranslator<RowCoder> row() {
     return new CoderTranslator<RowCoder>() {
       @Override

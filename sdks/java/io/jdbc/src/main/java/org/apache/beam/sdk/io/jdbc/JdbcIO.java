@@ -1442,7 +1442,7 @@ public class JdbcIO {
 
     @Override
     public DataSource apply(Void input) {
-      return instances.computeIfAbsent(config, (config) -> config.buildDatasource());
+      return instances.computeIfAbsent(config, DataSourceConfiguration::buildDatasource);
     }
 
     @Override

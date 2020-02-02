@@ -25,6 +25,8 @@ import org.apache.beam.model.pipeline.v1.SchemaApi.FieldValue;
 import org.apache.beam.model.pipeline.v1.SchemaApi.IterableTypeValue;
 import org.apache.beam.model.pipeline.v1.SchemaApi.MapTypeEntry;
 import org.apache.beam.model.pipeline.v1.SchemaApi.MapTypeValue;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
@@ -36,6 +38,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /** Utility methods for translating schemas. */
+@Experimental(Kind.SCHEMAS)
 public class SchemaTranslation {
 
   private static final String URN_BEAM_LOGICAL_DATETIME = "beam:logical_type:datetime:v1";
