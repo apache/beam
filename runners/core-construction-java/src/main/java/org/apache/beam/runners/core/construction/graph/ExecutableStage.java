@@ -236,6 +236,10 @@ public interface ExecutableStage {
         payload.getTimersList().stream()
             .map(timerId -> TimerReference.fromTimerId(timerId, components))
             .collect(Collectors.toList());
+    List<TimerReference> timerFamilies =
+            payload.getTimerFamiliesList().stream()
+                    .map(timerId -> TimerReference.fromTimerId(timerId, components))
+                    .collect(Collectors.toList());
     List<PTransformNode> transforms =
         payload.getTransformsList().stream()
             .map(id -> PipelineNode.pTransform(id, components.getTransformsOrThrow(id)))

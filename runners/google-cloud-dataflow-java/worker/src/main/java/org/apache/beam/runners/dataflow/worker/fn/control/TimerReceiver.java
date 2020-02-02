@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+
+import com.google.auto.value.AutoValue;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.StateNamespace;
@@ -49,11 +51,20 @@ public class TimerReceiver {
   private final StageBundleFactory stageBundleFactory;
   private final DataflowExecutionContext.DataflowStepContext stepContext;
 
-  private final Map<String, Coder<BoundedWindow>> timerWindowCodersMap;
+  @AutoValue
+  abstract static class TimerMapKey {
+    static TimerMapKey of(String timerId, String timerFamily) {
+      return new AutoValue_TimerReceiver_TimerMapKey(timerId, timerFamily);
+
+    }
+    public abstract String timerId();
+    public abstract String timerFamily();
+  }
+  private final Map<TimerMapKey, Coder<BoundedWindow>> timerWindowCodersMap;
   private final Map<String, ProcessBundleDescriptors.TimerSpec> timerOutputIdToSpecMap;
-  private final Map<String, ProcessBundleDescriptors.TimerSpec> timerIdToTimerSpecMap;
-  private final Map<String, Object> timerIdToKey;
-  private final Map<String, Object> timerIdToPayload;
+  private final Map<TimerMapKey, ProcessBundleDescriptors.TimerSpec> timerIdToTimerSpecMap;
+  private final Map<TimerMapKey, Object> timerIdToKey;
+  private final Map<TimerMapKey, Object> timerIdToPayload;
 
   private final StateRequestHandler stateRequestHandler = StateRequestHandler.unsupported();
   private final BundleProgressHandler progressHandler = BundleProgressHandler.ignored();
@@ -112,18 +123,19 @@ public class TimerReceiver {
       Timer timer = windowedValue.getValue().getValue();
 
       for (BoundedWindow window : windowedValue.getWindows()) {
-        Coder<BoundedWindow> windowCoder = timerWindowCodersMap.get(timerSpec.timerId());
+        Coder<BoundedWindow> windowCoder = timerWindowCodersMap.get(TimerMapKey.of(timerSpec.timerId(), timerSpec.timerFamily()));
         StateNamespace namespace = StateNamespaces.window(windowCoder, window);
 
         TimeDomain timeDomain = timerSpec.getTimerSpec().getTimeDomain();
         String timerId = timerSpec.timerId();
+        String timerFamily = timerSpec.timerFamily();
 
         TimerInternals timerInternals = stepContext.namespacedToUser().timerInternals();
         timerInternals.setTimer(
-            namespace, timerId, "", timer.getTimestamp(), windowedValue.getTimestamp(), timeDomain);
+            namespace, timerId, timerFamily, timer.getTimestamp(), windowedValue.getTimestamp(), timeDomain);
 
-        timerIdToKey.put(timerId, windowedValue.getValue().getKey());
-        timerIdToPayload.put(timerId, timer.getPayload());
+        timerIdToKey.put(TimerMapKey.of(timerId, timerFamily), windowedValue.getValue().getKey());
+        timerIdToPayload.put(TimerMapKey.of(timerId, timerFamily), timer.getPayload());
       }
       return true;
     }
@@ -187,50 +199,50 @@ public class TimerReceiver {
   }
 
   // Fills the given maps from timer the TimerSpec definitions in the process bundle descriptor.
-  private static Map<String, ProcessBundleDescriptors.TimerSpec> createTimerIdToSpecMap(
+  private static Map<TimerMapKey, ProcessBundleDescriptors.TimerSpec> createTimerIdToSpecMap(
       ProcessBundleDescriptors.ExecutableProcessBundleDescriptor processBundleDescriptor) {
-    Map<String, ProcessBundleDescriptors.TimerSpec> timerIdToTimerSpecMap = new HashMap<>();
+    Map<TimerMapKey, ProcessBundleDescriptors.TimerSpec> timerIdToTimerSpecMap = new HashMap<>();
     processBundleDescriptor
         .getTimerSpecs()
         .values()
         .forEach(
             transformTimerMap -> {
               for (ProcessBundleDescriptors.TimerSpec timerSpec : transformTimerMap.values()) {
-                timerIdToTimerSpecMap.put(timerSpec.timerId(), timerSpec);
+                timerIdToTimerSpecMap.put(TimerMapKey.of(timerSpec.timerId(), timerSpec.timerFamily()), timerSpec);
               }
             });
     return timerIdToTimerSpecMap;
   }
 
   // Retrieves all window coders for all TimerSpecs.
-  private static Map<String, Coder<BoundedWindow>> createTimerWindowCodersMap(
+  private static Map<TimerMapKey, Coder<BoundedWindow>> createTimerWindowCodersMap(
       ProcessBundleDescriptor processBundleDescriptor,
-      Map<String, ProcessBundleDescriptors.TimerSpec> timerIdToTimerSpecMap,
+      Map<TimerMapKey, ProcessBundleDescriptors.TimerSpec> timerIdToTimerSpecMap,
       RunnerApi.Components components) {
-    Map<String, Coder<BoundedWindow>> timerWindowCodersMap = new HashMap<>();
+    Map<TimerMapKey, Coder<BoundedWindow>> timerWindowCodersMap = new HashMap<>();
 
     RehydratedComponents rehydratedComponents = RehydratedComponents.forComponents(components);
 
     // Find the matching PTransform per timer. Then, rehydrate the PTransform window coder and
     // associate it with its timer.
     for (RunnerApi.PTransform pTransform : processBundleDescriptor.getTransformsMap().values()) {
-      for (String timerId : timerIdToTimerSpecMap.keySet()) {
+      for (TimerMapKey timerMapKey : timerIdToTimerSpecMap.keySet()) {
         if (!pTransform.getInputsMap().containsKey(timerId)) {
           continue;
         }
 
         RunnerApi.Coder windowingCoder =
-            getTimerWindowingCoder(pTransform, timerId, processBundleDescriptor);
+            getTimerWindowingCoder(pTransform, timerMapKey, processBundleDescriptor);
         try {
           timerWindowCodersMap.put(
-              timerId,
+              timerMapKey,
               (Coder<BoundedWindow>)
                   CoderTranslation.fromProto(windowingCoder, rehydratedComponents));
         } catch (IOException e) {
           String err =
               String.format(
-                  "Failed to retrieve window coder for timerId %s. Failed with error: %s",
-                  timerId, e.getMessage());
+                  "Failed to retrieve window coder for timer map key %s. Failed with error: %s",
+                  timerMapKey, e.getMessage());
           LOG.error(err);
           throw new RuntimeException(err, e);
         }
@@ -242,7 +254,7 @@ public class TimerReceiver {
   // Retrieves the window coder for the given timer.
   private static RunnerApi.Coder getTimerWindowingCoder(
       RunnerApi.PTransform pTransform,
-      String timerId,
+      TimerMapKey timerMapKey,
       ProcessBundleDescriptor processBundleDescriptor) {
     String timerPCollectionId = pTransform.getInputsMap().get(timerId);
     RunnerApi.PCollection timerPCollection =

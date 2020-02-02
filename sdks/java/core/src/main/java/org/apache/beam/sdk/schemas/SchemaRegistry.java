@@ -203,7 +203,7 @@ public class SchemaRegistry {
   }
 
   /**
-   * Register a JavaBean type for automatic schema inference.
+   * Register a JavaBean type for automatic schema inference.f
    *
    * <p>Currently schema field names will match getter names in the bean, and all getters must have
    * matching setters. The Java object is expected to have implemented a correct .equals() and
