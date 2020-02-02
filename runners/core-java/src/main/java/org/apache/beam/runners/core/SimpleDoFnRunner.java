@@ -997,7 +997,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final TimerSpec spec;
     private Instant target;
     private Instant outputTimestamp;
-    private Instant elementInputTimestamp;
+    private final Instant elementInputTimestamp;
     private Duration period = Duration.ZERO;
     private Duration offset = Duration.ZERO;
 
@@ -1108,6 +1108,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
      */
     private void setAndVerifyOutputTimestamp() {
 
+      if (outputTimestamp != null) {
+        checkArgument(
+            !outputTimestamp.isBefore(elementInputTimestamp),
+            "output timestamp %s should be after input message timestamp or output timestamp of firing timers %s",
+            outputTimestamp,
+            elementInputTimestamp);
+      }
+
       // Output timestamp is set to the delivery time if not initialized by an user.
       if (outputTimestamp == null && TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
         outputTimestamp = target;
@@ -1120,12 +1128,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         // 2) output timestamp of firing timer.
         outputTimestamp = elementInputTimestamp;
       }
-
-      checkArgument(
-          !outputTimestamp.isBefore(elementInputTimestamp),
-          "output timestamp %s should be after input message timestamp or output timestamp of firing timers %s",
-          outputTimestamp,
-          elementInputTimestamp);
 
       checkArgument(
           !outputTimestamp.isAfter(target),
