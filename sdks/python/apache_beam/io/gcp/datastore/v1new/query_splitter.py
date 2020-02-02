@@ -20,6 +20,8 @@ Implements a Cloud Datastore query splitter.
 
 For internal use only. No backwards compatibility guarantees.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -72,7 +74,7 @@ def get_splits(client, query, num_splits):
     A list of split queries, of a max length of `num_splits`
 
   Raises:
-    QuerySplitterError if split could not be performed owing to query or split
+    QuerySplitterError: if split could not be performed owing to query or split
       parameters.
   """
   if num_splits <= 1:

@@ -18,6 +18,8 @@
 """:class:`~apache_beam.io.filesystem.FileSystem` implementation for accessing
 Hadoop Distributed File System files."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import io
@@ -25,6 +27,7 @@ import logging
 import posixpath
 import re
 from builtins import zip
+from typing import BinaryIO  # pylint: disable=unused-import
 
 import hdfs
 
@@ -54,6 +57,8 @@ _FILE_STATUS_PATH_SUFFIX = 'pathSuffix'
 _FILE_STATUS_TYPE = 'type'
 _FILE_STATUS_TYPE_DIRECTORY = 'DIRECTORY'
 _FILE_STATUS_TYPE_FILE = 'FILE'
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class HdfsDownloader(filesystemio.Downloader):
@@ -196,7 +201,7 @@ class HadoopFileSystem(FileSystem):
   @staticmethod
   def _add_compression(stream, path, mime_type, compression_type):
     if mime_type != 'application/octet-stream':
-      logging.warning('Mime types are not supported. Got non-default mime_type:'
+      _LOGGER.warning('Mime types are not supported. Got non-default mime_type:'
                       ' %s', mime_type)
     if compression_type == CompressionTypes.AUTO:
       compression_type = CompressionTypes.detect_compression_type(path)
@@ -207,6 +212,7 @@ class HadoopFileSystem(FileSystem):
 
   def create(self, url, mime_type='application/octet-stream',
              compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
     """
     Returns:
       A Python File-like object.
@@ -224,6 +230,7 @@ class HadoopFileSystem(FileSystem):
 
   def open(self, url, mime_type='application/octet-stream',
            compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
     """
     Returns:
       A Python File-like object.
@@ -314,6 +321,7 @@ class HadoopFileSystem(FileSystem):
       raise BeamIOError('Rename operation failed', exceptions)
 
   def exists(self, url):
+    # type: (str) -> bool
     """Checks existence of url in HDFS.
 
     Args:

@@ -41,6 +41,7 @@ import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
@@ -314,7 +315,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
             name + ".WindowLogFiles",
             Window.<KV<Void, OutputFile>>into(
                     FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec)))
-                .triggering(AfterWatermark.pastEndOfWindow())
+                .triggering(DefaultTrigger.of())
                 // We expect no late data here, but we'll assume the worst so we can detect any.
                 .withAllowedLateness(Duration.standardDays(1))
                 .discardingFiredPanes())

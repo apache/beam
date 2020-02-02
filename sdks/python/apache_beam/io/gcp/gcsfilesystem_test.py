@@ -18,6 +18,8 @@
 
 """Unit tests for GCS File System."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -37,7 +39,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 try:
   from apache_beam.io.gcp import gcsfilesystem
 except ImportError:
-  gcsfilesystem = None
+  gcsfilesystem = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 

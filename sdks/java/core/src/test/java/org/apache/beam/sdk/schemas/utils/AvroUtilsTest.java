@@ -48,7 +48,9 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.utils.AvroGenerators.RecordSchemaGenerator;
 import org.apache.beam.sdk.schemas.utils.AvroUtils.TypeWithNullability;
+import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -501,6 +503,12 @@ public class AvroUtilsTest {
   }
 
   @Test
+  public void testRowToGenericRecordFunction() {
+    SerializableUtils.ensureSerializable(AvroUtils.getRowToGenericRecordFunction(NULL_SCHEMA));
+    SerializableUtils.ensureSerializable(AvroUtils.getRowToGenericRecordFunction(null));
+  }
+
+  @Test
   public void testGenericRecordToBeamRow() {
     GenericRecord genericRecord = getGenericRecord();
     Row row = AvroUtils.toBeamRowStrict(getGenericRecord(), null);
@@ -510,6 +518,12 @@ public class AvroUtilsTest {
     genericRecord.put("timestampMillis", new DateTime(genericRecord.get("timestampMillis")));
     row = AvroUtils.toBeamRowStrict(getGenericRecord(), null);
     assertEquals(getBeamRow(), row);
+  }
+
+  @Test
+  public void testGenericRecordToRowFunction() {
+    SerializableUtils.ensureSerializable(AvroUtils.getGenericRecordToRowFunction(Schema.of()));
+    SerializableUtils.ensureSerializable(AvroUtils.getGenericRecordToRowFunction(null));
   }
 
   @Test
@@ -533,6 +547,7 @@ public class AvroUtilsTest {
     assertFalse(records.hasSchema());
     records.setCoder(AvroUtils.schemaCoder(schema));
     assertTrue(records.hasSchema());
+    CoderProperties.coderSerializable(records.getCoder());
 
     AvroGeneratedUser user = new AvroGeneratedUser("foo", 42, "green");
     PCollection<AvroGeneratedUser> users =
@@ -540,6 +555,7 @@ public class AvroUtilsTest {
     assertFalse(users.hasSchema());
     users.setCoder(AvroUtils.schemaCoder((AvroCoder<AvroGeneratedUser>) users.getCoder()));
     assertTrue(users.hasSchema());
+    CoderProperties.coderSerializable(users.getCoder());
   }
 
   public static ContainsField containsField(Function<org.apache.avro.Schema, Boolean> predicate) {

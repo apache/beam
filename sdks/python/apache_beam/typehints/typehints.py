@@ -63,6 +63,8 @@ In addition, type-hints can be used to implement run-time type-checking via the
 
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections
@@ -70,6 +72,7 @@ import copy
 import logging
 import sys
 import types
+import typing
 from builtins import next
 from builtins import zip
 
@@ -95,6 +98,8 @@ __all__ = [
 # A set of the built-in Python types we don't support, guiding the users
 # to templated (upper-case) versions instead.
 DISALLOWED_PRIMITIVE_TYPES = (list, set, tuple, dict)
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class SimpleTypeHintError(TypeError):
@@ -142,10 +147,10 @@ class TypeConstraint(object):
       instance: An instance of a Python object.
 
     Raises:
-      :class:`~exceptions.TypeError`: The passed **instance** doesn't satisfy
+      :class:`TypeError`: The passed **instance** doesn't satisfy
         this :class:`TypeConstraint`. Subclasses of
         :class:`TypeConstraint` are free to raise any of the subclasses of
-        :class:`~exceptions.TypeError` defined above, depending on
+        :class:`TypeError` defined above, depending on
         the manner of the type hint error.
 
     All :class:`TypeConstraint` sub-classes must define this method in other
@@ -340,7 +345,7 @@ def validate_composite_type_param(type_param, error_msg_prefix):
       message in the case of an exception.
 
   Raises:
-    ~exceptions.TypeError: If the passed **type_param** is not a valid type
+    TypeError: If the passed **type_param** is not a valid type
       parameter for a :class:`CompositeTypeHint`.
   """
   # Must either be a TypeConstraint instance or a basic Python type.
@@ -1028,7 +1033,7 @@ class IteratorHint(CompositeTypeHint):
 IteratorTypeConstraint = IteratorHint.IteratorTypeConstraint
 
 
-class WindowedTypeConstraint(with_metaclass(GetitemConstructor,
+class WindowedTypeConstraint(with_metaclass(GetitemConstructor,  # type: ignore[misc]
                                             TypeConstraint)):
   """A type constraint for WindowedValue objects.
 
@@ -1086,9 +1091,9 @@ class GeneratorHint(IteratorHint):
     if isinstance(type_params, tuple) and len(type_params) == 3:
       yield_type, send_type, return_type = type_params
       if send_type is not None:
-        logging.warning('Ignoring send_type hint: %s' % send_type)
+        _LOGGER.warning('Ignoring send_type hint: %s' % send_type)
       if send_type is not None:
-        logging.warning('Ignoring return_type hint: %s' % return_type)
+        _LOGGER.warning('Ignoring return_type hint: %s' % return_type)
     else:
       yield_type = type_params
     return self.IteratorTypeConstraint(yield_type)
@@ -1112,7 +1117,7 @@ WindowedValue = WindowedTypeConstraint
 # There is a circular dependency between defining this mapping
 # and using it in normalize().  Initialize it here and populate
 # it below.
-_KNOWN_PRIMITIVE_TYPES = {}
+_KNOWN_PRIMITIVE_TYPES = {}  # type: typing.Dict[type, typing.Any]
 
 
 def normalize(x, none_as_type=False):
@@ -1172,7 +1177,7 @@ def get_yielded_type(type_hint):
   """Obtains the type of elements yielded by an iterable.
 
   Note that "iterable" here means: can be iterated over in a for loop, excluding
-  strings.
+  strings and dicts.
 
   Args:
     type_hint: (TypeConstraint) The iterable in question. Must be normalize()-d.
@@ -1188,7 +1193,10 @@ def get_yielded_type(type_hint):
   if is_consistent_with(type_hint, Iterator[Any]):
     return type_hint.yielded_type
   if is_consistent_with(type_hint, Tuple[Any, ...]):
-    return Union[type_hint.tuple_types]
+    if isinstance(type_hint, TupleConstraint):
+      return Union[type_hint.tuple_types]
+    else:  # TupleSequenceConstraint
+      return type_hint.inner_type
   if is_consistent_with(type_hint, Iterable[Any]):
     return type_hint.inner_type
   raise ValueError('%s is not iterable' % type_hint)

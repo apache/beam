@@ -38,7 +38,7 @@ applyJavaNature(
 
 def sparkRunnerProject = project.parent.path
 
-description = project(sparkRunnerProject).description + " :: Job Server"
+description = "Apache Beam :: Runners :: Spark :: Job Server"
 
 configurations {
   validatesPortableRunner
@@ -55,7 +55,7 @@ dependencies {
   validatesPortableRunner project(path: sparkRunnerProject, configuration: "provided")
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntime")
-  validatesPortableRunner project(path: ":runners:reference:java", configuration: "testRuntime")
+  validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntime")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
 //  TODO: Enable AWS and HDFS file system.
 }
@@ -88,7 +88,7 @@ def portableValidatesRunnerTask(String name) {
     jobServerDriver: "org.apache.beam.runners.spark.SparkJobServerDriver",
     jobServerConfig: "--job-host=localhost,--job-port=0,--artifact-port=0,--expansion-port=0",
     testClasspathConfiguration: configurations.validatesPortableRunner,
-    numParallelTests: 1,
+    numParallelTests: 4,
     environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
     systemProperties: [
       "beam.spark.test.reuseSparkContext": "false",
@@ -99,11 +99,8 @@ def portableValidatesRunnerTask(String name) {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
       excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesCounterMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesDistributionMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
       excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
@@ -114,6 +111,7 @@ def portableValidatesRunnerTask(String name) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
       excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
     },
   )
 }
@@ -122,4 +120,33 @@ project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch")
 
 task validatesPortableRunner() {
   dependsOn validatesPortableRunnerBatch
+}
+
+def addTestJavaJarCreator(String pyVersion) {
+  def pyBuildPath = pyVersion.startsWith("2") ? "2" : pyVersion.replaceAll("\\.", "")
+  project.tasks.create(name: "testJavaJarCreatorPy${pyBuildPath}") {
+    dependsOn shadowJar
+    dependsOn ":sdks:python:container:py${pyBuildPath}:docker"
+    doLast{
+      exec {
+        executable "sh"
+        def options = [
+                "--spark_job_server_jar ${shadowJar.archivePath}",
+                "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
+                "--python_root_dir ${project.rootDir}/sdks/python",
+                "--python_version ${pyVersion}",
+                "--python_container_image apachebeam/python${pyVersion}_sdk:${project.sdk_version}",
+        ]
+        args "-c", "./test_spark_pipeline_jar.sh ${options.join(' ')}"
+      }
+    }
+  }
+}
+
+["2.7", "3.5", "3.6", "3.7"].each { pyVersion ->
+  addTestJavaJarCreator(pyVersion)
+}
+
+task testPipelineJar() {
+  dependsOn testJavaJarCreatorPy37
 }

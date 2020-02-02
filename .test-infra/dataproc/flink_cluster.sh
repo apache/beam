@@ -99,14 +99,14 @@ function get_leader() {
 }
 
 function start_job_server() {
-  gcloud compute ssh --zone=$GCLOUD_ZONE --quiet yarn@${MASTER_NAME} --command="sudo --user yarn docker run --detach --publish 8099:8099 --publish 8098:8098 --publish 8097:8097 --volume ~/.config/gcloud:/root/.config/gcloud ${JOB_SERVER_IMAGE} --flink-master-url=${YARN_APPLICATION_MASTER} --artifacts-dir=${ARTIFACTS_DIR}"
+  gcloud compute ssh --zone=$GCLOUD_ZONE --quiet yarn@${MASTER_NAME} --command="sudo --user yarn docker run --detach --publish 8099:8099 --publish 8098:8098 --publish 8097:8097 --volume ~/.config/gcloud:/root/.config/gcloud ${JOB_SERVER_IMAGE} --flink-master=${YARN_APPLICATION_MASTER} --artifacts-dir=${ARTIFACTS_DIR}"
 }
 
 function start_tunnel() {
   local job_server_config=`gcloud compute ssh --quiet --zone=$GCLOUD_ZONE yarn@$MASTER_NAME --command="curl -s \"http://$YARN_APPLICATION_MASTER/jobmanager/config\""`
   local key="jobmanager.rpc.port"
   local yarn_application_master_host=`echo $YARN_APPLICATION_MASTER | cut -d ":" -f1`
-  local jobmanager_rpc_port=`echo $job_server_config | python -c "import sys, json; print [ e['value'] for e in json.load(sys.stdin) if e['key'] == u'$key'][0]"`
+  local jobmanager_rpc_port=`echo $job_server_config | python -c "import sys, json; print([e['value'] for e in json.load(sys.stdin) if e['key'] == u'$key'][0])"`
 
   local detached_mode_params=$([[ $DETACHED_MODE == "true" ]] && echo " -Nf >& /dev/null" || echo "")
 

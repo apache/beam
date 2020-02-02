@@ -27,6 +27,8 @@ The pipelines behave in the steps below.
   5. Query the written Entities, verify no results.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse
@@ -55,6 +57,9 @@ except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position
 # pylint: enable=ungrouped-imports
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def new_pipeline_with_job_name(pipeline_options, job_name, suffix):
@@ -137,7 +142,7 @@ def run(argv=None):
 
   # Pipeline 1: Create and write the specified number of Entities to the
   # Cloud Datastore.
-  logging.info('Writing %s entities to %s', num_entities, project)
+  _LOGGER.info('Writing %s entities to %s', num_entities, project)
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-write')
 
   # pylint: disable=expression-not-assigned
@@ -152,7 +157,7 @@ def run(argv=None):
   # Optional Pipeline 2: If a read limit was provided, read it and confirm
   # that the expected entities were read.
   if known_args.limit is not None:
-    logging.info('Querying a limited set of %s entities and verifying count.',
+    _LOGGER.info('Querying a limited set of %s entities and verifying count.',
                  known_args.limit)
     p = new_pipeline_with_job_name(pipeline_options, job_name, '-verify-limit')
     query_with_limit = query_pb2.Query()
@@ -167,7 +172,7 @@ def run(argv=None):
     p.run()
 
   # Pipeline 3: Query the written Entities and verify result.
-  logging.info('Querying entities, asserting they match.')
+  _LOGGER.info('Querying entities, asserting they match.')
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-verify')
   entities = p | 'read from datastore' >> ReadFromDatastore(project, query)
 
@@ -178,7 +183,7 @@ def run(argv=None):
   p.run()
 
   # Pipeline 4: Delete Entities.
-  logging.info('Deleting entities.')
+  _LOGGER.info('Deleting entities.')
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-delete')
   entities = p | 'read from datastore' >> ReadFromDatastore(project, query)
   # pylint: disable=expression-not-assigned
@@ -189,7 +194,7 @@ def run(argv=None):
   p.run()
 
   # Pipeline 5: Query the written Entities, verify no results.
-  logging.info('Querying for the entities to make sure there are none present.')
+  _LOGGER.info('Querying for the entities to make sure there are none present.')
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-verify-deleted')
   entities = p | 'read from datastore' >> ReadFromDatastore(project, query)
 

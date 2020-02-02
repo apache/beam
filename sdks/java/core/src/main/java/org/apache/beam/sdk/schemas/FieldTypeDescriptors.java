@@ -22,6 +22,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.lang.reflect.ParameterizedType;
 import java.util.Collection;
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
@@ -35,6 +37,7 @@ import org.joda.time.Instant;
  * Utilities for converting between {@link Schema} field types and {@link TypeDescriptor}s that
  * define Java objects which can represent these field types.
  */
+@Experimental(Kind.SCHEMAS)
 public class FieldTypeDescriptors {
   private static final BiMap<TypeName, TypeDescriptor> PRIMITIVE_MAPPING =
       ImmutableBiMap.<TypeName, TypeDescriptor>builder()
@@ -58,6 +61,9 @@ public class FieldTypeDescriptors {
         return javaTypeForFieldType(fieldType.getLogicalType().getBaseType());
       case ARRAY:
         return TypeDescriptors.lists(javaTypeForFieldType(fieldType.getCollectionElementType()));
+      case ITERABLE:
+        return TypeDescriptors.iterables(
+            javaTypeForFieldType(fieldType.getCollectionElementType()));
       case MAP:
         return TypeDescriptors.maps(
             javaTypeForFieldType(fieldType.getMapKeyType()),
@@ -76,6 +82,8 @@ public class FieldTypeDescriptors {
       return getArrayFieldType(typeDescriptor);
     } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(Map.class))) {
       return getMapFieldType(typeDescriptor);
+    } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(Iterable.class))) {
+      return getIterableFieldType(typeDescriptor);
     } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(Row.class))) {
       throw new IllegalArgumentException(
           "Cannot automatically determine a field type from a Row class"
@@ -105,6 +113,17 @@ public class FieldTypeDescriptors {
         checkArgument(params.length == 1);
         return FieldType.array(fieldTypeForJavaType(TypeDescriptor.of(params[0])));
       }
+    }
+    throw new RuntimeException("Could not determine array parameter type for field.");
+  }
+
+  private static FieldType getIterableFieldType(TypeDescriptor typeDescriptor) {
+    TypeDescriptor<Iterable<?>> iterable = typeDescriptor.getSupertype(Iterable.class);
+    if (iterable.getType() instanceof ParameterizedType) {
+      ParameterizedType ptype = (ParameterizedType) iterable.getType();
+      java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
+      checkArgument(params.length == 1);
+      return FieldType.iterable(fieldTypeForJavaType(TypeDescriptor.of(params[0])));
     }
     throw new RuntimeException("Could not determine array parameter type for field.");
   }

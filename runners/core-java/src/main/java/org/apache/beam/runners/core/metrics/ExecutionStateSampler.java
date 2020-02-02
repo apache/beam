@@ -69,6 +69,11 @@ public class ExecutionStateSampler {
 
   @Nullable private Future<Void> executionSamplerFuture = null;
 
+  /** Reset the state sampler. */
+  public void reset() {
+    lastSampleTimeMillis = 0;
+  }
+
   /**
    * Called to start the ExecutionStateSampler. Until the returned {@link Closeable} is closed, the
    * state sampler will periodically sample the current state of all the threads it has been asked

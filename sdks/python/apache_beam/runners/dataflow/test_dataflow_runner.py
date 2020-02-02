@@ -17,6 +17,8 @@
 
 """Wrapper of Beam runners that's built for running and verifying e2e tests."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -35,6 +37,8 @@ __all__ = ['TestDataflowRunner']
 # Dataflow take up to 10mins for the long tail of starting/stopping worker
 # pool.
 WAIT_IN_STATE_TIMEOUT = 10 * 60
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class TestDataflowRunner(DataflowRunner):
@@ -60,7 +64,7 @@ class TestDataflowRunner(DataflowRunner):
       self.wait_until_in_state(PipelineState.RUNNING)
 
       if is_streaming and not wait_duration:
-        logging.warning('Waiting indefinitely for streaming job.')
+        _LOGGER.warning('Waiting indefinitely for streaming job.')
       self.result.wait_until_finish(duration=wait_duration)
 
       if on_success_matcher:

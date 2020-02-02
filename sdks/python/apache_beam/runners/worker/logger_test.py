@@ -17,6 +17,8 @@
 
 """Tests for worker logging utilities."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import unicode_literals
 

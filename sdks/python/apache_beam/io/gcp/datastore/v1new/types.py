@@ -21,6 +21,8 @@ Beam Datastore types.
 This module is experimental, no backwards compatibility guarantees.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import copy
@@ -42,7 +44,8 @@ class Query(object):
     Args:
       kind: (str) The kind to query.
       project: (str) Required. Project associated with query.
-      namespace: (str) (Optional) Namespace to restrict results to.
+      namespace: (str, ValueProvider(str)) (Optional) Namespace to restrict
+        results to.
       ancestor: (:class:`~apache_beam.io.gcp.datastore.v1new.types.Key`)
         (Optional) key of the ancestor to which this query's results are
         restricted.
@@ -81,7 +84,10 @@ class Query(object):
     if self.ancestor is not None:
       ancestor_client_key = self.ancestor.to_client_key()
 
+    # Resolve ValueProvider arguments.
     self.filters = self._set_runtime_filters()
+    if isinstance(self.namespace, ValueProvider):
+      self.namespace = self.namespace.get()
 
     return query.Query(
         client, kind=self.kind, project=self.project, namespace=self.namespace,
@@ -179,7 +185,7 @@ class Key(object):
 
     return self.parent is None and other.parent is None
 
-  __hash__ = None
+  __hash__ = None  # type: ignore[assignment]
 
   def __repr__(self):
     return '<%s(%s, parent=%s, project=%s, namespace=%s)>' % (
@@ -252,7 +258,7 @@ class Entity(object):
             self.exclude_from_indexes == other.exclude_from_indexes and
             self.properties == other.properties)
 
-  __hash__ = None
+  __hash__ = None  # type: ignore[assignment]
 
   def __repr__(self):
     return "<%s(key=%s, exclude_from_indexes=%s) properties=%s>" % (

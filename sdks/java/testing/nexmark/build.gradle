@@ -67,7 +67,6 @@ dependencies {
   compile library.java.avro
   compile library.java.joda_time
   compile library.java.slf4j_api
-  compile library.java.commons_lang3
   compile library.java.kafka_clients
   provided library.java.junit
   provided library.java.hamcrest_core
@@ -84,10 +83,11 @@ dependencies {
   // runs with the Spark runner, we can provide such a dependency. This is deliberately phrased
   // to not hardcode any runner other than :runners:direct-java
   if (shouldProvideSpark) {
-    gradleRun library.java.spark_streaming
     gradleRun library.java.spark_core, {
       exclude group:"org.slf4j", module:"jul-to-slf4j"
     }
+    gradleRun library.java.spark_sql
+    gradleRun library.java.spark_streaming
   }
 }
 

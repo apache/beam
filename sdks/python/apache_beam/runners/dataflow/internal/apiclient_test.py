@@ -16,6 +16,8 @@
 #
 """Unit tests for the apiclient module."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import sys
@@ -36,7 +38,7 @@ from apache_beam.transforms import DataflowDistributionCounter
 try:
   from apache_beam.runners.dataflow.internal import apiclient
 except ImportError:
-  apiclient = None
+  apiclient = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 FAKE_PIPELINE_URL = "gs://invalid-bucket/anywhere"
@@ -641,6 +643,30 @@ class UtilTest(unittest.TestCase):
     self.assertRaises(
         Exception,
         apiclient._verify_interpreter_version_is_supported, pipeline_options)
+
+  def test_use_unified_worker(self):
+    pipeline_options = PipelineOptions([])
+    self.assertFalse(apiclient._use_unified_worker(pipeline_options))
+
+    pipeline_options = PipelineOptions(['--experiments=beam_fn_api'])
+    self.assertFalse(apiclient._use_unified_worker(pipeline_options))
+
+    pipeline_options = PipelineOptions(['--experiments=use_unified_worker'])
+    self.assertFalse(apiclient._use_unified_worker(pipeline_options))
+
+    pipeline_options = PipelineOptions(
+        ['--experiments=use_unified_worker', '--experiments=beam_fn_api'])
+    self.assertTrue(apiclient._use_unified_worker(pipeline_options))
+
+    pipeline_options = PipelineOptions(
+        ['--experiments=use_runner_v2', '--experiments=beam_fn_api'])
+    self.assertTrue(apiclient._use_unified_worker(pipeline_options))
+
+    pipeline_options = PipelineOptions([
+        '--experiments=use_unified_worker', '--experiments=use_runner_v2',
+        '--experiments=beam_fn_api'
+    ])
+    self.assertTrue(apiclient._use_unified_worker(pipeline_options))
 
   def test_get_response_encoding(self):
     encoding = apiclient.get_response_encoding()

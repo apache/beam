@@ -22,19 +22,24 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.lang.reflect.ParameterizedType;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.ReadableInstant;
 
 /** A set of utilities for inferring a Beam {@link Schema} from static Java types. */
+@Experimental(Kind.SCHEMAS)
 public class StaticSchemaInference {
   public static List<FieldValueTypeInformation> sortBySchema(
       List<FieldValueTypeInformation> types, Schema schema) {
@@ -99,6 +104,13 @@ public class StaticSchemaInference {
       return primitiveType;
     }
 
+    if (type.getRawType().isEnum()) {
+      Map<String, Integer> enumValues =
+          Arrays.stream(type.getRawType().getEnumConstants())
+              .map(Enum.class::cast)
+              .collect(Collectors.toMap(Enum::toString, Enum::ordinal));
+      return FieldType.logicalType(EnumerationType.create(enumValues));
+    }
     if (type.isArray()) {
       // If the type is T[] where T is byte, this is a BYTES type.
       TypeDescriptor component = type.getComponentType();
@@ -107,16 +119,6 @@ public class StaticSchemaInference {
       } else {
         // Otherwise this is an array type.
         return FieldType.array(fieldFromType(component, fieldValueTypeSupplier));
-      }
-    } else if (type.isSubtypeOf(TypeDescriptor.of(Collection.class))) {
-      TypeDescriptor<Collection<?>> collection = type.getSupertype(Collection.class);
-      if (collection.getType() instanceof ParameterizedType) {
-        ParameterizedType ptype = (ParameterizedType) collection.getType();
-        java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
-        checkArgument(params.length == 1);
-        return FieldType.array(fieldFromType(TypeDescriptor.of(params[0]), fieldValueTypeSupplier));
-      } else {
-        throw new RuntimeException("Cannot infer schema from unparameterized collection.");
       }
     } else if (type.isSubtypeOf(TypeDescriptor.of(Map.class))) {
       TypeDescriptor<Collection<?>> map = type.getSupertype(Map.class);
@@ -139,6 +141,23 @@ public class StaticSchemaInference {
       return FieldType.DATETIME;
     } else if (type.isSubtypeOf(TypeDescriptor.of(ByteBuffer.class))) {
       return FieldType.BYTES;
+    } else if (type.isSubtypeOf(TypeDescriptor.of(Iterable.class))) {
+      TypeDescriptor<Iterable<?>> iterable = type.getSupertype(Iterable.class);
+      if (iterable.getType() instanceof ParameterizedType) {
+        ParameterizedType ptype = (ParameterizedType) iterable.getType();
+        java.lang.reflect.Type[] params = ptype.getActualTypeArguments();
+        checkArgument(params.length == 1);
+        // TODO: should this be AbstractCollection?
+        if (type.isSubtypeOf(TypeDescriptor.of(Collection.class))) {
+          return FieldType.array(
+              fieldFromType(TypeDescriptor.of(params[0]), fieldValueTypeSupplier));
+        } else {
+          return FieldType.iterable(
+              fieldFromType(TypeDescriptor.of(params[0]), fieldValueTypeSupplier));
+        }
+      } else {
+        throw new RuntimeException("Cannot infer schema from unparameterized collection.");
+      }
     } else {
       return FieldType.row(schemaFromClass(type.getRawType(), fieldValueTypeSupplier));
     }

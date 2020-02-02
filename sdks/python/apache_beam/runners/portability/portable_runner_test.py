@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -36,18 +38,21 @@ from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import DirectOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import PortableOptions
-from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
-from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import fn_api_runner_test
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability.local_job_service import LocalJobServicer
 from apache_beam.runners.portability.portable_runner import PortableRunner
 from apache_beam.runners.worker import worker_pool_main
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+from apache_beam.transforms import environments
+from apache_beam.transforms import userstate
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
@@ -107,13 +112,13 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
     # communicate it back...
     # pylint: disable=unbalanced-tuple-unpacking
     job_port, expansion_port = cls._pick_unused_ports(num_ports=2)
-    logging.info('Starting server on port %d.', job_port)
+    _LOGGER.info('Starting server on port %d.', job_port)
     cls._subprocess = subprocess.Popen(
         cls._subprocess_command(job_port, expansion_port))
     address = 'localhost:%d' % job_port
     job_service = beam_job_api_pb2_grpc.JobServiceStub(
         GRPCChannelFactory.insecure_channel(address))
-    logging.info('Waiting for server to be ready...')
+    _LOGGER.info('Waiting for server to be ready...')
     start = time.time()
     timeout = 30
     while True:
@@ -134,7 +139,7 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
           if exn.code() != grpc.StatusCode.UNAVAILABLE:
             # We were able to contact the service for our fake state request.
             break
-    logging.info('Server ready.')
+    _LOGGER.info('Server ready.')
     return address
 
   @classmethod
@@ -182,12 +187,55 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
         python_urns.EMBEDDED_PYTHON)
     # Enable caching (disabled by default)
     options.view_as(DebugOptions).add_experiment('state_cache_size=100')
+    # Enable time-based data buffer (disabled by default)
+    options.view_as(DebugOptions).add_experiment(
+        'data_buffer_time_limit_ms=1000')
     return options
 
   def create_pipeline(self):
     return beam.Pipeline(self.get_runner(), self.create_options())
 
-  # Inherits all tests from fn_api_runner_test.FnApiRunnerTest
+  def test_pardo_state_with_custom_key_coder(self):
+    """Tests that state requests work correctly when the key coder is an
+    SDK-specific coder, i.e. non standard coder. This is additionally enforced
+    by Java's ProcessBundleDescriptorsTest and by Flink's
+    ExecutableStageDoFnOperator which detects invalid encoding by checking for
+    the correct key group of the encoded key."""
+    index_state_spec = userstate.CombiningValueStateSpec('index', sum)
+
+    # Test params
+    # Ensure decent amount of elements to serve all partitions
+    n = 200
+    duplicates = 1
+
+    split = n // (duplicates + 1)
+    inputs = [(i % split, str(i % split)) for i in range(0, n)]
+
+    # Use a DoFn which has to use FastPrimitivesCoder because the type cannot
+    # be inferred
+    class Input(beam.DoFn):
+      def process(self, impulse):
+        for i in inputs:
+          yield i
+
+    class AddIndex(beam.DoFn):
+      def process(self, kv,
+                  index=beam.DoFn.StateParam(index_state_spec)):
+        k, v = kv
+        index.add(1)
+        yield k, v, index.read()
+
+    expected = [(i % split, str(i % split), i // split + 1)
+                for i in range(0, n)]
+
+    with self.create_pipeline() as p:
+      assert_that(p
+                  | beam.Impulse()
+                  | beam.ParDo(Input())
+                  | beam.ParDo(AddIndex()),
+                  equal_to(expected))
+
+  # Inherits all other tests from fn_api_runner_test.FnApiRunnerTest
 
 
 @unittest.skip("BEAM-7248")
@@ -197,6 +245,8 @@ class PortableRunnerOptimized(PortableRunnerTest):
     options = super(PortableRunnerOptimized, self).create_options()
     options.view_as(DebugOptions).add_experiment('pre_optimize=all')
     options.view_as(DebugOptions).add_experiment('state_cache_size=100')
+    options.view_as(DebugOptions).add_experiment(
+        'data_buffer_time_limit_ms=1000')
     return options
 
 
@@ -206,7 +256,7 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
   def setUpClass(cls):
     cls._worker_address, cls._worker_server = (
         worker_pool_main.BeamFnExternalWorkerPoolServicer.start(
-            state_cache_size=100))
+            state_cache_size=100, data_buffer_time_limit_ms=1000))
 
   @classmethod
   def tearDownClass(cls):
@@ -231,6 +281,9 @@ class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
         sys.executable.encode('ascii')).decode('utf-8')
     # Enable caching (disabled by default)
     options.view_as(DebugOptions).add_experiment('state_cache_size=100')
+    # Enable time-based data buffer (disabled by default)
+    options.view_as(DebugOptions).add_experiment(
+        'data_buffer_time_limit_ms=1000')
     return options
 
   @classmethod
@@ -255,14 +308,10 @@ class PortableRunnerTestWithSubprocessesAndMultiWorkers(
 
 class PortableRunnerInternalTest(unittest.TestCase):
   def test__create_default_environment(self):
-    docker_image = PortableRunner.default_docker_image()
+    docker_image = environments.DockerEnvironment.default_docker_image()
     self.assertEqual(
         PortableRunner._create_environment(PipelineOptions.from_dictionary({})),
-        beam_runner_api_pb2.Environment(
-            urn=common_urns.environments.DOCKER.urn,
-            payload=beam_runner_api_pb2.DockerPayload(
-                container_image=docker_image
-            ).SerializeToString()))
+        environments.DockerEnvironment(container_image=docker_image))
 
   def test__create_docker_environment(self):
     docker_image = 'py-docker'
@@ -270,11 +319,7 @@ class PortableRunnerInternalTest(unittest.TestCase):
         PortableRunner._create_environment(PipelineOptions.from_dictionary({
             'environment_type': 'DOCKER',
             'environment_config': docker_image,
-        })), beam_runner_api_pb2.Environment(
-            urn=common_urns.environments.DOCKER.urn,
-            payload=beam_runner_api_pb2.DockerPayload(
-                container_image=docker_image
-            ).SerializeToString()))
+        })), environments.DockerEnvironment(container_image=docker_image))
 
   def test__create_process_environment(self):
     self.assertEqual(
@@ -283,48 +328,28 @@ class PortableRunnerInternalTest(unittest.TestCase):
             'environment_config': '{"os": "linux", "arch": "amd64", '
                                   '"command": "run.sh", '
                                   '"env":{"k1": "v1"} }',
-        })), beam_runner_api_pb2.Environment(
-            urn=common_urns.environments.PROCESS.urn,
-            payload=beam_runner_api_pb2.ProcessPayload(
-                os='linux',
-                arch='amd64',
-                command='run.sh',
-                env={'k1': 'v1'},
-            ).SerializeToString()))
+        })), environments.ProcessEnvironment('run.sh', os='linux', arch='amd64',
+                                             env={'k1': 'v1'}))
     self.assertEqual(
         PortableRunner._create_environment(PipelineOptions.from_dictionary({
             'environment_type': 'PROCESS',
             'environment_config': '{"command": "run.sh"}',
-        })), beam_runner_api_pb2.Environment(
-            urn=common_urns.environments.PROCESS.urn,
-            payload=beam_runner_api_pb2.ProcessPayload(
-                command='run.sh',
-            ).SerializeToString()))
+        })), environments.ProcessEnvironment('run.sh'))
 
   def test__create_external_environment(self):
     self.assertEqual(
         PortableRunner._create_environment(PipelineOptions.from_dictionary({
             'environment_type': "EXTERNAL",
             'environment_config': 'localhost:50000',
-        })), beam_runner_api_pb2.Environment(
-            urn=common_urns.environments.EXTERNAL.urn,
-            payload=beam_runner_api_pb2.ExternalPayload(
-                endpoint=endpoints_pb2.ApiServiceDescriptor(
-                    url='localhost:50000')
-            ).SerializeToString()))
-    raw_config = ' {"url":"localhost:50000", "params":{"test":"test"}} '
+        })), environments.ExternalEnvironment('localhost:50000'))
+    raw_config = ' {"url":"localhost:50000", "params":{"k1":"v1"}} '
     for env_config in (raw_config, raw_config.lstrip(), raw_config.strip()):
       self.assertEqual(
           PortableRunner._create_environment(PipelineOptions.from_dictionary({
               'environment_type': "EXTERNAL",
               'environment_config': env_config,
-          })), beam_runner_api_pb2.Environment(
-              urn=common_urns.environments.EXTERNAL.urn,
-              payload=beam_runner_api_pb2.ExternalPayload(
-                  endpoint=endpoints_pb2.ApiServiceDescriptor(
-                      url='localhost:50000'),
-                  params={"test": "test"}
-              ).SerializeToString()))
+          })), environments.ExternalEnvironment('localhost:50000',
+                                                params={"k1":"v1"}))
     with self.assertRaises(ValueError):
       PortableRunner._create_environment(PipelineOptions.from_dictionary({
           'environment_type': "EXTERNAL",
@@ -333,14 +358,14 @@ class PortableRunnerInternalTest(unittest.TestCase):
     with self.assertRaises(ValueError) as ctx:
       PortableRunner._create_environment(PipelineOptions.from_dictionary({
           'environment_type': "EXTERNAL",
-          'environment_config': '{"params":{"test":"test"}}',
+          'environment_config': '{"params":{"k1":"v1"}}',
       }))
     self.assertIn(
         'External environment endpoint must be set.', ctx.exception.args)
 
 
 def hasDockerImage():
-  image = PortableRunner.default_docker_image()
+  image = environments.DockerEnvironment.default_docker_image()
   try:
     check_image = subprocess.check_output("docker images -q %s" % image,
                                           shell=True)

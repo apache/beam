@@ -49,6 +49,8 @@ python setup.py nosetests \
     --tests apache_beam.io.gcp.bigquery_read_perf_test
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import base64
@@ -93,10 +95,6 @@ class BigQueryReadPerfTest(LoadTest):
     self.input_table = self.pipeline.get_option('input_table')
     self._check_for_input_data()
 
-  def tearDown(self):
-    super(BigQueryReadPerfTest, self).tearDown()
-    assert_that(self.result, equal_to([self.input_options['num_records']]))
-
   def _check_for_input_data(self):
     """Checks if a BQ table with input data exists and creates it if not."""
     wrapper = BigQueryWrapper()
@@ -119,27 +117,28 @@ class BigQueryReadPerfTest(LoadTest):
       # of the part
       return {'data': base64.b64encode(record[1])}
 
-    p = TestPipeline()
-    # pylint: disable=expression-not-assigned
-    (p
-     | 'Produce rows' >> Read(SyntheticSource(self.parseTestPipelineOptions()))
-     | 'Format' >> Map(format_record)
-     | 'Write to BigQuery' >> WriteToBigQuery(
-         dataset=self.input_dataset, table=self.input_table,
-         schema=SCHEMA,
-         create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
-         write_disposition=BigQueryDisposition.WRITE_EMPTY))
-    p.run().wait_until_finish()
+    with TestPipeline() as p:
+      # pylint: disable=expression-not-assigned
+      (p
+       | 'Produce rows' >> Read(SyntheticSource(
+           self.parseTestPipelineOptions()))
+       | 'Format' >> Map(format_record)
+       | 'Write to BigQuery' >> WriteToBigQuery(
+           dataset=self.input_dataset, table=self.input_table,
+           schema=SCHEMA,
+           create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
+           write_disposition=BigQueryDisposition.WRITE_EMPTY))
 
   def test(self):
-    self.result = (self.pipeline
-                   | 'Read from BigQuery' >> Read(BigQuerySource(
-                       dataset=self.input_dataset, table=self.input_table))
-                   | 'Count messages' >> ParDo(CountMessages(
-                       self.metrics_namespace))
-                   | 'Measure time' >> ParDo(MeasureTime(
-                       self.metrics_namespace))
-                   | 'Count' >> Count.Globally())
+    output = (self.pipeline
+              | 'Read from BigQuery' >> Read(BigQuerySource(
+                  dataset=self.input_dataset, table=self.input_table))
+              | 'Count messages' >> ParDo(CountMessages(
+                  self.metrics_namespace))
+              | 'Measure time' >> ParDo(MeasureTime(
+                  self.metrics_namespace))
+              | 'Count' >> Count.Globally())
+    assert_that(output, equal_to([self.input_options['num_records']]))
 
 
 if __name__ == '__main__':

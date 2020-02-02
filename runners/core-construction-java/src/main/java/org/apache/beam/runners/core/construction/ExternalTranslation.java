@@ -37,7 +37,7 @@ public class ExternalTranslation {
 
   /** Translator for ExpandableTransform. */
   public static class ExternalTranslator
-      implements PTransformTranslation.TransformTranslator<External.ExpandableTransform<?>> {
+      implements PTransformTranslation.TransformTranslator<External.ExpandableTransform<?, ?>> {
     public static PTransformTranslation.TransformTranslator create() {
       return new ExternalTranslator();
     }
@@ -125,6 +125,7 @@ public class ExternalTranslation {
         transformBuilder
             .setUniqueName(proto.getUniqueName())
             .setSpec(proto.getSpec())
+            .setEnvironmentId(proto.getEnvironmentId())
             .addAllSubtransforms(proto.getSubtransformsList());
         for (Map.Entry<String, String> inputEntry : proto.getInputsMap().entrySet()) {
           transformBuilder.putInputs(
@@ -144,6 +145,7 @@ public class ExternalTranslation {
           .setUniqueName(expandedTransform.getUniqueName())
           .setSpec(expandedTransform.getSpec())
           .addAllSubtransforms(expandedTransform.getSubtransformsList())
+          .setEnvironmentId(expandedTransform.getEnvironmentId())
           .putAllInputs(expandedTransform.getInputsMap());
       for (Map.Entry<String, String> outputEntry : expandedTransform.getOutputsMap().entrySet()) {
         rootTransformBuilder.putOutputs(

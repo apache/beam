@@ -29,11 +29,11 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.util.JsonFormat;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.JsonFormat;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
@@ -95,15 +95,19 @@ public abstract class AbstractArtifactRetrievalService
 
     LOG.info("GetManifest for {}", token);
     try {
-      ArtifactApi.ProxyManifest proxyManifest = getManifestProxy(token);
+      final ArtifactApi.Manifest manifest;
+      if (AbstractArtifactStagingService.NO_ARTIFACTS_STAGED_TOKEN.equals(token)) {
+        manifest = ArtifactApi.Manifest.newBuilder().build();
+      } else {
+        ArtifactApi.ProxyManifest proxyManifest = getManifestProxy(token);
+        LOG.info(
+            "GetManifest for {} -> {} artifacts",
+            token,
+            proxyManifest.getManifest().getArtifactCount());
+        manifest = proxyManifest.getManifest();
+      }
       ArtifactApi.GetManifestResponse response =
-          ArtifactApi.GetManifestResponse.newBuilder()
-              .setManifest(proxyManifest.getManifest())
-              .build();
-      LOG.info(
-          "GetManifest for {} -> {} artifacts",
-          token,
-          proxyManifest.getManifest().getArtifactCount());
+          ArtifactApi.GetManifestResponse.newBuilder().setManifest(manifest).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (Exception e) {

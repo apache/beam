@@ -25,6 +25,8 @@ These tools include wrappers and clients to interact with BigQuery APIs.
 NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import datetime
@@ -62,15 +64,33 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
+_LOGGER = logging.getLogger(__name__)
+
 MAX_RETRIES = 3
 
-
 JSON_COMPLIANCE_ERROR = 'NAN, INF and -INF values are not JSON compliant.'
+
+
+class ExportFileFormat(object):
+  CSV = 'CSV'
+  JSON = 'NEWLINE_DELIMITED_JSON'
+  AVRO = 'AVRO'
+
+
+class ExportCompression(object):
+  GZIP = 'GZIP'
+  DEFLATE = 'DEFLATE'
+  SNAPPY = 'SNAPPY'
+  NONE = 'NONE'
 
 
 def default_encoder(obj):
   if isinstance(obj, decimal.Decimal):
     return str(obj)
+  elif isinstance(obj, bytes):
+    # on python 3 base64-encoded bytes are decoded to strings
+    # before being sent to BigQuery
+    return obj.decode('utf-8')
   raise TypeError(
       "Object of type '%s' is not JSON serializable" % type(obj).__name__)
 
@@ -262,7 +282,7 @@ class BigQueryWrapper(object):
 
     if response.statistics is None:
       # This behavior is only expected in tests
-      logging.warning(
+      _LOGGER.warning(
           "Unable to get location, missing response.statistics. Query: %s",
           query)
       return None
@@ -274,11 +294,11 @@ class BigQueryWrapper(object):
           table.projectId,
           table.datasetId,
           table.tableId)
-      logging.info("Using location %r from table %r referenced by query %s",
+      _LOGGER.info("Using location %r from table %r referenced by query %s",
                    location, table, query)
       return location
 
-    logging.debug("Query %s does not reference any tables.", query)
+    _LOGGER.debug("Query %s does not reference any tables.", query)
     return None
 
   @retry.with_exponential_backoff(
@@ -309,9 +329,9 @@ class BigQueryWrapper(object):
         )
     )
 
-    logging.info("Inserting job request: %s", request)
+    _LOGGER.info("Inserting job request: %s", request)
     response = self.client.jobs.Insert(request)
-    logging.info("Response was %s", response)
+    _LOGGER.info("Response was %s", response)
     return response.jobReference
 
   @retry.with_exponential_backoff(
@@ -354,7 +374,7 @@ class BigQueryWrapper(object):
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _start_query_job(self, project_id, query, use_legacy_sql, flatten_results,
-                       job_id, dry_run=False):
+                       job_id, dry_run=False, kms_key=None):
     reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
     request = bigquery.BigqueryJobsInsertRequest(
         projectId=project_id,
@@ -364,13 +384,46 @@ class BigQueryWrapper(object):
                 query=bigquery.JobConfigurationQuery(
                     query=query,
                     useLegacySql=use_legacy_sql,
-                    allowLargeResults=True,
-                    destinationTable=self._get_temp_table(project_id),
-                    flattenResults=flatten_results)),
+                    allowLargeResults=not dry_run,
+                    destinationTable=self._get_temp_table(project_id) if not
+                    dry_run else None,
+                    flattenResults=flatten_results,
+                    destinationEncryptionConfiguration=bigquery
+                    .EncryptionConfiguration(kmsKeyName=kms_key))),
             jobReference=reference))
 
     response = self.client.jobs.Insert(request)
-    return response.jobReference.jobId, response.jobReference.location
+    return response
+
+  def wait_for_bq_job(self, job_reference, sleep_duration_sec=5,
+                      max_retries=60):
+    """Poll job until it is DONE.
+
+    Args:
+      job_reference: bigquery.JobReference instance.
+      sleep_duration_sec: Specifies the delay in seconds between retries.
+      max_retries: The total number of times to retry. If equals to 0,
+        the function waits forever.
+
+    Raises:
+      `RuntimeError`: If the job is FAILED or the number of retries has been
+        reached.
+    """
+    retry = 0
+    while True:
+      retry += 1
+      job = self.get_job(job_reference.projectId, job_reference.jobId,
+                         job_reference.location)
+      logging.info('Job status: %s', job.status.state)
+      if job.status.state == 'DONE' and job.status.errorResult:
+        raise RuntimeError('BigQuery job {} failed. Error Result: {}'.format(
+            job_reference.jobId, job.status.errorResult))
+      elif job.status.state == 'DONE':
+        return True
+      else:
+        time.sleep(sleep_duration_sec)
+        if max_retries != 0 and retry >= max_retries:
+          raise RuntimeError('The maximum number of retries has been reached')
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -420,7 +473,7 @@ class BigQueryWrapper(object):
     Returns:
       bigquery.Table instance
     Raises:
-      HttpError if lookup failed.
+      HttpError: if lookup failed.
     """
     request = bigquery.BigqueryTablesGetRequest(
         projectId=project_id, datasetId=dataset_id, tableId=table_id)
@@ -442,7 +495,7 @@ class BigQueryWrapper(object):
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=project_id, datasetId=dataset_id, table=table)
     response = self.client.tables.Insert(request)
-    logging.debug("Created the table with id %s", table_id)
+    _LOGGER.debug("Created the table with id %s", table_id)
     # The response is a bigquery.Table instance.
     return response
 
@@ -491,7 +544,7 @@ class BigQueryWrapper(object):
       self.client.tables.Delete(request)
     except HttpError as exn:
       if exn.status_code == 404:
-        logging.warning('Table %s:%s.%s does not exist', project_id,
+        _LOGGER.warning('Table %s:%s.%s does not exist', project_id,
                         dataset_id, table_id)
         return
       else:
@@ -508,7 +561,7 @@ class BigQueryWrapper(object):
       self.client.datasets.Delete(request)
     except HttpError as exn:
       if exn.status_code == 404:
-        logging.warning('Dataset %s:%s does not exist', project_id,
+        _LOGGER.warning('Dataset %s:%s does not exist', project_id,
                         dataset_id)
         return
       else:
@@ -537,7 +590,7 @@ class BigQueryWrapper(object):
             % (project_id, dataset_id))
     except HttpError as exn:
       if exn.status_code == 404:
-        logging.warning(
+        _LOGGER.warning(
             'Dataset %s:%s does not exist so we will create it as temporary '
             'with location=%s',
             project_id, dataset_id, location)
@@ -555,7 +608,7 @@ class BigQueryWrapper(object):
           projectId=project_id, datasetId=temp_table.datasetId))
     except HttpError as exn:
       if exn.status_code == 404:
-        logging.warning('Dataset %s:%s does not exist', project_id,
+        _LOGGER.warning('Dataset %s:%s does not exist', project_id,
                         temp_table.datasetId)
         return
       else:
@@ -592,6 +645,37 @@ class BigQueryWrapper(object):
         create_disposition=create_disposition,
         write_disposition=write_disposition,
         additional_load_parameters=additional_load_parameters)
+
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def perform_extract_job(self, destination, job_id, table_reference,
+                          destination_format, include_header=True,
+                          compression=ExportCompression.NONE):
+    """Starts a job to export data from BigQuery.
+
+    Returns:
+      bigquery.JobReference with the information about the job that was started.
+    """
+    job_reference = bigquery.JobReference(jobId=job_id,
+                                          projectId=table_reference.projectId)
+    request = bigquery.BigqueryJobsInsertRequest(
+        projectId=table_reference.projectId,
+        job=bigquery.Job(
+            configuration=bigquery.JobConfiguration(
+                extract=bigquery.JobConfigurationExtract(
+                    destinationUris=destination,
+                    sourceTable=table_reference,
+                    printHeader=include_header,
+                    destinationFormat=destination_format,
+                    compression=compression,
+                )
+            ),
+            jobReference=job_reference,
+        )
+    )
+    response = self.client.jobs.Insert(request)
+    return response.jobReference
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -669,12 +753,12 @@ class BigQueryWrapper(object):
             additional_parameters=additional_create_parameters)
       except HttpError as exn:
         if exn.status_code == 409:
-          logging.debug('Skipping Creation. Table %s:%s.%s already exists.'
+          _LOGGER.debug('Skipping Creation. Table %s:%s.%s already exists.'
                         % (project_id, dataset_id, table_id))
           created_table = self.get_table(project_id, dataset_id, table_id)
         else:
           raise
-      logging.info('Created table %s.%s.%s with schema %s. '
+      _LOGGER.info('Created table %s.%s.%s with schema %s. '
                    'Result: %s.',
                    project_id, dataset_id, table_id,
                    schema or found_table.schema,
@@ -684,7 +768,7 @@ class BigQueryWrapper(object):
       if write_disposition == BigQueryDisposition.WRITE_TRUNCATE:
         # BigQuery can route data to the old table for 2 mins max so wait
         # that much time before creating the table and writing it
-        logging.warning('Sleeping for 150 seconds before the write as ' +
+        _LOGGER.warning('Sleeping for 150 seconds before the write as ' +
                         'BigQuery inserts can be routed to deleted table ' +
                         'for 2 mins after the delete and create.')
         # TODO(BEAM-2673): Remove this sleep by migrating to load api
@@ -695,10 +779,12 @@ class BigQueryWrapper(object):
 
   def run_query(self, project_id, query, use_legacy_sql, flatten_results,
                 dry_run=False):
-    job_id, location = self._start_query_job(project_id, query,
-                                             use_legacy_sql, flatten_results,
-                                             job_id=uuid.uuid4().hex,
-                                             dry_run=dry_run)
+    job = self._start_query_job(project_id, query, use_legacy_sql,
+                                flatten_results, job_id=uuid.uuid4().hex,
+                                dry_run=dry_run)
+    job_id = job.jobReference.jobId
+    location = job.jobReference.location
+
     if dry_run:
       # If this was a dry run then the fact that we get here means the
       # query has no errors. The start_query_job would raise an error otherwise.
@@ -713,7 +799,7 @@ class BigQueryWrapper(object):
         # request not for the actual execution of the query in the service.  If
         # the request times out we keep trying. This situation is quite possible
         # if the query will return a large number of rows.
-        logging.info('Waiting on response from query: %s ...', query)
+        _LOGGER.info('Waiting on response from query: %s ...', query)
         time.sleep(1.0)
         continue
       # We got some results. The last page is signalled by a missing pageToken.
@@ -975,7 +1061,7 @@ class BigQueryWriter(dataflow_io.NativeSinkWriter):
 
   def _flush_rows_buffer(self):
     if self.rows_buffer:
-      logging.info('Writing %d rows to %s:%s.%s table.', len(self.rows_buffer),
+      _LOGGER.info('Writing %d rows to %s:%s.%s table.', len(self.rows_buffer),
                    self.project_id, self.dataset_id, self.table_id)
       passed, errors = self.client.insert_rows(
           project_id=self.project_id, dataset_id=self.dataset_id,
@@ -1016,12 +1102,6 @@ class RowAsDictJsonCoder(coders.Coder):
     # This code will catch this error to emit an error that explains
     # to the programmer that they have used NAN/INF values.
     try:
-      # on python 3 base64-encoded bytes are decoded to strings
-      # before being send to bq
-      if sys.version_info[0] > 2:
-        for field, value in iteritems(table_row):
-          if type(value) == bytes:
-            table_row[field] = value.decode('utf-8')
       return json.dumps(
           table_row, allow_nan=False, default=default_encoder).encode('utf-8')
     except ValueError as e:

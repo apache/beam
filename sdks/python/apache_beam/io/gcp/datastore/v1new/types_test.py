@@ -17,6 +17,8 @@
 
 """Unit tests for types module."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import datetime
@@ -38,6 +40,9 @@ try:
 # TODO(BEAM-4543): Remove TypeError once googledatastore dependency is removed.
 except (ImportError, TypeError):
   client = None
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @unittest.skipIf(client is None, 'Datastore dependencies are not installed')
@@ -168,7 +173,7 @@ class TypesTest(unittest.TestCase):
     self.assertEqual(order, cq.order)
     self.assertEqual(distinct_on, cq.distinct_on)
 
-    logging.info('query: %s', q)  # Test __repr__()
+    _LOGGER.info('query: %s', q)  # Test __repr__()
 
   def testValueProviderFilters(self):
     self.vp_filters = [
@@ -193,7 +198,17 @@ class TypesTest(unittest.TestCase):
       cq = q._to_client_query(self._test_client)
       self.assertEqual(exp_filter, cq.filters)
 
-      logging.info('query: %s', q)  # Test __repr__()
+      _LOGGER.info('query: %s', q)  # Test __repr__()
+
+  def testValueProviderNamespace(self):
+    self.vp_namespace = StaticValueProvider(str, 'vp_namespace')
+    self.expected_namespace = 'vp_namespace'
+
+    q = Query(kind='kind', project=self._PROJECT, namespace=self.vp_namespace)
+    cq = q._to_client_query(self._test_client)
+    self.assertEqual(self.expected_namespace, cq.namespace)
+
+    _LOGGER.info('query: %s', q)  # Test __repr__()
 
   def testQueryEmptyNamespace(self):
     # Test that we can pass a namespace of None.

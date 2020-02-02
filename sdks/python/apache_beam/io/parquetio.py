@@ -27,6 +27,8 @@ Additionally, this module provides a write ``PTransform`` ``WriteToParquet``
 that can be used to write a given ``PCollection`` of Python objects to a
 Parquet file.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from functools import partial
@@ -95,7 +97,7 @@ class ReadFromParquetBatched(PTransform):
 
       Traceback (most recent call last):
        ...
-      IOError: No files found based on the file pattern
+      OSError: No files found based on the file pattern
 
     See also: :class:`~ReadFromParquet`.
 
@@ -154,7 +156,7 @@ class ReadFromParquet(PTransform):
 
       Traceback (most recent call last):
        ...
-      IOError: No files found based on the file pattern
+      OSError: No files found based on the file pattern
 
     Each element of this :class:`~apache_beam.pvalue.PCollection` will contain
     a Python dictionary representing a single record. The keys will be of type

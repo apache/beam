@@ -27,6 +27,8 @@ RUN apt-get update && \
        libsnappy-dev \
        # This package is needed for "pip install pyyaml" below to have c bindings.
        libyaml-dev \
+       # This is used to speed up the re-installation of the sdk.
+       ccache \
        && \
     rm -rf /var/lib/apt/lists/*
 
@@ -43,11 +45,18 @@ RUN \
     # Remove pip cache.
     rm -rf /root/.cache/pip
 
+# Configure ccache prior to installing the SDK.
+RUN ln -s /usr/bin/ccache /usr/local/bin/gcc
+# These parameters are needed as pip compiles artifacts in random temporary directories.
+RUN ccache --set-config=sloppiness=file_macro && ccache --set-config=hash_dir=false
 
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
-RUN pip install /opt/apache/beam/tars/apache-beam.tar.gz[gcp] && \
+RUN pip install -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp] && \
     # Remove pip cache.
     rm -rf /root/.cache/pip
+
+# Log complete list of what exact packages and versions are installed.
+RUN pip freeze --all
 
 ADD target/launcher/linux_amd64/boot /opt/apache/beam/
 

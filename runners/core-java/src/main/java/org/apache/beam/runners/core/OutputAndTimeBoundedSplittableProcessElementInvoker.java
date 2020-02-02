@@ -30,6 +30,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
 import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -136,6 +138,12 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               }
 
               @Override
+              public String timerId(DoFn<InputT, OutputT> doFn) {
+                throw new UnsupportedOperationException(
+                    "Cannot access timerId as parameter outside of @OnTimer method.");
+              }
+
+              @Override
               public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
                 throw new UnsupportedOperationException(
                     "Access to time domain not supported in ProcessElement");
@@ -211,6 +219,12 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               public Timer timer(String timerId) {
                 throw new UnsupportedOperationException(
                     "Access to timers not supported in Splittable DoFn");
+              }
+
+              @Override
+              public TimerMap timerFamily(String tagId) {
+                throw new UnsupportedOperationException(
+                    "Access to timerFamily not supported in Splittable DoFn");
               }
             });
     processContext.cancelScheduledCheckpoint();
@@ -342,7 +356,10 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       // Only one of them "wins" - tracker.checkpoint() must be called only once.
       if (checkpoint == null) {
         residualWatermark = lastReportedWatermark;
-        checkpoint = checkNotNull(tracker.checkpoint());
+        SplitResult<RestrictionT> split = tracker.trySplit(0);
+        if (split != null) {
+          checkpoint = checkNotNull(split.getResidual());
+        }
       }
       return getTakenCheckpoint();
     }

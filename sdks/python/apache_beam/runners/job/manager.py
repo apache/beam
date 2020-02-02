@@ -18,6 +18,8 @@
 """A object to control to the Job API Co-Process
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -28,6 +30,8 @@ from builtins import object
 import grpc
 
 from apache_beam.portability.api import beam_job_api_pb2_grpc
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class DockerRPCManager(object):
@@ -51,5 +55,5 @@ class DockerRPCManager(object):
   def __del__(self):
     """Terminate the co-process when the manager is GC'ed
     """
-    logging.info('Shutting the co-process')
+    _LOGGER.info('Shutting the co-process')
     self.process.terminate()

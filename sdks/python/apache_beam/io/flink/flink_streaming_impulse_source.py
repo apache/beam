@@ -20,9 +20,13 @@ A PTransform that provides an unbounded, streaming source of empty byte arrays.
 
 This can only be used with the flink runner.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import json
+from typing import Any
+from typing import Dict
 
 from apache_beam import PTransform
 from apache_beam import Windowing
@@ -33,7 +37,7 @@ from apache_beam.transforms.window import GlobalWindows
 class FlinkStreamingImpulseSource(PTransform):
   URN = "flink:transform:streaming_impulse:v1"
 
-  config = {}
+  config = {}  # type: Dict[str, Any]
 
   def expand(self, pbegin):
     assert isinstance(pbegin, pvalue.PBegin), (
@@ -64,7 +68,7 @@ class FlinkStreamingImpulseSource(PTransform):
     self.config["message_count"] = message_count
     return self
 
-  # pylint: disable=no-self-argument
+  @staticmethod
   @PTransform.register_urn("flink:transform:streaming_impulse:v1", None)
   def from_runner_api_parameter(spec_parameter, _unused_context):
     config = json.loads(spec_parameter)

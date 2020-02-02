@@ -21,10 +21,13 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.ConvertHelpers;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
 import org.apache.beam.sdk.values.Row;
@@ -32,6 +35,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** Represents information about how a DoFn extracts schemas. */
+@Experimental(Kind.SCHEMAS)
 @AutoValue
 public abstract class DoFnSchemaInformation implements Serializable {
   /**
@@ -230,7 +234,8 @@ public abstract class DoFnSchemaInformation implements Serializable {
       if (conversionFunction == null) {
         conversionFunction =
             (SerializableFunction<InputT, OutputT>)
-                ConvertHelpers.getConvertPrimitive(primitiveType, primitiveOutputType);
+                ConvertHelpers.getConvertPrimitive(
+                    primitiveType, primitiveOutputType, new DefaultTypeConversionsFactory());
       }
       return conversionFunction;
     }

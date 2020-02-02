@@ -38,7 +38,7 @@ import org.joda.time.Instant;
 /**
  * A customized {@link DoFnRunner} that handles late data dropping and garbage collection for
  * stateful {@link DoFn DoFns}. It registers a GC timer in {@link #processElement(WindowedValue)}
- * and does cleanup in {@link #onTimer(String, BoundedWindow, Instant, TimeDomain)}
+ * and does cleanup in {@link #onTimer(String, BoundedWindow, Instant, Instant, TimeDomain)}
  *
  * @param <InputT> the type of the {@link DoFn} (main) input elements
  * @param <OutputT> the type of the {@link DoFn} (main) output elements
@@ -117,7 +117,12 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
 
   @Override
   public void onTimer(
-      String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+      String timerId,
+      String timerFamilyId,
+      BoundedWindow window,
+      Instant timestamp,
+      Instant outputTimestamp,
+      TimeDomain timeDomain) {
     if (cleanupTimer.isForWindow(timerId, window, timestamp, timeDomain)) {
       stateCleaner.clearForWindow(window);
       // There should invoke the onWindowExpiration of DoFn
@@ -134,7 +139,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
             window,
             cleanupTimer.currentInputWatermarkTime());
       } else {
-        doFnRunner.onTimer(timerId, window, timestamp, timeDomain);
+        doFnRunner.onTimer(timerId, timerFamilyId, window, timestamp, outputTimestamp, timeDomain);
       }
     }
   }
@@ -208,7 +213,12 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
       // make sure this fires after any window.maxTimestamp() timers
       gcTime = gcTime.plus(GC_DELAY_MS);
       timerInternals.setTimer(
-          StateNamespaces.window(windowCoder, window), GC_TIMER_ID, gcTime, TimeDomain.EVENT_TIME);
+          StateNamespaces.window(windowCoder, window),
+          GC_TIMER_ID,
+          "",
+          gcTime,
+          window.maxTimestamp(),
+          TimeDomain.EVENT_TIME);
     }
 
     @Override

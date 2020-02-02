@@ -21,6 +21,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -33,10 +34,10 @@ import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConstructorCreateInstruction;
-import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
-import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.InjectPackageStrategy;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.StaticFactoryMethodInstruction;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversion;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -80,7 +81,7 @@ public class POJOUtils {
   public static List<FieldValueTypeInformation> getFieldTypes(
       Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
     return CACHED_FIELD_TYPES.computeIfAbsent(
-        new ClassWithSchema(clazz, schema), c -> fieldValueTypeSupplier.get(clazz, schema));
+        ClassWithSchema.create(clazz, schema), c -> fieldValueTypeSupplier.get(clazz, schema));
   }
 
   // The list of getters for a class is cached, so we only create the classes the first time
@@ -89,14 +90,19 @@ public class POJOUtils {
       Maps.newConcurrentMap();
 
   public static List<FieldValueGetter> getGetters(
-      Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
+      Class<?> clazz,
+      Schema schema,
+      FieldValueTypeSupplier fieldValueTypeSupplier,
+      TypeConversionsFactory typeConversionsFactory) {
     // Return the getters ordered by their position in the schema.
     return CACHED_GETTERS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema),
+        ClassWithSchema.create(clazz, schema),
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
           List<FieldValueGetter> getters =
-              types.stream().map(POJOUtils::createGetter).collect(Collectors.toList());
+              types.stream()
+                  .map(t -> createGetter(t, typeConversionsFactory))
+                  .collect(Collectors.toList());
           if (getters.size() != schema.getFieldCount()) {
             throw new RuntimeException(
                 "Was not able to generate getters for schema: " + schema + " class: " + clazz);
@@ -111,17 +117,23 @@ public class POJOUtils {
       Maps.newConcurrentMap();
 
   public static <T> SchemaUserTypeCreator getSetFieldCreator(
-      Class<T> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
+      Class<T> clazz,
+      Schema schema,
+      FieldValueTypeSupplier fieldValueTypeSupplier,
+      TypeConversionsFactory typeConversionsFactory) {
     return CACHED_CREATORS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema),
+        ClassWithSchema.create(clazz, schema),
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
-          return createSetFieldCreator(clazz, schema, types);
+          return createSetFieldCreator(clazz, schema, types, typeConversionsFactory);
         });
   }
 
   private static <T> SchemaUserTypeCreator createSetFieldCreator(
-      Class<T> clazz, Schema schema, List<FieldValueTypeInformation> types) {
+      Class<T> clazz,
+      Schema schema,
+      List<FieldValueTypeInformation> types,
+      TypeConversionsFactory typeConversionsFactory) {
     // Get the list of class fields ordered by schema.
     List<Field> fields =
         types.stream().map(FieldValueTypeInformation::getField).collect(Collectors.toList());
@@ -131,7 +143,7 @@ public class POJOUtils {
               .with(new InjectPackageStrategy(clazz))
               .subclass(SchemaUserTypeCreator.class)
               .method(ElementMatchers.named("create"))
-              .intercept(new SetFieldCreateInstruction(fields, clazz));
+              .intercept(new SetFieldCreateInstruction(fields, clazz, typeConversionsFactory));
 
       return builder
           .make()
@@ -154,12 +166,14 @@ public class POJOUtils {
       Class clazz,
       Constructor constructor,
       Schema schema,
-      FieldValueTypeSupplier fieldValueTypeSupplier) {
+      FieldValueTypeSupplier fieldValueTypeSupplier,
+      TypeConversionsFactory typeConversionsFactory) {
     return CACHED_CREATORS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema),
+        ClassWithSchema.create(clazz, schema),
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
-          return createConstructorCreator(clazz, constructor, schema, types);
+          return createConstructorCreator(
+              clazz, constructor, schema, types, typeConversionsFactory);
         });
   }
 
@@ -167,14 +181,17 @@ public class POJOUtils {
       Class<T> clazz,
       Constructor<T> constructor,
       Schema schema,
-      List<FieldValueTypeInformation> types) {
+      List<FieldValueTypeInformation> types,
+      TypeConversionsFactory typeConversionsFactory) {
     try {
       DynamicType.Builder<SchemaUserTypeCreator> builder =
           BYTE_BUDDY
               .with(new InjectPackageStrategy(clazz))
               .subclass(SchemaUserTypeCreator.class)
               .method(ElementMatchers.named("create"))
-              .intercept(new ConstructorCreateInstruction(types, clazz, constructor));
+              .intercept(
+                  new ConstructorCreateInstruction(
+                      types, clazz, constructor, typeConversionsFactory));
 
       return builder
           .make()
@@ -194,24 +211,34 @@ public class POJOUtils {
   }
 
   public static SchemaUserTypeCreator getStaticCreator(
-      Class clazz, Method creator, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
+      Class clazz,
+      Method creator,
+      Schema schema,
+      FieldValueTypeSupplier fieldValueTypeSupplier,
+      TypeConversionsFactory typeConversionsFactory) {
     return CACHED_CREATORS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema),
+        ClassWithSchema.create(clazz, schema),
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
-          return createStaticCreator(clazz, creator, schema, types);
+          return createStaticCreator(clazz, creator, schema, types, typeConversionsFactory);
         });
   }
 
   public static <T> SchemaUserTypeCreator createStaticCreator(
-      Class<T> clazz, Method creator, Schema schema, List<FieldValueTypeInformation> types) {
+      Class<T> clazz,
+      Method creator,
+      Schema schema,
+      List<FieldValueTypeInformation> types,
+      TypeConversionsFactory typeConversionsFactory) {
     try {
       DynamicType.Builder<SchemaUserTypeCreator> builder =
           BYTE_BUDDY
               .with(new InjectPackageStrategy(clazz))
               .subclass(SchemaUserTypeCreator.class)
               .method(ElementMatchers.named("create"))
-              .intercept(new StaticFactoryMethodInstruction(types, clazz, creator));
+              .intercept(
+                  new StaticFactoryMethodInstruction(
+                      types, clazz, creator, typeConversionsFactory));
 
       return builder
           .make()
@@ -244,14 +271,17 @@ public class POJOUtils {
   @SuppressWarnings("unchecked")
   @Nullable
   static <ObjectT, ValueT> FieldValueGetter<ObjectT, ValueT> createGetter(
-      FieldValueTypeInformation typeInformation) {
+      FieldValueTypeInformation typeInformation, TypeConversionsFactory typeConversionsFactory) {
     Field field = typeInformation.getField();
     DynamicType.Builder<FieldValueGetter> builder =
         ByteBuddyUtils.subclassGetterInterface(
             BYTE_BUDDY,
             field.getDeclaringClass(),
-            new ConvertType(false).convert(TypeDescriptor.of(field.getType())));
-    builder = implementGetterMethods(builder, field, typeInformation.getName());
+            typeConversionsFactory
+                .createTypeConversion(false)
+                .convert(TypeDescriptor.of(field.getType())));
+    builder =
+        implementGetterMethods(builder, field, typeInformation.getName(), typeConversionsFactory);
     try {
       return builder
           .make()
@@ -270,12 +300,15 @@ public class POJOUtils {
   }
 
   private static DynamicType.Builder<FieldValueGetter> implementGetterMethods(
-      DynamicType.Builder<FieldValueGetter> builder, Field field, String name) {
+      DynamicType.Builder<FieldValueGetter> builder,
+      Field field,
+      String name,
+      TypeConversionsFactory typeConversionsFactory) {
     return builder
         .method(ElementMatchers.named("name"))
         .intercept(FixedValue.reference(name))
         .method(ElementMatchers.named("get"))
-        .intercept(new ReadFieldInstruction(field));
+        .intercept(new ReadFieldInstruction(field, typeConversionsFactory));
   }
 
   // The list of setters for a class is cached, so we only create the classes the first time
@@ -284,13 +317,18 @@ public class POJOUtils {
       Maps.newConcurrentMap();
 
   public static List<FieldValueSetter> getSetters(
-      Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
+      Class<?> clazz,
+      Schema schema,
+      FieldValueTypeSupplier fieldValueTypeSupplier,
+      TypeConversionsFactory typeConversionsFactory) {
     // Return the setters, ordered by their position in the schema.
     return CACHED_SETTERS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema),
+        ClassWithSchema.create(clazz, schema),
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
-          return types.stream().map(POJOUtils::createSetter).collect(Collectors.toList());
+          return types.stream()
+              .map(t -> createSetter(t, typeConversionsFactory))
+              .collect(Collectors.toList());
         });
   }
 
@@ -312,14 +350,16 @@ public class POJOUtils {
    */
   @SuppressWarnings("unchecked")
   private static <ObjectT, ValueT> FieldValueSetter<ObjectT, ValueT> createSetter(
-      FieldValueTypeInformation typeInformation) {
+      FieldValueTypeInformation typeInformation, TypeConversionsFactory typeConversionsFactory) {
     Field field = typeInformation.getField();
     DynamicType.Builder<FieldValueSetter> builder =
         ByteBuddyUtils.subclassSetterInterface(
             BYTE_BUDDY,
             field.getDeclaringClass(),
-            new ConvertType(false).convert(TypeDescriptor.of(field.getType())));
-    builder = implementSetterMethods(builder, field);
+            typeConversionsFactory
+                .createTypeConversion(false)
+                .convert(TypeDescriptor.of(field.getType())));
+    builder = implementSetterMethods(builder, field, typeConversionsFactory);
     try {
       return builder
           .make()
@@ -338,21 +378,25 @@ public class POJOUtils {
   }
 
   private static DynamicType.Builder<FieldValueSetter> implementSetterMethods(
-      DynamicType.Builder<FieldValueSetter> builder, Field field) {
+      DynamicType.Builder<FieldValueSetter> builder,
+      Field field,
+      TypeConversionsFactory typeConversionsFactory) {
     return builder
         .method(ElementMatchers.named("name"))
         .intercept(FixedValue.reference(field.getName()))
         .method(ElementMatchers.named("set"))
-        .intercept(new SetFieldInstruction(field));
+        .intercept(new SetFieldInstruction(field, typeConversionsFactory));
   }
 
   // Implements a method to read a public field out of an object.
   static class ReadFieldInstruction implements Implementation {
     // Field that will be read.
     private final Field field;
+    private final TypeConversionsFactory typeConversionsFactory;
 
-    ReadFieldInstruction(Field field) {
+    ReadFieldInstruction(Field field, TypeConversionsFactory typeConversionsFactory) {
       this.field = field;
+      this.typeConversionsFactory = typeConversionsFactory;
     }
 
     @Override
@@ -376,7 +420,9 @@ public class POJOUtils {
 
         StackManipulation stackManipulation =
             new StackManipulation.Compound(
-                new ConvertValueForGetter(readValue).convert(TypeDescriptor.of(field.getType())),
+                typeConversionsFactory
+                    .createGetterConversions(readValue)
+                    .convert(TypeDescriptor.of(field.getType())),
                 MethodReturn.REFERENCE);
 
         StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
@@ -389,9 +435,11 @@ public class POJOUtils {
   static class SetFieldInstruction implements Implementation {
     // Field that will be read.
     private Field field;
+    private final TypeConversionsFactory typeConversionsFactory;
 
-    SetFieldInstruction(Field field) {
+    SetFieldInstruction(Field field, TypeConversionsFactory typeConversionsFactory) {
       this.field = field;
+      this.typeConversionsFactory = typeConversionsFactory;
     }
 
     @Override
@@ -414,7 +462,8 @@ public class POJOUtils {
                 // Object param is offset 1.
                 MethodVariableAccess.REFERENCE.loadFrom(1),
                 // Do any conversions necessary.
-                new ByteBuddyUtils.ConvertValueForSetter(readField)
+                typeConversionsFactory
+                    .createSetterConversions(readField)
                     .convert(TypeDescriptor.of(field.getType())),
                 // Now update the field and return void.
                 FieldAccess.forField(new ForLoadedField(field)).write(),
@@ -430,10 +479,13 @@ public class POJOUtils {
   static class SetFieldCreateInstruction implements Implementation {
     private final List<Field> fields;
     private final Class pojoClass;
+    private final TypeConversionsFactory typeConversionsFactory;
 
-    SetFieldCreateInstruction(List<Field> fields, Class pojoClass) {
+    SetFieldCreateInstruction(
+        List<Field> fields, Class pojoClass, TypeConversionsFactory typeConversionsFactory) {
       this.fields = fields;
       this.pojoClass = pojoClass;
+      this.typeConversionsFactory = typeConversionsFactory;
     }
 
     @Override
@@ -462,7 +514,7 @@ public class POJOUtils {
 
         // The types in the POJO might be the types returned by Beam's Row class,
         // so we have to convert the types used by Beam's Row class.
-        ConvertType convertType = new ConvertType(true);
+        TypeConversion<Type> convertType = typeConversionsFactory.createTypeConversion(true);
         for (int i = 0; i < fields.size(); ++i) {
           Field field = fields.get(i);
 
@@ -482,7 +534,8 @@ public class POJOUtils {
                   // Duplicate object reference.
                   Duplication.SINGLE,
                   // Do any conversions necessary.
-                  new ByteBuddyUtils.ConvertValueForSetter(readParameter)
+                  typeConversionsFactory
+                      .createSetterConversions(readParameter)
                       .convert(TypeDescriptor.of(field.getType())),
                   // Now update the field.
                   FieldAccess.forField(new ForLoadedField(field)).write());

@@ -32,6 +32,8 @@ To run a process for a certain duration, define in the code:
 
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -40,6 +42,8 @@ import threading
 
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class Command(object):
@@ -53,7 +57,7 @@ class Command(object):
                     timeout, self.cmd.__name__)
 
       self.cmd(*self.args)
-      logging.info('%d seconds elapsed. Thread (%s) finished.',
+      _LOGGER.info('%d seconds elapsed. Thread (%s) finished.',
                    timeout, self.cmd.__name__)
 
     thread = threading.Thread(target=thread_target, name='Thread-timeout')

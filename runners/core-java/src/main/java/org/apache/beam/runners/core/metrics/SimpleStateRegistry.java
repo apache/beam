@@ -32,6 +32,13 @@ public class SimpleStateRegistry {
     this.executionStates.add(state);
   }
 
+  /** Reset the registered SimpleExecutionStates. */
+  public void reset() {
+    for (SimpleExecutionState state : executionStates) {
+      state.reset();
+    }
+  }
+
   /** @return Execution Time MonitoringInfos based on the tracked start or finish function. */
   public List<MonitoringInfo> getExecutionTimeMonitoringInfos() {
     List<MonitoringInfo> monitoringInfos = new ArrayList<MonitoringInfo>();

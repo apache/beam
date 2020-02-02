@@ -30,7 +30,8 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^examples/java/.*$',
       '^examples/kotlin/.*$',
       '^release/.*$',
-    ]
+    ],
+    timeoutMins: 30,
 )
 builder.build {
   publishers {

@@ -83,9 +83,9 @@ class JiraManager:
               Stop handling the JIRA issue for {1}, {2}""".format(group_id, dep_name, dep_latest_version))
             return
         # Reopen the existing parent issue if it was closed
-        elif (parent_issue.fields.status.name != 'Open' and
-          parent_issue.fields.status.name != 'Reopened'):
-          logging.info("""The parent issue {0} is not opening. Attempt reopening the issue""".format(parent_issue.key))
+        elif parent_issue.fields.status.name not in ['Open', 'Reopened', 'Triage Needed']:
+          logging.info("""The parent issue {0} is not opening (status: {1}). Attempt reopening the issue""".format(
+            parent_issue.key, parent_issue.fields.status.name))
           try:
             self.jira.reopen_issue(parent_issue)
           except:
@@ -111,7 +111,7 @@ class JiraManager:
           issue = self._create_issue(dep_name, dep_current_version, dep_latest_version)
         logging.info('Created a new issue {0} of {1} {2}'.format(issue.key, dep_name, dep_latest_version))
       # Add descriptions in to the opening issue.
-      elif issue.fields.status.name == 'Open' or issue.fields.status.name == 'Reopened':
+      elif issue.fields.status.name in ['Open', 'Reopened', 'Triage Needed']:
         self._append_descriptions(issue, dep_name, dep_current_version, dep_latest_version)
         logging.info('Updated the existing issue {0} of {1} {2}'.format(issue.key, dep_name, dep_latest_version))
       # Check if we need reopen the issue if it was closed. If so, reopen it then add descriptions.

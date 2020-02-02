@@ -19,6 +19,8 @@
 
 For internal use only; no backwards-compatibility guarantees.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import re
@@ -189,6 +191,23 @@ class PipelineOptionsValidator(object):
           errors.extend(self._validate_error(
               self.ERR_INVALID_TRANSFORM_NAME_MAPPING, key, value))
           break
+    return errors
+
+  def validate_worker_region_zone(self, view):
+    """Validates Dataflow worker region and zone arguments are consistent."""
+    errors = []
+    if view.zone and (view.worker_region or view.worker_zone):
+      errors.extend(self._validate_error(
+          'Cannot use deprecated flag --zone along with worker_region or '
+          'worker_zone.'))
+    if self.options.view_as(DebugOptions).lookup_experiment('worker_region')\
+        and (view.worker_region or view.worker_zone):
+      errors.extend(self._validate_error(
+          'Cannot use deprecated experiment worker_region along with '
+          'worker_region or worker_zone.'))
+    if view.worker_region and view.worker_zone:
+      errors.extend(self._validate_error(
+          'worker_region and worker_zone are mutually exclusive.'))
     return errors
 
   def validate_optional_argument_positive(self, view, arg_name):

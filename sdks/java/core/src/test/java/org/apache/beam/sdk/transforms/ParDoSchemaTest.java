@@ -39,6 +39,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.junit.Rule;
 import org.junit.Test;
@@ -79,6 +80,7 @@ public class ParDoSchemaTest implements Serializable {
                 Create.of(pojoList)
                     .withSchema(
                         schema,
+                        TypeDescriptor.of(MyPojo.class),
                         o ->
                             Row.withSchema(schema).addValues(o.stringField, o.integerField).build(),
                         r -> new MyPojo(r.getString("string_field"), r.getInt32("integer_field"))))
@@ -112,6 +114,7 @@ public class ParDoSchemaTest implements Serializable {
                 Create.of(pojoList)
                     .withSchema(
                         schema1,
+                        TypeDescriptor.of(MyPojo.class),
                         o ->
                             Row.withSchema(schema1)
                                 .addValues(o.stringField, o.integerField)
@@ -131,6 +134,7 @@ public class ParDoSchemaTest implements Serializable {
                     }))
             .setSchema(
                 schema2,
+                TypeDescriptor.of(MyPojo.class),
                 o -> Row.withSchema(schema2).addValues(o.stringField, o.integerField).build(),
                 r -> new MyPojo(r.getString("string2_field"), r.getInt32("integer2_field")))
             .apply(
@@ -170,6 +174,7 @@ public class ParDoSchemaTest implements Serializable {
                 Create.of(pojoList)
                     .withSchema(
                         schema1,
+                        TypeDescriptor.of(MyPojo.class),
                         o ->
                             Row.withSchema(schema1)
                                 .addValues(o.stringField, o.integerField)
@@ -198,12 +203,14 @@ public class ParDoSchemaTest implements Serializable {
         .get(firstOutput)
         .setSchema(
             schema2,
+            TypeDescriptor.of(MyPojo.class),
             o -> Row.withSchema(schema2).addValues(o.stringField, o.integerField).build(),
             r -> new MyPojo(r.getString("string2_field"), r.getInt32("integer2_field")));
     tuple
         .get(secondOutput)
         .setSchema(
             schema3,
+            TypeDescriptor.of(MyPojo.class),
             o -> Row.withSchema(schema3).addValues(o.stringField, o.integerField).build(),
             r -> new MyPojo(r.getString("string3_field"), r.getInt32("integer3_field")));
 
@@ -300,6 +307,7 @@ public class ParDoSchemaTest implements Serializable {
                 Create.of(pojoList)
                     .withSchema(
                         schema,
+                        TypeDescriptor.of(MyPojo.class),
                         o ->
                             Row.withSchema(schema).addValues(o.stringField, o.integerField).build(),
                         r -> new MyPojo(r.getString("string_field"), r.getInt32("integer_field"))))
@@ -349,6 +357,7 @@ public class ParDoSchemaTest implements Serializable {
             Create.of(pojoList)
                 .withSchema(
                     schema,
+                    TypeDescriptor.of(MyPojo.class),
                     o -> Row.withSchema(schema).addValues(o.stringField, o.integerField).build(),
                     r -> new MyPojo(r.getString("string_field"), r.getInt32("integer_field"))))
         .apply(

@@ -17,9 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
@@ -36,15 +34,15 @@ class WriteGroupedRecordsToFiles<DestinationT, ElementT>
 
   private final PCollectionView<String> tempFilePrefix;
   private final long maxFileSize;
-  private final SerializableFunction<ElementT, TableRow> toRowFunction;
+  private final RowWriterFactory<ElementT, DestinationT> rowWriterFactory;
 
   WriteGroupedRecordsToFiles(
       PCollectionView<String> tempFilePrefix,
       long maxFileSize,
-      SerializableFunction<ElementT, TableRow> toRowFunction) {
+      RowWriterFactory<ElementT, DestinationT> rowWriterFactory) {
     this.tempFilePrefix = tempFilePrefix;
     this.maxFileSize = maxFileSize;
-    this.toRowFunction = toRowFunction;
+    this.rowWriterFactory = rowWriterFactory;
   }
 
   @ProcessElement
@@ -53,25 +51,29 @@ class WriteGroupedRecordsToFiles<DestinationT, ElementT>
       @Element KV<ShardedKey<DestinationT>, Iterable<ElementT>> element,
       OutputReceiver<WriteBundlesToFiles.Result<DestinationT>> o)
       throws Exception {
+
     String tempFilePrefix = c.sideInput(this.tempFilePrefix);
-    TableRowWriter writer = new TableRowWriter(tempFilePrefix);
+
+    BigQueryRowWriter<ElementT> writer =
+        rowWriterFactory.createRowWriter(tempFilePrefix, element.getKey().getKey());
+
     try {
       for (ElementT tableRow : element.getValue()) {
         if (writer.getByteSize() > maxFileSize) {
           writer.close();
-          writer = new TableRowWriter(tempFilePrefix);
-          TableRowWriter.Result result = writer.getResult();
+          writer = rowWriterFactory.createRowWriter(tempFilePrefix, element.getKey().getKey());
+          BigQueryRowWriter.Result result = writer.getResult();
           o.output(
               new WriteBundlesToFiles.Result<>(
                   result.resourceId.toString(), result.byteSize, c.element().getKey().getKey()));
         }
-        writer.write(toRowFunction.apply(tableRow));
+        writer.write(tableRow);
       }
     } finally {
       writer.close();
     }
 
-    TableRowWriter.Result result = writer.getResult();
+    BigQueryRowWriter.Result result = writer.getResult();
     o.output(
         new WriteBundlesToFiles.Result<>(
             result.resourceId.toString(), result.byteSize, c.element().getKey().getKey()));

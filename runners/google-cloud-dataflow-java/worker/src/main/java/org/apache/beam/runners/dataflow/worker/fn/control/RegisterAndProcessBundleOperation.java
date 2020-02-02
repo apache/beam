@@ -73,8 +73,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -297,7 +297,6 @@ public class RegisterAndProcessBundleOperation extends Operation {
                 .setRegister(registerRequest)
                 .build();
         registerFuture = instructionRequestHandler.handle(request);
-        getRegisterResponse(registerFuture);
       }
 
       checkState(
@@ -315,7 +314,10 @@ public class RegisterAndProcessBundleOperation extends Operation {
       deregisterStateHandler =
           beamFnStateDelegator.registerForProcessBundleInstructionId(
               getProcessBundleInstructionId(), this::delegateByStateKeyType);
-      processBundleResponse = instructionRequestHandler.handle(processBundleRequest);
+      processBundleResponse =
+          getRegisterResponse(registerFuture)
+              .thenCompose(
+                  registerResponse -> instructionRequestHandler.handle(processBundleRequest));
     }
   }
 
@@ -368,12 +370,8 @@ public class RegisterAndProcessBundleOperation extends Operation {
    * elements consumed from the upstream read operation.
    *
    * <p>May be called at any time, including before start() and after finish().
-   *
-   * @throws InterruptedException
-   * @throws ExecutionException
    */
-  public CompletionStage<BeamFnApi.ProcessBundleProgressResponse> getProcessBundleProgress()
-      throws InterruptedException, ExecutionException {
+  public CompletionStage<BeamFnApi.ProcessBundleProgressResponse> getProcessBundleProgress() {
     // processBundleId may be reset if this bundle finishes asynchronously.
     String processBundleId = this.processBundleId;
 
@@ -391,13 +389,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
 
     return instructionRequestHandler
         .handle(processBundleRequest)
-        .thenApply(
-            response -> {
-              if (!response.getError().isEmpty()) {
-                throw new IllegalStateException(response.getError());
-              }
-              return response.getProcessBundleProgress();
-            });
+        .thenApply(InstructionResponse::getProcessBundleProgress);
   }
 
   /** Returns the final metrics returned by the SDK harness when it completes the bundle. */
@@ -634,53 +626,36 @@ public class RegisterAndProcessBundleOperation extends Operation {
     return true;
   }
 
-  private static CompletionStage<BeamFnApi.InstructionResponse> throwIfFailure(
+  private static CompletionStage<BeamFnApi.ProcessBundleResponse> getProcessBundleResponse(
       CompletionStage<InstructionResponse> responseFuture) {
     return responseFuture.thenApply(
         response -> {
-          if (!response.getError().isEmpty()) {
-            throw new IllegalStateException(
-                String.format(
-                    "Client failed to process %s with error [%s].",
-                    response.getInstructionId(), response.getError()));
+          switch (response.getResponseCase()) {
+            case PROCESS_BUNDLE:
+              return response.getProcessBundle();
+            default:
+              throw new IllegalStateException(
+                  String.format(
+                      "SDK harness returned wrong kind of response to ProcessBundleRequest: %s",
+                      TextFormat.printToString(response)));
           }
-          return response;
         });
   }
 
-  private static CompletionStage<BeamFnApi.ProcessBundleResponse> getProcessBundleResponse(
-      CompletionStage<InstructionResponse> responseFuture) {
-    return throwIfFailure(responseFuture)
-        .thenApply(
-            response -> {
-              switch (response.getResponseCase()) {
-                case PROCESS_BUNDLE:
-                  return response.getProcessBundle();
-                default:
-                  throw new IllegalStateException(
-                      String.format(
-                          "SDK harness returned wrong kind of response to ProcessBundleRequest: %s",
-                          TextFormat.printToString(response)));
-              }
-            });
-  }
-
   private static CompletionStage<BeamFnApi.RegisterResponse> getRegisterResponse(
-      CompletionStage<InstructionResponse> responseFuture)
-      throws ExecutionException, InterruptedException {
-    return throwIfFailure(responseFuture)
-        .thenApply(
-            response -> {
-              switch (response.getResponseCase()) {
-                case REGISTER:
-                  return response.getRegister();
-                default:
-                  throw new IllegalStateException(
-                      String.format(
-                          "SDK harness returned wrong kind of response to RegisterRequest: %s",
-                          TextFormat.printToString(response)));
-              }
-            });
+      CompletionStage<InstructionResponse> responseFuture) {
+    return responseFuture.thenApply(
+        response -> {
+          switch (response.getResponseCase()) {
+            case REGISTER:
+              return response.getRegister();
+            default:
+              throw new IllegalStateException(
+                  String.format(
+                      "SDK harness returned wrong kind of response to RegisterRequest: %s",
+                      TextFormat.printToString(response)));
+          }
+        });
   }
 
   private static void cancelIfNotNull(CompletionStage<?> future) {

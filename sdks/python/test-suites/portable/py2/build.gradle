@@ -22,6 +22,7 @@ apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 
 def pythonRootDir = "${rootDir}/sdks/python"
+def runScriptsDir = "${rootDir}/sdks/python/scripts"
 
 /*************************************************************************************************/
 
@@ -32,6 +33,16 @@ task preCommitPy2() {
   dependsOn ':sdks:python:container:py2:docker'
   dependsOn portableWordCountBatch
   dependsOn portableWordCountStreaming
+}
+
+task postCommitPy2() {
+  dependsOn 'setupVirtualenv'
+  dependsOn ':runners:flink:1.9:job-server:shadowJar'
+  dependsOn portableWordCountFlinkRunnerBatch
+  dependsOn portableWordCountFlinkRunnerStreaming
+  dependsOn 'postCommitPy2IT'
+  dependsOn ':runners:spark:job-server:shadowJar'
+  dependsOn portableWordCountSparkRunnerBatch
 }
 
 // TODO: Move the rest of this file into ../common.gradle.
@@ -96,7 +107,6 @@ task crossLanguagePythonJavaFlink {
     def testServiceExpansionJar = project(":sdks:java:testing:expansion-service:").buildTestExpansionServiceJar.archivePath
     def options = [
         "--runner=PortableRunner",
-        "--experiments=worker_threads=100",
         "--parallelism=2",
         "--shutdown_sources_on_final_watermark",
         "--environment_cache_millis=10000",
@@ -123,7 +133,6 @@ task crossLanguagePortableWordCount {
         "--input=/etc/profile",
         "--output=/tmp/py-wordcount-portable",
         "--runner=PortableRunner",
-        "--experiments=worker_threads=100",
         "--parallelism=2",
         "--shutdown_sources_on_final_watermark",
         "--environment_cache_millis=10000",
@@ -139,9 +148,58 @@ task crossLanguagePortableWordCount {
   }
 }
 
+task postCommitPy2IT {
+  dependsOn 'installGcpTest'
+  dependsOn 'setupVirtualenv'
+  dependsOn ':runners:flink:1.9:job-server:shadowJar'
+
+  doLast {
+    def tests = [
+        "apache_beam.io.gcp.bigquery_read_it_test",
+    ]
+    def testOpts = ["--tests=${tests.join(',')}"]
+    def cmdArgs = mapToArgString([
+        "test_opts": testOpts,
+        "suite": "postCommitIT-flink-py2",
+        "pipeline_opts": "--runner=FlinkRunner --project=apache-beam-testing --environment_type=LOOPBACK --temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
+    ])
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
 task crossLanguageTests {
   dependsOn "crossLanguagePythonJavaFlink"
   dependsOn "crossLanguagePortableWordCount"
+}
+
+task installChicagoTaxiExampleRequirements {
+  dependsOn 'installGcpTest'
+
+  doLast {
+    exec {
+      workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pip install -r requirements.txt"
+    }
+  }
+}
+
+task chicagoTaxiExample {
+  dependsOn 'installChicagoTaxiExampleRequirements'
+
+  def gcsRoot = findProperty('gcsRoot')
+  def pipelineOptions = findProperty('pipelineOptions') ?: ""
+
+  doLast {
+    exec {
+      workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ./run_chicago.sh ${gcsRoot} PortableRunner ${pipelineOptions}"
+    }
+  }
 }
 
 /*************************************************************************************************/
@@ -177,6 +235,7 @@ task sparkValidatesRunner() {
         "environment_type"    : "PROCESS",
         "spark_job_server_jar": project(":runners:spark:job-server:").shadowJar.archivePath,
         "environment_config": environment_config,
+        "environment_cache_millis": 10000,
     ]
     def argString = mapToArgString(argMap)
 

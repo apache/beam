@@ -16,9 +16,12 @@
 #
 """GCS file system implementation for accessing files on GCS."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from builtins import zip
+from typing import BinaryIO  # pylint: disable=unused-import
 
 from future.utils import iteritems
 
@@ -97,7 +100,7 @@ class GCSFileSystem(FileSystem):
       path: string path of the directory structure that should be created
 
     Raises:
-      IOError if leaf directory already exists.
+      IOError: if leaf directory already exists.
     """
     pass
 
@@ -118,7 +121,7 @@ class GCSFileSystem(FileSystem):
       Generator of ``FileMetadata`` objects.
 
     Raises:
-      ``BeamIOError`` if listing fails, but not if no files were found.
+      ``BeamIOError``: if listing fails, but not if no files were found.
     """
     try:
       for path, size in iteritems(gcsio.GcsIO().list_prefix(dir_or_prefix)):
@@ -139,6 +142,7 @@ class GCSFileSystem(FileSystem):
 
   def create(self, path, mime_type='application/octet-stream',
              compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
     """Returns a write channel for the given file path.
 
     Args:
@@ -152,6 +156,7 @@ class GCSFileSystem(FileSystem):
 
   def open(self, path, mime_type='application/octet-stream',
            compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
     """Returns a read channel for the given file path.
 
     Args:
@@ -171,7 +176,7 @@ class GCSFileSystem(FileSystem):
       destination_file_names: list of destination of the new object
 
     Raises:
-      ``BeamIOError`` if any of the copy operations fail
+      ``BeamIOError``: if any of the copy operations fail
     """
     err_msg = ("source_file_names and destination_file_names should "
                "be equal in length")
@@ -207,7 +212,7 @@ class GCSFileSystem(FileSystem):
       destination_file_names: List of destination_file_names for the files
 
     Raises:
-      ``BeamIOError`` if any of the rename operations fail
+      ``BeamIOError``: if any of the rename operations fail
     """
     err_msg = ("source_file_names and destination_file_names should "
                "be equal in length")
@@ -262,7 +267,7 @@ class GCSFileSystem(FileSystem):
     Returns: int size of path according to the FileSystem.
 
     Raises:
-      ``BeamIOError`` if path doesn't exist.
+      ``BeamIOError``: if path doesn't exist.
     """
     return gcsio.GcsIO().size(path)
 
@@ -275,7 +280,7 @@ class GCSFileSystem(FileSystem):
     Returns: float UNIX Epoch time
 
     Raises:
-      ``BeamIOError`` if path doesn't exist.
+      ``BeamIOError``: if path doesn't exist.
     """
     return gcsio.GcsIO().last_updated(path)
 
@@ -289,7 +294,7 @@ class GCSFileSystem(FileSystem):
     Returns: string containing checksum
 
     Raises:
-      ``BeamIOError`` if path isn't a file or doesn't exist.
+      ``BeamIOError``: if path isn't a file or doesn't exist.
     """
     try:
       return gcsio.GcsIO().checksum(path)

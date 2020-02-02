@@ -70,20 +70,22 @@ public class FlinkExecutionEnvironments {
 
     LOG.info("Creating a Batch Execution Environment.");
 
-    String masterUrl = options.getFlinkMaster();
+    // Although Flink uses Rest, it expects the address not to contain a http scheme
+    String flinkMasterHostPort = stripHttpSchema(options.getFlinkMaster());
     Configuration flinkConfiguration = getFlinkConfiguration(confDir);
     ExecutionEnvironment flinkBatchEnv;
 
     // depending on the master, create the right environment.
-    if ("[local]".equals(masterUrl)) {
+    if ("[local]".equals(flinkMasterHostPort)) {
       flinkBatchEnv = ExecutionEnvironment.createLocalEnvironment(flinkConfiguration);
-    } else if ("[collection]".equals(masterUrl)) {
+    } else if ("[collection]".equals(flinkMasterHostPort)) {
       flinkBatchEnv = new CollectionEnvironment();
-    } else if ("[auto]".equals(masterUrl)) {
+    } else if ("[auto]".equals(flinkMasterHostPort)) {
       flinkBatchEnv = ExecutionEnvironment.getExecutionEnvironment();
     } else {
       int defaultPort = flinkConfiguration.getInteger(RestOptions.PORT);
-      HostAndPort hostAndPort = HostAndPort.fromString(masterUrl).withDefaultPort(defaultPort);
+      HostAndPort hostAndPort =
+          HostAndPort.fromString(flinkMasterHostPort).withDefaultPort(defaultPort);
       flinkConfiguration.setInteger(RestOptions.PORT, hostAndPort.getPort());
       flinkBatchEnv =
           ExecutionEnvironment.createRemoteEnvironment(
@@ -145,7 +147,8 @@ public class FlinkExecutionEnvironments {
 
     LOG.info("Creating a Streaming Environment.");
 
-    String masterUrl = options.getFlinkMaster();
+    // Although Flink uses Rest, it expects the address not to contain a http scheme
+    String masterUrl = stripHttpSchema(options.getFlinkMaster());
     Configuration flinkConfiguration = getFlinkConfiguration(confDir);
     final StreamExecutionEnvironment flinkStreamEnv;
 
@@ -262,6 +265,15 @@ public class FlinkExecutionEnvironments {
     }
 
     return flinkStreamEnv;
+  }
+
+  /**
+   * Removes the http:// or https:// schema from a url string. This is commonly used with the
+   * flink_master address which is expected to be of form host:port but users may specify a URL;
+   * Python code also assumes a URL which may be passed here.
+   */
+  private static String stripHttpSchema(String url) {
+    return url.trim().replaceFirst("^http[s]?://", "");
   }
 
   private static int determineParallelism(

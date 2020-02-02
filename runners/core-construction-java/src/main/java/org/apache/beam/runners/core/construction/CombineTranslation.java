@@ -27,7 +27,6 @@ import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -40,7 +39,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -234,15 +233,10 @@ public class CombineTranslation {
         .build();
   }
 
-  public static SdkFunctionSpec toProto(
-      GlobalCombineFn<?, ?, ?> combineFn, SdkComponents components) {
-    return SdkFunctionSpec.newBuilder()
-        .setEnvironmentId(components.getOnlyEnvironmentId())
-        .setSpec(
-            FunctionSpec.newBuilder()
-                .setUrn(JAVA_SERIALIZED_COMBINE_FN_URN)
-                .setPayload(ByteString.copyFrom(SerializableUtils.serializeToByteArray(combineFn)))
-                .build())
+  public static FunctionSpec toProto(GlobalCombineFn<?, ?, ?> combineFn, SdkComponents components) {
+    return FunctionSpec.newBuilder()
+        .setUrn(JAVA_SERIALIZED_COMBINE_FN_URN)
+        .setPayload(ByteString.copyFrom(SerializableUtils.serializeToByteArray(combineFn)))
         .build();
   }
 }

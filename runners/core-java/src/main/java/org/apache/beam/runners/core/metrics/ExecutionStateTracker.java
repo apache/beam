@@ -137,6 +137,17 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     this.sampler = sampler;
   }
 
+  /** Reset the execution status. */
+  public void reset() {
+    trackedThread = null;
+    currentState = null;
+    numTransitions = 0;
+    millisSinceLastTransition = 0;
+    transitionsAtLastSample = 0;
+    nextLullReportMs = LULL_REPORT_MS;
+    CURRENT_TRACKERS.entrySet().removeIf(entry -> entry.getValue() == this);
+  }
+
   @VisibleForTesting
   public static ExecutionStateTracker newForTest() {
     return new ExecutionStateTracker(ExecutionStateSampler.newForTest());
@@ -259,6 +270,16 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   /** Return the time since the last transition. */
   public long getMillisSinceLastTransition() {
     return millisSinceLastTransition;
+  }
+
+  /** Return the number of transitions since the last sample. */
+  public long getTransitionsAtLastSample() {
+    return transitionsAtLastSample;
+  }
+
+  /** Return the time of the next lull report. */
+  public long getNextLullReportMs() {
+    return nextLullReportMs;
   }
 
   protected void takeSample(long millisSinceLastSample) {

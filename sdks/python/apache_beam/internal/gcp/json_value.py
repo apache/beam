@@ -17,6 +17,8 @@
 
 """JSON conversion utility functions."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from past.builtins import long
@@ -50,7 +52,7 @@ def get_typed_value_descriptor(obj):
     the ``@type`` of appropriate type.
 
   Raises:
-    ~exceptions.TypeError: if the Python object has a type that is not
+    TypeError: if the Python object has a type that is not
       supported.
   """
   if isinstance(obj, (bytes, unicode)):
@@ -82,7 +84,7 @@ def to_json_value(obj, with_type=False):
     types for the corresponding values, lists, or dictionaries.
 
   Raises:
-    ~exceptions.TypeError: if the Python object contains a type that is not
+    TypeError: if the Python object contains a type that is not
       supported.
 
   The types supported are ``str``, ``bool``, ``list``, ``tuple``, ``dict``, and
@@ -139,7 +141,7 @@ def from_json_value(v):
     to ``JsonValue``, ``JsonArray`` and ``JsonObject`` types.
 
   Raises:
-    ~exceptions.TypeError: if the ``JsonValue`` object contains a type that is
+    TypeError: if the ``JsonValue`` object contains a type that is
       not supported.
 
   The types supported are ``str``, ``bool``, ``list``, ``dict``, and ``None``.

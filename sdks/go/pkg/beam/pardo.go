@@ -123,7 +123,7 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 //    words := beam.ParDo(s, &Foo{...}, ...)
 //    lengths := beam.ParDo(s, func (word string) int) {
 //          return len(word)
-//    }, works)
+//    }, words)
 //
 //
 // Each output element has the same timestamp and is in the same windows as its

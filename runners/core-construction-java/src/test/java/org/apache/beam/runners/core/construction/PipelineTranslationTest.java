@@ -96,7 +96,7 @@ public class PipelineTranslationTest {
             Window.<Long>into(FixedWindows.of(Duration.standardMinutes(7)))
                 .triggering(
                     AfterWatermark.pastEndOfWindow()
-                        .withEarlyFirings(AfterPane.elementCountAtLeast(19)))
+                        .withLateFirings(AfterPane.elementCountAtLeast(19)))
                 .accumulatingFiredPanes()
                 .withAllowedLateness(Duration.standardMinutes(3L)));
     final WindowingStrategy<?, ?> windowedStrategy = windowed.getWindowingStrategy();

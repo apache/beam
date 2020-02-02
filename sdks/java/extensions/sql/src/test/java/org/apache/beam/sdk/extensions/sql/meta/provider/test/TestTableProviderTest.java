@@ -87,11 +87,11 @@ public class TestTableProviderTest {
         beamSqlTable.buildIOReader(
             pipeline.begin(),
             beamSqlTable.constructFilter(ImmutableList.of()),
-            ImmutableList.of("name", "id")); // Note that order is ignored
+            ImmutableList.of("name", "id"));
 
     // Selected columns are outputted in the same order they are listed in the schema.
     PAssert.that(result)
-        .containsInAnyOrder(row(result.getSchema(), 1, "one"), row(result.getSchema(), 2, "two"));
+        .containsInAnyOrder(row(result.getSchema(), "one", 1), row(result.getSchema(), "two", 2));
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }

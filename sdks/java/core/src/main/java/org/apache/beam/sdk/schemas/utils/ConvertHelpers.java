@@ -21,16 +21,16 @@ import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.JavaFieldSchema.JavaFieldTypeSupplier;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
-import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
-import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForSetter;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -49,6 +49,7 @@ import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.matcher.ElementMatc
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Primitives;
 
 /** Helper functions for converting between equivalent schema types. */
+@Experimental(Kind.SCHEMAS)
 public class ConvertHelpers {
   /** Return value after converting a schema. */
   public static class ConvertedSchemaInformation<T> implements Serializable {
@@ -76,13 +77,7 @@ public class ConvertHelpers {
       // If the output is of type Row, then just forward the schema of the input type to the
       // output.
       convertedSchema =
-          new ConvertedSchemaInformation<>(
-              (SchemaCoder<T>)
-                  SchemaCoder.of(
-                      inputSchema,
-                      SerializableFunctions.identity(),
-                      SerializableFunctions.identity()),
-              null);
+          new ConvertedSchemaInformation<>((SchemaCoder<T>) SchemaCoder.of(inputSchema), null);
     } else {
       // Otherwise, try to find a schema for the output type in the schema registry.
       Schema outputSchema = null;
@@ -92,6 +87,7 @@ public class ConvertHelpers {
         outputSchemaCoder =
             SchemaCoder.of(
                 outputSchema,
+                outputType,
                 schemaRegistry.getToRowFunction(outputType),
                 schemaRegistry.getFromRowFunction(outputType));
       } catch (NoSuchSchemaException e) {
@@ -132,7 +128,9 @@ public class ConvertHelpers {
    */
   @SuppressWarnings("unchecked")
   public static <OutputT> SerializableFunction<?, OutputT> getConvertPrimitive(
-      FieldType fieldType, TypeDescriptor<?> outputTypeDescriptor) {
+      FieldType fieldType,
+      TypeDescriptor<?> outputTypeDescriptor,
+      TypeConversionsFactory typeConversionsFactory) {
     FieldType expectedFieldType =
         StaticSchemaInference.fieldFromType(outputTypeDescriptor, JavaFieldTypeSupplier.INSTANCE);
     if (!expectedFieldType.equals(fieldType)) {
@@ -143,7 +141,8 @@ public class ConvertHelpers {
               + fieldType);
     }
 
-    Type expectedInputType = new ConvertType(true).convert(outputTypeDescriptor);
+    Type expectedInputType =
+        typeConversionsFactory.createTypeConversion(true).convert(outputTypeDescriptor);
 
     TypeDescriptor<?> outputType = outputTypeDescriptor;
     if (outputType.getRawType().isPrimitive()) {
@@ -162,7 +161,7 @@ public class ConvertHelpers {
     try {
       return builder
           .method(ElementMatchers.named("apply"))
-          .intercept(new ConvertPrimitiveInstruction(outputType))
+          .intercept(new ConvertPrimitiveInstruction(outputType, typeConversionsFactory))
           .make()
           .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
           .getLoaded()
@@ -178,9 +177,12 @@ public class ConvertHelpers {
 
   static class ConvertPrimitiveInstruction implements Implementation {
     private final TypeDescriptor<?> outputFieldType;
+    private final TypeConversionsFactory typeConversionsFactory;
 
-    public ConvertPrimitiveInstruction(TypeDescriptor<?> outputFieldType) {
+    public ConvertPrimitiveInstruction(
+        TypeDescriptor<?> outputFieldType, TypeConversionsFactory typeConversionsFactory) {
       this.outputFieldType = outputFieldType;
+      this.typeConversionsFactory = typeConversionsFactory;
     }
 
     @Override
@@ -197,7 +199,7 @@ public class ConvertHelpers {
         StackManipulation readValue = MethodVariableAccess.REFERENCE.loadFrom(1);
         StackManipulation stackManipulation =
             new StackManipulation.Compound(
-                new ConvertValueForSetter(readValue).convert(outputFieldType),
+                typeConversionsFactory.createSetterConversions(readValue).convert(outputFieldType),
                 MethodReturn.REFERENCE);
 
         StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);

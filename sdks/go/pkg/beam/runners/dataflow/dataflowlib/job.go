@@ -46,6 +46,7 @@ type JobOptions struct {
 	Zone                string
 	Network             string
 	Subnetwork          string
+	NoUsePublicIPs      bool
 	NumWorkers          int64
 	MachineType         string
 	Labels              map[string]string
@@ -105,6 +106,11 @@ func Translate(p *pb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL str
 		experiments = append(experiments, "use_staged_dataflow_worker_jar")
 	}
 
+	ipConfiguration := "WORKER_IP_UNSPECIFIED"
+	if opts.NoUsePublicIPs {
+		ipConfiguration = "WORKER_IP_PRIVATE"
+	}
+
 	job := &df.Job{
 		ProjectId: opts.Project,
 		Name:      opts.Name,
@@ -132,6 +138,7 @@ func Translate(p *pb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL str
 				AutoscalingSettings: &df.AutoscalingSettings{
 					MaxNumWorkers: opts.MaxNumWorkers,
 				},
+				IpConfiguration:             ipConfiguration,
 				Kind:                        "harness",
 				Packages:                    packages,
 				WorkerHarnessContainerImage: images[0],

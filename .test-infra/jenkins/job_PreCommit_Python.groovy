@@ -22,6 +22,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Python',
     gradleTask: ':pythonPreCommit',
+    timeoutMins: 180,
     triggerPathPatterns: [
       '^model/.*$',
       '^sdks/python/.*$',
@@ -29,9 +30,8 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     ]
 )
 builder.build {
-  // Publish all test results to Jenkins. Note that Nose documentation
-  // specifically mentions that it produces JUnit compatible test results.
+  // Publish all test results to Jenkins.
   publishers {
-    archiveJunit('**/nosetests*.xml')
+    archiveJunit('**/pytest*.xml')
   }
 }

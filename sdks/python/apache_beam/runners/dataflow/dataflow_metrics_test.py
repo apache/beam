@@ -19,6 +19,8 @@ Tests corresponding to the DataflowRunner implementation of MetricsResult,
 the DataflowMetrics class.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import types

@@ -19,6 +19,8 @@
 
 For internal use only; no backwards-compatibility guarantees.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -40,7 +42,7 @@ from apache_beam.typehints import typehints
 try:                  # Python 2
   import __builtin__ as builtins
 except ImportError:   # Python 3
-  import builtins
+  import builtins  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
@@ -65,18 +67,27 @@ def instance_to_type(o):
   elif t == tuple:
     return typehints.Tuple[[instance_to_type(item) for item in o]]
   elif t == list:
-    return typehints.List[
-        typehints.Union[[instance_to_type(item) for item in o]]
-    ]
+    if len(o) > 0:
+      return typehints.List[
+          typehints.Union[[instance_to_type(item) for item in o]]
+      ]
+    else:
+      return typehints.List[typehints.Any]
   elif t == set:
-    return typehints.Set[
-        typehints.Union[[instance_to_type(item) for item in o]]
-    ]
+    if len(o) > 0:
+      return typehints.Set[
+          typehints.Union[[instance_to_type(item) for item in o]]
+      ]
+    else:
+      return typehints.Set[typehints.Any]
   elif t == dict:
-    return typehints.Dict[
-        typehints.Union[[instance_to_type(k) for k, v in o.items()]],
-        typehints.Union[[instance_to_type(v) for k, v in o.items()]],
-    ]
+    if len(o) > 0:
+      return typehints.Dict[
+          typehints.Union[[instance_to_type(k) for k, v in o.items()]],
+          typehints.Union[[instance_to_type(v) for k, v in o.items()]],
+      ]
+    else:
+      return typehints.Dict[typehints.Any, typehints.Any]
   else:
     raise TypeInferenceError('Unknown forbidden type: %s' % t)
 

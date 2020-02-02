@@ -17,6 +17,8 @@
 
 """Tests for transforms defined in apache_beam.io.fileio."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import csv
@@ -34,6 +36,7 @@ from nose.plugins.attrib import attr
 import apache_beam as beam
 from apache_beam.io import fileio
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
+from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -92,7 +95,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
 
       assert_that(files_pc, equal_to(files))
 
-  def test_match_files_one_directory_failure(self):
+  def test_match_files_one_directory_failure1(self):
     directories = [
         '%s%s' % (self._new_tempdir(), os.sep),
         '%s%s' % (self._new_tempdir(), os.sep)]
@@ -111,7 +114,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
 
         assert_that(files_pc, equal_to(files))
 
-  def test_match_files_one_directory_failure(self):
+  def test_match_files_one_directory_failure2(self):
     directories = [
         '%s%s' % (self._new_tempdir(), os.sep),
         '%s%s' % (self._new_tempdir(), os.sep)]
@@ -162,6 +165,69 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
                     | beam.FlatMap(lambda rf: csv.reader(_get_file_reader(rf))))
 
       assert_that(content_pc, equal_to(rows))
+
+  def test_infer_compressed_file(self):
+    dir = '%s%s' % (self._new_tempdir(), os.sep)
+
+    file_contents = b'compressed_contents!'
+    import gzip
+    with gzip.GzipFile(os.path.join(dir, 'compressed.gz'), 'w') as f:
+      f.write(file_contents)
+
+    file_contents2 = b'compressed_contents_bz2!'
+    import bz2
+    with bz2.BZ2File(os.path.join(dir, 'compressed2.bz2'), 'w') as f:
+      f.write(file_contents2)
+
+    with TestPipeline() as p:
+      content_pc = (p
+                    | beam.Create([FileSystems.join(dir, '*')])
+                    | fileio.MatchAll()
+                    | fileio.ReadMatches()
+                    | beam.Map(lambda rf: rf.open().readline()))
+
+      assert_that(content_pc, equal_to([file_contents,
+                                        file_contents2]))
+
+  def test_read_bz2_compressed_file_without_suffix(self):
+    dir = '%s%s' % (self._new_tempdir(), os.sep)
+
+    file_contents = b'compressed_contents!'
+    import bz2
+    with bz2.BZ2File(os.path.join(dir, 'compressed'), 'w') as f:
+      f.write(file_contents)
+
+    with TestPipeline() as p:
+      content_pc = (p
+                    | beam.Create([FileSystems.join(dir, '*')])
+                    | fileio.MatchAll()
+                    | fileio.ReadMatches()
+                    | beam.Map(lambda rf:
+                               rf.open(
+                                   compression_type=CompressionTypes.BZIP2)
+                               .read(len(file_contents))))
+
+      assert_that(content_pc, equal_to([file_contents]))
+
+  def test_read_gzip_compressed_file_without_suffix(self):
+    dir = '%s%s' % (self._new_tempdir(), os.sep)
+
+    file_contents = b'compressed_contents!'
+    import gzip
+    with gzip.GzipFile(os.path.join(dir, 'compressed'), 'w') as f:
+      f.write(file_contents)
+
+    with TestPipeline() as p:
+      content_pc = (p
+                    | beam.Create([FileSystems.join(dir, '*')])
+                    | fileio.MatchAll()
+                    | fileio.ReadMatches()
+                    | beam.Map(lambda rf:
+                               rf.open(
+                                   compression_type=CompressionTypes.GZIP)
+                               .read(len(file_contents))))
+
+      assert_that(content_pc, equal_to([file_contents]))
 
   def test_string_filenames_and_skip_directory(self):
     content = 'thecontent\n'
@@ -449,6 +515,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
         # TODO(BEAM-3759): Add many firings per window after getting PaneInfo.
         ts.advance_processing_time(5)
         ts.advance_watermark_to(timestamp)
+    ts.advance_watermark_to_infinity()
 
     def no_colon_file_naming(*args):
       file_name = fileio.destination_prefix_naming()(*args)
@@ -508,7 +575,8 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
           .add_elements([next(input), next(input)])
           .advance_watermark_to(30)
           .add_elements([next(input), next(input)])
-          .advance_watermark_to(40))
+          .advance_watermark_to(40)
+          .advance_watermark_to_infinity())
 
     def no_colon_file_naming(*args):
       file_name = fileio.destination_prefix_naming()(*args)

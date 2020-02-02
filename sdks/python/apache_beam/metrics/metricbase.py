@@ -32,6 +32,8 @@ Available classes:
 - MetricName - Namespace and name used to refer to a Metric.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from builtins import object

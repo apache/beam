@@ -30,6 +30,7 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.CounterData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.ExtremaData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.IntDistributionData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -61,6 +62,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
   private static final Logger LOG = LoggerFactory.getLogger(MetricsContainerImpl.class);
 
+  private static final String GAUGE_URN =
+      BeamUrns.getUrn(MetricsApi.MonitoringInfoTypeUrns.Enum.LATEST_INT64_TYPE);
+
   @Nullable private final String stepName;
 
   private MetricsMap<MetricName, CounterCell> counters = new MetricsMap<>(CounterCell::new);
@@ -73,6 +77,19 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   /** Create a new {@link MetricsContainerImpl} associated with the given {@code stepName}. */
   public MetricsContainerImpl(@Nullable String stepName) {
     this.stepName = stepName;
+  }
+
+  /** Reset the metrics. */
+  public void reset() {
+    reset(counters);
+    reset(distributions);
+    reset(gauges);
+  }
+
+  private void reset(MetricsMap<MetricName, ? extends MetricCell<?>> cells) {
+    for (MetricCell<?> cell : cells.values()) {
+      cell.reset();
+    }
   }
 
   /**
@@ -306,8 +323,13 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
           if (metric.hasCounterData()) {
             CounterData counterData = metric.getCounterData();
             if (counterData.getValueCase() == CounterData.ValueCase.INT64_VALUE) {
-              Counter counter = getCounter(metricName);
-              counter.inc(counterData.getInt64Value());
+              if (GAUGE_URN.equals(monitoringInfo.getType())) {
+                GaugeCell gauge = getGauge(metricName);
+                gauge.set(counterData.getInt64Value());
+              } else {
+                Counter counter = getCounter(metricName);
+                counter.inc(counterData.getInt64Value());
+              }
             } else {
               LOG.warn("Unsupported CounterData type: {}", counterData);
             }

@@ -24,9 +24,9 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.stream.Stream;
-import org.apache.beam.sdk.schemas.LogicalTypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -128,6 +128,34 @@ public class SchemaTest {
     Field field = schema.getField("f_array");
     assertEquals("f_array", field.getName());
     assertEquals(arrayType, field.getType());
+  }
+
+  @Test
+  public void testIterableSchema() {
+    FieldType iterableType = FieldType.iterable(FieldType.STRING);
+    Schema schema = Schema.of(Field.of("f_iter", iterableType));
+    Field field = schema.getField("f_iter");
+    assertEquals("f_iter", field.getName());
+    assertEquals(iterableType, field.getType());
+  }
+
+  @Test
+  public void testIterableOfRowSchema() {
+    Schema nestedSchema = Schema.of(Field.of("f1_str", FieldType.STRING));
+    FieldType iterableType = FieldType.iterable(FieldType.row(nestedSchema));
+    Schema schema = Schema.of(Field.of("f_iter", iterableType));
+    Field field = schema.getField("f_iter");
+    assertEquals("f_iter", field.getName());
+    assertEquals(iterableType, field.getType());
+  }
+
+  @Test
+  public void testNestedIterableSchema() {
+    FieldType iterableType = FieldType.iterable(FieldType.iterable(FieldType.STRING));
+    Schema schema = Schema.of(Field.of("f_iter", iterableType));
+    Field field = schema.getField("f_iter");
+    assertEquals("f_iter", field.getName());
+    assertEquals(iterableType, field.getType());
   }
 
   @Test
@@ -268,7 +296,7 @@ public class SchemaTest {
 
   static class TestType extends PassThroughLogicalType<Long> {
     TestType(String id, String arg) {
-      super(id, arg, FieldType.INT64);
+      super(id, FieldType.STRING, arg, FieldType.INT64);
     }
   }
 

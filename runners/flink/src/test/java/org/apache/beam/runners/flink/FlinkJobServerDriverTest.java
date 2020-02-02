@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -42,7 +43,7 @@ public class FlinkJobServerDriverTest {
     assertThat(config.getPort(), is(8099));
     assertThat(config.getArtifactPort(), is(8098));
     assertThat(config.getExpansionPort(), is(8097));
-    assertThat(config.getFlinkMasterUrl(), is("[auto]"));
+    assertThat(config.getFlinkMaster(), is("[auto]"));
     assertThat(config.isCleanArtifactsPerJob(), is(true));
     FlinkJobServerDriver flinkJobServerDriver = FlinkJobServerDriver.fromConfig(config);
     assertThat(flinkJobServerDriver, is(not(nullValue())));
@@ -50,8 +51,8 @@ public class FlinkJobServerDriverTest {
 
   @Test
   public void testConfigurationFromArgs() {
-    FlinkJobServerDriver driver =
-        FlinkJobServerDriver.fromParams(
+    FlinkJobServerDriver.FlinkServerConfiguration config =
+        FlinkJobServerDriver.parseArgs(
             new String[] {
               "--job-host=test",
               "--job-port",
@@ -60,17 +61,26 @@ public class FlinkJobServerDriverTest {
               "43",
               "--expansion-port",
               "44",
-              "--flink-master-url=jobmanager",
+              "--flink-master=jobmanager",
               "--clean-artifacts-per-job=false",
             });
-    FlinkJobServerDriver.FlinkServerConfiguration config =
-        (FlinkJobServerDriver.FlinkServerConfiguration) driver.configuration;
     assertThat(config.getHost(), is("test"));
     assertThat(config.getPort(), is(42));
     assertThat(config.getArtifactPort(), is(43));
     assertThat(config.getExpansionPort(), is(44));
-    assertThat(config.getFlinkMasterUrl(), is("jobmanager"));
+    assertThat(config.getFlinkMaster(), is("jobmanager"));
     assertThat(config.isCleanArtifactsPerJob(), is(false));
+  }
+
+  @Test
+  public void testLegacyMasterUrlParameter() {
+    FlinkJobServerDriver.FlinkServerConfiguration config =
+        FlinkJobServerDriver.parseArgs(
+            new String[] {
+              // for backwards-compatibility
+              "--flink-master-url=jobmanager",
+            });
+    assertThat(config.getFlinkMaster(), is("jobmanager"));
   }
 
   @Test
@@ -107,6 +117,8 @@ public class FlinkJobServerDriverTest {
           Thread.sleep(100);
         }
       }
+      assertThat(driver.getJobServerUrl(), is(not(nullValue())));
+      assertThat(baos.toString(Charsets.UTF_8.name()), containsString(driver.getJobServerUrl()));
       assertThat(driverThread.isAlive(), is(true));
     } catch (Throwable t) {
       // restore to print exception

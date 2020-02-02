@@ -548,6 +548,9 @@ public class ParDo {
     for (OnTimerMethod method : signature.onTimerMethods().values()) {
       validateWindowTypeForMethod(actualWindowT, method);
     }
+    for (DoFnSignature.OnTimerFamilyMethod method : signature.onTimerFamilyMethods().values()) {
+      validateWindowTypeForMethod(actualWindowT, method);
+    }
   }
 
   private static void validateWindowTypeForMethod(
@@ -584,6 +587,15 @@ public class ParDo {
       throw new UnsupportedOperationException(
           String.format(
               "%s is splittable and uses timers, but these are not compatible",
+              fn.getClass().getName()));
+    }
+
+    // TimerFamily is semantically incompatible with splitting
+    if (!signature.timerFamilyDeclarations().isEmpty()
+        && signature.processElement().isSplittable()) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s is splittable and uses timer family, but these are not compatible",
               fn.getClass().getName()));
     }
   }
@@ -735,16 +747,18 @@ public class ParDo {
       PCollection<OutputT> res =
           input.apply(withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);
 
+      TypeDescriptor<OutputT> outputTypeDescriptor = getFn().getOutputTypeDescriptor();
       try {
         res.setSchema(
-            schemaRegistry.getSchema(getFn().getOutputTypeDescriptor()),
-            schemaRegistry.getToRowFunction(getFn().getOutputTypeDescriptor()),
-            schemaRegistry.getFromRowFunction(getFn().getOutputTypeDescriptor()));
+            schemaRegistry.getSchema(outputTypeDescriptor),
+            outputTypeDescriptor,
+            schemaRegistry.getToRowFunction(outputTypeDescriptor),
+            schemaRegistry.getFromRowFunction(outputTypeDescriptor));
       } catch (NoSuchSchemaException e) {
         try {
           res.setCoder(
               registry.getCoder(
-                  getFn().getOutputTypeDescriptor(),
+                  outputTypeDescriptor,
                   getFn().getInputTypeDescriptor(),
                   ((PCollection<InputT>) input).getCoder()));
         } catch (CannotProvideCoderException e2) {

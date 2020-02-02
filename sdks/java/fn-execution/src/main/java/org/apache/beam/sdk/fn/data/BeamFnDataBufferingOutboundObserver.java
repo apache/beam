@@ -17,14 +17,14 @@
  */
 package org.apache.beam.sdk.fn.data;
 
-import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A buffering outbound {@link FnDataReceiver} for the Beam Fn Data API.
@@ -32,117 +32,71 @@ import org.slf4j.LoggerFactory;
  * <p>Encodes individually consumed elements with the provided {@link Coder} producing a single
  * {@link BeamFnApi.Elements} message when the buffer threshold is surpassed.
  *
- * <p>The default buffer threshold can be overridden by specifying the experiment {@code
- * beam_fn_api_data_buffer_limit=<bytes>}
+ * <p>The default size-based buffer threshold can be overridden by specifying the experiment {@code
+ * data_buffer_size_limit=<bytes>}
  *
- * <p>TODO: Handle outputting large elements (&gt; 2GiBs). Note that this also applies to the input
- * side as well.
- *
- * <p>TODO: Handle outputting elements that are zero bytes by outputting a single byte as a marker,
- * detect on the input side that no bytes were read and force reading a single byte.
+ * <p>The default time-based buffer threshold can be overridden by specifying the experiment {@code
+ * data_buffer_time_limit_ms=<milliseconds>}
  */
-public class BeamFnDataBufferingOutboundObserver<T> implements CloseableFnDataReceiver<T> {
-  // TODO: Consider moving this constant out of this class
-  public static final String BEAM_FN_API_DATA_BUFFER_LIMIT = "beam_fn_api_data_buffer_limit=";
-  @VisibleForTesting static final int DEFAULT_BUFFER_LIMIT_BYTES = 1_000_000;
-  private static final Logger LOG =
-      LoggerFactory.getLogger(BeamFnDataBufferingOutboundObserver.class);
+public interface BeamFnDataBufferingOutboundObserver<T> extends CloseableFnDataReceiver<T> {
+  // TODO: Consider moving this constant out of this interface
+  /** @deprecated Use DATA_BUFFER_SIZE_LIMIT instead. */
+  @Deprecated String BEAM_FN_API_DATA_BUFFER_LIMIT = "beam_fn_api_data_buffer_limit=";
 
-  public static <T> BeamFnDataBufferingOutboundObserver<T> forLocation(
+  /** @deprecated Use DATA_BUFFER_SIZE_LIMIT instead. */
+  @Deprecated String BEAM_FN_API_DATA_BUFFER_SIZE_LIMIT = "beam_fn_api_data_buffer_size_limit=";
+
+  String DATA_BUFFER_SIZE_LIMIT = "data_buffer_size_limit=";
+  @VisibleForTesting int DEFAULT_BUFFER_LIMIT_BYTES = 1_000_000;
+
+  /** @deprecated Use DATA_BUFFER_TIME_LIMIT_MS instead. */
+  @Deprecated String BEAM_FN_API_DATA_BUFFER_TIME_LIMIT = "beam_fn_api_data_buffer_time_limit=";
+
+  String DATA_BUFFER_TIME_LIMIT_MS = "data_buffer_time_limit_ms=";
+  long DEFAULT_BUFFER_LIMIT_TIME_MS = -1L;
+
+  static <T> BeamFnDataSizeBasedBufferingOutboundObserver<T> forLocation(
+      PipelineOptions options,
       LogicalEndpoint endpoint,
       Coder<T> coder,
       StreamObserver<BeamFnApi.Elements> outboundObserver) {
-    return forLocationWithBufferLimit(
-        DEFAULT_BUFFER_LIMIT_BYTES, endpoint, coder, outboundObserver);
-  }
-
-  public static <T> BeamFnDataBufferingOutboundObserver<T> forLocationWithBufferLimit(
-      int bufferLimit,
-      LogicalEndpoint endpoint,
-      Coder<T> coder,
-      StreamObserver<BeamFnApi.Elements> outboundObserver) {
-    return new BeamFnDataBufferingOutboundObserver<>(
-        bufferLimit, endpoint, coder, outboundObserver);
-  }
-
-  private long byteCounter;
-  private long counter;
-  private boolean closed;
-  private final int bufferLimit;
-  private final Coder<T> coder;
-  private final LogicalEndpoint outputLocation;
-  private final StreamObserver<BeamFnApi.Elements> outboundObserver;
-  private final ByteString.Output bufferedElements;
-
-  private BeamFnDataBufferingOutboundObserver(
-      int bufferLimit,
-      LogicalEndpoint outputLocation,
-      Coder<T> coder,
-      StreamObserver<BeamFnApi.Elements> outboundObserver) {
-    this.bufferLimit = bufferLimit;
-    this.outputLocation = outputLocation;
-    this.coder = coder;
-    this.outboundObserver = outboundObserver;
-    this.bufferedElements = ByteString.newOutput();
-    this.closed = false;
-  }
-
-  @Override
-  public void close() throws Exception {
-    if (closed) {
-      throw new IllegalStateException("Already closed.");
-    }
-    closed = true;
-    BeamFnApi.Elements.Builder elements = convertBufferForTransmission();
-    // This will add an empty data block representing the end of stream.
-    elements
-        .addDataBuilder()
-        .setInstructionId(outputLocation.getInstructionId())
-        .setTransformId(outputLocation.getTransformId());
-
-    LOG.debug(
-        "Closing stream for instruction {} and "
-            + "transform {} having transmitted {} values {} bytes",
-        outputLocation.getInstructionId(),
-        outputLocation.getTransformId(),
-        counter,
-        byteCounter);
-    outboundObserver.onNext(elements.build());
-  }
-
-  @Override
-  public void flush() throws IOException {
-    if (bufferedElements.size() > 0) {
-      outboundObserver.onNext(convertBufferForTransmission().build());
+    int sizeLimit = getSizeLimit(options);
+    long timeLimit = getTimeLimit(options);
+    if (timeLimit > 0) {
+      return new BeamFnDataTimeBasedBufferingOutboundObserver<>(
+          sizeLimit, timeLimit, endpoint, coder, outboundObserver);
+    } else {
+      return new BeamFnDataSizeBasedBufferingOutboundObserver<>(
+          sizeLimit, endpoint, coder, outboundObserver);
     }
   }
 
-  @Override
-  public void accept(T t) throws IOException {
-    if (closed) {
-      throw new IllegalStateException("Already closed.");
+  static int getSizeLimit(PipelineOptions options) {
+    List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
+    for (String experiment : experiments == null ? Collections.<String>emptyList() : experiments) {
+      if (experiment.startsWith(DATA_BUFFER_SIZE_LIMIT)) {
+        return Integer.parseInt(experiment.substring(DATA_BUFFER_SIZE_LIMIT.length()));
+      }
+      if (experiment.startsWith(BEAM_FN_API_DATA_BUFFER_SIZE_LIMIT)) {
+        return Integer.parseInt(experiment.substring(BEAM_FN_API_DATA_BUFFER_SIZE_LIMIT.length()));
+      }
+      if (experiment.startsWith(BEAM_FN_API_DATA_BUFFER_LIMIT)) {
+        return Integer.parseInt(experiment.substring(BEAM_FN_API_DATA_BUFFER_LIMIT.length()));
+      }
     }
-    coder.encode(t, bufferedElements);
-    counter += 1;
-    if (bufferedElements.size() >= bufferLimit) {
-      flush();
-    }
+    return DEFAULT_BUFFER_LIMIT_BYTES;
   }
 
-  private BeamFnApi.Elements.Builder convertBufferForTransmission() {
-    BeamFnApi.Elements.Builder elements = BeamFnApi.Elements.newBuilder();
-    if (bufferedElements.size() == 0) {
-      return elements;
+  static long getTimeLimit(PipelineOptions options) {
+    List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
+    for (String experiment : experiments == null ? Collections.<String>emptyList() : experiments) {
+      if (experiment.startsWith(DATA_BUFFER_TIME_LIMIT_MS)) {
+        return Long.parseLong(experiment.substring(DATA_BUFFER_TIME_LIMIT_MS.length()));
+      }
+      if (experiment.startsWith(BEAM_FN_API_DATA_BUFFER_TIME_LIMIT)) {
+        return Long.parseLong(experiment.substring(BEAM_FN_API_DATA_BUFFER_TIME_LIMIT.length()));
+      }
     }
-
-    elements
-        .addDataBuilder()
-        .setInstructionId(outputLocation.getInstructionId())
-        .setTransformId(outputLocation.getTransformId())
-        .setData(bufferedElements.toByteString());
-
-    byteCounter += bufferedElements.size();
-    bufferedElements.reset();
-    return elements;
+    return DEFAULT_BUFFER_LIMIT_TIME_MS;
   }
 }

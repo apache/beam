@@ -50,6 +50,7 @@ public interface PortablePipelineOptions extends PipelineOptions {
   @Description(
       "Set the default environment type for running user code. "
           + "Possible options are DOCKER and PROCESS.")
+  @Nullable
   String getDefaultEnvironmentType();
 
   void setDefaultEnvironmentType(String environmentType);
@@ -70,10 +71,10 @@ public interface PortablePipelineOptions extends PipelineOptions {
       "Sets the number of sdk worker processes that will run on each worker node. Default is 1. If"
           + " 0, it will be automatically set by the runner by looking at different parameters "
           + "(e.g. number of CPU cores on the worker machine).")
-  @Default.Long(1L)
-  long getSdkWorkerParallelism();
+  @Default.Integer(1)
+  int getSdkWorkerParallelism();
 
-  void setSdkWorkerParallelism(long parallelism);
+  void setSdkWorkerParallelism(int parallelism);
 
   @Description("Duration in milliseconds for environment cache within a job. 0 means no caching.")
   @Default.Integer(0)
@@ -87,7 +88,15 @@ public interface PortablePipelineOptions extends PipelineOptions {
 
   void setEnvironmentExpirationMillis(int environmentExpirationMillis);
 
+  @Description(
+      "Specifies if bundles should be distributed to the next available free SDK worker. By default SDK workers are pinned to runner tasks for the duration of the pipeline. This option can help for pipelines with long and skewed bundle execution times to increase throughput and improve worker utilization.")
+  @Default.Boolean(false)
+  boolean getLoadBalanceBundles();
+
+  void setLoadBalanceBundles(boolean loadBalanceBundles);
+
   @Description("The output path for the executable file to be created.")
+  @Nullable
   String getOutputExecutablePath();
 
   void setOutputExecutablePath(String outputExecutablePath);

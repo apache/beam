@@ -17,6 +17,8 @@
 
 """Unit tests for the pipeline options module."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -37,9 +39,15 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 
 class PipelineOptionsTest(unittest.TestCase):
+  def setUp(self):
+    # Reset runtime options to avoid side-effects caused by other tests.
+    # Note that is_accessible assertions require runtime_options to
+    # be uninitialized.
+    RuntimeValueProvider.set_runtime_options(None)
+
   def tearDown(self):
-    # Clean up the global variable used by RuntimeValueProvider
-    RuntimeValueProvider.runtime_options = None
+    # Reset runtime options to avoid side-effects in other tests.
+    RuntimeValueProvider.set_runtime_options(None)
 
   TEST_CASES = [
       {'flags': ['--num_workers', '5'],
@@ -54,6 +62,20 @@ class PipelineOptionsTest(unittest.TestCase):
                     'mock_option': None,
                     'mock_multi_option': None},
        'display_data': [DisplayDataItemMatcher('direct_num_workers', 5)]},
+      {'flags': ['--direct_running_mode', 'multi_threading'],
+       'expected': {'direct_running_mode': 'multi_threading',
+                    'mock_flag': False,
+                    'mock_option': None,
+                    'mock_multi_option': None},
+       'display_data': [DisplayDataItemMatcher('direct_running_mode',
+                                               'multi_threading')]},
+      {'flags': ['--direct_running_mode', 'multi_processing'],
+       'expected': {'direct_running_mode': 'multi_processing',
+                    'mock_flag': False,
+                    'mock_option': None,
+                    'mock_multi_option': None},
+       'display_data': [DisplayDataItemMatcher('direct_running_mode',
+                                               'multi_processing')]},
       {
           'flags': [
               '--profile_cpu', '--profile_location', 'gs://bucket/', 'ignored'],
@@ -247,6 +269,18 @@ class PipelineOptionsTest(unittest.TestCase):
     options.view_as(PipelineOptionsTest.MockOptions).mock_flag = True
     self.assertEqual(options.get_all_options()['num_workers'], 5)
     self.assertTrue(options.get_all_options()['mock_flag'])
+
+  def test_override_init_options(self):
+    base_flags = ['--num_workers', '5']
+    options = PipelineOptions(base_flags, mock_flag=True)
+    self.assertEqual(options.get_all_options()['num_workers'], 5)
+    self.assertEqual(options.get_all_options()['mock_flag'], True)
+
+  def test_invalid_override_init_options(self):
+    base_flags = ['--num_workers', '5']
+    options = PipelineOptions(base_flags, mock_invalid_flag=True)
+    self.assertEqual(options.get_all_options()['num_workers'], 5)
+    self.assertEqual(options.get_all_options()['mock_flag'], False)
 
   def test_experiments(self):
     options = PipelineOptions(['--experiment', 'abc', '--experiment', 'def'])

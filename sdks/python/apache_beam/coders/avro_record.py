@@ -15,7 +15,9 @@
 # limitations under the License.
 #
 
-"""AvroRecord for AvroCoder."""
+"""AvroRecord for AvroGenericCoder."""
+
+# pytype: skip-file
 
 from __future__ import absolute_import
 

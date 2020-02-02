@@ -16,11 +16,14 @@
 #
 """Local File system implementation for accessing files on disk."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import os
 import shutil
 from builtins import zip
+from typing import BinaryIO  # pylint: disable=unused-import
 
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressedFile
@@ -71,7 +74,7 @@ class LocalFileSystem(FileSystem):
       path: string path of the directory structure that should be created
 
     Raises:
-      IOError if leaf directory already exists.
+      IOError: if leaf directory already exists.
     """
     try:
       os.makedirs(path)
@@ -106,7 +109,7 @@ class LocalFileSystem(FileSystem):
       Generator of ``FileMetadata`` objects.
 
     Raises:
-      ``BeamIOError`` if listing fails, but not if no files were found.
+      ``BeamIOError``: if listing fails, but not if no files were found.
     """
     if not self.exists(dir_or_prefix):
       return
@@ -139,6 +142,7 @@ class LocalFileSystem(FileSystem):
 
   def create(self, path, mime_type='application/octet-stream',
              compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
     """Returns a write channel for the given file path.
 
     Args:
@@ -152,6 +156,7 @@ class LocalFileSystem(FileSystem):
 
   def open(self, path, mime_type='application/octet-stream',
            compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
     """Returns a read channel for the given file path.
 
     Args:
@@ -171,7 +176,7 @@ class LocalFileSystem(FileSystem):
       destination_file_names: list of destination of the new object
 
     Raises:
-      ``BeamIOError`` if any of the copy operations fail
+      ``BeamIOError``: if any of the copy operations fail
     """
     err_msg = ("source_file_names and destination_file_names should "
                "be equal in length")
@@ -212,7 +217,7 @@ class LocalFileSystem(FileSystem):
       destination_file_names: List of destination_file_names for the files
 
     Raises:
-      ``BeamIOError`` if any of the rename operations fail
+      ``BeamIOError``: if any of the rename operations fail
     """
     err_msg = ("source_file_names and destination_file_names should "
                "be equal in length")
@@ -254,7 +259,7 @@ class LocalFileSystem(FileSystem):
     Returns: int size of path according to the FileSystem.
 
     Raises:
-      ``BeamIOError`` if path doesn't exist.
+      ``BeamIOError``: if path doesn't exist.
     """
     try:
       return os.path.getsize(path)
@@ -270,7 +275,7 @@ class LocalFileSystem(FileSystem):
     Returns: float UNIX Epoch time
 
     Raises:
-      ``BeamIOError`` if path doesn't exist.
+      ``BeamIOError``: if path doesn't exist.
     """
     if not self.exists(path):
       raise BeamIOError('Path does not exist: %s' % path)
@@ -286,7 +291,7 @@ class LocalFileSystem(FileSystem):
     Returns: string containing file size.
 
     Raises:
-      ``BeamIOError`` if path isn't a file or doesn't exist.
+      ``BeamIOError``: if path isn't a file or doesn't exist.
     """
     if not self.exists(path):
       raise BeamIOError('Path does not exist: %s' % path)
@@ -300,7 +305,7 @@ class LocalFileSystem(FileSystem):
       paths: list of paths that give the file objects to be deleted
 
     Raises:
-      ``BeamIOError`` if any of the delete operations fail
+      ``BeamIOError``: if any of the delete operations fail
     """
     def _delete_path(path):
       """Recursively delete the file or directory at the provided path.

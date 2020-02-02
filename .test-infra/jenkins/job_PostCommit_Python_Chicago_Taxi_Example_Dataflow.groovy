@@ -21,9 +21,13 @@ import PostcommitJobBuilder
 import CronJobBuilder
 
 
-// This job runs the Chicao Taxi Example script on Dataflow
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Chicago_Taxi_Dataflow',
-        'Run Chicago Taxi on Dataflow', 'Google Cloud Dataflow Runner Chicago Taxi Example', this) {
+// This job runs the Chicago Taxi Example script on Dataflow
+PostcommitJobBuilder.postCommitJob(
+    'beam_PostCommit_Python_Chicago_Taxi_Dataflow',
+    'Run Chicago Taxi on Dataflow',
+    'Google Cloud Dataflow Runner Chicago Taxi Example',
+    this
+) {
     description('Runs the Chicago Taxi Example on the Dataflow runner.')
 
     // Set common parameters.
@@ -33,14 +37,17 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_Chicago_Taxi_Dataflow
     steps {
         gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':sdks:python:test-suites:dataflow:py2:dataflowChicagoTaxiExample')
+            tasks(':sdks:python:test-suites:dataflow:py2:chicagoTaxiExample')
             switches('-PgcsRoot=gs://temp-storage-for-perf-tests/chicago-taxi')
-            switches('-Prunner=DataflowRunner')
         }
     }
 }
 
-CronJobBuilder.cronJob('beam_PostCommit_Python_Chicago_Taxi_Dataflow', 'H 14 * * *', this) {
+CronJobBuilder.cronJob(
+    'beam_PostCommit_Python_Chicago_Taxi_Dataflow',
+    'H 14 * * *',
+    this
+) {
     description('Runs the Chicago Taxi Example on the Dataflow runner.')
 
     // Set common parameters.
@@ -50,9 +57,8 @@ CronJobBuilder.cronJob('beam_PostCommit_Python_Chicago_Taxi_Dataflow', 'H 14 * *
     steps {
         gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':sdks:python:test-suites:dataflow:py2:dataflowChicagoTaxiExample')
+            tasks(':sdks:python:test-suites:dataflow:py2:chicagoTaxiExample')
             switches('-PgcsRoot=gs://temp-storage-for-perf-tests/chicago-taxi')
-            switches('-Prunner=DataflowRunner')
         }
     }
 }

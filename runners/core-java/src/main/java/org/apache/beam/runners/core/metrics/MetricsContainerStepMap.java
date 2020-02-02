@@ -84,6 +84,14 @@ public class MetricsContainerStepMap implements Serializable {
     getContainer(step).update(container);
   }
 
+  /** Reset the metric containers. */
+  public void reset() {
+    for (MetricsContainerImpl metricsContainer : metricsContainers.values()) {
+      metricsContainer.reset();
+    }
+    unboundContainer.reset();
+  }
+
   @Override
   public boolean equals(Object object) {
     if (object instanceof MetricsContainerStepMap) {

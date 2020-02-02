@@ -17,6 +17,8 @@
 
 """Tests corresponding to Dataflow's iobase module."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import unittest
@@ -183,12 +185,11 @@ class TestNativeSink(unittest.TestCase):
       def Write(self, value):
         self.written_values.append(value)
 
-    p = TestPipeline()
-    sink = FakeSink()
-    p | Create(['a', 'b', 'c']) | _NativeWrite(sink)  # pylint: disable=expression-not-assigned
-    p.run()
+    with TestPipeline() as p:
+      sink = FakeSink()
+      p | Create(['a', 'b', 'c']) | _NativeWrite(sink)  # pylint: disable=expression-not-assigned
 
-    self.assertEqual(['a', 'b', 'c'], sink.written_values)
+    self.assertEqual(['a', 'b', 'c'], sorted(sink.written_values))
 
 
 class Test_NativeWrite(unittest.TestCase):

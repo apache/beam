@@ -48,9 +48,11 @@ import org.apache.activemq.security.AuthenticationUser;
 import org.apache.activemq.security.SimpleAuthenticationPlugin;
 import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
 import org.apache.activemq.util.Callback;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -264,7 +266,7 @@ public class JmsIOTest {
     int desiredNumSplits = 5;
     JmsIO.UnboundedJmsSource initialSource = new JmsIO.UnboundedJmsSource(read);
     List<JmsIO.UnboundedJmsSource> splits = initialSource.split(desiredNumSplits, pipelineOptions);
-    // in the case of a topic, we can have only an unique subscriber on the topic per pipeline
+    // in the case of a topic, we can have only a unique subscriber on the topic per pipeline
     // else it means we can have duplicate messages (all subscribers on the topic receive every
     // message).
     // So, whatever the desizedNumSplits is, the actual number of splits should be 1.
@@ -404,6 +406,16 @@ public class JmsIOTest {
     // Concurrency issues would cause an exception to be thrown before this method exits, failing
     // the test
     runner.join();
+  }
+
+  /** Test the checkpoint mark default coder, which is actually AvroCoder. */
+  @Test
+  public void testCheckpointMarkDefaultCoder() throws Exception {
+    JmsCheckpointMark jmsCheckpointMark = new JmsCheckpointMark();
+    jmsCheckpointMark.add(new ActiveMQMessage());
+    Coder coder = new JmsIO.UnboundedJmsSource(null).getCheckpointMarkCoder();
+    CoderProperties.coderSerializable(coder);
+    CoderProperties.coderDecodeEncodeEqual(coder, jmsCheckpointMark);
   }
 
   private int count(String queue) throws Exception {

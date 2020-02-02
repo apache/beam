@@ -17,6 +17,8 @@
 
 """Utilities for handling side inputs."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections
@@ -51,6 +53,9 @@ READER_THREAD_IS_DONE_SENTINEL = object()
 
 # Used to efficiently window the values of non-windowed side inputs.
 _globally_windowed = window.GlobalWindows.windowed_value(None).with_value
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class PrefetchingSourceSetIterable(object):
@@ -136,7 +141,7 @@ class PrefetchingSourceSetIterable(object):
         except queue.Empty:
           return
     except Exception as e:  # pylint: disable=broad-except
-      logging.error('Encountered exception in PrefetchingSourceSetIterable '
+      _LOGGER.error('Encountered exception in PrefetchingSourceSetIterable '
                     'reader thread: %s', traceback.format_exc())
       self.reader_exceptions.put(e)
       self.has_errored = True

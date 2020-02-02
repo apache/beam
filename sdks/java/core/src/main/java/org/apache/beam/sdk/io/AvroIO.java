@@ -59,6 +59,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
@@ -562,6 +563,7 @@ public class AvroIO {
         .setNoSpilling(false);
   }
 
+  @Experimental(Kind.SCHEMAS)
   private static <T> PCollection<T> setBeamSchema(
       PCollection<T> pc, Class<T> clazz, @Nullable Schema schema) {
     org.apache.beam.sdk.schemas.Schema beamSchema =
@@ -569,6 +571,7 @@ public class AvroIO {
     if (beamSchema != null) {
       pc.setSchema(
           beamSchema,
+          TypeDescriptor.of(clazz),
           org.apache.beam.sdk.schemas.utils.AvroUtils.getToRowFunction(clazz, schema),
           org.apache.beam.sdk.schemas.utils.AvroUtils.getFromRowFunction(clazz));
     }

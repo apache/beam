@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
-import static org.apache.beam.sdk.TestUtils.KvMatcher.isKv;
+import static junit.framework.TestCase.assertEquals;
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
@@ -30,9 +31,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.utils.SchemaTestUtils.RowFieldMatcherIterableFieldAnyOrder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -40,17 +44,16 @@ import org.apache.beam.sdk.testing.UsesSchema;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.Keys;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Top;
-import org.apache.beam.sdk.transforms.Values;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.hamcrest.Description;
 import org.hamcrest.Matcher;
+import org.hamcrest.TypeSafeMatcher;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -121,8 +124,8 @@ public class GroupTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testGroupByOneField() {
-    PCollection<KV<Row, Iterable<POJO>>> grouped =
+  public void testGroupByOneField() throws NoSuchSchemaException {
+    PCollection<Row> grouped =
         pipeline
             .apply(
                 Create.of(
@@ -133,14 +136,31 @@ public class GroupTest implements Serializable {
             .apply(Group.byFieldNames("field1"));
 
     Schema keySchema = Schema.builder().addStringField("field1").build();
-    List<KV<Row, Collection<POJO>>> expected =
+    Schema outputSchema =
+        Schema.builder()
+            .addRowField("key", keySchema)
+            .addIterableField("value", FieldType.row(POJO_SCHEMA))
+            .build();
+
+    SerializableFunction<POJO, Row> toRow =
+        pipeline.getSchemaRegistry().getToRowFunction(POJO.class);
+
+    List<Row> expected =
         ImmutableList.of(
-            KV.of(
-                Row.withSchema(keySchema).addValue("key1").build(),
-                ImmutableList.of(new POJO("key1", 1L, "value1"), new POJO("key1", 2L, "value2"))),
-            KV.of(
-                Row.withSchema(keySchema).addValue("key2").build(),
-                ImmutableList.of(new POJO("key2", 3L, "value3"), new POJO("key2", 4L, "value4"))));
+            Row.withSchema(outputSchema)
+                .addValue(Row.withSchema(keySchema).addValue("key1").build())
+                .addIterable(
+                    ImmutableList.of(
+                        toRow.apply(new POJO("key1", 1L, "value1")),
+                        toRow.apply(new POJO("key1", 2L, "value2"))))
+                .build(),
+            Row.withSchema(outputSchema)
+                .addValue(Row.withSchema(keySchema).addValue("key2").build())
+                .addIterable(
+                    ImmutableList.of(
+                        toRow.apply(new POJO("key2", 3L, "value3")),
+                        toRow.apply(new POJO("key2", 4L, "value4"))))
+                .build());
 
     PAssert.that(grouped).satisfies(actual -> containsKIterableVs(expected, actual, new POJO[0]));
     pipeline.run();
@@ -148,8 +168,8 @@ public class GroupTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testGroupByMultiple() {
-    PCollection<KV<Row, Iterable<POJO>>> grouped =
+  public void testGroupByMultiple() throws NoSuchSchemaException {
+    PCollection<Row> grouped =
         pipeline
             .apply(
                 Create.of(
@@ -160,14 +180,30 @@ public class GroupTest implements Serializable {
             .apply(Group.byFieldNames("field1", "field2"));
 
     Schema keySchema = Schema.builder().addStringField("field1").addInt64Field("field2").build();
-    List<KV<Row, Collection<POJO>>> expected =
+    Schema outputSchema =
+        Schema.builder()
+            .addRowField("key", keySchema)
+            .addIterableField("value", FieldType.row(POJO_SCHEMA))
+            .build();
+    SerializableFunction<POJO, Row> toRow =
+        pipeline.getSchemaRegistry().getToRowFunction(POJO.class);
+
+    List<Row> expected =
         ImmutableList.of(
-            KV.of(
-                Row.withSchema(keySchema).addValues("key1", 1L).build(),
-                ImmutableList.of(new POJO("key1", 1L, "value1"), new POJO("key1", 1L, "value2"))),
-            KV.of(
-                Row.withSchema(keySchema).addValues("key2", 2L).build(),
-                ImmutableList.of(new POJO("key2", 2L, "value3"), new POJO("key2", 2L, "value4"))));
+            Row.withSchema(outputSchema)
+                .addValue(Row.withSchema(keySchema).addValues("key1", 1L).build())
+                .addIterable(
+                    ImmutableList.of(
+                        toRow.apply(new POJO("key1", 1L, "value1")),
+                        toRow.apply(new POJO("key1", 1L, "value2"))))
+                .build(),
+            Row.withSchema(outputSchema)
+                .addValue(Row.withSchema(keySchema).addValues("key2", 2L).build())
+                .addIterable(
+                    ImmutableList.of(
+                        toRow.apply(new POJO("key2", 2L, "value3")),
+                        toRow.apply(new POJO("key2", 2L, "value4"))))
+                .build());
 
     PAssert.that(grouped).satisfies(actual -> containsKIterableVs(expected, actual, new POJO[0]));
     pipeline.run();
@@ -207,11 +243,14 @@ public class GroupTest implements Serializable {
     }
   }
 
+  private static final Schema OUTER_POJO_SCHEMA =
+      Schema.builder().addRowField("inner", POJO_SCHEMA).build();
+
   /** Test grouping by a set of fields that are nested. */
   @Test
   @Category(NeedsRunner.class)
-  public void testGroupByNestedKey() {
-    PCollection<KV<Row, Iterable<OuterPOJO>>> grouped =
+  public void testGroupByNestedKey() throws NoSuchSchemaException {
+    PCollection<Row> grouped =
         pipeline
             .apply(
                 Create.of(
@@ -222,18 +261,31 @@ public class GroupTest implements Serializable {
             .apply(Group.byFieldNames("inner.field1", "inner.field2"));
 
     Schema keySchema = Schema.builder().addStringField("field1").addInt64Field("field2").build();
-    List<KV<Row, Collection<OuterPOJO>>> expected =
+    Schema outputSchema =
+        Schema.builder()
+            .addRowField("key", keySchema)
+            .addIterableField("value", FieldType.row(OUTER_POJO_SCHEMA))
+            .build();
+
+    SerializableFunction<OuterPOJO, Row> toRow =
+        pipeline.getSchemaRegistry().getToRowFunction(OuterPOJO.class);
+
+    List<Row> expected =
         ImmutableList.of(
-            KV.of(
-                Row.withSchema(keySchema).addValues("key1", 1L).build(),
-                ImmutableList.of(
-                    new OuterPOJO(new POJO("key1", 1L, "value1")),
-                    new OuterPOJO(new POJO("key1", 1L, "value2")))),
-            KV.of(
-                Row.withSchema(keySchema).addValues("key2", 2L).build(),
-                ImmutableList.of(
-                    new OuterPOJO(new POJO("key2", 2L, "value3")),
-                    new OuterPOJO(new POJO("key2", 2L, "value4")))));
+            Row.withSchema(outputSchema)
+                .addValue(Row.withSchema(keySchema).addValues("key1", 1L).build())
+                .addIterable(
+                    ImmutableList.of(
+                        toRow.apply(new OuterPOJO(new POJO("key1", 1L, "value1"))),
+                        toRow.apply(new OuterPOJO(new POJO("key1", 1L, "value2")))))
+                .build(),
+            Row.withSchema(outputSchema)
+                .addValue(Row.withSchema(keySchema).addValues("key2", 2L).build())
+                .addIterable(
+                    ImmutableList.of(
+                        toRow.apply(new OuterPOJO(new POJO("key2", 2L, "value3"))),
+                        toRow.apply(new OuterPOJO(new POJO("key2", 2L, "value4")))))
+                .build());
 
     PAssert.that(grouped)
         .satisfies(actual -> containsKIterableVs(expected, actual, new OuterPOJO[0]));
@@ -276,47 +328,21 @@ public class GroupTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testPerKeyAggregation() {
-    Collection<POJO> elements =
-        ImmutableList.of(
-            new POJO("key1", 1, "value1"),
-            new POJO("key1", 1, "value2"),
-            new POJO("key2", 2, "value3"),
-            new POJO("key2", 2, "value4"),
-            new POJO("key2", 2, "value4"));
-    PCollection<KV<Row, Long>> count =
-        pipeline
-            .apply(Create.of(elements))
-            .apply(Group.<POJO>byFieldNames("field1").aggregate(Count.combineFn()));
-
-    Schema keySchema = Schema.builder().addStringField("field1").build();
-
-    Collection<KV<Row, Long>> expectedCounts =
-        ImmutableList.of(
-            KV.of(Row.withSchema(keySchema).addValue("key1").build(), 2L),
-            KV.of(Row.withSchema(keySchema).addValue("key2").build(), 3L));
-    PAssert.that(count).containsInAnyOrder(expectedCounts);
-
-    pipeline.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
   public void testOutputCoders() {
     Schema keySchema = Schema.builder().addStringField("field1").build();
+    Schema outputSchema =
+        Schema.builder()
+            .addRowField("key", keySchema)
+            .addIterableField("value", FieldType.row(POJO_SCHEMA))
+            .build();
 
-    PCollection<KV<Row, Iterable<POJO>>> grouped =
+    PCollection<Row> grouped =
         pipeline
             .apply(Create.of(new POJO("key1", 1, "value1")))
             .apply(Group.byFieldNames("field1"));
 
-    // Make sure that the key has the right schema.
-    PCollection<Row> keys = grouped.apply(Keys.create());
-    assertTrue(keys.getSchema().equivalent(keySchema));
+    assertTrue(grouped.getSchema().equivalent(outputSchema));
 
-    // Make sure that the value has the right schema.
-    PCollection<POJO> values = grouped.apply(Values.create()).apply(Flatten.iterables());
-    assertTrue(values.getSchema().equivalent(POJO_SCHEMA));
     pipeline.run();
   }
 
@@ -363,7 +389,7 @@ public class GroupTest implements Serializable {
             new AggregatePojos(3, 2, 4),
             new AggregatePojos(4, 2, 5));
 
-    PCollection<KV<Row, Row>> aggregations =
+    PCollection<Row> aggregations =
         pipeline
             .apply(Create.of(elements))
             .apply(
@@ -379,16 +405,20 @@ public class GroupTest implements Serializable {
             .addInt32Field("field3_sum")
             .addArrayField("field1_top", FieldType.INT64)
             .build();
+    Schema outputSchema =
+        Schema.builder().addRowField("key", keySchema).addRowField("value", valueSchema).build();
 
-    List<KV<Row, Row>> expected =
+    List<Row> expected =
         ImmutableList.of(
-            KV.of(
-                Row.withSchema(keySchema).addValue(1L).build(),
-                Row.withSchema(valueSchema).addValue(3L).addValue(5).addArray(2L).build()),
-            KV.of(
-                Row.withSchema(keySchema).addValue(2L).build(),
-                Row.withSchema(valueSchema).addValue(7L).addValue(9).addArray(4L).build()));
-    PAssert.that(aggregations).satisfies(actual -> containsKvs(expected, actual));
+            Row.withSchema(outputSchema)
+                .addValue(Row.withSchema(keySchema).addValue(1L).build())
+                .addValue(Row.withSchema(valueSchema).addValue(3L).addValue(5).addArray(2L).build())
+                .build(),
+            Row.withSchema(outputSchema)
+                .addValue(Row.withSchema(keySchema).addValue(2L).build())
+                .addValue(Row.withSchema(valueSchema).addValue(7L).addValue(9).addArray(4L).build())
+                .build());
+    PAssert.that(aggregations).satisfies(actual -> containsKvRows(expected, actual));
 
     pipeline.run();
   }
@@ -419,6 +449,7 @@ public class GroupTest implements Serializable {
             .addArrayField("field1_top", FieldType.INT64)
             .build();
     Row expectedRow = Row.withSchema(aggregateSchema).addValues(10L, 14).addArray(4L).build();
+
     PAssert.that(aggregate).containsInAnyOrder(expectedRow);
 
     pipeline.run();
@@ -525,7 +556,7 @@ public class GroupTest implements Serializable {
             new OuterAggregate(new AggregatePojos(3, 2, 4)),
             new OuterAggregate(new AggregatePojos(4, 2, 5)));
 
-    PCollection<KV<Row, Row>> aggregations =
+    PCollection<Row> aggregations =
         pipeline
             .apply(Create.of(elements))
             .apply(
@@ -541,16 +572,20 @@ public class GroupTest implements Serializable {
             .addInt32Field("field3_sum")
             .addArrayField("field1_top", FieldType.INT64)
             .build();
+    Schema outputSchema =
+        Schema.builder().addRowField("key", keySchema).addRowField("value", valueSchema).build();
 
-    List<KV<Row, Row>> expected =
+    List<Row> expected =
         ImmutableList.of(
-            KV.of(
-                Row.withSchema(keySchema).addValue(1L).build(),
-                Row.withSchema(valueSchema).addValue(3L).addValue(5).addArray(2L).build()),
-            KV.of(
-                Row.withSchema(keySchema).addValue(2L).build(),
-                Row.withSchema(valueSchema).addValue(7L).addValue(9).addArray(4L).build()));
-    PAssert.that(aggregations).satisfies(actual -> containsKvs(expected, actual));
+            Row.withSchema(outputSchema)
+                .addValue(Row.withSchema(keySchema).addValue(1L).build())
+                .addValue(Row.withSchema(valueSchema).addValue(3L).addValue(5).addArray(2L).build())
+                .build(),
+            Row.withSchema(outputSchema)
+                .addValue(Row.withSchema(keySchema).addValue(2L).build())
+                .addValue(Row.withSchema(valueSchema).addValue(7L).addValue(9).addArray(4L).build())
+                .build());
+    PAssert.that(aggregations).satisfies(actual -> containsKvRows(expected, actual));
 
     pipeline.run();
   }
@@ -586,27 +621,55 @@ public class GroupTest implements Serializable {
   }
 
   private static <T> Void containsKIterableVs(
-      List<KV<Row, Collection<T>>> expectedKvs,
-      Iterable<KV<Row, Iterable<T>>> actualKvs,
-      T[] emptyArray) {
-    List<KV<Row, Iterable<T>>> list = Lists.newArrayList(actualKvs);
-    List<Matcher<? super KV<Row, Iterable<POJO>>>> matchers = new ArrayList<>();
-    for (KV<Row, Collection<T>> expected : expectedKvs) {
-      T[] values = expected.getValue().toArray(emptyArray);
-      matchers.add(isKv(equalTo(expected.getKey()), containsInAnyOrder(values)));
+      List<Row> expectedKvs, Iterable<Row> actualKvs, T[] emptyArray) {
+    List<Row> list = Lists.newArrayList(actualKvs);
+    List<Matcher<? super Row>> matchers = new ArrayList<>();
+    for (Row expected : expectedKvs) {
+      List<Matcher> fieldMatchers = Lists.newArrayList();
+      fieldMatchers.add(
+          new RowFieldMatcherIterableFieldAnyOrder(expected.getSchema(), 0, expected.getRow(0)));
+      assertEquals(TypeName.ITERABLE, expected.getSchema().getField(1).getType().getTypeName());
+      fieldMatchers.add(
+          new RowFieldMatcherIterableFieldAnyOrder(
+              expected.getSchema(), 1, expected.getIterable(1)));
+      matchers.add(allOf(fieldMatchers.toArray(new Matcher[0])));
     }
     assertThat(actualKvs, containsInAnyOrder(matchers.toArray(new Matcher[0])));
     return null;
   }
 
-  private static <T> Void containsKvs(
-      List<KV<Row, Row>> expectedKvs, Iterable<KV<Row, Row>> actualKvs) {
-    List<Matcher<? super KV<Row, Iterable<POJO>>>> matchers = new ArrayList<>();
-    for (KV<Row, Row> expected : expectedKvs) {
-      matchers.add(isKv(equalTo(expected.getKey()), equalTo(expected.getValue())));
+  private static <T> Void containsKvRows(List<Row> expectedKvs, Iterable<Row> actualKvs) {
+    List<Matcher<? super Row>> matchers = new ArrayList<>();
+    for (Row expected : expectedKvs) {
+      matchers.add(new KvRowMatcher(equalTo(expected.getRow(0)), equalTo(expected.getRow(1))));
     }
     assertThat(actualKvs, containsInAnyOrder(matchers.toArray(new Matcher[0])));
     return null;
+  }
+
+  public static class KvRowMatcher extends TypeSafeMatcher<Row> {
+    final Matcher<? super Row> keyMatcher;
+    final Matcher<? super Row> valueMatcher;
+
+    public KvRowMatcher(Matcher<? super Row> keyMatcher, Matcher<? super Row> valueMatcher) {
+      this.keyMatcher = keyMatcher;
+      this.valueMatcher = valueMatcher;
+    }
+
+    @Override
+    public boolean matchesSafely(Row kvRow) {
+      return keyMatcher.matches(kvRow.getRow(0)) && valueMatcher.matches(kvRow.getRow(1));
+    }
+
+    @Override
+    public void describeTo(Description description) {
+      description
+          .appendText("a KVRow(")
+          .appendValue(keyMatcher)
+          .appendText(", ")
+          .appendValue(valueMatcher)
+          .appendText(")");
+    }
   }
 
   private static Void containsSingleIterable(

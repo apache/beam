@@ -17,6 +17,8 @@
 
 """Unit tests for the type-hint objects and decorators."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import functools

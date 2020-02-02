@@ -20,6 +20,8 @@
 This module is experimental. No backwards-compatibility guarantees.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -226,7 +228,7 @@ class PipelineAnalyzerTest(unittest.TestCase):
     pipeline_proto = to_stable_runner_api(p)
 
     pipeline_info = pipeline_analyzer.PipelineInfo(pipeline_proto.components)
-    pcoll_id = 'ref_PCollection_PCollection_3'  # Output PCollection of Square
+    pcoll_id = 'ref_PCollection_PCollection_12'  # Output PCollection of Square
     cache_label1 = pipeline_info.cache_label(pcoll_id)
 
     analyzer = pipeline_analyzer.PipelineAnalyzer(self.cache_manager,
@@ -269,6 +271,32 @@ class PipelineAnalyzerTest(unittest.TestCase):
     # protos in the pipeline, a simple check of proto map size is enough.
     self.assertPipelineEqual(analyzer.pipeline_proto_to_execute(),
                              to_stable_runner_api(expected_pipeline))
+
+
+class PipelineInfoTest(unittest.TestCase):
+  def setUp(self):
+    self.runner = direct_runner.DirectRunner()
+
+  def test_passthrough(self):
+    """
+    Test that PTransforms which pass through their input PCollection can be
+    used with PipelineInfo.
+    """
+    class Passthrough(beam.PTransform):
+      def expand(self, pcoll):
+        return pcoll
+
+    p = beam.Pipeline(runner=self.runner)
+    p | beam.Impulse() | Passthrough()  # pylint: disable=expression-not-assigned
+    proto = to_stable_runner_api(p).components
+    info = pipeline_analyzer.PipelineInfo(proto)
+    for pcoll_id in info.all_pcollections():
+      # FIXME: If PipelineInfo does not support passthrough PTransforms, this
+      #        will only fail some of the time, depending on the ordering of
+      #        transforms in the Pipeline proto.
+
+      # Should not throw exception
+      info.cache_label(pcoll_id)
 
 
 if __name__ == '__main__':

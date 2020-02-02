@@ -31,8 +31,8 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -138,12 +138,14 @@ public class BeamFnStateGrpcClientCache {
       public void onNext(StateResponse value) {
         LOG.debug("Received StateResponse {}", value);
         CompletableFuture<StateResponse> responseFuture = outstandingRequests.remove(value.getId());
-        if (responseFuture != null) {
-          if (value.getError().isEmpty()) {
-            responseFuture.complete(value);
-          } else {
-            responseFuture.completeExceptionally(new IllegalStateException(value.getError()));
-          }
+        if (responseFuture == null) {
+          LOG.warn("Dropped unknown StateResponse {}", value);
+          return;
+        }
+        if (value.getError().isEmpty()) {
+          responseFuture.complete(value);
+        } else {
+          responseFuture.completeExceptionally(new IllegalStateException(value.getError()));
         }
       }
 

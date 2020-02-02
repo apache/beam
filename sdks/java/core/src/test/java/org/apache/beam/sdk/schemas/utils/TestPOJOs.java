@@ -31,6 +31,7 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
@@ -602,9 +603,11 @@ public class TestPOJOs {
   @DefaultSchema(JavaFieldSchema.class)
   public static class NestedCollectionPOJO {
     public List<SimplePOJO> simples;
+    public Iterable<SimplePOJO> iterableSimples;
 
     public NestedCollectionPOJO(List<SimplePOJO> simples) {
       this.simples = simples;
+      this.iterableSimples = simples;
     }
 
     public NestedCollectionPOJO() {}
@@ -618,19 +621,22 @@ public class TestPOJOs {
         return false;
       }
       NestedCollectionPOJO that = (NestedCollectionPOJO) o;
-      return Objects.equals(simples, that.simples);
+      return Objects.equals(simples, that.simples)
+          && Objects.equals(iterableSimples, that.iterableSimples);
     }
 
     @Override
     public int hashCode() {
-
-      return Objects.hash(simples);
+      return Objects.hash(simples, iterableSimples);
     }
   }
 
   /** The schema for {@link NestedCollectionPOJO}. * */
   public static final Schema NESTED_COLLECTION_POJO_SCHEMA =
-      Schema.builder().addArrayField("simples", FieldType.row(SIMPLE_POJO_SCHEMA)).build();
+      Schema.builder()
+          .addArrayField("simples", FieldType.row(SIMPLE_POJO_SCHEMA))
+          .addIterableField("iterableSimples", FieldType.row(SIMPLE_POJO_SCHEMA))
+          .build();
 
   /** A POJO containing a simple {@link Map}. * */
   @DefaultSchema(JavaFieldSchema.class)
@@ -822,5 +828,77 @@ public class TestPOJOs {
   public static final Schema POJO_WITH_NESTED_ARRAY_SCHEMA =
       Schema.builder()
           .addArrayField("pojos", FieldType.array(FieldType.row(SIMPLE_POJO_SCHEMA)))
+          .build();
+
+  /** A Pojo containing an iterable. */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class PojoWithIterable {
+    public final Iterable<String> strings;
+
+    @SchemaCreate
+    public PojoWithIterable(Iterable<String> strings) {
+      this.strings = strings;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof PojoWithNestedArray)) {
+        return false;
+      }
+      PojoWithIterable that = (PojoWithIterable) o;
+      return Objects.equals(strings, that.strings);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(strings);
+    }
+  }
+
+  /** The schema for {@link PojoWithNestedArray}. */
+  public static final Schema POJO_WITH_ITERABLE =
+      Schema.builder().addIterableField("strings", FieldType.STRING).build();
+
+  /** A Pojo containing an enum type. */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class PojoWithEnum {
+    public enum Color {
+      RED,
+      GREEN,
+      BLUE
+    };
+
+    public final Color color;
+
+    @SchemaCreate
+    public PojoWithEnum(Color color) {
+      this.color = color;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      PojoWithEnum that = (PojoWithEnum) o;
+      return color == that.color;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(color);
+    }
+  }
+
+  /** The schema for {@link PojoWithEnum}. */
+  public static final Schema POJO_WITH_ENUM_SCHEMA =
+      Schema.builder()
+          .addLogicalTypeField("color", EnumerationType.create("RED", "GREEN", "BLUE"))
           .build();
 }

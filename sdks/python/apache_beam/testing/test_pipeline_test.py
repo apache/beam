@@ -17,6 +17,8 @@
 
 """Unit test for the TestPipeline class"""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -104,16 +106,16 @@ class TestPipelineTest(unittest.TestCase):
     self.assertEqual(test_pipeline.get_option(name), value)
 
   def test_skip_IT(self):
-    test_pipeline = TestPipeline(is_integration_test=True)
-    test_pipeline.run()
-    # Note that this will never be reached since it should be skipped above.
+    with TestPipeline(is_integration_test=True) as _:
+      # Note that this will never be reached since it should be skipped above.
+      pass
     self.fail()
 
   @mock.patch('apache_beam.testing.test_pipeline.Pipeline.run', autospec=True)
   def test_not_use_test_runner_api(self, mock_run):
-    test_pipeline = TestPipeline(argv=['--not-use-test-runner-api'],
-                                 blocking=False)
-    test_pipeline.run()
+    with TestPipeline(argv=['--not-use-test-runner-api'],
+                      blocking=False) as test_pipeline:
+      pass
     mock_run.assert_called_once_with(test_pipeline, test_runner_api=False)
 
 

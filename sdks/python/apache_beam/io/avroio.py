@@ -41,6 +41,8 @@ Additionally, this module provides a write ``PTransform`` ``WriteToAvro``
 that can be used to write a given ``PCollection`` of Python objects to an
 Avro file.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import io
@@ -108,7 +110,7 @@ class ReadFromAvro(PTransform):
 
       Traceback (most recent call last):
        ...
-      IOError: No files found based on the file pattern
+      OSError: No files found based on the file pattern
 
     Each record of this :class:`~apache_beam.pvalue.PCollection` will contain
     a single record read from a source. Records that are of simple types will be

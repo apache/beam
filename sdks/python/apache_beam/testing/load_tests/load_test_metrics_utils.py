@@ -27,11 +27,14 @@ Currently it is possible to have following metrics types:
 * total_bytes_count
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
 import time
 import uuid
+from typing import List
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
@@ -71,6 +74,8 @@ SCHEMA = [
      'mode': 'REQUIRED'
     }
 ]
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def parse_step(step_name):
@@ -168,10 +173,10 @@ class MetricsReader(object):
   A :class:`MetricsReader` retrieves metrics from pipeline result,
   prepares it for publishers and setup publishers.
   """
-  publishers = []
+  publishers = []  # type: List[ConsoleMetricsPublisher]
 
   def __init__(self, project_name=None, bq_table=None, bq_dataset=None,
-               filters=None):
+               publish_to_bq=False, filters=None):
     """Initializes :class:`MetricsReader` .
 
     Args:
@@ -182,7 +187,8 @@ class MetricsReader(object):
     """
     self._namespace = bq_table
     self.publishers.append(ConsoleMetricsPublisher())
-    check = project_name and bq_table and bq_dataset
+
+    check = project_name and bq_table and bq_dataset and publish_to_bq
     if check:
       bq_publisher = BigQueryMetricsPublisher(
           project_name, bq_table, bq_dataset)
@@ -198,7 +204,7 @@ class MetricsReader(object):
     # required to prepare metrics for publishing purposes. Expected is to have
     # a list of dictionaries matching the schema.
     insert_dicts = self._prepare_all_metrics(metrics)
-    if len(insert_dicts):
+    if len(insert_dicts) > 0:
       for publisher in self.publishers:
         publisher.publish(insert_dicts)
 
@@ -221,10 +227,11 @@ class MetricsReader(object):
     matching_namsespace, not_matching_namespace = \
       split_metrics_by_namespace_and_name(distributions, self._namespace,
                                           RUNTIME_METRIC)
-    runtime_metric = RuntimeMetric(matching_namsespace, metric_id)
-    rows.append(runtime_metric.as_dict())
-
-    rows += get_generic_distributions(not_matching_namespace, metric_id)
+    if len(matching_namsespace) > 0:
+      runtime_metric = RuntimeMetric(matching_namsespace, metric_id)
+      rows.append(runtime_metric.as_dict())
+    if len(not_matching_namespace) > 0:
+      rows += get_generic_distributions(not_matching_namespace, metric_id)
     return rows
 
 
@@ -311,8 +318,8 @@ class RuntimeMetric(Metric):
     min_values = []
     max_values = []
     for dist in distributions:
-      min_values.append(dist.committed.min)
-      max_values.append(dist.committed.max)
+      min_values.append(dist.result.min)
+      max_values.append(dist.result.max)
     # finding real start
     min_value = min(min_values)
     # finding real end
@@ -329,13 +336,13 @@ class ConsoleMetricsPublisher(object):
     if len(results) > 0:
       log = "Load test results for test: %s and timestamp: %s:" \
             % (results[0][ID_LABEL], results[0][SUBMIT_TIMESTAMP_LABEL])
-      logging.info(log)
+      _LOGGER.info(log)
       for result in results:
         log = "Metric: %s Value: %d" \
               % (result[METRICS_TYPE_LABEL], result[VALUE_LABEL])
-        logging.info(log)
+        _LOGGER.info(log)
     else:
-      logging.info("No test results were collected.")
+      _LOGGER.info("No test results were collected.")
 
 
 class BigQueryMetricsPublisher(object):
@@ -350,7 +357,7 @@ class BigQueryMetricsPublisher(object):
       for output in outputs:
         errors = output['errors']
         for err in errors:
-          logging.error(err['message'])
+          _LOGGER.error(err['message'])
           raise ValueError(
               'Unable save rows in BigQuery: {}'.format(err['message']))
 

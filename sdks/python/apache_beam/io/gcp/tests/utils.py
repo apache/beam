@@ -18,6 +18,8 @@
 
 """Utility methods for testing on GCP."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -35,6 +37,9 @@ try:
 except ImportError:
   gexc = None
   bigquery = None
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class GcpTestIOError(retry.PermanentException):
@@ -93,7 +98,7 @@ def delete_bq_table(project, dataset_id, table_id):
     dataset_id: Name of the dataset where table is.
     table_id: Name of the table.
   """
-  logging.info('Clean up a BigQuery table with project: %s, dataset: %s, '
+  _LOGGER.info('Clean up a BigQuery table with project: %s, dataset: %s, '
                'table: %s.', project, dataset_id, table_id)
   client = bigquery.Client(project=project)
   table_ref = client.dataset(dataset_id).table(table_id)

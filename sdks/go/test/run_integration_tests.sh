@@ -157,7 +157,7 @@ s.close()
     if [[ "$RUNNER" == "flink" ]]; then
       java \
           -jar $FLINK_JOB_SERVER_JAR \
-          --flink-master-url [local] \
+          --flink-master [local] \
           --job-port $JOB_PORT \
           --artifact-port 0 &
     else

@@ -17,6 +17,8 @@
 
 """Unit tests for cross-language parquet io read/write."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -51,11 +53,10 @@ class XlangParquetIOTest(unittest.TestCase):
     port = os.environ.get('EXPANSION_PORT')
     address = 'localhost:%s' % port
     try:
-      test_pipeline = TestPipeline()
-      test_pipeline.get_pipeline_options().view_as(
-          DebugOptions).experiments.append('jar_packages='+expansion_jar)
-      test_pipeline.not_use_test_runner_api = True
-      with test_pipeline as p:
+      with TestPipeline() as p:
+        p.get_pipeline_options().view_as(
+            DebugOptions).experiments.append('jar_packages='+expansion_jar)
+        p.not_use_test_runner_api = True
         _ = p \
           | beam.Create([
               AvroRecord({"name": "abc"}), AvroRecord({"name": "def"}),
@@ -69,7 +70,7 @@ class XlangParquetIOTest(unittest.TestCase):
         raise e
 
 
-class AvroTestCoder(coders.AvroCoder):
+class AvroTestCoder(coders.AvroGenericCoder):
   SCHEMA = """
   {
     "type": "record", "name": "testrecord",

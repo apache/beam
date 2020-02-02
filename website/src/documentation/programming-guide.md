@@ -497,9 +497,7 @@ nested within (called [composite transforms](#composite-transforms) in the Beam
 SDKs).
 
 How you apply your pipeline's transforms determines the structure of your
-pipeline. The best way to think of your pipeline is as a directed acyclic graph,
-where the nodes are `PCollection`s and the edges are transforms. For example,
-you can chain transforms to create a sequential pipeline, like this one:
+pipeline. The best way to think of your pipeline is as a directed acyclic graph, where `PTransform` nodes are subroutines that accept `PCollection` nodes as inputs and emit `PCollection` nodes as outputs. For example, you can chain together transforms to create a pipeline that successively modifies input data:
 
 ```java
 [Final Output PCollection] = [Initial Input PCollection].apply([First Transform])
@@ -512,13 +510,13 @@ you can chain transforms to create a sequential pipeline, like this one:
               | [Third Transform])
 ```
 
-The resulting workflow graph of the above pipeline looks like this.
+The graph of this pipeline looks like the following:
 
 ![This linear pipeline starts with one input collection, sequentially applies
   three transforms, and ends with one output collection.](
-  {{ "/images/design-your-pipeline-linear.png" | prepend: site.baseurl }})
+  {{ "/images/design-your-pipeline-linear.svg" | prepend: site.baseurl }})
 
-*Figure: A linear pipeline with three sequential transforms.*
+*Figure 1: A linear pipeline with three sequential transforms.*
 
 However, note that a transform *does not consume or otherwise alter* the input
 collection--remember that a `PCollection` is immutable by definition. This means
@@ -536,13 +534,13 @@ a branching pipeline, like so:
 [PCollection of 'B' names] = [PCollection of database table rows] | [Transform B]
 ```
 
-The resulting workflow graph from the branching pipeline above looks like this.
+The graph of this branching pipeline looks like the following:
 
 ![This pipeline applies two transforms to a single input collection. Each
   transform produces an output collection.](
-  {{ "/images/design-your-pipeline-multiple-pcollections.png" | prepend: site.baseurl }})
+  {{ "/images/design-your-pipeline-multiple-pcollections.svg" | prepend: site.baseurl }})
 
-*Figure: A branching pipeline. Two transforms are applied to a single
+*Figure 2: A branching pipeline. Two transforms are applied to a single
 PCollection of database table rows.*
 
 You can also build your own [composite transforms](#composite-transforms) that
@@ -1932,8 +1930,8 @@ operator (\*) to read all matching input files that have prefix "input-" and the
 suffix ".csv" in the given location:
 
 ```java
-p.apply(“ReadFromText”,
-    TextIO.read().from("protocol://my_bucket/path/to/input-*.csv");
+p.apply("ReadFromText",
+    TextIO.read().from("protocol://my_bucket/path/to/input-*.csv"));
 ```
 
 ```py
@@ -2315,9 +2313,9 @@ windows are not considered until `GroupByKey` or `Combine` aggregates across a
 window and key. This can have different effects on your pipeline.  Consider the
 example pipeline in the figure below:
 
-![Diagram of pipeline applying windowing]({{ "/images/windowing-pipeline-unbounded.png" | prepend: site.baseurl }} "Pipeline applying windowing")
+![Diagram of pipeline applying windowing]({{ "/images/windowing-pipeline-unbounded.svg" | prepend: site.baseurl }} "Pipeline applying windowing")
 
-**Figure:** Pipeline applying windowing
+**Figure 3:** Pipeline applying windowing
 
 In the above pipeline, we create an unbounded `PCollection` by reading a set of
 key/value pairs using `KafkaIO`, and then apply a windowing function to that
@@ -2345,9 +2343,9 @@ transform in the Beam SDK for Java).
 To illustrate how windowing with a bounded `PCollection` can affect how your
 pipeline processes data, consider the following pipeline:
 
-![Diagram of GroupByKey and ParDo without windowing, on a bounded collection]({{ "/images/unwindowed-pipeline-bounded.png" | prepend: site.baseurl }} "GroupByKey and ParDo without windowing, on a bounded collection")
+![Diagram of GroupByKey and ParDo without windowing, on a bounded collection]({{ "/images/unwindowed-pipeline-bounded.svg" | prepend: site.baseurl }} "GroupByKey and ParDo without windowing, on a bounded collection")
 
-**Figure:** `GroupByKey` and `ParDo` without windowing, on a bounded collection.
+**Figure 4:** `GroupByKey` and `ParDo` without windowing, on a bounded collection.
 
 In the above pipeline, we create a bounded `PCollection` by reading a set of
 key/value pairs using `TextIO`. We then group the collection using `GroupByKey`,
@@ -2360,9 +2358,9 @@ all elements in your `PCollection` are assigned to a single global window.
 
 Now, consider the same pipeline, but using a windowing function:
 
-![Diagram of GroupByKey and ParDo with windowing, on a bounded collection]({{ "/images/windowing-pipeline-bounded.png" | prepend: site.baseurl }} "GroupByKey and ParDo with windowing, on a bounded collection")
+![Diagram of GroupByKey and ParDo with windowing, on a bounded collection]({{ "/images/windowing-pipeline-bounded.svg" | prepend: site.baseurl }} "GroupByKey and ParDo with windowing, on a bounded collection")
 
-**Figure:** `GroupByKey` and `ParDo` with windowing, on a bounded collection.
+**Figure 5:** `GroupByKey` and `ParDo` with windowing, on a bounded collection.
 
 As before, the pipeline creates a bounded `PCollection` of key/value pairs. We
 then set a [windowing function](#setting-your-pcollections-windowing-function)
@@ -2406,7 +2404,7 @@ the second window, and so on.
 
 ![Diagram of fixed time windows, 30s in duration]({{ "/images/fixed-time-windows.png" | prepend: site.baseurl }} "Fixed time windows, 30s in duration")
 
-**Figure:** Fixed time windows, 30s in duration.
+**Figure 6:** Fixed time windows, 30s in duration.
 
 #### 7.2.2. Sliding time windows {#sliding-time-windows}
 
@@ -2425,7 +2423,7 @@ example.
 
 ![Diagram of sliding time windows, with 1 minute window duration and 30s window period]({{ "/images/sliding-time-windows.png" | prepend: site.baseurl }} "Sliding time windows, with 1 minute window duration and 30s window period")
 
-**Figure:** Sliding time windows, with 1 minute window duration and 30s window
+**Figure 7:** Sliding time windows, with 1 minute window duration and 30s window
 period.
 
 #### 7.2.3. Session windows {#session-windows}
@@ -2440,7 +2438,7 @@ the start of a new window.
 
 ![Diagram of session windows with a minimum gap duration]({{ "/images/session-windows.png" | prepend: site.baseurl }} "Session windows, with a minimum gap duration")
 
-**Figure:** Session windows, with a minimum gap duration. Note how each data key
+**Figure 8:** Session windows, with a minimum gap duration. Note how each data key
 has different windows, according to its data distribution.
 
 #### 7.2.4. The single global window {#single-global-window}

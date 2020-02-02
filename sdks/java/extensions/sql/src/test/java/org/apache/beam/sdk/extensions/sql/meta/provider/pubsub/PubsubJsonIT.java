@@ -18,12 +18,18 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.beam.sdk.testing.JsonMatcher.jsonBytesLike;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasProperty;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -38,6 +44,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
@@ -46,13 +53,14 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.ToJson;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -61,6 +69,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Ignore;
@@ -88,10 +97,11 @@ public class PubsubJsonIT implements Serializable {
   private static volatile Boolean checked = false;
 
   @Rule public transient TestPubsub eventsTopic = TestPubsub.create();
+  @Rule public transient TestPubsub filteredEventsTopic = TestPubsub.create();
   @Rule public transient TestPubsub dlqTopic = TestPubsub.create();
   @Rule public transient TestPubsubSignal resultSignal = TestPubsubSignal.create();
-  @Rule public transient TestPubsubSignal dlqSignal = TestPubsubSignal.create();
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public transient TestPipeline filterPipeline = TestPipeline.create();
 
   /**
    * HACK: we need an objectmapper to turn pipelineoptions back into a map. We need to use
@@ -102,7 +112,7 @@ public class PubsubJsonIT implements Serializable {
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
   @Test
-  public void testSelectsPayloadContent() throws Exception {
+  public void testSQLSelectsPayloadContent() throws Exception {
     String createTableString =
         "CREATE EXTERNAL TABLE message (\n"
             + "event_timestamp TIMESTAMP, \n"
@@ -219,36 +229,20 @@ public class PubsubJsonIT implements Serializable {
     Supplier<Void> start = resultSignal.waitForStart(Duration.standardMinutes(5));
     pipeline.begin().apply("signal query results started", resultSignal.signalStart());
 
-    // Another PCollection, reads from DLQ
-    PCollection<PubsubMessage> dlq =
-        pipeline.apply(
-            PubsubIO.readMessagesWithAttributes().fromTopic(dlqTopic.topicPath().getPath()));
-
-    // Observe DLQ contents and send success signal after seeing the expected messages
-    dlq.apply(
-        "waitForDlq",
-        dlqSignal.signalSuccessWhen(
-            PubsubMessageWithAttributesCoder.of(),
-            dlqMessages ->
-                containsAll(dlqMessages, message(ts(4), "{ - }"), message(ts(5), "{ + }"))));
-
-    // Send the start signal to make sure the signaling topic is initialized
-    Supplier<Void> startDlq = dlqSignal.waitForStart(Duration.standardMinutes(5));
-    pipeline.begin().apply("signal DLQ started", dlqSignal.signalStart());
-
     // Start the pipeline
     pipeline.run();
 
     // Wait until got the response from the signalling topics
     start.get();
-    startDlq.get();
 
     // Start publishing the messages when main pipeline is started and signaling topics are ready
     eventsTopic.publish(messages);
 
     // Poll the signaling topic for success message
     resultSignal.waitForSuccess(Duration.standardMinutes(2));
-    dlqSignal.waitForSuccess(Duration.standardMinutes(2));
+    dlqTopic
+        .assertThatTopicEventuallyReceives(messageLike(ts(4), "{ - }"), messageLike(ts(5), "{ + }"))
+        .waitForUpTo(Duration.standardSeconds(20));
   }
 
   @Test
@@ -317,6 +311,266 @@ public class PubsubJsonIT implements Serializable {
     pool.shutdown();
   }
 
+  @Test
+  public void testWritesJsonRowsToPubsub() throws Exception {
+    Schema personSchema =
+        Schema.builder()
+            .addStringField("name")
+            .addInt32Field("height")
+            .addBooleanField("knowsJavascript")
+            .build();
+    PCollection<Row> rows =
+        pipeline
+            .apply(
+                Create.of(
+                    row(personSchema, "person1", 80, true),
+                    row(personSchema, "person2", 70, false),
+                    row(personSchema, "person3", 60, true),
+                    row(personSchema, "person4", 50, false),
+                    row(personSchema, "person5", 40, true)))
+            .setRowSchema(personSchema)
+            .apply(
+                SqlTransform.query(
+                    "SELECT name FROM PCOLLECTION AS person WHERE person.knowsJavascript"));
+
+    // Convert rows to JSON and write to pubsub
+    rows.apply(ToJson.of()).apply(PubsubIO.writeStrings().to(eventsTopic.topicPath().getPath()));
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
+
+    eventsTopic
+        .assertThatTopicEventuallyReceives(
+            messageLike("{\"name\":\"person1\"}"),
+            messageLike("{\"name\":\"person3\"}"),
+            messageLike("{\"name\":\"person5\"}"))
+        .waitForUpTo(Duration.standardSeconds(20));
+  }
+
+  @Test
+  public void testSQLSelectsPayloadContentFlat() throws Exception {
+    String createTableString =
+        "CREATE EXTERNAL TABLE message (\n"
+            + "event_timestamp TIMESTAMP, \n"
+            + "id INTEGER, \n"
+            + "name VARCHAR \n"
+            + ") \n"
+            + "TYPE 'pubsub' \n"
+            + "LOCATION '"
+            + eventsTopic.topicPath()
+            + "' \n"
+            + "TBLPROPERTIES '{ \"timestampAttributeKey\" : \"ts\" }'";
+
+    String queryString = "SELECT message.id, message.name from message";
+
+    // Prepare messages to send later
+    List<PubsubMessage> messages =
+        ImmutableList.of(
+            message(ts(1), 3, "foo"), message(ts(2), 5, "bar"), message(ts(3), 7, "baz"));
+
+    // Initialize SQL environment and create the pubsub table
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubJsonTableProvider());
+    sqlEnv.executeDdl(createTableString);
+
+    // Apply the PTransform to query the pubsub topic
+    PCollection<Row> queryOutput = query(sqlEnv, pipeline, queryString);
+
+    // Observe the query results and send success signal after seeing the expected messages
+    queryOutput.apply(
+        "waitForSuccess",
+        resultSignal.signalSuccessWhen(
+            SchemaCoder.of(PAYLOAD_SCHEMA),
+            observedRows ->
+                observedRows.equals(
+                    ImmutableSet.of(
+                        row(PAYLOAD_SCHEMA, 3, "foo"),
+                        row(PAYLOAD_SCHEMA, 5, "bar"),
+                        row(PAYLOAD_SCHEMA, 7, "baz")))));
+
+    // Send the start signal to make sure the signaling topic is initialized
+    Supplier<Void> start = resultSignal.waitForStart(Duration.standardMinutes(5));
+    pipeline.begin().apply(resultSignal.signalStart());
+
+    // Start the pipeline
+    pipeline.run();
+
+    // Wait until got the start response from the signalling topic
+    start.get();
+
+    // Start publishing the messages when main pipeline is started and signaling topic is ready
+    eventsTopic.publish(messages);
+
+    // Poll the signaling topic for success message
+    resultSignal.waitForSuccess(Duration.standardSeconds(60));
+  }
+
+  @Test
+  public void testSQLInsertJsonRowsToPubsubFlat() throws Exception {
+    String createTableString =
+        "CREATE EXTERNAL TABLE message (\n"
+            + "event_timestamp TIMESTAMP, \n"
+            + "name VARCHAR, \n"
+            + "height INTEGER, \n"
+            + "knowsJavascript BOOLEAN \n"
+            + ") \n"
+            + "TYPE 'pubsub' \n"
+            + "LOCATION '"
+            + eventsTopic.topicPath()
+            + "' \n"
+            + "TBLPROPERTIES "
+            + "    '{ "
+            + "       \"deadLetterQueue\" : \""
+            + dlqTopic.topicPath()
+            + "\""
+            + "     }'";
+
+    // Initialize SQL environment and create the pubsub table
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubJsonTableProvider());
+    sqlEnv.executeDdl(createTableString);
+
+    // TODO(BEAM-8741): Ideally we could write this query without specifying a column list, because
+    //   it shouldn't be possible to write to event_timestamp when it's mapped to  publish time.
+    String queryString =
+        "INSERT INTO message (name, height, knowsJavascript) \n"
+            + "VALUES \n"
+            + "('person1', 80, TRUE), \n"
+            + "('person2', 70, FALSE)";
+
+    // Apply the PTransform to insert the rows
+    PCollection<Row> queryOutput = query(sqlEnv, pipeline, queryString);
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
+
+    eventsTopic
+        .assertThatTopicEventuallyReceives(
+            jsonMessageLike("{\"name\":\"person1\", \"height\": 80, \"knowsJavascript\": true}"),
+            jsonMessageLike("{\"name\":\"person2\", \"height\": 70, \"knowsJavascript\": false}"))
+        .waitForUpTo(Duration.standardSeconds(20));
+  }
+
+  @Test
+  public void testSQLInsertJsonRowsToPubsubWithTimestampAttributeFlat() throws Exception {
+    String createTableString =
+        "CREATE EXTERNAL TABLE message (\n"
+            + "  event_timestamp TIMESTAMP, \n"
+            + "  name VARCHAR, \n"
+            + "  height INTEGER, \n"
+            + "  knowsJavascript BOOLEAN \n"
+            + ") \n"
+            + "TYPE 'pubsub' \n"
+            + "LOCATION '"
+            + eventsTopic.topicPath()
+            + "' \n"
+            + "TBLPROPERTIES "
+            + "  '{ "
+            + "     \"deadLetterQueue\" : \""
+            + dlqTopic.topicPath()
+            + "\","
+            + "     \"timestampAttributeKey\" : \"ts\""
+            + "   }'";
+
+    // Initialize SQL environment and create the pubsub table
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubJsonTableProvider());
+    sqlEnv.executeDdl(createTableString);
+
+    String queryString =
+        "INSERT INTO message "
+            + "VALUES "
+            + "(TIMESTAMP '1970-01-01 00:00:00.001', 'person1', 80, TRUE), "
+            + "(TIMESTAMP '1970-01-01 00:00:00.002', 'person2', 70, FALSE)";
+    PCollection<Row> queryOutput = query(sqlEnv, pipeline, queryString);
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
+
+    eventsTopic
+        .assertThatTopicEventuallyReceives(
+            jsonMessageLike(
+                ts(1), "{\"name\":\"person1\", \"height\": 80, \"knowsJavascript\": true}"),
+            jsonMessageLike(
+                ts(2), "{\"name\":\"person2\", \"height\": 70, \"knowsJavascript\": false}"))
+        .waitForUpTo(Duration.standardSeconds(20));
+  }
+
+  @Test
+  public void testSQLReadAndWriteWithSameFlatTableDefinition() throws Exception {
+    // This test verifies that the same pubsub table definition can be used for both reading and
+    // writing
+    // pipeline: Use SQL to insert data into `people`
+    // filterPipeline: Use SQL to read from `people`, filter the rows, and write to
+    // `javascript_people`
+
+    String createTableString =
+        "CREATE EXTERNAL TABLE people (\n"
+            + "event_timestamp TIMESTAMP, \n"
+            + "name VARCHAR, \n"
+            + "height INTEGER, \n"
+            + "knowsJavascript BOOLEAN \n"
+            + ") \n"
+            + "TYPE 'pubsub' \n"
+            + "LOCATION '"
+            + eventsTopic.topicPath()
+            + "' \n";
+
+    String createFilteredTableString =
+        "CREATE EXTERNAL TABLE javascript_people (\n"
+            + "event_timestamp TIMESTAMP, \n"
+            + "name VARCHAR, \n"
+            + "height INTEGER \n"
+            + ") \n"
+            + "TYPE 'pubsub' \n"
+            + "LOCATION '"
+            + filteredEventsTopic.topicPath()
+            + "' \n";
+
+    // Initialize SQL environment and create the pubsub table
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubJsonTableProvider());
+    sqlEnv.executeDdl(createTableString);
+    sqlEnv.executeDdl(createFilteredTableString);
+
+    // TODO(BEAM-8741): Ideally we could write these queries without specifying a column list,
+    // because
+    //   it shouldn't be possible to write to event_timestamp when it's mapped to  publish time.
+    String filterQueryString =
+        "INSERT INTO javascript_people (name, height) (\n"
+            + "  SELECT \n"
+            + "    name, \n"
+            + "    height \n"
+            + "  FROM people \n"
+            + "  WHERE knowsJavascript \n"
+            + ")";
+
+    String injectQueryString =
+        "INSERT INTO people (name, height, knowsJavascript) VALUES \n"
+            + "('person1', 80, TRUE),  \n"
+            + "('person2', 70, FALSE), \n"
+            + "('person3', 60, TRUE),  \n"
+            + "('person4', 50, FALSE), \n"
+            + "('person5', 40, TRUE)";
+
+    // Apply the PTransform to do the filtering
+    query(sqlEnv, filterPipeline, filterQueryString);
+
+    // Apply the PTransform to inject the input data
+    query(sqlEnv, pipeline, injectQueryString);
+
+    // Send the start signal to make sure the signaling topic is initialized
+    Supplier<Void> start = resultSignal.waitForStart(Duration.standardMinutes(5));
+    filterPipeline.begin().apply("signal filter pipeline started", resultSignal.signalStart());
+
+    // Start the filter pipeline and wait until it has started.
+    filterPipeline.run();
+    start.get();
+
+    // .. then run the injector pipeline
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
+
+    filteredEventsTopic
+        .assertThatTopicEventuallyReceives(
+            jsonMessageLike("{\"name\":\"person1\", \"height\": 80}"),
+            jsonMessageLike("{\"name\":\"person3\", \"height\": 60}"),
+            jsonMessageLike("{\"name\":\"person5\", \"height\": 40}"))
+        .waitForUpTo(Duration.standardMinutes(5));
+  }
+
   private static String toArg(Object o) {
     try {
       String jsonRepr = MAPPER.writeValueAsString(o);
@@ -378,6 +632,27 @@ public class PubsubJsonIT implements Serializable {
   private PubsubMessage message(Instant timestamp, String jsonPayload) {
     return new PubsubMessage(
         jsonPayload.getBytes(UTF_8), ImmutableMap.of("ts", String.valueOf(timestamp.getMillis())));
+  }
+
+  private Matcher<PubsubMessage> messageLike(Instant timestamp, String jsonPayload) {
+    return allOf(
+        hasProperty("payload", equalTo(jsonPayload.getBytes(StandardCharsets.US_ASCII))),
+        hasProperty("attributeMap", hasEntry("ts", String.valueOf(timestamp.getMillis()))));
+  }
+
+  private Matcher<PubsubMessage> messageLike(String jsonPayload) {
+    return hasProperty("payload", equalTo(jsonPayload.getBytes(StandardCharsets.US_ASCII)));
+  }
+
+  private Matcher<PubsubMessage> jsonMessageLike(Instant timestamp, String jsonPayload)
+      throws IOException {
+    return allOf(
+        hasProperty("payload", jsonBytesLike(jsonPayload)),
+        hasProperty("attributeMap", hasEntry("ts", String.valueOf(timestamp.getMillis()))));
+  }
+
+  private Matcher<PubsubMessage> jsonMessageLike(String jsonPayload) throws IOException {
+    return hasProperty("payload", jsonBytesLike(jsonPayload));
   }
 
   private String jsonString(int id, String name) {

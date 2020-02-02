@@ -43,6 +43,8 @@ For example usages, see the unit tests of modules such as
  * apache_beam.io.source_test_utils_test.py
  * apache_beam.io.avroio_test.py
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -66,6 +68,9 @@ __all__ = ['read_from_source',
            'assert_split_at_fraction_exhaustive',
            'assert_split_at_fraction_fails',
            'assert_split_at_fraction_succeeds_and_consistent']
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class ExpectedSplitOutcome(object):
@@ -133,7 +138,7 @@ def assert_sources_equal_reference_source(reference_source_info, sources_info):
       format described above.
 
   Raises:
-    ~exceptions.ValueError: if the set of data produced by the reference source
+    ValueError: if the set of data produced by the reference source
       and the given set of sources are not equivalent.
 
   """
@@ -196,7 +201,7 @@ def assert_reentrant_reads_succeed(source_info):
       at, and a position to stop reading at.
 
   Raises:
-    ~exceptions.ValueError: if source is too trivial or reentrant read result
+    ValueError: if source is too trivial or reentrant read result
       in an incorrect read.
   """
 
@@ -527,7 +532,7 @@ def assert_split_at_fraction_exhaustive(
       multi-threaded test, otherwise this test is skipped.
 
   Raises:
-    ~exceptions.ValueError: if the exhaustive splitting test fails.
+    ValueError: if the exhaustive splitting test fails.
   """
 
   expected_items = read_from_source(source, start_position, stop_position)
@@ -588,7 +593,7 @@ def assert_split_at_fraction_exhaustive(
         num_trials += 1
         if (num_trials >
             MAX_CONCURRENT_SPLITTING_TRIALS_PER_ITEM):
-          logging.warning(
+          _LOGGER.warning(
               'After %d concurrent splitting trials at item #%d, observed '
               'only %s, giving up on this item',
               num_trials,
@@ -604,7 +609,7 @@ def assert_split_at_fraction_exhaustive(
           have_failure = True
 
         if have_success and have_failure:
-          logging.info('%d trials to observe both success and failure of '
+          _LOGGER.info('%d trials to observe both success and failure of '
                        'concurrent splitting at item #%d', num_trials, i)
           break
     finally:
@@ -613,11 +618,11 @@ def assert_split_at_fraction_exhaustive(
     num_total_trials += num_trials
 
     if num_total_trials > MAX_CONCURRENT_SPLITTING_TRIALS_TOTAL:
-      logging.warning('After %d total concurrent splitting trials, considered '
+      _LOGGER.warning('After %d total concurrent splitting trials, considered '
                       'only %d items, giving up.', num_total_trials, i)
       break
 
-  logging.info('%d total concurrent splitting trials for %d items',
+  _LOGGER.info('%d total concurrent splitting trials for %d items',
                num_total_trials, len(expected_items))
 
 

@@ -38,11 +38,11 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ConnectivityState;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ConnectivityState;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ServerBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -139,8 +139,8 @@ public class ExternalTest implements Serializable {
           testPipeline
               .apply(Create.of("1", "2", "2", "3", "3", "3"))
               .apply(
-                  External.<KV<String, Integer>>of(
-                      "beam:transforms:xlang:count", new byte[] {}, target))
+                  External.of("beam:transforms:xlang:count", new byte[] {}, target)
+                      .<KV<String, Long>>withOutputType())
               .apply(
                   "toString",
                   MapElements.into(TypeDescriptors.strings())

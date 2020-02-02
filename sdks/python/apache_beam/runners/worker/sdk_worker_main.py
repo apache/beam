@@ -16,6 +16,8 @@
 #
 """SDK Fn Harness entry point."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import http.server
@@ -28,7 +30,7 @@ import threading
 import traceback
 from builtins import object
 
-from google.protobuf import text_format
+from google.protobuf import text_format  # type: ignore # not in typeshed
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import DebugOptions
@@ -38,23 +40,15 @@ from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.internal import names
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
+from apache_beam.runners.worker.worker_status import thread_dump
 from apache_beam.utils import profiler
 
 # This module is experimental. No backwards-compatibility guarantees.
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class StatusServer(object):
-
-  @classmethod
-  def get_thread_dump(cls):
-    lines = []
-    frames = sys._current_frames()  # pylint: disable=protected-access
-
-    for t in threading.enumerate():
-      lines.append('--- Thread #%s name: %s ---\n' % (t.ident, t.name))
-      lines.append(''.join(traceback.format_stack(frames[t.ident])))
-
-    return lines
 
   def start(self, status_http_port=0):
     """Executes the serving loop for the status server.
@@ -73,8 +67,7 @@ class StatusServer(object):
         self.send_header('Content-Type', 'text/plain')
         self.end_headers()
 
-        for line in StatusServer.get_thread_dump():
-          self.wfile.write(line.encode('utf-8'))
+        self.wfile.write(thread_dump().encode('utf-8'))
 
       def log_message(self, f, *args):
         """Do not log any messages."""
@@ -82,7 +75,7 @@ class StatusServer(object):
 
     self.httpd = httpd = http.server.HTTPServer(
         ('localhost', status_http_port), StatusHttpHandler)
-    logging.info('Status HTTP server running at %s:%s', httpd.server_name,
+    _LOGGER.info('Status HTTP server running at %s:%s', httpd.server_name,
                  httpd.server_port)
 
     httpd.serve_forever()
@@ -101,9 +94,9 @@ def main(unused_argv):
       # TODO(BEAM-5468): This should be picked up from pipeline options.
       logging.getLogger().setLevel(logging.INFO)
       logging.getLogger().addHandler(fn_log_handler)
-      logging.info('Logging handler created.')
+      _LOGGER.info('Logging handler created.')
     except Exception:
-      logging.error("Failed to set up logging handler, continuing without.",
+      _LOGGER.error("Failed to set up logging handler, continuing without.",
                     exc_info=True)
       fn_log_handler = None
   else:
@@ -127,35 +120,41 @@ def main(unused_argv):
   else:
     semi_persistent_directory = None
 
-  logging.info('semi_persistent_directory: %s', semi_persistent_directory)
+  _LOGGER.info('semi_persistent_directory: %s', semi_persistent_directory)
   _worker_id = os.environ.get('WORKER_ID', None)
 
   try:
     _load_main_session(semi_persistent_directory)
   except Exception:  # pylint: disable=broad-except
     exception_details = traceback.format_exc()
-    logging.error(
+    _LOGGER.error(
         'Could not load main session: %s', exception_details, exc_info=True)
 
   try:
-    logging.info('Python sdk harness started with pipeline_options: %s',
+    _LOGGER.info('Python sdk harness started with pipeline_options: %s',
                  sdk_pipeline_options.get_all_options(drop_default=True))
-    service_descriptor = endpoints_pb2.ApiServiceDescriptor()
+    control_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
+    status_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
     text_format.Merge(os.environ['CONTROL_API_SERVICE_DESCRIPTOR'],
-                      service_descriptor)
+                      control_service_descriptor)
+    if 'STATUS_API_SERVICE_DESCRIPTOR' in os.environ:
+      text_format.Merge(os.environ['STATUS_API_SERVICE_DESCRIPTOR'],
+                        status_service_descriptor)
     # TODO(robertwb): Support credentials.
-    assert not service_descriptor.oauth2_client_credentials_grant.url
+    assert not control_service_descriptor.oauth2_client_credentials_grant.url
     SdkHarness(
-        control_address=service_descriptor.url,
-        worker_count=_get_worker_count(sdk_pipeline_options),
+        control_address=control_service_descriptor.url,
+        status_address=status_service_descriptor.url,
         worker_id=_worker_id,
         state_cache_size=_get_state_cache_size(sdk_pipeline_options),
+        data_buffer_time_limit_ms=_get_data_buffer_time_limit_ms(
+            sdk_pipeline_options),
         profiler_factory=profiler.Profile.factory_from_options(
             sdk_pipeline_options.view_as(ProfilingOptions))
     ).run()
-    logging.info('Python sdk harness exiting.')
+    _LOGGER.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
-    logging.exception('Python sdk harness failed: ')
+    _LOGGER.exception('Python sdk harness failed: ')
     raise
   finally:
     if fn_log_handler:
@@ -175,35 +174,6 @@ def _parse_pipeline_options(options_json):
         if re.match(portable_option_regex, k) else k: v
         for k, v in options.items()
     })
-
-
-def _get_worker_count(pipeline_options):
-  """Extract worker count from the pipeline_options.
-
-  This defines how many SdkWorkers will be started in this Python process.
-  And each SdkWorker will have its own thread to process data. Name of the
-  experimental parameter is 'worker_threads'
-  Example Usage in the Command Line:
-    --experimental worker_threads=1
-
-  Note: worker_threads is an experimental flag and might not be available in
-  future releases.
-
-  Returns:
-    an int containing the worker_threads to use. Default is 12
-  """
-  experiments = pipeline_options.view_as(DebugOptions).experiments
-
-  experiments = experiments if experiments else []
-
-  for experiment in experiments:
-    # There should only be 1 match so returning from the loop
-    if re.match(r'worker_threads=', experiment):
-      return int(
-          re.match(r'worker_threads=(?P<worker_threads>.*)',
-                   experiment).group('worker_threads'))
-
-  return 12
 
 
 def _get_state_cache_size(pipeline_options):
@@ -228,6 +198,29 @@ def _get_state_cache_size(pipeline_options):
   return 0
 
 
+def _get_data_buffer_time_limit_ms(pipeline_options):
+  """Defines the time limt of the outbound data buffering.
+
+  Note: data_buffer_time_limit_ms is an experimental flag and might
+  not be available in future releases.
+
+  Returns:
+    an int indicating the time limit in milliseconds of the the outbound
+      data buffering. Default is 0 (disabled)
+  """
+  experiments = pipeline_options.view_as(DebugOptions).experiments
+  experiments = experiments if experiments else []
+
+  for experiment in experiments:
+    # There should only be 1 match so returning from the loop
+    if re.match(r'data_buffer_time_limit_ms=', experiment):
+      return int(
+          re.match(
+              r'data_buffer_time_limit_ms=(?P<data_buffer_time_limit_ms>.*)',
+              experiment).group('data_buffer_time_limit_ms'))
+  return 0
+
+
 def _load_main_session(semi_persistent_directory):
   """Loads a pickled main session from the path specified."""
   if semi_persistent_directory:
@@ -236,11 +229,11 @@ def _load_main_session(semi_persistent_directory):
     if os.path.isfile(session_file):
       pickler.load_session(session_file)
     else:
-      logging.warning(
+      _LOGGER.warning(
           'No session file found: %s. Functions defined in __main__ '
           '(interactive session) may fail.', session_file)
   else:
-    logging.warning(
+    _LOGGER.warning(
         'No semi_persistent_directory found: Functions defined in __main__ '
         '(interactive session) may fail.')
 

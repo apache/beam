@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -54,13 +56,12 @@ class ApproximateUniqueTest(unittest.TestCase):
     test_input = [random.randint(0, 1000) for _ in range(100)]
 
     with self.assertRaises(ValueError) as e:
-      pipeline = TestPipeline()
-      _ = (pipeline
-           | 'create'
-           >> beam.Create(test_input)
-           | 'get_estimate'
-           >> beam.ApproximateUnique.Globally(size=sample_size))
-      pipeline.run()
+      with TestPipeline() as pipeline:
+        _ = (pipeline
+             | 'create'
+             >> beam.Create(test_input)
+             | 'get_estimate'
+             >> beam.ApproximateUnique.Globally(size=sample_size))
 
     expected_msg = beam.ApproximateUnique._INPUT_SIZE_ERR_MSG % (sample_size)
 
@@ -73,12 +74,11 @@ class ApproximateUniqueTest(unittest.TestCase):
     test_input = [random.randint(0, 1000) for _ in range(100)]
 
     with self.assertRaises(ValueError) as e:
-      pipeline = TestPipeline()
-      _ = (pipeline
-           | 'create' >> beam.Create(test_input)
-           | 'get_estimate'
-           >> beam.ApproximateUnique.Globally(size=sample_size))
-      pipeline.run()
+      with TestPipeline() as pipeline:
+        _ = (pipeline
+             | 'create' >> beam.Create(test_input)
+             | 'get_estimate'
+             >> beam.ApproximateUnique.Globally(size=sample_size))
 
     expected_msg = beam.ApproximateUnique._INPUT_SIZE_ERR_MSG % (sample_size)
 
@@ -91,12 +91,11 @@ class ApproximateUniqueTest(unittest.TestCase):
     test_input = [random.randint(0, 1000) for _ in range(100)]
 
     with self.assertRaises(ValueError) as e:
-      pipeline = TestPipeline()
-      _ = (pipeline
-           | 'create' >> beam.Create(test_input)
-           | 'get_estimate'
-           >> beam.ApproximateUnique.Globally(error=est_err))
-      pipeline.run()
+      with TestPipeline() as pipeline:
+        _ = (pipeline
+             | 'create' >> beam.Create(test_input)
+             | 'get_estimate'
+             >> beam.ApproximateUnique.Globally(error=est_err))
 
     expected_msg = beam.ApproximateUnique._INPUT_ERROR_ERR_MSG % (est_err)
 
@@ -109,12 +108,11 @@ class ApproximateUniqueTest(unittest.TestCase):
     test_input = [random.randint(0, 1000) for _ in range(100)]
 
     with self.assertRaises(ValueError) as e:
-      pipeline = TestPipeline()
-      _ = (pipeline
-           | 'create' >> beam.Create(test_input)
-           | 'get_estimate'
-           >> beam.ApproximateUnique.Globally(error=est_err))
-      pipeline.run()
+      with TestPipeline() as pipeline:
+        _ = (pipeline
+             | 'create' >> beam.Create(test_input)
+             | 'get_estimate'
+             >> beam.ApproximateUnique.Globally(error=est_err))
 
     expected_msg = beam.ApproximateUnique._INPUT_ERROR_ERR_MSG % (est_err)
 
@@ -125,12 +123,11 @@ class ApproximateUniqueTest(unittest.TestCase):
     test_input = [random.randint(0, 1000) for _ in range(100)]
 
     with self.assertRaises(ValueError) as e:
-      pipeline = TestPipeline()
-      _ = (pipeline
-           | 'create' >> beam.Create(test_input)
-           | 'get_estimate'
-           >> beam.ApproximateUnique.Globally())
-      pipeline.run()
+      with TestPipeline() as pipeline:
+        _ = (pipeline
+             | 'create' >> beam.Create(test_input)
+             | 'get_estimate'
+             >> beam.ApproximateUnique.Globally())
 
     expected_msg = beam.ApproximateUnique._NO_VALUE_ERR_MSG
     assert e.exception.args[0] == expected_msg
@@ -142,12 +139,11 @@ class ApproximateUniqueTest(unittest.TestCase):
     sample_size = 30
 
     with self.assertRaises(ValueError) as e:
-      pipeline = TestPipeline()
-      _ = (pipeline
-           | 'create' >> beam.Create(test_input)
-           | 'get_estimate'
-           >> beam.ApproximateUnique.Globally(size=sample_size, error=est_err))
-      pipeline.run()
+      with TestPipeline() as pipeline:
+        _ = (pipeline
+             | 'create' >> beam.Create(test_input)
+             | 'get_estimate' >> beam.ApproximateUnique.Globally(
+                 size=sample_size, error=est_err))
 
     expected_msg = beam.ApproximateUnique._MULTI_VALUE_ERR_MSG % (
         sample_size, est_err)
@@ -176,18 +172,17 @@ class ApproximateUniqueTest(unittest.TestCase):
 
     actual_count = len(set(test_input))
 
-    pipeline = TestPipeline()
-    result = (pipeline
-              | 'create' >> beam.Create(test_input)
-              | 'get_estimate'
-              >> beam.ApproximateUnique.Globally(size=sample_size)
-              | 'compare'
-              >> beam.FlatMap(lambda x: [abs(x - actual_count) * 1.0
-                                         / actual_count <= max_err]))
+    with TestPipeline() as pipeline:
+      result = (pipeline
+                | 'create' >> beam.Create(test_input)
+                | 'get_estimate'
+                >> beam.ApproximateUnique.Globally(size=sample_size)
+                | 'compare'
+                >> beam.FlatMap(lambda x: [abs(x - actual_count) * 1.0
+                                           / actual_count <= max_err]))
 
-    assert_that(result, equal_to([True]),
-                label='assert:global_by_size')
-    pipeline.run()
+      assert_that(result, equal_to([True]),
+                  label='assert:global_by_size')
 
   @retry(reraise=True, stop=stop_after_attempt(5))
   def test_approximate_unique_global_by_sample_size_with_duplicates(self):
@@ -198,18 +193,17 @@ class ApproximateUniqueTest(unittest.TestCase):
     test_input = [10] * 50 + [20] * 50
     actual_count = len(set(test_input))
 
-    pipeline = TestPipeline()
-    result = (pipeline
-              | 'create' >> beam.Create(test_input)
-              | 'get_estimate'
-              >> beam.ApproximateUnique.Globally(size=sample_size)
-              | 'compare'
-              >> beam.FlatMap(lambda x: [abs(x - actual_count) * 1.0
-                                         / actual_count <= max_err]))
+    with TestPipeline() as pipeline:
+      result = (pipeline
+                | 'create' >> beam.Create(test_input)
+                | 'get_estimate'
+                >> beam.ApproximateUnique.Globally(size=sample_size)
+                | 'compare'
+                >> beam.FlatMap(lambda x: [abs(x - actual_count) * 1.0
+                                           / actual_count <= max_err]))
 
-    assert_that(result, equal_to([True]),
-                label='assert:global_by_size_with_duplicates')
-    pipeline.run()
+      assert_that(result, equal_to([True]),
+                  label='assert:global_by_size_with_duplicates')
 
   @retry(reraise=True, stop=stop_after_attempt(5))
   def test_approximate_unique_global_by_sample_size_with_small_population(self):
@@ -221,15 +215,14 @@ class ApproximateUniqueTest(unittest.TestCase):
                   221, 829, 965, 729, 35, 33, 115, 894, 827, 364]
     actual_count = len(set(test_input))
 
-    pipeline = TestPipeline()
-    result = (pipeline
-              | 'create' >> beam.Create(test_input)
-              | 'get_estimate'
-              >> beam.ApproximateUnique.Globally(size=sample_size))
+    with TestPipeline() as pipeline:
+      result = (pipeline
+                | 'create' >> beam.Create(test_input)
+                | 'get_estimate'
+                >> beam.ApproximateUnique.Globally(size=sample_size))
 
-    assert_that(result, equal_to([actual_count]),
-                label='assert:global_by_sample_size_with_small_population')
-    pipeline.run()
+      assert_that(result, equal_to([actual_count]),
+                  label='assert:global_by_sample_size_with_small_population')
 
   @unittest.skip('Skip because hash function is not good enough. '
                  'TODO: BEAM-7654')
@@ -241,17 +234,16 @@ class ApproximateUniqueTest(unittest.TestCase):
                   973, 386, 506, 546, 991, 450, 226, 889, 514, 693]
     actual_count = len(set(test_input))
 
-    pipeline = TestPipeline()
-    result = (pipeline
-              | 'create' >> beam.Create(test_input)
-              | 'get_estimate'
-              >> beam.ApproximateUnique.Globally(error=est_err)
-              | 'compare'
-              >> beam.FlatMap(lambda x: [abs(x - actual_count) * 1.0
-                                         / actual_count <= est_err]))
+    with TestPipeline() as pipeline:
+      result = (pipeline
+                | 'create' >> beam.Create(test_input)
+                | 'get_estimate'
+                >> beam.ApproximateUnique.Globally(error=est_err)
+                | 'compare'
+                >> beam.FlatMap(lambda x: [abs(x - actual_count) * 1.0
+                                           / actual_count <= est_err]))
 
-    assert_that(result, equal_to([True]), label='assert:global_by_error')
-    pipeline.run()
+      assert_that(result, equal_to([True]), label='assert:global_by_error')
 
   @retry(reraise=True, stop=stop_after_attempt(5))
   def test_approximate_unique_global_by_error_with_small_population(self):
@@ -264,15 +256,14 @@ class ApproximateUniqueTest(unittest.TestCase):
                   756, 755, 839, 79, 393]
     actual_count = len(set(test_input))
 
-    pipeline = TestPipeline()
-    result = (pipeline
-              | 'create' >> beam.Create(test_input)
-              | 'get_estimate'
-              >> beam.ApproximateUnique.Globally(error=est_err))
+    with TestPipeline() as pipeline:
+      result = (pipeline
+                | 'create' >> beam.Create(test_input)
+                | 'get_estimate'
+                >> beam.ApproximateUnique.Globally(error=est_err))
 
-    assert_that(result, equal_to([actual_count]),
-                label='assert:global_by_error_with_small_population')
-    pipeline.run()
+      assert_that(result, equal_to([actual_count]),
+                  label='assert:global_by_error_with_small_population')
 
   @retry(reraise=True, stop=stop_after_attempt(5))
   def test_approximate_unique_perkey_by_size(self):
@@ -290,20 +281,19 @@ class ApproximateUniqueTest(unittest.TestCase):
     for (x, y) in test_input:
       actual_count_dict[x].add(y)
 
-    pipeline = TestPipeline()
-    result = (pipeline
-              | 'create' >> beam.Create(test_input)
-              | 'get_estimate'
-              >> beam.ApproximateUnique.PerKey(size=sample_size)
-              | 'compare'
-              >> beam.FlatMap(lambda x: [abs(x[1]
-                                             - len(actual_count_dict[x[0]]))
-                                         * 1.0 / len(actual_count_dict[x[0]])
-                                         <= max_err]))
+    with TestPipeline() as pipeline:
+      result = (pipeline
+                | 'create' >> beam.Create(test_input)
+                | 'get_estimate'
+                >> beam.ApproximateUnique.PerKey(size=sample_size)
+                | 'compare'
+                >> beam.FlatMap(lambda x: [abs(x[1]
+                                               - len(actual_count_dict[x[0]]))
+                                           * 1.0 / len(actual_count_dict[x[0]])
+                                           <= max_err]))
 
-    assert_that(result, equal_to([True] * len(actual_count_dict)),
-                label='assert:perkey_by_size')
-    pipeline.run()
+      assert_that(result, equal_to([True] * len(actual_count_dict)),
+                  label='assert:perkey_by_size')
 
   @retry(reraise=True, stop=stop_after_attempt(5))
   def test_approximate_unique_perkey_by_error(self):
@@ -316,20 +306,19 @@ class ApproximateUniqueTest(unittest.TestCase):
     for (x, y) in test_input:
       actual_count_dict[x].add(y)
 
-    pipeline = TestPipeline()
-    result = (pipeline
-              | 'create' >> beam.Create(test_input)
-              | 'get_estimate'
-              >> beam.ApproximateUnique.PerKey(error=est_err)
-              | 'compare'
-              >> beam.FlatMap(lambda x: [abs(x[1]
-                                             - len(actual_count_dict[x[0]]))
-                                         * 1.0 / len(actual_count_dict[x[0]])
-                                         <= est_err]))
+    with TestPipeline() as pipeline:
+      result = (pipeline
+                | 'create' >> beam.Create(test_input)
+                | 'get_estimate'
+                >> beam.ApproximateUnique.PerKey(error=est_err)
+                | 'compare'
+                >> beam.FlatMap(lambda x: [abs(x[1]
+                                               - len(actual_count_dict[x[0]]))
+                                           * 1.0 / len(actual_count_dict[x[0]])
+                                           <= est_err]))
 
-    assert_that(result, equal_to([True] * len(actual_count_dict)),
-                label='assert:perkey_by_error')
-    pipeline.run()
+      assert_that(result, equal_to([True] * len(actual_count_dict)),
+                  label='assert:perkey_by_error')
 
   @retry(reraise=True, stop=stop_after_attempt(5))
   def test_approximate_unique_globally_by_error_with_skewed_data(self):
@@ -339,18 +328,17 @@ class ApproximateUniqueTest(unittest.TestCase):
                   6, 55, 1, 13, 90, 4, 18, 52, 33, 0, 77, 21, 26, 5, 18]
     actual_count = len(set(test_input))
 
-    pipeline = TestPipeline()
-    result = (pipeline
-              | 'create' >> beam.Create(test_input)
-              | 'get_estimate'
-              >> beam.ApproximateUnique.Globally(error=est_err)
-              | 'compare'
-              >> beam.FlatMap(lambda x: [abs(x - actual_count) * 1.0
-                                         / actual_count <= est_err]))
+    with TestPipeline() as pipeline:
+      result = (pipeline
+                | 'create' >> beam.Create(test_input)
+                | 'get_estimate'
+                >> beam.ApproximateUnique.Globally(error=est_err)
+                | 'compare'
+                >> beam.FlatMap(lambda x: [abs(x - actual_count) * 1.0
+                                           / actual_count <= est_err]))
 
-    assert_that(result, equal_to([True]),
-                label='assert:globally_by_error_with_skewed_data')
-    pipeline.run()
+      assert_that(result, equal_to([True]),
+                  label='assert:globally_by_error_with_skewed_data')
 
 
 class ApproximateQuantilesTest(unittest.TestCase):

@@ -17,12 +17,13 @@
 
 """Test Pipeline, a wrapper of Pipeline for test purpose"""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse
 import shlex
-
-from nose.plugins.skip import SkipTest
+from unittest import SkipTest
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -56,10 +57,9 @@ class TestPipeline(Pipeline):
 
   For example, use assert_that for test validation::
 
-    pipeline = TestPipeline()
-    pcoll = ...
-    assert_that(pcoll, equal_to(...))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = ...
+      assert_that(pcoll, equal_to(...))
   """
 
   def __init__(self,
@@ -93,7 +93,7 @@ class TestPipeline(Pipeline):
         included when construction the pipeline options object.
 
     Raises:
-      ~exceptions.ValueError: if either the runner or options argument is not
+      ValueError: if either the runner or options argument is not
         of the expected type.
     """
     self.is_integration_test = is_integration_test

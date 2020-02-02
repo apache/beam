@@ -55,6 +55,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.FakeArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -112,7 +113,7 @@ public class DoFnInvokersTest {
   }
 
   private void invokeOnTimer(String timerId, DoFn<String, String> fn) {
-    DoFnInvokers.invokerFor(fn).invokeOnTimer(timerId, mockArgumentProvider);
+    DoFnInvokers.invokerFor(fn).invokeOnTimer(timerId, timerId, mockArgumentProvider);
   }
 
   @Test
@@ -506,7 +507,7 @@ public class DoFnInvokersTest {
     }
 
     @Override
-    public RestrictionWithDefaultTracker checkpoint() {
+    public SplitResult<RestrictionWithDefaultTracker> trySplit(double fractionOfRemainder) {
       throw new UnsupportedOperationException();
     }
 
@@ -830,7 +831,7 @@ public class DoFnInvokersTest {
     SimpleTimerDoFn fn = new SimpleTimerDoFn();
 
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
-    invoker.invokeOnTimer(timerId, mockArgumentProvider);
+    invoker.invokeOnTimer(timerId, timerId, mockArgumentProvider);
     assertThat(fn.status, equalTo("OK now"));
   }
 
@@ -859,7 +860,7 @@ public class DoFnInvokersTest {
     SimpleTimerDoFn fn = new SimpleTimerDoFn();
 
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
-    invoker.invokeOnTimer(timerId, mockArgumentProvider);
+    invoker.invokeOnTimer(timerId, timerId, mockArgumentProvider);
     assertThat(fn.window, equalTo(testWindow));
   }
 

@@ -18,6 +18,8 @@
 """Unit tests for type-hint objects and decorators - Python 3 syntax specific.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import unittest
@@ -32,9 +34,6 @@ decorators._enable_from_callable = True
 class MainInputTest(unittest.TestCase):
 
   def test_typed_dofn_method(self):
-    # process annotations are recognized and take precedence over decorators.
-    @typehints.with_input_types(typehints.Tuple[int, int])
-    @typehints.with_output_types(int)
     class MyDoFn(beam.DoFn):
       def process(self, element: int) -> typehints.Tuple[str]:
         return tuple(str(element))
@@ -48,6 +47,25 @@ class MainInputTest(unittest.TestCase):
 
     with self.assertRaisesRegex(typehints.TypeCheckError,
                                 r'requires.*int.*got.*str'):
+      _ = [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
+
+  def test_typed_dofn_method_with_class_decorators(self):
+    # Class decorators take precedence over PEP 484 hints.
+    @typehints.with_input_types(typehints.Tuple[int, int])
+    @typehints.with_output_types(int)
+    class MyDoFn(beam.DoFn):
+      def process(self, element: int) -> typehints.Tuple[str]:
+        yield element[0]
+
+    result = [(1, 2)] | beam.ParDo(MyDoFn())
+    self.assertEqual([1], sorted(result))
+
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'requires.*Tuple\[int, int\].*got.*str'):
+      _ = ['a', 'b', 'c'] | beam.ParDo(MyDoFn())
+
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'requires.*Tuple\[int, int\].*got.*int'):
       _ = [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
 
   def test_typed_dofn_instance(self):
@@ -108,6 +126,31 @@ class MainInputTest(unittest.TestCase):
     with self.assertRaisesRegex(ValueError, r'str.*is not iterable'):
       _ = [1, 2, 3] | beam.ParDo(MyDoFn())
 
+  def test_typed_dofn_method_return_none(self):
+    class MyDoFn(beam.DoFn):
+      def process(self, unused_element: int) -> None:
+        pass
+
+    result = [1, 2, 3] | beam.ParDo(MyDoFn())
+    self.assertListEqual([], result)
+
+  def test_typed_dofn_method_return_optional(self):
+    class MyDoFn(beam.DoFn):
+      def process(self, unused_element: int) -> typehints.Optional[
+          typehints.Iterable[int]]:
+        pass
+
+    result = [1, 2, 3] | beam.ParDo(MyDoFn())
+    self.assertListEqual([], result)
+
+  def test_typed_dofn_method_return_optional_not_iterable(self):
+    class MyDoFn(beam.DoFn):
+      def process(self, unused_element: int) -> typehints.Optional[int]:
+        pass
+
+    with self.assertRaisesRegex(ValueError, r'int.*is not iterable'):
+      _ = [1, 2, 3] | beam.ParDo(MyDoFn())
+
   def test_typed_callable_not_iterable(self):
     def do_fn(element: int) -> int:
       return [element]  # Return a list to not fail the pipeline.
@@ -131,7 +174,7 @@ class MainInputTest(unittest.TestCase):
                                 r'requires.*str.*got.*int.*side_input'):
       _ = [1, 2, 3] | beam.ParDo(my_do_fn, side_input=1)
 
-  def test_type_dofn_var_kwargs(self):
+  def test_typed_dofn_var_kwargs(self):
     class MyDoFn(beam.DoFn):
       def process(self, element: int, **side_inputs: typehints.Dict[str, str]) \
           -> typehints.Generator[typehints.Optional[int]]:
@@ -144,6 +187,72 @@ class MainInputTest(unittest.TestCase):
     with self.assertRaisesRegex(typehints.TypeCheckError,
                                 r'requires.*str.*got.*int.*side_inputs'):
       _ = [1, 2, 3] | beam.ParDo(my_do_fn, a=1)
+
+  def test_typed_callable_string_literals(self):
+    def do_fn(element: 'int') -> 'typehints.List[str]':
+      return [[str(element)] * 2]
+
+    result = [1, 2] | beam.ParDo(do_fn)
+    self.assertEqual([['1', '1'], ['2', '2']], sorted(result))
+
+  def test_typed_dofn_string_literals(self):
+    class MyDoFn(beam.DoFn):
+      def process(self, element: 'int') -> 'typehints.List[str]':
+        return [[str(element)] * 2]
+
+    result = [1, 2] | beam.ParDo(MyDoFn())
+    self.assertEqual([['1', '1'], ['2', '2']], sorted(result))
+
+  def test_typed_map(self):
+    def fn(element: int) -> int:
+      return element * 2
+
+    result = [1, 2, 3] | beam.Map(fn)
+    self.assertEqual([2, 4, 6], sorted(result))
+
+  def test_typed_map_return_optional(self):
+    # None is a valid element value for Map.
+    def fn(element: int) -> typehints.Optional[int]:
+      if element > 1:
+        return element
+
+    result = [1, 2, 3] | beam.Map(fn)
+    self.assertCountEqual([None, 2, 3], result)
+
+  def test_typed_flatmap(self):
+    def fn(element: int) -> typehints.Iterable[int]:
+      yield element * 2
+
+    result = [1, 2, 3] | beam.FlatMap(fn)
+    self.assertCountEqual([2, 4, 6], result)
+
+  def test_typed_flatmap_output_hint_not_iterable(self):
+    def fn(element: int) -> int:
+      return element * 2
+
+    # TODO(BEAM-8466): This case currently only generates a warning instead of a
+    #   typehints.TypeCheckError.
+    with self.assertRaisesRegex(TypeError, r'int.*is not iterable'):
+      _ = [1, 2, 3] | beam.FlatMap(fn)
+
+  def test_typed_flatmap_output_value_not_iterable(self):
+    def fn(element: int) -> typehints.Iterable[int]:
+      return element * 2
+
+    with self.assertRaisesRegex(TypeError, r'int.*is not iterable'):
+      _ = [1, 2, 3] | beam.FlatMap(fn)
+
+  def test_typed_flatmap_optional(self):
+    def fn(element: int) -> typehints.Optional[typehints.Iterable[int]]:
+      if element > 1:
+        yield element * 2
+
+    # Verify that the output type of fn is int and not Optional[int].
+    def fn2(element: int) -> int:
+      return element
+
+    result = [1, 2, 3] | beam.FlatMap(fn) | beam.Map(fn2)
+    self.assertCountEqual([4, 6], result)
 
 
 class AnnotationsTest(unittest.TestCase):
@@ -199,7 +308,18 @@ class AnnotationsTest(unittest.TestCase):
     self.assertEqual(th.input_types, ((int,), {}))
     self.assertEqual(th.output_types, ((int,), {}))
 
+  def test_flat_map_wrapper_optional_output(self):
+    # Optional should not affect output type (Nones are ignored).
+    def map_fn(element: int) -> typehints.Optional[typehints.Iterable[int]]:
+      return [element, element + 1]
+
+    th = beam.FlatMap(map_fn).get_type_hints()
+    self.assertEqual(th.input_types, ((int,), {}))
+    self.assertEqual(th.output_types, ((int,), {}))
+
+  @unittest.skip('BEAM-8662: Py3 annotations not yet supported for MapTuple')
   def test_flat_map_tuple_wrapper(self):
+    # TODO(BEAM-8662): Also test with a fn that accepts default arguments.
     def tuple_map_fn(a: str, b: str, c: str) -> typehints.Iterable[str]:
       return [a, b, c]
 
@@ -215,7 +335,18 @@ class AnnotationsTest(unittest.TestCase):
     self.assertEqual(th.input_types, ((int,), {}))
     self.assertEqual(th.output_types, ((int,), {}))
 
+  def test_map_wrapper_optional_output(self):
+    # Optional does affect output type (Nones are NOT ignored).
+    def map_fn(unused_element: int) -> typehints.Optional[int]:
+      return 1
+
+    th = beam.Map(map_fn).get_type_hints()
+    self.assertEqual(th.input_types, ((int,), {}))
+    self.assertEqual(th.output_types, ((typehints.Optional[int],), {}))
+
+  @unittest.skip('BEAM-8662: Py3 annotations not yet supported for MapTuple')
   def test_map_tuple(self):
+    # TODO(BEAM-8662): Also test with a fn that accepts default arguments.
     def tuple_map_fn(a: str, b: str, c: str) -> str:
       return a + b + c
 
@@ -229,7 +360,7 @@ class AnnotationsTest(unittest.TestCase):
 
     th = beam.Filter(filter_fn).get_type_hints()
     self.assertEqual(th.input_types, ((int,), {}))
-    self.assertEqual(th.output_types, ((bool,), {}))
+    self.assertEqual(th.output_types, ((int,), {}))
 
 
 if __name__ == '__main__':

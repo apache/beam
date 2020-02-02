@@ -61,6 +61,8 @@ https://cloud.google.com/datastore/docs/reference/rpc/google.datastore.v1 and
 https://github.com/googleapis/googleapis/tree/master/google/datastore/v1
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse

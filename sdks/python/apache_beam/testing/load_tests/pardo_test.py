@@ -117,6 +117,8 @@ or:
 -Prunner=TestDataflowRunner :sdks:python:apache_beam:testing:load-tests:run
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -138,8 +140,6 @@ if os.environ.get('LOAD_TEST_ENABLED') == 'true':
 class ParDoTest(LoadTest):
   def setUp(self):
     super(ParDoTest, self).setUp()
-    if self.are_metrics_collected():
-      self.apply_filter([self.metrics_namespace])
     self.iterations = self.get_option_or_default('iterations')
     self.number_of_counters = self.get_option_or_default('number_of_counters')
     self.number_of_operations = self.get_option_or_default(

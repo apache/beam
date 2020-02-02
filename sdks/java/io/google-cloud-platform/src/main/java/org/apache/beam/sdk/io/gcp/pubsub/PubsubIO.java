@@ -71,6 +71,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -595,6 +596,7 @@ public class PubsubIO {
         .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .setBeamSchema(schema)
+        .setTypeDescriptor(TypeDescriptor.of(GenericRecord.class))
         .setToRowFn(AvroUtils.getToRowFunction(GenericRecord.class, avroSchema))
         .setFromRowFn(AvroUtils.getFromRowFunction(GenericRecord.class))
         .setParseFn(new ParsePayloadUsingCoder<>(coder))
@@ -621,6 +623,7 @@ public class PubsubIO {
         .setNeedsMessageId(false)
         .setPubsubClientFactory(FACTORY)
         .setBeamSchema(schema)
+        .setTypeDescriptor(TypeDescriptor.of(clazz))
         .setToRowFn(AvroUtils.getToRowFunction(clazz, avroSchema))
         .setFromRowFn(AvroUtils.getFromRowFunction(clazz))
         .setParseFn(new ParsePayloadUsingCoder<>(coder))
@@ -693,7 +696,11 @@ public class PubsubIO {
     abstract SimpleFunction<PubsubMessage, T> getParseFn();
 
     @Nullable
+    @Experimental(Kind.SCHEMAS)
     abstract Schema getBeamSchema();
+
+    @Nullable
+    abstract TypeDescriptor<T> getTypeDescriptor();
 
     @Nullable
     abstract SerializableFunction<T, Row> getToRowFn();
@@ -727,7 +734,10 @@ public class PubsubIO {
 
       abstract Builder<T> setParseFn(SimpleFunction<PubsubMessage, T> parseFn);
 
+      @Experimental(Kind.SCHEMAS)
       abstract Builder<T> setBeamSchema(@Nullable Schema beamSchema);
+
+      abstract Builder<T> setTypeDescriptor(@Nullable TypeDescriptor<T> typeDescriptor);
 
       abstract Builder<T> setToRowFn(@Nullable SerializableFunction<T, Row> toRowFn);
 
@@ -981,7 +991,7 @@ public class PubsubIO {
               getNeedsMessageId());
       PCollection<T> read = input.apply(source).apply(MapElements.via(getParseFn()));
       return (getBeamSchema() != null)
-          ? read.setSchema(getBeamSchema(), getToRowFn(), getFromRowFn())
+          ? read.setSchema(getBeamSchema(), getTypeDescriptor(), getToRowFn(), getFromRowFn())
           : read.setCoder(getCoder());
     }
 
@@ -1008,7 +1018,7 @@ public class PubsubIO {
      * Max batch byte size. Messages are base64 encoded which encodes each set of three bytes into
      * four bytes.
      */
-    private static final int MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT = ((10 * 1024 * 1024) / 4) * 3;
+    private static final int MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT = ((10 * 1000 * 1000) / 4) * 3;
 
     private static final int MAX_PUBLISH_BATCH_SIZE = 100;
 
@@ -1295,7 +1305,14 @@ public class PubsubIO {
         }
 
         // NOTE: The record id is always null.
-        output.add(new OutgoingMessage(payload, attributes, c.timestamp().getMillis(), null));
+        output.add(
+            OutgoingMessage.of(
+                com.google.pubsub.v1.PubsubMessage.newBuilder()
+                    .setData(ByteString.copyFrom(payload))
+                    .putAllAttributes(attributes)
+                    .build(),
+                c.timestamp().getMillis(),
+                null));
         currentOutputBytes += payload.length;
       }
 

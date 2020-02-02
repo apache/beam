@@ -88,12 +88,21 @@ parameter can be anything, as long as elements can be grouped by it.
 No backward compatibility guarantees. Everything in this module is experimental.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections
 import logging
 import random
 import uuid
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import BinaryIO  # pylint: disable=unused-import
+from typing import Callable
+from typing import DefaultDict
+from typing import Dict
+from typing import Tuple
 
 from past.builtins import unicode
 
@@ -107,11 +116,17 @@ from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.annotations import experimental
 
+if TYPE_CHECKING:
+  from apache_beam.transforms.window import BoundedWindow
+
 __all__ = ['EmptyMatchTreatment',
            'MatchFiles',
            'MatchAll',
            'ReadableFile',
            'ReadMatches']
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class EmptyMatchTreatment(object):
@@ -209,21 +224,29 @@ class _ReadMatchesFn(beam.DoFn):
           'Found %s.' % metadata.path)
 
     # TODO: Mime type? Other arguments? Maybe arguments passed in to transform?
-    yield ReadableFile(metadata)
+    yield ReadableFile(metadata, self._compression)
 
 
 class ReadableFile(object):
   """A utility class for accessing files."""
 
-  def __init__(self, metadata):
+  def __init__(self, metadata, compression=None):
     self.metadata = metadata
+    self._compression = compression
 
-  def open(self, mime_type='text/plain'):
+  def open(self,
+           mime_type='text/plain',
+           compression_type=None):
+    compression = (
+        compression_type or
+        self._compression or
+        filesystems.CompressionTypes.AUTO)
     return filesystems.FileSystems.open(self.metadata.path,
-                                        mime_type=mime_type)
+                                        mime_type=mime_type,
+                                        compression_type=compression)
 
-  def read(self):
-    return self.open('application/octet-stream').read()
+  def read(self, mime_type='application/octet-stream'):
+    return self.open(mime_type).read()
 
   def read_utf8(self):
     return self.open().read().decode('utf-8')
@@ -261,6 +284,7 @@ class FileSink(object):
    """
 
   def open(self, fh):
+    # type: (BinaryIO) -> None
     raise NotImplementedError
 
   def write(self, record):
@@ -443,6 +467,7 @@ class WriteToFiles(beam.PTransform):
 
   @staticmethod
   def _get_sink_fn(input_sink):
+    # type: (...) -> Callable[[Any], FileSink]
     if isinstance(input_sink, FileSink):
       return lambda x: input_sink
     elif callable(input_sink):
@@ -452,6 +477,7 @@ class WriteToFiles(beam.PTransform):
 
   @staticmethod
   def _get_destination_fn(destination):
+    # type: (...) -> Callable[[Any], str]
     if isinstance(destination, ValueProvider):
       return lambda elm: destination.get()
     elif callable(destination):
@@ -471,7 +497,7 @@ class WriteToFiles(beam.PTransform):
           str,
           filesystems.FileSystems.join(temp_location,
                                        '.temp%s' % dir_uid))
-      logging.info('Added temporary directory %s', self._temp_directory.get())
+      _LOGGER.info('Added temporary directory %s', self._temp_directory.get())
 
     output = (pcoll
               | beam.ParDo(_WriteUnshardedRecordsFn(
@@ -549,7 +575,7 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
                                             '',
                                             destination)
 
-      logging.info('Moving temporary file %s to dir: %s as %s. Res: %s',
+      _LOGGER.info('Moving temporary file %s to dir: %s as %s. Res: %s',
                    r.file_name, self.path.get(), final_file_name, r)
 
       final_full_path = filesystems.FileSystems.join(self.path.get(),
@@ -562,7 +588,7 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
       except BeamIOError:
         # This error is not serious, because it may happen on a retry of the
         # bundle. We simply log it.
-        logging.debug('File %s failed to be copied. This may be due to a bundle'
+        _LOGGER.debug('File %s failed to be copied. This may be due to a bundle'
                       ' being retried.', r.file_name)
 
       yield FileResult(final_file_name,
@@ -572,7 +598,7 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
                        r.pane,
                        destination)
 
-    logging.info('Cautiously removing temporary files for'
+    _LOGGER.info('Cautiously removing temporary files for'
                  ' destination %s and window %s', destination, w)
     writer_key = (destination, w)
     self._remove_temporary_files(writer_key)
@@ -584,15 +610,19 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
       match_result = filesystems.FileSystems.match(['%s*' % prefix])
       orphaned_files = [m.path for m in match_result[0].metadata_list]
 
-      logging.debug('Deleting orphaned files: %s', orphaned_files)
+      _LOGGER.debug('Deleting orphaned files: %s', orphaned_files)
       filesystems.FileSystems.delete(orphaned_files)
     except BeamIOError as e:
-      logging.debug('Exceptions when deleting files: %s', e)
+      _LOGGER.debug('Exceptions when deleting files: %s', e)
 
 
 class _WriteShardedRecordsFn(beam.DoFn):
 
-  def __init__(self, base_path, sink_fn, shards):
+  def __init__(self,
+               base_path,
+               sink_fn,  # type: Callable[[Any], FileSink]
+               shards  # type: int
+              ):
     self.base_path = base_path
     self.sink_fn = sink_fn
     self.shards = shards
@@ -617,7 +647,7 @@ class _WriteShardedRecordsFn(beam.DoFn):
     sink.flush()
     writer.close()
 
-    logging.info('Writing file %s for destination %s and shard %s',
+    _LOGGER.info('Writing file %s for destination %s and shard %s',
                  full_file_name, destination, repr(shard))
 
     yield FileResult(full_file_name,
@@ -630,13 +660,16 @@ class _WriteShardedRecordsFn(beam.DoFn):
 
 class _AppendShardedDestination(beam.DoFn):
 
-  def __init__(self, destination, shards):
+  def __init__(self,
+               destination,  # type: Callable[[Any], str]
+               shards  # type: int
+              ):
     self.destination_fn = destination
     self.shards = shards
 
     # We start the shards for a single destination at an arbitrary point.
     self._shard_counter = collections.defaultdict(
-        lambda: random.randrange(self.shards))
+        lambda: random.randrange(self.shards))  # type: DefaultDict[str, int]
 
   def _next_shard_for_destination(self, destination):
     self._shard_counter[destination] = (
@@ -655,6 +688,9 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
 
   SPILLED_RECORDS = 'spilled_records'
   WRITTEN_FILES = 'written_files'
+
+  _writers_and_sinks = None  # type: Dict[Tuple[str, BoundedWindow], Tuple[BinaryIO, FileSink]]
+  _file_names = None  # type: Dict[Tuple[str, BoundedWindow], str]
 
   def __init__(self,
                base_path,

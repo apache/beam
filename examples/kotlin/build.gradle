@@ -132,12 +132,12 @@ task preCommit() {
 
 compileKotlin {
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = project.javaVersion
     }
 }
 compileTestKotlin {
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = project.javaVersion
     }
 }
 repositories {

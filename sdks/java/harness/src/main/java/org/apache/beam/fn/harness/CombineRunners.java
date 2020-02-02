@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness;
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
@@ -30,13 +31,13 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
-import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
-import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.function.ThrowingFunction;
+import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -57,13 +58,13 @@ public class CombineRunners {
     @Override
     public Map<String, PTransformRunnerFactory> getPTransformRunnerFactories() {
       return ImmutableMap.of(
-          BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_PER_KEY_PRECOMBINE),
+          PTransformTranslation.COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN,
           new PrecombineFactory(),
-          BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_PER_KEY_MERGE_ACCUMULATORS),
+          PTransformTranslation.COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN,
           MapFnRunners.forValueMapFnFactory(CombineRunners::createMergeAccumulatorsMapFunction),
-          BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_PER_KEY_EXTRACT_OUTPUTS),
+          PTransformTranslation.COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN,
           MapFnRunners.forValueMapFnFactory(CombineRunners::createExtractOutputsMapFunction),
-          BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_GROUPED_VALUES),
+          PTransformTranslation.COMBINE_GROUPED_VALUES_TRANSFORM_URN,
           MapFnRunners.forValueMapFnFactory(CombineRunners::createCombineGroupedValuesMapFunction));
     }
   }
@@ -125,6 +126,7 @@ public class CombineRunners {
         PCollectionConsumerRegistry pCollectionConsumerRegistry,
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
+        Consumer<ThrowingRunnable> tearDownFunctions,
         BundleSplitListener splitListener)
         throws IOException {
       // Get objects needed to create the runner.
@@ -154,7 +156,7 @@ public class CombineRunners {
       CombineFn<InputT, AccumT, ?> combineFn =
           (CombineFn)
               SerializableUtils.deserializeFromByteArray(
-                  combinePayload.getCombineFn().getSpec().getPayload().toByteArray(), "CombineFn");
+                  combinePayload.getCombineFn().getPayload().toByteArray(), "CombineFn");
       Coder<AccumT> accumCoder =
           (Coder<AccumT>) rehydratedComponents.getCoder(combinePayload.getAccumulatorCoderId());
 
@@ -187,7 +189,7 @@ public class CombineRunners {
     CombineFn<?, AccumT, ?> combineFn =
         (CombineFn)
             SerializableUtils.deserializeFromByteArray(
-                combinePayload.getCombineFn().getSpec().getPayload().toByteArray(), "CombineFn");
+                combinePayload.getCombineFn().getPayload().toByteArray(), "CombineFn");
 
     return (KV<KeyT, Iterable<AccumT>> input) ->
         KV.of(input.getKey(), combineFn.mergeAccumulators(input.getValue()));
@@ -200,7 +202,7 @@ public class CombineRunners {
     CombineFn<?, AccumT, OutputT> combineFn =
         (CombineFn)
             SerializableUtils.deserializeFromByteArray(
-                combinePayload.getCombineFn().getSpec().getPayload().toByteArray(), "CombineFn");
+                combinePayload.getCombineFn().getPayload().toByteArray(), "CombineFn");
 
     return (KV<KeyT, AccumT> input) ->
         KV.of(input.getKey(), combineFn.extractOutput(input.getValue()));
@@ -214,7 +216,7 @@ public class CombineRunners {
     CombineFn<InputT, AccumT, OutputT> combineFn =
         (CombineFn)
             SerializableUtils.deserializeFromByteArray(
-                combinePayload.getCombineFn().getSpec().getPayload().toByteArray(), "CombineFn");
+                combinePayload.getCombineFn().getPayload().toByteArray(), "CombineFn");
 
     return (KV<KeyT, Iterable<InputT>> input) -> {
       return KV.of(input.getKey(), combineFn.apply(input.getValue()));

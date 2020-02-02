@@ -36,4 +36,7 @@ public interface MetricCell<DataT> extends Serializable {
 
   /** Return the cumulative value of this metric. */
   DataT getCumulative();
+
+  /** Reset this metric. */
+  void reset();
 }

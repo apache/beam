@@ -35,6 +35,8 @@
   - https://beam.apache.org/roadmap/portability/
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import typing

@@ -31,9 +31,9 @@ import org.apache.avro.reflect.AvroIgnore;
 import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.AvroSchema;
 import org.apache.avro.util.Utf8;
-import org.apache.beam.sdk.schemas.LogicalTypes.FixedBytes;
-import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.transforms.Group;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.PAssert;
@@ -41,7 +41,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -50,6 +50,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Days;
+import org.joda.time.Instant;
 import org.joda.time.LocalDate;
 import org.junit.Rule;
 import org.junit.Test;
@@ -211,6 +212,44 @@ public class AvroSchemaTest {
     }
 
     public AvroPojo() {}
+
+    @Override
+    public String toString() {
+      return "AvroPojo{"
+          + "boolNonNullable="
+          + boolNonNullable
+          + ", anInt="
+          + anInt
+          + ", aLong="
+          + aLong
+          + ", aFloat="
+          + aFloat
+          + ", aDouble="
+          + aDouble
+          + ", string='"
+          + string
+          + '\''
+          + ", bytes="
+          + bytes
+          + ", fixed="
+          + Arrays.toString(fixed)
+          + ", date="
+          + date
+          + ", timestampMillis="
+          + timestampMillis
+          + ", testEnum="
+          + testEnum
+          + ", row="
+          + row
+          + ", array="
+          + array
+          + ", map="
+          + map
+          + ", extraField='"
+          + extraField
+          + '\''
+          + '}';
+    }
   }
 
   private static final Schema SUBSCHEMA =
@@ -219,6 +258,8 @@ public class AvroSchemaTest {
           .addNullableField("int", FieldType.INT32)
           .build();
   private static final FieldType SUB_TYPE = FieldType.row(SUBSCHEMA).withNullable(true);
+
+  private static final EnumerationType TEST_ENUM_TYPE = EnumerationType.create("abc", "cde");
 
   private static final Schema SCHEMA =
       Schema.builder()
@@ -232,7 +273,7 @@ public class AvroSchemaTest {
           .addField("fixed", FieldType.logicalType(FixedBytes.of(4)))
           .addField("date", FieldType.DATETIME)
           .addField("timestampMillis", FieldType.DATETIME)
-          .addField("testEnum", FieldType.STRING)
+          .addField("testEnum", FieldType.logicalType(TEST_ENUM_TYPE))
           .addNullableField("row", SUB_TYPE)
           .addNullableField("array", FieldType.array(SUB_TYPE))
           .addNullableField("map", FieldType.map(FieldType.STRING, SUB_TYPE))
@@ -250,7 +291,7 @@ public class AvroSchemaTest {
           .addField("fixed", FieldType.logicalType(FixedBytes.of(4)))
           .addField("date", FieldType.DATETIME)
           .addField("timestampMillis", FieldType.DATETIME)
-          .addField("testEnum", FieldType.STRING)
+          .addField("testEnum", FieldType.logicalType(TEST_ENUM_TYPE))
           .addNullableField("row", SUB_TYPE)
           .addNullableField("array", FieldType.array(SUB_TYPE.withNullable(false)))
           .addNullableField("map", FieldType.map(FieldType.STRING, SUB_TYPE.withNullable(false)))
@@ -322,7 +363,7 @@ public class AvroSchemaTest {
               BYTE_ARRAY,
               DATE.toDateTimeAtStartOfDay(DateTimeZone.UTC),
               DATE_TIME,
-              "abc",
+              TEST_ENUM_TYPE.valueOf("abc"),
               NESTED_ROW,
               ImmutableList.of(NESTED_ROW, NESTED_ROW),
               ImmutableMap.of("k1", NESTED_ROW, "k2", NESTED_ROW))
@@ -397,7 +438,7 @@ public class AvroSchemaTest {
               BYTE_ARRAY,
               DATE.toDateTimeAtStartOfDay(DateTimeZone.UTC),
               DATE_TIME,
-              "abc",
+              TEST_ENUM_TYPE.valueOf("abc"),
               NESTED_ROW,
               ImmutableList.of(NESTED_ROW, NESTED_ROW),
               ImmutableMap.of("k1", NESTED_ROW, "k2", NESTED_ROW))
@@ -412,9 +453,23 @@ public class AvroSchemaTest {
 
   @Test
   public void testRowToPojo() {
+
+    LocalDate test = new LocalDate(((Instant) ROW_FOR_POJO.getValue(8)).getMillis());
     SerializableFunction<Row, AvroPojo> fromRow =
         new AvroRecordSchema().fromRowFunction(TypeDescriptor.of(AvroPojo.class));
     assertEquals(AVRO_POJO, fromRow.apply(ROW_FOR_POJO));
+  }
+
+  @Test
+  public void testPojoRecordToRowSerializable() {
+    SerializableUtils.ensureSerializableRoundTrip(
+        new AvroRecordSchema().toRowFunction(TypeDescriptor.of(AvroPojo.class)));
+  }
+
+  @Test
+  public void testPojoRecordFromRowSerializable() {
+    SerializableUtils.ensureSerializableRoundTrip(
+        new AvroRecordSchema().fromRowFunction(TypeDescriptor.of(AvroPojo.class)));
   }
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
@@ -424,14 +479,19 @@ public class AvroSchemaTest {
   public void testAvroPipelineGroupBy() {
     PCollection<Row> input = pipeline.apply(Create.of(ROW_FOR_POJO)).setRowSchema(POJO_SCHEMA);
 
-    PCollection<KV<Row, Iterable<Row>>> output = input.apply(Group.byFieldNames("string"));
+    PCollection<Row> output = input.apply(Group.byFieldNames("string"));
+    Schema keySchema = Schema.builder().addStringField("string").build();
+    Schema outputSchema =
+        Schema.builder()
+            .addRowField("key", keySchema)
+            .addIterableField("value", FieldType.row(POJO_SCHEMA))
+            .build();
     PAssert.that(output)
         .containsInAnyOrder(
-            KV.of(
-                Row.withSchema(Schema.of(Field.of("string", FieldType.STRING)))
-                    .addValue("mystring")
-                    .build(),
-                ImmutableList.of(ROW_FOR_POJO)));
+            Row.withSchema(outputSchema)
+                .addValue(Row.withSchema(keySchema).addValue("mystring").build())
+                .addIterable(ImmutableList.of(ROW_FOR_POJO))
+                .build());
 
     pipeline.run();
   }

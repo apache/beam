@@ -17,6 +17,8 @@
 
 """Cloud Datastore query splitter test."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import unittest
@@ -38,9 +40,9 @@ try:
 
 # TODO(BEAM-4543): Remove TypeError once googledatastore dependency is removed.
 except (ImportError, TypeError):
-  query_splitter = None
-  SplitNotPossibleError = None
-  QuerySplitterTestBase = unittest.TestCase
+  query_splitter = None  # type: ignore
+  SplitNotPossibleError = None  # type: ignore
+  QuerySplitterTestBase = unittest.TestCase  # type: ignore
 
 
 @unittest.skipIf(query_splitter is None, 'GCP dependencies are not installed')

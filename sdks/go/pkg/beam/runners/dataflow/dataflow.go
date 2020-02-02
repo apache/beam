@@ -57,6 +57,7 @@ var (
 	region               = flag.String("region", "", "GCP Region (optional but encouraged)")
 	network              = flag.String("network", "", "GCP network (optional)")
 	subnetwork           = flag.String("subnetwork", "", "GCP subnetwork (optional)")
+	noUsePublicIPs       = flag.Bool("no_use_public_ips", false, "Workers must not use public IP addresses (optional)")
 	tempLocation         = flag.String("temp_location", "", "Temp location (optional)")
 	machineType          = flag.String("worker_machine_type", "", "GCE machine type (optional)")
 	minCPUPlatform       = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
@@ -143,6 +144,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		Zone:                *zone,
 		Network:             *network,
 		Subnetwork:          *subnetwork,
+		NoUsePublicIPs:      *noUsePublicIPs,
 		NumWorkers:          *numWorkers,
 		MaxNumWorkers:       *maxNumWorkers,
 		Algorithm:           *autoscalingAlgorithm,

@@ -21,6 +21,8 @@ Note to implementors:
   LocalFileSystem, which gets unix-style paths in the form /foo/bar.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -35,6 +37,8 @@ import time
 import zlib
 from builtins import object
 from builtins import zip
+from typing import BinaryIO  # pylint: disable=unused-import
+from typing import Tuple
 
 from future.utils import with_metaclass
 from past.builtins import long
@@ -342,8 +346,8 @@ class CompressedFile(object):
         should be negative).
 
     Raises:
-      ~exceptions.IOError: When this buffer is closed.
-      ~exceptions.ValueError: When whence is invalid or the file is not seekable
+      IOError: When this buffer is closed.
+      ValueError: When whence is invalid or the file is not seekable
     """
     if whence == os.SEEK_SET:
       absolute_offset = offset
@@ -445,7 +449,7 @@ class BeamIOError(IOError):
     self.exception_details = exception_details
 
 
-class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
+class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
   """A class that defines the functions that can be performed on a filesystem.
 
   All methods are abstract and they are for file system providers to
@@ -478,6 +482,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
 
   @abc.abstractmethod
   def join(self, basepath, *paths):
+    # type: (str, *str) -> str
     """Join two or more pathname components for the filesystem
 
     Args:
@@ -490,6 +495,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
 
   @abc.abstractmethod
   def split(self, path):
+    # type: (str) -> Tuple[str, str]
     """Splits the given path into two parts.
 
     Splits the path into a pair (head, tail) such that tail contains the last
@@ -513,7 +519,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
       path: string path of the directory structure that should be created
 
     Raises:
-      IOError if leaf directory already exists.
+      IOError: if leaf directory already exists.
     """
     raise NotImplementedError
 
@@ -536,7 +542,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
       Generator of ``FileMetadata`` objects.
 
     Raises:
-      ``BeamIOError`` if listing fails, but not if no files were found.
+      ``BeamIOError``: if listing fails, but not if no files were found.
     """
     raise NotImplementedError
 
@@ -660,7 +666,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
     Returns: list of ``MatchResult`` objects.
 
     Raises:
-      ``BeamIOError`` if any of the pattern match operations fail
+      ``BeamIOError``: if any of the pattern match operations fail
     """
     if limits is None:
       limits = [None] * len(patterns)
@@ -717,6 +723,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
   @abc.abstractmethod
   def create(self, path, mime_type='application/octet-stream',
              compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
     """Returns a write channel for the given file path.
 
     Args:
@@ -731,6 +738,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
   @abc.abstractmethod
   def open(self, path, mime_type='application/octet-stream',
            compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
     """Returns a read channel for the given file path.
 
     Args:
@@ -751,7 +759,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
       destination_file_names: list of destination of the new object
 
     Raises:
-      ``BeamIOError`` if any of the copy operations fail
+      ``BeamIOError``: if any of the copy operations fail
     """
     raise NotImplementedError
 
@@ -765,12 +773,13 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
       destination_file_names: List of destination_file_names for the files
 
     Raises:
-      ``BeamIOError`` if any of the rename operations fail
+      ``BeamIOError``: if any of the rename operations fail
     """
     raise NotImplementedError
 
   @abc.abstractmethod
   def exists(self, path):
+    # type: (str) -> bool
     """Check if the provided path exists on the FileSystem.
 
     Args:
@@ -782,6 +791,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
 
   @abc.abstractmethod
   def size(self, path):
+    # type: (str) -> int
     """Get size in bytes of a file on the FileSystem.
 
     Args:
@@ -790,7 +800,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
     Returns: int size of file according to the FileSystem.
 
     Raises:
-      ``BeamIOError`` if path doesn't exist.
+      ``BeamIOError``: if path doesn't exist.
     """
     raise NotImplementedError
 
@@ -804,7 +814,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
     Returns: float UNIX Epoch time
 
     Raises:
-      ``BeamIOError`` if path doesn't exist.
+      ``BeamIOError``: if path doesn't exist.
     """
     raise NotImplementedError
 
@@ -825,7 +835,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
     Returns: string containing checksum
 
     Raises:
-      ``BeamIOError`` if path isn't a file or doesn't exist.
+      ``BeamIOError``: if path isn't a file or doesn't exist.
     """
     raise NotImplementedError
 
@@ -838,6 +848,6 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
       paths: list of paths that give the file objects to be deleted
 
     Raises:
-      ``BeamIOError`` if any of the delete operations fail
+      ``BeamIOError``: if any of the delete operations fail
     """
     raise NotImplementedError

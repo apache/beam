@@ -31,10 +31,9 @@ dependencies {
   compile "com.tdunning:t-digest:$tdigest_version"
   compile library.java.slf4j_api
   testCompile library.java.avro
-  testCompile library.java.commons_lang3
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.junit
-  testRuntimeOnly project(":runners:direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

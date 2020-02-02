@@ -16,7 +16,6 @@
 kind: ConfigMap
 metadata:
   name: zookeeper-config
-  namespace: kafka
 apiVersion: v1
 data:
   init.sh: |-

@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -32,6 +34,8 @@ from future.moves.urllib.error import URLError
 from future.moves.urllib.request import urlopen
 
 from apache_beam.version import __version__ as beam_version
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class SubprocessServer(object):
@@ -78,7 +82,7 @@ class SubprocessServer(object):
         port, = pick_port(None)
         cmd = [arg.replace('{{PORT}}', str(port)) for arg in self._cmd]
       endpoint = 'localhost:%s' % port
-      logging.warning("Starting service with %s", str(cmd).replace("',", "'"))
+      _LOGGER.warning("Starting service with %s", str(cmd).replace("',", "'"))
       try:
         self._process = subprocess.Popen(cmd)
         wait_secs = .1
@@ -86,7 +90,7 @@ class SubprocessServer(object):
         channel_ready = grpc.channel_ready_future(channel)
         while True:
           if self._process.poll() is not None:
-            logging.error("Starting job service with %s", cmd)
+            _LOGGER.error("Starting job service with %s", cmd)
             raise RuntimeError(
                 'Service failed to start up with error %s' %
                 self._process.poll())
@@ -100,7 +104,7 @@ class SubprocessServer(object):
                         endpoint)
         return self._stub_class(channel)
       except:  # pylint: disable=bare-except
-        logging.exception("Error bringing up service")
+        _LOGGER.exception("Error bringing up service")
         self.stop()
         raise
 
@@ -169,13 +173,14 @@ class JavaJarServer(SubprocessServer):
             classifier='SNAPSHOT',
             appendix=appendix))
     if os.path.exists(local_path):
-      logging.info('Using pre-built snapshot at %s', local_path)
+      _LOGGER.info('Using pre-built snapshot at %s', local_path)
       return local_path
     elif '.dev' in beam_version:
       # TODO: Attempt to use nightly snapshots?
       raise RuntimeError(
-          'Please build the server with \n  cd %s; ./gradlew %s' % (
-              os.path.abspath(project_root), gradle_target))
+          ('%s not found. '
+           'Please build the server with \n  cd %s; ./gradlew %s') % (
+               local_path, os.path.abspath(project_root), gradle_target))
     else:
       return cls.path_to_maven_jar(
           artifact_id, cls.BEAM_GROUP_ID, beam_version, cls.APACHE_REPOSITORY)
@@ -186,7 +191,7 @@ class JavaJarServer(SubprocessServer):
     if os.path.exists(url):
       return url
     else:
-      logging.warning('Downloading job server jar from %s' % url)
+      _LOGGER.warning('Downloading job server jar from %s' % url)
       cached_jar = os.path.join(cls.JAR_CACHE, os.path.basename(url))
       if not os.path.exists(cached_jar):
         if not os.path.exists(cls.JAR_CACHE):

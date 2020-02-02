@@ -18,6 +18,8 @@
 Integration test for Google Cloud BigQuery.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import base64
@@ -44,6 +46,9 @@ try:
   from apitools.base.py.exceptions import HttpError
 except ImportError:
   pass
+
+
+_LOGGER = logging.getLogger(__name__)
 
 WAIT_UNTIL_FINISH_DURATION_MS = 15 * 60 * 1000
 
@@ -90,7 +95,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     try:
       self.bigquery_client.client.datasets.Delete(request)
     except HttpError:
-      logging.debug('Failed to clean up dataset %s' % self.dataset_id)
+      _LOGGER.debug('Failed to clean up dataset %s' % self.dataset_id)
 
   def _setup_new_types_env(self):
     table_schema = bigquery.TableSchema()

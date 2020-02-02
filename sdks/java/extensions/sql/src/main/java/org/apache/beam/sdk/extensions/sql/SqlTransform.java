@@ -27,6 +27,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv.BeamSqlEnvBuilder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
@@ -87,6 +88,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   abstract String queryString();
 
+  abstract QueryParameters queryParameters();
+
   abstract List<UdfDefinition> udfDefinitions();
 
   abstract List<UdafDefinition> udafDefinitions();
@@ -122,7 +125,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     sqlEnvBuilder.setPipelineOptions(input.getPipeline().getOptions());
 
     BeamSqlEnv sqlEnv = sqlEnvBuilder.build();
-    return BeamSqlRelUtils.toPCollection(input.getPipeline(), sqlEnv.parseQuery(queryString()));
+    return BeamSqlRelUtils.toPCollection(
+        input.getPipeline(), sqlEnv.parseQuery(queryString(), queryParameters()));
   }
 
   @SuppressWarnings("unchecked")
@@ -177,6 +181,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   public static SqlTransform query(String queryString) {
     return builder()
         .setQueryString(queryString)
+        .setQueryParameters(QueryParameters.ofNone())
         .setUdafDefinitions(Collections.emptyList())
         .setUdfDefinitions(Collections.emptyList())
         .setTableProviderMap(Collections.emptyMap())
@@ -192,6 +197,14 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   public SqlTransform withDefaultTableProvider(String name, TableProvider tableProvider) {
     return withTableProvider(name, tableProvider).toBuilder().setDefaultTableProvider(name).build();
+  }
+
+  public SqlTransform withNamedParameters(Map<String, ?> parameters) {
+    return toBuilder().setQueryParameters(QueryParameters.ofNamed(parameters)).build();
+  }
+
+  public SqlTransform withPositionalParameters(List<?> parameters) {
+    return toBuilder().setQueryParameters(QueryParameters.ofPositional(parameters)).build();
   }
 
   public SqlTransform withAutoUdfUdafLoad(boolean autoUdfUdafLoad) {
@@ -244,6 +257,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setQueryString(String queryString);
+
+    abstract Builder setQueryParameters(QueryParameters queryParameters);
 
     abstract Builder setUdfDefinitions(List<UdfDefinition> udfDefinitions);
 

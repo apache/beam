@@ -16,6 +16,8 @@
 #
 
 """Unit tests for the sources framework."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -123,11 +125,10 @@ class SourcesTest(unittest.TestCase):
 
   def test_run_direct(self):
     file_name = self._create_temp_file(b'aaaa\nbbbb\ncccc\ndddd')
-    pipeline = TestPipeline()
-    pcoll = pipeline | beam.io.Read(LineSource(file_name))
-    assert_that(pcoll, equal_to([b'aaaa', b'bbbb', b'cccc', b'dddd']))
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | beam.io.Read(LineSource(file_name))
+      assert_that(pcoll, equal_to([b'aaaa', b'bbbb', b'cccc', b'dddd']))
 
-    pipeline.run()
 
 
 if __name__ == '__main__':

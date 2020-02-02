@@ -17,6 +17,8 @@
 
 """Dataflow credentials and authentication."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -39,6 +41,10 @@ is_running_in_gce = False
 # When we are running in GCE, this value is set based on worker startup
 # information.
 executing_project = None
+
+
+_LOGGER = logging.getLogger(__name__)
+
 
 if GceAssertionCredentials is not None:
   class _GceAssertionCredentials(GceAssertionCredentials):
@@ -101,9 +107,9 @@ class _Credentials(object):
       # apitools use urllib with the global timeout. Set it to 60 seconds
       # to prevent network related stuckness issues.
       if not socket.getdefaulttimeout():
-        logging.info("Setting socket default timeout to 60 seconds.")
+        _LOGGER.info("Setting socket default timeout to 60 seconds.")
         socket.setdefaulttimeout(60)
-      logging.info(
+      _LOGGER.info(
           "socket default timeout is %s seconds.", socket.getdefaulttimeout())
 
       cls._credentials = cls._get_service_credentials()
@@ -122,7 +128,9 @@ class _Credentials(object):
           'https://www.googleapis.com/auth/cloud-platform',
           'https://www.googleapis.com/auth/devstorage.full_control',
           'https://www.googleapis.com/auth/userinfo.email',
-          'https://www.googleapis.com/auth/datastore'
+          'https://www.googleapis.com/auth/datastore',
+          'https://www.googleapis.com/auth/spanner.admin',
+          'https://www.googleapis.com/auth/spanner.data'
       ]
       try:
         credentials = GoogleCredentials.get_application_default()
@@ -131,7 +139,7 @@ class _Credentials(object):
                       'Credentials.')
         return credentials
       except Exception as e:
-        logging.warning(
+        _LOGGER.warning(
             'Unable to find default credentials to use: %s\n'
             'Connecting anonymously.', e)
         return None

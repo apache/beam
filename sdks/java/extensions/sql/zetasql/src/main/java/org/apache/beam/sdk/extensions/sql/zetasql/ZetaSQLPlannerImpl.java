@@ -17,13 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
+import com.google.zetasql.Analyzer;
 import com.google.zetasql.LanguageOptions;
-import com.google.zetasql.Value;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedQueryStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
 import java.io.Reader;
-import java.util.Map;
+import java.util.List;
 import java.util.logging.Logger;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ConversionContext;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ExpressionConverter;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.QueryStatementConverter;
@@ -34,7 +35,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlan
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelRoot;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.CachingRelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
@@ -129,14 +129,20 @@ public class ZetaSQLPlannerImpl implements Planner {
         String.format("%s.rel(SqlNode) is not implemented", this.getClass().getCanonicalName()));
   }
 
-  public RelRoot rel(String sql, Map<String, Value> params) {
+  public RelRoot rel(String sql, QueryParameters params) {
     this.cluster = RelOptCluster.create(planner, new RexBuilder(typeFactory));
     this.expressionConverter = new ExpressionConverter(cluster, params);
 
     QueryTrait trait = new QueryTrait();
 
+    // Set up table providers that need to be pre-registered
+    // TODO(https://issues.apache.org/jira/browse/BEAM-8817): share this logic between dialects
+    List<List<String>> tables = Analyzer.extractTableNamesFromStatement(sql);
+    TableResolution.registerTables(this.defaultSchemaPlus, tables);
+
     ResolvedStatement statement =
-        SqlAnalyzer.withQueryParams(params)
+        SqlAnalyzer.getBuilder()
+            .withQueryParams(params)
             .withQueryTrait(trait)
             .withCalciteContext(config.getContext())
             .withTopLevelSchema(defaultSchemaPlus)
@@ -170,11 +176,6 @@ public class ZetaSQLPlannerImpl implements Planner {
   @Override
   public RelNode transform(int i, RelTraitSet relTraitSet, RelNode relNode)
       throws RelConversionException {
-    relNode
-        .getCluster()
-        .setMetadataProvider(
-            new CachingRelMetadataProvider(
-                relNode.getCluster().getMetadataProvider(), relNode.getCluster().getPlanner()));
     Program program = programs.get(i);
     return program.run(planner, relNode, relTraitSet, ImmutableList.of(), ImmutableList.of());
   }

@@ -37,6 +37,7 @@ import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
@@ -100,6 +101,17 @@ public interface ValueProvider<T> extends Serializable {
     public String toString() {
       return String.valueOf(value);
     }
+
+    @Override
+    public boolean equals(Object other) {
+      return other instanceof StaticValueProvider
+          && Objects.equals(value, ((StaticValueProvider) other).value);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(value);
+    }
   }
 
   /**
@@ -158,6 +170,18 @@ public interface ValueProvider<T> extends Serializable {
           .add("value", value)
           .add("translator", translator.getClass().getSimpleName())
           .toString();
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      return other instanceof NestedValueProvider
+          && Objects.equals(value, ((NestedValueProvider) other).value)
+          && Objects.equals(translator, ((NestedValueProvider) other).translator);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(value, translator);
     }
   }
 
@@ -264,6 +288,21 @@ public interface ValueProvider<T> extends Serializable {
           .add("propertyName", propertyName)
           .add("default", defaultValue)
           .toString();
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      return other instanceof RuntimeValueProvider
+          && Objects.equals(klass, ((RuntimeValueProvider) other).klass)
+          && Objects.equals(methodName, ((RuntimeValueProvider) other).methodName)
+          && Objects.equals(propertyName, ((RuntimeValueProvider) other).propertyName)
+          && Objects.equals(defaultValue, ((RuntimeValueProvider) other).defaultValue)
+          && Objects.equals(optionsId, ((RuntimeValueProvider) other).optionsId);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(klass, methodName, propertyName, defaultValue, optionsId);
     }
   }
 

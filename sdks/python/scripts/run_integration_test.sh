@@ -194,8 +194,10 @@ if [[ -z $PIPELINE_OPTS ]]; then
   fi
 
   # Install test dependencies for ValidatesRunner tests.
-  echo "pyhamcrest" > postcommit_requirements.txt
-  echo "mock" >> postcommit_requirements.txt
+  # pyhamcrest==1.10.0 doesn't work on Py2.
+  # See: https://github.com/hamcrest/PyHamcrest/issues/131.
+  echo "pyhamcrest!=1.10.0,<2.0.0" > postcommit_requirements.txt
+  echo "mock<3.0.0" >> postcommit_requirements.txt
 
   # Options used to run testing pipeline on Cloud Dataflow Service. Also used for
   # running on DirectRunner (some options ignored).

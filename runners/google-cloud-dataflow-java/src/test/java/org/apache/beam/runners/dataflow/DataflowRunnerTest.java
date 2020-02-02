@@ -34,13 +34,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeFalse;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyListOf;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isA;
 import static org.mockito.Mockito.mock;
@@ -93,6 +94,7 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
@@ -103,6 +105,7 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -535,6 +538,53 @@ public class DataflowRunnerTest implements Serializable {
     assertThat(sdkPipelineOptions, hasKey("options"));
     Map<String, Object> optionsMap = (Map<String, Object>) sdkPipelineOptions.get("options");
     assertThat(optionsMap, hasEntry("jacksonIncompatible", (Object) "userCustomTypeTest"));
+  }
+
+  @Test
+  public void testZoneAndWorkerRegionMutuallyExclusive() {
+    GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
+    options.setZone("us-east1-b");
+    options.setWorkerRegion("us-east1");
+    assertThrows(
+        IllegalArgumentException.class, () -> DataflowRunner.validateWorkerSettings(options));
+  }
+
+  @Test
+  public void testZoneAndWorkerZoneMutuallyExclusive() {
+    GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
+    options.setZone("us-east1-b");
+    options.setWorkerZone("us-east1-c");
+    assertThrows(
+        IllegalArgumentException.class, () -> DataflowRunner.validateWorkerSettings(options));
+  }
+
+  @Test
+  public void testExperimentRegionAndWorkerRegionMutuallyExclusive() {
+    GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
+    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    ExperimentalOptions.addExperiment(dataflowOptions, "worker_region=us-west1");
+    options.setWorkerRegion("us-east1");
+    assertThrows(
+        IllegalArgumentException.class, () -> DataflowRunner.validateWorkerSettings(options));
+  }
+
+  @Test
+  public void testExperimentRegionAndWorkerZoneMutuallyExclusive() {
+    GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
+    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    ExperimentalOptions.addExperiment(dataflowOptions, "worker_region=us-west1");
+    options.setWorkerZone("us-east1-b");
+    assertThrows(
+        IllegalArgumentException.class, () -> DataflowRunner.validateWorkerSettings(options));
+  }
+
+  @Test
+  public void testWorkerRegionAndWorkerZoneMutuallyExclusive() {
+    GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
+    options.setWorkerRegion("us-east1");
+    options.setWorkerZone("us-east1-b");
+    assertThrows(
+        IllegalArgumentException.class, () -> DataflowRunner.validateWorkerSettings(options));
   }
 
   @Test

@@ -17,6 +17,8 @@
 
 """A word-counting workflow."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse
@@ -30,6 +32,8 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 
 SLEEP_TIME_SECS = 1
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class StreamingUserMetricsDoFn(beam.DoFn):
@@ -53,7 +57,7 @@ class StreamingUserMetricsDoFn(beam.DoFn):
     self.double_message_counter.inc()
     self.msg_len_dist_metric.update(len(text_line))
 
-    logging.debug("Done processing returning element array: '%s'", element)
+    _LOGGER.debug("Done processing returning element array: '%s'", element)
 
     return [element]
 

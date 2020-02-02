@@ -181,6 +181,9 @@ func (*boolDecoder) Decode(r io.Reader) (*FullValue, error) {
 	// Encoding: false = 0, true = 1
 	b := make([]byte, 1, 1)
 	if err := ioutilx.ReadNBufUnsafe(r, b); err != nil {
+		if err == io.EOF {
+			return nil, err
+		}
 		return nil, fmt.Errorf("error decoding bool: %v", err)
 	}
 	switch b[0] {

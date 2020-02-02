@@ -25,7 +25,7 @@
 #   1. Please set all variables in script.config before running this script.
 #   2. Please babysit this script until first pipeline starts.
 
-
+cd $(dirname $0)
 . script.config
 
 
@@ -244,7 +244,8 @@ fi
 
 echo ""
 echo "====================Starting Java Mobile Game====================="
-if [[ "$java_mobile_game" = true && ! -z `which gcloud` ]]; then
+if [[ ("$java_mobile_game_direct" = true || "$java_mobile_game_dataflow" = true) \
+      && ! -z `which gcloud` ]]; then
   MOBILE_GAME_DATASET=${USER}_java_validations_$(date +%m%d)_$RANDOM
   MOBILE_GAME_PUBSUB_TOPIC=leader_board-${USER}-java-topic-$(date +%m%d)_$RANDOM
   echo "Using GCP project: ${USER_GCP_PROJECT}"
@@ -252,27 +253,44 @@ if [[ "$java_mobile_game" = true && ! -z `which gcloud` ]]; then
   echo "Will create Pubsub topic: ${MOBILE_GAME_PUBSUB_TOPIC}"
 
   echo "-----------------Creating BigQuery Dataset-----------------"
-  bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+  bq mk --project_id=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
 
   echo "-----------------Creating Pubsub Topic-----------------"
   gcloud pubsub topics create --project=${USER_GCP_PROJECT} ${MOBILE_GAME_PUBSUB_TOPIC}
 
-  echo "**************************************************************************"
-  echo "* Java mobile game validations: UserScore, HourlyTeamScore, Leaderboard"
-  echo "**************************************************************************"
-  ./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow \
-  -Prepourl=${REPO_URL} \
-  -Pver=${RELEASE_VER} \
-  -PgcpProject=${USER_GCP_PROJECT} \
-  -PbqDataset=${MOBILE_GAME_DATASET} \
-  -PpubsubTopic=${MOBILE_GAME_PUBSUB_TOPIC} \
-  -PgcsBucket=${USER_GCS_BUCKET:5}  # skip 'gs://' prefix
+  if [[ "$java_mobile_game_direct" = true ]]; then
+    echo "**************************************************************************"
+    echo "* Java mobile game on DirectRunner: UserScore, HourlyTeamScore, Leaderboard"
+    echo "**************************************************************************"
+    ./gradlew :runners:direct-java:runMobileGamingJavaDirect \
+    -Prepourl=${REPO_URL} \
+    -Pver=${RELEASE_VER} \
+    -PgcpProject=${USER_GCP_PROJECT} \
+    -PbqDataset=${MOBILE_GAME_DATASET} \
+    -PpubsubTopic=${MOBILE_GAME_PUBSUB_TOPIC} \
+    -PgcsBucket=${USER_GCS_BUCKET:5}  # skip 'gs://' prefix
+  else
+   echo "* Skip Java Mobile Game on DirectRunner."
+  fi
+
+  if [[ "$java_mobile_game_dataflow" = true ]]; then
+    echo "**************************************************************************"
+    echo "* Java mobile game on DataflowRunner: UserScore, HourlyTeamScore, Leaderboard"
+    echo "**************************************************************************"
+    ./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow \
+    -Prepourl=${REPO_URL} \
+    -Pver=${RELEASE_VER} \
+    -PgcpProject=${USER_GCP_PROJECT} \
+    -PbqDataset=${MOBILE_GAME_DATASET} \
+    -PpubsubTopic=${MOBILE_GAME_PUBSUB_TOPIC} \
+    -PgcsBucket=${USER_GCS_BUCKET:5}  # skip 'gs://' prefix
+  else
+    echo "* Skip Java Mobile Game on DataflowRunner."
+  fi
 
   echo "-----------------Cleaning up BigQuery & Pubsub-----------------"
   bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
   gcloud pubsub topics delete projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC}
-else
-  echo "* Skip Java Mobile Game. Google Cloud SDK is required"
 fi
 
 echo ""
@@ -301,11 +319,11 @@ fi
 
 echo ""
 echo "====================Starting Python Leaderboard & GameStates Validations==============="
-if [[ ("$python_leaderboard_direct" = true || \
-      "$python_leaderboard_dataflow" = true || \
-      "$python_gamestats_direct" = true || \
-      "$python_gamestats_dataflow" = true) && \
-      ! -z `which gnome-terminal` ]]; then
+if [[ ("$python_leaderboard_direct" = true \
+      || "$python_leaderboard_dataflow" = true \
+      || "$python_gamestats_direct" = true \
+      || "$python_gamestats_dataflow" = true) \
+      && ! -z `which gnome-terminal` ]]; then
   cd ${LOCAL_BEAM_DIR}
 
   echo "---------------------Downloading Python Staging RC----------------------------"
@@ -404,7 +422,7 @@ if [[ ("$python_leaderboard_direct" = true || \
     echo "----------------Starting Leaderboard with DirectRunner-----------------------"
     if [[ "$python_leaderboard_direct" = true ]]; then
       LEADERBOARD_DIRECT_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
-      bq mk --project=${USER_GCP_PROJECT} ${LEADERBOARD_DIRECT_DATASET}
+      bq mk --project_id=${USER_GCP_PROJECT} ${LEADERBOARD_DIRECT_DATASET}
       echo "export LEADERBOARD_DIRECT_DATASET=${LEADERBOARD_DIRECT_DATASET}" >> ~/.bashrc
 
       echo "This is a streaming job. This task will be launched in a separate terminal."
@@ -439,7 +457,7 @@ if [[ ("$python_leaderboard_direct" = true || \
     echo "----------------Starting Leaderboard with DataflowRunner---------------------"
     if [[ "$python_leaderboard_dataflow" = true ]]; then
       LEADERBOARD_DF_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
-      bq mk --project=${USER_GCP_PROJECT} ${LEADERBOARD_DF_DATASET}
+      bq mk --project_id=${USER_GCP_PROJECT} ${LEADERBOARD_DF_DATASET}
       echo "export LEADERBOARD_DF_DATASET=${LEADERBOARD_DF_DATASET}" >> ~/.bashrc
 
       echo "This is a streaming job. This task will be launched in a separate terminal."
@@ -476,7 +494,7 @@ if [[ ("$python_leaderboard_direct" = true || \
     echo "------------------Starting GameStats with DirectRunner-----------------------"
     if [[ "$python_gamestats_direct" = true ]]; then
       GAMESTATS_DIRECT_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
-      bq mk --project=${USER_GCP_PROJECT} ${GAMESTATS_DIRECT_DATASET}
+      bq mk --project_id=${USER_GCP_PROJECT} ${GAMESTATS_DIRECT_DATASET}
       echo "export GAMESTATS_DIRECT_DATASET=${GAMESTATS_DIRECT_DATASET}" >> ~/.bashrc
 
       echo "This is a streaming job. This task will be launched in a separate terminal."
@@ -512,7 +530,7 @@ if [[ ("$python_leaderboard_direct" = true || \
     echo "-------------------Starting GameStats with DataflowRunner--------------------"
     if [[ "$python_gamestats_dataflow" = true ]]; then
       GAMESTATS_DF_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
-      bq mk --project=${USER_GCP_PROJECT} ${GAMESTATS_DF_DATASET}
+      bq mk --project_id=${USER_GCP_PROJECT} ${GAMESTATS_DF_DATASET}
       echo "export GAMESTATS_DF_DATASET=${GAMESTATS_DF_DATASET}" >> ~/.bashrc
 
       echo "This is a streaming job. This task will be launched in a separate terminal."

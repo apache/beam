@@ -22,6 +22,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.ListQualifier;
@@ -30,11 +32,14 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.Qualifi
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /** Helper methods to select subrows out of rows. */
+@Experimental(Kind.SCHEMAS)
 public class SelectHelpers {
 
   private static Schema union(Iterable<Schema> schemas) {
@@ -133,9 +138,17 @@ public class SelectHelpers {
             getOutputSchemaHelper(
                 componentType, fieldAccessDescriptor, qualifiers, qualifierPosition + 1);
         for (Field field : outputComponent.getFields()) {
-          Field newField =
-              Field.of(field.getName(), FieldType.array(field.getType()))
-                  .withNullable(inputFieldType.getNullable());
+          Field newField;
+          if (TypeName.ARRAY.equals(inputFieldType.getTypeName())) {
+            newField =
+                Field.of(field.getName(), FieldType.array(field.getType()))
+                    .withNullable(inputFieldType.getNullable());
+          } else {
+            checkArgument(TypeName.ITERABLE.equals(inputFieldType.getTypeName()));
+            newField =
+                Field.of(field.getName(), FieldType.iterable(field.getType()))
+                    .withNullable(inputFieldType.getNullable());
+          }
           builder.addField(newField);
         }
         return builder.build();
@@ -244,7 +257,7 @@ public class SelectHelpers {
         {
           FieldType nestedInputType = checkNotNull(inputType.getCollectionElementType());
           FieldType nestedOutputType = checkNotNull(outputType.getCollectionElementType());
-          List<Object> list = (List) value;
+          Iterable<Object> iterable = (Iterable) value;
 
           // When selecting multiple subelements under a list, we distribute the select
           // resulting in multiple lists. For example, if there is a field "list" with type
@@ -263,9 +276,9 @@ public class SelectHelpers {
           List<List<Object>> selectedLists =
               Lists.newArrayListWithCapacity(nestedSchema.getFieldCount());
           for (int i = 0; i < nestedSchema.getFieldCount(); i++) {
-            selectedLists.add(Lists.newArrayListWithCapacity(list.size()));
+            selectedLists.add(Lists.newArrayListWithCapacity(Iterables.size(iterable)));
           }
-          for (Object o : list) {
+          for (Object o : iterable) {
             Row.Builder selectElementBuilder = Row.withSchema(nestedSchema);
             selectIntoRowWithQualifiers(
                 qualifiers,

@@ -52,6 +52,12 @@ public class DistributionCell implements Distribution, MetricCell<DistributionDa
     this.name = name;
   }
 
+  @Override
+  public void reset() {
+    dirty.afterModification();
+    value.set(DistributionData.EMPTY);
+  }
+
   /** Increment the distribution by the given amount. */
   @Override
   public void update(long n) {
