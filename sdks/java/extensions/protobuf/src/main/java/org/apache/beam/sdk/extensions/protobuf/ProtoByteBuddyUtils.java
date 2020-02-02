@@ -44,6 +44,8 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.DurationNanos;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.TimestampNanos;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
@@ -385,6 +387,7 @@ public class ProtoByteBuddyUtils {
    *
    * <p>The returned list is ordered by the order of fields in the schema.
    */
+  @Experimental(Kind.SCHEMAS)
   public static List<FieldValueGetter> getGetters(
       Class<?> clazz,
       Schema schema,
@@ -521,6 +524,7 @@ public class ProtoByteBuddyUtils {
         .orElseThrow(IllegalArgumentException::new);
   }
 
+  @Experimental(Kind.SCHEMAS)
   @Nullable
   public static SchemaUserTypeCreator getBuilderCreator(
       Class<?> protoClass, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
@@ -579,6 +583,7 @@ public class ProtoByteBuddyUtils {
     }
   }
 
+  @Experimental(Kind.SCHEMAS)
   static SchemaUserTypeCreator createBuilderCreator(
       Class<?> protoClass, Class<?> builderClass, List<FieldValueSetter> setters, Schema schema) {
     try {
@@ -605,6 +610,7 @@ public class ProtoByteBuddyUtils {
     }
   }
 
+  @Experimental(Kind.SCHEMAS)
   static class ProtoCreatorFactory implements SchemaUserTypeCreator {
     private final Supplier<? extends MessageLite.Builder> builderCreator;
     private final List<FieldValueSetter> setters;

@@ -19,6 +19,8 @@ package org.apache.beam.sdk.extensions.protobuf;
 
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
@@ -26,6 +28,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.values.Row;
 
 /** A set of {@link LogicalType} classes to represent protocol buffer types. */
+@Experimental(Kind.SCHEMAS)
 public class ProtoSchemaLogicalTypes {
   /** Base class for types representing timestamps or durations as nanoseconds. */
   public abstract static class NanosType<T> implements LogicalType<T, Row> {

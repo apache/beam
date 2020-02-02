@@ -23,6 +23,7 @@ import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
@@ -67,7 +68,7 @@ import org.apache.beam.sdk.values.Row;
  * <p>Explicit {@code null} literals are allowed in JSON objects. No other values are parsed into
  * {@code null}.
  */
-@Experimental
+@Experimental(Kind.SCHEMAS)
 public class JsonToRow {
 
   public static PTransform<PCollection<? extends String>, PCollection<Row>> withSchema(
