@@ -271,6 +271,11 @@ task javaExamplesDataflowPrecommit() {
   dependsOn ":runners:google-cloud-dataflow-java:examples-streaming:preCommit"
 }
 
+task java11ExamplesDataflowPrecommit() {
+  dependsOn ":runners:google-cloud-dataflow-java:examples:java11PreCommit"
+  dependsOn ":runners:google-cloud-dataflow-java:examples-streaming:java11PreCommit"
+}
+
 task runBeamDependencyCheck() {
   dependsOn ":dependencyUpdates"
   dependsOn ":sdks:python:dependencyUpdates"

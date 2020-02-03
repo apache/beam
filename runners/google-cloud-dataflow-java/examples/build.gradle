@@ -62,10 +62,17 @@ def commonConfig = { dataflowWorkerJar, workerHarnessContainerImage = '', additi
      }
  }
 
-task preCommitLegacyWorker(type: Test) {
+task preCommitLegacyWorkerJava11(type: Test) {
   dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
   def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
-  with commonConfig(dataflowWorkerJar)
+    systemProperty "java.specification.version", "11"
+    with commonConfig(dataflowWorkerJar)
+}
+
+task preCommitLegacyWorker(type: Test) {
+    dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+    with commonConfig(dataflowWorkerJar)
 }
 
 task verifyFnApiWorker(type: Test) {
@@ -91,6 +98,10 @@ task java11PostCommit() {
 
 task preCommit() {
   dependsOn preCommitLegacyWorker
+}
+
+task java11PreCommit() {
+    dependsOn preCommitLegacyWorkerJava11
 }
 
 task verifyPortabilityApi() {
