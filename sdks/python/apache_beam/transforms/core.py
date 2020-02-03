@@ -62,6 +62,8 @@ from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
 from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.decorators import get_type_hints
+from apache_beam.typehints.decorators import with_input_types
+from apache_beam.typehints.decorators import with_output_types
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import is_consistent_with
 from apache_beam.utils import timestamp
@@ -1047,9 +1049,7 @@ class CallableWrapperCombineFn(CombineFn):
             % input_args[0])
       input_args = (element_type(input_args[0]),) + input_args[1:]
       # TODO(robertwb): Assert output type is consistent with input type?
-      hints = fn_hints.copy()
-      hints.set_input_types(*input_args, **input_kwargs)
-      return hints
+      return fn_hints.with_input_types(*input_args, **input_kwargs)
 
   def for_input_type(self, input_type):
     # Avoid circular imports.
@@ -1447,10 +1447,12 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
   # wrapped function.
   type_hints = get_type_hints(fn).with_defaults(
       typehints.decorators.IOTypeHints.from_callable(fn))
-  get_type_hints(wrapper).input_types = type_hints.input_types
+  if type_hints.input_types is not None:
+    wrapper = with_input_types(*type_hints.input_types[0],
+                               **type_hints.input_types[1])(wrapper)
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
-    get_type_hints(wrapper).set_output_types(typehints.Iterable[output_hint])
+    wrapper = with_output_types(typehints.Iterable[output_hint])(wrapper)
   # pylint: disable=protected-access
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
@@ -1516,10 +1518,12 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
   # Proxy the type-hint information from the original function to this new
   # wrapped function.
   type_hints = get_type_hints(fn)
-  get_type_hints(wrapper).input_types = type_hints.input_types
+  if type_hints.input_types is not None:
+    wrapper = with_input_types(*type_hints.input_types[0],
+                               **type_hints.input_types[1])(wrapper)
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
-    get_type_hints(wrapper).set_output_types(typehints.Iterable[output_hint])
+    wrapper = with_output_types(typehints.Iterable[output_hint])(wrapper)
 
   # Replace the first (args) component.
   modified_arg_names = ['tuple_element'] + arg_names[-num_defaults:]
@@ -1586,10 +1590,12 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
   # Proxy the type-hint information from the original function to this new
   # wrapped function.
   type_hints = get_type_hints(fn)
-  get_type_hints(wrapper).input_types = type_hints.input_types
+  if type_hints.input_types is not None:
+    wrapper = with_input_types(*type_hints.input_types[0],
+                               **type_hints.input_types[1])(wrapper)
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
-    get_type_hints(wrapper).set_output_types(output_hint)
+    wrapper = with_output_types(output_hint)(wrapper)
 
   # Replace the first (args) component.
   modified_arg_names = ['tuple_element'] + arg_names[-num_defaults:]
@@ -1636,19 +1642,21 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
   # hints from the callable (which should be bool if set).
   fn_type_hints = typehints.decorators.IOTypeHints.from_callable(fn)
   if fn_type_hints is not None:
-    fn_type_hints.output_types = None
+    fn_type_hints = fn_type_hints.with_output_types()
   type_hints = get_type_hints(fn).with_defaults(fn_type_hints)
 
   # Proxy the type-hint information from the function being wrapped, setting the
   # output type to be the same as the input type.
-  get_type_hints(wrapper).input_types = type_hints.input_types
+  if type_hints.input_types is not None:
+    wrapper = with_input_types(*type_hints.input_types[0],
+                               **type_hints.input_types[1])(wrapper)
   output_hint = type_hints.simple_output_type(label)
   if (output_hint is None
       and get_type_hints(wrapper).input_types
       and get_type_hints(wrapper).input_types[0]):
     output_hint = get_type_hints(wrapper).input_types[0][0]
   if output_hint:
-    get_type_hints(wrapper).set_output_types(typehints.Iterable[output_hint])
+    wrapper = with_output_types(typehints.Iterable[output_hint])(wrapper)
   # pylint: disable=protected-access
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
@@ -1875,17 +1883,17 @@ class CombinePerKey(PTransformWithSideInputs):
         self.fn, *args, **kwargs)
 
   def default_type_hints(self):
-    hints = self.fn.get_type_hints().copy()
+    hints = self.fn.get_type_hints()
     if hints.input_types:
       K = typehints.TypeVariable('K')
       args, kwargs = hints.input_types
       args = (typehints.Tuple[K, args[0]],) + args[1:]
-      hints.set_input_types(*args, **kwargs)
+      hints = hints.with_input_types(*args, **kwargs)
     else:
       K = typehints.Any
     if hints.output_types:
       main_output_type = hints.simple_output_type('')
-      hints.set_output_types(typehints.Tuple[K, main_output_type])
+      hints = hints.with_output_types(typehints.Tuple[K, main_output_type])
     return hints
 
   def to_runner_api_parameter(self,
@@ -1996,17 +2004,17 @@ class CombineValuesDoFn(DoFn):
              self.combinefn.extract_output(accumulator, *args, **kwargs))]
 
   def default_type_hints(self):
-    hints = self.combinefn.get_type_hints().copy()
+    hints = self.combinefn.get_type_hints()
     if hints.input_types:
       K = typehints.TypeVariable('K')
       args, kwargs = hints.input_types
       args = (typehints.Tuple[K, typehints.Iterable[args[0]]],) + args[1:]
-      hints.set_input_types(*args, **kwargs)
+      hints = hints.with_input_types(*args, **kwargs)
     else:
       K = typehints.Any
     if hints.output_types:
       main_output_type = hints.simple_output_type('')
-      hints.set_output_types(typehints.Tuple[K, main_output_type])
+      hints = hints.with_output_types(typehints.Tuple[K, main_output_type])
     return hints
 
 
