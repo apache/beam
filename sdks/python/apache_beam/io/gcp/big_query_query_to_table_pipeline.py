@@ -30,6 +30,7 @@ import argparse
 
 import apache_beam as beam
 from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 
@@ -59,13 +60,21 @@ def run_bq_pipeline(argv=None):
   table_schema = parse_table_schema_from_json(known_args.output_schema)
   kms_key = known_args.kms_key
 
-  p = TestPipeline(options=PipelineOptions(pipeline_args))
+  options = PipelineOptions(pipeline_args)
+  p = TestPipeline(options=options)
 
   # Note to future modifiers: Keep using BigQuerySource if known_args.native is
   # True.
-  data = p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
-      query=known_args.query, use_standard_sql=known_args.use_standard_sql,
-      kms_key=kms_key))
+  if known_args.native:
+    data = p | 'read' >> beam.io.Read(beam.io.BigQuerySource(
+        query=known_args.query, use_standard_sql=known_args.use_standard_sql,
+        kms_key=kms_key))
+  else:
+    data = p | 'read' >> beam.io.gcp.bigquery._ReadFromBigQuery(
+        query=known_args.query,
+        project=options.view_as(GoogleCloudOptions).project,
+        use_standard_sql=known_args.use_standard_sql,
+        kms_key=kms_key)
   if known_args.native:
     _ = data | 'write' >> beam.io.Write(beam.io.BigQuerySink(
         known_args.output,
