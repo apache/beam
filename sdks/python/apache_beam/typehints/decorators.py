@@ -90,6 +90,7 @@ from __future__ import absolute_import
 import inspect
 import logging
 import sys
+import traceback
 import types
 from builtins import next
 from builtins import object
@@ -97,6 +98,8 @@ from builtins import zip
 from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import List
+from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 from typing import TypeVar
@@ -217,7 +220,10 @@ def get_signature(func):
   return signature
 
 
-class IOTypeHints(object):
+class IOTypeHints(NamedTuple('IOTypeHints', [
+    ('input_types', Optional[Tuple[Tuple[Any, ...], Dict[str, Any]]]),
+    ('output_types', Optional[Tuple[Tuple[Any, ...], Dict[str, Any]]]),
+    ('origin', List[str])])):
   """Encapsulates all type hint information about a Dataflow construct.
 
   This should primarily be used via the WithTypeHints mixin class, though
@@ -228,18 +234,34 @@ class IOTypeHints(object):
       May be None. The list and dict correspond to args and kwargs.
     output_types: (tuple, dict) List of typing types, and an optional dictionary
       (unused). Only the first element of the list is used. May be None.
+    origin: (List[str]) Stack of tracebacks of method calls used to create this
+      instance.
   """
-  __slots__ = ('input_types', 'output_types')
 
-  def __init__(self,
-               input_types=None,  # type: Optional[Tuple[Tuple[Any, ...], Dict[str, Any]]]
-               output_types=None  # type: Optional[Tuple[Tuple[Any, ...], Dict[str, Any]]]
-              ):
-    self.input_types = input_types
-    self.output_types = output_types
+  traceback_limit = 5
 
-  @staticmethod
-  def from_callable(fn):
+  @classmethod
+  def _make_traceback(cls, base):
+    # type: (Optional[IOTypeHints]) -> List[str]
+    # Omit this method and the IOTypeHints method that called it.
+    num_frames_skip = 2
+    tb = traceback.format_stack(limit=cls.traceback_limit + num_frames_skip)
+    tb_lines = 'TH>' + ''.join(tb[:-num_frames_skip]).replace('\n', '\nTH>')
+
+    res = [tb_lines + '\nbased on: ' + str(base)]
+    if base is not None:
+      res += base.origin
+    return res
+
+  @classmethod
+  def empty(cls):
+    # type: () -> IOTypeHints
+    """Construct a base IOTypeHints object with no hints."""
+    return IOTypeHints(None, None, [])
+
+  @classmethod
+  def from_callable(cls, fn):
+    # type: (Callable) -> Optional[IOTypeHints]
     """Construct an IOTypeHints object from a callable's signature.
 
     Supports Python 3 annotations. For partial annotations, sets unknown types
@@ -283,16 +305,21 @@ class IOTypeHints(object):
       output_args.append(typehints.Any)
 
     return IOTypeHints(input_types=(tuple(input_args), input_kwargs),
-                       output_types=(tuple(output_args), {}))
+                       output_types=(tuple(output_args), {}),
+                       origin=cls._make_traceback(None))
 
-  def set_input_types(self, *args, **kwargs):
-    self.input_types = args, kwargs
+  def with_input_types(self, *args, **kwargs):
+    # type: (...) -> IOTypeHints
+    return self._replace(input_types=(args, kwargs),
+                         origin=self._make_traceback(self))
 
-  def set_output_types(self, *args, **kwargs):
-    self.output_types = args, kwargs
+  def with_output_types(self, *args, **kwargs):
+    # type: (...) -> IOTypeHints
+    return self._replace(output_types=(args, kwargs),
+                         origin=self._make_traceback(self))
 
   def simple_output_type(self, context):
-    if self.output_types:
+    if self._has_output_types():
       args, kwargs = self.output_types
       if len(args) != 1 or kwargs:
         raise TypeError(
@@ -306,6 +333,7 @@ class IOTypeHints(object):
             not self.output_types[1])
 
   def strip_iterable(self):
+    # type: () -> IOTypeHints
     """Removes outer Iterable (or equivalent) from output type.
 
     Only affects instances with simple output types, otherwise is a no-op.
@@ -319,12 +347,12 @@ class IOTypeHints(object):
     Example: Generator[Tuple(int, int)] becomes Tuple(int, int)
 
     Returns:
-      A possible copy of this instance with a possibly different output type.
+      A copy of this instance with a possibly different output type.
 
     Raises:
       ValueError if output type is simple and not iterable.
     """
-    if not self.has_simple_output_type():
+    if self.output_types is None or not self.has_simple_output_type():
       return self
     output_type = self.output_types[0][0]
     if output_type is None or isinstance(output_type, type(None)):
@@ -340,13 +368,9 @@ class IOTypeHints(object):
           pass
 
     yielded_type = typehints.get_yielded_type(output_type)
-    res = self.copy()
-    res.output_types = ((yielded_type,), {})
-    return res
-
-  def copy(self):
-    # type: () -> IOTypeHints
-    return IOTypeHints(self.input_types, self.output_types)
+    return self._replace(
+        output_types=((yielded_type,), {}),
+        origin=self._make_traceback(self))
 
   def with_defaults(self, hints):
     # type: (Optional[IOTypeHints]) -> IOTypeHints
@@ -360,7 +384,11 @@ class IOTypeHints(object):
       output_types = self.output_types
     else:
       output_types = hints.output_types
-    return IOTypeHints(input_types, output_types)
+    res = IOTypeHints(input_types, output_types, self._make_traceback(self))
+    if res == self:
+      return self  # Don't needlessly increase origin traceback length.
+    else:
+      return res
 
   def _has_input_types(self):
     return self.input_types is not None and any(self.input_types)
@@ -374,6 +402,9 @@ class IOTypeHints(object):
   def __repr__(self):
     return 'IOTypeHints[inputs=%s, outputs=%s]' % (
         self.input_types, self.output_types)
+
+  def debug_str(self):
+    return '\n'.join([self.__repr__()] + self.origin)
 
   def __eq__(self, other):
     def same(a, b):
@@ -391,13 +422,17 @@ class IOTypeHints(object):
   def __hash__(self):
     return hash(str(self))
 
+  def __reduce__(self):
+    # Don't include "origin" debug information in pickled form.
+    return (IOTypeHints, (self.input_types, self.output_types, []))
+
 
 class WithTypeHints(object):
   """A mixin class that provides the ability to set and retrieve type hints.
   """
 
   def __init__(self, *unused_args, **unused_kwargs):
-    self._type_hints = IOTypeHints()
+    self._type_hints = IOTypeHints.empty()
 
   def _get_or_create_type_hints(self):
     # type: () -> IOTypeHints
@@ -406,7 +441,7 @@ class WithTypeHints(object):
       # Only return an instance bound to self (see BEAM-8629).
       return self.__dict__['_type_hints']
     except KeyError:
-      self._type_hints = IOTypeHints()
+      self._type_hints = IOTypeHints.empty()
       return self._type_hints
 
   def get_type_hints(self):
@@ -428,14 +463,16 @@ class WithTypeHints(object):
     # type: (WithTypeHintsT, *Any, **Any) -> WithTypeHintsT
     arg_hints = native_type_compatibility.convert_to_beam_types(arg_hints)
     kwarg_hints = native_type_compatibility.convert_to_beam_types(kwarg_hints)
-    self._get_or_create_type_hints().set_input_types(*arg_hints, **kwarg_hints)
+    self._type_hints = self._get_or_create_type_hints().with_input_types(
+        *arg_hints, **kwarg_hints)
     return self
 
   def with_output_types(self, *arg_hints, **kwarg_hints):
     # type: (WithTypeHintsT, *Any, **Any) -> WithTypeHintsT
     arg_hints = native_type_compatibility.convert_to_beam_types(arg_hints)
     kwarg_hints = native_type_compatibility.convert_to_beam_types(kwarg_hints)
-    self._get_or_create_type_hints().set_output_types(*arg_hints, **kwarg_hints)
+    self._type_hints = self._get_or_create_type_hints().with_output_types(
+        *arg_hints, **kwarg_hints)
     return self
 
 
@@ -637,14 +674,14 @@ def get_type_hints(fn):
   # pylint: disable=protected-access
   if not hasattr(fn, '_type_hints'):
     try:
-      fn._type_hints = IOTypeHints()
+      fn._type_hints = IOTypeHints.empty()
     except (AttributeError, TypeError):
       # Can't add arbitrary attributes to this object,
       # but might have some restrictions anyways...
-      hints = IOTypeHints()
+      hints = IOTypeHints.empty()
       # Python 3.7 introduces annotations for _MethodDescriptorTypes.
       if isinstance(fn, _MethodDescriptorType) and sys.version_info < (3, 7):
-        hints.set_input_types(fn.__objclass__)  # type: ignore
+        hints = hints.with_input_types(fn.__objclass__)  # type: ignore
       return hints
   return fn._type_hints
   # pylint: enable=protected-access
@@ -727,8 +764,9 @@ def with_input_types(*positional_hints, **keyword_hints):
         validate_composite_type_param(
             t, error_msg_prefix='All type hint arguments')
 
-    get_type_hints(f).set_input_types(*converted_positional_hints,
-                                      **converted_keyword_hints)
+    th = getattr(f, '_type_hints', IOTypeHints.empty()).with_input_types(
+        *converted_positional_hints, **converted_keyword_hints)
+    f._type_hints = th  # pylint: disable=protected-access
     return f
   return annotate
 
@@ -811,7 +849,8 @@ def with_output_types(*return_type_hint, **kwargs):
   )
 
   def annotate(f):
-    get_type_hints(f).set_output_types(return_type_hint)
+    th = getattr(f, '_type_hints', IOTypeHints.empty())
+    f._type_hints = th.with_output_types(return_type_hint)  # pylint: disable=protected-access
     return f
 
   return annotate
