@@ -364,7 +364,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def aws_java_sdk2_version = "2.5.71"
     def cassandra_driver_version = "3.8.0"
     def classgraph_version = "4.8.56"
-    def gax_version = "1.52.0"
+    def gax_version = "1.53.0"
     def generated_grpc_ga_version = "1.83.0"
     def generated_grpc_dc_beta_version = "0.29.0-alpha"
     def google_auth_version = "0.19.0"
@@ -451,7 +451,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http:$google_auth_version",
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery:1.103.0",
         google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage:0.120.1-beta",
-        google_cloud_bigtable_client_core           : "com.google.cloud.bigtable:bigtable-client-core:1.8.0",
+        google_cloud_bigtable_client_core           : "com.google.cloud.bigtable:bigtable-client-core:1.13.0",
         google_cloud_core                           : "com.google.cloud:google-cloud-core:$google_cloud_core_version",
         google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc:$google_cloud_core_version",
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
@@ -469,6 +469,7 @@ class BeamModulePlugin implements Plugin<Project> {
         grpc_context                                : "io.grpc:grpc-context:$grpc_version",
         grpc_google_cloud_datacatalog_v1beta1       : "com.google.api.grpc:grpc-google-cloud-datacatalog-v1beta1:$generated_grpc_dc_beta_version",
         grpc_google_cloud_pubsub_v1                 : "com.google.api.grpc:grpc-google-cloud-pubsub-v1:$generated_grpc_ga_version",
+        grpc_grpclb                                 : "io.grpc:grpc-grpclb:$grpc_version",
         grpc_protobuf                               : "io.grpc:grpc-protobuf:$grpc_version",
         grpc_protobuf_lite                          : "io.grpc:grpc-protobuf-lite:$grpc_version",
         grpc_netty                                  : "io.grpc:grpc-netty:$grpc_version",
