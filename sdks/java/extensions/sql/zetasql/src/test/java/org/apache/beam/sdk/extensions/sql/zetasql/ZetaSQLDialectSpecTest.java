@@ -3529,7 +3529,7 @@ public class ZetaSQLDialectSpecTest {
     String sql = "select sum(Key) from KeyValue\n" + "group by (select Key)";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    thrown.expect(IllegalArgumentException.class);
+    thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage("Does not support sub-queries");
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
@@ -3788,7 +3788,7 @@ public class ZetaSQLDialectSpecTest {
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     ImmutableMap<String, Value> params = ImmutableMap.of();
-    thrown.expect(IllegalArgumentException.class);
+    thrown.expect(UnsupportedOperationException.class);
     zetaSQLQueryPlanner.convertToBeamRel(sql, params);
   }
 
@@ -3853,7 +3853,7 @@ public class ZetaSQLDialectSpecTest {
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     ImmutableMap<String, Value> params = ImmutableMap.of();
-    thrown.expect(IllegalArgumentException.class);
+    thrown.expect(UnsupportedOperationException.class);
     zetaSQLQueryPlanner.convertToBeamRel(sql, params);
   }
 

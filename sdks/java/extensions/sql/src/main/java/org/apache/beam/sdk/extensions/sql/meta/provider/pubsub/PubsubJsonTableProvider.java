@@ -34,6 +34,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.InvalidTableException;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.schemas.Schema;
@@ -76,7 +77,7 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
 
   private void validateEventTimestamp(Schema schema) {
     if (!fieldPresent(schema, TIMESTAMP_FIELD, TIMESTAMP)) {
-      throw new IllegalArgumentException(
+      throw new InvalidTableException(
           "Unsupported schema specified for Pubsub source in CREATE TABLE."
               + "CREATE TABLE for Pubsub topic must include at least 'event_timestamp' field of "
               + "type 'TIMESTAMP'");
@@ -98,7 +99,7 @@ public class PubsubJsonTableProvider extends InMemoryMetaTableProvider {
 
   private void validateDlq(String deadLetterQueue) {
     if (deadLetterQueue != null && deadLetterQueue.isEmpty()) {
-      throw new IllegalArgumentException("Dead letter queue topic name is not specified");
+      throw new InvalidTableException("Dead letter queue topic name is not specified");
     }
   }
 

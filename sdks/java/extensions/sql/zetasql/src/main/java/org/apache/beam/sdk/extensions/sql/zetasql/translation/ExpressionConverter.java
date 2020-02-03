@@ -31,7 +31,6 @@ import static org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTa
 import static org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLCastFunctionImpl.ZETASQL_CAST_OP;
 
 import com.google.common.base.Ascii;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -64,6 +63,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
+import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperatorRewriter;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperators;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable;
@@ -211,7 +211,7 @@ public class ExpressionConverter {
         // ResolvedColumn is not a expression, which means it has to be an input column reference.
         index = indexOfProjectionColumnRef(column.getId(), node.getInputScan().getColumnList());
         if (index < 0 || index >= node.getInputScan().getColumnList().size()) {
-          throw new RuntimeException(
+          throw new IllegalStateException(
               String.format("Cannot find %s in fieldList %s", column, fieldList));
         }
 
@@ -260,7 +260,7 @@ public class ExpressionConverter {
           int ret =
               indexOfResolvedColumnInColumnList(columnList, groupByComputedColumn.getColumn());
           if (ret == -1) {
-            throw new RuntimeException("Cannot find " + windowFn + " in " + groupByList);
+            throw new IllegalStateException("Cannot find " + windowFn + " in " + groupByList);
           } else {
             return ret;
           }
@@ -268,7 +268,7 @@ public class ExpressionConverter {
       }
     }
 
-    throw new RuntimeException("Cannot find " + windowFn + " in " + groupByList);
+    throw new IllegalStateException("Cannot find " + windowFn + " in " + groupByList);
   }
 
   private static int indexOfResolvedColumnInColumnList(
@@ -348,9 +348,10 @@ public class ExpressionConverter {
         ret = convertResolvedStructFieldAccess((ResolvedGetStructField) expr);
         break;
       case RESOLVED_SUBQUERY_EXPR:
-        throw new IllegalArgumentException("Does not support sub-queries");
+        throw new UnsupportedOperationException("Does not support sub-queries");
       default:
-        throw new RuntimeException("Does not support expr node kind " + expr.nodeKind());
+        throw new UnsupportedOperationException(
+            "Does not support expr node kind " + expr.nodeKind());
     }
 
     return ret;
@@ -444,7 +445,8 @@ public class ExpressionConverter {
         }
         break;
       default:
-        throw new RuntimeException("Does not support expr node kind " + expr.nodeKind());
+        throw new UnsupportedOperationException(
+            "Does not support expr node kind " + expr.nodeKind());
     }
 
     return ret;
@@ -465,7 +467,7 @@ public class ExpressionConverter {
     if (functionCall.getFunction().getName().equals(FIXED_WINDOW)
         || functionCall.getFunction().getName().equals(SLIDING_WINDOW)
         || functionCall.getFunction().getName().equals(SESSION_WINDOW)) {
-      throw new RuntimeException(
+      throw new SqlConversionException(
           functionCall.getFunction().getName() + " shouldn't appear in SELECT exprlist.");
     }
 
@@ -503,7 +505,7 @@ public class ExpressionConverter {
                 (ResolvedLiteral) functionCall.getArgumentList().get(1)));
         return rexBuilder().makeCall(SqlOperators.TIMESTAMP_ADD_FN, operands);
       default:
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             "Does not support window start/end: " + functionCall.getFunction().getName());
     }
   }
@@ -530,7 +532,7 @@ public class ExpressionConverter {
         ret = convertValueToRexNode(resolvedLiteral.getType(), resolvedLiteral.getValue());
         break;
       default:
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             MessageFormat.format(
                 "Unsupported ResolvedLiteral type: {0}, kind: {1}, value: {2}, class: {3}",
                 resolvedLiteral.getType().typeName(),
@@ -566,7 +568,7 @@ public class ExpressionConverter {
         break;
       default:
         // TODO: convert struct literal.
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             "Unsupported ResolvedLiteral kind: " + type.getKind() + " type: " + type.typeName());
     }
 
@@ -643,7 +645,7 @@ public class ExpressionConverter {
         ret = rexBuilder().makeBinaryLiteral(new ByteString(value.getBytesValue().toByteArray()));
         break;
       default:
-        throw new RuntimeException("Unsupported column type: " + kind);
+        throw new UnsupportedOperationException("Unsupported column type: " + kind);
     }
 
     return ret;
@@ -667,7 +669,7 @@ public class ExpressionConverter {
     if ("zetasql.functions.DateTimestampPart".equals(type.getDescriptor().getFullName())) {
       return convertTimeUnitRangeEnumToRexNode(type, value);
     } else {
-      throw new RuntimeException(
+      throw new UnsupportedOperationException(
           MessageFormat.format(
               "Unsupported enum. Kind: {0} Type: {1}", type.getKind(), type.typeName()));
     }
@@ -676,7 +678,7 @@ public class ExpressionConverter {
   private RexNode convertTimeUnitRangeEnumToRexNode(Type type, Value value) {
     TimeUnit mappedUnit = TIME_UNIT_CASTING_MAP.get(value.getEnumValue());
     if (mappedUnit == null) {
-      throw new RuntimeException(
+      throw new UnsupportedOperationException(
           MessageFormat.format(
               "Unsupported enum value. Kind: {0} Type: {1} Value: {2} EnumName: {3}",
               type.getKind(), type.typeName(), value.getEnumName(), value.getEnumValue()));
@@ -692,7 +694,7 @@ public class ExpressionConverter {
       List<RelDataTypeField> fieldList) {
     int index = indexOfProjectionColumnRef(columnRef.getColumn().getId(), columnList);
     if (index < 0 || index >= columnList.size()) {
-      throw new RuntimeException(
+      throw new IllegalStateException(
           String.format("Cannot find %s in fieldList %s", columnRef.getColumn(), fieldList));
     }
     return rexBuilder().makeInputRef(fieldList.get(index).getType(), index);
@@ -765,7 +767,8 @@ public class ExpressionConverter {
                   (ResolvedLiteral) functionCall.getArgumentList().get(2)));
           break;
         default:
-          throw new RuntimeException("Only support TUMBLE, HOP AND SESSION functions right now.");
+          throw new UnsupportedOperationException(
+              "Only support TUMBLE, HOP AND SESSION functions right now.");
       }
     } else if (functionCall.getFunction().getGroup().equals("ZetaSQL")) {
       op =
@@ -773,7 +776,7 @@ public class ExpressionConverter {
               functionCall.getFunction().getName());
 
       if (op == null) {
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             "Does not support ZetaSQL function: " + functionCall.getFunction().getName());
       }
 
@@ -787,7 +790,7 @@ public class ExpressionConverter {
         }
       }
     } else {
-      throw new RuntimeException(
+      throw new UnsupportedOperationException(
           "Does not support function group: " + functionCall.getFunction().getGroup());
     }
 
@@ -853,7 +856,7 @@ public class ExpressionConverter {
 
   private RexNode convertIntervalToRexIntervalLiteral(ResolvedLiteral resolvedLiteral) {
     if (resolvedLiteral.getType().getKind() != TYPE_STRING) {
-      throw new IllegalArgumentException(INTERVAL_FORMAT_MSG);
+      throw new SqlConversionException(INTERVAL_FORMAT_MSG);
     }
 
     String valStr = resolvedLiteral.getValue().getStringValue();
@@ -861,18 +864,18 @@ public class ExpressionConverter {
         Arrays.stream(valStr.split(" ")).filter(s -> !s.isEmpty()).collect(Collectors.toList());
 
     if (stringList.size() != 3) {
-      throw new IllegalArgumentException(INTERVAL_FORMAT_MSG);
+      throw new SqlConversionException(INTERVAL_FORMAT_MSG);
     }
 
     if (!Ascii.toUpperCase(stringList.get(0)).equals("INTERVAL")) {
-      throw new IllegalArgumentException(INTERVAL_FORMAT_MSG);
+      throw new SqlConversionException(INTERVAL_FORMAT_MSG);
     }
 
     long intervalValue;
     try {
       intervalValue = Long.parseLong(stringList.get(1));
     } catch (NumberFormatException e) {
-      throw new IllegalArgumentException(INTERVAL_FORMAT_MSG, e);
+      throw new SqlConversionException(INTERVAL_FORMAT_MSG, e);
     }
 
     String intervalDatepart = Ascii.toUpperCase(stringList.get(2));
@@ -905,7 +908,7 @@ public class ExpressionConverter {
       case INTERVAL_SECOND:
         return new BigDecimal(value * ONE_SECOND_IN_MILLIS);
       default:
-        throw new IllegalArgumentException(qualifier.typeName().toString());
+        throw new SqlConversionException(qualifier.typeName().toString());
     }
   }
 
@@ -931,7 +934,7 @@ public class ExpressionConverter {
       case "MILLISECOND":
         return new SqlIntervalQualifier(TimeUnit.MILLISECOND, null, SqlParserPos.ZERO);
       default:
-        throw new RuntimeException(
+        throw new SqlConversionException(
             String.format(
                 "Received an undefined INTERVAL unit: %s. Please specify unit from the following"
                     + " list: %s.",
@@ -964,7 +967,7 @@ public class ExpressionConverter {
   private static void isCastingSupported(TypeKind fromType, TypeKind toType) {
     if (UNSUPPORTED_CASTING.containsKey(toType)
         && UNSUPPORTED_CASTING.get(toType).contains(fromType)) {
-      throw new IllegalArgumentException(
+      throw new UnsupportedOperationException(
           "Does not support CAST(" + fromType + " AS " + toType + ")");
     }
   }
@@ -1016,11 +1019,12 @@ public class ExpressionConverter {
       default:
         throw new IllegalArgumentException("Found unexpected parameter " + parameter);
     }
-    Preconditions.checkState(
-        parameter.getType().equals(value.getType()),
-        String.format(
-            "Expected resolved parameter %s to have type %s, but it has type %s",
-            identifier, value.getType(), parameter.getType()));
+    if (!parameter.getType().equals(value.getType())) {
+      throw new SqlConversionException(
+          String.format(
+              "Expected resolved parameter %s to have type %s, but it has type %s",
+              identifier, value.getType(), parameter.getType()));
+    }
     return convertValueToRexNode(value.getType(), value);
   }
 

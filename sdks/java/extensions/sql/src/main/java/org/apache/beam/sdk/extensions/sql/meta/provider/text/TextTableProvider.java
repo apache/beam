@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beam
 import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.csvLines2BeamRows;
 import static org.apache.beam.sdk.util.RowJsonUtils.jsonToRow;
 import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
-import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.InvalidTableException;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.schemas.Schema;
@@ -113,15 +113,16 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
         return new TextJsonTable(
             schema, filePattern, JsonToRow.create(schema, deadLetterFile), RowToJson.create());
       case "lines":
-        checkArgument(
-            schema.getFieldCount() == 1
-                && schema.getField(0).getType().getTypeName().equals(TypeName.STRING),
-            "Table with type 'text' and format 'lines' "
-                + "must have exactly one STRING/VARCHAR/CHAR column ");
+        if (!(schema.getFieldCount() == 1
+            && schema.getField(0).getType().getTypeName().equals(TypeName.STRING))) {
+          throw new InvalidTableException(
+              "Table with type 'text' and format 'lines' "
+                  + "must have exactly one STRING/VARCHAR/CHAR column ");
+        }
         return new TextTable(
             schema, filePattern, new LinesReadConverter(), new LinesWriteConverter());
       default:
-        throw new IllegalArgumentException(
+        throw new InvalidTableException(
             "Table with type 'text' must have format 'csv' or 'lines' or 'json'");
     }
   }
