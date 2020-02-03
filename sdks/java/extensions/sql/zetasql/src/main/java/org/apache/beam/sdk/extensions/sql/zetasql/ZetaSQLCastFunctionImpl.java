@@ -63,7 +63,7 @@ public class ZetaSQLCastFunctionImpl implements ImplementableFunction {
     public Expression implement(
         RexToLixTranslator rexToLixTranslator, RexCall rexCall, List<Expression> list) {
       if (rexCall.getOperands().size() != 1 || list.size() != 1) {
-        throw new RuntimeException("CAST should have one operand.");
+        throw new IllegalArgumentException("CAST should have one operand.");
       }
       SqlTypeName toType = rexCall.getType().getSqlTypeName();
       SqlTypeName fromType = rexCall.getOperands().get(0).getType().getSqlTypeName();
@@ -98,7 +98,8 @@ public class ZetaSQLCastFunctionImpl implements ImplementableFunction {
         convertedOperand =
             Expressions.call(BeamCodegenUtils.class, "toStringTimestamp", translatedOperand);
       } else {
-        throw new RuntimeException("Unsupported CAST: " + fromType.name() + " to " + toType.name());
+        throw new UnsupportedOperationException(
+            "Unsupported CAST: " + fromType.name() + " to " + toType.name());
       }
 
       // If operand is nullable, wrap in a null check

@@ -69,7 +69,7 @@ public final class ZetaSqlUtils {
       case ROW:
         return createZetaSqlStructTypeFromBeamSchema(fieldType.getRowSchema());
       default:
-        throw new IllegalArgumentException(
+        throw new UnsupportedOperationException(
             "Unsupported Beam fieldType: " + fieldType.getTypeName());
     }
   }
@@ -116,7 +116,7 @@ public final class ZetaSqlUtils {
       case ROW:
         return beamRowToZetaSqlStructValue((Row) object, fieldType.getRowSchema());
       default:
-        throw new IllegalArgumentException(
+        throw new UnsupportedOperationException(
             "Unsupported Beam fieldType: " + fieldType.getTypeName());
     }
   }
@@ -177,7 +177,7 @@ public final class ZetaSqlUtils {
       case ROW:
         return zetaSqlStructValueToBeamRow(value, fieldType.getRowSchema());
       default:
-        throw new IllegalArgumentException(
+        throw new UnsupportedOperationException(
             "Unsupported Beam fieldType: " + fieldType.getTypeName());
     }
   }

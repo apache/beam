@@ -15,20 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl;
+package org.apache.beam.sdk.extensions.sql.meta.provider;
 
-/** Exception thrown when BeamSQL cannot convert sql to BeamRelNode. */
-public class SqlConversionException extends RuntimeException {
+/** Exception thrown when the request for a table is invalid, such as invalid metadata. */
+public class InvalidTableException extends IllegalArgumentException {
+  public InvalidTableException(String msg) {
+    super(msg);
+  }
 
-  public SqlConversionException(Throwable cause) {
+  public InvalidTableException(String msg, Throwable cause) {
+    super(msg, cause);
+  }
+
+  public InvalidTableException(Throwable cause) {
     super(cause);
-  }
-
-  public SqlConversionException(String message) {
-    super(message);
-  }
-
-  public SqlConversionException(String message, Throwable cause) {
-    super(message, cause);
   }
 }

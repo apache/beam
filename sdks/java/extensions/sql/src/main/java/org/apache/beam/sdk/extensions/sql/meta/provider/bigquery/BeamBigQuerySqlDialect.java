@@ -208,7 +208,8 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
         writer.sep(",");
         call.operand(0).unparse(writer, leftPrec, rightPrec);
         if (3 == call.operandCount()) {
-          throw new RuntimeException("3rd operand Not Supported for Function STRPOS in Big Query");
+          throw new UnsupportedOperationException(
+              "3rd operand Not Supported for Function STRPOS in Big Query");
         }
         writer.endFunCall(frame);
         break;
@@ -249,7 +250,8 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
     try {
       intervalValueInLong = Long.parseLong(literal.getValue().toString());
     } catch (NumberFormatException e) {
-      throw new RuntimeException("Only INT64 is supported as the interval value for BigQuery.");
+      throw new UnsupportedOperationException(
+          "Only INT64 is supported as the interval value for BigQuery.");
     }
     writer.literal(intervalValueInLong.toString());
     unparseSqlIntervalQualifier(writer, interval.getIntervalQualifier(), RelDataTypeSystem.DEFAULT);
@@ -262,7 +264,7 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
     if (qualifier.timeUnitRange.endUnit == null) {
       writer.keyword(start);
     } else {
-      throw new RuntimeException("Range time unit is not supported for BigQuery.");
+      throw new UnsupportedOperationException("Range time unit is not supported for BigQuery.");
     }
   }
 
@@ -315,7 +317,8 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
       case ISOYEAR:
         return timeUnit;
       default:
-        throw new RuntimeException("Time unit " + timeUnit + " is not supported for BigQuery.");
+        throw new UnsupportedOperationException(
+            "Time unit " + timeUnit + " is not supported for BigQuery.");
     }
   }
 

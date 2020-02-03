@@ -168,7 +168,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
         Sessions fn = (Sessions) windowFn;
         window = window + ", " + fn.getGapDuration().toString();
       } else {
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             "Unknown window function " + windowFn.getClass().getSimpleName());
       }
       window = window + ")";
