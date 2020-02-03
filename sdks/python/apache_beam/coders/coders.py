@@ -923,12 +923,12 @@ class AvroGenericCoder(FastCoder):
     return AvroRecord
 
   def to_runner_api_parameter(self, context):
-    return AVRO_GENERIC_CODER_URN, self.schema, ()
+    return AVRO_GENERIC_CODER_URN, self.schema.encode('utf-8'), ()
 
   @staticmethod
   @Coder.register_urn(AVRO_GENERIC_CODER_URN, bytes)
   def from_runner_api_parameter(payload, unused_components, unused_context):
-    return AvroGenericCoder(payload)
+    return AvroGenericCoder(payload.decode('utf-8'))
 
 
 class TupleCoder(FastCoder):

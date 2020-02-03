@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.file.FileTree
@@ -261,10 +262,12 @@ class BeamModulePlugin implements Plugin<Project> {
   class CrossLanguageValidatesRunnerConfiguration {
     // Task name for cross-language validate runner case.
     String name = 'validatesCrossLanguageRunner'
-    // Fully qualified JobServerClass name to use.
-    String jobServerDriver
-    // A string representing the jobServer Configuration.
-    String jobServerConfig
+    // Job endpoint to use.
+    String jobEndpoint = 'localhost:8099'
+    // Job server startup task.
+    Task startJobServer
+    // Job server cleanup task.
+    Task cleanupJobServer
     // Number of parallel test runs.
     Integer numParallelTests = 1
     // Extra options to pass to TestPipeline
@@ -1669,9 +1672,10 @@ class BeamModulePlugin implements Plugin<Project> {
         "python_port": pythonPort
       ]
       def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
+      def pythonContainerSuffix = project.project(':sdks:python').pythonVersion == '2.7' ? '2' : project.project(':sdks:python').pythonVersion.replace('.', '')
       def setupTask = project.tasks.create(name: config.name+"Setup", type: Exec) {
         dependsOn ':sdks:java:container:docker'
-        dependsOn ':sdks:python:container:py2:docker'
+        dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
         dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
         dependsOn ":sdks:python:installGcpTest"
         // setup test env
@@ -1690,22 +1694,21 @@ class BeamModulePlugin implements Plugin<Project> {
         args '-c', "$pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name}"
       }
       setupTask.finalizedBy cleanupTask
+      config.startJobServer.finalizedBy config.cleanupJobServer
 
       // Task for running testcases in Java SDK
       def beamJavaTestPipelineOptions = [
-        "--runner=org.apache.beam.runners.portability.testing.TestPortableRunner",
-        "--jobServerDriver=${config.jobServerDriver}",
+        "--runner=PortableRunner",
+        "--jobEndpoint=${config.jobEndpoint}",
         "--environmentCacheMillis=10000"
       ]
       beamJavaTestPipelineOptions.addAll(config.pipelineOpts)
-      if (config.jobServerConfig) {
-        beamJavaTestPipelineOptions.add("--jobServerConfig=${config.jobServerConfig}")
-      }
       ['Java': javaPort, 'Python': pythonPort].each { sdk, port ->
         def javaTask = project.tasks.create(name: config.name+"JavaUsing"+sdk, type: Test) {
           group = "Verification"
           description = "Validates runner for cross-language capability of using ${sdk} transforms from Java SDK"
           systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamJavaTestPipelineOptions)
+          systemProperty "expansionJar", expansionJar
           systemProperty "expansionPort", port
           classpath = config.testClasspathConfiguration
           testClassesDirs = project.files(project.project(":runners:core-construction-java").sourceSets.test.output.classesDirs)
@@ -1715,9 +1718,11 @@ class BeamModulePlugin implements Plugin<Project> {
           // see https://issues.apache.org/jira/browse/BEAM-6698
           maxHeapSize = '4g'
           dependsOn setupTask
+          dependsOn config.startJobServer
         }
         mainTask.dependsOn javaTask
         cleanupTask.mustRunAfter javaTask
+        config.cleanupJobServer.mustRunAfter javaTask
 
         // Task for running testcases in Python SDK
         def testOpts = [
@@ -1725,7 +1730,8 @@ class BeamModulePlugin implements Plugin<Project> {
         ]
         def pipelineOpts = [
           "--runner=PortableRunner",
-          "--environment_cache_millis=10000"
+          "--environment_cache_millis=10000",
+          "--job_endpoint=${config.jobEndpoint}"
         ]
         def beamPythonTestPipelineOptions = [
           "pipeline_opts": pipelineOpts,
@@ -1741,12 +1747,14 @@ class BeamModulePlugin implements Plugin<Project> {
           executable 'sh'
           args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           dependsOn setupTask
+          dependsOn config.startJobServer
           // We need flink-job-server-container dependency since Python PortableRunner automatically
           // brings the flink-job-server-container up when --job_endpoint is not specified.
           dependsOn ':runners:flink:1.9:job-server-container:docker'
         }
         mainTask.dependsOn pythonTask
         cleanupTask.mustRunAfter pythonTask
+        config.cleanupJobServer.mustRunAfter pythonTask
       }
     }
 

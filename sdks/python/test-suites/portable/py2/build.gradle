@@ -91,7 +91,7 @@ task crossLanguagePythonJavaDirect {
     ]
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.transforms.external_test ${options.join(' ')}"
+      args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.transforms.external_java ${options.join(' ')}"
     }
   }
 }
@@ -115,7 +115,7 @@ task crossLanguagePythonJavaFlink {
     ]
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.transforms.external_test ${options.join(' ')}"
+      args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.transforms.external_java ${options.join(' ')}"
     }
   }
 }
