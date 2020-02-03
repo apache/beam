@@ -241,7 +241,8 @@ class IOTypeHints(NamedTuple('IOTypeHints', [
   traceback_limit = 5
 
   @classmethod
-  def _make_traceback(cls, base):  # type: (Optional[IOTypeHints]) -> List[str]
+  def _make_traceback(cls, base):
+    # type: (Optional[IOTypeHints]) -> List[str]
     # Omit this method and the IOTypeHints method that called it.
     num_frames_skip = 2
     tb = traceback.format_stack(limit=cls.traceback_limit + num_frames_skip)
@@ -254,10 +255,13 @@ class IOTypeHints(NamedTuple('IOTypeHints', [
 
   @classmethod
   def empty(cls):
+    # type: () -> IOTypeHints
+    """Construct a base IOTypeHints object with no hints."""
     return IOTypeHints(None, None, [])
 
   @classmethod
   def from_callable(cls, fn):
+    # type: (Callable) -> Optional[IOTypeHints]
     """Construct an IOTypeHints object from a callable's signature.
 
     Supports Python 3 annotations. For partial annotations, sets unknown types
@@ -348,7 +352,7 @@ class IOTypeHints(NamedTuple('IOTypeHints', [
     Raises:
       ValueError if output type is simple and not iterable.
     """
-    if not self.has_simple_output_type():
+    if self.output_types is None or not self.has_simple_output_type():
       return self
     output_type = self.output_types[0][0]
     if output_type is None or isinstance(output_type, type(None)):
