@@ -1153,14 +1153,7 @@ def create_source_runner(
           output_consumers[:] = [TimerConsumer(tag, do_op)]
           break
 
-  if grpc_port.coder_id:
-    output_coder = factory.get_coder(grpc_port.coder_id)
-  else:
-    _LOGGER.info(
-        'Missing required coder_id on grpc_port for %s; '
-        'using deprecated fallback.',
-        transform_id)
-    output_coder = factory.get_only_output_coder(transform_proto)
+  output_coder = factory.get_coder(grpc_port.coder_id)
   return DataInputOperation(
       common.NameContext(transform_proto.unique_name, transform_id),
       transform_proto.unique_name,
@@ -1182,14 +1175,7 @@ def create_sink_runner(
     consumers  # type: Dict[str, List[operations.Operation]]
 ):
   # type: (...) -> DataOutputOperation
-  if grpc_port.coder_id:
-    output_coder = factory.get_coder(grpc_port.coder_id)
-  else:
-    _LOGGER.info(
-        'Missing required coder_id on grpc_port for %s; '
-        'using deprecated fallback.',
-        transform_id)
-    output_coder = factory.get_only_input_coder(transform_proto)
+  output_coder = factory.get_coder(grpc_port.coder_id)
   return DataOutputOperation(
       common.NameContext(transform_proto.unique_name, transform_id),
       transform_proto.unique_name,
