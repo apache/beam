@@ -499,13 +499,21 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     if self.source.id_label:
       raise NotImplementedError(
           'DirectRunner: id_label is not supported for PubSub reads')
+
+    import google.auth
+
+    _, sub_project = google.auth.default()
+
+    if not sub_project:
+      sub_project = self.source.project
+
     self._sub_name = self.get_subscription(
         self._applied_ptransform, self.source.project, self.source.topic_name,
-        self.source.subscription_name)
+        sub_project, self.source.subscription_name)
 
   @classmethod
   def get_subscription(cls, transform, project, short_topic_name,
-                       short_sub_name):
+                       sub_project, short_sub_name):
     from google.cloud import pubsub
 
     if short_sub_name:
@@ -516,7 +524,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
 
     sub_client = pubsub.SubscriberClient()
     sub_name = sub_client.subscription_path(
-        project, 'beam_%d_%x' % (int(time.time()), random.randrange(1 << 32)))
+        sub_project, 'beam_%d_%x' % (int(time.time()), random.randrange(1 << 32)))
     topic_name = sub_client.topic_path(project, short_topic_name)
     sub_client.create_subscription(sub_name, topic_name)
     atexit.register(sub_client.delete_subscription, sub_name)
