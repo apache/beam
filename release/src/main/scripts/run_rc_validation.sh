@@ -411,6 +411,16 @@ if [[ ("$python_leaderboard_direct" = true \
   cd ${LOCAL_BEAM_DIR}
   for py_version in "${PYTHON_VERSIONS_TO_VALIDATE[@]}"
   do
+    # Create BQ set before activating venv.
+    LEADERBOARD_DIRECT_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
+    bq mk --project_id=${USER_GCP_PROJECT} ${LEADERBOARD_DIRECT_DATASET}
+    LEADERBOARD_DF_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
+    bq mk --project_id=${USER_GCP_PROJECT} ${LEADERBOARD_DF_DATASET}
+    GAMESTATS_DIRECT_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
+    bq mk --project_id=${USER_GCP_PROJECT} ${GAMESTATS_DIRECT_DATASET}
+    GAMESTATS_DF_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
+    bq mk --project_id=${USER_GCP_PROJECT} ${GAMESTATS_DF_DATASET}
+
     rm -rf ./beam_env_${py_version}
     echo "--------------Setting up virtualenv with $py_version interpreter----------------"
     virtualenv beam_env_${py_version} -p $py_version
@@ -421,8 +431,6 @@ if [[ ("$python_leaderboard_direct" = true \
 
     echo "----------------Starting Leaderboard with DirectRunner-----------------------"
     if [[ "$python_leaderboard_direct" = true ]]; then
-      LEADERBOARD_DIRECT_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
-      bq mk --project_id=${USER_GCP_PROJECT} ${LEADERBOARD_DIRECT_DATASET}
       echo "export LEADERBOARD_DIRECT_DATASET=${LEADERBOARD_DIRECT_DATASET}" >> ~/.bashrc
 
       echo "This is a streaming job. This task will be launched in a separate terminal."
@@ -456,8 +464,6 @@ if [[ ("$python_leaderboard_direct" = true \
 
     echo "----------------Starting Leaderboard with DataflowRunner---------------------"
     if [[ "$python_leaderboard_dataflow" = true ]]; then
-      LEADERBOARD_DF_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
-      bq mk --project_id=${USER_GCP_PROJECT} ${LEADERBOARD_DF_DATASET}
       echo "export LEADERBOARD_DF_DATASET=${LEADERBOARD_DF_DATASET}" >> ~/.bashrc
 
       echo "This is a streaming job. This task will be launched in a separate terminal."
@@ -493,8 +499,6 @@ if [[ ("$python_leaderboard_direct" = true \
 
     echo "------------------Starting GameStats with DirectRunner-----------------------"
     if [[ "$python_gamestats_direct" = true ]]; then
-      GAMESTATS_DIRECT_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
-      bq mk --project_id=${USER_GCP_PROJECT} ${GAMESTATS_DIRECT_DATASET}
       echo "export GAMESTATS_DIRECT_DATASET=${GAMESTATS_DIRECT_DATASET}" >> ~/.bashrc
 
       echo "This is a streaming job. This task will be launched in a separate terminal."
@@ -529,8 +533,6 @@ if [[ ("$python_leaderboard_direct" = true \
 
     echo "-------------------Starting GameStats with DataflowRunner--------------------"
     if [[ "$python_gamestats_dataflow" = true ]]; then
-      GAMESTATS_DF_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
-      bq mk --project_id=${USER_GCP_PROJECT} ${GAMESTATS_DF_DATASET}
       echo "export GAMESTATS_DF_DATASET=${GAMESTATS_DF_DATASET}" >> ~/.bashrc
 
       echo "This is a streaming job. This task will be launched in a separate terminal."
@@ -564,6 +566,13 @@ if [[ ("$python_leaderboard_direct" = true \
     else
       echo "* Skip Python GameStats with DataflowRunner"
     fi
+    echo "${py_version} finished running. Press any key to delete bq datasets and proceed."
+    read
+    # Clean up created datasets.
+    bq rm -r -f -d ${USER_GCP_PROJECT}:${LEADERBOARD_DIRECT_DATASET}
+    bq rm -r -f -d ${USER_GCP_PROJECT}:${LEADERBOARD_DF_DATASET}
+    bq rm -r -f -d ${USER_GCP_PROJECT}:${GAMESTATS_DIRECT_DATASET}
+    bq rm -r -f -d ${USER_GCP_PROJECT}:${GAMESTATS_DF_DATASET}
   done # Loop over Python versions.
 else
   echo "* Skip Python Leaderboard & GameStates Validations"
