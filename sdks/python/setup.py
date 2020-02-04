@@ -189,6 +189,7 @@ REQUIRED_TEST_PACKAGES = [
     'tenacity>=5.0.2,<6.0',
     'pytest>=4.4.0,<5.0',
     'pytest-xdist>=1.29.0,<2',
+    'pytest-timeout>=1.3.3,<2',
     ]
 
 GCP_REQUIREMENTS = [
