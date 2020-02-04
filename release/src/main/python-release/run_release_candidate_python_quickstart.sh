@@ -186,8 +186,20 @@ function verify_streaming_wordcount_dataflow() {
     --sdk_location $BEAM_PYTHON_SDK &
 
   pid=$!
-  sleep 60
-  running_job=$(gcloud dataflow jobs list | grep pyflow-wordstream-candidate | grep Running | cut -d' ' -f1)
+  retry=3
+  # Retry if the dataflow job id is not populated.
+  while(( $retry >= 0 )); do
+    sleep 60
+    if [[ $retry > 0 ]]; then
+      running_job=$(gcloud dataflow jobs list | grep pyflow-wordstream-candidate | grep Running | cut -d' ' -f1)
+      if [[ -z "$running_job" ]]; then
+        retry=$(($retry-1))
+      else
+        echo "Get dataflow job_id = $running_job"
+        break
+      fi
+    fi
+  done
 
   # verify result
   run_pubsub_publish
@@ -195,7 +207,10 @@ function verify_streaming_wordcount_dataflow() {
   verify_steaming_result "DataflowRunner" $pid $running_job
 
   kill -9 $pid
-  gcloud dataflow jobs cancel $running_job
+  # Fails to cancel a job should not fail the validation.
+  if [[ ! -z "$running_job" ]]; then
+    gcloud dataflow jobs cancel $running_job
+  fi
 }
 
 
