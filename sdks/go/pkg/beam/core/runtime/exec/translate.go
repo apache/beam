@@ -64,13 +64,13 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 		}
 
 		u := &DataSource{UID: b.idgen.New()}
-    u.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
-    if err != nil {
-      return nil, err
-    }
-    if !coder.IsW(u.Coder) {
-      return nil, errors.Errorf("unwindowed coder %v on DataSource %v: %v", cid, id, u.Coder)
-    }
+		u.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
+		if err != nil {
+			return nil, err
+		}
+		if !coder.IsW(u.Coder) {
+			return nil, errors.Errorf("unwindowed coder %v on DataSource %v: %v", cid, id, u.Coder)
+		}
 
 		for key, pid := range transform.GetOutputs() {
 			u.SID = StreamID{PtransformID: id, Port: port}
@@ -491,14 +491,14 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		}
 
 		sink := &DataSink{UID: b.idgen.New()}
-    sink.SID = StreamID{PtransformID: id.to, Port: port}
-    sink.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
-    if err != nil {
-      return nil, err
-    }
-    if !coder.IsW(sink.Coder) {
-      return nil, errors.Errorf("unwindowed coder %v on DataSink %v: %v", cid, id, sink.Coder)
-    }
+		sink.SID = StreamID{PtransformID: id.to, Port: port}
+		sink.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
+		if err != nil {
+			return nil, err
+		}
+		if !coder.IsW(sink.Coder) {
+			return nil, errors.Errorf("unwindowed coder %v on DataSink %v: %v", cid, id, sink.Coder)
+		}
 		u = sink
 
 	default:
