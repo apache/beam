@@ -24,7 +24,7 @@ import java.io.IOException;
 import org.apache.avro.Schema;
 
 /** Mock implementation of {@link CSRClientProvider} used for testing. */
-public class TestCSRClientProvider extends BasicCSRClientProvider {
+class TestCSRClientProvider extends BasicCSRClientProvider {
 
   private static final String SCHEMA_STRING =
       "{\"namespace\": \"example.avro\",\n"

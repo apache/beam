@@ -450,7 +450,7 @@ public class KafkaIOTest {
                     1,
                     numElements,
                     OffsetResetStrategy.EARLIEST,
-                    new KeyAvroSerializableFunction(topic, schemaRegistryUrl, true),
+                    new KeyAvroSerializableFunction(topic, schemaRegistryUrl),
                     i -> ByteBuffer.wrap(new byte[8]).putLong(i).array()))
             .withMaxNumRecords(numElements)
             .withCSRClientProvider(
@@ -486,7 +486,7 @@ public class KafkaIOTest {
                     numElements,
                     OffsetResetStrategy.EARLIEST,
                     i -> ByteBuffer.wrap(new byte[4]).putInt(i).array(),
-                    new ValueAvroSerializableFunction(topic, schemaRegistryUrl, false)))
+                    new ValueAvroSerializableFunction(topic, schemaRegistryUrl)))
             .withMaxNumRecords(numElements)
             .withCSRClientProvider(
                 new TestCSRClientProvider(schemaRegistryUrl, null, valueSchemaSubject));
@@ -523,8 +523,8 @@ public class KafkaIOTest {
                     1,
                     numElements,
                     OffsetResetStrategy.EARLIEST,
-                    new KeyAvroSerializableFunction(topic, schemaRegistryUrl, true),
-                    new ValueAvroSerializableFunction(topic, schemaRegistryUrl, false)))
+                    new KeyAvroSerializableFunction(topic, schemaRegistryUrl),
+                    new ValueAvroSerializableFunction(topic, schemaRegistryUrl)))
             .withMaxNumRecords(numElements)
             .withCSRClientProvider(
                 new TestCSRClientProvider(schemaRegistryUrl, keySchemaSubject, valueSchemaSubject));
@@ -536,7 +536,7 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testReadAvroValuesAsPojoRecords() {
+  public void testReadAvroValuesAsSpecificRecords() {
     int numElements = 100;
     String topic = "my_topic";
     String valueSchemaSubject = topic + "-value";
@@ -560,7 +560,7 @@ public class KafkaIOTest {
                     numElements,
                     OffsetResetStrategy.EARLIEST,
                     i -> ByteBuffer.wrap(new byte[4]).putInt(i).array(),
-                    new ValueAvroSerializableFunction(topic, schemaRegistryUrl, false)))
+                    new ValueAvroSerializableFunction(topic, schemaRegistryUrl)))
             .withMaxNumRecords(numElements)
             .withValueDeserializerAndCoder(
                 (Class) KafkaAvroDeserializer.class, AvroCoder.of(AvroGeneratedUser.class))
@@ -1967,7 +1967,7 @@ public class KafkaIOTest {
     }
   }
 
-  private static class AvroDeSe {
+  private static class AvroSerde {
     private static Serializer<AvroGeneratedUser> getSerializer(
         boolean isKey, String schemaRegistryUrl) {
       SchemaRegistryClient registryClient = new MockSchemaRegistryClient();
@@ -2008,15 +2008,15 @@ public class KafkaIOTest {
 
     static Serializer<AvroGeneratedUser> getSerializer(boolean isKey, String schemaRegistryUrl) {
       if (serializer == null) {
-        serializer = AvroDeSe.getSerializer(isKey, schemaRegistryUrl);
+        serializer = AvroSerde.getSerializer(isKey, schemaRegistryUrl);
       }
       return serializer;
     }
   }
 
   private static class KeyAvroSerializableFunction extends BaseAvroSerializableFunction {
-    KeyAvroSerializableFunction(String topic, String schemaRegistryUrl, boolean isKey) {
-      super(topic, schemaRegistryUrl, isKey);
+    KeyAvroSerializableFunction(String topic, String schemaRegistryUrl) {
+      super(topic, schemaRegistryUrl, true);
     }
 
     @Override
@@ -2027,8 +2027,8 @@ public class KafkaIOTest {
   }
 
   private static class ValueAvroSerializableFunction extends BaseAvroSerializableFunction {
-    ValueAvroSerializableFunction(String topic, String schemaRegistryUrl, boolean isKey) {
-      super(topic, schemaRegistryUrl, isKey);
+    ValueAvroSerializableFunction(String topic, String schemaRegistryUrl) {
+      super(topic, schemaRegistryUrl, false);
     }
 
     @Override

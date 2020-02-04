@@ -21,7 +21,8 @@ import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import java.io.Serializable;
 
 /**
- * Provides instances of Confluent Schema Registry clients.
+ * Provides instances of Confluent Schema Registry client, schema registry url, key and value
+ * subjects.
  *
  * <p>Please note, that any instance of {@link CSRClientProvider} must be {@link Serializable} to
  * ensure it can be sent to worker machines.

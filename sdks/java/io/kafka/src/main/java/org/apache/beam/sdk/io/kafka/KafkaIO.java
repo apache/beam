@@ -187,18 +187,16 @@ import org.slf4j.LoggerFactory;
  * keys are typed as {@link Long}:
  *
  * <pre>{@code
- * // Confluent Schema Registry URL
- * String schemaRegistryUrl = "http://localhost:8081";
- * BasicCSRClientProvider csrClientProvider = new BasicCSRClientProvider(schemaRegistryUrl);
- * // Set which Confluent Schema Registry subject to use
- * csrClientProvider.setValueSchemaSubject("my_topic-value");
- *
  * PCollection<KafkaRecord<Long, GenericRecord>> input = pipeline
  *   .apply(KafkaIO.<Long, GenericRecord>read()
  *      .withBootstrapServers("broker_1:9092,broker_2:9092")
  *      .withTopic("my_topic")
  *      .withKeyDeserializer(LongDeserializer.class)
- *      .withCSRClientProvider(csrClientProvider)) // no need to set value deserializer and coder
+ *
+ *      // Use Confluent Schema Registry, specify schema registry URL and value subject (key subject
+ *      // is null). No need to set value deserializer and coder in this case. it will be set
+ *      // automatically.
+ *      .withCSRClientProvider("http://localhost:8081", null, "my_topic-value"))
  *    ...
  * }</pre>
  *
@@ -634,7 +632,7 @@ public class KafkaIO {
      * Registry. You should use this method if {@link Read#withCSRClientProvider(String, String,
      * String)} does not suit your needs.
      */
-    public Read<K, V> withCSRClientProvider(CSRClientProvider csrClientProvider) {
+    Read<K, V> withCSRClientProvider(CSRClientProvider csrClientProvider) {
       Builder<K, V> builder = toBuilder();
       if (csrClientProvider.getKeySchemaSubject() != null) {
         builder.setKeyDeserializer((Class) KafkaAvroDeserializer.class);
@@ -653,13 +651,12 @@ public class KafkaIO {
 
     /**
      * Specify Confluent schema registry url, key and value schema subjects to be used to read
-     * schema from Confluent Schema Registry. If you need more sophisticated credential protocol,
-     * then you should look at {@link Read#withCSRClientProvider(CSRClientProvider)}.
+     * schema from Confluent Schema Registry.
      */
     public Read<K, V> withCSRClientProvider(
         String schemaRegistryUrl, String keySchemaSubject, String valueSchemaSubject) {
       return withCSRClientProvider(
-          new BasicCSRClientProvider(schemaRegistryUrl, keySchemaSubject, valueSchemaSubject));
+          BasicCSRClientProvider.of(schemaRegistryUrl, keySchemaSubject, valueSchemaSubject));
     }
 
     /**
@@ -893,7 +890,7 @@ public class KafkaIO {
       return new TypedWithoutMetadata<>(this);
     }
 
-    private Schema fetchAvroSchema(CSRClientProvider csrClientProvider, String subject) {
+    private static Schema fetchAvroSchema(CSRClientProvider csrClientProvider, String subject) {
       SchemaMetadata latestSchemaMetadata;
       try {
         latestSchemaMetadata = csrClientProvider.getCSRClient().getLatestSchemaMetadata(subject);
@@ -903,7 +900,7 @@ public class KafkaIO {
       }
 
       final Schema avroSchema = new Schema.Parser().parse(latestSchemaMetadata.getSchema());
-      checkArgument(avroSchema != null, "Avro schema can't be null");
+      checkState(avroSchema != null, "Avro schema can't be null");
       return avroSchema;
     }
 
@@ -978,7 +975,7 @@ public class KafkaIO {
         String schemaSubject = csrClientProvider.getKeySchemaSubject();
         if (schemaSubject != null) {
           avroKeySchema = fetchAvroSchema(csrClientProvider, schemaSubject);
-          checkArgument(avroKeySchema != null, "Avro key schema can't be null");
+          checkState(avroKeySchema != null, "Avro key schema can't be null");
         }
         keyCoder = (Coder<K>) AvroCoder.of(avroKeySchema);
       } else {
@@ -1000,7 +997,7 @@ public class KafkaIO {
         String schemaSubject = csrClientProvider.getValueSchemaSubject();
         if (schemaSubject != null) {
           avroValueSchema = fetchAvroSchema(csrClientProvider, schemaSubject);
-          checkArgument(avroValueSchema != null, "Avro value schema can't be null");
+          checkState(avroValueSchema != null, "Avro value schema can't be null");
         }
         valueCoder = (Coder<V>) AvroCoder.of(avroValueSchema);
       } else {

@@ -22,12 +22,17 @@ import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import javax.annotation.Nullable;
 
 /** Basic implementation of {@link CSRClientProvider} used by default in {@link KafkaIO}. */
-public class BasicCSRClientProvider implements CSRClientProvider {
+class BasicCSRClientProvider implements CSRClientProvider {
   @Nullable private final String keySchemaSubject;
   @Nullable private final String valueSchemaSubject;
   private final String schemaRegistryUrl;
 
-  public BasicCSRClientProvider(
+  static BasicCSRClientProvider of(
+      String schemaRegistryUrl, String keySchemaSubject, String valueSchemaSubject) {
+    return new BasicCSRClientProvider(schemaRegistryUrl, keySchemaSubject, valueSchemaSubject);
+  }
+
+  BasicCSRClientProvider(
       String schemaRegistryUrl, String keySchemaSubject, String valueSchemaSubject) {
     this.schemaRegistryUrl = schemaRegistryUrl;
     this.keySchemaSubject = keySchemaSubject;
