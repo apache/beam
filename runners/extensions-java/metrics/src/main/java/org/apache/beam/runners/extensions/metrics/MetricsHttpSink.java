@@ -34,8 +34,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import javax.xml.ws.http.HTTPException;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -52,7 +50,6 @@ public class MetricsHttpSink implements MetricsSink {
     this.urlString = pipelineOptions.getMetricsHttpSinkUrl();
   }
 
-  @Experimental(Kind.METRICS)
   @Override
   public void writeMetrics(MetricQueryResults metricQueryResults) throws Exception {
     URL url = new URL(urlString);
