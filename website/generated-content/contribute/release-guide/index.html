@@ -1371,6 +1371,11 @@ to point to the new release. See file history for examples.</li>
 
 <p>Write a blog post similar to https://beam.apache.org/blog/2019/08/22/beam-2.15.0.html</p>
 
+<ul>
+  <li>Update <code class="highlighter-rouge">CHANGES.md</code> by adding a new section for the next release.</li>
+  <li>Copy the changes for the current release from <code class="highlighter-rouge">CHANGES.md</code> to the blog post and edit as necessary.</li>
+</ul>
+
 <p><strong>Tip</strong>: Use git log to find contributors to the releases. (e.g: <code class="highlighter-rouge">git log --pretty='%aN' ^v2.10.0 v2.11.0 | sort | uniq</code>).
 Make sure to clean it up, as there may be duplicate or incorrect user names.</p>
 
@@ -1402,7 +1407,7 @@ all major features and bug fixes, and all known issues.</p>
     ### Breaking Changes
 
     * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-    * Y behavior was changed ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-X)).
+    * Y behavior was changed ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
 
     ### Deprecations
 
