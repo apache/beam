@@ -20,6 +20,117 @@
     <generator>Jekyll v3.6.3</generator>
     
       <item>
+        <title>Apache Beam 2.19.0</title>
+        <description>&lt;!--
+Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+
+&lt;p&gt;We are happy to present the new 2.19.0 release of Beam. This release includes both improvements and new functionality.
+See the &lt;a href=&quot;/get-started/downloads/#2190-2020-02-04&quot;&gt;download page&lt;/a&gt; for this release.&lt;!--more--&gt;
+For more information on changes in 2.19.0, check out the
+&lt;a href=&quot;https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12346582&quot;&gt;detailed release notes&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;highlights&quot;&gt;Highlights&lt;/h2&gt;
+&lt;ul&gt;
+  &lt;li&gt;Multiple improvements made into Python SDK harness: 
+ &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8624&quot;&gt;BEAM-8624&lt;/a&gt;, 
+ &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8623&quot;&gt;BEAM-8623&lt;/a&gt;, 
+ &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7949&quot;&gt;BEAM-7949&lt;/a&gt;, 
+ &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8935&quot;&gt;BEAM-8935&lt;/a&gt;, 
+ &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8816&quot;&gt;BEAM-8816&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;ios&quot;&gt;I/Os&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-1440&quot;&gt;BEAM-1440&lt;/a&gt; Create a BigQuery source (that implements iobase.BoundedSource) for Python SDK&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-2572&quot;&gt;BEAM-2572&lt;/a&gt; Implement an S3 filesystem for Python SDK&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-5192&quot;&gt;BEAM-5192&lt;/a&gt; Support Elasticsearch 7.x&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8745&quot;&gt;BEAM-8745&lt;/a&gt; More fine-grained controls for the size of a BigQuery Load job&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8801&quot;&gt;BEAM-8801&lt;/a&gt; PubsubMessageToRow should not check useFlatSchema() in processElement&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8953&quot;&gt;BEAM-8953&lt;/a&gt; Extend ParquetIO.Read/ReadFiles.Builder to support Avro GenericData model&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8946&quot;&gt;BEAM-8946&lt;/a&gt; Report collection size from MongoDBIOIT&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8978&quot;&gt;BEAM-8978&lt;/a&gt; Report saved data size from HadoopFormatIOIT&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;new-features--improvements&quot;&gt;New Features / Improvements&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-6008&quot;&gt;BEAM-6008&lt;/a&gt; Improve error reporting in Java/Python PortableRunner&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8296&quot;&gt;BEAM-8296&lt;/a&gt; Containerize the Spark job server&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8746&quot;&gt;BEAM-8746&lt;/a&gt; Allow the local job service to work from inside docker&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8837&quot;&gt;BEAM-8837&lt;/a&gt; PCollectionVisualizationTest: possible bug&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8139&quot;&gt;BEAM-8139&lt;/a&gt; Execute portable Spark application jar&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9019&quot;&gt;BEAM-9019&lt;/a&gt; Improve Spark Encoders (wrappers of beam coders)&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9053&quot;&gt;BEAM-9053&lt;/a&gt; Improve error message when unable to get the correct filesystem for specified path in Python SDK) Improve error message when unable to get the correct filesystem for specified path in Python SDK&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9055&quot;&gt;BEAM-9055&lt;/a&gt; Unify the config names of Fn Data API across languages&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;sql&quot;&gt;SQL&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-5690&quot;&gt;BEAM-5690&lt;/a&gt; Issue with GroupByKey in BeamSql using SparkRunner&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8993&quot;&gt;BEAM-8993&lt;/a&gt; [SQL] MongoDb should use predicate push-down&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8844&quot;&gt;BEAM-8844&lt;/a&gt; [SQL] Create performance tests for BigQueryTable&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9023&quot;&gt;BEAM-9023&lt;/a&gt; Upgrade to ZetaSQL 2019.12.1&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;breaking-changes&quot;&gt;Breaking Changes&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8989&quot;&gt;BEAM-8989&lt;/a&gt; Backwards incompatible change in ParDo.getSideInputs (caught by failure when running Apache Nemo quickstart)&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8402&quot;&gt;BEAM-8402&lt;/a&gt; Backwards incompatible change related to how Environments are represented in Python &lt;code class=&quot;highlighter-rouge&quot;&gt;DirectRunner&lt;/code&gt;.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9218&quot;&gt;BEAM-9218&lt;/a&gt; Template staging broken on Beam 2.18.0&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;dependency-changes&quot;&gt;Dependency Changes&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8696&quot;&gt;BEAM-8696&lt;/a&gt; Beam Dependency Update Request: com.google.protobuf:protobuf-java&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8701&quot;&gt;BEAM-8701&lt;/a&gt; Beam Dependency Update Request: commons-io:commons-io&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8716&quot;&gt;BEAM-8716&lt;/a&gt; Beam Dependency Update Request: org.apache.commons:commons-csv&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8717&quot;&gt;BEAM-8717&lt;/a&gt; Beam Dependency Update Request: org.apache.commons:commons-lang3&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8749&quot;&gt;BEAM-8749&lt;/a&gt; Beam Dependency Update Request: com.datastax.cassandra:cassandra-driver-mapping&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-5546&quot;&gt;BEAM-5546&lt;/a&gt; Beam Dependency Update Request: commons-codec:commons-codec&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;bugfixes&quot;&gt;Bugfixes&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9123&quot;&gt;BEAM-9123&lt;/a&gt; HadoopResourceId returns wrong directory name&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8962&quot;&gt;BEAM-8962&lt;/a&gt; FlinkMetricContainer causes churn in the JobManager and lets the web frontend malfunction&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-5495&quot;&gt;BEAM-5495&lt;/a&gt; PipelineResources algorithm is not working in most environments&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8025&quot;&gt;BEAM-8025&lt;/a&gt; Cassandra IO classMethod test is flaky&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8577&quot;&gt;BEAM-8577&lt;/a&gt; FileSystems may have not be initialized during ResourceId deserialization&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8582&quot;&gt;BEAM-8582&lt;/a&gt; Python SDK emits duplicate records for Default and AfterWatermark triggers&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8943&quot;&gt;BEAM-8943&lt;/a&gt; SDK harness servers don’t shut down properly when SDK harness environment cleanup fails&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8995&quot;&gt;BEAM-8995&lt;/a&gt; apache_beam.io.gcp.bigquery_read_it_test failing on Py3.5 PC with: TypeError: the JSON object must be str, not ‘bytes’&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8999&quot;&gt;BEAM-8999&lt;/a&gt; PGBKCVOperation does not respect timestamp combiners&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9050&quot;&gt;BEAM-9050&lt;/a&gt; Beam pickler doesn’t pickle classes that have &lt;strong&gt;module&lt;/strong&gt; set to None.&lt;/li&gt;
+  &lt;li&gt;&lt;/li&gt;
+  &lt;li&gt;Various bug fixes and performance improvements.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h2&gt;
+
+&lt;p&gt;According to git shortlog, the following people contributed to the 2.19.0 release. Thank you to all contributors!&lt;/p&gt;
+
+&lt;p&gt;Ahmet Altay, Alex Amato, Alexey Romanenko, Andrew Pilloud, Ankur Goenka, Anton Kedin, Boyuan Zhang, Brian Hulette, Brian Martin, Chamikara Jayalath, Charles Chen, Craig Chambers, Daniel Oliveira, David Moravek, David Rieber, Dustin Rhodes, Etienne Chauchot, Gleb Kanterov, Hai Lu, Heejong Lee, Ismaël Mejía, Jan Lukavský, Jason Kuster, Jean-Baptiste Onofré, Jeff Klukas, João Cabrita, J Ross Thomson, Juan Rael, Juta, Kasia Kucharczyk, Kengo Seki, Kenneth Jung, Kenneth Knowles, Kyle Weaver, Kyle Winkelman, Lukas Drbal, Łukasz Gajowy, Marek Simunek, Mark Liu, Maximilian Michels, Melissa Pashniak, Michael Luckey, Michal Walenia, Mike Pedersen, Mikhail Gryzykhin, Niel Markwick, Pablo Estrada, Pascal Gula, Reuven Lax, Rob, Robbe Sneyders, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Ryan Williams, Sam Rohde, Sam Whittle, Scott Wegner, Thomas Weise, Tianyang Hu, ttanay, tvalentyn, Tyler Akidau, Udi Meiri, Valentyn Tymofieiev, Xinyu Liu, XuMingmin&lt;/p&gt;
+</description>
+        <pubDate>Tue, 04 Feb 2020 00:00:01 -0800</pubDate>
+        <link>https://beam.apache.org/blog/2020/02/04/beam-2.19.0.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2020/02/04/beam-2.19.0.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
         <title>Apache Beam 2.18.0</title>
         <description>&lt;!--
 Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1293,65 +1404,6 @@ sequence generator.&lt;/p&gt;
         <pubDate>Tue, 04 Jun 2019 01:00:01 -0700</pubDate>
         <link>https://beam.apache.org/blog/2019/06/04/adding-data-sources-to-sql.html</link>
         <guid isPermaLink="true">https://beam.apache.org/blog/2019/06/04/adding-data-sources-to-sql.html</guid>
-        
-        
-        <category>blog</category>
-        
-      </item>
-    
-      <item>
-        <title>Apache Beam Katas</title>
-        <description>&lt;!--
-Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---&gt;
-
-&lt;p&gt;We are happy to announce 
-&lt;a href=&quot;https://github.com/apache/beam/tree/master/learning/katas&quot;&gt;Apache Beam Katas&lt;/a&gt;, a set of 
-interactive Beam coding exercises (i.e. &lt;a href=&quot;http://codekata.com/&quot;&gt;code katas&lt;/a&gt;) that can help you in 
-learning Apache Beam concepts and programming model hands-on.&lt;/p&gt;
-
-&lt;!--more--&gt;
-
-&lt;p&gt;Beam Katas objective is to provide a series of structured hands-on learning experiences for learners 
-to understand about Apache Beam and its SDKs by solving exercises with gradually increasing 
-complexity. It is built based on 
-&lt;a href=&quot;https://www.jetbrains.com/education/&quot;&gt;JetBrains Educational Products&lt;/a&gt;. Beam Katas is available for 
-both Java and Python SDKs. Currently we have about 20 lessons that cover Apache Beam fundamentals, 
-such as core transforms, common transforms, and simple use case (word count), with more katas to 
-be added in the coming future.&lt;/p&gt;
-
-&lt;p&gt;To start with the courses, you can simply download 
-&lt;a href=&quot;https://www.jetbrains.com/education/download/#section=idea&quot;&gt;IntelliJ Edu&lt;/a&gt; or 
-&lt;a href=&quot;https://www.jetbrains.com/education/download/#section=pycharm-edu&quot;&gt;PyCharm Edu&lt;/a&gt; and then browse 
-the integrated Stepik courses from the menu. Search for “Beam Katas” and once the course is loaded 
-on the IDE, you’re good to go.&lt;/p&gt;
-
-&lt;p&gt;We have plans to add more katas covering more topics including some of the intermediate and 
-advanced ones in the coming future, such as windowing, streaming, and use case patterns. We would 
-also like to welcome you to &lt;a href=&quot;https://github.com/apache/beam&quot;&gt;contribute&lt;/a&gt; by building and adding more katas that you think would be 
-useful for people to learn more about Apache Beam, and eventually become Beam Masters!&lt;/p&gt;
-
-&lt;p&gt;&lt;br /&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/images/blog/beam-kata/beam-kata-intellij-edu-1.png&quot; alt=&quot;Beam Kata - IntelliJ Edu&quot; width=&quot;363&quot; height=&quot;350&quot; /&gt;
-&lt;img src=&quot;/images/blog/beam-kata/beam-kata-intellij-edu-2.png&quot; alt=&quot;Beam Kata - IntelliJ Edu&quot; width=&quot;455&quot; height=&quot;350&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/images/blog/beam-kata/beam-kata-pycharm-edu-1.png&quot; alt=&quot;Beam Kata - PyCharm Edu&quot; width=&quot;363&quot; height=&quot;350&quot; /&gt;
-&lt;img src=&quot;/images/blog/beam-kata/beam-kata-pycharm-edu-2.png&quot; alt=&quot;Beam Kata - PyCharm Edu&quot; width=&quot;459&quot; height=&quot;350&quot; /&gt;&lt;/p&gt;
-</description>
-        <pubDate>Thu, 30 May 2019 01:00:01 -0700</pubDate>
-        <link>https://beam.apache.org/blog/2019/05/30/beam-kata-release.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/blog/2019/05/30/beam-kata-release.html</guid>
         
         
         <category>blog</category>
