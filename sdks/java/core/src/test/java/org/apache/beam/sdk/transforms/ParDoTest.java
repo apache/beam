@@ -4292,7 +4292,7 @@ public class ParDoTest implements Serializable {
   public static class TimerFamilyTests extends SharedTestBase implements Serializable {
 
     @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTimerMap.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTimerMap.class})
     public void testTimerFamilyEventTime() throws Exception {
       final String timerFamilyId = "foo";
 
@@ -4329,7 +4329,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesTimerMap.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTimerMap.class})
     public void testTimerWithMultipleTimerFamily() throws Exception {
       final String timerFamilyId1 = "foo";
       final String timerFamilyId2 = "bar";
@@ -4374,7 +4374,7 @@ public class ParDoTest implements Serializable {
 
     @Test
     @Category({
-      NeedsRunner.class,
+      ValidatesRunner.class,
       UsesTimersInParDo.class,
       UsesTestStreamWithProcessingTime.class,
       UsesTimerMap.class
