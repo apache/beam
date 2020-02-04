@@ -156,7 +156,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
     }
 
     // Else try to make a setter-based creator
-    UserTypeCreatorFactory setterBasedFactory =
+    Factory<SchemaUserTypeCreator> setterBasedFactory =
         new SetterBasedCreatorFactory(new JavaBeanSetterFactory());
     return setterBasedFactory.create(targetClass, schema);
   }
