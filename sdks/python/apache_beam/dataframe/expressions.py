@@ -74,6 +74,9 @@ class Expression(object):
   def __ne__(self, other):
     return not self == other
 
+  def __repr__(self):
+    return '%s[%s]' % (self.__class__.__name__, self._id)
+
   def evaluate_at(self, session):  # type: (Session) -> T
     """Returns the result of self with the bindings given in session."""
     raise NotImplementedError(type(self))
@@ -195,7 +198,7 @@ class ComputedExpression(Expression):
     return self._args
 
   def evaluate_at(self, session):
-    return self._func(*(arg.evaluate_at(session) for arg in self._args))
+    return self._func(*(session.evaluate(arg) for arg in self._args))
 
   def requires_partition_by_index(self):
     return self._requires_partition_by_index
