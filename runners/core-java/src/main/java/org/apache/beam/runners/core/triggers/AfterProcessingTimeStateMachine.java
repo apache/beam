@@ -20,8 +20,6 @@ package org.apache.beam.runners.core.triggers;
 import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.joda.time.Instant;
@@ -37,7 +35,6 @@ import org.joda.time.Instant;
  */
 // The superclass should be inlined here, its only real use
 // https://issues.apache.org/jira/browse/BEAM-1486
-@Experimental(Kind.TRIGGER)
 public class AfterProcessingTimeStateMachine extends AfterDelayFromFirstElementStateMachine {
 
   @Override
