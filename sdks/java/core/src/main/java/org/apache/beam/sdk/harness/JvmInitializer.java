@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.harness;
 
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * automate this.
  */
 @Experimental
+@Internal
 public interface JvmInitializer {
 
   /**

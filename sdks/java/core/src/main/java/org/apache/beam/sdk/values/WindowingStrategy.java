@@ -21,6 +21,7 @@ import java.io.Serializable;
 import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -43,6 +44,7 @@ import org.joda.time.Duration;
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this {@code
  *     WindowingStrategy}
  */
+@Internal
 public class WindowingStrategy<T, W extends BoundedWindow> implements Serializable {
 
   /**
