@@ -56,7 +56,6 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.local.Bundle;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -137,7 +136,6 @@ import org.joda.time.Instant;
  * Watermark_PCollection = Watermark_Out_ProducingPTransform
  * </pre>
  */
-@Internal
 public class WatermarkManager<ExecutableT, CollectionT> {
   // The number of updates to apply in #tryApplyPendingUpdates
   private static final int MAX_INCREMENTAL_UPDATES = 10;

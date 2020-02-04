@@ -85,7 +85,6 @@ import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -1721,7 +1720,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * A marker {@link DoFn} for writing the contents of a {@link PCollection} to a streaming {@link
    * PCollectionView} backend implementation.
    */
-  @Internal
   public static class StreamingPCollectionViewWriterFn<T> extends DoFn<Iterable<T>, T> {
     private final PCollectionView<?> view;
     private final Coder<T> dataCoder;
