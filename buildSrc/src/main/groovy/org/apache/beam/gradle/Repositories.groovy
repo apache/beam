@@ -54,6 +54,12 @@ class Repositories {
 
       // Apache release snapshots
       maven { url "https://repository.apache.org/content/repositories/releases" }
+
+      // For Confluent Kafka dependencies
+      maven {
+        url "http://packages.confluent.io/maven/"
+        content { includeGroup "io.confluent" }
+      }
     }
 
     // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
