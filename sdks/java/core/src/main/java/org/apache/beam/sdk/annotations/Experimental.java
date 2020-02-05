@@ -36,6 +36,7 @@ import java.lang.annotation.Target;
   ElementType.CONSTRUCTOR,
   ElementType.FIELD,
   ElementType.METHOD,
+  ElementType.PACKAGE,
   ElementType.TYPE
 })
 

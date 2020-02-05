@@ -21,4 +21,7 @@
  *
  * <p>Defines utilities that can be used by Beam runners.
  */
+@Internal
 package org.apache.beam.sdk.util;
+
+import org.apache.beam.sdk.annotations.Internal;
