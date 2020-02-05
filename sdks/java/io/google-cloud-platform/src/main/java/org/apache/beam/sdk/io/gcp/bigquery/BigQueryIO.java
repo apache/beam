@@ -1366,7 +1366,8 @@ public class BigQueryIO {
               LOG.info("Deleting temporary table with query results {}", tempTable);
               datasetService.deleteTable(tempTable);
               // Delete dataset only if it was created by Beam
-              if (!queryTempDataset.isPresent()) {
+              boolean datasetCreatedByBeam = !queryTempDataset.isPresent();
+              if (datasetCreatedByBeam) {
                 LOG.info(
                     "Deleting temporary dataset with query results {}", tempTable.getDatasetId());
                 datasetService.deleteDataset(tempTable.getProjectId(), tempTable.getDatasetId());

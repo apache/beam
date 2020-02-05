@@ -135,7 +135,8 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
     BigQueryServices.DatasetService tableService = bqServices.getDatasetService(bqOptions);
     LOG.info("Deleting temporary table with query results {}", tableToRemove);
     tableService.deleteTable(tableToRemove);
-    if (queryTempDatasetOpt.isPresent()) {
+    boolean datasetCreatedByBeam = !queryTempDatasetOpt.isPresent();
+    if (datasetCreatedByBeam) {
       // Remove temporary dataset only if it was created by Beam
       LOG.info("Deleting temporary dataset with query results {}", tableToRemove.getDatasetId());
       tableService.deleteDataset(tableToRemove.getProjectId(), tableToRemove.getDatasetId());
