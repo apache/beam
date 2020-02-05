@@ -500,10 +500,14 @@ class _PubSubReadEvaluator(_TransformEvaluator):
       raise NotImplementedError(
           'DirectRunner: id_label is not supported for PubSub reads')
 
-    import google.auth
-
-    _, sub_project = google.auth.default()
-
+    sub_project = None
+    if hasattr(self._evaluation_context, 'pipeline_options'):
+      from apache_beam.options.pipeline_options import GoogleCloudOptions
+      sub_project = (
+        self._evaluation_context.pipeline_options.view_as(GoogleCloudOptions).project)
+    if not sub_project:
+      import google.auth
+      _, sub_project = google.auth.default()
     if not sub_project:
       sub_project = self.source.project
 
