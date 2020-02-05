@@ -15,13 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas;
+package org.apache.beam.sdk.io.kafka;
+
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import java.io.Serializable;
 
 /**
- * A factory for creating {@link SchemaUserTypeCreator} objects from a user class and its inferred
- * schema.
+ * Provides instances of Confluent Schema Registry client, schema registry url, key and value
+ * subjects.
+ *
+ * <p>Please note, that any instance of {@link CSRClientProvider} must be {@link Serializable} to
+ * ensure it can be sent to worker machines.
  */
-public interface UserTypeCreatorFactory extends Factory<SchemaUserTypeCreator> {
-  @Override
-  SchemaUserTypeCreator create(Class<?> clazz, Schema schema);
+public interface CSRClientProvider extends Serializable {
+
+  SchemaRegistryClient getCSRClient();
+
+  String getSchemaRegistryUrl();
+
+  String getKeySchemaSubject();
+
+  String getValueSchemaSubject();
 }
