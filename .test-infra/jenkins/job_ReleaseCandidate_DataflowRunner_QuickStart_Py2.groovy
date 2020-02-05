@@ -18,8 +18,8 @@
 
 import CommonJobProperties as commonJobProperties
 
-job('beam_PostRelease_Python_Candidate') {
-    description('Runs verification of the Python release candidate.')
+job('beam_PostRelease_Python2_Candidate_QuickStart_Dataflow') {
+    description('Runs quick start verification of the Python2 release candidate with dataflow runner by using tar and wheel.')
 
     // Set common parameters.
     commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 360)
@@ -27,12 +27,11 @@ job('beam_PostRelease_Python_Candidate') {
     // Allows triggering this build against pull requests.
     commonJobProperties.enablePhraseTriggeringFromPullRequest(
             delegate,
-            'Python SDK Release Candidates Validation',
-            'Run Python ReleaseCandidate')
+            'Run Py2 ReleaseCandidate Dataflow Quickstart')
 
     // Execute shell command to test Python SDK.
     steps {
-      shell('cd ' + commonJobProperties.checkoutDir +
-        ' && bash release/src/main/python-release/python_release_automation.sh')
+        shell('cd ' + commonJobProperties.checkoutDir +
+                ' && bash release/src/main/python-release/python_release_automation.sh 2.7 dataflow quick_start')
     }
 }

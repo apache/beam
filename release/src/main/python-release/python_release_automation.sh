@@ -19,10 +19,15 @@
 source release/src/main/python-release/run_release_candidate_python_quickstart.sh
 source release/src/main/python-release/run_release_candidate_python_mobile_gaming.sh
 
-for version in 2.7 3.5 3.6 3.7
-do
-  run_release_candidate_python_quickstart    "tar"   "python${version}"
-  run_release_candidate_python_mobile_gaming "tar"   "python${version}"
-  run_release_candidate_python_quickstart    "wheel" "python${version}"
-  run_release_candidate_python_mobile_gaming "wheel" "python${version}"
-done
+# Arguments:
+#   $1 - python interpreter version: [python2.7, python3.5, ...]
+#   $2 - runner type: [direct, dataflow]
+#   $3 - test type: [quick_start, mobile_game]
+
+if [[ "$3" == "quick_start" ]]; then
+  run_release_candidate_python_quickstart "tar"   "python${1}" "${2}"
+  run_release_candidate_python_quickstart "wheel" "python${1}" "${2}"
+elif [[ "$3" == "mobile_game" ]]; then
+  run_release_candidate_python_mobile_gaming "tar"   "python${1}" "${2}"
+  run_release_candidate_python_mobile_gaming "wheel" "python${1}" "${2}"
+fi

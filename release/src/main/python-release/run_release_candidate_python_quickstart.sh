@@ -229,10 +229,12 @@ function verify_streaming_wordcount_dataflow() {
 # Arguments:
 #   $1 - sdk types: [tar, wheel]
 #   $2 - python interpreter version: [python2.7, python3.5, ...]
+#   $3 - runner type: [direct, dataflow]
 #######################################
 function run_release_candidate_python_quickstart(){
   print_separator "Start Quickstarts Examples"
   echo "SDK version: $VERSION"
+
   TMPDIR=$(mktemp -d)
   echo $TMPDIR
   pushd $TMPDIR
@@ -245,10 +247,13 @@ function run_release_candidate_python_quickstart(){
 
   verify_hash
   install_sdk $1 $2
-  verify_wordcount_direct
-  verify_wordcount_dataflow
-  verify_streaming_wordcount_direct
-  verify_streaming_wordcount_dataflow
+  if [[ "$3" == "direct" ]]]; then
+    verify_wordcount_direct
+    verify_streaming_wordcount_direct
+  else
+    verify_wordcount_dataflow
+    verify_streaming_wordcount_dataflow
+  fi
 
-  complete "SUCCEED: Quickstart Verification Complete"
+  complete "SUCCEED: Quickstart Verification Complete on Python ${2} with ${3} runner by using ${1}."
 }
