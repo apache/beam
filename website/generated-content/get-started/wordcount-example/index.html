@@ -481,7 +481,7 @@ previous <code class="highlighter-rouge">TextIO.Read</code> transform. The <code
 
     <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ExtractWords"</span><span class="o">,</span> <span class="n">FlatMapElements</span>
         <span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">strings</span><span class="o">())</span>
-        <span class="o">.</span><span class="na">via</span><span class="o">((</span><span class="n">String</span> <span class="n">word</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span><span class="n">word</span><span class="o">.</span><span class="na">split</span><span class="o">(</span><span class="s">"[^\\p{L}]+"</span><span class="o">))))</span>
+        <span class="o">.</span><span class="na">via</span><span class="o">((</span><span class="n">String</span> <span class="n">line</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span><span class="n">line</span><span class="o">.</span><span class="na">split</span><span class="o">(</span><span class="s">"[^\\p{L}]+"</span><span class="o">))))</span>
 </code></pre></div>    </div>
 
     <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># The Flatmap transform is a simplified version of ParDo.</span>
