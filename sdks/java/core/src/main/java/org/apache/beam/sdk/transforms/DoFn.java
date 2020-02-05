@@ -276,6 +276,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   }
 
   /** Information accessible when running a {@link DoFn.OnTimer} method. */
+  @Experimental(Kind.TIMERS)
   public abstract class OnTimerContext extends WindowedContext {
 
     /** Returns the timestamp of the current timer. */
