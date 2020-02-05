@@ -46,7 +46,7 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
   private final Boolean useLegacySql;
   private final BigQueryIO.TypedRead.QueryPriority priority;
   private final String location;
-  private final String queryTempDataset;
+  private final String tempDatasetId;
   private final String kmsKey;
 
   private transient AtomicReference<JobStatistics> dryRunJobStats;
@@ -58,17 +58,10 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
       Boolean useLegacySql,
       BigQueryIO.TypedRead.QueryPriority priority,
       String location,
-      String queryTempDataset,
+      String tempDatasetId,
       String kmsKey) {
     return new BigQueryQuerySourceDef(
-        bqServices,
-        query,
-        flattenResults,
-        useLegacySql,
-        priority,
-        location,
-        queryTempDataset,
-        kmsKey);
+        bqServices, query, flattenResults, useLegacySql, priority, location, tempDatasetId, kmsKey);
   }
 
   private BigQueryQuerySourceDef(
@@ -78,7 +71,7 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
       Boolean useLegacySql,
       BigQueryIO.TypedRead.QueryPriority priority,
       String location,
-      String queryTempDataset,
+      String tempDatasetId,
       String kmsKey) {
     this.query = checkNotNull(query, "query");
     this.flattenResults = checkNotNull(flattenResults, "flattenResults");
@@ -86,7 +79,7 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
     this.bqServices = bqServices;
     this.priority = priority;
     this.location = location;
-    this.queryTempDataset = queryTempDataset;
+    this.tempDatasetId = tempDatasetId;
     this.kmsKey = kmsKey;
     dryRunJobStats = new AtomicReference<>();
   }
@@ -127,12 +120,12 @@ class BigQueryQuerySourceDef implements BigQuerySourceDef {
         useLegacySql,
         priority,
         location,
-        queryTempDataset,
+        tempDatasetId,
         kmsKey);
   }
 
   void cleanupTempResource(BigQueryOptions bqOptions, String stepUuid) throws Exception {
-    Optional<String> queryTempDatasetOpt = Optional.ofNullable(queryTempDataset);
+    Optional<String> queryTempDatasetOpt = Optional.ofNullable(tempDatasetId);
     TableReference tableToRemove =
         createTempTableReference(
             bqOptions.getProject(),
