@@ -295,6 +295,13 @@ type kvDecoder struct {
 	fst, snd ElementDecoder
 }
 
+// Decode returns a *FullValue containing the contents of the decoded KV. If
+// one of the elements of the KV is a nested KV, then the corresponding Elm
+// field in the returned value will be another *FullValue. Otherwise, the
+// Elm will be the decoded type.
+//
+// Example:
+//   KV<int, KV<...>> decodes to *FullValue{Elm: int, Elm2: *FullValue{...}}
 func (c *kvDecoder) Decode(r io.Reader) (*FullValue, error) {
 	key, err := c.fst.Decode(r)
 	if err != nil {
@@ -304,8 +311,20 @@ func (c *kvDecoder) Decode(r io.Reader) (*FullValue, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &FullValue{Elm: key.Elm, Elm2: value.Elm}, nil
+	return &FullValue{Elm: elideSingleElmFV(key), Elm2: elideSingleElmFV(value)}, nil
+}
 
+// elideSingleElmFV elides a FullValue if it has only one element, returning
+// the contents of the first element, but returning the FullValue unchanged
+// if it has two elements.
+//
+// Technically drops window and timestamp info, so only use when those are
+// expected to be empty.
+func elideSingleElmFV(fv *FullValue) interface{} {
+	if fv.Elm2 == nil {
+		return fv.Elm
+	}
+	return fv
 }
 
 // WindowEncoder handles Window serialization to a byte stream. The encoder
@@ -464,6 +483,8 @@ func DecodeWindowedValueHeader(dec WindowDecoder, r io.Reader) ([]typex.Window, 
 func convertIfNeeded(v interface{}) *FullValue {
 	if fv, ok := v.(*FullValue); ok {
 		return fv
+	} else if _, ok := v.(FullValue); ok {
+		panic("Nested FullValues must be nested as pointers.")
 	}
 	return &FullValue{Elm: v}
 }
