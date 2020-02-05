@@ -265,14 +265,15 @@ if [[ $confirmation = "y" ]]; then
   mkdir -p ${LOCAL_WEBSITE_REPO}
 
   echo "------------------Building Python Doc------------------------"
-  virtualenv ${LOCAL_PYTHON_VIRTUALENV}
-  source ${LOCAL_PYTHON_VIRTUALENV}/bin/activate
-  cd ${LOCAL_PYTHON_DOC}
-  pip install tox
+  cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}
   git clone ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
   git checkout ${RELEASE_BRANCH}
-  cd sdks/python && tox -e docs
+  virtualenv -p python3 ${LOCAL_PYTHON_VIRTUALENV}
+  source ${LOCAL_PYTHON_VIRTUALENV}/bin/activate
+  cd sdks/python
+  pip install tox
+  tox -e py37-docs
   GENERATED_PYDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}/${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
   rm -rf ${GENERATED_PYDOC}/.doctrees
 
@@ -281,7 +282,7 @@ if [[ $confirmation = "y" ]]; then
   git clone ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
   git checkout ${RELEASE_BRANCH}
-  ./gradlew :sdks:java:javadoc:aggregateJavadoc
+  ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease
   GENERATE_JAVADOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}/${BEAM_ROOT_DIR}/sdks/java/javadoc/build/docs/javadoc/
 
   echo "------------------Updating Release Docs---------------------"
@@ -314,7 +315,7 @@ if [[ $confirmation = "y" ]]; then
       rm -rf ${HUB_ARTIFACTS_NAME}*
     fi
   fi
-  if [[ -z `which hub` ]]; then
+  if [[ ! -z `which hub` ]]; then
     hub pull-request -m "Publish ${RELEASE} release" -h ${USER_GITHUB_ID}:updates_release_${RELEASE} -b apache:release-docs
   else
     echo "Without hub, you need to create PR manually."
