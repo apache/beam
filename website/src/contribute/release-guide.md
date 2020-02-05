@@ -72,7 +72,7 @@ To prepare for each release, you should audit the project status in the JIRA iss
 
 __NOTE__: If you are using [GitHub two-factor authentication](https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/) and haven't configure HTTPS access, 
 please follow [the guide](https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/) to configure command line access.
-
+If you haven't setup ssh key for github, please follow the instructions [here](https://help.github.com/en/github/authenticating-to-github/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent).
 
 ### Accounts
 
@@ -270,6 +270,8 @@ There are 2 ways to cut a release branch: either running automation script(recom
   # Show help page
   ./beam/release/src/main/scripts/cut_release_branch.sh -h
   ```
+  __NOTE__: If you are working on releasing beam 2.19.0, then RELEASE_VERSION=2.19.0, NEXT_VERSION=2.20.0 .
+  
 * The script will:
   1. Create release-${RELEASE_VERSION} branch locally.
   1. Change and commit dev versoin number in master branch:
@@ -377,7 +379,7 @@ There are 2 ways to trigger a nightly build, either using automation script(reco
 After the release branch is cut you need to make sure it builds and has no significant issues that would block the creation of the release candidate.
 There are 2 ways to perform this verification, either running automation script(recommended), or running all commands manually.
 
-! Dataflow tests will fail if Dataflow worker container is not created and published by this time. (Should be done by Google)
+__NOTE__: Failures of beam_PostCommit_Py_ValCont target can be ignored untill [BEAM-9137](https://issues.apache.org/jira/browse/BEAM-9137) is addressed.
 
 #### Run automation script (verify_release_build.sh)
 * Script: [verify_release_build.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/verify_release_build.sh)
@@ -1329,7 +1331,7 @@ Announce on the dev@ mailing list that the release has been finished.
 Announce on the release on the user@ mailing list, listing major improvements and contributions.
 
 Announce the release on the announce@apache.org mailing list.
-__NOTE__: This can only be done from `@apache.org` email address.
+__NOTE__: This can only be done from `@apache.org` email address. Please refer to [this blog](https://blogs.apache.org/infra/entry/committers_mail_relay_service) for instructions of sending email from @apache.org.
 
 
 ### Social media
