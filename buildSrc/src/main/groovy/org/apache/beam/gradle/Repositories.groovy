@@ -57,7 +57,7 @@ class Repositories {
 
       // For Confluent Kafka dependencies
       maven {
-        url "http://packages.confluent.io/maven/"
+        url "https://packages.confluent.io/maven/"
         content { includeGroup "io.confluent" }
       }
     }
@@ -76,7 +76,7 @@ class Repositories {
         mavenCentral()
         jcenter()
         maven { url "https://plugins.gradle.org/m2/" }
-        maven { url "http://repo.spring.io/plugins-release" }
+        maven { url "https://repo.spring.io/plugins-release" }
         maven { url project.offlineRepositoryRoot }
       }
       includeSources = false
