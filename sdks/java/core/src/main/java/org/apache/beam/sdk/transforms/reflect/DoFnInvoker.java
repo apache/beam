@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -33,9 +34,11 @@ import org.apache.beam.sdk.transforms.DoFn.StartBundle;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.Sizes;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Instant;
 
 /**
@@ -44,6 +47,7 @@ import org.joda.time.Instant;
  * <p>Instantiating a {@link DoFnInvoker} associates it with a specific {@link DoFn} instance,
  * referred to as the bound {@link DoFn}.
  */
+@Internal
 public interface DoFnInvoker<InputT, OutputT> {
   /** Invoke the {@link DoFn.Setup} method on the bound {@link DoFn}. */
   void invokeSetup();
@@ -75,7 +79,8 @@ public interface DoFnInvoker<InputT, OutputT> {
 
   /** Invoke the {@link DoFn.GetInitialRestriction} method on the bound {@link DoFn}. */
   @SuppressWarnings("TypeParameterUnusedInFormals")
-  <RestrictionT> RestrictionT invokeGetInitialRestriction(InputT element);
+  <RestrictionT> RestrictionT invokeGetInitialRestriction(
+      ArgumentProvider<InputT, OutputT> arguments);
 
   /**
    * Invoke the {@link DoFn.GetRestrictionCoder} method on the bound {@link DoFn}. Called only
@@ -84,15 +89,19 @@ public interface DoFnInvoker<InputT, OutputT> {
   <RestrictionT> Coder<RestrictionT> invokeGetRestrictionCoder(CoderRegistry coderRegistry);
 
   /** Invoke the {@link DoFn.SplitRestriction} method on the bound {@link DoFn}. */
-  <RestrictionT> void invokeSplitRestriction(
-      InputT element,
-      RestrictionT restriction,
-      DoFn.OutputReceiver<RestrictionT> restrictionReceiver);
+  void invokeSplitRestriction(ArgumentProvider<InputT, OutputT> arguments);
+
+  /**
+   * Invoke the {@link DoFn.GetSize} method on the bound {@link DoFn}. Falls back to get the size
+   * from the {@link RestrictionTracker} if it supports {@link Sizes.HasSize}, otherwise returns
+   * 1.0.
+   */
+  double invokeGetSize(ArgumentProvider<InputT, OutputT> arguments);
 
   /** Invoke the {@link DoFn.NewTracker} method on the bound {@link DoFn}. */
   @SuppressWarnings("TypeParameterUnusedInFormals")
   <RestrictionT, PositionT> RestrictionTracker<RestrictionT, PositionT> invokeNewTracker(
-      RestrictionT restriction);
+      ArgumentProvider<InputT, OutputT> arguments);
 
   /** Get the bound {@link DoFn}. */
   DoFn<InputT, OutputT> getFn();
@@ -107,6 +116,7 @@ public interface DoFnInvoker<InputT, OutputT> {
    * <p>In the case of {@link ProcessElement} it is called once per invocation of {@link
    * ProcessElement}.
    */
+  @Internal
   interface ArgumentProvider<InputT, OutputT> {
     /**
      * Construct the {@link BoundedWindow} to use within a {@link DoFn} that needs it. This is
@@ -162,8 +172,14 @@ public interface DoFnInvoker<InputT, OutputT> {
     MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn);
 
     /**
-     * If this is a splittable {@link DoFn}, returns the {@link RestrictionTracker} associated with
-     * the current {@link ProcessElement} call.
+     * If this is a splittable {@link DoFn}, returns the associated restriction with the current
+     * call.
+     */
+    Object restriction();
+
+    /**
+     * If this is a splittable {@link DoFn}, returns the associated {@link RestrictionTracker} with
+     * the current call.
      */
     RestrictionTracker<?, ?> restrictionTracker();
 
@@ -182,169 +198,280 @@ public interface DoFnInvoker<InputT, OutputT> {
   }
 
   /**
-   * For testing only, this {@link ArgumentProvider} throws {@link UnsupportedOperationException}
-   * for all parameters.
+   * This {@link ArgumentProvider} throws {@link UnsupportedOperationException} for all parameters.
    */
-  class FakeArgumentProvider<InputT, OutputT> implements ArgumentProvider<InputT, OutputT> {
+  @Internal
+  abstract class BaseArgumentProvider<InputT, OutputT>
+      implements ArgumentProvider<InputT, OutputT> {
     @Override
     public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
-          String.format(
-              "Should never call non-overridden methods of %s",
-              FakeArgumentProvider.class.getSimpleName()));
+          String.format("ProcessContext unsupported in %s", getErrorContext()));
     }
 
     @Override
     public InputT element(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
-          String.format(
-              "Should never call non-overridden methods of %s",
-              FakeArgumentProvider.class.getSimpleName()));
+          String.format("Element unsupported in %s", getErrorContext()));
     }
 
     @Override
-    public InputT sideInput(String tagId) {
+    public Object sideInput(String tagId) {
       throw new UnsupportedOperationException(
-          String.format(
-              "Should never call non-overridden methods of %s",
-              FakeArgumentProvider.class.getSimpleName()));
+          String.format("SideInput unsupported in %s", getErrorContext()));
     }
 
     @Override
     public TimerMap timerFamily(String tagId) {
       throw new UnsupportedOperationException(
-          String.format(
-              "Should never call non-overridden methods of %s",
-              FakeArgumentProvider.class.getSimpleName()));
+          String.format("TimerFamily unsupported in %s", getErrorContext()));
     }
 
     @Override
-    public InputT schemaElement(int index) {
+    public Object schemaElement(int index) {
       throw new UnsupportedOperationException(
-          String.format(
-              "Should never call non-overridden methods of %s",
-              FakeArgumentProvider.class.getSimpleName()));
+          String.format("Schema element unsupported in %s", getErrorContext()));
     }
 
     @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
-          String.format(
-              "Should never call non-overridden methods of %s",
-              FakeArgumentProvider.class.getSimpleName()));
+          String.format("Timestamp unsupported in %s", getErrorContext()));
     }
 
     @Override
     public String timerId(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
-          String.format(
-              "Should never call non-overridden methods of %s",
-              FakeArgumentProvider.class.getSimpleName()));
+          String.format("TimerId unsupported in %s", getErrorContext()));
     }
 
     @Override
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
-          String.format(
-              "Should never call non-overridden methods of %s",
-              FakeArgumentProvider.class.getSimpleName()));
+          String.format("TimeDomain unsupported in %s", getErrorContext()));
     }
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
-          String.format(
-              "Should never call non-overridden methods of %s",
-              FakeArgumentProvider.class.getSimpleName()));
+          String.format("OutputReceiver unsupported in %s", getErrorContext()));
     }
 
     @Override
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
-          String.format(
-              "Should never call non-overridden methods of %s",
-              FakeArgumentProvider.class.getSimpleName()));
+          String.format("Row OutputReceiver unsupported in %s", getErrorContext()));
     }
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
-          String.format(
-              "Should never call non-overridden methods of %s",
-              FakeArgumentProvider.class.getSimpleName()));
+          String.format("MultiOutputReceiver unsupported in %s", getErrorContext()));
+    }
+
+    @Override
+    public Object restriction() {
+      throw new UnsupportedOperationException(
+          String.format("Restriction unsupported in %s", getErrorContext()));
     }
 
     @Override
     public BoundedWindow window() {
       throw new UnsupportedOperationException(
-          String.format(
-              "Should never call non-overridden methods of %s",
-              FakeArgumentProvider.class.getSimpleName()));
+          String.format("BoundedWindow unsupported in %s", getErrorContext()));
     }
 
     @Override
     public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
-          String.format(
-              "Should never call non-overridden methods of %s",
-              FakeArgumentProvider.class.getSimpleName()));
+          String.format("PaneInfo unsupported in %s", getErrorContext()));
     }
 
     @Override
     public PipelineOptions pipelineOptions() {
       throw new UnsupportedOperationException(
-          String.format(
-              "Should never call non-overridden methods of %s",
-              FakeArgumentProvider.class.getSimpleName()));
+          String.format("PipelineOptions unsupported in %s", getErrorContext()));
     }
 
     @Override
     public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
-          String.format(
-              "Should never call non-overridden methods of %s",
-              FakeArgumentProvider.class.getSimpleName()));
+          String.format("StartBundleContext unsupported in %s", getErrorContext()));
     }
 
     @Override
     public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
         DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
-          String.format(
-              "Should never call non-overridden methods of %s",
-              FakeArgumentProvider.class.getSimpleName()));
+          String.format("FinishBundleContext unsupported in %s", getErrorContext()));
     }
 
     @Override
     public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
-          String.format(
-              "Should never call non-overridden methods of %s",
-              FakeArgumentProvider.class.getSimpleName()));
+          String.format("OnTimerContext unsupported in %s", getErrorContext()));
     }
 
     @Override
     public State state(String stateId) {
       throw new UnsupportedOperationException(
-          String.format(
-              "Should never call non-overridden methods of %s",
-              FakeArgumentProvider.class.getSimpleName()));
+          String.format("State unsupported in %s", getErrorContext()));
     }
 
     @Override
     public Timer timer(String timerId) {
       throw new UnsupportedOperationException(
-          String.format(
-              "Should never call non-overridden methods of %s",
-              FakeArgumentProvider.class.getSimpleName()));
+          String.format("Timer unsupported in %s", getErrorContext()));
     }
 
     @Override
     public RestrictionTracker<?, ?> restrictionTracker() {
       throw new UnsupportedOperationException(
-          String.format(
-              "Should never call non-overridden methods of %s",
-              FakeArgumentProvider.class.getSimpleName()));
+          String.format("RestrictionTracker unsupported in %s", getErrorContext()));
+    }
+
+    /**
+     * Return a human readable representation of the current call context to be used during error
+     * reporting.
+     */
+    public abstract String getErrorContext();
+  }
+
+  /** An {@link ArgumentProvider} that forwards all calls to the supplied {@code delegate}. */
+  @Internal
+  class DelegatingArgumentProvider<InputT, OutputT> extends BaseArgumentProvider<InputT, OutputT> {
+    private final ArgumentProvider<InputT, OutputT> delegate;
+    private final String errorContext;
+
+    public DelegatingArgumentProvider(
+        ArgumentProvider<InputT, OutputT> delegate, String errorContext) {
+      this.delegate = delegate;
+      this.errorContext = errorContext;
+    }
+
+    @Override
+    public BoundedWindow window() {
+      return delegate.window();
+    }
+
+    @Override
+    public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
+      return delegate.paneInfo(doFn);
+    }
+
+    @Override
+    public PipelineOptions pipelineOptions() {
+      return delegate.pipelineOptions();
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
+      return delegate.startBundleContext(doFn);
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
+        DoFn<InputT, OutputT> doFn) {
+      return delegate.finishBundleContext(doFn);
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
+      return delegate.processContext(doFn);
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
+      return delegate.onTimerContext(doFn);
+    }
+
+    @Override
+    public InputT element(DoFn<InputT, OutputT> doFn) {
+      return delegate.element(doFn);
+    }
+
+    @Override
+    public Object sideInput(String tagId) {
+      return delegate.sideInput(tagId);
+    }
+
+    @Override
+    public Object schemaElement(int index) {
+      return delegate.schemaElement(index);
+    }
+
+    @Override
+    public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+      return delegate.timestamp(doFn);
+    }
+
+    @Override
+    public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
+      return delegate.timeDomain(doFn);
+    }
+
+    @Override
+    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+      return delegate.outputReceiver(doFn);
+    }
+
+    @Override
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+      return delegate.outputRowReceiver(doFn);
+    }
+
+    @Override
+    public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
+      return delegate.taggedOutputReceiver(doFn);
+    }
+
+    @Override
+    public Object restriction() {
+      return delegate.restriction();
+    }
+
+    @Override
+    public RestrictionTracker<?, ?> restrictionTracker() {
+      return delegate.restrictionTracker();
+    }
+
+    @Override
+    public State state(String stateId) {
+      return delegate.state(stateId);
+    }
+
+    @Override
+    public Timer timer(String timerId) {
+      return delegate.timer(timerId);
+    }
+
+    @Override
+    public TimerMap timerFamily(String tagId) {
+      return delegate.timerFamily(tagId);
+    }
+
+    @Override
+    public String timerId(DoFn<InputT, OutputT> doFn) {
+      return delegate.timerId(doFn);
+    }
+
+    @Override
+    public String getErrorContext() {
+      return errorContext;
+    }
+  }
+
+  /**
+   * A fake {@link ArgumentProvider} used during testing. Throws {@link
+   * UnsupportedOperationException} for all methods.
+   */
+  @VisibleForTesting
+  @Internal
+  class FakeArgumentProvider<InputT, OutputT> extends BaseArgumentProvider<InputT, OutputT> {
+
+    @Override
+    public String getErrorContext() {
+      return "TestContext";
     }
   }
 }
