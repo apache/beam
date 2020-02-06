@@ -1748,9 +1748,6 @@ class BeamModulePlugin implements Plugin<Project> {
           args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           dependsOn setupTask
           dependsOn config.startJobServer
-          // We need flink-job-server-container dependency since Python PortableRunner automatically
-          // brings the flink-job-server-container up when --job_endpoint is not specified.
-          dependsOn ':runners:flink:1.9:job-server-container:docker'
         }
         mainTask.dependsOn pythonTask
         cleanupTask.mustRunAfter pythonTask
