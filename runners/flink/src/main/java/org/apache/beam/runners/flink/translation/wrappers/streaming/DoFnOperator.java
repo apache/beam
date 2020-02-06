@@ -158,8 +158,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   private final Coder<WindowedValue<InputT>> windowedInputCoder;
 
-  private final Coder<InputT> inputCoder;
-
   private final Map<TupleTag<?>, Coder<?>> outputCoders;
 
   protected final Coder<?> keyCoder;
@@ -220,7 +218,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       DoFn<InputT, OutputT> doFn,
       String stepName,
       Coder<WindowedValue<InputT>> inputWindowedCoder,
-      Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
@@ -236,7 +233,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     this.doFn = doFn;
     this.stepName = stepName;
     this.windowedInputCoder = inputWindowedCoder;
-    this.inputCoder = inputCoder;
     this.outputCoders = outputCoders;
     this.mainOutputTag = mainOutputTag;
     this.additionalOutputTags = additionalOutputTags;
@@ -294,7 +290,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   // stateful DoFn runner because ProcessFn, which is used for executing a Splittable DoFn
   // doesn't play by the normal DoFn rules and WindowDoFnOperator uses LateDataDroppingDoFnRunner
   protected DoFnRunner<InputT, OutputT> createWrappingDoFnRunner(
-      DoFnRunner<InputT, OutputT> wrappedRunner) {
+      DoFnRunner<InputT, OutputT> wrappedRunner, StepContext stepContext) {
 
     if (keyCoder != null) {
       StatefulDoFnRunner.CleanupTimer cleanupTimer =
@@ -310,7 +306,14 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
               doFn, keyedStateInternals, windowCoder);
 
       return DoFnRunners.defaultStatefulDoFnRunner(
-          doFn, wrappedRunner, windowingStrategy, cleanupTimer, stateCleaner);
+          doFn,
+          getInputCoder(),
+          wrappedRunner,
+          stepContext,
+          windowingStrategy,
+          cleanupTimer,
+          stateCleaner,
+          true /* requiresTimeSortedInput is supported */);
 
     } else {
       return doFnRunner;
@@ -375,17 +378,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       keyedStateInternals =
           new FlinkStateInternals<>((KeyedStateBackend) getKeyedStateBackend(), keyCoder);
 
-      if (doFn != null) {
-        DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
-        FlinkStateInternals.EarlyBinder earlyBinder =
-            new FlinkStateInternals.EarlyBinder(getKeyedStateBackend());
-        for (DoFnSignature.StateDeclaration value : signature.stateDeclarations().values()) {
-          StateSpec<?> spec =
-              (StateSpec<?>) signature.stateDeclarations().get(value.id()).field().get(doFn);
-          spec.bind(value.id(), earlyBinder);
-        }
-      }
-
       if (timerService == null) {
         timerService =
             getInternalTimerService("beam-timer", new CoderTypeSerializer<>(timerCoder), this);
@@ -417,6 +409,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     doFnInvoker.invokeSetup();
 
     FlinkPipelineOptions options = serializedOptions.get().as(FlinkPipelineOptions.class);
+    StepContext stepContext = new FlinkStepContext();
     doFnRunner =
         DoFnRunners.simpleRunner(
             options,
@@ -425,8 +418,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
             outputManager,
             mainOutputTag,
             additionalOutputTags,
-            new FlinkStepContext(),
-            inputCoder,
+            stepContext,
+            getInputCoder(),
             outputCoders,
             windowingStrategy,
             doFnSchemaInformation,
@@ -444,7 +437,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
                   getOperatorStateBackend(),
                   getKeyedStateBackend());
     }
-    doFnRunner = createWrappingDoFnRunner(doFnRunner);
+    doFnRunner = createWrappingDoFnRunner(doFnRunner, stepContext);
+    earlyBindStateIfNeeded();
 
     if (!options.getDisableMetrics()) {
       flinkMetricContainer = new FlinkMetricContainer(getRuntimeContext());
@@ -467,6 +461,26 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     } else {
       pushbackDoFnRunner =
           SimplePushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
+    }
+  }
+
+  private void earlyBindStateIfNeeded() throws IllegalArgumentException, IllegalAccessException {
+    if (keyCoder != null) {
+      if (doFn != null) {
+        DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
+        FlinkStateInternals.EarlyBinder earlyBinder =
+            new FlinkStateInternals.EarlyBinder(getKeyedStateBackend());
+        for (DoFnSignature.StateDeclaration value : signature.stateDeclarations().values()) {
+          StateSpec<?> spec =
+              (StateSpec<?>) signature.stateDeclarations().get(value.id()).field().get(doFn);
+          spec.bind(value.id(), earlyBinder);
+        }
+        if (doFnRunner instanceof StatefulDoFnRunner) {
+          ((StatefulDoFnRunner<InputT, OutputT, BoundedWindow>) doFnRunner)
+              .getSystemStateTags()
+              .forEach(tag -> tag.getSpec().bind(tag.getId(), earlyBinder));
+        }
+      }
     }
   }
 
@@ -849,6 +863,11 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   private void setCurrentOutputWatermark(long currentOutputWatermark) {
     this.currentOutputWatermark = currentOutputWatermark;
+  }
+
+  @SuppressWarnings("unchecked")
+  Coder<InputT> getInputCoder() {
+    return (Coder<InputT>) Iterables.getOnlyElement(windowedInputCoder.getCoderArguments());
   }
 
   /** Factory for creating an {@link BufferedOutputManager} from a Flink {@link Output}. */
