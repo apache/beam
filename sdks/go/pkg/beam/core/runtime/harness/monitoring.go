@@ -127,7 +127,7 @@ func monitoring(p *exec.Plan) (*fnpb.Metrics, []*ppb.MonitoringInfo) {
 				Urn:  "beam:metric:element_count:v1",
 				Type: "beam:metrics:sum_int_64",
 				Labels: map[string]string{
-					"PCOLLECTION": snapshot.Name,
+					"PCOLLECTION": snapshot.PID,
 				},
 				Data: int64Counter(snapshot.Count),
 			})
