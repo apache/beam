@@ -30,6 +30,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import logging
 import random
 import sys
 import time
@@ -68,6 +69,7 @@ def run_benchmark(num_runs=100, num_input=10000, seed=time.time()):
 
 
 if __name__ == '__main__':
+  logging.basicConfig()
   utils.check_compiled(
       'apache_beam.transforms.cy_dataflow_distribution_counter')
   run_benchmark()
