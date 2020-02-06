@@ -87,8 +87,8 @@ func monitoring(p *exec.Plan) (*fnpb.Metrics, []*ppb.MonitoringInfo) {
 		DistributionInt64: func(l metrics.Labels, count, sum, min, max int64) {
 			monitoringInfo = append(monitoringInfo,
 				&ppb.MonitoringInfo{
-					Urn:    "beam:metric:user",
-					Type:   "beam:metrics:sum_int_64",
+					Urn:    "beam:metric:user_distribution",
+					Type:   "beam:metrics:distribution_int_64",
 					Labels: userLabels(l),
 					Data:   int64Distribution(count, sum, min, max),
 				})
@@ -100,6 +100,7 @@ func monitoring(p *exec.Plan) (*fnpb.Metrics, []*ppb.MonitoringInfo) {
 			}
 			monitoringInfo = append(monitoringInfo,
 				&ppb.MonitoringInfo{
+					Urn:       "beam:metric:user",
 					Type:      "beam:metrics:latest_int_64",
 					Labels:    userLabels(l),
 					Data:      int64Counter(v),
