@@ -33,37 +33,81 @@ import "beam_runner_api.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
+// By default, all data in a PCollection is assigned to the single global
+// window. See BeamConstants for the time span this window encompasses.
+//
+// See https://beam.apache.org/documentation/programming-guide/#single-global-window
+// for additional details.
 message GlobalWindowsPayload {
   enum Enum {
-    // TODO(BEAM-3595): Change this to beam:windowfn:global_windows:v1
-    PROPERTIES = 0 [(beam_urn) = "beam:windowfn:global_windows:v0.1"];
+    PROPERTIES = 0 [(beam_urn) = "beam:window_fn:global_windows:v1"];
   }
   // Empty payload
 }
 
+// A fixed time window represents a consistent duration size, non overlapping
+// time interval in the data stream.
+//
+// See https://beam.apache.org/documentation/programming-guide/#fixed-time-windows
+// for additional details.
 message FixedWindowsPayload {
   enum Enum {
-    // TODO(BEAM-3595): Change this to beam:windowfn:fixed_windows:v1
-    PROPERTIES = 0 [(beam_urn) = "beam:windowfn:fixed_windows:v0.1"];
+    PROPERTIES = 0 [(beam_urn) = "beam:window_fn:fixed_windows:v1"];
   }
+
+  // (Required) Represents the size of the window.
   google.protobuf.Duration size = 1;
+
+  // (Required) Represents the timestamp of when the first window begins.
+  // Window N will start at offset + N * size.
   google.protobuf.Timestamp offset = 2;
 }
 
+// A sliding time window represents time intervals in the data stream that can
+// overlap. For example, each window might capture 60 seconds worth of data, but
+// a new window starts every 30 seconds. The frequency with which sliding
+// windows begin is called the period. Therefore, our example would have a
+// window size of 60 seconds and a period of 30 seconds.
+//
+// Because multiple windows overlap, most elements in a data set will belong to
+// more than one window. This kind of windowing is useful for taking running
+// averages of data; using sliding time windows, you can compute a running
+// average of the past 60 seconds’ worth of data, updated every 30 seconds, in
+// our example.
+//
+// See https://beam.apache.org/documentation/programming-guide/#sliding-time-windows
+// for additional details.
 message SlidingWindowsPayload {
   enum Enum {
-    // TODO(BEAM-3595): Change this to beam:windowfn:sliding_windows:v1
-    PROPERTIES = 0 [(beam_urn) = "beam:windowfn:sliding_windows:v0.1"];
+    PROPERTIES = 0 [(beam_urn) = "beam:window_fn:sliding_windows:v1"];
   }
+
+  // (Required) Represents the size of the window.
   google.protobuf.Duration size = 1;
+
+  // (Required) Represents the timestamp of when the first window begins.
+  // Window N will start at offset + N * period.
   google.protobuf.Timestamp offset = 2;
+
+  // (Required) Represents the amount of time between each start of a window.
   google.protobuf.Duration period = 3;
 }
 
-message SessionsPayload {
+// A session window function defines windows that contain elements that are
+// within a certain gap size of another element. Session windowing applies
+// on a per-key basis and is useful for data that is irregularly distributed
+// with respect to time. For example, a data stream representing user mouse
+// activity may have long periods of idle time interspersed with high
+// concentrations of clicks. If data arrives after the minimum specified gap
+// size duration, this initiates the start of a new window.
+//
+// See https://beam.apache.org/documentation/programming-guide/#session-windows
+// for additional details.
+message SessionWindowsPayload {
   enum Enum {
-    // TODO(BEAM-3595): Change this to beam:windowfn:session_windows:v1
-    PROPERTIES = 0 [(beam_urn) = "beam:windowfn:session_windows:v0.1"];
+    PROPERTIES = 0 [(beam_urn) = "beam:window_fn:session_windows:v1"];
   }
+
+  // (Required) Minimum duration of gaps between sessions.
   google.protobuf.Duration gap_size = 1;
 }

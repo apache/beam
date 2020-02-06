@@ -4270,7 +4270,7 @@ func (m *ExternalPayload) GetParams() map[string]string {
 //
 // 1. The runner understands the URN. For example, it might be
 //    a well-known URN like "beam:transform:Top" or
-//    "beam:windowfn:FixedWindows" with
+//    "beam:window_fn:FixedWindows" with
 //    an agreed-upon payload (e.g. a number or duration,
 //    respectively).
 // 2. The runner does not understand the URN. It might be an
