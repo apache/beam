@@ -99,7 +99,7 @@ cdef class PerWindowInvoker(DoFnInvoker):
   cdef bint is_key_param_required
 
 
-cdef class DoFnRunner(Receiver):
+cdef class DoFnRunner:
   cdef DoFnContext context
   cdef object step_name
   cdef list side_inputs
