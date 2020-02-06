@@ -206,6 +206,8 @@ GCP_REQUIREMENTS = [
     'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4; python_version < "3.0"',
     'google-cloud-spanner>=1.7.1<1.8.0',
     'grpcio-gcp>=0.2.2,<1',
+    # GCP Packages required by ML functionality
+    'google-cloud-videointelligence>=1.8.0<=1.12.1',
 ]
 
 INTERACTIVE_BEAM = [

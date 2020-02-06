@@ -19,10 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
+from __future__ import absolute_import, unicode_literals
 
 import unittest
-from base64 import b64encode
 
 import mock
 
@@ -48,6 +47,12 @@ class VideoIntelligenceTest(unittest.TestCase):
     self.m2.result.return_value = None
     self._mock_client.annotate_video.return_value = self.m2
     self.features = [videointelligence.enums.Feature.LABEL_DETECTION]
+    config = videointelligence.types.SpeechTranscriptionConfig(
+        language_code='en-US',
+        enable_automatic_punctuation=True)
+    self.video_context = videointelligence.types.VideoContext(
+        speech_transcription_config=config)
+    self.location_id = 'us-west1'
 
   def test_AnnotateVideo_URIs(self):
     videos_to_annotate = ['gs://cloud-samples-data/video/cat.mp4',
@@ -70,8 +75,8 @@ class VideoIntelligenceTest(unittest.TestCase):
         self.assertTrue(read_counter.committed == expected_counter)
 
   def test_AnnotateVideo_b64_content(self):
-    base_64_encoded_video = b64encode(
-        b'begin 644 cat-video.mp4M    (&9T>7!M<#0R..fake_video_content')
+    base_64_encoded_video = \
+      b'begin 644 cat-video.mp4M    (&9T>7!M<#0R..fake_video_content'
     videos_to_annotate = [base_64_encoded_video, base_64_encoded_video,
                           base_64_encoded_video]
     expected_counter = len(videos_to_annotate)
@@ -104,3 +109,25 @@ class VideoIntelligenceTest(unittest.TestCase):
              )
         result = p.run()
         result.wait_until_finish()
+
+  def test_AnnotateVideo_video_context(self):
+    videos_to_annotate = ['gs://cloud-samples-data/video/cat.mp4']
+    expected_counter = len(videos_to_annotate)
+    with mock.patch.object(helper, 'get_videointelligence_client',
+                           return_value=self._mock_client):
+      p = beam.Pipeline()
+      _ = (p
+           | "Create data" >> beam.Create(videos_to_annotate)
+           | "Annotate video" >> video_intelligence.AnnotateVideo(
+               self.features,
+               video_context=self.video_context,
+               location_id=self.location_id)
+           )
+      result = p.run()
+      result.wait_until_finish()
+
+      read_filter = MetricsFilter().with_name('API Calls')
+      query_result = result.metrics().query(read_filter)
+      if query_result['counters']:
+        read_counter = query_result['counters'][0]
+        self.assertTrue(read_counter.committed == expected_counter)
