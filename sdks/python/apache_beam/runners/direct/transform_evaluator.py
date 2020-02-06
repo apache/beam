@@ -504,7 +504,8 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     if hasattr(self._evaluation_context, 'pipeline_options'):
       from apache_beam.options.pipeline_options import GoogleCloudOptions
       sub_project = (
-        self._evaluation_context.pipeline_options.view_as(GoogleCloudOptions).project)
+          self._evaluation_context.pipeline_options.view_as(
+              GoogleCloudOptions).project)
     if not sub_project:
       sub_project = self.source.project
 
@@ -525,7 +526,8 @@ class _PubSubReadEvaluator(_TransformEvaluator):
 
     sub_client = pubsub.SubscriberClient()
     sub_name = sub_client.subscription_path(
-        sub_project, 'beam_%d_%x' % (int(time.time()), random.randrange(1 << 32)))
+        sub_project, 'beam_%d_%x' % (
+            int(time.time()), random.randrange(1 << 32)))
     topic_name = sub_client.topic_path(project, short_topic_name)
     sub_client.create_subscription(sub_name, topic_name)
     atexit.register(sub_client.delete_subscription, sub_name)
