@@ -26,8 +26,9 @@ import unittest
 import mock
 
 import apache_beam as beam
-from apache_beam.io.gcp.ai import helper, video_intelligence
 from apache_beam.metrics import MetricsFilter
+from apache_beam.ml.gcp import video_intelligence_helper as helper, \
+  video_intelligence
 from apache_beam.typehints.decorators import TypeCheckError
 
 # Protect against environments where video intelligence lib is not available.

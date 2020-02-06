@@ -23,7 +23,7 @@ from future.utils import binary_type, text_type
 from typing import Union
 
 from apache_beam import typehints
-from apache_beam.io.gcp.ai import helper
+from apache_beam.ml.gcp import video_intelligence_helper as helper
 from apache_beam.metrics import Metrics
 from apache_beam.transforms import DoFn, ParDo, PTransform
 
