@@ -58,8 +58,11 @@ class PrintFn(beam.DoFn):
   def __init__(self, label):
     self.label = label
 
-  def process(self, element, timestamp=beam.DoFn.TimestampParam,
-              window=beam.DoFn.WindowParam):
+  def process(
+      self,
+      element,
+      timestamp=beam.DoFn.TimestampParam,
+      window=beam.DoFn.WindowParam):
     # Log at INFO level each element processed.
     logging.info('[%s]: %s %s %s', self.label, element, window, timestamp)
     yield element
@@ -84,18 +87,22 @@ def run(argv=None):
   """Build and run the pipeline."""
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      '--output_topic', required=True,
-      help=('Output PubSub topic of the form '
-            '"projects/<PROJECT>/topic/<TOPIC>".'))
+      '--output_topic',
+      required=True,
+      help=(
+          'Output PubSub topic of the form '
+          '"projects/<PROJECT>/topic/<TOPIC>".'))
   group = parser.add_mutually_exclusive_group(required=True)
   group.add_argument(
       '--input_topic',
-      help=('Input PubSub topic of the form '
-            '"projects/<PROJECT>/topics/<TOPIC>".'))
+      help=(
+          'Input PubSub topic of the form '
+          '"projects/<PROJECT>/topics/<TOPIC>".'))
   group.add_argument(
       '--input_subscription',
-      help=('Input PubSub subscription of the form '
-            '"projects/<PROJECT>/subscriptions/<SUBSCRIPTION>."'))
+      help=(
+          'Input PubSub subscription of the form '
+          '"projects/<PROJECT>/subscriptions/<SUBSCRIPTION>."'))
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   # We use the save_main_session option because one or more DoFn's in this
@@ -117,15 +124,16 @@ def run(argv=None):
       (word, ones) = word_ones
       return (word, sum(ones))
 
-    counts = (lines
-              | 'AddTimestampFn' >> beam.ParDo(AddTimestampFn())
-              | 'After AddTimestampFn' >> ParDo(PrintFn('After AddTimestampFn'))
-              | 'Split' >> (beam.ParDo(WordExtractingDoFn())
-                            .with_output_types(unicode))
-              | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
-              | beam.WindowInto(window.FixedWindows(5, 0))
-              | 'GroupByKey' >> beam.GroupByKey()
-              | 'CountOnes' >> beam.Map(count_ones))
+    counts = (
+        lines
+        | 'AddTimestampFn' >> beam.ParDo(AddTimestampFn())
+        | 'After AddTimestampFn' >> ParDo(PrintFn('After AddTimestampFn'))
+        | 'Split' >>
+        (beam.ParDo(WordExtractingDoFn()).with_output_types(unicode))
+        | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
+        | beam.WindowInto(window.FixedWindows(5, 0))
+        | 'GroupByKey' >> beam.GroupByKey()
+        | 'CountOnes' >> beam.Map(count_ones))
 
     # Format the counts into a PCollection of strings.
     def format_result(word_count):
@@ -145,6 +153,7 @@ def run(argv=None):
         actual_elements_in_window, window = elements
         for elm in actual_elements_in_window:
           assert re.match(r'\S+:\s+\d+', elm) is not None
+
       return matcher
 
     # Check that the format of the output is correct.
@@ -161,10 +170,18 @@ def run(argv=None):
     # 210, 211, 212, 213, 214 in the window [210, 215).
     expected_window_to_elements = {
         window.IntervalWindow(150, 155): [
-            ('150: 1'), ('151: 1'), ('152: 1'), ('153: 1'), ('154: 1'),
+            ('150: 1'),
+            ('151: 1'),
+            ('152: 1'),
+            ('153: 1'),
+            ('154: 1'),
         ],
         window.IntervalWindow(210, 215): [
-            ('210: 1'), ('211: 1'), ('212: 1'), ('213: 1'), ('214: 1'),
+            ('210: 1'),
+            ('211: 1'),
+            ('212: 1'),
+            ('213: 1'),
+            ('214: 1'),
         ],
     }
 
@@ -176,7 +193,6 @@ def run(argv=None):
         equal_to_per_window(expected_window_to_elements),
         use_global_window=False,
         label='Assert correct streaming windowing.')
-
 
 
 if __name__ == '__main__':

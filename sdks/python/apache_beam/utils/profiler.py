@@ -48,8 +48,13 @@ class Profile(object):
 
   SORTBY = 'cumulative'
 
-  def __init__(self, profile_id, profile_location=None, log_results=False,
-               file_copy_fn=None, time_prefix='%Y-%m-%d_%H_%M_%S-'):
+  def __init__(
+      self,
+      profile_id,
+      profile_location=None,
+      log_results=False,
+      file_copy_fn=None,
+      time_prefix='%Y-%m-%d_%H_%M_%S-'):
     self.stats = None
     self.profile_id = str(profile_id)
     self.profile_location = profile_location
@@ -103,9 +108,11 @@ class Profile(object):
   def factory_from_options(options):
     # type: (...) -> Optional[Callable[..., Profile]]
     if options.profile_cpu:
+
       def create_profiler(profile_id, **kwargs):
         if random.random() < options.profile_sample_rate:
           return Profile(profile_id, options.profile_location, **kwargs)
+
       return create_profiler
     return None
 
@@ -135,7 +142,6 @@ class MemoryReporter(object):
     <do something>
     mr.report_once()
   """
-
   def __init__(self, interval_second=60.0):
     # guppy might not have installed. http://pypi.python.org/pypi/guppy/0.1.10
     # The reporter can be set up only when guppy is installed (and guppy cannot
@@ -184,5 +190,7 @@ class MemoryReporter(object):
       return
     report_start_time = time.time()
     heap_profile = self._hpy().heap()
-    _LOGGER.info('*** MemoryReport Heap:\n %s\n MemoryReport took %.1f seconds',
-                 heap_profile, time.time() - report_start_time)
+    _LOGGER.info(
+        '*** MemoryReport Heap:\n %s\n MemoryReport took %.1f seconds',
+        heap_profile,
+        time.time() - report_start_time)

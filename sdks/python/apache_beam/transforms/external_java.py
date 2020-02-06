@@ -51,7 +51,6 @@ class JavaExternalTransformTest(object):
   expansion_service_port = None
 
   class _RunWithExpansion(object):
-
     def __init__(self):
       self._server = None
 
@@ -88,18 +87,20 @@ class JavaExternalTransformTest(object):
     # This test does not actually running the pipeline in Dataflow. It just
     # tests the translation to a Dataflow job request.
 
-    with patch.object(
-        apiclient.DataflowApplicationClient, 'create_job') as mock_create_job:
+    with patch.object(apiclient.DataflowApplicationClient,
+                      'create_job') as mock_create_job:
       with JavaExternalTransformTest._RunWithExpansion():
-        pipeline_options = PipelineOptions(
-            ['--runner=DataflowRunner',
-             '--project=dummyproject',
-             '--experiments=beam_fn_api',
-             '--temp_location=gs://dummybucket/'])
+        pipeline_options = PipelineOptions([
+            '--runner=DataflowRunner',
+            '--project=dummyproject',
+            '--experiments=beam_fn_api',
+            '--temp_location=gs://dummybucket/'
+        ])
 
         # Run a simple count-filtered-letters pipeline.
         JavaExternalTransformTest.run_pipeline(
-            pipeline_options, JavaExternalTransformTest.expansion_service_port,
+            pipeline_options,
+            JavaExternalTransformTest.expansion_service_port,
             False)
 
         mock_args = mock_create_job.call_args_list
@@ -114,12 +115,12 @@ class JavaExternalTransformTest(object):
     with JavaExternalTransformTest._RunWithExpansion():
       # Run a simple count-filtered-letters pipeline.
       JavaExternalTransformTest.run_pipeline(
-          pipeline_options, JavaExternalTransformTest.expansion_service_port,
+          pipeline_options,
+          JavaExternalTransformTest.expansion_service_port,
           True)
 
   @staticmethod
-  def run_pipeline(
-      pipeline_options, expansion_service, wait_until_finish=True):
+  def run_pipeline(pipeline_options, expansion_service, wait_until_finish=True):
     # The actual definitions of these transforms is in
     # org.apache.beam.runners.core.construction.TestExpansionService.
     TEST_COUNT_URN = "beam:transforms:xlang:count"
@@ -175,5 +176,6 @@ if __name__ == '__main__':
             known_args.expansion_service_target,
             gradle_appendix=known_args.expansion_service_target_appendix))
   else:
-    raise RuntimeError("--expansion_service_jar or --expansion_service_target "
-                       "should be provided.")
+    raise RuntimeError(
+        "--expansion_service_jar or --expansion_service_target "
+        "should be provided.")

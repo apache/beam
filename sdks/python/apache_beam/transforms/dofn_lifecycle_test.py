@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """UnitTests for DoFn lifecycle and bundle methods"""
 
 # pytype: skip-file
@@ -79,9 +80,10 @@ class CallSequenceEnforcingDoFn(beam.DoFn):
 class DoFnLifecycleTest(unittest.TestCase):
   def test_dofn_lifecycle(self):
     with TestPipeline() as p:
-      _ = (p
-           | 'Start' >> beam.Create([1, 2, 3])
-           | 'Do' >> beam.ParDo(CallSequenceEnforcingDoFn()))
+      _ = (
+          p
+          | 'Start' >> beam.Create([1, 2, 3])
+          | 'Do' >> beam.ParDo(CallSequenceEnforcingDoFn()))
     # Assumes that the worker is run in the same process as the test.
 
 

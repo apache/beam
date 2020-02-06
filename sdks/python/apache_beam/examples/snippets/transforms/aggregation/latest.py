@@ -34,18 +34,27 @@ def latest_globally(test=None):
     latest_element = (
         pipeline
         | 'Create crops' >> beam.Create([
-            {'item': '🥬', 'harvest': '2020-02-24 00:00:00'},
-            {'item': '🍓', 'harvest': '2020-06-16 00:00:00'},
-            {'item': '🥕', 'harvest': '2020-07-17 00:00:00'},
-            {'item': '🍆', 'harvest': '2020-10-26 00:00:00'},
-            {'item': '🍅', 'harvest': '2020-10-01 00:00:00'},
+            {
+                'item': '🥬', 'harvest': '2020-02-24 00:00:00'
+            },
+            {
+                'item': '🍓', 'harvest': '2020-06-16 00:00:00'
+            },
+            {
+                'item': '🥕', 'harvest': '2020-07-17 00:00:00'
+            },
+            {
+                'item': '🍆', 'harvest': '2020-10-26 00:00:00'
+            },
+            {
+                'item': '🍅', 'harvest': '2020-10-01 00:00:00'
+            },
         ])
         | 'With timestamps' >> beam.Map(
             lambda crop: beam.window.TimestampedValue(
                 crop['item'], to_unix_time(crop['harvest'])))
         | 'Get latest element' >> beam.combiners.Latest.Globally()
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END latest_globally]
     if test:
       test(latest_element)
@@ -63,24 +72,45 @@ def latest_per_key(test=None):
     latest_elements_per_key = (
         pipeline
         | 'Create crops' >> beam.Create([
-            ('spring', {'item': '🥕', 'harvest': '2020-06-28 00:00:00'}),
-            ('spring', {'item': '🍓', 'harvest': '2020-06-16 00:00:00'}),
-            ('summer', {'item': '🥕', 'harvest': '2020-07-17 00:00:00'}),
-            ('summer', {'item': '🍓', 'harvest': '2020-08-26 00:00:00'}),
-            ('summer', {'item': '🍆', 'harvest': '2020-09-04 00:00:00'}),
-            ('summer', {'item': '🥬', 'harvest': '2020-09-18 00:00:00'}),
-            ('summer', {'item': '🍅', 'harvest': '2020-09-22 00:00:00'}),
-            ('autumn', {'item': '🍅', 'harvest': '2020-10-01 00:00:00'}),
-            ('autumn', {'item': '🥬', 'harvest': '2020-10-20 00:00:00'}),
-            ('autumn', {'item': '🍆', 'harvest': '2020-10-26 00:00:00'}),
-            ('winter', {'item': '🥬', 'harvest': '2020-02-24 00:00:00'}),
+            ('spring', {
+                'item': '🥕', 'harvest': '2020-06-28 00:00:00'
+            }),
+            ('spring', {
+                'item': '🍓', 'harvest': '2020-06-16 00:00:00'
+            }),
+            ('summer', {
+                'item': '🥕', 'harvest': '2020-07-17 00:00:00'
+            }),
+            ('summer', {
+                'item': '🍓', 'harvest': '2020-08-26 00:00:00'
+            }),
+            ('summer', {
+                'item': '🍆', 'harvest': '2020-09-04 00:00:00'
+            }),
+            ('summer', {
+                'item': '🥬', 'harvest': '2020-09-18 00:00:00'
+            }),
+            ('summer', {
+                'item': '🍅', 'harvest': '2020-09-22 00:00:00'
+            }),
+            ('autumn', {
+                'item': '🍅', 'harvest': '2020-10-01 00:00:00'
+            }),
+            ('autumn', {
+                'item': '🥬', 'harvest': '2020-10-20 00:00:00'
+            }),
+            ('autumn', {
+                'item': '🍆', 'harvest': '2020-10-26 00:00:00'
+            }),
+            ('winter', {
+                'item': '🥬', 'harvest': '2020-02-24 00:00:00'
+            }),
         ])
         | 'With timestamps' >> beam.Map(
             lambda pair: beam.window.TimestampedValue(
                 (pair[0], pair[1]['item']), to_unix_time(pair[1]['harvest'])))
         | 'Get latest elements per key' >> beam.combiners.Latest.PerKey()
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END latest_per_key]
     if test:
       test(latest_elements_per_key)

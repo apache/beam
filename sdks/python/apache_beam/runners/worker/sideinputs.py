@@ -36,7 +36,6 @@ from apache_beam.transforms import window
 
 # This module is experimental. No backwards-compatibility guarantees.
 
-
 # Maximum number of reader threads for reading side input sources, per side
 # input.
 MAX_SOURCE_READER_THREADS = 15
@@ -54,17 +53,16 @@ READER_THREAD_IS_DONE_SENTINEL = object()
 # Used to efficiently window the values of non-windowed side inputs.
 _globally_windowed = window.GlobalWindows.windowed_value(None).with_value
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
 class PrefetchingSourceSetIterable(object):
   """Value iterator that reads concurrently from a set of sources."""
-
-  def __init__(self,
-               sources,
-               max_reader_threads=MAX_SOURCE_READER_THREADS,
-               read_counter=None):
+  def __init__(
+      self,
+      sources,
+      max_reader_threads=MAX_SOURCE_READER_THREADS,
+      read_counter=None):
     self.sources = sources
     self.num_reader_threads = min(max_reader_threads, len(self.sources))
 
@@ -141,8 +139,10 @@ class PrefetchingSourceSetIterable(object):
         except queue.Empty:
           return
     except Exception as e:  # pylint: disable=broad-except
-      _LOGGER.error('Encountered exception in PrefetchingSourceSetIterable '
-                    'reader thread: %s', traceback.format_exc())
+      _LOGGER.error(
+          'Encountered exception in PrefetchingSourceSetIterable '
+          'reader thread: %s',
+          traceback.format_exc())
       self.reader_exceptions.put(e)
       self.has_errored = True
     finally:
@@ -186,9 +186,8 @@ class PrefetchingSourceSetIterable(object):
         t.join()
 
 
-def get_iterator_fn_for_sources(sources,
-                                max_reader_threads=MAX_SOURCE_READER_THREADS,
-                                read_counter=None):
+def get_iterator_fn_for_sources(
+    sources, max_reader_threads=MAX_SOURCE_READER_THREADS, read_counter=None):
   """Returns callable that returns iterator over elements for given sources."""
   def _inner():
     return iter(
@@ -202,7 +201,6 @@ def get_iterator_fn_for_sources(sources,
 
 class EmulatedIterable(collections.Iterable):
   """Emulates an iterable for a side input."""
-
   def __init__(self, iterator_fn):
     self.iterator_fn = iterator_fn
 

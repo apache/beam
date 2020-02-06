@@ -72,16 +72,16 @@ if TYPE_CHECKING:
 try:
   import cython
 except ImportError:
+
   class FakeCython(object):
     @staticmethod
     def cast(type, value):
       return value
-  globals()['cython'] = FakeCython()
 
+  globals()['cython'] = FakeCython()
 
 _globally_windowed_value = GlobalWindows.windowed_value(None)
 _global_window_type = type(_globally_windowed_value.windows[0])
-
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -141,6 +141,7 @@ class ConsumerSet(Receiver):
 
   def current_element_progress(self):
     # type: () -> Optional[iobase.RestrictionProgress]
+
     """Returns the progress of the current element.
 
     This progress should be an instance of
@@ -160,7 +161,10 @@ class ConsumerSet(Receiver):
 
   def __repr__(self):
     return '%s[%s.out%s, coder=%s, len(consumers)=%s]' % (
-        self.__class__.__name__, self.step_name, self.output_index, self.coder,
+        self.__class__.__name__,
+        self.step_name,
+        self.output_index,
+        self.coder,
         len(self.consumers))
 
 
@@ -218,7 +222,8 @@ class Operation(object):
     self.spec = spec
     self.counter_factory = counter_factory
     self.execution_context = None  # type: Optional[ExecutionContext]
-    self.consumers = collections.defaultdict(list)  # type: DefaultDict[int, List[Operation]]
+    self.consumers = collections.defaultdict(
+        list)  # type: DefaultDict[int, List[Operation]]
 
     # These are overwritten in the legacy harness.
     self.metrics_container = MetricsContainer(self.name_context.metrics_name())
@@ -239,6 +244,7 @@ class Operation(object):
 
   def setup(self):
     # type: () -> None
+
     """Set up operation.
 
     This must be called before any other methods of the operation."""
@@ -254,12 +260,15 @@ class Operation(object):
                 self.counter_factory,
                 self.name_context.logging_name(),
                 i,
-                self.consumers[i], coder)
-            for i, coder in enumerate(self.spec.output_coders)]
+                self.consumers[i],
+                coder) for i,
+            coder in enumerate(self.spec.output_coders)
+        ]
     self.setup_done = True
 
   def start(self):
     # type: () -> None
+
     """Start operation."""
     if not self.setup_done:
       # For legacy workers.
@@ -267,6 +276,7 @@ class Operation(object):
 
   def process(self, o):
     # type: (WindowedValue) -> None
+
     """Process element in operation."""
     pass
 
@@ -285,11 +295,13 @@ class Operation(object):
 
   def finish(self):
     # type: () -> None
+
     """Finish operation."""
     pass
 
   def teardown(self):
     # type: () -> None
+
     """Tear down operation.
 
     No other methods of this operation should be called after this."""
@@ -305,6 +317,7 @@ class Operation(object):
 
   def add_receiver(self, operation, output_index=0):
     # type: (Operation, int) -> None
+
     """Adds a receiver operation for the specified output."""
     self.consumers[output_index].append(operation)
 
@@ -314,22 +327,23 @@ class Operation(object):
         processed_elements=beam_fn_api_pb2.Metrics.PTransform.ProcessedElements(
             measured=beam_fn_api_pb2.Metrics.PTransform.Measured(
                 total_time_spent=(
-                    self.scoped_start_state.sampled_seconds()
-                    + self.scoped_process_state.sampled_seconds()
-                    + self.scoped_finish_state.sampled_seconds()),
+                    self.scoped_start_state.sampled_seconds() +
+                    self.scoped_process_state.sampled_seconds() +
+                    self.scoped_finish_state.sampled_seconds()),
                 # Multi-output operations should override this.
                 output_element_counts=(
                     # If there is exactly one output, we can unambiguously
                     # fix its name later, which we do.
                     # TODO(robertwb): Plumb the actual name here.
-                    {'ONLY_OUTPUT': self.receivers[0].opcounter
-                                    .element_counter.value()}
-                    if len(self.receivers) == 1
-                    else None))),
+                    {
+                        'ONLY_OUTPUT': self.receivers[0].opcounter.
+                        element_counter.value()
+                    } if len(self.receivers) == 1 else None))),
         user=self.metrics_container.to_runner_api())
 
   def monitoring_infos(self, transform_id):
     # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+
     """Returns the list of MonitoringInfos collected by this operation."""
     all_monitoring_infos = self.execution_time_monitoring_infos(transform_id)
     all_monitoring_infos.update(
@@ -355,13 +369,7 @@ class Operation(object):
       metric = metrics_pb2.Metric(
           distribution_data=metrics_pb2.DistributionData(
               int_distribution_data=metrics_pb2.IntDistributionData(
-                  count=count,
-                  sum=sum,
-                  min=min,
-                  max=max
-              )
-          )
-      )
+                  count=count, sum=sum, min=min, max=max)))
       sampled_byte_count = monitoring_infos.int64_distribution(
           monitoring_infos.SAMPLED_BYTE_SIZE_URN,
           metric,
@@ -369,8 +377,8 @@ class Operation(object):
           tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
       )
       return {
-          monitoring_infos.to_key(elem_count_mi) : elem_count_mi,
-          monitoring_infos.to_key(sampled_byte_count) : sampled_byte_count
+          monitoring_infos.to_key(elem_count_mi): elem_count_mi,
+          monitoring_infos.to_key(sampled_byte_count): sampled_byte_count
       }
     return {}
 
@@ -381,32 +389,28 @@ class Operation(object):
   def execution_time_monitoring_infos(self, transform_id):
     # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
     total_time_spent_msecs = (
-        self.scoped_start_state.sampled_msecs_int()
-        + self.scoped_process_state.sampled_msecs_int()
-        + self.scoped_finish_state.sampled_msecs_int())
+        self.scoped_start_state.sampled_msecs_int() +
+        self.scoped_process_state.sampled_msecs_int() +
+        self.scoped_finish_state.sampled_msecs_int())
     mis = [
         monitoring_infos.int64_counter(
             monitoring_infos.START_BUNDLE_MSECS_URN,
             self.scoped_start_state.sampled_msecs_int(),
-            ptransform=transform_id
-        ),
+            ptransform=transform_id),
         monitoring_infos.int64_counter(
             monitoring_infos.PROCESS_BUNDLE_MSECS_URN,
             self.scoped_process_state.sampled_msecs_int(),
-            ptransform=transform_id
-        ),
+            ptransform=transform_id),
         monitoring_infos.int64_counter(
             monitoring_infos.FINISH_BUNDLE_MSECS_URN,
             self.scoped_finish_state.sampled_msecs_int(),
-            ptransform=transform_id
-        ),
+            ptransform=transform_id),
         monitoring_infos.int64_counter(
             monitoring_infos.TOTAL_MSECS_URN,
             total_time_spent_msecs,
-            ptransform=transform_id
-        ),
+            ptransform=transform_id),
     ]
-    return {monitoring_infos.to_key(mi) : mi for mi in mis}
+    return {monitoring_infos.to_key(mi): mi for mi in mis}
 
   def __str__(self):
     """Generates a useful string for this object.
@@ -443,14 +447,14 @@ class Operation(object):
       printable_fields = operation_specs.worker_printable_fields(self.spec)
 
     if not is_recursive and getattr(self, 'receivers', []):
-      printable_fields.append('receivers=[%s]' % ', '.join([
-          str(receiver) for receiver in self.receivers]))
+      printable_fields.append(
+          'receivers=[%s]' %
+          ', '.join([str(receiver) for receiver in self.receivers]))
 
     return '<%s %s>' % (printable_name, ', '.join(printable_fields))
 
 
 class ReadOperation(Operation):
-
   def start(self):
     with self.scoped_start_state:
       super(ReadOperation, self).start()
@@ -465,16 +469,25 @@ class ReadOperation(Operation):
 
 
 class ImpulseReadOperation(Operation):
-
-  def __init__(self, name_context, counter_factory, state_sampler,
-               consumers, source, output_coder):
-    super(ImpulseReadOperation, self).__init__(
-        name_context, None, counter_factory, state_sampler)
+  def __init__(
+      self,
+      name_context,
+      counter_factory,
+      state_sampler,
+      consumers,
+      source,
+      output_coder):
+    super(ImpulseReadOperation,
+          self).__init__(name_context, None, counter_factory, state_sampler)
     self.source = source
     self.receivers = [
         ConsumerSet.create(
-            self.counter_factory, self.name_context.step_name, 0,
-            next(iter(consumers.values())), output_coder)]
+            self.counter_factory,
+            self.name_context.step_name,
+            0,
+            next(iter(consumers.values())),
+            output_coder)
+    ]
 
   def process(self, unused_impulse):
     # type: (WindowedValue) -> None
@@ -490,7 +503,6 @@ class ImpulseReadOperation(Operation):
 
 class InMemoryWriteOperation(Operation):
   """A write operation that will write to an in-memory sink."""
-
   def process(self, o):
     # type: (WindowedValue) -> None
     with self.scoped_process_state:
@@ -501,7 +513,6 @@ class InMemoryWriteOperation(Operation):
 
 
 class _TaggedReceivers(dict):
-
   def __init__(self, counter_factory, step_name):
     self._counter_factory = counter_factory
     self._step_name = step_name
@@ -533,6 +544,7 @@ class DoOperation(Operation):
 
   def _read_side_inputs(self, tags_and_types):
     # type: (...) -> Iterator[apache_sideinputs.SideInputMap]
+
     """Generator reading side inputs in the order prescribed by tags_and_types.
 
     Args:
@@ -565,8 +577,7 @@ class DoOperation(Operation):
       # while the variable has the value assigned by the current iteration of
       # the for loop.
       # pylint: disable=cell-var-from-loop
-      for si in filter(
-          lambda o: o.tag == side_tag, self.spec.side_inputs):
+      for si in filter(lambda o: o.tag == side_tag, self.spec.side_inputs):
         if not isinstance(si, operation_specs.WorkerSideInputSource):
           raise NotImplementedError('Unknown side input type: %r' % si)
         sources.append(si.source)
@@ -634,7 +645,11 @@ class DoOperation(Operation):
           self.side_input_maps = []
 
       self.dofn_runner = common.DoFnRunner(
-          fn, args, kwargs, self.side_input_maps, window_fn,
+          fn,
+          args,
+          kwargs,
+          self.side_input_maps,
+          window_fn,
           tagged_receivers=self.tagged_receivers,
           step_name=self.name_context.logging_name(),
           state=state,
@@ -642,9 +657,9 @@ class DoOperation(Operation):
           operation_name=self.name_context.metrics_name())
       self.dofn_runner.setup()
 
-      self.dofn_receiver = (self.dofn_runner
-                            if isinstance(self.dofn_runner, Receiver)
-                            else DoFnRunnerReceiver(self.dofn_runner))
+      self.dofn_receiver = (
+          self.dofn_runner if isinstance(self.dofn_runner, Receiver) else
+          DoFnRunnerReceiver(self.dofn_runner))
 
   def start(self):
     # type: () -> None
@@ -702,8 +717,8 @@ class DoOperation(Operation):
     if self.tagged_receivers:
       metrics.processed_elements.measured.output_element_counts.clear()
       for tag, receiver in self.tagged_receivers.items():
-        metrics.processed_elements.measured.output_element_counts[
-            str(tag)] = receiver.opcounter.element_counter.value()
+        metrics.processed_elements.measured.output_element_counts[str(
+            tag)] = receiver.opcounter.element_counter.value()
     return metrics
 
   def monitoring_infos(self, transform_id):
@@ -715,33 +730,24 @@ class DoOperation(Operation):
             monitoring_infos.ELEMENT_COUNT_URN,
             receiver.opcounter.element_counter.value(),
             ptransform=transform_id,
-            tag=str(tag)
-        )
+            tag=str(tag))
         infos[monitoring_infos.to_key(mi)] = mi
         (unused_mean, sum, count, min, max) = (
             receiver.opcounter.mean_byte_counter.value())
         metric = metrics_pb2.Metric(
             distribution_data=metrics_pb2.DistributionData(
                 int_distribution_data=metrics_pb2.IntDistributionData(
-                    count=count,
-                    sum=sum,
-                    min=min,
-                    max=max
-                )
-            )
-        )
+                    count=count, sum=sum, min=min, max=max)))
         sampled_byte_count = monitoring_infos.int64_distribution(
             monitoring_infos.SAMPLED_BYTE_SIZE_URN,
             metric,
             ptransform=transform_id,
-            tag=str(tag)
-        )
+            tag=str(tag))
         infos[monitoring_infos.to_key(sampled_byte_count)] = sampled_byte_count
     return infos
 
 
 class SdfProcessSizedElements(DoOperation):
-
   def __init__(self, *args, **kwargs):
     super(SdfProcessSizedElements, self).__init__(*args, **kwargs)
     self.lock = threading.RLock()
@@ -805,7 +811,6 @@ class SdfProcessSizedElements(DoOperation):
 
 
 class DoFnRunnerReceiver(Receiver):
-
   def __init__(self, dofn_runner):
     self.dofn_runner = dofn_runner
 
@@ -816,10 +821,9 @@ class DoFnRunnerReceiver(Receiver):
 
 class CombineOperation(Operation):
   """A Combine operation executing a CombineFn for each input element."""
-
   def __init__(self, name_context, spec, counter_factory, state_sampler):
-    super(CombineOperation, self).__init__(
-        name_context, spec, counter_factory, state_sampler)
+    super(CombineOperation,
+          self).__init__(name_context, spec, counter_factory, state_sampler)
     # Combiners do not accept deferred side-inputs (the ignored fourth argument)
     # and therefore the code to handle the extra args/kwargs is simpler than for
     # the DoFn's of ParDo.
@@ -833,8 +837,7 @@ class CombineOperation(Operation):
       if self.debug_logging_enabled:
         _LOGGER.debug('Processing [%s] in %s', o, self)
       key, values = o.value
-      self.output(
-          o.with_value((key, self.phased_combine_fn.apply(values))))
+      self.output(o.with_value((key, self.phased_combine_fn.apply(values))))
 
   def finish(self):
     _LOGGER.debug('Finishing %s', self)
@@ -854,10 +857,9 @@ class PGBKOperation(Operation):
   (key, [value]) tuples, performing a best effort group-by-key for
   values in this bundle, memory permitting.
   """
-
   def __init__(self, name_context, spec, counter_factory, state_sampler):
-    super(PGBKOperation, self).__init__(
-        name_context, spec, counter_factory, state_sampler)
+    super(PGBKOperation,
+          self).__init__(name_context, spec, counter_factory, state_sampler)
     assert not self.spec.combine_fn
     self.table = collections.defaultdict(list)
     self.size = 0
@@ -885,18 +887,17 @@ class PGBKOperation(Operation):
       del self.table[kw]
       key, windows = kw
       output_value = [v.value[1] for v in vs]
-      windowed_value = WindowedValue(
-          (key, output_value),
-          vs[0].timestamp, windows)
+      windowed_value = WindowedValue((key, output_value),
+                                     vs[0].timestamp,
+                                     windows)
       self.output(windowed_value)
 
 
 class PGBKCVOperation(Operation):
-
   def __init__(
       self, name_context, spec, counter_factory, state_sampler, windowing=None):
-    super(PGBKCVOperation, self).__init__(
-        name_context, spec, counter_factory, state_sampler)
+    super(PGBKCVOperation,
+          self).__init__(name_context, spec, counter_factory, state_sampler)
     # Combiners do not accept deferred side-inputs (the ignored fourth
     # argument) and therefore the code to handle the extra args/kwargs is
     # simpler than for the DoFn's of ParDo.
@@ -904,8 +905,8 @@ class PGBKCVOperation(Operation):
     self.combine_fn = curry_combine_fn(fn, args, kwargs)
     self.combine_fn_add_input = self.combine_fn.add_input
     base_compact = (
-        core.CombineFn.compact if sys.version_info >= (3,)
-        else core.CombineFn.compact.__func__)
+        core.CombineFn.compact if sys.version_info >=
+        (3, ) else core.CombineFn.compact.__func__)
     if self.combine_fn.compact.__func__ is base_compact:
       self.combine_fn_compact = None
     else:
@@ -914,8 +915,8 @@ class PGBKCVOperation(Operation):
       self.is_default_windowing = windowing.is_default()
       tsc_type = windowing.timestamp_combiner
       self.timestamp_combiner = (
-          None if tsc_type == window.TimestampCombiner.OUTPUT_AT_EOW
-          else window.TimestampCombiner.get_impl(tsc_type, windowing.windowfn))
+          None if tsc_type == window.TimestampCombiner.OUTPUT_AT_EOW else
+          window.TimestampCombiner.get_impl(tsc_type, windowing.windowfn))
     else:
       self.is_default_windowing = False  # unknown
       self.timestamp_combiner = None
@@ -927,8 +928,9 @@ class PGBKCVOperation(Operation):
         isinstance(fn, (combiners.CountCombineFn, combiners.MeanCombineFn)) or
         # TODO(b/36597732): Replace this 'or' part by adding the 'cy' optimized
         # combiners to the short list above.
-        (isinstance(fn, core.CallableWrapperCombineFn) and
-         fn._fn in (min, max, sum)) else 100 * 1000)  # pylint: disable=protected-access
+        (
+            isinstance(fn, core.CallableWrapperCombineFn) and
+            fn._fn in (min, max, sum)) else 100 * 1000)  # pylint: disable=protected-access
     self.key_count = 0
     self.table = {}
 
@@ -994,7 +996,6 @@ class FlattenOperation(Operation):
   Receives one or more producer operations, outputs just one list
   with all the items.
   """
-
   def process(self, o):
     # type: (WindowedValue) -> None
     with self.scoped_process_state:
@@ -1003,10 +1004,17 @@ class FlattenOperation(Operation):
       self.output(o)
 
 
-def create_operation(name_context, spec, counter_factory, step_name=None,
-                     state_sampler=None, test_shuffle_source=None,
-                     test_shuffle_sink=None, is_streaming=False):
+def create_operation(
+    name_context,
+    spec,
+    counter_factory,
+    step_name=None,
+    state_sampler=None,
+    test_shuffle_source=None,
+    test_shuffle_sink=None,
+    is_streaming=False):
   # type: (...) -> Operation
+
   """Create Operation object for given operation specification."""
 
   # TODO(pabloem): Document arguments to this function call.
@@ -1026,8 +1034,7 @@ def create_operation(name_context, spec, counter_factory, step_name=None,
     op = NativeWriteOperation(
         name_context, spec, counter_factory, state_sampler)
   elif isinstance(spec, operation_specs.WorkerCombineFn):
-    op = CombineOperation(
-        name_context, spec, counter_factory, state_sampler)
+    op = CombineOperation(name_context, spec, counter_factory, state_sampler)
   elif isinstance(spec, operation_specs.WorkerPartialGroupByKey):
     op = create_pgbk_op(name_context, spec, counter_factory, state_sampler)
   elif isinstance(spec, operation_specs.WorkerDoFn):
@@ -1035,12 +1042,18 @@ def create_operation(name_context, spec, counter_factory, step_name=None,
   elif isinstance(spec, operation_specs.WorkerGroupingShuffleRead):
     from dataflow_worker.shuffle_operations import GroupedShuffleReadOperation
     op = GroupedShuffleReadOperation(
-        name_context, spec, counter_factory, state_sampler,
+        name_context,
+        spec,
+        counter_factory,
+        state_sampler,
         shuffle_source=test_shuffle_source)
   elif isinstance(spec, operation_specs.WorkerUngroupedShuffleRead):
     from dataflow_worker.shuffle_operations import UngroupedShuffleReadOperation
     op = UngroupedShuffleReadOperation(
-        name_context, spec, counter_factory, state_sampler,
+        name_context,
+        spec,
+        counter_factory,
+        state_sampler,
         shuffle_source=test_shuffle_source)
   elif isinstance(spec, operation_specs.WorkerInMemoryWrite):
     op = InMemoryWriteOperation(
@@ -1048,11 +1061,13 @@ def create_operation(name_context, spec, counter_factory, step_name=None,
   elif isinstance(spec, operation_specs.WorkerShuffleWrite):
     from dataflow_worker.shuffle_operations import ShuffleWriteOperation
     op = ShuffleWriteOperation(
-        name_context, spec, counter_factory, state_sampler,
+        name_context,
+        spec,
+        counter_factory,
+        state_sampler,
         shuffle_sink=test_shuffle_sink)
   elif isinstance(spec, operation_specs.WorkerFlatten):
-    op = FlattenOperation(
-        name_context, spec, counter_factory, state_sampler)
+    op = FlattenOperation(name_context, spec, counter_factory, state_sampler)
   elif isinstance(spec, operation_specs.WorkerMergeWindows):
     from dataflow_worker.shuffle_operations import BatchGroupAlsoByWindowsOperation
     from dataflow_worker.shuffle_operations import StreamingGroupAlsoByWindowsOperation
@@ -1067,8 +1082,9 @@ def create_operation(name_context, spec, counter_factory, step_name=None,
     op = ReifyTimestampAndWindowsOperation(
         name_context, spec, counter_factory, state_sampler)
   else:
-    raise TypeError('Expected an instance of operation_specs.Worker* class '
-                    'instead of %s' % (spec,))
+    raise TypeError(
+        'Expected an instance of operation_specs.Worker* class '
+        'instead of %s' % (spec, ))
   return op
 
 
@@ -1078,10 +1094,13 @@ class SimpleMapTaskExecutor(object):
    Stores progress of the read operation that is the first operation of a map
    task.
   """
-
   def __init__(
-      self, map_task, counter_factory, state_sampler,
-      test_shuffle_source=None, test_shuffle_sink=None):
+      self,
+      map_task,
+      counter_factory,
+      state_sampler,
+      test_shuffle_source=None,
+      test_shuffle_sink=None):
     """Initializes SimpleMapTaskExecutor.
 
     Args:
@@ -1125,7 +1144,10 @@ class SimpleMapTaskExecutor(object):
                                   self._map_task.operations):
       # This is used for logging and assigning names to counters.
       op = create_operation(
-          name_context, spec, self._counter_factory, None,
+          name_context,
+          spec,
+          self._counter_factory,
+          None,
           self._state_sampler,
           test_shuffle_source=self._test_shuffle_source,
           test_shuffle_sink=self._test_shuffle_sink)

@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """
 This is ParDo load test with Synthetic Source. Besides of the standard
 input options there are additional options:
@@ -151,8 +152,8 @@ class ParDoTest(LoadTest):
         self.number_of_operations = number_of_operations
         self.counters = []
         for i in range(number_of_counters):
-          self.counters.append(Metrics.counter('do-not-publish',
-                                               'name-{}'.format(i)))
+          self.counters.append(
+              Metrics.counter('do-not-publish', 'name-{}'.format(i)))
 
       def process(self, element):
         for _ in range(self.number_of_operations):
@@ -160,26 +161,25 @@ class ParDoTest(LoadTest):
             counter.inc()
         yield element
 
-    pc = (self.pipeline
-          | 'Read synthetic' >> beam.io.Read(
-              synthetic_pipeline.SyntheticSource(
-                  self.parseTestPipelineOptions()
-              ))
-          | 'Measure time: Start' >> beam.ParDo(
-              MeasureTime(self.metrics_namespace))
-         )
+    pc = (
+        self.pipeline
+        | 'Read synthetic' >> beam.io.Read(
+            synthetic_pipeline.SyntheticSource(self.parseTestPipelineOptions()))
+        | 'Measure time: Start' >> beam.ParDo(
+            MeasureTime(self.metrics_namespace)))
 
     for i in range(self.iterations):
-      pc = (pc
-            | 'Step: %d' % i >> beam.ParDo(
-                CounterOperation(self.number_of_counters,
-                                 self.number_of_operations))
-           )
+      pc = (
+          pc
+          | 'Step: %d' % i >> beam.ParDo(
+              CounterOperation(
+                  self.number_of_counters, self.number_of_operations)))
 
     # pylint: disable=expression-not-assigned
-    (pc
-     | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
-    )
+    (
+        pc
+        |
+        'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace)))
 
 
 if __name__ == '__main__':

@@ -50,8 +50,9 @@ class Metrics(object):
     """Needs to be called once per thread to initialize the local metrics cache.
     """
     if hasattr(self._context, 'metrics'):
-      return # Already initialized
-    self._context.metrics = collections.defaultdict(int)  # type: DefaultDict[Hashable, int]
+      return  # Already initialized
+    self._context.metrics = collections.defaultdict(
+        int)  # type: DefaultDict[Hashable, int]
 
   def count(self, name):
     # type: (str) -> None
@@ -73,16 +74,20 @@ class Metrics(object):
       if key not in metrics:
         metrics[key] = 0
     # Gauges which reflect the state since last queried
-    gauges = [monitoring_infos.int64_gauge(self.PREFIX + name, val)
-              for name, val in metrics.items()]
-    gauges.append(monitoring_infos.int64_gauge(self.PREFIX + 'size',
-                                               cache_size))
-    gauges.append(monitoring_infos.int64_gauge(self.PREFIX + 'capacity',
-                                               cache_capacity))
+    gauges = [
+        monitoring_infos.int64_gauge(self.PREFIX + name, val) for name,
+        val in metrics.items()
+    ]
+    gauges.append(
+        monitoring_infos.int64_gauge(self.PREFIX + 'size', cache_size))
+    gauges.append(
+        monitoring_infos.int64_gauge(self.PREFIX + 'capacity', cache_capacity))
     # Counters for the summary across all metrics
-    counters = [monitoring_infos.int64_counter(self.PREFIX + name + '_total',
-                                               val)
-                for name, val in metrics.items()]
+    counters = [
+        monitoring_infos.int64_counter(self.PREFIX + name + '_total', val)
+        for name,
+        val in metrics.items()
+    ]
     # Reinitialize metrics for this thread/bundle
     metrics.clear()
     return gauges + counters
@@ -90,12 +95,12 @@ class Metrics(object):
   @staticmethod
   def counter_hit_miss(total_name, hit_name, miss_name):
     # type: (str, str, str) -> Callable[[CallableT], CallableT]
+
     """Decorator for counting function calls and whether
        the return value equals None (=miss) or not (=hit)."""
     Metrics.ALL_METRICS.update([total_name, hit_name, miss_name])
 
     def decorator(function):
-
       def reporter(self, *args, **kwargs):
         value = function(self, *args, **kwargs)
         if value is None:
@@ -111,11 +116,11 @@ class Metrics(object):
   @staticmethod
   def counter(metric_name):
     # type: (str) -> Callable[[CallableT], CallableT]
+
     """Decorator for counting function calls."""
     Metrics.ALL_METRICS.add(metric_name)
 
     def decorator(function):
-
       def reporter(self, *args, **kwargs):
         self._metrics.count(metric_name)
         return function(self, *args, **kwargs)
@@ -145,7 +150,6 @@ class StateCache(object):
   :arg max_entries The maximum number of entries to store in the cache.
   TODO Memory-based caching: https://issues.apache.org/jira/browse/BEAM-8297
   """
-
   def __init__(self, max_entries):
     _LOGGER.info('Creating state cache with size %s', max_entries)
     self._missing = None
@@ -176,12 +180,14 @@ class StateCache(object):
       if isinstance(value, list):
         value.extend(elements)
       else:
+
         class Extended:
           def __iter__(self):
             for item in value:
               yield item
             for item in elements:
               yield item
+
         self._cache.put((state_key, cache_token), Extended())
 
   @Metrics.counter("clear")
@@ -217,7 +223,6 @@ class StateCache(object):
     return self._metrics.get_monitoring_infos(size, capacity)
 
   class LRUCache(object):
-
     def __init__(self, max_entries, default_entry):
       self._max_entries = max_entries
       self._default_entry = default_entry

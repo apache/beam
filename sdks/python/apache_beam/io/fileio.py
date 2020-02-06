@@ -119,12 +119,13 @@ from apache_beam.utils.annotations import experimental
 if TYPE_CHECKING:
   from apache_beam.transforms.window import BoundedWindow
 
-__all__ = ['EmptyMatchTreatment',
-           'MatchFiles',
-           'MatchAll',
-           'ReadableFile',
-           'ReadMatches']
-
+__all__ = [
+    'EmptyMatchTreatment',
+    'MatchFiles',
+    'MatchAll',
+    'ReadableFile',
+    'ReadMatches'
+]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -152,7 +153,6 @@ class EmptyMatchTreatment(object):
 
 
 class _MatchAllFn(beam.DoFn):
-
   def __init__(self, empty_match_treatment):
     self._empty_match_treatment = empty_match_treatment
 
@@ -161,9 +161,9 @@ class _MatchAllFn(beam.DoFn):
     match_results = filesystems.FileSystems.match([file_pattern])
     match_result = match_results[0]
 
-    if (not match_result.metadata_list
-        and not EmptyMatchTreatment.allow_empty_match(
-            file_pattern, self._empty_match_treatment)):
+    if (not match_result.metadata_list and
+        not EmptyMatchTreatment.allow_empty_match(file_pattern,
+                                                  self._empty_match_treatment)):
       raise BeamIOError(
           'Empty match for pattern %s. Disallowed.' % file_pattern)
 
@@ -176,17 +176,15 @@ class MatchFiles(beam.PTransform):
 
   This ``PTransform`` returns a ``PCollection`` of matching files in the form
   of ``FileMetadata`` objects."""
-
-  def __init__(self,
-               file_pattern,
-               empty_match_treatment=EmptyMatchTreatment.ALLOW_IF_WILDCARD):
+  def __init__(
+      self,
+      file_pattern,
+      empty_match_treatment=EmptyMatchTreatment.ALLOW_IF_WILDCARD):
     self._file_pattern = file_pattern
     self._empty_match_treatment = empty_match_treatment
 
   def expand(self, pcoll):
-    return (pcoll.pipeline
-            | beam.Create([self._file_pattern])
-            | MatchAll())
+    return pcoll.pipeline | beam.Create([self._file_pattern]) | MatchAll()
 
 
 @experimental()
@@ -195,28 +193,25 @@ class MatchAll(beam.PTransform):
 
   This ``PTransform`` returns a ``PCollection`` of matching files in the form
   of ``FileMetadata`` objects."""
-
   def __init__(self, empty_match_treatment=EmptyMatchTreatment.ALLOW):
     self._empty_match_treatment = empty_match_treatment
 
   def expand(self, pcoll):
-    return (pcoll
-            | beam.ParDo(_MatchAllFn(self._empty_match_treatment)))
+    return pcoll | beam.ParDo(_MatchAllFn(self._empty_match_treatment))
 
 
 class _ReadMatchesFn(beam.DoFn):
-
   def __init__(self, compression, skip_directories):
     self._compression = compression
     self._skip_directories = skip_directories
 
   def process(self, file_metadata):
-    metadata = (filesystem.FileMetadata(file_metadata, 0)
-                if isinstance(file_metadata, (str, unicode))
-                else file_metadata)
+    metadata = (
+        filesystem.FileMetadata(file_metadata, 0) if isinstance(
+            file_metadata, (str, unicode)) else file_metadata)
 
-    if ((metadata.path.endswith('/') or metadata.path.endswith('\\'))
-        and self._skip_directories):
+    if ((metadata.path.endswith('/') or metadata.path.endswith('\\')) and
+        self._skip_directories):
       return
     elif metadata.path.endswith('/') or metadata.path.endswith('\\'):
       raise BeamIOError(
@@ -229,21 +224,16 @@ class _ReadMatchesFn(beam.DoFn):
 
 class ReadableFile(object):
   """A utility class for accessing files."""
-
   def __init__(self, metadata, compression=None):
     self.metadata = metadata
     self._compression = compression
 
-  def open(self,
-           mime_type='text/plain',
-           compression_type=None):
+  def open(self, mime_type='text/plain', compression_type=None):
     compression = (
-        compression_type or
-        self._compression or
+        compression_type or self._compression or
         filesystems.CompressionTypes.AUTO)
-    return filesystems.FileSystems.open(self.metadata.path,
-                                        mime_type=mime_type,
-                                        compression_type=compression)
+    return filesystems.FileSystems.open(
+        self.metadata.path, mime_type=mime_type, compression_type=compression)
 
   def read(self, mime_type='application/octet-stream'):
     return self.open(mime_type).read()
@@ -257,14 +247,13 @@ class ReadMatches(beam.PTransform):
   """Converts each result of MatchFiles() or MatchAll() to a ReadableFile.
 
    This helps read in a file's contents or obtain a file descriptor."""
-
   def __init__(self, compression=None, skip_directories=True):
     self._compression = compression
     self._skip_directories = skip_directories
 
   def expand(self, pcoll):
-    return pcoll | beam.ParDo(_ReadMatchesFn(self._compression,
-                                             self._skip_directories))
+    return pcoll | beam.ParDo(
+        _ReadMatchesFn(self._compression, self._skip_directories))
 
 
 class FileSink(object):
@@ -282,7 +271,6 @@ class FileSink(object):
      called before closing a file (but not exclusively called in that
      situation). The sink is not responsible for closing the file handler.
    """
-
   def open(self, fh):
     # type: (BinaryIO) -> None
     raise NotImplementedError
@@ -303,7 +291,6 @@ class TextSink(FileSink):
   This sink simply calls file_handler.write(record.encode('utf8') + '\n') on all
   records that come into it.
   """
-
   def open(self, fh):
     self._fh = fh
 
@@ -326,16 +313,17 @@ _DEFAULT_FILE_NAME_TEMPLATE = (
 
 
 def destination_prefix_naming():
-
   def _inner(window, pane, shard_index, total_shards, compression, destination):
-    kwargs = {'prefix': str(destination),
-              'start': '',
-              'end': '',
-              'pane': '',
-              'shard': 0,
-              'total_shards': 0,
-              'suffix': '',
-              'compression': ''}
+    kwargs = {
+        'prefix': str(destination),
+        'start': '',
+        'end': '',
+        'pane': '',
+        'shard': 0,
+        'total_shards': 0,
+        'suffix': '',
+        'compression': ''
+    }
     if total_shards is not None and shard_index is not None:
       kwargs['shard'] = int(shard_index)
       kwargs['total_shards'] = int(total_shards)
@@ -358,16 +346,17 @@ def destination_prefix_naming():
 
 
 def default_file_naming(prefix, suffix=None):
-
   def _inner(window, pane, shard_index, total_shards, compression, destination):
-    kwargs = {'prefix': prefix,
-              'start': '',
-              'end': '',
-              'pane': '',
-              'shard': 0,
-              'total_shards': 0,
-              'suffix': '',
-              'compression': ''}
+    kwargs = {
+        'prefix': prefix,
+        'start': '',
+        'end': '',
+        'pane': '',
+        'shard': 0,
+        'total_shards': 0,
+        'suffix': '',
+        'compression': ''
+    }
     if total_shards is not None and shard_index is not None:
       kwargs['shard'] = int(shard_index)
       kwargs['total_shards'] = int(total_shards)
@@ -391,13 +380,15 @@ def default_file_naming(prefix, suffix=None):
   return _inner
 
 
-_FileResult = collections.namedtuple('FileResult',
-                                     ['file_name',
-                                      'shard_index',
-                                      'total_shards',
-                                      'window',
-                                      'pane',
-                                      'destination'])
+_FileResult = collections.namedtuple(
+    'FileResult', [
+        'file_name',
+        'shard_index',
+        'total_shards',
+        'window',
+        'pane',
+        'destination'
+    ])
 
 
 # Adding a class to contain PyDoc.
@@ -423,15 +414,16 @@ class WriteToFiles(beam.PTransform):
 
   DEFAULT_SHARDING = 5
 
-  def __init__(self,
-               path,
-               file_naming=None,
-               destination=None,
-               temp_directory=None,
-               sink=None,
-               shards=None,
-               output_fn=None,
-               max_writers_per_bundle=MAX_NUM_WRITERS_PER_BUNDLE):
+  def __init__(
+      self,
+      path,
+      file_naming=None,
+      destination=None,
+      temp_directory=None,
+      sink=None,
+      shards=None,
+      output_fn=None,
+      max_writers_per_bundle=MAX_NUM_WRITERS_PER_BUNDLE):
     """Initializes a WriteToFiles transform.
 
     Args:
@@ -454,8 +446,8 @@ class WriteToFiles(beam.PTransform):
         concurrently in a single worker that's processing one bundle.
     """
     self.path = (
-        path if isinstance(path, ValueProvider) else StaticValueProvider(str,
-                                                                         path))
+        path if isinstance(path, ValueProvider) else StaticValueProvider(
+            str, path))
     self.file_naming_fn = file_naming or default_file_naming('output')
     self.destination_fn = self._get_destination_fn(destination)
     self._temp_directory = temp_directory
@@ -490,36 +482,36 @@ class WriteToFiles(beam.PTransform):
 
     if not self._temp_directory:
       temp_location = (
-          p.options.view_as(GoogleCloudOptions).temp_location
-          or self.path.get())
+          p.options.view_as(GoogleCloudOptions).temp_location or
+          self.path.get())
       dir_uid = str(uuid.uuid4())
       self._temp_directory = StaticValueProvider(
-          str,
-          filesystems.FileSystems.join(temp_location,
-                                       '.temp%s' % dir_uid))
+          str, filesystems.FileSystems.join(temp_location, '.temp%s' % dir_uid))
       _LOGGER.info('Added temporary directory %s', self._temp_directory.get())
 
-    output = (pcoll
-              | beam.ParDo(_WriteUnshardedRecordsFn(
-                  base_path=self._temp_directory,
-                  destination_fn=self.destination_fn,
-                  sink_fn=self.sink_fn,
-                  max_writers_per_bundle=self._max_num_writers_per_bundle))
-              .with_outputs(_WriteUnshardedRecordsFn.SPILLED_RECORDS,
-                            _WriteUnshardedRecordsFn.WRITTEN_FILES))
+    output = (
+        pcoll
+        | beam.ParDo(
+            _WriteUnshardedRecordsFn(
+                base_path=self._temp_directory,
+                destination_fn=self.destination_fn,
+                sink_fn=self.sink_fn,
+                max_writers_per_bundle=self._max_num_writers_per_bundle)).
+        with_outputs(
+            _WriteUnshardedRecordsFn.SPILLED_RECORDS,
+            _WriteUnshardedRecordsFn.WRITTEN_FILES))
 
     written_files_pc = output[_WriteUnshardedRecordsFn.WRITTEN_FILES]
     spilled_records_pc = output[_WriteUnshardedRecordsFn.SPILLED_RECORDS]
 
     more_written_files_pc = (
         spilled_records_pc
-        | beam.ParDo(_AppendShardedDestination(self.destination_fn,
-                                               self.shards))
+        | beam.ParDo(
+            _AppendShardedDestination(self.destination_fn, self.shards))
         | "GroupRecordsByDestinationAndShard" >> beam.GroupByKey()
-        | beam.ParDo(_WriteShardedRecordsFn(self._temp_directory,
-                                            self.sink_fn,
-                                            self.shards))
-    )
+        | beam.ParDo(
+            _WriteShardedRecordsFn(
+                self._temp_directory, self.sink_fn, self.shards)))
 
     files_by_destination_pc = (
         (written_files_pc, more_written_files_pc)
@@ -530,11 +522,11 @@ class WriteToFiles(beam.PTransform):
     # Now we should take the temporary files, and write them to the final
     # destination, with their proper names.
 
-    file_results = (files_by_destination_pc
-                    | beam.ParDo(
-                        _MoveTempFilesIntoFinalDestinationFn(
-                            self.path, self.file_naming_fn,
-                            self._temp_directory)))
+    file_results = (
+        files_by_destination_pc
+        | beam.ParDo(
+            _MoveTempFilesIntoFinalDestinationFn(
+                self.path, self.file_naming_fn, self._temp_directory)))
 
     return file_results
 
@@ -554,52 +546,49 @@ def _create_writer(base_path, writer_key):
 
 
 class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
-
   def __init__(self, path, file_naming_fn, temp_dir):
     self.path = path
     self.file_naming_fn = file_naming_fn
     self.temporary_directory = temp_dir
 
-  def process(self,
-              element,
-              w=beam.DoFn.WindowParam):
+  def process(self, element, w=beam.DoFn.WindowParam):
     destination = element[0]
     file_results = list(element[1])
 
     for i, r in enumerate(file_results):
       # TODO(pabloem): Handle compression for files.
-      final_file_name = self.file_naming_fn(r.window,
-                                            r.pane,
-                                            i,
-                                            len(file_results),
-                                            '',
-                                            destination)
+      final_file_name = self.file_naming_fn(
+          r.window, r.pane, i, len(file_results), '', destination)
 
-      _LOGGER.info('Moving temporary file %s to dir: %s as %s. Res: %s',
-                   r.file_name, self.path.get(), final_file_name, r)
+      _LOGGER.info(
+          'Moving temporary file %s to dir: %s as %s. Res: %s',
+          r.file_name,
+          self.path.get(),
+          final_file_name,
+          r)
 
-      final_full_path = filesystems.FileSystems.join(self.path.get(),
-                                                     final_file_name)
+      final_full_path = filesystems.FileSystems.join(
+          self.path.get(), final_file_name)
 
       # TODO(pabloem): Batch rename requests?
       try:
-        filesystems.FileSystems.rename([r.file_name],
-                                       [final_full_path])
+        filesystems.FileSystems.rename([r.file_name], [final_full_path])
       except BeamIOError:
         # This error is not serious, because it may happen on a retry of the
         # bundle. We simply log it.
-        _LOGGER.debug('File %s failed to be copied. This may be due to a bundle'
-                      ' being retried.', r.file_name)
+        _LOGGER.debug(
+            'File %s failed to be copied. This may be due to a bundle'
+            ' being retried.',
+            r.file_name)
 
-      yield FileResult(final_file_name,
-                       i,
-                       len(file_results),
-                       r.window,
-                       r.pane,
-                       destination)
+      yield FileResult(
+          final_file_name, i, len(file_results), r.window, r.pane, destination)
 
-    _LOGGER.info('Cautiously removing temporary files for'
-                 ' destination %s and window %s', destination, w)
+    _LOGGER.info(
+        'Cautiously removing temporary files for'
+        ' destination %s and window %s',
+        destination,
+        w)
     writer_key = (destination, w)
     self._remove_temporary_files(writer_key)
 
@@ -627,10 +616,8 @@ class _WriteShardedRecordsFn(beam.DoFn):
     self.sink_fn = sink_fn
     self.shards = shards
 
-  def process(self,
-              element,
-              w=beam.DoFn.WindowParam,
-              pane=beam.DoFn.PaneInfoParam):
+  def process(
+      self, element, w=beam.DoFn.WindowParam, pane=beam.DoFn.PaneInfoParam):
     destination_and_shard = element[0]
     destination = destination_and_shard[0]
     shard = destination_and_shard[1]
@@ -647,23 +634,27 @@ class _WriteShardedRecordsFn(beam.DoFn):
     sink.flush()
     writer.close()
 
-    _LOGGER.info('Writing file %s for destination %s and shard %s',
-                 full_file_name, destination, repr(shard))
+    _LOGGER.info(
+        'Writing file %s for destination %s and shard %s',
+        full_file_name,
+        destination,
+        repr(shard))
 
-    yield FileResult(full_file_name,
-                     shard_index=shard,
-                     total_shards=self.shards,
-                     window=w,
-                     pane=pane,
-                     destination=destination)
+    yield FileResult(
+        full_file_name,
+        shard_index=shard,
+        total_shards=self.shards,
+        window=w,
+        pane=pane,
+        destination=destination)
 
 
 class _AppendShardedDestination(beam.DoFn):
-
-  def __init__(self,
-               destination,  # type: Callable[[Any], str]
-               shards  # type: int
-              ):
+  def __init__(
+      self,
+      destination,  # type: Callable[[Any], str]
+      shards  # type: int
+  ):
     self.destination_fn = destination
     self.shards = shards
 
@@ -672,8 +663,8 @@ class _AppendShardedDestination(beam.DoFn):
         lambda: random.randrange(self.shards))  # type: DefaultDict[str, int]
 
   def _next_shard_for_destination(self, destination):
-    self._shard_counter[destination] = (
-        (self._shard_counter[destination] + 1) % self.shards)
+    self._shard_counter[destination] = ((self._shard_counter[destination] + 1) %
+                                        self.shards)
 
     return self._shard_counter[destination]
 
@@ -692,11 +683,12 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
   _writers_and_sinks = None  # type: Dict[Tuple[str, BoundedWindow], Tuple[BinaryIO, FileSink]]
   _file_names = None  # type: Dict[Tuple[str, BoundedWindow], str]
 
-  def __init__(self,
-               base_path,
-               destination_fn,
-               sink_fn,
-               max_writers_per_bundle=WriteToFiles.MAX_NUM_WRITERS_PER_BUNDLE):
+  def __init__(
+      self,
+      base_path,
+      destination_fn,
+      sink_fn,
+      max_writers_per_bundle=WriteToFiles.MAX_NUM_WRITERS_PER_BUNDLE):
     self.base_path = base_path
     self.destination_fn = destination_fn
     self.sink_fn = sink_fn
@@ -706,10 +698,8 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
     self._writers_and_sinks = {}
     self._file_names = {}
 
-  def process(self,
-              record,
-              w=beam.DoFn.WindowParam,
-              pane=beam.DoFn.PaneInfoParam):
+  def process(
+      self, record, w=beam.DoFn.WindowParam, pane=beam.DoFn.PaneInfoParam):
     destination = self.destination_fn(record)
 
     writer, sink = self._get_or_create_writer_and_sink(destination, w)
