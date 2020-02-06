@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """
 A connector for sending API requests to the GCP Video Intelligence API.
 """
@@ -34,9 +35,8 @@ class AnnotateVideo(PTransform):
   """A ``PTransform`` for annotating video using the GCP Video Intelligence API
   ref: https://cloud.google.com/video-intelligence/docs
   """
-
-  def __init__(self, features, video_context=None, location_id=None,
-               metadata=None):
+  def __init__(
+      self, features, video_context=None, location_id=None, metadata=None):
     """
       Args:
         features: (List[``videointelligence_v1.enums.Feature``]) Required.
@@ -58,11 +58,12 @@ class AnnotateVideo(PTransform):
     self.metadata = metadata
 
   def expand(self, pvalue):
-    return pvalue | ParDo(self._VideoAnnotateFn(
-        features=self.features,
-        video_context=self.video_context,
-        location_id=self.location_id,
-        metadata=self.metadata))
+    return pvalue | ParDo(
+        self._VideoAnnotateFn(
+            features=self.features,
+            video_context=self.video_context,
+            location_id=self.location_id,
+            metadata=self.metadata))
 
   @typehints.with_input_types(Union[text_type, binary_type])
   class _VideoAnnotateFn(DoFn):
@@ -70,7 +71,6 @@ class AnnotateVideo(PTransform):
       and returns a PCollection of
     ``google.cloud.videointelligence_v1.types.AnnotateVideoResponse``.
      """
-
     def __init__(self, features, video_context, location_id, metadata):
       super(AnnotateVideo._VideoAnnotateFn, self).__init__()
       self._client = None
@@ -85,21 +85,23 @@ class AnnotateVideo(PTransform):
 
     def process(self, element, *args, **kwargs):
       if isinstance(element, text_type):  # Is element an URI to a GCS bucket
-        response = self._client.annotate_video(input_uri=element,
-                                               features=self.features,
-                                               video_context=self.video_context,
-                                               location_id=self.location_id,
-                                               metadata=self.metadata)
+        response = self._client.annotate_video(
+            input_uri=element,
+            features=self.features,
+            video_context=self.video_context,
+            location_id=self.location_id,
+            metadata=self.metadata)
       elif isinstance(element, binary_type):  # Is element raw bytes
-        response = self._client.annotate_video(input_content=element,
-                                               features=self.features,
-                                               video_context=self.video_context,
-                                               location_id=self.location_id,
-                                               metadata=self.metadata)
+        response = self._client.annotate_video(
+            input_content=element,
+            features=self.features,
+            video_context=self.video_context,
+            location_id=self.location_id,
+            metadata=self.metadata)
       else:
         raise TypeError(
             "{}: input element needs to be either {} or {}"
-            " got {} instead".format(self.__class__.__name__, text_type,
-                                     binary_type, type(element)))
+            " got {} instead".format(
+                self.__class__.__name__, text_type, binary_type, type(element)))
       self.counter.inc()
       yield response.result(timeout=120)
