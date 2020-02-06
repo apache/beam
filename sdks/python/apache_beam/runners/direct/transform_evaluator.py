@@ -559,8 +559,8 @@ class _PubSubReadEvaluator(_TransformEvaluator):
 
     sub_client = pubsub.SubscriberClient()
     sub_name = sub_client.subscription_path(
-        sub_project, 'beam_%d_%x' % (
-            int(time.time()), random.randrange(1 << 32)))
+        sub_project,
+        'beam_%d_%x' % (int(time.time()), random.randrange(1 << 32)))
     topic_name = sub_client.topic_path(project, short_topic_name)
     sub_client.create_subscription(sub_name, topic_name)
     atexit.register(sub_client.delete_subscription, sub_name)
