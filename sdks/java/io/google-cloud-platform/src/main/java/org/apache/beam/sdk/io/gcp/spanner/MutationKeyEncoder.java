@@ -27,7 +27,6 @@ import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Mutation.Op;
 import com.google.cloud.spanner.Type;
 import com.google.cloud.spanner.Value;
-import com.google.common.annotations.VisibleForTesting;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -36,6 +35,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerSchema.KeyPart;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.DateTime;
 import org.joda.time.Days;
 import org.joda.time.MutableDateTime;
@@ -54,7 +54,7 @@ class MutationKeyEncoder {
 
   // Global single instance. Use Concurrent Map and AtomicInteger for thread-safety.
   @VisibleForTesting
-  static final Map<String, AtomicInteger> unknownTablesWarnings = new ConcurrentHashMap<>();
+  private static final Map<String, AtomicInteger> unknownTablesWarnings = new ConcurrentHashMap<>();
 
   public MutationKeyEncoder(SpannerSchema schema) {
     this.schema = schema;
@@ -227,5 +227,11 @@ class MutationKeyEncoder {
     jodaDate.setDate(date.getYear(), date.getMonth(), date.getDayOfMonth());
 
     return Days.daysBetween(MIN_DATE, jodaDate).getDays();
+  }
+
+  // Give tests access to the Unknown Tables Warning count.
+  @VisibleForTesting
+  static Map<String, AtomicInteger> getUnknownTablesWarningsMap() {
+    return unknownTablesWarnings;
   }
 }

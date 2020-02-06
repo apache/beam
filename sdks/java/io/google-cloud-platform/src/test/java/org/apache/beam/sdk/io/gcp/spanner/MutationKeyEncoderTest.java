@@ -513,10 +513,10 @@ public class MutationKeyEncoderTest {
                 .build());
 
     verifyEncodedOrdering(schema, sortedMutations);
-    Assert.assertEquals(3, MutationKeyEncoder.unknownTablesWarnings.size());
-    Assert.assertEquals(2, MutationKeyEncoder.unknownTablesWarnings.get("test2").get());
-    Assert.assertEquals(1, MutationKeyEncoder.unknownTablesWarnings.get("test3").get());
-    Assert.assertEquals(2, MutationKeyEncoder.unknownTablesWarnings.get("test4").get());
+    Assert.assertEquals(3, MutationKeyEncoder.getUnknownTablesWarningsMap().size());
+    Assert.assertEquals(2, MutationKeyEncoder.getUnknownTablesWarningsMap().get("test2").get());
+    Assert.assertEquals(1, MutationKeyEncoder.getUnknownTablesWarningsMap().get("test3").get());
+    Assert.assertEquals(2, MutationKeyEncoder.getUnknownTablesWarningsMap().get("test4").get());
   }
 
   private void verifyEncodedOrdering(SpannerSchema schema, List<Mutation> expectedMutations) {
