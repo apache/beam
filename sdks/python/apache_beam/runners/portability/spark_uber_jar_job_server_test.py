@@ -47,23 +47,31 @@ def temp_name(*args, **kwargs):
   if os.path.exists(name):
     os.unlink(name)
 
+
 def spark_job():
   return spark_uber_jar_job_server.SparkBeamJob(
-      'http://host:6066', '', '', '', '', '',
+      'http://host:6066',
+      '',
+      '',
+      '',
+      '',
+      '',
       pipeline_options.SparkRunnerOptions())
 
 
 @unittest.skipIf(sys.version_info < (3, 6), "Requires Python 3.6+")
 class SparkUberJarJobServerTest(unittest.TestCase):
-
   @requests_mock.mock()
   def test_get_server_spark_version(self, http_mock):
-    http_mock.get('http://host:6066', json={
-        "action": "ErrorResponse",
-        "message": "Missing protocol version. Please submit requests through "
-                   "http://[host]:[port]/v1/submissions/...",
-        "serverSparkVersion": "1.2.3"
-    }, status_code=400)
+    http_mock.get(
+        'http://host:6066',
+        json={
+            "action": "ErrorResponse",
+            "message": "Missing protocol version. Please submit requests "
+            "through http://[host]:[port]/v1/submissions/...",
+            "serverSparkVersion": "1.2.3"
+        },
+        status_code=400)
     self.assertEqual(spark_job()._get_server_spark_version(), "1.2.3")
 
   def test_get_client_spark_version_from_properties(self):
@@ -71,9 +79,9 @@ class SparkUberJarJobServerTest(unittest.TestCase):
       with zipfile.ZipFile(fake_jar, 'w') as zip:
         with zip.open('spark-version-info.properties', 'w') as fout:
           fout.write(b'version=4.5.6')
-      self.assertEqual(spark_job().
-                       _get_client_spark_version_from_properties(fake_jar),
-                       "4.5.6")
+      self.assertEqual(
+          spark_job()._get_client_spark_version_from_properties(fake_jar),
+          "4.5.6")
 
   def test_get_client_spark_version_from_properties_no_properties_file(self):
     with self.assertRaises(KeyError):
@@ -126,16 +134,14 @@ class SparkUberJarJobServerTest(unittest.TestCase):
       # Prepare the job.
       prepare_response = job_server.Prepare(
           beam_job_api_pb2.PrepareJobRequest(
-              job_name='job',
-              pipeline=beam_runner_api_pb2.Pipeline()))
+              job_name='job', pipeline=beam_runner_api_pb2.Pipeline()))
       channel = grpc.insecure_channel(
           prepare_response.artifact_staging_endpoint.url)
       retrieval_token = beam_artifact_api_pb2_grpc.ArtifactStagingServiceStub(
           channel).CommitManifest(
               beam_artifact_api_pb2.CommitManifestRequest(
                   staging_session_token=prepare_response.staging_session_token,
-                  manifest=beam_artifact_api_pb2.Manifest())
-          ).retrieval_token
+                  manifest=beam_artifact_api_pb2.Manifest())).retrieval_token
       channel.close()
 
       # Now actually run the job.
@@ -156,30 +162,34 @@ class SparkUberJarJobServerTest(unittest.TestCase):
       # Check the status until the job is "done" and get all error messages.
       http_mock.get(
           'http://host:6066/v1/submissions/status/submission-id',
-          [spark_submission_status_response('RUNNING'),
-           spark_submission_status_response('RUNNING'),
-           {
-               'json': {
-                   "action": "SubmissionStatusResponse",
-                   "driverState": "ERROR",
-                   "message": "oops",
-                   "serverSparkVersion": "1.2.3",
-                   "submissionId": submission_id,
-                   "success": "true",
-                   "workerHostPort": worker_host_port,
-                   "workerId": worker_id
-               }}])
+          [
+              spark_submission_status_response('RUNNING'),
+              spark_submission_status_response('RUNNING'),
+              {
+                  'json': {
+                      "action": "SubmissionStatusResponse",
+                      "driverState": "ERROR",
+                      "message": "oops",
+                      "serverSparkVersion": "1.2.3",
+                      "submissionId": submission_id,
+                      "success": "true",
+                      "workerHostPort": worker_host_port,
+                      "workerId": worker_id
+                  }
+              }
+          ])
 
       state_stream = job_server.GetStateStream(
           beam_job_api_pb2.GetJobStateRequest(
               job_id=prepare_response.preparation_id))
 
-      self.assertEqual(
-          [s.state for s in state_stream],
-          [beam_job_api_pb2.JobState.STOPPED,
-           beam_job_api_pb2.JobState.RUNNING,
-           beam_job_api_pb2.JobState.RUNNING,
-           beam_job_api_pb2.JobState.FAILED])
+      self.assertEqual([s.state for s in state_stream],
+                       [
+                           beam_job_api_pb2.JobState.STOPPED,
+                           beam_job_api_pb2.JobState.RUNNING,
+                           beam_job_api_pb2.JobState.RUNNING,
+                           beam_job_api_pb2.JobState.FAILED
+                       ])
 
       message_stream = job_server.GetMessageStream(
           beam_job_api_pb2.JobMessagesRequest(
@@ -191,19 +201,18 @@ class SparkUberJarJobServerTest(unittest.TestCase):
         else:
           return x.state_response.state
 
-      self.assertEqual(
-          [get_item(m) for m in message_stream],
-          [
-              beam_job_api_pb2.JobState.STOPPED,
-              beam_job_api_pb2.JobState.RUNNING,
-              beam_job_api_pb2.JobMessage(
-                  message_id='message0',
-                  time='0',
-                  importance=beam_job_api_pb2.JobMessage.MessageImportance
-                  .JOB_MESSAGE_ERROR,
-                  message_text="oops"),
-              beam_job_api_pb2.JobState.FAILED,
-          ])
+      self.assertEqual([get_item(m) for m in message_stream],
+                       [
+                           beam_job_api_pb2.JobState.STOPPED,
+                           beam_job_api_pb2.JobState.RUNNING,
+                           beam_job_api_pb2.JobMessage(
+                               message_id='message0',
+                               time='0',
+                               importance=beam_job_api_pb2.JobMessage.
+                               MessageImportance.JOB_MESSAGE_ERROR,
+                               message_text="oops"),
+                           beam_job_api_pb2.JobState.FAILED,
+                       ])
 
 
 if __name__ == '__main__':

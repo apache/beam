@@ -476,7 +476,7 @@ public class PTransformTranslation {
     }
 
     transformBuilder.setUniqueName(appliedPTransform.getFullName());
-    transformBuilder.setDisplayData(
+    transformBuilder.addAllDisplayData(
         DisplayDataTranslation.toProto(DisplayData.from(appliedPTransform.getTransform())));
     return transformBuilder;
   }

@@ -29,16 +29,16 @@ from apache_beam.utils import counters
 
 
 class StateSampler(object):
-
   def __init__(self, sampling_period_ms):
-    self._state_stack = [ScopedState(self,
-                                     counters.CounterName('unknown'),
-                                     None)]
+    self._state_stack = [
+        ScopedState(self, counters.CounterName('unknown'), None)
+    ]
     self.state_transition_count = 0
     self.time_since_transition = 0
 
   def current_state(self):
     # type: () -> ScopedState
+
     """Returns the current execution state.
 
     This operation is not thread safe, and should only be called from the

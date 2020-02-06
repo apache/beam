@@ -34,9 +34,8 @@ except ImportError:
   extra_types = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
-
 _MAXINT64 = (1 << 63) - 1
-_MININT64 = - (1 << 63)
+_MININT64 = -(1 << 63)
 
 
 def get_typed_value_descriptor(obj):

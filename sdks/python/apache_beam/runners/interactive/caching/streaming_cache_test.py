@@ -80,18 +80,9 @@ class StreamingCacheTest(unittest.TestCase):
     """Tests that we expect to see all the correctly emitted TestStreamPayloads.
     """
     in_memory_reader = InMemoryReader()
-    in_memory_reader.add_element(
-        element=0,
-        event_time=0,
-        processing_time=0)
-    in_memory_reader.add_element(
-        element=1,
-        event_time=1,
-        processing_time=1)
-    in_memory_reader.add_element(
-        element=2,
-        event_time=2,
-        processing_time=2)
+    in_memory_reader.add_element(element=0, event_time=0, processing_time=0)
+    in_memory_reader.add_element(element=1, event_time=1, processing_time=1)
+    in_memory_reader.add_element(element=2, event_time=2, processing_time=2)
     cache = StreamingCache([in_memory_reader])
     reader = cache.reader()
     coder = coders.FastPrimitivesCoder()
@@ -100,25 +91,28 @@ class StreamingCacheTest(unittest.TestCase):
     expected = [
         TestStreamPayload.Event(
             element_event=TestStreamPayload.Event.AddElements(
-                elements=[TestStreamPayload.TimestampedElement(
-                    encoded_element=coder.encode(0),
-                    timestamp=0)])),
+                elements=[
+                    TestStreamPayload.TimestampedElement(
+                        encoded_element=coder.encode(0), timestamp=0)
+                ])),
         TestStreamPayload.Event(
             processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
                 advance_duration=1 * 10**6)),
         TestStreamPayload.Event(
             element_event=TestStreamPayload.Event.AddElements(
-                elements=[TestStreamPayload.TimestampedElement(
-                    encoded_element=coder.encode(1),
-                    timestamp=1 * 10**6)])),
+                elements=[
+                    TestStreamPayload.TimestampedElement(
+                        encoded_element=coder.encode(1), timestamp=1 * 10**6)
+                ])),
         TestStreamPayload.Event(
             processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
                 advance_duration=1 * 10**6)),
         TestStreamPayload.Event(
             element_event=TestStreamPayload.Event.AddElements(
-                elements=[TestStreamPayload.TimestampedElement(
-                    encoded_element=coder.encode(2),
-                    timestamp=2 * 10**6)])),
+                elements=[
+                    TestStreamPayload.TimestampedElement(
+                        encoded_element=coder.encode(2), timestamp=2 * 10**6)
+                ])),
     ]
     self.assertSequenceEqual(events, expected)
 
@@ -127,35 +121,17 @@ class StreamingCacheTest(unittest.TestCase):
 
     letters = InMemoryReader('letters')
     letters.advance_watermark(0, 1)
-    letters.add_element(
-        element='a',
-        event_time=0,
-        processing_time=1)
+    letters.add_element(element='a', event_time=0, processing_time=1)
     letters.advance_watermark(10, 11)
-    letters.add_element(
-        element='b',
-        event_time=10,
-        processing_time=11)
+    letters.add_element(element='b', event_time=10, processing_time=11)
 
     numbers = InMemoryReader('numbers')
-    numbers.add_element(
-        element=1,
-        event_time=0,
-        processing_time=2)
-    numbers.add_element(
-        element=2,
-        event_time=0,
-        processing_time=3)
-    numbers.add_element(
-        element=2,
-        event_time=0,
-        processing_time=4)
+    numbers.add_element(element=1, event_time=0, processing_time=2)
+    numbers.add_element(element=2, event_time=0, processing_time=3)
+    numbers.add_element(element=2, event_time=0, processing_time=4)
 
     late = InMemoryReader('late')
-    late.add_element(
-        element='late',
-        event_time=0,
-        processing_time=101)
+    late.add_element(element='late', event_time=0, processing_time=101)
 
     cache = StreamingCache([letters, numbers, late])
     reader = cache.reader()
@@ -169,13 +145,13 @@ class StreamingCacheTest(unittest.TestCase):
                 advance_duration=1 * 10**6)),
         TestStreamPayload.Event(
             watermark_event=TestStreamPayload.Event.AdvanceWatermark(
-                new_watermark=0,
-                tag='letters')),
+                new_watermark=0, tag='letters')),
         TestStreamPayload.Event(
             element_event=TestStreamPayload.Event.AddElements(
-                elements=[TestStreamPayload.TimestampedElement(
-                    encoded_element=coder.encode('a'),
-                    timestamp=0)],
+                elements=[
+                    TestStreamPayload.TimestampedElement(
+                        encoded_element=coder.encode('a'), timestamp=0)
+                ],
                 tag='letters')),
 
         # Advances clock from 1 to 2
@@ -184,9 +160,10 @@ class StreamingCacheTest(unittest.TestCase):
                 advance_duration=1 * 10**6)),
         TestStreamPayload.Event(
             element_event=TestStreamPayload.Event.AddElements(
-                elements=[TestStreamPayload.TimestampedElement(
-                    encoded_element=coder.encode(1),
-                    timestamp=0)],
+                elements=[
+                    TestStreamPayload.TimestampedElement(
+                        encoded_element=coder.encode(1), timestamp=0)
+                ],
                 tag='numbers')),
 
         # Advances clock from 2 to 3
@@ -195,9 +172,10 @@ class StreamingCacheTest(unittest.TestCase):
                 advance_duration=1 * 10**6)),
         TestStreamPayload.Event(
             element_event=TestStreamPayload.Event.AddElements(
-                elements=[TestStreamPayload.TimestampedElement(
-                    encoded_element=coder.encode(2),
-                    timestamp=0)],
+                elements=[
+                    TestStreamPayload.TimestampedElement(
+                        encoded_element=coder.encode(2), timestamp=0)
+                ],
                 tag='numbers')),
 
         # Advances clock from 3 to 4
@@ -206,9 +184,10 @@ class StreamingCacheTest(unittest.TestCase):
                 advance_duration=1 * 10**6)),
         TestStreamPayload.Event(
             element_event=TestStreamPayload.Event.AddElements(
-                elements=[TestStreamPayload.TimestampedElement(
-                    encoded_element=coder.encode(2),
-                    timestamp=0)],
+                elements=[
+                    TestStreamPayload.TimestampedElement(
+                        encoded_element=coder.encode(2), timestamp=0)
+                ],
                 tag='numbers')),
 
         # Advances clock from 4 to 11
@@ -217,13 +196,13 @@ class StreamingCacheTest(unittest.TestCase):
                 advance_duration=7 * 10**6)),
         TestStreamPayload.Event(
             watermark_event=TestStreamPayload.Event.AdvanceWatermark(
-                new_watermark=10 * 10**6,
-                tag='letters')),
+                new_watermark=10 * 10**6, tag='letters')),
         TestStreamPayload.Event(
             element_event=TestStreamPayload.Event.AddElements(
-                elements=[TestStreamPayload.TimestampedElement(
-                    encoded_element=coder.encode('b'),
-                    timestamp=10 * 10**6)],
+                elements=[
+                    TestStreamPayload.TimestampedElement(
+                        encoded_element=coder.encode('b'), timestamp=10 * 10**6)
+                ],
                 tag='letters')),
 
         # Advances clock from 11 to 101
@@ -232,9 +211,10 @@ class StreamingCacheTest(unittest.TestCase):
                 advance_duration=90 * 10**6)),
         TestStreamPayload.Event(
             element_event=TestStreamPayload.Event.AddElements(
-                elements=[TestStreamPayload.TimestampedElement(
-                    encoded_element=coder.encode('late'),
-                    timestamp=0)],
+                elements=[
+                    TestStreamPayload.TimestampedElement(
+                        encoded_element=coder.encode('late'), timestamp=0)
+                ],
                 tag='late')),
     ]
 

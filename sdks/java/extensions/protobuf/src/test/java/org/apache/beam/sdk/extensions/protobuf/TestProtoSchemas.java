@@ -43,19 +43,19 @@ import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OuterOneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Primitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.RepeatPrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.WktMessage;
-import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.DurationNanos;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.Fixed32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.Fixed64;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SFixed32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SFixed64;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SInt32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SInt64;
-import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.TimestampNanos;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.UInt32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.UInt64;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosDuration;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -357,9 +357,9 @@ class TestProtoSchemas {
           .addNullableField("string", withFieldNumber(FieldType.STRING, 14))
           .addNullableField("bytes", withFieldNumber(FieldType.BYTES, 15))
           .addNullableField(
-              "timestamp", withFieldNumber(FieldType.logicalType(new TimestampNanos()), 16))
+              "timestamp", withFieldNumber(FieldType.logicalType(new NanosInstant()), 16))
           .addNullableField(
-              "duration", withFieldNumber(FieldType.logicalType(new DurationNanos()), 17))
+              "duration", withFieldNumber(FieldType.logicalType(new NanosDuration()), 17))
           .build();
   // A sample instance of the  row.
   static final Instant JAVA_NOW = Instant.now();
@@ -368,6 +368,8 @@ class TestProtoSchemas {
           .setSeconds(JAVA_NOW.getEpochSecond())
           .setNanos(JAVA_NOW.getNano())
           .build();
+  static final java.time.Duration JAVA_DURATION =
+      java.time.Duration.ofSeconds(JAVA_NOW.getEpochSecond(), JAVA_NOW.getNano());
   static final Duration PROTO_DURATION =
       Duration.newBuilder()
           .setSeconds(JAVA_NOW.getEpochSecond())
@@ -376,7 +378,7 @@ class TestProtoSchemas {
   static final Row WKT_MESSAGE_ROW =
       Row.withSchema(WKT_MESSAGE_SCHEMA)
           .addValues(
-              1.1, 2.2F, 32, 64L, 33, 65L, true, "horsey", BYTE_ARRAY, PROTO_NOW, PROTO_DURATION)
+              1.1, 2.2F, 32, 64L, 33, 65L, true, "horsey", BYTE_ARRAY, JAVA_NOW, JAVA_DURATION)
           .build();
 
   // A sample instance of the proto.

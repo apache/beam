@@ -49,7 +49,6 @@ def temp_name(*args, **kwargs):
 
 @unittest.skipIf(sys.version_info < (3, 6), "Requires Python 3.6+")
 class FlinkUberJarJobServerTest(unittest.TestCase):
-
   @requests_mock.mock()
   def test_flink_version(self, http_mock):
     http_mock.get('http://flink/v1/config', json={'flink-version': '3.1.4.1'})
@@ -73,16 +72,14 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
       # Prepare the job.
       prepare_response = job_server.Prepare(
           beam_job_api_pb2.PrepareJobRequest(
-              job_name='job',
-              pipeline=beam_runner_api_pb2.Pipeline()))
+              job_name='job', pipeline=beam_runner_api_pb2.Pipeline()))
       channel = grpc.insecure_channel(
           prepare_response.artifact_staging_endpoint.url)
       retrieval_token = beam_artifact_api_pb2_grpc.ArtifactStagingServiceStub(
           channel).CommitManifest(
               beam_artifact_api_pb2.CommitManifestRequest(
                   staging_session_token=prepare_response.staging_session_token,
-                  manifest=beam_artifact_api_pb2.Manifest())
-          ).retrieval_token
+                  manifest=beam_artifact_api_pb2.Manifest())).retrieval_token
       channel.close()
 
       # Now actually run the job.
@@ -90,8 +87,7 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
           'http://flink/v1/jars/upload',
           json={'filename': '/path/to/jar/nonce'})
       http_mock.post(
-          'http://flink/v1/jars/nonce/run',
-          json={'jobid': 'some_job_id'})
+          'http://flink/v1/jars/nonce/run', json={'jobid': 'some_job_id'})
       job_server.Run(
           beam_job_api_pb2.RunJobRequest(
               preparation_id=prepare_response.preparation_id,
@@ -100,28 +96,45 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
       # Check the status until the job is "done" and get all error messages.
       http_mock.get(
           'http://flink/v1/jobs/some_job_id/execution-result',
-          [{'json': {'status': {'id': 'IN_PROGRESS'}}},
-           {'json': {'status': {'id': 'IN_PROGRESS'}}},
-           {'json': {'status': {'id': 'COMPLETED'}}}])
+          [{
+              'json': {
+                  'status': {
+                      'id': 'IN_PROGRESS'
+                  }
+              }
+          }, {
+              'json': {
+                  'status': {
+                      'id': 'IN_PROGRESS'
+                  }
+              }
+          }, {
+              'json': {
+                  'status': {
+                      'id': 'COMPLETED'
+                  }
+              }
+          }])
       http_mock.get(
-          'http://flink/v1/jobs/some_job_id',
-          json={'state': 'FINISHED'})
-      http_mock.delete(
-          'http://flink/v1/jars/nonce')
+          'http://flink/v1/jobs/some_job_id', json={'state': 'FINISHED'})
+      http_mock.delete('http://flink/v1/jars/nonce')
 
       state_stream = job_server.GetStateStream(
           beam_job_api_pb2.GetJobStateRequest(
               job_id=prepare_response.preparation_id))
 
-      self.assertEqual(
-          [s.state for s in state_stream],
-          [beam_job_api_pb2.JobState.STOPPED,
-           beam_job_api_pb2.JobState.RUNNING,
-           beam_job_api_pb2.JobState.DONE])
+      self.assertEqual([s.state for s in state_stream],
+                       [
+                           beam_job_api_pb2.JobState.STOPPED,
+                           beam_job_api_pb2.JobState.RUNNING,
+                           beam_job_api_pb2.JobState.DONE
+                       ])
 
       http_mock.get(
           'http://flink/v1/jobs/some_job_id/exceptions',
-          json={'all-exceptions': [{'exception': 'exc_text', 'timestamp': 0}]})
+          json={'all-exceptions': [{
+              'exception': 'exc_text', 'timestamp': 0
+          }]})
       message_stream = job_server.GetMessageStream(
           beam_job_api_pb2.JobMessagesRequest(
               job_id=prepare_response.preparation_id))
@@ -132,19 +145,18 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
         else:
           return x.state_response.state
 
-      self.assertEqual(
-          [get_item(m) for m in message_stream],
-          [
-              beam_job_api_pb2.JobState.STOPPED,
-              beam_job_api_pb2.JobState.RUNNING,
-              beam_job_api_pb2.JobMessage(
-                  message_id='message0',
-                  time='0',
-                  importance=beam_job_api_pb2.JobMessage.MessageImportance
-                  .JOB_MESSAGE_ERROR,
-                  message_text='exc_text'),
-              beam_job_api_pb2.JobState.DONE,
-          ])
+      self.assertEqual([get_item(m) for m in message_stream],
+                       [
+                           beam_job_api_pb2.JobState.STOPPED,
+                           beam_job_api_pb2.JobState.RUNNING,
+                           beam_job_api_pb2.JobMessage(
+                               message_id='message0',
+                               time='0',
+                               importance=beam_job_api_pb2.JobMessage.
+                               MessageImportance.JOB_MESSAGE_ERROR,
+                               message_text='exc_text'),
+                           beam_job_api_pb2.JobState.DONE,
+                       ])
 
 
 if __name__ == '__main__':

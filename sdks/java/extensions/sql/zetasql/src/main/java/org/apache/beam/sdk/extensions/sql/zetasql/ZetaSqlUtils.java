@@ -29,6 +29,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateType;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -68,6 +70,16 @@ public final class ZetaSqlUtils {
         return createZetaSqlArrayTypeFromBeamElementFieldType(fieldType.getCollectionElementType());
       case ROW:
         return createZetaSqlStructTypeFromBeamSchema(fieldType.getRowSchema());
+      case LOGICAL_TYPE:
+        switch (fieldType.getLogicalType().getIdentifier()) {
+          case DateType.IDENTIFIER:
+            return TypeFactory.createSimpleType(TypeKind.TYPE_DATE);
+          case TimeType.IDENTIFIER:
+            return TypeFactory.createSimpleType(TypeKind.TYPE_TIME);
+          default:
+            throw new IllegalArgumentException(
+                "Unsupported Beam logical type: " + fieldType.getLogicalType().getIdentifier());
+        }
       default:
         throw new UnsupportedOperationException(
             "Unsupported Beam fieldType: " + fieldType.getTypeName());
@@ -79,7 +91,7 @@ public final class ZetaSqlUtils {
     return TypeFactory.createArrayType(beamFieldTypeToZetaSqlType(elementFieldType));
   }
 
-  private static StructType createZetaSqlStructTypeFromBeamSchema(Schema schema) {
+  public static StructType createZetaSqlStructTypeFromBeamSchema(Schema schema) {
     return TypeFactory.createStructType(
         schema.getFields().stream()
             .map(ZetaSqlUtils::beamFieldToZetaSqlStructField)
@@ -139,7 +151,7 @@ public final class ZetaSqlUtils {
         createZetaSqlArrayTypeFromBeamElementFieldType(elementType), values);
   }
 
-  private static Value beamRowToZetaSqlStructValue(Row row, Schema schema) {
+  public static Value beamRowToZetaSqlStructValue(Row row, Schema schema) {
     List<Value> values = new ArrayList<>(row.getFieldCount());
 
     for (int i = 0; i < row.getFieldCount(); i++) {

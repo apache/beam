@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """A :class:`FileHandler` to work with :class:`ArtifactStagingServiceStub`.
 """
 
@@ -42,7 +43,6 @@ class PortableStager(Stager):
   Note: This class is not thread safe and user of this class should ensure
   thread safety.
   """
-
   def __init__(self, artifact_service_channel, staging_session_token):
     """Creates a new Stager to stage file to ArtifactStagingService.
 
@@ -62,6 +62,7 @@ class PortableStager(Stager):
 
   def stage_artifact(self, local_path_to_artifact, artifact_name):
     # type: (str, str) -> None
+
     """Stage a file to ArtifactStagingService.
 
     Args:

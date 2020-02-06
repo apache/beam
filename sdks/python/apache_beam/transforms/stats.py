@@ -107,7 +107,6 @@ class ApproximateUnique(object):
   @typehints.with_output_types(int)
   class Globally(PTransform):
     """ Approximate.Globally approximate number of unique values"""
-
     def __init__(self, size=None, error=None):
       self._sample_size = ApproximateUnique.parse_input_params(size, error)
 
@@ -122,7 +121,6 @@ class ApproximateUnique(object):
   @typehints.with_output_types(typing.Tuple[K, int])
   class PerKey(PTransform):
     """ Approximate.PerKey approximate number of unique values per key"""
-
     def __init__(self, size=None, error=None):
       self._sample_size = ApproximateUnique.parse_input_params(size, error)
 
@@ -195,10 +193,10 @@ class _LargestUnique(object):
       return len(self._sample_heap)
     else:
       sample_space_size = sys.maxsize - 1.0 * self._min_hash
-      est = (math.log1p(-self._sample_size / sample_space_size)
-             / math.log1p(-1 / sample_space_size)
-             * self._HASH_SPACE_SIZE
-             / sample_space_size)
+      est = (
+          math.log1p(-self._sample_size / sample_space_size) /
+          math.log1p(-1 / sample_space_size) * self._HASH_SPACE_SIZE /
+          sample_space_size)
 
       return round(est)
 
@@ -208,7 +206,6 @@ class ApproximateUniqueCombineFn(CombineFn):
   ApproximateUniqueCombineFn computes an estimate of the number of
   unique values that were combined.
   """
-
   def __init__(self, sample_size, coder):
     self._sample_size = sample_size
     self._coder = coder
@@ -246,14 +243,14 @@ class ApproximateQuantiles(object):
   PTransfrom for getting the idea of data distribution using approximate N-tile
   (e.g. quartiles, percentiles etc.) either globally or per-key.
   """
-
   @staticmethod
   def _display_data(num_quantiles, key, reverse):
     return {
         'num_quantiles': DisplayDataItem(num_quantiles, label="Quantile Count"),
-        'key': DisplayDataItem(key.__name__ if hasattr(key, '__name__')
-                               else key.__class__.__name__,
-                               label='Record Comparer Key'),
+        'key': DisplayDataItem(
+            key.__name__
+            if hasattr(key, '__name__') else key.__class__.__name__,
+            label='Record Comparer Key'),
         'reverse': DisplayDataItem(str(reverse), label='Is reversed')
     }
 
@@ -271,20 +268,22 @@ class ApproximateQuantiles(object):
       reverse: (optional) whether to order things smallest to largest, rather
         than largest to smallest
     """
-
     def __init__(self, num_quantiles, key=None, reverse=False):
       self._num_quantiles = num_quantiles
       self._key = key
       self._reverse = reverse
 
     def expand(self, pcoll):
-      return pcoll | CombineGlobally(ApproximateQuantilesCombineFn.create(
-          num_quantiles=self._num_quantiles, key=self._key,
-          reverse=self._reverse))
+      return pcoll | CombineGlobally(
+          ApproximateQuantilesCombineFn.create(
+              num_quantiles=self._num_quantiles,
+              key=self._key,
+              reverse=self._reverse))
 
     def display_data(self):
       return ApproximateQuantiles._display_data(
-          num_quantiles=self._num_quantiles, key=self._key,
+          num_quantiles=self._num_quantiles,
+          key=self._key,
           reverse=self._reverse)
 
   @typehints.with_input_types(typing.Tuple[K, V])
@@ -302,20 +301,22 @@ class ApproximateQuantiles(object):
       reverse: (optional) whether to order things smallest to largest, rather
         than largest to smallest
     """
-
     def __init__(self, num_quantiles, key=None, reverse=False):
       self._num_quantiles = num_quantiles
       self._key = key
       self._reverse = reverse
 
     def expand(self, pcoll):
-      return pcoll | CombinePerKey(ApproximateQuantilesCombineFn.create(
-          num_quantiles=self._num_quantiles, key=self._key,
-          reverse=self._reverse))
+      return pcoll | CombinePerKey(
+          ApproximateQuantilesCombineFn.create(
+              num_quantiles=self._num_quantiles,
+              key=self._key,
+              reverse=self._reverse))
 
     def display_data(self):
       return ApproximateQuantiles._display_data(
-          num_quantiles=self._num_quantiles, key=self._key,
+          num_quantiles=self._num_quantiles,
+          key=self._key,
           reverse=self._reverse)
 
 
@@ -323,7 +324,6 @@ class _QuantileBuffer(object):
   """A single buffer in the sense of the referenced algorithm.
   (see http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.6.6513&rep=rep1
   &type=pdf and ApproximateQuantilesCombineFn for further information)"""
-
   def __init__(self, elements, level=0, weight=1):
     self.elements = elements
     self.level = level
@@ -333,7 +333,6 @@ class _QuantileBuffer(object):
     self.elements < other.elements
 
   def sized_iterator(self):
-
     class QuantileBufferIterator(object):
       def __init__(self, elem, weight):
         self._iter = iter(elem)
@@ -428,8 +427,8 @@ class ApproximateQuantilesCombineFn(CombineFn):
   _MAX_NUM_ELEMENTS = 1e9
   _qs = None  # Refers to the _QuantileState
 
-  def __init__(self, num_quantiles, buffer_size, num_buffers, key=None,
-               reverse=False):
+  def __init__(
+      self, num_quantiles, buffer_size, num_buffers, key=None, reverse=False):
     if key:
       self._comparator = lambda a, b: (key(a) < key(b)) - (key(a) > key(b)) \
         if reverse else (key(a) > key(b)) - (key(a) < key(b))
@@ -444,8 +443,13 @@ class ApproximateQuantilesCombineFn(CombineFn):
     self._reverse = reverse
 
   @classmethod
-  def create(cls, num_quantiles, epsilon=None, max_num_elements=None, key=None,
-             reverse=False):
+  def create(
+      cls,
+      num_quantiles,
+      epsilon=None,
+      max_num_elements=None,
+      key=None,
+      reverse=False):
     """
     Creates an approximate quantiles combiner with the given key and desired
     number of quantiles.
@@ -476,8 +480,12 @@ class ApproximateQuantilesCombineFn(CombineFn):
       b = b + 1
     b = b - 1
     k = max(2, math.ceil(max_num_elements / float(1 << (b - 1))))
-    return cls(num_quantiles=num_quantiles, buffer_size=k, num_buffers=b,
-               key=key, reverse=reverse)
+    return cls(
+        num_quantiles=num_quantiles,
+        buffer_size=k,
+        num_buffers=b,
+        key=key,
+        reverse=reverse)
 
   def _add_unbuffered(self, qs, elem):
     """
@@ -487,8 +495,8 @@ class ApproximateQuantilesCombineFn(CombineFn):
     qs.unbuffered_elements.append(elem)
     if len(qs.unbuffered_elements) == qs.buffer_size:
       qs.unbuffered_elements.sort(key=self._key, reverse=self._reverse)
-      heapq.heappush(qs.buffers,
-                     _QuantileBuffer(elements=qs.unbuffered_elements))
+      heapq.heappush(
+          qs.buffers, _QuantileBuffer(elements=qs.unbuffered_elements))
       qs.unbuffered_elements = []
       self._collapse_if_needed(qs)
 
@@ -513,8 +521,8 @@ class ApproximateQuantilesCombineFn(CombineFn):
       # computed shards.  If they differ we take the max.
       new_level = max([new_level, buffer_elem.level + 1])
       new_weight = new_weight + buffer_elem.weight
-    new_elements = self._interpolate(buffers, self._buffer_size, new_weight,
-                                     self._offset(new_weight))
+    new_elements = self._interpolate(
+        buffers, self._buffer_size, new_weight, self._offset(new_weight))
     return _QuantileBuffer(new_elements, new_level, new_weight)
 
   def _collapse_if_needed(self, qs):
@@ -551,11 +559,13 @@ class ApproximateQuantilesCombineFn(CombineFn):
     # from it.
     if sys.version_info[0] < 3:
       sorted_elem = iter(
-          sorted(itertools.chain.from_iterable(iterators), key=compare_key,
-                 reverse=self._reverse))
+          sorted(
+              itertools.chain.from_iterable(iterators),
+              key=compare_key,
+              reverse=self._reverse))
     else:
-      sorted_elem = heapq.merge(*iterators, key=compare_key,
-                                reverse=self._reverse)
+      sorted_elem = heapq.merge(
+          *iterators, key=compare_key, reverse=self._reverse)
 
     weighted_element = next(sorted_elem)
     current = weighted_element[1]
@@ -573,9 +583,11 @@ class ApproximateQuantilesCombineFn(CombineFn):
     return new_elements
 
   def create_accumulator(self):
-    self._qs = _QuantileState(buffer_size=self._buffer_size,
-                              num_buffers=self._num_buffers,
-                              unbuffered_elements=[], buffers=[])
+    self._qs = _QuantileState(
+        buffer_size=self._buffer_size,
+        num_buffers=self._num_buffers,
+        unbuffered_elements=[],
+        buffers=[])
     return self._qs
 
   def add_input(self, quantile_state, element):

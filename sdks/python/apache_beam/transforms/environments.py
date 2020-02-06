@@ -49,16 +49,21 @@ if TYPE_CHECKING:
   from apache_beam.options.pipeline_options import PipelineOptions
   from apache_beam.runners.pipeline_context import PipelineContext
 
-__all__ = ['Environment',
-           'DockerEnvironment', 'ProcessEnvironment', 'ExternalEnvironment',
-           'EmbeddedPythonEnvironment', 'EmbeddedPythonGrpcEnvironment',
-           'SubprocessSDKEnvironment', 'RunnerAPIEnvironmentHolder']
+__all__ = [
+    'Environment',
+    'DockerEnvironment',
+    'ProcessEnvironment',
+    'ExternalEnvironment',
+    'EmbeddedPythonEnvironment',
+    'EmbeddedPythonGrpcEnvironment',
+    'SubprocessSDKEnvironment',
+    'RunnerAPIEnvironmentHolder'
+]
 
 T = TypeVar('T')
 EnvironmentT = TypeVar('EnvironmentT', bound='Environment')
-ConstructorFn = Callable[
-    [Optional[Any], 'PipelineContext'],
-    Any]
+ConstructorFn = Callable[[Optional[Any], 'PipelineContext'], Any]
+
 
 def looks_like_json(s):
   import re
@@ -81,22 +86,23 @@ class Environment(object):
     # type: (PipelineContext) -> Tuple[str, Optional[Union[message.Message, bytes, str]]]
     raise NotImplementedError
 
-
   @classmethod
   @overload
-  def register_urn(cls,
-                   urn,  # type: str
-                   parameter_type,  # type: Type[T]
-                  ):
+  def register_urn(
+      cls,
+      urn,  # type: str
+      parameter_type,  # type: Type[T]
+  ):
     # type: (...) -> Callable[[Union[type, Callable[[T, PipelineContext], Any]]], Callable[[T, PipelineContext], Any]]
     pass
 
   @classmethod
   @overload
-  def register_urn(cls,
-                   urn,  # type: str
-                   parameter_type,  # type: None
-                  ):
+  def register_urn(
+      cls,
+      urn,  # type: str
+      parameter_type,  # type: None
+  ):
     # type: (...) -> Callable[[Union[type, Callable[[bytes, PipelineContext], Any]]], Callable[[bytes, PipelineContext], Any]]
     pass
 
@@ -122,7 +128,6 @@ class Environment(object):
 
   @classmethod
   def register_urn(cls, urn, parameter_type, constructor=None):
-
     def register(constructor):
       if isinstance(constructor, type):
         constructor.from_runner_api_parameter = register(
@@ -151,12 +156,10 @@ class Environment(object):
     urn, typed_param = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.Environment(
         urn=urn,
-        payload=typed_param.SerializeToString()
-        if isinstance(typed_param, message.Message)
-        else typed_param if (isinstance(typed_param, bytes) or
-                             typed_param is None)
-        else typed_param.encode('utf-8')
-    )
+        payload=typed_param.SerializeToString() if isinstance(
+            typed_param, message.Message) else typed_param if
+        (isinstance(typed_param, bytes) or
+         typed_param is None) else typed_param.encode('utf-8'))
 
   @classmethod
   def from_runner_api(cls,
@@ -170,8 +173,7 @@ class Environment(object):
 
     try:
       return constructor(
-          proto_utils.parse_Bytes(proto.payload, parameter_type),
-          context)
+          proto_utils.parse_Bytes(proto.payload, parameter_type), context)
     except Exception:
       if context.allow_proto_holders:
         return RunnerAPIEnvironmentHolder(proto)
@@ -180,6 +182,7 @@ class Environment(object):
   @classmethod
   def from_options(cls, options):
     # type: (Type[EnvironmentT], PipelineOptions) -> EnvironmentT
+
     """Creates an Environment object from PipelineOptions.
 
     Args:
@@ -188,10 +191,9 @@ class Environment(object):
     raise NotImplementedError
 
 
-@Environment.register_urn(common_urns.environments.DOCKER.urn,
-                          beam_runner_api_pb2.DockerPayload)
+@Environment.register_urn(
+    common_urns.environments.DOCKER.urn, beam_runner_api_pb2.DockerPayload)
 class DockerEnvironment(Environment):
-
   def __init__(self, container_image=None):
     if container_image:
       self.container_image = container_image
@@ -214,9 +216,9 @@ class DockerEnvironment(Environment):
 
   def to_runner_api_parameter(self, context):
     # type: (PipelineContext) -> Tuple[str, beam_runner_api_pb2.DockerPayload]
-    return (common_urns.environments.DOCKER.urn,
-            beam_runner_api_pb2.DockerPayload(
-                container_image=self.container_image))
+    return (
+        common_urns.environments.DOCKER.urn,
+        beam_runner_api_pb2.DockerPayload(container_image=self.container_image))
 
   @staticmethod
   def from_runner_api_parameter(payload, context):
@@ -233,23 +235,23 @@ class DockerEnvironment(Environment):
 
     sdk_version = beam_version.__version__
     version_suffix = '.'.join([str(i) for i in sys.version_info[0:2]])
-    logging.warning('Make sure that locally built Python SDK docker image '
-                    'has Python %d.%d interpreter.' % (
-                        sys.version_info[0], sys.version_info[1]))
+    logging.warning(
+        'Make sure that locally built Python SDK docker image '
+        'has Python %d.%d interpreter.' %
+        (sys.version_info[0], sys.version_info[1]))
 
-    image = ('apachebeam/python{version_suffix}_sdk:{tag}'.format(
-        version_suffix=version_suffix, tag=sdk_version))
+    image = (
+        'apachebeam/python{version_suffix}_sdk:{tag}'.format(
+            version_suffix=version_suffix, tag=sdk_version))
     logging.info(
         'Using Python SDK docker image: %s. If the image is not '
-        'available at local, we will try to pull from hub.docker.com'
-        % (image))
+        'available at local, we will try to pull from hub.docker.com' % (image))
     return image
 
 
-@Environment.register_urn(common_urns.environments.PROCESS.urn,
-                          beam_runner_api_pb2.ProcessPayload)
+@Environment.register_urn(
+    common_urns.environments.PROCESS.urn, beam_runner_api_pb2.ProcessPayload)
 class ProcessEnvironment(Environment):
-
   def __init__(self, command, os='', arch='', env=None):
     self.command = command
     self.os = os
@@ -266,13 +268,17 @@ class ProcessEnvironment(Environment):
     return not self == other
 
   def __hash__(self):
-    return hash((self.__class__, self.command, self.os, self.arch,
-                 frozenset(self.env.items())))
+    return hash((
+        self.__class__,
+        self.command,
+        self.os,
+        self.arch,
+        frozenset(self.env.items())))
 
   def __repr__(self):
     repr_parts = ['command=%s' % self.command]
     if self.os:
-      repr_parts.append('os=%s'% self.os)
+      repr_parts.append('os=%s' % self.os)
     if self.arch:
       repr_parts.append('arch=%s' % self.arch)
     repr_parts.append('env=%s' % self.env)
@@ -280,29 +286,32 @@ class ProcessEnvironment(Environment):
 
   def to_runner_api_parameter(self, context):
     # type: (PipelineContext) -> Tuple[str, beam_runner_api_pb2.ProcessPayload]
-    return (common_urns.environments.PROCESS.urn,
-            beam_runner_api_pb2.ProcessPayload(
-                os=self.os,
-                arch=self.arch,
-                command=self.command,
-                env=self.env))
+    return (
+        common_urns.environments.PROCESS.urn,
+        beam_runner_api_pb2.ProcessPayload(
+            os=self.os, arch=self.arch, command=self.command, env=self.env))
 
   @staticmethod
   def from_runner_api_parameter(payload, context):
-    return ProcessEnvironment(command=payload.command, os=payload.os,
-                              arch=payload.arch, env=payload.env)
+    return ProcessEnvironment(
+        command=payload.command,
+        os=payload.os,
+        arch=payload.arch,
+        env=payload.env)
 
   @classmethod
   def from_options(cls, options):
     config = json.loads(options.environment_config)
-    return cls(config.get('command'), os=config.get('os', ''),
-               arch=config.get('arch', ''), env=config.get('env', ''))
+    return cls(
+        config.get('command'),
+        os=config.get('os', ''),
+        arch=config.get('arch', ''),
+        env=config.get('env', ''))
 
 
-@Environment.register_urn(common_urns.environments.EXTERNAL.urn,
-                          beam_runner_api_pb2.ExternalPayload)
+@Environment.register_urn(
+    common_urns.environments.EXTERNAL.urn, beam_runner_api_pb2.ExternalPayload)
 class ExternalEnvironment(Environment):
-
   def __init__(self, url, params=None):
     self.url = url
     self.params = params
@@ -326,16 +335,16 @@ class ExternalEnvironment(Environment):
 
   def to_runner_api_parameter(self, context):
     # type: (PipelineContext) -> Tuple[str, beam_runner_api_pb2.ExternalPayload]
-    return (common_urns.environments.EXTERNAL.urn,
-            beam_runner_api_pb2.ExternalPayload(
-                endpoint=endpoints_pb2.ApiServiceDescriptor(url=self.url),
-                params=self.params
-            ))
+    return (
+        common_urns.environments.EXTERNAL.urn,
+        beam_runner_api_pb2.ExternalPayload(
+            endpoint=endpoints_pb2.ApiServiceDescriptor(url=self.url),
+            params=self.params))
 
   @staticmethod
   def from_runner_api_parameter(payload, context):
-    return ExternalEnvironment(payload.endpoint.url,
-                               params=payload.params or None)
+    return ExternalEnvironment(
+        payload.endpoint.url, params=payload.params or None)
 
   @classmethod
   def from_options(cls, options):
@@ -354,7 +363,6 @@ class ExternalEnvironment(Environment):
 
 @Environment.register_urn(python_urns.EMBEDDED_PYTHON, None)
 class EmbeddedPythonEnvironment(Environment):
-
   def __eq__(self, other):
     return self.__class__ == other.__class__
 
@@ -380,7 +388,6 @@ class EmbeddedPythonEnvironment(Environment):
 
 @Environment.register_urn(python_urns.EMBEDDED_PYTHON_GRPC, bytes)
 class EmbeddedPythonGrpcEnvironment(Environment):
-
   def __init__(self, state_cache_size=None, data_buffer_time_limit_ms=None):
     self.state_cache_size = state_cache_size
     self.data_buffer_time_limit_ms = data_buffer_time_limit_ms
@@ -395,8 +402,8 @@ class EmbeddedPythonGrpcEnvironment(Environment):
     return not self == other
 
   def __hash__(self):
-    return hash((self.__class__, self.state_cache_size,
-                 self.data_buffer_time_limit_ms))
+    return hash(
+        (self.__class__, self.state_cache_size, self.data_buffer_time_limit_ms))
 
   def __repr__(self):
     repr_parts = []
@@ -433,9 +440,9 @@ class EmbeddedPythonGrpcEnvironment(Environment):
     if options.environment_config:
       config = EmbeddedPythonGrpcEnvironment.parse_config(
           options.environment_config)
-      return cls(state_cache_size=config.get('state_cache_size'),
-                 data_buffer_time_limit_ms=config.get(
-                     'data_buffer_time_limit_ms'))
+      return cls(
+          state_cache_size=config.get('state_cache_size'),
+          data_buffer_time_limit_ms=config.get('data_buffer_time_limit_ms'))
     else:
       return cls()
 
@@ -456,7 +463,6 @@ class EmbeddedPythonGrpcEnvironment(Environment):
 
 @Environment.register_urn(python_urns.SUBPROCESS_SDK, bytes)
 class SubprocessSDKEnvironment(Environment):
-
   def __init__(self, command_string):
     self.command_string = command_string
 
@@ -488,7 +494,6 @@ class SubprocessSDKEnvironment(Environment):
 
 
 class RunnerAPIEnvironmentHolder(Environment):
-
   def __init__(self, proto):
     self.proto = proto
 

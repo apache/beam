@@ -55,8 +55,8 @@ class XlangParquetIOTest(unittest.TestCase):
     address = 'localhost:%s' % port
     try:
       with TestPipeline() as p:
-        p.get_pipeline_options().view_as(
-            DebugOptions).experiments.append('jar_packages='+expansion_jar)
+        p.get_pipeline_options().view_as(DebugOptions).experiments.append(
+            'jar_packages=' + expansion_jar)
         p.not_use_test_runner_api = True
         _ = p \
           | beam.Create([

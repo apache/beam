@@ -41,7 +41,6 @@ try:
 except (ImportError, TypeError):
   client = None
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -52,7 +51,8 @@ class TypesTest(unittest.TestCase):
 
   def setUp(self):
     self._test_client = client.Client(
-        project=self._PROJECT, namespace=self._NAMESPACE,
+        project=self._PROJECT,
+        namespace=self._NAMESPACE,
         # Don't do any network requests.
         _http=mock.MagicMock())
 
@@ -79,7 +79,9 @@ class TypesTest(unittest.TestCase):
         'none': None,
         'list': [1, 2, 3],
         'entity': Entity(Key(['kind', 111])),
-        'dict': {'property': 5},
+        'dict': {
+            'property': 5
+        },
     }
     e.set_properties(properties)
     ec = e.to_client_entity()
@@ -105,7 +107,8 @@ class TypesTest(unittest.TestCase):
 
   def testKeyToClientKey(self):
     k = Key(['kind1', 'parent'],
-            project=self._PROJECT, namespace=self._NAMESPACE)
+            project=self._PROJECT,
+            namespace=self._NAMESPACE)
     ck = k.to_client_key()
     self.assertEqual(self._PROJECT, ck.project)
     self.assertEqual(self._NAMESPACE, ck.namespace)
@@ -160,9 +163,15 @@ class TypesTest(unittest.TestCase):
     order = projection
     distinct_on = projection
     ancestor_key = Key(['kind', 'id'], project=self._PROJECT)
-    q = Query(kind='kind', project=self._PROJECT, namespace=self._NAMESPACE,
-              ancestor=ancestor_key, filters=filters, projection=projection,
-              order=order, distinct_on=distinct_on)
+    q = Query(
+        kind='kind',
+        project=self._PROJECT,
+        namespace=self._NAMESPACE,
+        ancestor=ancestor_key,
+        filters=filters,
+        projection=projection,
+        order=order,
+        distinct_on=distinct_on)
     cq = q._to_client_query(self._test_client)
     self.assertEqual(self._PROJECT, cq.project)
     self.assertEqual(self._NAMESPACE, cq.namespace)
@@ -187,14 +196,17 @@ class TypesTest(unittest.TestCase):
             StaticValueProvider(str, 'value')),
          ('property_name', '=', 'value')],
     ]
-    self.expected_filters = [[('property_name', '=', 'value')],
-                             [('property_name', '=', 'value'),
-                              ('property_name', '=', 'value')],
-                            ]
+    self.expected_filters = [
+        [('property_name', '=', 'value')],
+        [('property_name', '=', 'value'), ('property_name', '=', 'value')],
+    ]
 
     for vp_filter, exp_filter in zip(self.vp_filters, self.expected_filters):
-      q = Query(kind='kind', project=self._PROJECT, namespace=self._NAMESPACE,
-                filters=vp_filter)
+      q = Query(
+          kind='kind',
+          project=self._PROJECT,
+          namespace=self._NAMESPACE,
+          filters=vp_filter)
       cq = q._to_client_query(self._test_client)
       self.assertEqual(exp_filter, cq.filters)
 

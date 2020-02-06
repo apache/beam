@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """
 Performance GBK streaming test that uses PubSub SyntheticSources
 messages.
@@ -57,6 +58,7 @@ if os.environ.get('LOAD_TEST_ENABLED') == 'true':
 
 DEFAULT_TIMEOUT = 800
 WAIT_UNTIL_FINISH_DURATION = 1 * 60 * 1000
+
 
 class TestOptions(PipelineOptions):
   @classmethod
@@ -109,18 +111,18 @@ class GroupByKeyStreamingTest(LoadTest):
         self.input_topic.name)
     self.output_sub_name = self.topic_short_name + '_sub_out_' + self.uuid
     self.output_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(self.project_id,
-                                          self.output_sub_name),
+        self.sub_client.subscription_path(
+            self.project_id, self.output_sub_name),
         self.output_topic.name,
         ack_deadline_seconds=60)
 
   # If the test timeouts on Dataflow it may not cleanup pubsub after
   def tearDown(self):
     super(GroupByKeyStreamingTest, self).tearDown()
-    test_utils.cleanup_subscriptions(self.sub_client,
-                                     [self.input_sub, self.output_sub])
-    test_utils.cleanup_topics(self.pub_client,
-                              [self.input_topic, self.output_topic])
+    test_utils.cleanup_subscriptions(
+        self.sub_client, [self.input_sub, self.output_sub])
+    test_utils.cleanup_topics(
+        self.pub_client, [self.input_topic, self.output_topic])
 
   def testGroupByKey(self):
     args = self.pipeline.get_full_options_as_args(**self.extra_opts)

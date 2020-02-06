@@ -115,9 +115,10 @@ class PValue(object):
     return '<%s at %s>' % (self._str_internal(), hex(id(self)))
 
   def _str_internal(self):
-    return "%s[%s.%s]" % (self.__class__.__name__,
-                          self.producer.full_label if self.producer else None,
-                          self.tag)
+    return "%s[%s.%s]" % (
+        self.__class__.__name__,
+        self.producer.full_label if self.producer else None,
+        self.tag)
 
   def apply(self, *args, **kwargs):
     """Applies a transform or callable to a PValue.
@@ -144,7 +145,6 @@ class PCollection(PValue, Generic[T]):
   Dataflow users should not construct PCollection objects directly in their
   pipelines.
   """
-
   def __eq__(self, other):
     if isinstance(other, PCollection):
       return self.tag == other.tag and self.producer == other.producer
@@ -174,6 +174,7 @@ class PCollection(PValue, Generic[T]):
   @staticmethod
   def from_(pcoll):
     # type: (PValue) -> PCollection
+
     """Create a PCollection, using another PCollection as a starting point.
 
     Transfers relevant attributes.
@@ -186,8 +187,7 @@ class PCollection(PValue, Generic[T]):
         unique_name=self._unique_name(),
         coder_id=context.coder_id_from_element_type(self.element_type),
         is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
-        if self.is_bounded
-        else beam_runner_api_pb2.IsBounded.UNBOUNDED,
+        if self.is_bounded else beam_runner_api_pb2.IsBounded.UNBOUNDED,
         windowing_strategy_id=context.windowing_strategies.get_id(
             self.windowing))
 
@@ -268,6 +268,7 @@ class DoOutputsTuple(object):
 
   def __iter__(self):
     # type: () -> Iterator[PCollection]
+
     """Iterates over tags returning for each call a (tag, pcollection) pair."""
     if self._main_tag is not None:
       yield self[self._main_tag]
@@ -295,8 +296,7 @@ class DoOutputsTuple(object):
     elif self._tags and tag not in self._tags:
       raise ValueError(
           "Tag '%s' is neither the main tag '%s' "
-          "nor any of the tags %s" % (
-              tag, self._main_tag, self._tags))
+          "nor any of the tags %s" % (tag, self._main_tag, self._tags))
     # Check if we accessed this tag before.
     if tag in self._pcolls:
       return self._pcolls[tag]
@@ -316,8 +316,8 @@ class DoOutputsTuple(object):
     else:
       # Main output is output of inner ParDo.
       pval = self.producer.parts[0].outputs[None]
-      assert isinstance(pval, PCollection), (
-          "DoOutputsTuple should follow a ParDo.")
+      assert isinstance(pval,
+                        PCollection), ("DoOutputsTuple should follow a ParDo.")
       pcoll = pval
     self._pcolls[tag] = pcoll
     return pcoll
@@ -331,12 +331,12 @@ class TaggedOutput(object):
   if it wants to emit on the main output and TaggedOutput objects
   if it wants to emit a value on a specific tagged output.
   """
-
   def __init__(self, tag, value):
     # type: (str, Any) -> None
     if not isinstance(tag, (str, unicode)):
       raise TypeError(
-          'Attempting to create a TaggedOutput with non-string tag %s' % (tag,))
+          'Attempting to create a TaggedOutput with non-string tag %s' %
+          (tag, ))
     self.tag = tag
     self.value = value
 
@@ -351,7 +351,6 @@ class AsSideInput(object):
   options, and should not be instantiated directly. (See instead AsSingleton,
   AsIter, etc.)
   """
-
   def __init__(self, pcoll):
     # type: (PCollection) -> None
     from apache_beam.transforms import sideinputs
@@ -393,8 +392,7 @@ class AsSideInput(object):
                       context  # type: PipelineContext
                      ):
     # type: (...) -> _UnpickledSideInput
-    return _UnpickledSideInput(
-        SideInputData.from_runner_api(proto, context))
+    return _UnpickledSideInput(SideInputData.from_runner_api(proto, context))
 
   @staticmethod
   def _from_runtime_iterable(it, options):
@@ -452,8 +450,8 @@ class SideInputData(object):
   def from_runner_api(proto, unused_context):
     # type: (beam_runner_api_pb2.SideInput, PipelineContext) -> SideInputData
     assert proto.view_fn.urn == python_urns.PICKLED_VIEWFN
-    assert (proto.window_mapping_fn.urn ==
-            python_urns.PICKLED_WINDOW_MAPPING_FN)
+    assert (
+        proto.window_mapping_fn.urn == python_urns.PICKLED_WINDOW_MAPPING_FN)
     return SideInputData(
         proto.access_pattern.urn,
         pickler.loads(proto.window_mapping_fn.payload),
@@ -501,8 +499,8 @@ class AsSingleton(AsSideInput):
       return head[0]
     raise ValueError(
         'PCollection of size %d with more than one element accessed as a '
-        'singleton view. First two elements encountered are "%s", "%s".' % (
-            len(head), str(head[0]), str(head[1])))
+        'singleton view. First two elements encountered are "%s", "%s".' %
+        (len(head), str(head[0]), str(head[1])))
 
   @property
   def element_type(self):
@@ -522,7 +520,6 @@ class AsIter(AsSideInput):
   (e.g., data.apply('label', MyPTransform(), AsIter(my_side_input) ) selects the
   former behavor.
   """
-
   def __repr__(self):
     return 'AsIter(%s)' % self.pvalue
 
@@ -556,7 +553,6 @@ class AsList(AsSideInput):
     An AsList-wrapper around a PCollection whose one element is a list
     containing all elements in pcoll.
   """
-
   @staticmethod
   def _from_runtime_iterable(it, options):
     return list(it)
@@ -564,9 +560,7 @@ class AsList(AsSideInput):
   def _side_input_data(self):
     # type: () -> SideInputData
     return SideInputData(
-        common_urns.side_inputs.ITERABLE.urn,
-        self._window_mapping_fn,
-        list)
+        common_urns.side_inputs.ITERABLE.urn, self._window_mapping_fn, list)
 
 
 class AsDict(AsSideInput):
@@ -584,7 +578,6 @@ class AsDict(AsSideInput):
     An AsDict-wrapper around a PCollection whose one element is a dict with
       entries for uniquely-keyed pairs in pcoll.
   """
-
   @staticmethod
   def _from_runtime_iterable(it, options):
     return dict(it)
@@ -592,9 +585,7 @@ class AsDict(AsSideInput):
   def _side_input_data(self):
     # type: () -> SideInputData
     return SideInputData(
-        common_urns.side_inputs.ITERABLE.urn,
-        self._window_mapping_fn,
-        dict)
+        common_urns.side_inputs.ITERABLE.urn, self._window_mapping_fn, dict)
 
 
 class AsMultiMap(AsSideInput):
@@ -607,7 +598,6 @@ class AsMultiMap(AsSideInput):
   AsSingleton and AsIter are used, but returns an interface that allows
   key lookup.
   """
-
   @staticmethod
   def _from_runtime_iterable(it, options):
     # Legacy implementation.
