@@ -111,6 +111,7 @@ import org.apache.beam.sdk.transforms.display.DisplayDataMatchers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -2407,6 +2408,39 @@ public class ParDoTest implements Serializable {
         stream = stream.addElements(stamp);
       }
       testTimeSortedInput(numElements, pipeline.apply(stream.advanceWatermarkToInfinity()));
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesRequiresTimeSortedInput.class,
+      UsesStrictTimerOrdering.class,
+      UsesTestStream.class
+    })
+    public void testRequiresTimeSortedInputWithLateDataAndAllowedLateness() {
+      // generate list long enough to rule out random shuffle in sorted order
+      int numElements = 1000;
+      List<Long> eventStamps =
+          LongStream.range(0, numElements)
+              .mapToObj(i -> numElements - i)
+              .collect(Collectors.toList());
+      TestStream.Builder<Long> input = TestStream.create(VarLongCoder.of());
+      for (Long stamp : eventStamps) {
+        input = input.addElements(TimestampedValue.of(stamp, Instant.ofEpochMilli(stamp)));
+        if (stamp == 100) {
+          // advance watermark when we have 100 remaining elements
+          // all the rest are going to be late elements
+          input = input.advanceWatermarkTo(Instant.ofEpochMilli(stamp));
+        }
+      }
+      testTimeSortedInput(
+          numElements,
+          pipeline
+              .apply(input.advanceWatermarkToInfinity())
+              .apply(
+                  Window.<Long>into(new GlobalWindows())
+                      .withAllowedLateness(Duration.millis(5000))));
     }
 
     @Test
