@@ -1097,10 +1097,13 @@ two fields (source and quote) of type string.</p>
                     <span class="o">.</span><span class="na">setType</span><span class="o">(</span><span class="s">"STRING"</span><span class="o">)</span>
                     <span class="o">.</span><span class="na">setMode</span><span class="o">(</span><span class="s">"REQUIRED"</span><span class="o">)));</span>
 </code></pre></div></div>
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">table_schema</span> <span class="o">=</span> <span class="p">{</span><span class="s">'fields'</span><span class="p">:</span> <span class="p">[</span>
-    <span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'source'</span><span class="p">,</span> <span class="s">'type'</span><span class="p">:</span> <span class="s">'STRING'</span><span class="p">,</span> <span class="s">'mode'</span><span class="p">:</span> <span class="s">'NULLABLE'</span><span class="p">},</span>
-    <span class="p">{</span><span class="s">'name'</span><span class="p">:</span> <span class="s">'quote'</span><span class="p">,</span> <span class="s">'type'</span><span class="p">:</span> <span class="s">'STRING'</span><span class="p">,</span> <span class="s">'mode'</span><span class="p">:</span> <span class="s">'REQUIRED'</span><span class="p">}</span>
-<span class="p">]}</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">table_schema</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s">'fields'</span><span class="p">:</span> <span class="p">[{</span>
+        <span class="s">'name'</span><span class="p">:</span> <span class="s">'source'</span><span class="p">,</span> <span class="s">'type'</span><span class="p">:</span> <span class="s">'STRING'</span><span class="p">,</span> <span class="s">'mode'</span><span class="p">:</span> <span class="s">'NULLABLE'</span>
+    <span class="p">},</span> <span class="p">{</span>
+        <span class="s">'name'</span><span class="p">:</span> <span class="s">'quote'</span><span class="p">,</span> <span class="s">'type'</span><span class="p">:</span> <span class="s">'STRING'</span><span class="p">,</span> <span class="s">'mode'</span><span class="p">:</span> <span class="s">'REQUIRED'</span>
+    <span class="p">}]</span>
+<span class="p">}</span>
 </code></pre></div></div>
 
 <h4 id="using-a-string-1">Using a string</h4>
@@ -1250,8 +1253,12 @@ static class Quote {
             <span class="k">new</span> <span class="nf">Quote</span><span class="o">(</span><span class="s">"Yoda"</span><span class="o">,</span> <span class="s">"Do, or do not. There is no 'try'."</span><span class="o">)));</span>
 </code></pre></div></div>
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">quotes</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-    <span class="p">{</span><span class="s">'source'</span><span class="p">:</span> <span class="s">'Mahatma Gandhi'</span><span class="p">,</span> <span class="s">'quote'</span><span class="p">:</span> <span class="s">'My life is my message.'</span><span class="p">},</span>
-    <span class="p">{</span><span class="s">'source'</span><span class="p">:</span> <span class="s">'Yoda'</span><span class="p">,</span> <span class="s">'quote'</span><span class="p">:</span> <span class="s">"Do, or do not. There is no 'try'."</span><span class="p">},</span>
+    <span class="p">{</span>
+        <span class="s">'source'</span><span class="p">:</span> <span class="s">'Mahatma Gandhi'</span><span class="p">,</span> <span class="s">'quote'</span><span class="p">:</span> <span class="s">'My life is my message.'</span>
+    <span class="p">},</span>
+    <span class="p">{</span>
+        <span class="s">'source'</span><span class="p">:</span> <span class="s">'Yoda'</span><span class="p">,</span> <span class="s">'quote'</span><span class="p">:</span> <span class="s">"Do, or do not. There is no 'try'."</span>
+    <span class="p">},</span>
 <span class="p">])</span>
 </code></pre></div></div>
 

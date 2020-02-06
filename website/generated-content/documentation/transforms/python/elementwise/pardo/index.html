@@ -569,8 +569,7 @@ and it can yield zero or more output elements.</p>
           <span class="s">'🍅Tomato,🥔Potato'</span><span class="p">,</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Split words'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">SplitWords</span><span class="p">(</span><span class="s">','</span><span class="p">))</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">ParDo</code>:</p>
@@ -656,7 +655,11 @@ object.</li>
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
 <span class="k">class</span> <span class="nc">AnalyzeElement</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
-  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elem</span><span class="p">,</span> <span class="n">timestamp</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">TimestampParam</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">WindowParam</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span>
+      <span class="bp">self</span><span class="p">,</span>
+      <span class="n">elem</span><span class="p">,</span>
+      <span class="n">timestamp</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">TimestampParam</span><span class="p">,</span>
+      <span class="n">window</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">WindowParam</span><span class="p">):</span>
     <span class="k">yield</span> <span class="s">'</span><span class="se">\n</span><span class="s">'</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
         <span class="s">'# timestamp'</span><span class="p">,</span>
         <span class="s">'type(timestamp) -&gt; '</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">timestamp</span><span class="p">)),</span>
@@ -666,21 +669,24 @@ object.</li>
         <span class="s">''</span><span class="p">,</span>
         <span class="s">'# window'</span><span class="p">,</span>
         <span class="s">'type(window) -&gt; '</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">window</span><span class="p">)),</span>
-        <span class="s">'window.start -&gt; {} ({})'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">start</span><span class="o">.</span><span class="n">to_utc_datetime</span><span class="p">()),</span>
-        <span class="s">'window.end -&gt; {} ({})'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">end</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">end</span><span class="o">.</span><span class="n">to_utc_datetime</span><span class="p">()),</span>
-        <span class="s">'window.max_timestamp() -&gt; {} ({})'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">max_timestamp</span><span class="p">(),</span> <span class="n">window</span><span class="o">.</span><span class="n">max_timestamp</span><span class="p">()</span><span class="o">.</span><span class="n">to_utc_datetime</span><span class="p">()),</span>
+        <span class="s">'window.start -&gt; {} ({})'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">window</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">start</span><span class="o">.</span><span class="n">to_utc_datetime</span><span class="p">()),</span>
+        <span class="s">'window.end -&gt; {} ({})'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">window</span><span class="o">.</span><span class="n">end</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">end</span><span class="o">.</span><span class="n">to_utc_datetime</span><span class="p">()),</span>
+        <span class="s">'window.max_timestamp() -&gt; {} ({})'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">window</span><span class="o">.</span><span class="n">max_timestamp</span><span class="p">(),</span> <span class="n">window</span><span class="o">.</span><span class="n">max_timestamp</span><span class="p">()</span><span class="o">.</span><span class="n">to_utc_datetime</span><span class="p">()),</span>
     <span class="p">])</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">dofn_params</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
       <span class="o">|</span> <span class="s">'Create a single test element'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s">':)'</span><span class="p">])</span>
-      <span class="o">|</span> <span class="s">'Add timestamp (Spring equinox 2020)'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
-          <span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">TimestampedValue</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="mi">1584675660</span><span class="p">))</span>
-      <span class="o">|</span> <span class="s">'Fixed 30sec windows'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="mi">30</span><span class="p">))</span>
+      <span class="o">|</span> <span class="s">'Add timestamp (Spring equinox 2020)'</span> <span class="o">&gt;&gt;</span>
+      <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">TimestampedValue</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="mi">1584675660</span><span class="p">))</span>
+      <span class="o">|</span>
+      <span class="s">'Fixed 30sec windows'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="mi">30</span><span class="p">))</span>
       <span class="o">|</span> <span class="s">'Analyze element'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">AnalyzeElement</span><span class="p">())</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip"><code class="highlighter-rouge">stdout</code> output:</p>
@@ -839,8 +845,7 @@ For example, if the worker crashes, <code class="highlighter-rouge">teardown</co
       <span class="n">pipeline</span>
       <span class="o">|</span> <span class="s">'Create inputs'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s">'🍓'</span><span class="p">,</span> <span class="s">'🥕'</span><span class="p">,</span> <span class="s">'🍆'</span><span class="p">,</span> <span class="s">'🍅'</span><span class="p">,</span> <span class="s">'🥔'</span><span class="p">])</span>
       <span class="o">|</span> <span class="s">'DoFn methods'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">DoFnMethods</span><span class="p">())</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip"><code class="highlighter-rouge">stdout</code> output:</p>

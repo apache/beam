@@ -566,8 +566,9 @@ limitations under the License.
   <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">an_int</span><span class="p">):</span>
     <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">'The string_value is </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">string_vp</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
     <span class="c"># Another option (where you don't need to pass the value at all) is:</span>
-    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">'The string value is </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span>
-                 <span class="n">RuntimeValueProvider</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="s">'string_value'</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="s">''</span><span class="p">))</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="s">'The string value is </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span>
+        <span class="n">RuntimeValueProvider</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="s">'string_value'</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="s">''</span><span class="p">))</span>
 
 <span class="n">pipeline_options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
 <span class="c"># Create pipeline.</span>
@@ -575,16 +576,17 @@ limitations under the License.
 
   <span class="n">my_options</span> <span class="o">=</span> <span class="n">pipeline_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">MyOptions</span><span class="p">)</span>
   <span class="c"># Add a branch for logging the ValueProvider value.</span>
-  <span class="n">_</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
-       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="bp">None</span><span class="p">])</span>
-       <span class="o">|</span> <span class="s">'LogValueProvs'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span>
-           <span class="n">LogValueProvidersFn</span><span class="p">(</span><span class="n">my_options</span><span class="o">.</span><span class="n">string_value</span><span class="p">)))</span>
+  <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">p</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="bp">None</span><span class="p">])</span>
+      <span class="o">|</span> <span class="s">'LogValueProvs'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span>
+          <span class="n">LogValueProvidersFn</span><span class="p">(</span><span class="n">my_options</span><span class="o">.</span><span class="n">string_value</span><span class="p">)))</span>
 
   <span class="c"># The main pipeline.</span>
-  <span class="n">result_pc</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
-               <span class="o">|</span> <span class="s">"main_pc"</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
-               <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Sum</span><span class="o">.</span><span class="n">Globally</span><span class="p">())</span>
-
+  <span class="n">result_pc</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">p</span>
+      <span class="o">|</span> <span class="s">"main_pc"</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Sum</span><span class="o">.</span><span class="n">Globally</span><span class="p">())</span>
 
 
 </code></pre></div></div>

@@ -418,9 +418,12 @@ looks more like what is depicted by the red squiggly line above the ideal line.<
     <span class="bp">self</span><span class="o">.</span><span class="n">field</span> <span class="o">=</span> <span class="n">field</span>
 
   <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
-    <span class="k">return</span> <span class="p">(</span><span class="n">pcoll</span>
-            <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="p">(</span><span class="n">elem</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">field</span><span class="p">],</span> <span class="n">elem</span><span class="p">[</span><span class="s">'score'</span><span class="p">]))</span>
-            <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">pcoll</span>
+        <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="p">(</span><span class="n">elem</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">field</span><span class="p">],</span> <span class="n">elem</span><span class="p">[</span><span class="s">'score'</span><span class="p">]))</span>
+        <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span>
+
+
 </code></pre></div></div>
 
 <p><code class="highlighter-rouge">ExtractAndSumScore</code> is written to be more general, in that you can pass in the field by which you want to group the data (in the case of our game, by unique user or unique team). This means we can re-use <code class="highlighter-rouge">ExtractAndSumScore</code> in other pipelines that group score data by team, for example.</p>
@@ -451,14 +454,13 @@ looks more like what is depicted by the red squiggly line above the ideal line.<
 
   <span class="c"># The default maps to two large Google Cloud Storage files (each ~12GB)</span>
   <span class="c"># holding two subsequent day's worth (roughly) of data.</span>
-  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--input'</span><span class="p">,</span>
-                      <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
-                      <span class="n">default</span><span class="o">=</span><span class="s">'gs://apache-beam-samples/game/gaming_data*.csv'</span><span class="p">,</span>
-                      <span class="n">help</span><span class="o">=</span><span class="s">'Path to the data file(s) containing game data.'</span><span class="p">)</span>
-  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--output'</span><span class="p">,</span>
-                      <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
-                      <span class="n">required</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
-                      <span class="n">help</span><span class="o">=</span><span class="s">'Path to the output file(s).'</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+      <span class="s">'--input'</span><span class="p">,</span>
+      <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+      <span class="n">default</span><span class="o">=</span><span class="s">'gs://apache-beam-samples/game/gaming_data*.csv'</span><span class="p">,</span>
+      <span class="n">help</span><span class="o">=</span><span class="s">'Path to the data file(s) containing game data.'</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+      <span class="s">'--output'</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s">'Path to the output file(s).'</span><span class="p">)</span>
 
   <span class="n">args</span><span class="p">,</span> <span class="n">pipeline_args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_known_args</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
 
@@ -469,15 +471,19 @@ looks more like what is depicted by the red squiggly line above the ideal line.<
   <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">save_main_session</span> <span class="o">=</span> <span class="n">save_main_session</span>
 
   <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+
     <span class="k">def</span> <span class="nf">format_user_score_sums</span><span class="p">(</span><span class="n">user_score</span><span class="p">):</span>
       <span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">score</span><span class="p">)</span> <span class="o">=</span> <span class="n">user_score</span>
       <span class="k">return</span> <span class="s">'user: </span><span class="si">%</span><span class="s">s, total_score: </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">score</span><span class="p">)</span>
 
-    <span class="p">(</span><span class="n">p</span>  <span class="c"># pylint: disable=expression-not-assigned</span>
-     <span class="o">|</span> <span class="s">'ReadInputText'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="nb">input</span><span class="p">)</span>
-     <span class="o">|</span> <span class="s">'UserScore'</span> <span class="o">&gt;&gt;</span> <span class="n">UserScore</span><span class="p">()</span>
-     <span class="o">|</span> <span class="s">'FormatUserScoreSums'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">format_user_score_sums</span><span class="p">)</span>
-     <span class="o">|</span> <span class="s">'WriteUserScoreSums'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">))</span>
+    <span class="p">(</span>  <span class="c"># pylint: disable=expression-not-assigned</span>
+        <span class="n">p</span>
+        <span class="o">|</span> <span class="s">'ReadInputText'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="nb">input</span><span class="p">)</span>
+        <span class="o">|</span> <span class="s">'UserScore'</span> <span class="o">&gt;&gt;</span> <span class="n">UserScore</span><span class="p">()</span>
+        <span class="o">|</span> <span class="s">'FormatUserScoreSums'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">format_user_score_sums</span><span class="p">)</span>
+        <span class="o">|</span> <span class="s">'WriteUserScoreSums'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">))</span>
+
+
 </code></pre></div></div>
 
 <h3 id="limitations">Limitations</h3>
@@ -592,10 +598,10 @@ logical windows based on when those scores occurred in event time.</em></p>
     <span class="n">Filter</span><span class="o">.</span><span class="na">by</span><span class="o">(</span>
         <span class="o">(</span><span class="n">GameActionInfo</span> <span class="n">gInfo</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">gInfo</span><span class="o">.</span><span class="na">getTimestamp</span><span class="o">()</span> <span class="o">&lt;</span> <span class="n">stopMinTimestamp</span><span class="o">.</span><span class="na">getMillis</span><span class="o">()))</span>
 </code></pre></div></div>
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">|</span> <span class="s">'FilterStartTime'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span>
-    <span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">]</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_timestamp</span><span class="p">)</span>
-<span class="o">|</span> <span class="s">'FilterEndTime'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span>
-    <span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop_timestamp</span><span class="p">)</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">|</span> <span class="s">'FilterStartTime'</span> <span class="o">&gt;&gt;</span>
+<span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">]</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_timestamp</span><span class="p">)</span>
+<span class="o">|</span> <span class="s">'FilterEndTime'</span> <span class="o">&gt;&gt;</span>
+<span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop_timestamp</span><span class="p">)</span>
 </code></pre></div></div>
 
 <h4 id="calculating-score-per-team-per-window">Calculating Score Per Team, Per Window</h4>
@@ -675,10 +681,10 @@ logical windows based on when those scores occurred in event time.</em></p>
         <span class="c"># need to weed out events that fall after the time period we want to</span>
         <span class="c"># analyze.</span>
         <span class="c"># [START filter_by_time_range]</span>
-        <span class="o">|</span> <span class="s">'FilterStartTime'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span>
-            <span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">]</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_timestamp</span><span class="p">)</span>
-        <span class="o">|</span> <span class="s">'FilterEndTime'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span>
-            <span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop_timestamp</span><span class="p">)</span>
+        <span class="o">|</span> <span class="s">'FilterStartTime'</span> <span class="o">&gt;&gt;</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">]</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_timestamp</span><span class="p">)</span>
+        <span class="o">|</span> <span class="s">'FilterEndTime'</span> <span class="o">&gt;&gt;</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'timestamp'</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop_timestamp</span><span class="p">)</span>
         <span class="c"># [END filter_by_time_range]</span>
 
         <span class="c"># [START add_timestamp_and_window]</span>
@@ -700,38 +706,44 @@ logical windows based on when those scores occurred in event time.</em></p>
 
   <span class="c"># The default maps to two large Google Cloud Storage files (each ~12GB)</span>
   <span class="c"># holding two subsequent day's worth (roughly) of data.</span>
-  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--input'</span><span class="p">,</span>
-                      <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
-                      <span class="n">default</span><span class="o">=</span><span class="s">'gs://apache-beam-samples/game/gaming_data*.csv'</span><span class="p">,</span>
-                      <span class="n">help</span><span class="o">=</span><span class="s">'Path to the data file(s) containing game data.'</span><span class="p">)</span>
-  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--dataset'</span><span class="p">,</span>
-                      <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
-                      <span class="n">required</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
-                      <span class="n">help</span><span class="o">=</span><span class="s">'BigQuery Dataset to write tables to. '</span>
-                      <span class="s">'Must already exist.'</span><span class="p">)</span>
-  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--table_name'</span><span class="p">,</span>
-                      <span class="n">default</span><span class="o">=</span><span class="s">'leader_board'</span><span class="p">,</span>
-                      <span class="n">help</span><span class="o">=</span><span class="s">'The BigQuery table name. Should not already exist.'</span><span class="p">)</span>
-  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--window_duration'</span><span class="p">,</span>
-                      <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
-                      <span class="n">default</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
-                      <span class="n">help</span><span class="o">=</span><span class="s">'Numeric value of fixed window duration, in minutes'</span><span class="p">)</span>
-  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--start_min'</span><span class="p">,</span>
-                      <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
-                      <span class="n">default</span><span class="o">=</span><span class="s">'1970-01-01-00-00'</span><span class="p">,</span>
-                      <span class="n">help</span><span class="o">=</span><span class="s">'String representation of the first minute after '</span>
-                           <span class="s">'which to generate results in the format: '</span>
-                           <span class="s">'yyyy-MM-dd-HH-mm. Any input data timestamped '</span>
-                           <span class="s">'prior to that minute won</span><span class="se">\'</span><span class="s">t be included in the '</span>
-                           <span class="s">'sums.'</span><span class="p">)</span>
-  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--stop_min'</span><span class="p">,</span>
-                      <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
-                      <span class="n">default</span><span class="o">=</span><span class="s">'2100-01-01-00-00'</span><span class="p">,</span>
-                      <span class="n">help</span><span class="o">=</span><span class="s">'String representation of the first minute for '</span>
-                           <span class="s">'which to generate results in the format: '</span>
-                           <span class="s">'yyyy-MM-dd-HH-mm. Any input data timestamped '</span>
-                           <span class="s">'after to that minute won</span><span class="se">\'</span><span class="s">t be included in the '</span>
-                           <span class="s">'sums.'</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+      <span class="s">'--input'</span><span class="p">,</span>
+      <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+      <span class="n">default</span><span class="o">=</span><span class="s">'gs://apache-beam-samples/game/gaming_data*.csv'</span><span class="p">,</span>
+      <span class="n">help</span><span class="o">=</span><span class="s">'Path to the data file(s) containing game data.'</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+      <span class="s">'--dataset'</span><span class="p">,</span>
+      <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+      <span class="n">required</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+      <span class="n">help</span><span class="o">=</span><span class="s">'BigQuery Dataset to write tables to. '</span>
+      <span class="s">'Must already exist.'</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+      <span class="s">'--table_name'</span><span class="p">,</span>
+      <span class="n">default</span><span class="o">=</span><span class="s">'leader_board'</span><span class="p">,</span>
+      <span class="n">help</span><span class="o">=</span><span class="s">'The BigQuery table name. Should not already exist.'</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+      <span class="s">'--window_duration'</span><span class="p">,</span>
+      <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+      <span class="n">default</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+      <span class="n">help</span><span class="o">=</span><span class="s">'Numeric value of fixed window duration, in minutes'</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+      <span class="s">'--start_min'</span><span class="p">,</span>
+      <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+      <span class="n">default</span><span class="o">=</span><span class="s">'1970-01-01-00-00'</span><span class="p">,</span>
+      <span class="n">help</span><span class="o">=</span><span class="s">'String representation of the first minute after '</span>
+      <span class="s">'which to generate results in the format: '</span>
+      <span class="s">'yyyy-MM-dd-HH-mm. Any input data timestamped '</span>
+      <span class="s">'prior to that minute won</span><span class="se">\'</span><span class="s">t be included in the '</span>
+      <span class="s">'sums.'</span><span class="p">)</span>
+  <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+      <span class="s">'--stop_min'</span><span class="p">,</span>
+      <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+      <span class="n">default</span><span class="o">=</span><span class="s">'2100-01-01-00-00'</span><span class="p">,</span>
+      <span class="n">help</span><span class="o">=</span><span class="s">'String representation of the first minute for '</span>
+      <span class="s">'which to generate results in the format: '</span>
+      <span class="s">'yyyy-MM-dd-HH-mm. Any input data timestamped '</span>
+      <span class="s">'after to that minute won</span><span class="se">\'</span><span class="s">t be included in the '</span>
+      <span class="s">'sums.'</span><span class="p">)</span>
 
   <span class="n">args</span><span class="p">,</span> <span class="n">pipeline_args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_known_args</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
 
@@ -748,17 +760,23 @@ logical windows based on when those scores occurred in event time.</em></p>
   <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">save_main_session</span> <span class="o">=</span> <span class="n">save_main_session</span>
 
   <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
-    <span class="p">(</span><span class="n">p</span>  <span class="c"># pylint: disable=expression-not-assigned</span>
-     <span class="o">|</span> <span class="s">'ReadInputText'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="nb">input</span><span class="p">)</span>
-     <span class="o">|</span> <span class="s">'HourlyTeamScore'</span> <span class="o">&gt;&gt;</span> <span class="n">HourlyTeamScore</span><span class="p">(</span>
-         <span class="n">args</span><span class="o">.</span><span class="n">start_min</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">stop_min</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">window_duration</span><span class="p">)</span>
-     <span class="o">|</span> <span class="s">'TeamScoresDict'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">TeamScoresDict</span><span class="p">())</span>
-     <span class="o">|</span> <span class="s">'WriteTeamScoreSums'</span> <span class="o">&gt;&gt;</span> <span class="n">WriteToBigQuery</span><span class="p">(</span>
-         <span class="n">args</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">dataset</span><span class="p">,</span> <span class="p">{</span>
-             <span class="s">'team'</span><span class="p">:</span> <span class="s">'STRING'</span><span class="p">,</span>
-             <span class="s">'total_score'</span><span class="p">:</span> <span class="s">'INTEGER'</span><span class="p">,</span>
-             <span class="s">'window_start'</span><span class="p">:</span> <span class="s">'STRING'</span><span class="p">,</span>
-         <span class="p">},</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">project</span><span class="p">))</span>
+    <span class="p">(</span>  <span class="c"># pylint: disable=expression-not-assigned</span>
+        <span class="n">p</span>
+        <span class="o">|</span> <span class="s">'ReadInputText'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="nb">input</span><span class="p">)</span>
+        <span class="o">|</span> <span class="s">'HourlyTeamScore'</span> <span class="o">&gt;&gt;</span> <span class="n">HourlyTeamScore</span><span class="p">(</span>
+            <span class="n">args</span><span class="o">.</span><span class="n">start_min</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">stop_min</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">window_duration</span><span class="p">)</span>
+        <span class="o">|</span> <span class="s">'TeamScoresDict'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">TeamScoresDict</span><span class="p">())</span>
+        <span class="o">|</span> <span class="s">'WriteTeamScoreSums'</span> <span class="o">&gt;&gt;</span> <span class="n">WriteToBigQuery</span><span class="p">(</span>
+            <span class="n">args</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">.</span><span class="n">dataset</span><span class="p">,</span>
+            <span class="p">{</span>
+                <span class="s">'team'</span><span class="p">:</span> <span class="s">'STRING'</span><span class="p">,</span>
+                <span class="s">'total_score'</span><span class="p">:</span> <span class="s">'INTEGER'</span><span class="p">,</span>
+                <span class="s">'window_start'</span><span class="p">:</span> <span class="s">'STRING'</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">project</span><span class="p">))</span>
+
+
 </code></pre></div></div>
 
 <h3 id="limitations-1">Limitations</h3>
@@ -873,6 +891,8 @@ ten minutes after data is received.</em></p>
             <span class="n">accumulation_mode</span><span class="o">=</span><span class="n">trigger</span><span class="o">.</span><span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">)</span>
         <span class="c"># Extract and sum username/score pairs from the event data.</span>
         <span class="o">|</span> <span class="s">'ExtractAndSumScore'</span> <span class="o">&gt;&gt;</span> <span class="n">ExtractAndSumScore</span><span class="p">(</span><span class="s">'user'</span><span class="p">))</span>
+
+
 </code></pre></div></div>
 
 <p><code class="highlighter-rouge">LeaderBoard</code> sets the <a href="/documentation/programming-guide/#window-accumulation-modes">window accumulation mode</a> to accumulate window panes as the trigger fires. This accumulation mode is set by <span class="language-java">invoking <code class="highlighter-rouge">.accumulatingFiredPanes</code></span> <span class="language-py">using <code class="highlighter-rouge">accumulation_mode=trigger.AccumulationMode.ACCUMULATING</code></span> when setting the trigger, and causes the pipeline to accumulate the previously emitted data together with any new data that’s arrived since the last trigger fire. This ensures that <code class="highlighter-rouge">LeaderBoard</code> is a running sum for the user scores, rather than a collection of individual sums.</p>
@@ -959,11 +979,13 @@ late results.</em></p>
         <span class="c"># processing of late data.</span>
         <span class="o">|</span> <span class="s">'LeaderboardTeamFixedWindows'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
             <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">team_window_duration</span><span class="p">),</span>
-            <span class="n">trigger</span><span class="o">=</span><span class="n">trigger</span><span class="o">.</span><span class="n">AfterWatermark</span><span class="p">(</span><span class="n">trigger</span><span class="o">.</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span>
-                                           <span class="n">trigger</span><span class="o">.</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">20</span><span class="p">)),</span>
+            <span class="n">trigger</span><span class="o">=</span><span class="n">trigger</span><span class="o">.</span><span class="n">AfterWatermark</span><span class="p">(</span>
+                <span class="n">trigger</span><span class="o">.</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span> <span class="n">trigger</span><span class="o">.</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">20</span><span class="p">)),</span>
             <span class="n">accumulation_mode</span><span class="o">=</span><span class="n">trigger</span><span class="o">.</span><span class="n">AccumulationMode</span><span class="o">.</span><span class="n">ACCUMULATING</span><span class="p">)</span>
         <span class="c"># Extract and sum teamname/score pairs from the event data.</span>
         <span class="o">|</span> <span class="s">'ExtractAndSumScore'</span> <span class="o">&gt;&gt;</span> <span class="n">ExtractAndSumScore</span><span class="p">(</span><span class="s">'team'</span><span class="p">))</span>
+
+
 </code></pre></div></div>
 
 <p>Taken together, these processing strategies let us address the latency and completeness issues present in the <code class="highlighter-rouge">UserScore</code> and <code class="highlighter-rouge">HourlyTeamScore</code> pipelines, while still using the same basic transforms to process the data—as a matter of fact, both calculations still use the same <code class="highlighter-rouge">ExtractAndSumScore</code> transform that we used in both the <code class="highlighter-rouge">UserScore</code> and <code class="highlighter-rouge">HourlyTeamScore</code> pipelines.</p>
@@ -1064,9 +1086,7 @@ late results.</em></p>
 
   <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_scores</span><span class="p">):</span>
     <span class="c"># Get the sum of scores for each user.</span>
-    <span class="n">sum_scores</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="n">user_scores</span>
-        <span class="o">|</span> <span class="s">'SumUsersScores'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span>
+    <span class="n">sum_scores</span> <span class="o">=</span> <span class="p">(</span><span class="n">user_scores</span> <span class="o">|</span> <span class="s">'SumUsersScores'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span>
 
     <span class="c"># Extract the score from each element, and use it to find the global mean.</span>
     <span class="n">global_mean_score</span> <span class="o">=</span> <span class="p">(</span>
@@ -1084,6 +1104,8 @@ late results.</em></p>
                 <span class="n">key_score</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">global_mean</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">SCORE_WEIGHT</span><span class="p">,</span>
             <span class="n">global_mean_score</span><span class="p">))</span>
     <span class="k">return</span> <span class="n">filtered</span>
+
+
 </code></pre></div></div>
 
 <p>The abuse-detection transform generates a view of users supected to be spambots. Later in the pipeline, we use that view to filter out any such users when we calculate the team score per hour, again by using the side input mechanism. The following code example shows where we insert the spam filter, between windowing the scores into fixed windows and extracting the team scores:</p>
@@ -1118,16 +1140,17 @@ late results.</em></p>
 <span class="c"># updates for late data. Uses the side input derived above --the set of</span>
 <span class="c"># suspected robots-- to filter out scores from those users from the sum.</span>
 <span class="c"># Write the results to BigQuery.</span>
-<span class="p">(</span><span class="n">raw_events</span>  <span class="c"># pylint: disable=expression-not-assigned</span>
- <span class="o">|</span> <span class="s">'WindowIntoFixedWindows'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
-     <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="n">fixed_window_duration</span><span class="p">))</span>
+<span class="p">(</span>  <span class="c"># pylint: disable=expression-not-assigned</span>
+    <span class="n">raw_events</span>
+    <span class="o">|</span> <span class="s">'WindowIntoFixedWindows'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="n">fixed_window_duration</span><span class="p">))</span>
 
- <span class="c"># Filter out the detected spammer users, using the side input derived above</span>
- <span class="o">|</span> <span class="s">'FilterOutSpammers'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span>
-     <span class="k">lambda</span> <span class="n">elem</span><span class="p">,</span> <span class="n">spammers</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'user'</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">spammers</span><span class="p">,</span>
-     <span class="n">spammers_view</span><span class="p">)</span>
- <span class="c"># Extract and sum teamname/score pairs from the event data.</span>
- <span class="o">|</span> <span class="s">'ExtractAndSumScore'</span> <span class="o">&gt;&gt;</span> <span class="n">ExtractAndSumScore</span><span class="p">(</span><span class="s">'team'</span><span class="p">)</span>
+    <span class="c"># Filter out the detected spammer users, using the side input derived</span>
+    <span class="c"># above</span>
+    <span class="o">|</span> <span class="s">'FilterOutSpammers'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span>
+        <span class="k">lambda</span> <span class="n">elem</span><span class="p">,</span> <span class="n">spammers</span><span class="p">:</span> <span class="n">elem</span><span class="p">[</span><span class="s">'user'</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">spammers</span><span class="p">,</span> <span class="n">spammers_view</span><span class="p">)</span>
+    <span class="c"># Extract and sum teamname/score pairs from the event data.</span>
+    <span class="o">|</span> <span class="s">'ExtractAndSumScore'</span> <span class="o">&gt;&gt;</span> <span class="n">ExtractAndSumScore</span><span class="p">(</span><span class="s">'team'</span><span class="p">)</span>
 </code></pre></div></div>
 
 <h4 id="analyzing-usage-patterns">Analyzing Usage Patterns</h4>
@@ -1166,18 +1189,19 @@ between instances are.</em></p>
 <span class="c"># from further activity. Find and record the mean session lengths.</span>
 <span class="c"># This information could help the game designers track the changing user</span>
 <span class="c"># engagement as their set of game changes.</span>
-<span class="p">(</span><span class="n">user_events</span>  <span class="c"># pylint: disable=expression-not-assigned</span>
- <span class="o">|</span> <span class="s">'WindowIntoSessions'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
-     <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">Sessions</span><span class="p">(</span><span class="n">session_gap</span><span class="p">),</span>
-     <span class="n">timestamp_combiner</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">TimestampCombiner</span><span class="o">.</span><span class="n">OUTPUT_AT_EOW</span><span class="p">)</span>
+<span class="p">(</span>  <span class="c"># pylint: disable=expression-not-assigned</span>
+    <span class="n">user_events</span>
+    <span class="o">|</span> <span class="s">'WindowIntoSessions'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">Sessions</span><span class="p">(</span><span class="n">session_gap</span><span class="p">),</span>
+        <span class="n">timestamp_combiner</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">TimestampCombiner</span><span class="o">.</span><span class="n">OUTPUT_AT_EOW</span><span class="p">)</span>
 
- <span class="c"># For this use, we care only about the existence of the session, not any</span>
- <span class="c"># particular information aggregated over it, so we can just group by key</span>
- <span class="c"># and assign a "dummy value" of None.</span>
- <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="k">lambda</span> <span class="n">_</span><span class="p">:</span> <span class="bp">None</span><span class="p">)</span>
+    <span class="c"># For this use, we care only about the existence of the session, not any</span>
+    <span class="c"># particular information aggregated over it, so we can just group by key</span>
+    <span class="c"># and assign a "dummy value" of None.</span>
+    <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="k">lambda</span> <span class="n">_</span><span class="p">:</span> <span class="bp">None</span><span class="p">)</span>
 
- <span class="c"># Get the duration of the session</span>
- <span class="o">|</span> <span class="s">'UserSessionActivity'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">UserSessionActivity</span><span class="p">())</span>
+    <span class="c"># Get the duration of the session</span>
+    <span class="o">|</span> <span class="s">'UserSessionActivity'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">UserSessionActivity</span><span class="p">())</span>
 </code></pre></div></div>
 
 <p>This gives us a set of user sessions, each with an attached duration. We can then calculate the <em>average</em> session length by re-windowing the data into fixed time windows, and then calculating the average for all sessions that end in each hour:</p>
@@ -1204,13 +1228,16 @@ between instances are.</em></p>
     <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="n">user_activity_window_duration</span><span class="p">))</span>
 
 <span class="c"># Find the mean session duration in each window</span>
-<span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">MeanCombineFn</span><span class="p">())</span><span class="o">.</span><span class="n">without_defaults</span><span class="p">()</span>
-<span class="o">|</span> <span class="s">'FormatAvgSessionLength'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
-    <span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="p">{</span><span class="s">'mean_duration'</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">elem</span><span class="p">)})</span>
+<span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span>
+    <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">MeanCombineFn</span><span class="p">())</span><span class="o">.</span><span class="n">without_defaults</span><span class="p">()</span>
+<span class="o">|</span> <span class="s">'FormatAvgSessionLength'</span> <span class="o">&gt;&gt;</span>
+<span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="p">{</span><span class="s">'mean_duration'</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">elem</span><span class="p">)})</span>
 <span class="o">|</span> <span class="s">'WriteAvgSessionLength'</span> <span class="o">&gt;&gt;</span> <span class="n">WriteToBigQuery</span><span class="p">(</span>
-    <span class="n">args</span><span class="o">.</span><span class="n">table_name</span> <span class="o">+</span> <span class="s">'_sessions'</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">dataset</span><span class="p">,</span> <span class="p">{</span>
+    <span class="n">args</span><span class="o">.</span><span class="n">table_name</span> <span class="o">+</span> <span class="s">'_sessions'</span><span class="p">,</span>
+    <span class="n">args</span><span class="o">.</span><span class="n">dataset</span><span class="p">,</span> <span class="p">{</span>
         <span class="s">'mean_duration'</span><span class="p">:</span> <span class="s">'FLOAT'</span><span class="p">,</span>
-    <span class="p">},</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">project</span><span class="p">))</span>
+    <span class="p">},</span>
+    <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">project</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p>We can use the resulting information to find, for example, what times of day our users are playing the longest, or which stretches of the day are more likely to see shorter play sessions.</p>

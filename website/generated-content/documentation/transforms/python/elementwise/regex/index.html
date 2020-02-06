@@ -596,8 +596,7 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
           <span class="s">'invalid, 🍉, format'</span><span class="p">,</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">matches</span><span class="p">(</span><span class="n">regex</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.matches</code>:</p>
@@ -695,8 +694,7 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
           <span class="s">'invalid, 🍉, format'</span><span class="p">,</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">all_matches</span><span class="p">(</span><span class="n">regex</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.all_matches</code>:</p>
@@ -795,8 +793,7 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
           <span class="s">'invalid, 🍉, format'</span><span class="p">,</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">matches_kv</span><span class="p">(</span><span class="n">regex</span><span class="p">,</span> <span class="n">keyGroup</span><span class="o">=</span><span class="s">'icon'</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.matches_kv</code>:</p>
@@ -893,8 +890,7 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
           <span class="s">'# 🥔, Potato, perennial'</span><span class="p">,</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">regex</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.find</code>:</p>
@@ -991,8 +987,7 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
           <span class="s">'# 🥔, Potato, perennial'</span><span class="p">,</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">find_all</span><span class="p">(</span><span class="n">regex</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.find_all</code>:</p>
@@ -1090,8 +1085,7 @@ To match until the end of the string, add <code class="highlighter-rouge">'$'</c
           <span class="s">'# 🥔, Potato, perennial'</span><span class="p">,</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">find_kv</span><span class="p">(</span><span class="n">regex</span><span class="p">,</span> <span class="n">keyGroup</span><span class="o">=</span><span class="s">'icon'</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.find_kv</code>:</p>
@@ -1181,8 +1175,7 @@ on the <code class="highlighter-rouge">replacement</code>.</p>
           <span class="s">'🥔 : Potato : perennial'</span><span class="p">,</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'To CSV'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">replace_all</span><span class="p">(</span><span class="s">r'\s*:\s*'</span><span class="p">,</span> <span class="s">','</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.replace_all</code>:</p>
@@ -1270,8 +1263,7 @@ on the <code class="highlighter-rouge">replacement</code>.</p>
           <span class="s">'🥔, Potato, perennial'</span><span class="p">,</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'As dictionary'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">replace_first</span><span class="p">(</span><span class="s">r'\s*,\s*'</span><span class="p">,</span> <span class="s">': '</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.replace_first</code>:</p>
@@ -1357,8 +1349,7 @@ The argument <code class="highlighter-rouge">outputEmpty</code> is set to <code 
           <span class="s">'🥔 : Potato : perennial'</span><span class="p">,</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">r'\s*:\s*'</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.split</code>:</p>

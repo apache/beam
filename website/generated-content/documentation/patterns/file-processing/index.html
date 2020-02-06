@@ -593,13 +593,14 @@ limitations under the License.
 
 </code></pre></div></div>
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
-  <span class="n">readable_files</span> <span class="o">=</span> <span class="p">(</span><span class="n">p</span>
-                    <span class="o">|</span> <span class="n">fileio</span><span class="o">.</span><span class="n">MatchFiles</span><span class="p">(</span><span class="s">'hdfs://path/to/*.txt'</span><span class="p">)</span>
-                    <span class="o">|</span> <span class="n">fileio</span><span class="o">.</span><span class="n">ReadMatches</span><span class="p">()</span>
-                    <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Reshuffle</span><span class="p">())</span>
-  <span class="n">files_and_contents</span> <span class="o">=</span> <span class="p">(</span><span class="n">readable_files</span>
-                        <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
-                                              <span class="n">x</span><span class="o">.</span><span class="n">read_utf8</span><span class="p">())))</span>
+  <span class="n">readable_files</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">p</span>
+      <span class="o">|</span> <span class="n">fileio</span><span class="o">.</span><span class="n">MatchFiles</span><span class="p">(</span><span class="s">'hdfs://path/to/*.txt'</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">fileio</span><span class="o">.</span><span class="n">ReadMatches</span><span class="p">()</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Reshuffle</span><span class="p">())</span>
+  <span class="n">files_and_contents</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">readable_files</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">read_utf8</span><span class="p">())))</span>
 
 </code></pre></div></div>
 

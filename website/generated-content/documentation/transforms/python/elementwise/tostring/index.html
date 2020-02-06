@@ -558,8 +558,7 @@ You can specify a different delimiter using the <code class="highlighter-rouge">
           <span class="p">(</span><span class="s">'🥔'</span><span class="p">,</span> <span class="s">'Potato'</span><span class="p">),</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'To string'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ToString</span><span class="o">.</span><span class="n">Kvs</span><span class="p">()</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">ToString</code>:</p>
@@ -645,8 +644,7 @@ The string output will be equivalent to <code class="highlighter-rouge">str(elem
           <span class="p">[</span><span class="s">'🥔'</span><span class="p">,</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'perennial'</span><span class="p">],</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'To string'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ToString</span><span class="o">.</span><span class="n">Element</span><span class="p">()</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">ToString</code>:</p>
@@ -734,8 +732,7 @@ The string output will be equivalent to <code class="highlighter-rouge">iterable
           <span class="p">[</span><span class="s">'🥔'</span><span class="p">,</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'perennial'</span><span class="p">],</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'To string'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ToString</span><span class="o">.</span><span class="n">Iterables</span><span class="p">()</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">ToString</code>:</p>

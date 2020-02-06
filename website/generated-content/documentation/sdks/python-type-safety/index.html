@@ -381,6 +381,7 @@ class FilterEvensDoFn(beam.DoFn):
   def process(self, element):
     if element % 2 == 0:
       yield element
+
 evens = numbers | beam.ParDo(FilterEvensDoFn())
 </code></pre></div></div>
 
@@ -502,8 +503,7 @@ def parse_player_and_score(csv):
 totals = (
     lines
     | beam.Map(parse_player_and_score)
-    | beam.CombinePerKey(sum).with_input_types(
-        typing.Tuple[Player, int]))
+    | beam.CombinePerKey(sum).with_input_types(typing.Tuple[Player, int]))
 </code></pre></div></div>
 
       </div>

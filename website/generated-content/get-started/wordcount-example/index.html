@@ -461,8 +461,8 @@ data stored in a publicly accessible Google Cloud Storage bucket (“gs://”).<
     <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="s">"gs://apache-beam-samples/shakespeare/*"</span><span class="o">))</span>
 </code></pre></div>    </div>
 
-    <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span>
-<span class="s">'gs://dataflow-samples/shakespeare/kinglear.txt'</span><span class="p">)</span>
+    <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">p</span>
+<span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="s">'gs://dataflow-samples/shakespeare/kinglear.txt'</span><span class="p">)</span>
 </code></pre></div>    </div>
 
     <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">lines</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">textio</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="s">"gs://apache-beam-samples/shakespeare/*"</span><span class="p">)</span><span class="x">
@@ -764,7 +764,6 @@ test and can make the <code class="highlighter-rouge">ParDo</code> code more rea
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># In this example, the DoFns are defined as classes:</span>
 
 <span class="k">class</span> <span class="nc">FormatAsTextFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
-
   <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
     <span class="n">word</span><span class="p">,</span> <span class="n">count</span> <span class="o">=</span> <span class="n">element</span>
     <span class="k">yield</span> <span class="s">'</span><span class="si">%</span><span class="s">s: </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">count</span><span class="p">)</span>
@@ -828,17 +827,18 @@ is the <code class="highlighter-rouge">PCollection&lt;KV&lt;String, Long&gt;&gt;
 </code></pre></div></div>
 
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">CountWords</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
-
   <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
-    <span class="k">return</span> <span class="p">(</span><span class="n">pcoll</span>
-            <span class="c"># Convert lines of text into individual words.</span>
-            <span class="o">|</span> <span class="s">'ExtractWords'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
-                <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">r'[A-Za-z\']+'</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">pcoll</span>
+        <span class="c"># Convert lines of text into individual words.</span>
+        <span class="o">|</span> <span class="s">'ExtractWords'</span> <span class="o">&gt;&gt;</span>
+        <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">r'[A-Za-z\']+'</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
 
-            <span class="c"># Count the number of times each word occurs.</span>
-            <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">PerElement</span><span class="p">())</span>
+        <span class="c"># Count the number of times each word occurs.</span>
+        <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">PerElement</span><span class="p">())</span>
 
 <span class="n">counts</span> <span class="o">=</span> <span class="n">lines</span> <span class="o">|</span> <span class="n">CountWords</span><span class="p">()</span>
+
 </code></pre></div></div>
 
 <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">func</span><span class="x"> </span><span class="n">CountWords</span><span class="p">(</span><span class="n">s</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">Scope</span><span class="p">,</span><span class="x"> </span><span class="n">lines</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">PCollection</span><span class="p">)</span><span class="x"> </span><span class="n">beam</span><span class="o">.</span><span class="n">PCollection</span><span class="x"> </span><span class="p">{</span><span class="x">
@@ -881,17 +881,18 @@ values for them. You can then access the options values in your pipeline code.</
 </code></pre></div></div>
 
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">WordCountOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
-
   <span class="nd">@classmethod</span>
   <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
-    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--input'</span><span class="p">,</span>
-                        <span class="n">help</span><span class="o">=</span><span class="s">'Input for the pipeline'</span><span class="p">,</span>
-                        <span class="n">default</span><span class="o">=</span><span class="s">'gs://my-bucket/input'</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s">'--input'</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s">'Input for the pipeline'</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="s">'gs://my-bucket/input'</span><span class="p">)</span>
 
 <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
 <span class="n">word_count_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">WordCountOptions</span><span class="p">)</span>
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
   <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="n">word_count_options</span><span class="o">.</span><span class="nb">input</span><span class="p">)</span>
+
 </code></pre></div></div>
 
 <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">var</span><span class="x"> </span><span class="n">input</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">flag</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="s">"input"</span><span class="p">,</span><span class="x"> </span><span class="s">"gs://apache-beam-samples/shakespeare/kinglear.txt"</span><span class="p">,</span><span class="x"> </span><span class="s">"File(s) to read."</span><span class="p">)</span><span class="x">
@@ -1076,7 +1077,6 @@ pipeline code into smaller sections.</p>
 
 <span class="k">class</span> <span class="nc">FilterTextFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
   <span class="s">"""A DoFn that filters for a specific key based on a regular expression."""</span>
-
   <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pattern</span><span class="p">):</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">pattern</span> <span class="o">=</span> <span class="n">pattern</span>
     <span class="c"># A custom metric can track values in your pipeline as it runs. Create</span>
@@ -1105,6 +1105,7 @@ pipeline code into smaller sections.</p>
 
       <span class="c"># Add 1 to the custom metric counter umatched_words</span>
       <span class="bp">self</span><span class="o">.</span><span class="n">umatched_words</span><span class="o">.</span><span class="n">inc</span><span class="p">()</span>
+
 </code></pre></div></div>
 
 <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">type</span><span class="x"> </span><span class="n">filterFn</span><span class="x"> </span><span class="k">struct</span><span class="x"> </span><span class="p">{</span><span class="x">

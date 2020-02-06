@@ -563,8 +563,7 @@ It strips the input element’s whitespaces, including newlines and tabs.</p>
           <span class="s">'   🥔Potato   </span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Strip'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="nb">str</span><span class="o">.</span><span class="n">strip</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Map</code>:</p>
@@ -652,8 +651,7 @@ limitations under the License.
           <span class="s">'# 🥔Potato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Strip header'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">strip_header_and_newline</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Map</code>:</p>
@@ -738,8 +736,7 @@ limitations under the License.
           <span class="s">'# 🥔Potato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Strip header'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">text</span><span class="p">:</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">'# </span><span class="se">\n</span><span class="s">'</span><span class="p">))</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Map</code>:</p>
@@ -830,8 +827,7 @@ They are passed as additional positional arguments or keyword arguments to the f
           <span class="s">'# 🥔Potato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Strip header'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">strip</span><span class="p">,</span> <span class="n">chars</span><span class="o">=</span><span class="s">'# </span><span class="se">\n</span><span class="s">'</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Map</code>:</p>
@@ -916,10 +912,9 @@ you can use <code class="highlighter-rouge">MapTuple</code> to unpack them into 
           <span class="p">(</span><span class="s">'🍅'</span><span class="p">,</span> <span class="s">'Tomato'</span><span class="p">),</span>
           <span class="p">(</span><span class="s">'🥔'</span><span class="p">,</span> <span class="s">'Potato'</span><span class="p">),</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'Format'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">MapTuple</span><span class="p">(</span>
-          <span class="k">lambda</span> <span class="n">icon</span><span class="p">,</span> <span class="n">plant</span><span class="p">:</span> <span class="s">'{}{}'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">icon</span><span class="p">,</span> <span class="n">plant</span><span class="p">))</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="s">'Format'</span> <span class="o">&gt;&gt;</span>
+      <span class="n">beam</span><span class="o">.</span><span class="n">MapTuple</span><span class="p">(</span><span class="k">lambda</span> <span class="n">icon</span><span class="p">,</span> <span class="n">plant</span><span class="p">:</span> <span class="s">'{}{}'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">icon</span><span class="p">,</span> <span class="n">plant</span><span class="p">))</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">MapTuple</code>:</p>
@@ -1010,11 +1005,11 @@ We then use that value as the characters for the <code class="highlighter-rouge"
           <span class="s">'# 🥔Potato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Strip header'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
-          <span class="k">lambda</span> <span class="n">text</span><span class="p">,</span> <span class="n">chars</span><span class="p">:</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="n">chars</span><span class="p">),</span>
+          <span class="k">lambda</span> <span class="n">text</span><span class="p">,</span>
+          <span class="n">chars</span><span class="p">:</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="n">chars</span><span class="p">),</span>
           <span class="n">chars</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">chars</span><span class="p">),</span>
       <span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Map</code>:</p>
@@ -1103,11 +1098,11 @@ so it is possible to iterate over large <code class="highlighter-rouge">PCollect
           <span class="s">'# 🥔Potato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Strip header'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
-          <span class="k">lambda</span> <span class="n">text</span><span class="p">,</span> <span class="n">chars</span><span class="p">:</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">''</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">chars</span><span class="p">)),</span>
+          <span class="k">lambda</span> <span class="n">text</span><span class="p">,</span>
+          <span class="n">chars</span><span class="p">:</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">''</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">chars</span><span class="p">)),</span>
           <span class="n">chars</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsIter</span><span class="p">(</span><span class="n">chars</span><span class="p">),</span>
       <span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Map</code>:</p>
@@ -1203,18 +1198,27 @@ If the <code class="highlighter-rouge">PCollection</code> won’t fit into memor
   <span class="n">plant_details</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
       <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍓'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥕'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍆'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Eggplant'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍅'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥔'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍓'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="mi">2</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥕'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="mi">1</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍆'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Eggplant'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="mi">2</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍅'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="mi">0</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥔'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="mi">2</span>
+          <span class="p">},</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Replace duration'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
           <span class="n">replace_duration</span><span class="p">,</span>
           <span class="n">durations</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsDict</span><span class="p">(</span><span class="n">durations</span><span class="p">),</span>
       <span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Map</code>:</p>

@@ -558,15 +558,24 @@ Then, we apply <code class="highlighter-rouge">Filter</code> in multiple ways to
   <span class="n">perennials</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
       <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍓'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥕'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'biennial'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍆'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Eggplant'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍅'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'annual'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥔'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍓'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥕'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'biennial'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍆'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Eggplant'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍅'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'annual'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥔'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span>
+          <span class="p">},</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Filter perennials'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span><span class="n">is_perennial</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Filter</code>:</p>
@@ -642,16 +651,25 @@ limitations under the License.
   <span class="n">perennials</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
       <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍓'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥕'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'biennial'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍆'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Eggplant'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍅'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'annual'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥔'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍓'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥕'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'biennial'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍆'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Eggplant'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍅'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'annual'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥔'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span>
+          <span class="p">},</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'Filter perennials'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span>
-          <span class="k">lambda</span> <span class="n">plant</span><span class="p">:</span> <span class="n">plant</span><span class="p">[</span><span class="s">'duration'</span><span class="p">]</span> <span class="o">==</span> <span class="s">'perennial'</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="s">'Filter perennials'</span> <span class="o">&gt;&gt;</span>
+      <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">plant</span><span class="p">:</span> <span class="n">plant</span><span class="p">[</span><span class="s">'duration'</span><span class="p">]</span> <span class="o">==</span> <span class="s">'perennial'</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Filter</code>:</p>
@@ -733,15 +751,24 @@ They are passed as additional positional arguments or keyword arguments to the f
   <span class="n">perennials</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
       <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍓'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥕'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'biennial'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍆'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Eggplant'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍅'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'annual'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥔'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍓'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥕'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'biennial'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍆'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Eggplant'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍅'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'annual'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥔'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span>
+          <span class="p">},</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Filter perennials'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span><span class="n">has_duration</span><span class="p">,</span> <span class="s">'perennial'</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Filter</code>:</p>
@@ -823,18 +850,28 @@ We then use that value to filter out perennials.</p>
   <span class="n">perennials</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
       <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍓'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥕'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'biennial'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍆'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Eggplant'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍅'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'annual'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥔'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍓'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥕'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'biennial'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍆'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Eggplant'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍅'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'annual'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥔'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span>
+          <span class="p">},</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Filter perennials'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span>
-          <span class="k">lambda</span> <span class="n">plant</span><span class="p">,</span> <span class="n">duration</span><span class="p">:</span> <span class="n">plant</span><span class="p">[</span><span class="s">'duration'</span><span class="p">]</span> <span class="o">==</span> <span class="n">duration</span><span class="p">,</span>
+          <span class="k">lambda</span> <span class="n">plant</span><span class="p">,</span>
+          <span class="n">duration</span><span class="p">:</span> <span class="n">plant</span><span class="p">[</span><span class="s">'duration'</span><span class="p">]</span> <span class="o">==</span> <span class="n">duration</span><span class="p">,</span>
           <span class="n">duration</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">perennial</span><span class="p">),</span>
       <span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Filter</code>:</p>
@@ -918,18 +955,28 @@ so it is possible to iterate over large <code class="highlighter-rouge">PCollect
   <span class="n">valid_plants</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
       <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍓'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥕'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'biennial'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍆'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Eggplant'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍅'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'annual'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥔'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'PERENNIAL'</span><span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍓'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥕'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'biennial'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍆'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Eggplant'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍅'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'annual'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥔'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'PERENNIAL'</span>
+          <span class="p">},</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Filter valid plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span>
-          <span class="k">lambda</span> <span class="n">plant</span><span class="p">,</span> <span class="n">valid_durations</span><span class="p">:</span> <span class="n">plant</span><span class="p">[</span><span class="s">'duration'</span><span class="p">]</span> <span class="ow">in</span> <span class="n">valid_durations</span><span class="p">,</span>
+          <span class="k">lambda</span> <span class="n">plant</span><span class="p">,</span>
+          <span class="n">valid_durations</span><span class="p">:</span> <span class="n">plant</span><span class="p">[</span><span class="s">'duration'</span><span class="p">]</span> <span class="ow">in</span> <span class="n">valid_durations</span><span class="p">,</span>
           <span class="n">valid_durations</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsIter</span><span class="p">(</span><span class="n">valid_durations</span><span class="p">),</span>
       <span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Filter</code>:</p>
@@ -1020,18 +1067,28 @@ If the <code class="highlighter-rouge">PCollection</code> won’t fit into memor
   <span class="n">perennials</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
       <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍓'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥕'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'biennial'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍆'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Eggplant'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍅'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'annual'</span><span class="p">},</span>
-          <span class="p">{</span><span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥔'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span><span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍓'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥕'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'biennial'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍆'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Eggplant'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍅'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'annual'</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥔'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="s">'perennial'</span>
+          <span class="p">},</span>
       <span class="p">])</span>
       <span class="o">|</span> <span class="s">'Filter plants by duration'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span>
-          <span class="k">lambda</span> <span class="n">plant</span><span class="p">,</span> <span class="n">keep_duration</span><span class="p">:</span> <span class="n">keep_duration</span><span class="p">[</span><span class="n">plant</span><span class="p">[</span><span class="s">'duration'</span><span class="p">]],</span>
+          <span class="k">lambda</span> <span class="n">plant</span><span class="p">,</span>
+          <span class="n">keep_duration</span><span class="p">:</span> <span class="n">keep_duration</span><span class="p">[</span><span class="n">plant</span><span class="p">[</span><span class="s">'duration'</span><span class="p">]],</span>
           <span class="n">keep_duration</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsDict</span><span class="p">(</span><span class="n">keep_duration</span><span class="p">),</span>
       <span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">)</span>
-  <span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
 </code></pre></div></div>
 
 <p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Filter</code>:</p>

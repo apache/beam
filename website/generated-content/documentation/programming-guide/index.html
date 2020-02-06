@@ -738,11 +738,11 @@ adding <code class="highlighter-rouge">input</code> and <code class="highlighter
 <span class="o">}</span>
 </code></pre></div></div>
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">MyOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
-
   <span class="nd">@classmethod</span>
   <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--input'</span><span class="p">)</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--output'</span><span class="p">)</span>
+
 
 </code></pre></div></div>
 <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">var</span><span class="x"> </span><span class="p">(</span><span class="x">
@@ -769,15 +769,17 @@ a command-line argument, and a default value.</p>
 <span class="o">}</span>
 </code></pre></div></div>
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">MyOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
-
   <span class="nd">@classmethod</span>
   <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
-    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--input'</span><span class="p">,</span>
-                        <span class="n">help</span><span class="o">=</span><span class="s">'Input for the pipeline'</span><span class="p">,</span>
-                        <span class="n">default</span><span class="o">=</span><span class="s">'gs://my-bucket/input'</span><span class="p">)</span>
-    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--output'</span><span class="p">,</span>
-                        <span class="n">help</span><span class="o">=</span><span class="s">'Output for the pipeline'</span><span class="p">,</span>
-                        <span class="n">default</span><span class="o">=</span><span class="s">'gs://my-bucket/output'</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s">'--input'</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s">'Input for the pipeline'</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="s">'gs://my-bucket/input'</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s">'--output'</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s">'Output for the pipeline'</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="s">'gs://my-bucket/output'</span><span class="p">)</span>
+
 
 </code></pre></div></div>
 <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">var</span><span class="x"> </span><span class="p">(</span><span class="x">
@@ -855,7 +857,8 @@ a <code class="highlighter-rouge">PCollection</code>:</p>
       <span class="s">"ReadMyFile"</span><span class="o">,</span> <span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="s">"gs://some/inputData.txt"</span><span class="o">));</span>
 <span class="o">}</span>
 </code></pre></div></div>
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">lines</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s">'ReadMyFile'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="s">'gs://some/inputData.txt'</span><span class="p">)</span>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">lines</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s">'ReadMyFile'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span>
+    <span class="s">'gs://some/inputData.txt'</span><span class="p">)</span>
 
 </code></pre></div></div>
 <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">lines</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">textio</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="x"> </span><span class="s">"gs://some/inputData.txt"</span><span class="p">)</span><span class="x">
@@ -911,8 +914,8 @@ itself.</p>
           <span class="s">"Whether 'tis nobler in the mind to suffer "</span><span class="p">,</span>
           <span class="s">'The slings and arrows of outrageous fortune, '</span><span class="p">,</span>
           <span class="s">'Or to take arms against a sea of troubles, '</span><span class="p">,</span>
-      <span class="p">])</span>
-  <span class="p">)</span>
+      <span class="p">]))</span>
+
 
 </code></pre></div></div>
 
@@ -1168,6 +1171,7 @@ following example code:</p>
   <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
     <span class="k">return</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">element</span><span class="p">)]</span>
 
+
 <span class="c"># Apply a ParDo to the PCollection "words" to compute lengths for each word.</span>
 <span class="n">word_lengths</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">ComputeWordLengthFn</span><span class="p">())</span>
 </code></pre></div></div>
@@ -1238,6 +1242,7 @@ method.</p>
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ComputeWordLengthFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
     <span class="k">return</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">element</span><span class="p">)]</span>
+
 
 </code></pre></div></div>
 
@@ -1545,18 +1550,24 @@ unique key from any of the input collections.</p>
                 <span class="o">.</span><span class="na">and</span><span class="o">(</span><span class="n">phonesTag</span><span class="o">,</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">())));</span>
 </code></pre></div></div>
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">results</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="p">(</span><span class="s">'amy'</span><span class="p">,</span> <span class="p">{</span>
-        <span class="s">'emails'</span><span class="p">:</span> <span class="p">[</span><span class="s">'amy@example.com'</span><span class="p">],</span>
-        <span class="s">'phones'</span><span class="p">:</span> <span class="p">[</span><span class="s">'111-222-3333'</span><span class="p">,</span> <span class="s">'333-444-5555'</span><span class="p">]}),</span>
-    <span class="p">(</span><span class="s">'carl'</span><span class="p">,</span> <span class="p">{</span>
-        <span class="s">'emails'</span><span class="p">:</span> <span class="p">[</span><span class="s">'carl@email.com'</span><span class="p">,</span> <span class="s">'carl@example.com'</span><span class="p">],</span>
-        <span class="s">'phones'</span><span class="p">:</span> <span class="p">[</span><span class="s">'444-555-6666'</span><span class="p">]}),</span>
+    <span class="p">(</span>
+        <span class="s">'amy'</span><span class="p">,</span>
+        <span class="p">{</span>
+            <span class="s">'emails'</span><span class="p">:</span> <span class="p">[</span><span class="s">'amy@example.com'</span><span class="p">],</span>
+            <span class="s">'phones'</span><span class="p">:</span> <span class="p">[</span><span class="s">'111-222-3333'</span><span class="p">,</span> <span class="s">'333-444-5555'</span><span class="p">]</span>
+        <span class="p">}),</span>
+    <span class="p">(</span>
+        <span class="s">'carl'</span><span class="p">,</span>
+        <span class="p">{</span>
+            <span class="s">'emails'</span><span class="p">:</span> <span class="p">[</span><span class="s">'carl@email.com'</span><span class="p">,</span> <span class="s">'carl@example.com'</span><span class="p">],</span>
+            <span class="s">'phones'</span><span class="p">:</span> <span class="p">[</span><span class="s">'444-555-6666'</span><span class="p">]</span>
+        <span class="p">}),</span>
     <span class="p">(</span><span class="s">'james'</span><span class="p">,</span> <span class="p">{</span>
-        <span class="s">'emails'</span><span class="p">:</span> <span class="p">[],</span>
-        <span class="s">'phones'</span><span class="p">:</span> <span class="p">[</span><span class="s">'222-333-4444'</span><span class="p">]}),</span>
+        <span class="s">'emails'</span><span class="p">:</span> <span class="p">[],</span> <span class="s">'phones'</span><span class="p">:</span> <span class="p">[</span><span class="s">'222-333-4444'</span><span class="p">]</span>
+    <span class="p">}),</span>
     <span class="p">(</span><span class="s">'julia'</span><span class="p">,</span> <span class="p">{</span>
-        <span class="s">'emails'</span><span class="p">:</span> <span class="p">[</span><span class="s">'julia@example.com'</span><span class="p">],</span>
-        <span class="s">'phones'</span><span class="p">:</span> <span class="p">[]}),</span>
+        <span class="s">'emails'</span><span class="p">:</span> <span class="p">[</span><span class="s">'julia@example.com'</span><span class="p">],</span> <span class="s">'phones'</span><span class="p">:</span> <span class="p">[]</span>
+    <span class="p">}),</span>
 <span class="p">]</span>
 </code></pre></div></div>
 
@@ -1590,8 +1601,7 @@ and format data from each collection.</p>
 <span class="c"># the value will be a dictionary with two entries: 'emails' - an iterable of</span>
 <span class="c"># all values for the current key in the emails PCollection and 'phones': an</span>
 <span class="c"># iterable of all values for the current key in the phones PCollection.</span>
-<span class="n">results</span> <span class="o">=</span> <span class="p">({</span><span class="s">'emails'</span><span class="p">:</span> <span class="n">emails</span><span class="p">,</span> <span class="s">'phones'</span><span class="p">:</span> <span class="n">phones</span><span class="p">}</span>
-           <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CoGroupByKey</span><span class="p">())</span>
+<span class="n">results</span> <span class="o">=</span> <span class="p">({</span><span class="s">'emails'</span><span class="p">:</span> <span class="n">emails</span><span class="p">,</span> <span class="s">'phones'</span><span class="p">:</span> <span class="n">phones</span><span class="p">}</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CoGroupByKey</span><span class="p">())</span>
 
 <span class="k">def</span> <span class="nf">join_info</span><span class="p">(</span><span class="n">name_info</span><span class="p">):</span>
   <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">info</span><span class="p">)</span> <span class="o">=</span> <span class="n">name_info</span>
@@ -1662,7 +1672,8 @@ input/output type.</p>
 
 <span class="k">def</span> <span class="nf">bounded_sum</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="mi">500</span><span class="p">):</span>
   <span class="k">return</span> <span class="nb">min</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">values</span><span class="p">),</span> <span class="n">bound</span><span class="p">)</span>
-<span class="n">small_sum</span> <span class="o">=</span> <span class="n">pc</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">bounded_sum</span><span class="p">)</span>              <span class="c"># [500]</span>
+
+<span class="n">small_sum</span> <span class="o">=</span> <span class="n">pc</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">bounded_sum</span><span class="p">)</span>  <span class="c"># [500]</span>
 <span class="n">large_sum</span> <span class="o">=</span> <span class="n">pc</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">bounded_sum</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="mi">5000</span><span class="p">)</span>  <span class="c"># [1111]</span>
 </code></pre></div></div>
 
@@ -1755,6 +1766,7 @@ mean average:</p>
   <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sum_count</span><span class="p">):</span>
     <span class="p">(</span><span class="nb">sum</span><span class="p">,</span> <span class="n">count</span><span class="p">)</span> <span class="o">=</span> <span class="n">sum_count</span>
     <span class="k">return</span> <span class="nb">sum</span> <span class="o">/</span> <span class="n">count</span> <span class="k">if</span> <span class="n">count</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="s">'NaN'</span><span class="p">)</span>
+
 </code></pre></div></div>
 
 <h5 id="combining-pcollection">4.2.4.3. Combining a PCollection into a single value</h5>
@@ -1854,9 +1866,9 @@ PerKey must be an associative reduction function or a subclass of <code class="h
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># PCollection is grouped by key and the numeric values associated with each key</span>
 <span class="c"># are averaged into a float.</span>
 <span class="n">player_accuracies</span> <span class="o">=</span> <span class="o">...</span>
-<span class="n">avg_accuracy_per_player</span> <span class="o">=</span> <span class="p">(</span><span class="n">player_accuracies</span>
-                           <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span>
-                               <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">MeanCombineFn</span><span class="p">()))</span>
+<span class="n">avg_accuracy_per_player</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">player_accuracies</span>
+    <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">MeanCombineFn</span><span class="p">()))</span>
 
 </code></pre></div></div>
 
@@ -2087,17 +2099,19 @@ determined by the input data, or depend on a different branch of your pipeline.<
     <span class="k">yield</span> <span class="n">word</span>
 
 <span class="c"># Construct a deferred side input.</span>
-<span class="n">avg_word_len</span> <span class="o">=</span> <span class="p">(</span><span class="n">words</span>
-                <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="nb">len</span><span class="p">)</span>
-                <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">MeanCombineFn</span><span class="p">()))</span>
+<span class="n">avg_word_len</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">words</span>
+    <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="nb">len</span><span class="p">)</span>
+    <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">MeanCombineFn</span><span class="p">()))</span>
 
 <span class="c"># Call with explicit side inputs.</span>
 <span class="n">small_words</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="s">'small'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="n">filter_using_length</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
 
 <span class="c"># A single deferred side input.</span>
-<span class="n">larger_than_average</span> <span class="o">=</span> <span class="p">(</span><span class="n">words</span> <span class="o">|</span> <span class="s">'large'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
-    <span class="n">filter_using_length</span><span class="p">,</span>
-    <span class="n">lower_bound</span><span class="o">=</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">avg_word_len</span><span class="p">)))</span>
+<span class="n">larger_than_average</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">words</span> <span class="o">|</span> <span class="s">'large'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
+        <span class="n">filter_using_length</span><span class="p">,</span> <span class="n">lower_bound</span><span class="o">=</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">avg_word_len</span><span class="p">))</span>
+<span class="p">)</span>
 
 <span class="c"># Mix and match.</span>
 <span class="n">small_but_nontrivial</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
@@ -2210,9 +2224,12 @@ together.</p>
 <span class="c"># with_outputs are attributes on the returned DoOutputsTuple object. The tags give access to the</span>
 <span class="c"># corresponding output PCollections.</span>
 
-<span class="n">results</span> <span class="o">=</span> <span class="p">(</span><span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">ProcessWords</span><span class="p">(),</span> <span class="n">cutoff_length</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s">'x'</span><span class="p">)</span>
-           <span class="o">.</span><span class="n">with_outputs</span><span class="p">(</span><span class="s">'above_cutoff_lengths'</span><span class="p">,</span> <span class="s">'marked strings'</span><span class="p">,</span>
-                         <span class="n">main</span><span class="o">=</span><span class="s">'below_cutoff_strings'</span><span class="p">))</span>
+<span class="n">results</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">words</span>
+    <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">ProcessWords</span><span class="p">(),</span> <span class="n">cutoff_length</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s">'x'</span><span class="p">)</span><span class="o">.</span><span class="n">with_outputs</span><span class="p">(</span>
+        <span class="s">'above_cutoff_lengths'</span><span class="p">,</span>
+        <span class="s">'marked strings'</span><span class="p">,</span>
+        <span class="n">main</span><span class="o">=</span><span class="s">'below_cutoff_strings'</span><span class="p">))</span>
 <span class="n">below</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">below_cutoff_strings</span>
 <span class="n">above</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">above_cutoff_lengths</span>
 <span class="n">marked</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s">'marked strings'</span><span class="p">]</span>  <span class="c"># indexing works as well</span>
@@ -2258,18 +2275,17 @@ together.</p>
 <span class="c"># Based on the previous example, this shows the DoFn emitting to the main output and two additional outputs.</span>
 
 <span class="k">class</span> <span class="nc">ProcessWords</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
-
   <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">cutoff_length</span><span class="p">,</span> <span class="n">marker</span><span class="p">):</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">element</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">cutoff_length</span><span class="p">:</span>
       <span class="c"># Emit this short word to the main output.</span>
       <span class="k">yield</span> <span class="n">element</span>
     <span class="k">else</span><span class="p">:</span>
       <span class="c"># Emit this word's long length to the 'above_cutoff_lengths' output.</span>
-      <span class="k">yield</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">TaggedOutput</span><span class="p">(</span>
-          <span class="s">'above_cutoff_lengths'</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">element</span><span class="p">))</span>
+      <span class="k">yield</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">TaggedOutput</span><span class="p">(</span><span class="s">'above_cutoff_lengths'</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">element</span><span class="p">))</span>
     <span class="k">if</span> <span class="n">element</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">marker</span><span class="p">):</span>
       <span class="c"># Emit this word to a different output with the 'marked strings' tag.</span>
       <span class="k">yield</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">TaggedOutput</span><span class="p">(</span><span class="s">'marked strings'</span><span class="p">,</span> <span class="n">element</span><span class="p">)</span>
+
 
 
 <span class="c"># Producing multiple outputs is also available in Map and FlatMap.</span>
@@ -2501,15 +2517,16 @@ transform’s intermediate data changes type multiple times.</p>
 
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># The CountWords Composite Transform inside the WordCount pipeline.</span>
 <span class="k">class</span> <span class="nc">CountWords</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
-
   <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
-    <span class="k">return</span> <span class="p">(</span><span class="n">pcoll</span>
-            <span class="c"># Convert lines of text into individual words.</span>
-            <span class="o">|</span> <span class="s">'ExtractWords'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">ExtractWordsFn</span><span class="p">())</span>
-            <span class="c"># Count the number of times each word occurs.</span>
-            <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">PerElement</span><span class="p">()</span>
-            <span class="c"># Format each word and count into a printable string.</span>
-            <span class="o">|</span> <span class="s">'FormatCounts'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">FormatCountsFn</span><span class="p">()))</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">pcoll</span>
+        <span class="c"># Convert lines of text into individual words.</span>
+        <span class="o">|</span> <span class="s">'ExtractWords'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">ExtractWordsFn</span><span class="p">())</span>
+        <span class="c"># Count the number of times each word occurs.</span>
+        <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">PerElement</span><span class="p">()</span>
+        <span class="c"># Format each word and count into a printable string.</span>
+        <span class="o">|</span> <span class="s">'FormatCounts'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">FormatCountsFn</span><span class="p">()))</span>
+
 </code></pre></div></div>
 
 <h4 id="composite-transform-creation">4.6.2. Creating a composite transform</h4>
@@ -2537,6 +2554,7 @@ of the multi-collection types for the relevant type parameter.</p>
   <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
     <span class="c"># Transform logic goes here.</span>
     <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+
 </code></pre></div></div>
 
 <p>Within your <code class="highlighter-rouge">PTransform</code> subclass, you’ll need to override the <code class="highlighter-rouge">expand</code> method.
@@ -2562,6 +2580,7 @@ value.</p>
   <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
     <span class="c"># Transform logic goes here.</span>
     <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+
 </code></pre></div></div>
 
 <p>As long as you override the <code class="highlighter-rouge">expand</code> method in your <code class="highlighter-rouge">PTransform</code> subclass to
@@ -3321,7 +3340,6 @@ with a <code class="highlighter-rouge">DoFn</code> to attach the timestamps to e
           <span class="o">}));</span>
 </code></pre></div></div>
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">AddTimestampDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
-
   <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
     <span class="c"># Extract the numeric Unix seconds-since-epoch timestamp to be</span>
     <span class="c"># associated with the current log entry.</span>
@@ -3424,8 +3442,7 @@ firings:</p>
       <span class="o">.</span><span class="na">withLateFirings</span><span class="o">(</span><span class="n">AfterPane</span><span class="o">.</span><span class="na">elementCountAtLeast</span><span class="o">(</span><span class="mi">1</span><span class="o">))</span>
 </code></pre></div></div>
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">AfterWatermark</span><span class="p">(</span>
-    <span class="n">early</span><span class="o">=</span><span class="n">AfterProcessingTime</span><span class="p">(</span><span class="n">delay</span><span class="o">=</span><span class="mi">1</span> <span class="o">*</span> <span class="mi">60</span><span class="p">),</span>
-    <span class="n">late</span><span class="o">=</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">early</span><span class="o">=</span><span class="n">AfterProcessingTime</span><span class="p">(</span><span class="n">delay</span><span class="o">=</span><span class="mi">1</span> <span class="o">*</span> <span class="mi">60</span><span class="p">),</span> <span class="n">late</span><span class="o">=</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
 </code></pre></div></div>
 
 <h4 id="default-trigger">8.1.1. Default trigger</h4>
@@ -3666,8 +3683,7 @@ trigger stops executing</li>
 </code></pre></div></div>
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">pcollection</span> <span class="o">|</span> <span class="n">WindowInto</span><span class="p">(</span>
     <span class="n">FixedWindows</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="mi">60</span><span class="p">),</span>
-    <span class="n">trigger</span><span class="o">=</span><span class="n">AfterWatermark</span><span class="p">(</span>
-        <span class="n">late</span><span class="o">=</span><span class="n">AfterProcessingTime</span><span class="p">(</span><span class="mi">10</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)),</span>
+    <span class="n">trigger</span><span class="o">=</span><span class="n">AfterWatermark</span><span class="p">(</span><span class="n">late</span><span class="o">=</span><span class="n">AfterProcessingTime</span><span class="p">(</span><span class="mi">10</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)),</span>
     <span class="n">allowed_lateness</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
     <span class="n">accumulation_mode</span><span class="o">=</span><span class="n">AccumulationMode</span><span class="o">.</span><span class="n">DISCARDING</span><span class="p">)</span>
 </code></pre></div></div>
@@ -3685,9 +3701,7 @@ elements, or after a minute.</p>
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">pcollection</span> <span class="o">|</span> <span class="n">WindowInto</span><span class="p">(</span>
     <span class="n">FixedWindows</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="mi">60</span><span class="p">),</span>
     <span class="n">trigger</span><span class="o">=</span><span class="n">Repeatedly</span><span class="p">(</span>
-        <span class="n">AfterAny</span><span class="p">(</span>
-            <span class="n">AfterCount</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span>
-            <span class="n">AfterProcessingTime</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="mi">60</span><span class="p">))),</span>
+        <span class="n">AfterAny</span><span class="p">(</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span> <span class="n">AfterProcessingTime</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="mi">60</span><span class="p">))),</span>
     <span class="n">accumulation_mode</span><span class="o">=</span><span class="n">AccumulationMode</span><span class="o">.</span><span class="n">DISCARDING</span><span class="p">)</span>
 </code></pre></div></div>
 
