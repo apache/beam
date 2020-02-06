@@ -172,7 +172,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
       if (value.getTimestamp().isBefore(minStamp)) {
         minStamp = value.getTimestamp();
         minStampState.write(minStamp);
-        setupFlushTimerAndWatermarkHold(namespace, minStamp);
+        setupFlushTimerAndWatermarkHold(namespace, window, minStamp);
       }
     } else {
       reportDroppedElement(value, window);
@@ -206,6 +206,9 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     if (timerId.equals(SORT_FLUSH_TIMER)) {
       onSortFlushTimer(window, stepContext.timerInternals().currentInputWatermarkTime());
     } else if (cleanupTimer.isForWindow(timerId, window, timestamp, timeDomain)) {
+      if (requiresTimeSortedInput) {
+        onSortFlushTimer(window, BoundedWindow.TIMESTAMP_MAX_VALUE);
+      }
       stateCleaner.clearForWindow(window);
       // There should invoke the onWindowExpiration of DoFn
     } else {
@@ -252,18 +255,36 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     keep.forEach(sortBuffer::add);
     minStampState.write(newMinStamp);
     if (newMinStamp.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-      setupFlushTimerAndWatermarkHold(namespace, newMinStamp);
+      setupFlushTimerAndWatermarkHold(namespace, window, newMinStamp);
     } else {
       clearWatermarkHold(namespace);
     }
   }
 
-  private void setupFlushTimerAndWatermarkHold(StateNamespace namespace, Instant flush) {
+  /**
+   * Setup timer for flush time @{code flush}. The time is adjusted to respect allowed lateness and
+   * window garbage collection time. Setup watermark hold for the flush time.
+   *
+   * <p>Note that this is equivalent to {@link org.apache.beam.sdk.state.Timer#withOutputTimestamp}
+   * and should be reworked to use that feature once that is stable.
+   */
+  private void setupFlushTimerAndWatermarkHold(
+      StateNamespace namespace, BoundedWindow window, Instant flush) {
+    Instant flushWithLateness = flush.plus(windowingStrategy.getAllowedLateness());
+    Instant windowGcTime = window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
+    if (flushWithLateness.isAfter(windowGcTime)) {
+      flushWithLateness = windowGcTime;
+    }
     WatermarkHoldState watermark = stepContext.stateInternals().state(namespace, watermarkHold);
     stepContext
         .timerInternals()
         .setTimer(
-            namespace, SORT_FLUSH_TIMER, SORT_FLUSH_TIMER, flush, flush, TimeDomain.EVENT_TIME);
+            namespace,
+            SORT_FLUSH_TIMER,
+            SORT_FLUSH_TIMER,
+            flushWithLateness,
+            flush,
+            TimeDomain.EVENT_TIME);
     watermark.clear();
     watermark.add(flush);
   }
