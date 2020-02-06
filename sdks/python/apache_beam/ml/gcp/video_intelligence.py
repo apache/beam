@@ -24,11 +24,25 @@ from future.utils import binary_type, text_type
 from typing import Union
 
 from apache_beam import typehints
-from apache_beam.ml.gcp import video_intelligence_helper as helper
 from apache_beam.metrics import Metrics
 from apache_beam.transforms import DoFn, ParDo, PTransform
 
+try:
+  from google.cloud import videointelligence
+except ImportError:
+  raise ImportError(
+      'Google Cloud Video Intelligence not supported for this execution environment '
+      '(could not import google.cloud.videointelligence).')
+from cachetools.func import ttl_cache
+
 __all__ = ['AnnotateVideo']
+
+
+@ttl_cache(maxsize=128, ttl=3600)
+def get_videointelligence_client():
+  """Returns a Cloud Video Intelligence client."""
+  _client = videointelligence.VideoIntelligenceServiceClient()
+  return _client
 
 
 class AnnotateVideo(PTransform):
@@ -36,7 +50,12 @@ class AnnotateVideo(PTransform):
   ref: https://cloud.google.com/video-intelligence/docs
   """
   def __init__(
-      self, features, video_context=None, location_id=None, metadata=None):
+      self,
+      features,
+      video_context=None,
+      location_id=None,
+      metadata=None,
+      timeout=120):
     """
       Args:
         features: (List[``videointelligence_v1.enums.Feature``]) Required.
@@ -50,12 +69,15 @@ class AnnotateVideo(PTransform):
           based on video file location.
         metadata: (Sequence[Tuple[str, str]]) Optional.
           Additional metadata that is provided to the method.
+        timeout: (int) Optional.
+          The time in seconds to wait for the response from the Video Intelligence API
     """
     super(AnnotateVideo, self).__init__()
     self.features = features
     self.video_context = video_context
     self.location_id = location_id
     self.metadata = metadata
+    self.timeout = timeout
 
   def expand(self, pvalue):
     return pvalue | ParDo(
@@ -63,25 +85,27 @@ class AnnotateVideo(PTransform):
             features=self.features,
             video_context=self.video_context,
             location_id=self.location_id,
-            metadata=self.metadata))
+            metadata=self.metadata,
+            timeout=self.timeout))
 
   @typehints.with_input_types(Union[text_type, binary_type])
   class _VideoAnnotateFn(DoFn):
-    """ A ``DoFn`` that sends every element to the GCP Video Intelligence API
-      and returns a PCollection of
-    ``google.cloud.videointelligence_v1.types.AnnotateVideoResponse``.
+    """ A DoFn that sends each input element to the GCP Video Intelligence API
+        service and outputs an element with the return result of the API
+        (``google.cloud.videointelligence_v1.types.AnnotateVideoResponse``).
      """
-    def __init__(self, features, video_context, location_id, metadata):
+    def __init__(self, features, video_context, location_id, metadata, timeout):
       super(AnnotateVideo._VideoAnnotateFn, self).__init__()
       self._client = None
       self.features = features
       self.video_context = video_context
       self.location_id = location_id
       self.metadata = metadata
+      self.timeout = timeout
       self.counter = Metrics.counter(self.__class__, "API Calls")
 
     def start_bundle(self):
-      self._client = helper.get_videointelligence_client()
+      self._client = get_videointelligence_client()
 
     def process(self, element, *args, **kwargs):
       if isinstance(element, text_type):  # Is element an URI to a GCS bucket
@@ -104,4 +128,4 @@ class AnnotateVideo(PTransform):
             " got {} instead".format(
                 self.__class__.__name__, text_type, binary_type, type(element)))
       self.counter.inc()
-      yield response.result(timeout=120)
+      yield response.result(timeout=self.timeout)
