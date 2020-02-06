@@ -25,7 +25,7 @@ def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 def loadTestConfigurations = { datasetName -> [
         [
                 title          : 'ParDo Python Load test: 2GB 100 byte records 10 times',
-                test           : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
+                test           : 'apache_beam.testing.load_tests.pardo_test',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-pardo-1-' + now,
@@ -47,7 +47,7 @@ def loadTestConfigurations = { datasetName -> [
         ],
         [
                 title          : 'ParDo Python Load test: 2GB 100 byte records 200 times',
-                test           : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
+                test           : 'apache_beam.testing.load_tests.pardo_test',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-pardo-2-' + now,
@@ -69,7 +69,7 @@ def loadTestConfigurations = { datasetName -> [
         ],
         [
                 title          : 'ParDo Python Load test: 2GB 100 byte records 10 counters',
-                test           : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
+                test           : 'apache_beam.testing.load_tests.pardo_test',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-pardo-3-' + now,
@@ -91,7 +91,7 @@ def loadTestConfigurations = { datasetName -> [
         ],
         [
                 title          : 'ParDo Python Load test: 2GB 100 byte records 100 counters',
-                test           : 'apache_beam.testing.load_tests.pardo_test:ParDoTest.testParDo',
+                test           : 'apache_beam.testing.load_tests.pardo_test',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-pardo-4-' + now,

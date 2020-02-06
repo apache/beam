@@ -27,7 +27,7 @@ key_size - required option, but its value has no meaning.
 
 Example test run on DataflowRunner:
 
-python setup.py nosetests \
+python -m apache_beam.io.gcp.bigquery_write_perf_test \
     --test-pipeline-options="
     --runner=TestDataflowRunner
     --project=...
@@ -43,8 +43,7 @@ python setup.py nosetests \
     \"num_records\": 1024,
     \"key_size\": 1,
     \"value_size\": 1024,
-    }'" \
-    --tests apache_beam.io.gcp.bigquery_write_perf_test
+    }'"
 
 This setup will result in a table of 1MB size.
 """
@@ -55,8 +54,6 @@ from __future__ import absolute_import
 
 import base64
 import logging
-import os
-import unittest
 
 from apache_beam import Map
 from apache_beam import ParDo
@@ -70,26 +67,12 @@ from apache_beam.testing.load_tests.load_test_metrics_utils import CountMessages
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.synthetic_pipeline import SyntheticSource
 
-load_test_enabled = False
-if os.environ.get('LOAD_TEST_ENABLED') == 'true':
-  load_test_enabled = True
 
-
-@unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class BigQueryWritePerfTest(LoadTest):
-  def setUp(self):
-    super(BigQueryWritePerfTest, self).setUp()
+  def __init__(self):
+    super(BigQueryWritePerfTest, self).__init__()
     self.output_dataset = self.pipeline.get_option('output_dataset')
     self.output_table = self.pipeline.get_option('output_table')
-
-  def tearDown(self):
-    super(BigQueryWritePerfTest, self).tearDown()
-    self._cleanup_data()
-
-  def _cleanup_data(self):
-    """Removes an output BQ table."""
-    utils.delete_bq_table(
-        self.project_id, self.output_dataset, self.output_table)
 
   def test(self):
     SCHEMA = parse_table_schema_from_json(
@@ -100,11 +83,10 @@ class BigQueryWritePerfTest(LoadTest):
       # of the part
       return {'data': base64.b64encode(record[1])}
 
-    # pylint: disable=expression-not-assigned
-    (
+    (  # pylint: disable=expression-not-assigned
         self.pipeline
         | 'Produce rows' >> Read(
-            SyntheticSource(self.parseTestPipelineOptions()))
+            SyntheticSource(self.parse_synthetic_source_options()))
         | 'Count messages' >> ParDo(CountMessages(self.metrics_namespace))
         | 'Format' >> Map(format_record)
         | 'Measure time' >> ParDo(MeasureTime(self.metrics_namespace))
@@ -115,7 +97,12 @@ class BigQueryWritePerfTest(LoadTest):
             create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
             write_disposition=BigQueryDisposition.WRITE_TRUNCATE))
 
+  def cleanup(self):
+    """Removes an output BQ table."""
+    utils.delete_bq_table(
+        self.project_id, self.output_dataset, self.output_table)
+
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
-  unittest.main()
+  logging.basicConfig(level=logging.INFO)
+  BigQueryWritePerfTest().run()
