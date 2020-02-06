@@ -327,8 +327,17 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       if (pendingTimers.isEmpty()) {
         return BoundedWindow.TIMESTAMP_MAX_VALUE;
       } else {
-        return pendingTimers.firstEntry().getElement().getOutputTimestamp();
+        return getMinimumOutputTimestamp(pendingTimers);
       }
+    }
+
+    private Instant getMinimumOutputTimestamp(SortedMultiset<TimerData> timers) {
+      Instant minimumOutputTimestamp = timers.firstEntry().getElement().getOutputTimestamp();
+      for (TimerData timerData : timers) {
+        minimumOutputTimestamp =
+            INSTANT_ORDERING.min(timerData.getOutputTimestamp(), minimumOutputTimestamp);
+      }
+      return minimumOutputTimestamp;
     }
 
     @VisibleForTesting
@@ -602,11 +611,11 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       }
       for (NavigableSet<TimerData> timers : synchronizedProcessingTimers.values()) {
         if (!timers.isEmpty()) {
-          earliest = INSTANT_ORDERING.min(timers.first().getOutputTimestamp(), earliest);
+          earliest = INSTANT_ORDERING.min(getMinimumOutputTimestamp(timers), earliest);
         }
       }
       if (!pendingTimers.isEmpty()) {
-        earliest = INSTANT_ORDERING.min(pendingTimers.first().getOutputTimestamp(), earliest);
+        earliest = INSTANT_ORDERING.min(getMinimumOutputTimestamp(pendingTimers), earliest);
       }
       return earliest;
     }

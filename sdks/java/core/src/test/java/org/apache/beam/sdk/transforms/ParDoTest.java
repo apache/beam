@@ -3865,7 +3865,7 @@ public class ParDoTest implements Serializable {
               // DoFn timer's watermark hold. This timer should not fire until the previous timer
               // fires and removes
               // the watermark hold.
-              timer.offset(Duration.standardSeconds(8)).setRelative();
+              timer.set(new Instant(8));
             }
 
             @OnTimer(timerId)
@@ -3885,6 +3885,7 @@ public class ParDoTest implements Serializable {
               // Normally this would case fn2's timer to expire, but it shouldn't here because of
               // the output timestamp.
               .advanceProcessingTime(Duration.standardSeconds(9))
+              .advanceWatermarkTo(new Instant(11))
               // If the timer fired, then this would case fn2 to fail with an assertion error.
               .addElements(KV.of("key", 1))
               .advanceProcessingTime(Duration.standardSeconds(100))
