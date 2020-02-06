@@ -27,8 +27,6 @@ import com.google.protobuf.Message;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.Fixed32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.Fixed64;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SFixed32;
@@ -127,8 +125,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  *       label is specified.
  * </ul>
  */
-@Experimental(Kind.SCHEMAS)
-public class ProtoSchemaTranslator {
+class ProtoSchemaTranslator {
   /** This METADATA tag is used to store the field number of a proto tag. */
   public static final String PROTO_NUMBER_METADATA_TAG = "PROTO_NUMBER";
 
@@ -140,12 +137,12 @@ public class ProtoSchemaTranslator {
       "PROTO_MAP_VALUE_MESSAGE_NAME";
 
   /** Attach a proto field number to a type. */
-  public static FieldType withFieldNumber(FieldType fieldType, int index) {
+  static FieldType withFieldNumber(FieldType fieldType, int index) {
     return fieldType.withMetadata(PROTO_NUMBER_METADATA_TAG, Long.toString(index));
   }
 
   /** Return the proto field number for a type. */
-  public static int getFieldNumber(FieldType fieldType) {
+  static int getFieldNumber(FieldType fieldType) {
     return Integer.parseInt(fieldType.getMetadataString(PROTO_NUMBER_METADATA_TAG));
   }
 
@@ -180,7 +177,7 @@ public class ProtoSchemaTranslator {
   }
 
   /** Return a Beam scheam representing a proto class. */
-  public static Schema getSchema(Class<? extends Message> clazz) {
+  static Schema getSchema(Class<? extends Message> clazz) {
     return getSchema(ProtobufUtil.getDescriptorForClass(clazz));
   }
 
