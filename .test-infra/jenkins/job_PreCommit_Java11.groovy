@@ -70,8 +70,8 @@ builder.build {
       tasks ':sdks:java:core:buildDependents'
       tasks ':sdks:java:javadoc:allJavadoc'
       tasks ':sdks:java:extensions:sql:jdbc:preCommit'
-      tasks ':examples:java:shadowJar'
-      tasks ':runners:direct-java:testJar'
+      tasks ':examples:java:testJar'
+      tasks ':runners:direct-java:shadowJar'
       switches "-Dorg.gradle.java.home=${commonJobProperties.JAVA_8_HOME}"
       switches '-PdisableSpotlessCheck=true'
       commonJobProperties.setGradleSwitches(delegate)
