@@ -236,10 +236,11 @@ public class GcsUtil {
     this.maxBytesRewrittenPerCall = null;
     this.numRewriteTokensUsed = null;
     this.shouldUseGrpc = shouldUseGrpc;
-    // After grpc support is enabled in GoogleCloudDataproc/bigdata-interop repo,
-    // add this to the GoogleCloudStorageOptions.Builder object created here:
-    //    setGrpcEnabled(shouldUseGrpc)
-    googleCloudStorageOptions = GoogleCloudStorageOptions.newBuilder().setAppName("Beam").build();
+    googleCloudStorageOptions =
+        GoogleCloudStorageOptions.newBuilder()
+            .setAppName("Beam")
+            .setGrpcEnabled(shouldUseGrpc)
+            .build();
     googleCloudStorage = new GoogleCloudStorageImpl(googleCloudStorageOptions, storageClient);
   }
 
@@ -463,11 +464,12 @@ public class GcsUtil {
             .setUploadChunkSize(uploadChunkSize)
             .setDirectUploadEnabled(wcOptions.isDirectUploadEnabled())
             .build();
-    // After grpc support is enabled in GoogleCloudDataproc/bigdata-interop repo,
-    // add this to the following:
-    //      .setGrpcEnabled(this.shouldUseGrpc)
     GoogleCloudStorageOptions newGoogleCloudStorageOptions =
-        googleCloudStorageOptions.toBuilder().setWriteChannelOptions(newOptions).build();
+        googleCloudStorageOptions
+            .toBuilder()
+            .setWriteChannelOptions(newOptions)
+            .setGrpcEnabled(this.shouldUseGrpc)
+            .build();
     GoogleCloudStorage gcpStorage =
         new GoogleCloudStorageImpl(newGoogleCloudStorageOptions, this.storageClient);
     return gcpStorage.create(
