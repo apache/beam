@@ -263,6 +263,11 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
             }
 
             @Override
+            public boolean isRequiresTimeSortedInput() {
+              return signature.processElement().requiresTimeSortedInput();
+            }
+
+            @Override
             public String translateRestrictionCoderId(SdkComponents newComponents) {
               if (signature.processElement().isSplittable()) {
                 Coder<?> restrictionCoder =

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static junit.framework.TestCase.assertTrue;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
@@ -37,6 +36,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -90,6 +90,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesMapState;
+import org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput;
 import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesSideInputs;
 import org.apache.beam.sdk.testing.UsesSideInputsWithDifferentCoders;
@@ -124,6 +125,7 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -2366,6 +2368,193 @@ public class ParDoTest implements Serializable {
       public int hashCode() {
         return getClass().hashCode();
       }
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesRequiresTimeSortedInput.class,
+      UsesStrictTimerOrdering.class
+    })
+    public void testRequiresTimeSortedInput() {
+      // generate list long enough to rule out random shuffle in sorted order
+      int numElements = 1000;
+      List<Long> eventStamps =
+          LongStream.range(0, numElements)
+              .mapToObj(i -> numElements - i)
+              .collect(Collectors.toList());
+      testTimeSortedInput(numElements, pipeline.apply(Create.of(eventStamps)));
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesRequiresTimeSortedInput.class,
+      UsesStrictTimerOrdering.class,
+      UsesTestStream.class
+    })
+    public void testRequiresTimeSortedInputWithTestStream() {
+      // generate list long enough to rule out random shuffle in sorted order
+      int numElements = 1000;
+      List<Long> eventStamps =
+          LongStream.range(0, numElements)
+              .mapToObj(i -> numElements - i)
+              .collect(Collectors.toList());
+      TestStream.Builder<Long> stream = TestStream.create(VarLongCoder.of());
+      for (Long stamp : eventStamps) {
+        stream = stream.addElements(stamp);
+      }
+      testTimeSortedInput(numElements, pipeline.apply(stream.advanceWatermarkToInfinity()));
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesRequiresTimeSortedInput.class,
+      UsesStrictTimerOrdering.class,
+      UsesTestStream.class
+    })
+    public void testRequiresTimeSortedInputWithLateData() {
+      // generate list long enough to rule out random shuffle in sorted order
+      int numElements = 1000;
+      List<Long> eventStamps =
+          LongStream.range(0, numElements)
+              .mapToObj(i -> numElements - i)
+              .collect(Collectors.toList());
+      TestStream.Builder<Long> input = TestStream.create(VarLongCoder.of());
+      for (Long stamp : eventStamps) {
+        input = input.addElements(TimestampedValue.of(stamp, Instant.ofEpochMilli(stamp)));
+        if (stamp == 100) {
+          // advance watermark when we have 100 remaining elements
+          // all the rest are going to be late elements
+          input = input.advanceWatermarkTo(Instant.ofEpochMilli(stamp));
+        }
+      }
+      testTimeSortedInput(
+          numElements - 100,
+          numElements - 1,
+          pipeline.apply(input.advanceWatermarkToInfinity()),
+          // cannot validate exactly which data gets dropped, because that is runner dependent
+          false);
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesRequiresTimeSortedInput.class,
+      UsesStrictTimerOrdering.class,
+      UsesTestStream.class
+    })
+    public void testTwoRequiresTimeSortedInputWithLateData() {
+      // generate list long enough to rule out random shuffle in sorted order
+      int numElements = 1000;
+      List<Long> eventStamps =
+          LongStream.range(0, numElements)
+              .mapToObj(i -> numElements - i)
+              .collect(Collectors.toList());
+      TestStream.Builder<Long> input = TestStream.create(VarLongCoder.of());
+      for (Long stamp : eventStamps) {
+        input = input.addElements(TimestampedValue.of(stamp, Instant.ofEpochMilli(stamp)));
+        if (stamp == 100) {
+          // advance watermark when we have 100 remaining elements
+          // all the rest are going to be late elements
+          input = input.advanceWatermarkTo(Instant.ofEpochMilli(stamp));
+        }
+      }
+      // apply the sorted function for the first time
+      PCollection<Long> first =
+          pipeline
+              .apply(input.advanceWatermarkToInfinity())
+              .apply(WithTimestamps.of(e -> Instant.ofEpochMilli(e)))
+              .apply(
+                  "first.MapElements",
+                  MapElements.into(
+                          TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.longs()))
+                      .via(e -> KV.of("", e)))
+              .apply("first.ParDo", ParDo.of(timeSortedDoFn()))
+              .apply(MapElements.into(TypeDescriptors.longs()).via(e -> (long) e));
+      // apply the test to the already sorted outcome so that we test that we don't loose any
+      // more data
+      testTimeSortedInputAlreadyHavingStamps(
+          numElements - 100,
+          numElements - 1,
+          first,
+          // cannot validate exactly which data gets dropped, because that is runner dependent
+          false);
+    }
+
+    private static void testTimeSortedInput(int exactNumExpectedElements, PCollection<Long> input) {
+      testTimeSortedInput(exactNumExpectedElements, exactNumExpectedElements, input, true);
+    }
+
+    private static void testTimeSortedInput(
+        int minNumExpectedElements,
+        int maxNumExpectedElements,
+        PCollection<Long> input,
+        boolean validateContents) {
+      testTimeSortedInputAlreadyHavingStamps(
+          minNumExpectedElements,
+          maxNumExpectedElements,
+          input.apply(WithTimestamps.of(e -> Instant.ofEpochMilli(e))),
+          validateContents);
+    }
+
+    private static void testTimeSortedInputAlreadyHavingStamps(
+        int minNumExpectedElements,
+        int maxNumExpectedElements,
+        PCollection<Long> input,
+        boolean validateContents) {
+
+      PCollection<Integer> output =
+          input
+              .apply(
+                  "sorted.MapElements",
+                  MapElements.into(
+                          TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.longs()))
+                      .via(e -> KV.of("", e)))
+              .apply("sorted.ParDo", ParDo.of(timeSortedDoFn()));
+      PAssert.that(output)
+          .satisfies(
+              values -> {
+                // validate that sum equals count, so that the whole list is made of ones
+                long numElements = StreamSupport.stream(values.spliterator(), false).count();
+                assertTrue(
+                    "Expected at least " + minNumExpectedElements + ", got " + numElements,
+                    minNumExpectedElements <= numElements);
+                assertTrue(
+                    "Expected at most " + maxNumExpectedElements + ", got " + numElements,
+                    maxNumExpectedElements >= numElements);
+                if (validateContents) {
+                  assertFalse(
+                      "Expected all ones in " + values,
+                      StreamSupport.stream(values.spliterator(), false).anyMatch(e -> e != 1));
+                }
+                return null;
+              });
+      input.getPipeline().run();
+    }
+
+    private static DoFn<KV<String, Long>, Integer> timeSortedDoFn() {
+      return new DoFn<KV<String, Long>, Integer>() {
+
+        @StateId("last")
+        private final StateSpec<ValueState<Long>> lastSpec = StateSpecs.value();
+
+        @RequiresTimeSortedInput
+        @ProcessElement
+        public void process(
+            @Element KV<String, Long> element,
+            @StateId("last") ValueState<Long> last,
+            OutputReceiver<Integer> output) {
+          long lastVal = MoreObjects.firstNonNull(last.read(), element.getValue() - 1);
+          last.write(element.getValue());
+          output.output((int) (element.getValue() - lastVal));
+        }
+      };
     }
   }
 
