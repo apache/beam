@@ -137,6 +137,7 @@ def commonExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesGaugeMetrics',
   'org.apache.beam.sdk.testing.UsesSetState',
   'org.apache.beam.sdk.testing.UsesMapState',
+  'org.apache.beam.sdk.testing.UsesTimerMap',
   'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs',
   'org.apache.beam.sdk.testing.UsesUnboundedPCollections',
   'org.apache.beam.sdk.testing.UsesTestStream',
@@ -179,33 +180,6 @@ task validatesRunnerLegacyWorkerTest(type: Test) {
       excludeCategories it
     }
   }
-}
-
-task validatesRunnerLegacyWorkerJava11Test(type: Test) {
-    group = "Verification"
-    dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
-    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-            "--runner=TestDataflowRunner",
-            "--project=${dataflowProject}",
-            "--tempRoot=${dataflowValidatesTempRoot}",
-            "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-            "--workerHarnessContainerImage=",
-    ])
-    
-    systemProperty "java.specification.version", "11"
-
-    // Increase test parallelism up to the number of Gradle workers. By default this is equal
-    // to the number of CPU cores, but can be increased by setting --max-workers=N.
-    maxParallelForks Integer.MAX_VALUE
-    classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
-          files(project(project.path).sourceSets.test.output.classesDirs)
-    useJUnit {
-        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-        commonExcludeCategories.each {
-            excludeCategories it
-        }
-    }
 }
 
 // Push docker images to a container registry for use within tests.
@@ -317,12 +291,6 @@ task validatesRunner {
   group = "Verification"
   description "Validates Dataflow runner"
   dependsOn validatesRunnerLegacyWorkerTest
-}
-
-task validatesJava11Runner {
-    group = 'Verification'
-    description 'Verifies Dataflow runner with Java 11 container harness'
-    dependsOn validatesRunnerLegacyWorkerJava11Test
 }
 
 task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {

@@ -118,6 +118,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               }
 
               @Override
+              public Object restriction() {
+                return tracker.currentRestriction();
+              }
+
+              @Override
               public InputT element(DoFn<InputT, OutputT> doFn) {
                 return processContext.element();
               }

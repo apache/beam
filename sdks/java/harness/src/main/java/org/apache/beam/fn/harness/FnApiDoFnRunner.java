@@ -70,13 +70,13 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.DelegatingArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.Sizes.HasSize;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -390,12 +390,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
   private final ProcessBundleContext processContext;
   private final OnTimerContext onTimerContext;
   private final DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext;
-  /**
-   * Only set for {@link PTransformTranslation#SPLITTABLE_SPLIT_RESTRICTION_URN} and {@link
-   * PTransformTranslation#SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN} transforms. Can only be
-   * invoked from within {@code processElement...} methods.
-   */
-  private final OutputReceiver<RestrictionT> outputSplitRestrictionReceiver;
+
   /**
    * Only set for {@link PTransformTranslation#SPLITTABLE_PROCESS_ELEMENTS_URN} and {@link
    * PTransformTranslation#SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN} transforms. Can
@@ -410,6 +405,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
   // The member variables below are only valid for the lifetime of certain methods.
   /** Only valid during {@code processElement...} methods, null otherwise. */
   private WindowedValue<InputT> currentElement;
+
+  /** Only valid during {@link #processElementForSplitRestriction}, null otherwise. */
+  private RestrictionT currentRestriction;
 
   /**
    * Only valid during {@code processElement...} and {@link #processTimer} methods, null otherwise.
@@ -450,7 +448,73 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
             return context.pipelineOptions;
           }
         };
-    this.processContext = new ProcessBundleContext();
+    switch (context.pTransform.getSpec().getUrn()) {
+      case PTransformTranslation.SPLITTABLE_SPLIT_RESTRICTION_URN:
+        // OutputT == RestrictionT
+        this.processContext =
+            new ProcessBundleContext() {
+              @Override
+              public void outputWithTimestamp(OutputT output, Instant timestamp) {
+                outputTo(
+                    mainOutputConsumers,
+                    (WindowedValue<OutputT>)
+                        WindowedValue.of(
+                            KV.of(currentElement.getValue(), output),
+                            timestamp,
+                            currentWindow,
+                            currentElement.getPane()));
+              }
+            };
+        break;
+      case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
+        // OutputT == RestrictionT
+        this.processContext =
+            new ProcessBundleContext() {
+              @Override
+              public void outputWithTimestamp(OutputT output, Instant timestamp) {
+                double size =
+                    doFnInvoker.invokeGetSize(
+                        new DelegatingArgumentProvider<InputT, OutputT>(
+                            this,
+                            PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN
+                                + "/GetSize") {
+                          @Override
+                          public Object restriction() {
+                            return output;
+                          }
+
+                          @Override
+                          public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                            return timestamp;
+                          }
+
+                          @Override
+                          public RestrictionTracker<?, ?> restrictionTracker() {
+                            return doFnInvoker.invokeNewTracker(this);
+                          }
+                        });
+
+                outputTo(
+                    mainOutputConsumers,
+                    (WindowedValue<OutputT>)
+                        WindowedValue.of(
+                            KV.of(KV.of(currentElement.getValue(), output), size),
+                            timestamp,
+                            currentWindow,
+                            currentElement.getPane()));
+              }
+            };
+        break;
+      case PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN:
+      case PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN:
+      case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
+      case PTransformTranslation.PAR_DO_TRANSFORM_URN:
+        this.processContext = new ProcessBundleContext();
+        break;
+      default:
+        throw new IllegalStateException(
+            String.format("Unknown URN %s", context.pTransform.getSpec().getUrn()));
+    }
     this.onTimerContext = new OnTimerContext();
     this.finishBundleContext =
         this.context.doFn.new FinishBundleContext() {
@@ -477,90 +541,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
             outputTo(consumers, WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
           }
         };
-    switch (context.pTransform.getSpec().getUrn()) {
-      case PTransformTranslation.SPLITTABLE_SPLIT_RESTRICTION_URN:
-        this.outputSplitRestrictionReceiver =
-            new OutputReceiver<RestrictionT>() {
 
-              @Override
-              public void output(RestrictionT output) {
-                outputTo(
-                    mainOutputConsumers,
-                    (WindowedValue<OutputT>)
-                        currentElement.withValue(KV.of(currentElement.getValue(), output)));
-              }
-
-              @Override
-              public void outputWithTimestamp(RestrictionT output, Instant timestamp) {
-                outputTo(
-                    mainOutputConsumers,
-                    (WindowedValue<OutputT>)
-                        WindowedValue.of(
-                            KV.of(currentElement.getValue(), output),
-                            timestamp,
-                            currentWindow,
-                            currentElement.getPane()));
-              }
-            };
-        break;
-      case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
-        this.outputSplitRestrictionReceiver =
-            new OutputReceiver<RestrictionT>() {
-
-              @Override
-              public void output(RestrictionT output) {
-                RestrictionTracker<RestrictionT, PositionT> outputTracker =
-                    doFnInvoker.invokeNewTracker(output);
-                outputTo(
-                    mainOutputConsumers,
-                    (WindowedValue<OutputT>)
-                        currentElement.withValue(
-                            KV.of(
-                                KV.of(currentElement.getValue(), output),
-                                outputTracker instanceof HasSize
-                                    ? ((HasSize) outputTracker).getSize()
-                                    : 1.0)));
-              }
-
-              @Override
-              public void outputWithTimestamp(RestrictionT output, Instant timestamp) {
-                RestrictionTracker<RestrictionT, PositionT> outputTracker =
-                    doFnInvoker.invokeNewTracker(output);
-                outputTo(
-                    mainOutputConsumers,
-                    (WindowedValue<OutputT>)
-                        WindowedValue.of(
-                            KV.of(
-                                KV.of(currentElement.getValue(), output),
-                                outputTracker instanceof HasSize
-                                    ? ((HasSize) outputTracker).getSize()
-                                    : 1.0),
-                            timestamp,
-                            currentWindow,
-                            currentElement.getPane()));
-              }
-            };
-        break;
-      default:
-        this.outputSplitRestrictionReceiver =
-            new OutputReceiver<RestrictionT>() {
-              @Override
-              public void output(RestrictionT output) {
-                throw new IllegalStateException(
-                    String.format(
-                        "Unimplemented split output handler for %s.",
-                        context.pTransform.getSpec().getUrn()));
-              }
-
-              @Override
-              public void outputWithTimestamp(RestrictionT output, Instant timestamp) {
-                throw new IllegalStateException(
-                    String.format(
-                        "Unimplemented split output handler for %s.",
-                        context.pTransform.getSpec().getUrn()));
-              }
-            };
-    }
     switch (context.pTransform.getSpec().getUrn()) {
       case PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN:
         this.convertSplitResultToWindowedSplitResult =
@@ -574,23 +555,48 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
       case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
         this.convertSplitResultToWindowedSplitResult =
             (splitResult) -> {
-              RestrictionTracker<RestrictionT, PositionT> primaryTracker =
-                  doFnInvoker.invokeNewTracker(splitResult.getPrimary());
-              RestrictionTracker<RestrictionT, PositionT> residualTracker =
-                  doFnInvoker.invokeNewTracker(splitResult.getResidual());
+              double primarySize =
+                  doFnInvoker.invokeGetSize(
+                      new DelegatingArgumentProvider<InputT, OutputT>(
+                          processContext,
+                          PTransformTranslation
+                                  .SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN
+                              + "/GetPrimarySize") {
+                        @Override
+                        public Object restriction() {
+                          return splitResult.getPrimary();
+                        }
+
+                        @Override
+                        public RestrictionTracker<?, ?> restrictionTracker() {
+                          return doFnInvoker.invokeNewTracker(this);
+                        }
+                      });
+              double residualSize =
+                  doFnInvoker.invokeGetSize(
+                      new DelegatingArgumentProvider<InputT, OutputT>(
+                          processContext,
+                          PTransformTranslation
+                                  .SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN
+                              + "/GetResidualSize") {
+                        @Override
+                        public Object restriction() {
+                          return splitResult.getResidual();
+                        }
+
+                        @Override
+                        public RestrictionTracker<?, ?> restrictionTracker() {
+                          return doFnInvoker.invokeNewTracker(this);
+                        }
+                      });
               return WindowedSplitResult.forRoots(
                   currentElement.withValue(
                       KV.of(
-                          KV.of(currentElement.getValue(), splitResult.getPrimary()),
-                          primaryTracker instanceof HasSize
-                              ? ((HasSize) primaryTracker).getSize()
-                              : 1.0)),
+                          KV.of(currentElement.getValue(), splitResult.getPrimary()), primarySize)),
                   currentElement.withValue(
                       KV.of(
                           KV.of(currentElement.getValue(), splitResult.getResidual()),
-                          residualTracker instanceof HasSize
-                              ? ((HasSize) residualTracker).getSize()
-                              : 1.0)));
+                          residualSize)));
             };
         break;
       default:
@@ -647,8 +653,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
             (WindowedValue)
                 elem.withValue(
                     KV.of(
-                        elem.getValue(),
-                        doFnInvoker.invokeGetInitialRestriction(elem.getValue()))));
+                        elem.getValue(), doFnInvoker.invokeGetInitialRestriction(processContext))));
       }
     } finally {
       currentElement = null;
@@ -658,18 +663,17 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
 
   public void processElementForSplitRestriction(WindowedValue<KV<InputT, RestrictionT>> elem) {
     currentElement = elem.withValue(elem.getValue().getKey());
+    currentRestriction = elem.getValue().getValue();
     try {
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) elem.getWindows().iterator();
       while (windowIterator.hasNext()) {
         currentWindow = windowIterator.next();
-        doFnInvoker.invokeSplitRestriction(
-            elem.getValue().getKey(),
-            elem.getValue().getValue(),
-            this.outputSplitRestrictionReceiver);
+        doFnInvoker.invokeSplitRestriction(processContext);
       }
     } finally {
       currentElement = null;
+      currentRestriction = null;
       currentWindow = null;
     }
   }
@@ -698,8 +702,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) elem.getWindows().iterator();
       while (windowIterator.hasNext()) {
-        currentTracker = doFnInvoker.invokeNewTracker(elem.getValue().getValue());
+        currentRestriction = elem.getValue().getValue();
         currentWindow = windowIterator.next();
+        currentTracker = doFnInvoker.invokeNewTracker(processContext);
         DoFn.ProcessContinuation continuation = doFnInvoker.invokeProcessElement(processContext);
         // Ensure that all the work is done if the user tells us that they don't want to
         // resume processing.
@@ -753,6 +758,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
       }
     } finally {
       currentElement = null;
+      currentRestriction = null;
       currentWindow = null;
       currentTracker = null;
     }
@@ -1046,6 +1052,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     }
 
     @Override
+    public Object restriction() {
+      return currentRestriction;
+    }
+
+    @Override
     public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access OnTimerContext outside of @OnTimer methods.");
@@ -1097,10 +1108,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
 
     @Override
     public void output(OutputT output) {
-      outputTo(
-          mainOutputConsumers,
-          WindowedValue.of(
-              output, currentElement.getTimestamp(), currentWindow, currentElement.getPane()));
+      outputWithTimestamp(output, currentElement.getTimestamp());
     }
 
     @Override
@@ -1112,15 +1120,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
 
     @Override
     public <T> void output(TupleTag<T> tag, T output) {
-      Collection<FnDataReceiver<WindowedValue<T>>> consumers =
-          (Collection) context.localNameToConsumer.get(tag.getId());
-      if (consumers == null) {
-        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
-      }
-      outputTo(
-          consumers,
-          WindowedValue.of(
-              output, currentElement.getTimestamp(), currentWindow, currentElement.getPane()));
+      outputWithTimestamp(tag, output, currentElement.getTimestamp());
     }
 
     @Override
@@ -1241,6 +1241,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
       return DoFnOutputReceivers.windowedMultiReceiver(this);
+    }
+
+    @Override
+    public Object restriction() {
+      throw new UnsupportedOperationException("Restriction parameters are not supported.");
     }
 
     @Override

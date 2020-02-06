@@ -68,8 +68,8 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    *
    * <p>{@code fractionOfRemainder = 0} means a checkpoint is required.
    *
-   * <p>The API is recommended to be implemented for batch pipeline given that it is very important
-   * for pipeline scaling and end to end pipeline execution.
+   * <p>The API is recommended to be implemented for a batch pipeline to improve parallel processing
+   * performance.
    *
    * <p>The API is required to be implemented for a streaming pipeline.
    *

@@ -106,6 +106,8 @@ rollback; it is easy to roll back many commits, or a whole pull request, but
 harder to roll back part of a commit.
 * Commit messages should tag JIRAs and be otherwise descriptive.
 It should later not be necessary to find a merge or first PR commit to find out what caused a change.
+* `CHANGES.md` file should be updated with noteworthy changes (e.g. new features, backward 
+incompatible changes, dependency changes, etc.).
 * Squash the "Fixup!", "Address comments" type of commits that resulted from review iterations.
 
 ## Merging it!

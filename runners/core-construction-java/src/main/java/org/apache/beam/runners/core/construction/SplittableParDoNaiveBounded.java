@@ -37,6 +37,7 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.ArgumentProvider;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.BaseArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -141,12 +142,25 @@ public class SplittableParDoNaiveBounded {
 
     @ProcessElement
     public void process(ProcessContext c, BoundedWindow w) {
-      InputT element = c.element().getKey();
       RestrictionT restriction = c.element().getValue();
       while (true) {
-        RestrictionTracker<RestrictionT, PositionT> tracker = invoker.invokeNewTracker(restriction);
+        RestrictionT finalRestriction = restriction;
+        RestrictionTracker<RestrictionT, PositionT> tracker =
+            invoker.invokeNewTracker(
+                new BaseArgumentProvider<InputT, OutputT>() {
+                  @Override
+                  public RestrictionT restriction() {
+                    return finalRestriction;
+                  }
+
+                  @Override
+                  public String getErrorContext() {
+                    return NaiveProcessFn.class.getSimpleName() + ".invokeNewTracker";
+                  }
+                });
         ProcessContinuation continuation =
-            invoker.invokeProcessElement(new NestedProcessContext<>(fn, c, element, w, tracker));
+            invoker.invokeProcessElement(
+                new NestedProcessContext<>(fn, c, c.element().getKey(), w, tracker));
         if (continuation.shouldResume()) {
           restriction = tracker.trySplit(0).getResidual();
           Uninterruptibles.sleepUninterruptibly(
@@ -301,6 +315,11 @@ public class SplittableParDoNaiveBounded {
             throw new UnsupportedOperationException();
           }
         };
+      }
+
+      @Override
+      public Object restriction() {
+        return tracker.currentRestriction();
       }
 
       @Override
