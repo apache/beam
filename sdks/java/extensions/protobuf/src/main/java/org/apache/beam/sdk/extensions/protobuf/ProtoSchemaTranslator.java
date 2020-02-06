@@ -28,20 +28,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.DurationNanos;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.Fixed32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.Fixed64;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SFixed32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SFixed64;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SInt32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SInt64;
-import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.TimestampNanos;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.UInt32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.UInt64;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosDuration;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
@@ -244,7 +244,7 @@ public class ProtoSchemaTranslator {
         String fullName = protoFieldDescriptor.getMessageType().getFullName();
         switch (fullName) {
           case "google.protobuf.Timestamp":
-            fieldType = FieldType.logicalType(new TimestampNanos());
+            fieldType = FieldType.logicalType(new NanosInstant());
             break;
           case "google.protobuf.Int32Value":
           case "google.protobuf.UInt32Value":
@@ -261,7 +261,7 @@ public class ProtoSchemaTranslator {
                     .withNullable(true);
             break;
           case "google.protobuf.Duration":
-            fieldType = FieldType.logicalType(new DurationNanos());
+            fieldType = FieldType.logicalType(new NanosDuration());
             break;
           case "google.protobuf.Any":
             throw new RuntimeException("Any not yet supported");
