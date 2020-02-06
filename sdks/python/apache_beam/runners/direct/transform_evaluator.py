@@ -506,9 +506,6 @@ class _PubSubReadEvaluator(_TransformEvaluator):
       sub_project = (
         self._evaluation_context.pipeline_options.view_as(GoogleCloudOptions).project)
     if not sub_project:
-      import google.auth
-      _, sub_project = google.auth.default()
-    if not sub_project:
       sub_project = self.source.project
 
     self._sub_name = self.get_subscription(
