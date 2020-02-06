@@ -78,10 +78,10 @@ def alter_label_if_ipython(transform, pvalueish):
     prompt = get_ipython().execution_count
     pipeline = _extract_pipeline_of_pvalueish(pvalueish)
     if not pipeline:
-      _LOGGER.warning('Failed to alter the label of a transform with the '
-                      'ipython prompt metadata. Cannot figure out the pipeline '
-                      'that the given pvalueish %s belongs to. Thus noop.'
-                      % pvalueish)
+      _LOGGER.warning(
+          'Failed to alter the label of a transform with the '
+          'ipython prompt metadata. Cannot figure out the pipeline '
+          'that the given pvalueish %s belongs to. Thus noop.' % pvalueish)
     if (pipeline
         # We only alter for transforms to be applied to user-defined pipelines
         # at pipeline construction time.

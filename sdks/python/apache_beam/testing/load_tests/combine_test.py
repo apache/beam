@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """
 This is Combine load test with Synthetic Source. Besides of the standard
 input options there are additional options:
@@ -155,22 +156,22 @@ class CombineTest(LoadTest):
       yield element
 
   def testCombineGlobally(self):
-    input = (self.pipeline
-             | beam.io.Read(synthetic_pipeline.SyntheticSource(
-                 self.parseTestPipelineOptions()))
-             | 'Measure time: Start' >> beam.ParDo(
-                 MeasureTime(self.metrics_namespace))
-            )
+    input = (
+        self.pipeline
+        | beam.io.Read(
+            synthetic_pipeline.SyntheticSource(self.parseTestPipelineOptions()))
+        | 'Measure time: Start' >> beam.ParDo(
+            MeasureTime(self.metrics_namespace)))
 
     for branch in range(self.fanout):
       # pylint: disable=expression-not-assigned
-      (input
-       | 'Combine with Top %i' % branch >> beam.CombineGlobally(
-           beam.combiners.TopCombineFn(self.top_count))
-       | 'Consume %i' % branch >> beam.ParDo(self._GetElement())
-       | 'Measure time: End %i' % branch >> beam.ParDo(
-           MeasureTime(self.metrics_namespace))
-      )
+      (
+          input
+          | 'Combine with Top %i' % branch >> beam.CombineGlobally(
+              beam.combiners.TopCombineFn(self.top_count))
+          | 'Consume %i' % branch >> beam.ParDo(self._GetElement())
+          | 'Measure time: End %i' % branch >> beam.ParDo(
+              MeasureTime(self.metrics_namespace)))
 
 
 if __name__ == '__main__':

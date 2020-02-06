@@ -32,8 +32,8 @@ from apache_beam.typehints.native_type_compatibility import convert_to_typing_ty
 from apache_beam.typehints.native_type_compatibility import convert_to_typing_types
 from apache_beam.typehints.native_type_compatibility import is_Any
 
-_TestNamedTuple = typing.NamedTuple('_TestNamedTuple',
-                                    [('age', int), ('name', bytes)])
+_TestNamedTuple = typing.NamedTuple(
+    '_TestNamedTuple', [('age', int), ('name', bytes)])
 _TestFlatAlias = typing.Tuple[bytes, float]
 _TestNestedAlias = typing.List[_TestFlatAlias]
 
@@ -43,7 +43,6 @@ class _TestClass(object):
 
 
 class NativeTypeCompatibilityTest(unittest.TestCase):
-
   def test_convert_to_beam_type(self):
     test_cases = [
         ('raw bytes', bytes, bytes),
@@ -106,14 +105,10 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         convert_to_beam_type(typing.Generator[int, None, None]))
 
   def test_string_literal_converted_to_any(self):
-    self.assertEqual(
-        typehints.Any,
-        convert_to_beam_type('typing.List[int]'))
+    self.assertEqual(typehints.Any, convert_to_beam_type('typing.List[int]'))
 
   def test_convert_nested_to_beam_type(self):
-    self.assertEqual(
-        typehints.List[typing.Any],
-        typehints.List[typehints.Any])
+    self.assertEqual(typehints.List[typing.Any], typehints.List[typehints.Any])
     self.assertEqual(
         typehints.List[typing.Dict[int, str]],
         typehints.List[typehints.Dict[int, str]])
@@ -121,25 +116,37 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
   def test_convert_bare_types(self):
     # Conversions for unsubscripted types that have implicit subscripts.
     test_cases = [
-        ('bare list', typing.List,
-         typehints.List[typehints.TypeVariable('T')]),
-        ('bare dict', typing.Dict,
-         typehints.Dict[typehints.TypeVariable('KT'),
-                        typehints.TypeVariable('VT')]),
-        ('bare tuple', typing.Tuple,
-         typehints.Tuple[typehints.TypeVariable('T'), ...]),
+        ('bare list', typing.List, typehints.List[typehints.TypeVariable('T')]),
+        (
+            'bare dict',
+            typing.Dict,
+            typehints.Dict[typehints.TypeVariable('KT'),
+                           typehints.TypeVariable('VT')]),
+        (
+            'bare tuple',
+            typing.Tuple,
+            typehints.Tuple[typehints.TypeVariable('T'), ...]),
         ('bare set', typing.Set, typehints.Set[typehints.TypeVariable('T')]),
-        ('bare iterator', typing.Iterator,
-         typehints.Iterator[typehints.TypeVariable('T_co')]),
-        ('bare iterable', typing.Iterable,
-         typehints.Iterable[typehints.TypeVariable('T_co')]),
-        ('nested bare', typing.Tuple[typing.Iterator],
-         typehints.Tuple[typehints.Iterator[typehints.TypeVariable('T_co')]]),
+        (
+            'bare iterator',
+            typing.Iterator,
+            typehints.Iterator[typehints.TypeVariable('T_co')]),
+        (
+            'bare iterable',
+            typing.Iterable,
+            typehints.Iterable[typehints.TypeVariable('T_co')]),
+        (
+            'nested bare',
+            typing.Tuple[typing.Iterator],
+            typehints.Tuple[typehints.Iterator[typehints.TypeVariable('T_co')]]
+        ),
     ]
     if sys.version_info >= (3, 7):
       test_cases += [
-          ('bare generator', typing.Generator,
-           typehints.Generator[typehints.TypeVariable('T_co')]),
+          (
+              'bare generator',
+              typing.Generator,
+              typehints.Generator[typehints.TypeVariable('T_co')]),
       ]
     for test_case in test_cases:
       description = test_case[0]
@@ -164,12 +171,18 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         convert_to_beam_type(typing_type)
 
   def test_convert_to_beam_types(self):
-    typing_types = [bytes, typing.List[bytes],
-                    typing.List[typing.Tuple[bytes, int]],
-                    typing.Union[int, typing.List[int]]]
-    beam_types = [bytes, typehints.List[bytes],
-                  typehints.List[typehints.Tuple[bytes, int]],
-                  typehints.Union[int, typehints.List[int]]]
+    typing_types = [
+        bytes,
+        typing.List[bytes],
+        typing.List[typing.Tuple[bytes, int]],
+        typing.Union[int, typing.List[int]]
+    ]
+    beam_types = [
+        bytes,
+        typehints.List[bytes],
+        typehints.List[typehints.Tuple[bytes, int]],
+        typehints.Union[int, typehints.List[int]]
+    ]
     converted_beam_types = convert_to_beam_types(typing_types)
     self.assertEqual(converted_beam_types, beam_types)
     converted_typing_types = convert_to_typing_types(converted_beam_types)

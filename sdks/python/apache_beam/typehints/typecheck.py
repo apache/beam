@@ -47,7 +47,6 @@ from apache_beam.typehints.typehints import check_constraint
 
 class AbstractDoFnWrapper(DoFn):
   """An abstract class to create wrapper around DoFn"""
-
   def __init__(self, dofn):
     super(AbstractDoFnWrapper, self).__init__()
     self.dofn = dofn
@@ -76,7 +75,6 @@ class AbstractDoFnWrapper(DoFn):
 
 class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
   """A DoFn that verifies against common errors in the output type."""
-
   def __init__(self, dofn, full_label):
     super(OutputCheckWrapperDoFn, self).__init__(dofn)
     self.full_label = full_label
@@ -85,8 +83,9 @@ class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
     try:
       result = method(*args, **kwargs)
     except TypeCheckError as e:
-      error_msg = ('Runtime type violation detected within ParDo(%s): '
-                   '%s' % (self.full_label, e))
+      error_msg = (
+          'Runtime type violation detected within ParDo(%s): '
+          '%s' % (self.full_label, e))
       raise_with_traceback(TypeCheckError(error_msg))
     else:
       return self._check_type(result)
@@ -96,21 +95,20 @@ class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
       return output
     elif isinstance(output, (dict, bytes, str, unicode)):
       object_type = type(output).__name__
-      raise TypeCheckError('Returning a %s from a ParDo or FlatMap is '
-                           'discouraged. Please use list("%s") if you really '
-                           'want this behavior.' %
-                           (object_type, output))
+      raise TypeCheckError(
+          'Returning a %s from a ParDo or FlatMap is '
+          'discouraged. Please use list("%s") if you really '
+          'want this behavior.' % (object_type, output))
     elif not isinstance(output, collections.Iterable):
-      raise TypeCheckError('FlatMap and ParDo must return an '
-                           'iterable. %s was returned instead.'
-                           % type(output))
+      raise TypeCheckError(
+          'FlatMap and ParDo must return an '
+          'iterable. %s was returned instead.' % type(output))
     return output
 
 
 class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
   """A wrapper around a DoFn which performs type-checking of input and output.
   """
-
   def __init__(self, dofn, type_hints, label=None):
     super(TypeCheckWrapperDoFn, self).__init__(dofn)
     self._process_fn = self.dofn._process_argspec_fn()
@@ -178,16 +176,16 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
     except CompositeTypeHintError as e:
       raise_with_traceback(TypeCheckError(e.args[0]))
     except SimpleTypeHintError:
-      error_msg = ("According to type-hint expected %s should be of type %s. "
-                   "Instead, received '%s', an instance of type %s."
-                   % (datum_type, type_constraint, datum, type(datum)))
+      error_msg = (
+          "According to type-hint expected %s should be of type %s. "
+          "Instead, received '%s', an instance of type %s." %
+          (datum_type, type_constraint, datum, type(datum)))
       raise_with_traceback(TypeCheckError(error_msg))
 
 
 class TypeCheckCombineFn(core.CombineFn):
   """A wrapper around a CombineFn performing type-checking of input and output.
   """
-
   def __init__(self, combinefn, type_hints, label=None):
     self._combinefn = combinefn
     self._input_type_hint = type_hints.input_types
@@ -201,11 +199,14 @@ class TypeCheckCombineFn(core.CombineFn):
     if self._input_type_hint:
       try:
         _check_instance_type(
-            self._input_type_hint[0][0].tuple_types[1], element, 'element',
+            self._input_type_hint[0][0].tuple_types[1],
+            element,
+            'element',
             True)
       except TypeCheckError as e:
-        error_msg = ('Runtime type violation detected within %s: '
-                     '%s' % (self._label, e))
+        error_msg = (
+            'Runtime type violation detected within %s: '
+            '%s' % (self._label, e))
         raise_with_traceback(TypeCheckError(error_msg))
     return self._combinefn.add_input(accumulator, element, *args, **kwargs)
 
@@ -222,8 +223,9 @@ class TypeCheckCombineFn(core.CombineFn):
         _check_instance_type(
             self._output_type_hint.tuple_types[1], result, None, True)
       except TypeCheckError as e:
-        error_msg = ('Runtime type violation detected within %s: '
-                     '%s' % (self._label, e))
+        error_msg = (
+            'Runtime type violation detected within %s: '
+            '%s' % (self._label, e))
         raise_with_traceback(TypeCheckError(error_msg))
     return result
 

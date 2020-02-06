@@ -51,23 +51,37 @@ class TestTableSchemaParser(unittest.TestCase):
     number_field = bigquery.TableFieldSchema(
         name='n', type='INTEGER', mode='REQUIRED', description='n description')
     record_field = bigquery.TableFieldSchema(
-        name='r', type='RECORD', mode='REQUIRED', description='r description',
+        name='r',
+        type='RECORD',
+        mode='REQUIRED',
+        description='r description',
         fields=[string_field, number_field])
     expected_schema = bigquery.TableSchema(fields=[record_field])
-    json_str = json.dumps({'fields': [
-        {'name': 'r', 'type': 'RECORD', 'mode': 'REQUIRED',
-         'description': 'r description', 'fields': [
-             {'name': 's', 'type': 'STRING', 'mode': 'NULLABLE',
-              'description': 's description'},
-             {'name': 'n', 'type': 'INTEGER', 'mode': 'REQUIRED',
-              'description': 'n description'}]}]})
-    self.assertEqual(parse_table_schema_from_json(json_str),
-                     expected_schema)
+    json_str = json.dumps({
+        'fields': [{
+            'name': 'r',
+            'type': 'RECORD',
+            'mode': 'REQUIRED',
+            'description': 'r description',
+            'fields': [{
+                'name': 's',
+                'type': 'STRING',
+                'mode': 'NULLABLE',
+                'description': 's description'
+            },
+                       {
+                           'name': 'n',
+                           'type': 'INTEGER',
+                           'mode': 'REQUIRED',
+                           'description': 'n description'
+                       }]
+        }]
+    })
+    self.assertEqual(parse_table_schema_from_json(json_str), expected_schema)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryWrapper(unittest.TestCase):
-
   def test_delete_non_existing_dataset(self):
     client = mock.Mock()
     client.datasets.Delete.side_effect = HttpError(
@@ -164,10 +178,16 @@ class TestBigQueryWrapper(unittest.TestCase):
     client.tables.Get.side_effect = [None, 'table_id']
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     new_table = wrapper.get_or_create_table(
-        'project_id', 'dataset_id', 'table_id',
-        bigquery.TableSchema(fields=[
-            bigquery.TableFieldSchema(name='b', type='BOOLEAN',
-                                      mode='REQUIRED')]), False, False)
+        'project_id',
+        'dataset_id',
+        'table_id',
+        bigquery.TableSchema(
+            fields=[
+                bigquery.TableFieldSchema(
+                    name='b', type='BOOLEAN', mode='REQUIRED')
+            ]),
+        False,
+        False)
     self.assertEqual(new_table, 'table_id')
 
   def test_get_or_create_table_race_condition(self):
@@ -177,10 +197,16 @@ class TestBigQueryWrapper(unittest.TestCase):
     client.tables.Get.side_effect = [None, 'table_id']
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     new_table = wrapper.get_or_create_table(
-        'project_id', 'dataset_id', 'table_id',
-        bigquery.TableSchema(fields=[
-            bigquery.TableFieldSchema(name='b', type='BOOLEAN',
-                                      mode='REQUIRED')]), False, False)
+        'project_id',
+        'dataset_id',
+        'table_id',
+        bigquery.TableSchema(
+            fields=[
+                bigquery.TableFieldSchema(
+                    name='b', type='BOOLEAN', mode='REQUIRED')
+            ]),
+        False,
+        False)
     self.assertEqual(new_table, 'table_id')
 
   def test_get_or_create_table_intermittent_exception(self):
@@ -191,11 +217,16 @@ class TestBigQueryWrapper(unittest.TestCase):
     client.tables.Get.side_effect = [None, 'table_id']
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     new_table = wrapper.get_or_create_table(
-        'project_id', 'dataset_id', 'table_id',
-        bigquery.TableSchema(fields=[
-            bigquery.TableFieldSchema(
-                name='b', type='BOOLEAN', mode='REQUIRED')
-        ]), False, False)
+        'project_id',
+        'dataset_id',
+        'table_id',
+        bigquery.TableSchema(
+            fields=[
+                bigquery.TableFieldSchema(
+                    name='b', type='BOOLEAN', mode='REQUIRED')
+            ]),
+        False,
+        False)
     self.assertEqual(new_table, 'table_id')
 
   def test_wait_for_job_returns_true_when_job_is_done(self):
@@ -208,11 +239,11 @@ class TestBigQueryWrapper(unittest.TestCase):
     client, job_ref = mock.Mock(), mock.Mock()
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     # Return 'DONE' the second time get_job is called.
-    wrapper.get_job = mock.Mock(side_effect=[make_response('RUNNING'),
-                                             make_response('DONE')])
+    wrapper.get_job = mock.Mock(
+        side_effect=[make_response('RUNNING'), make_response('DONE')])
 
-    result = wrapper.wait_for_bq_job(job_ref, sleep_duration_sec=0,
-                                     max_retries=5)
+    result = wrapper.wait_for_bq_job(
+        job_ref, sleep_duration_sec=0, max_retries=5)
     self.assertTrue(result)
 
   def test_wait_for_job_retries_fail(self):
@@ -224,120 +255,151 @@ class TestBigQueryWrapper(unittest.TestCase):
 
     with self.assertRaises(RuntimeError) as context:
       wrapper.wait_for_bq_job(job_ref, sleep_duration_sec=0, max_retries=5)
-    self.assertEqual('The maximum number of retries has been reached',
-                     str(context.exception))
+    self.assertEqual(
+        'The maximum number of retries has been reached',
+        str(context.exception))
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryReader(unittest.TestCase):
-
   def get_test_rows(self):
     now = time.time()
     dt = datetime.datetime.utcfromtimestamp(float(now))
     ts = dt.strftime('%Y-%m-%d %H:%M:%S.%f UTC')
-    expected_rows = [
-        {
-            'i': 1,
-            's': 'abc',
-            'f': 2.3,
-            'b': True,
-            't': ts,
-            'dt': '2016-10-31',
-            'ts': '22:39:12.627498',
-            'dt_ts': '2008-12-25T07:30:00',
-            'r': {'s2': 'b'},
-            'rpr': [{'s3': 'c', 'rpr2': [{'rs': ['d', 'e'], 's4': None}]}]
+    expected_rows = [{
+        'i': 1,
+        's': 'abc',
+        'f': 2.3,
+        'b': True,
+        't': ts,
+        'dt': '2016-10-31',
+        'ts': '22:39:12.627498',
+        'dt_ts': '2008-12-25T07:30:00',
+        'r': {
+            's2': 'b'
         },
-        {
-            'i': 10,
-            's': 'xyz',
-            'f': -3.14,
-            'b': False,
-            'rpr': [],
-            't': None,
-            'dt': None,
-            'ts': None,
-            'dt_ts': None,
-            'r': None,
+        'rpr': [{
+            's3': 'c', 'rpr2': [{
+                'rs': ['d', 'e'], 's4': None
+            }]
         }]
+    },
+                     {
+                         'i': 10,
+                         's': 'xyz',
+                         'f': -3.14,
+                         'b': False,
+                         'rpr': [],
+                         't': None,
+                         'dt': None,
+                         'ts': None,
+                         'dt_ts': None,
+                         'r': None,
+                     }]
 
     nested_schema = [
-        bigquery.TableFieldSchema(
-            name='s2', type='STRING', mode='NULLABLE')]
+        bigquery.TableFieldSchema(name='s2', type='STRING', mode='NULLABLE')
+    ]
     nested_schema_2 = [
+        bigquery.TableFieldSchema(name='s3', type='STRING', mode='NULLABLE'),
         bigquery.TableFieldSchema(
-            name='s3', type='STRING', mode='NULLABLE'),
-        bigquery.TableFieldSchema(
-            name='rpr2', type='RECORD', mode='REPEATED', fields=[
+            name='rpr2',
+            type='RECORD',
+            mode='REPEATED',
+            fields=[
                 bigquery.TableFieldSchema(
                     name='rs', type='STRING', mode='REPEATED'),
                 bigquery.TableFieldSchema(
-                    name='s4', type='STRING', mode='NULLABLE')])]
+                    name='s4', type='STRING', mode='NULLABLE')
+            ])
+    ]
 
     schema = bigquery.TableSchema(
         fields=[
             bigquery.TableFieldSchema(
                 name='b', type='BOOLEAN', mode='REQUIRED'),
-            bigquery.TableFieldSchema(
-                name='f', type='FLOAT', mode='REQUIRED'),
+            bigquery.TableFieldSchema(name='f', type='FLOAT', mode='REQUIRED'),
             bigquery.TableFieldSchema(
                 name='i', type='INTEGER', mode='REQUIRED'),
-            bigquery.TableFieldSchema(
-                name='s', type='STRING', mode='REQUIRED'),
+            bigquery.TableFieldSchema(name='s', type='STRING', mode='REQUIRED'),
             bigquery.TableFieldSchema(
                 name='t', type='TIMESTAMP', mode='NULLABLE'),
-            bigquery.TableFieldSchema(
-                name='dt', type='DATE', mode='NULLABLE'),
-            bigquery.TableFieldSchema(
-                name='ts', type='TIME', mode='NULLABLE'),
+            bigquery.TableFieldSchema(name='dt', type='DATE', mode='NULLABLE'),
+            bigquery.TableFieldSchema(name='ts', type='TIME', mode='NULLABLE'),
             bigquery.TableFieldSchema(
                 name='dt_ts', type='DATETIME', mode='NULLABLE'),
             bigquery.TableFieldSchema(
-                name='r', type='RECORD', mode='NULLABLE',
-                fields=nested_schema),
+                name='r', type='RECORD', mode='NULLABLE', fields=nested_schema),
             bigquery.TableFieldSchema(
-                name='rpr', type='RECORD', mode='REPEATED',
-                fields=nested_schema_2)])
+                name='rpr',
+                type='RECORD',
+                mode='REPEATED',
+                fields=nested_schema_2)
+        ])
 
     table_rows = [
-        bigquery.TableRow(f=[
-            bigquery.TableCell(v=to_json_value('true')),
-            bigquery.TableCell(v=to_json_value(str(2.3))),
-            bigquery.TableCell(v=to_json_value(str(1))),
-            bigquery.TableCell(v=to_json_value('abc')),
-            # For timestamps cannot use str() because it will truncate the
-            # number representing the timestamp.
-            bigquery.TableCell(v=to_json_value('%f' % now)),
-            bigquery.TableCell(v=to_json_value('2016-10-31')),
-            bigquery.TableCell(v=to_json_value('22:39:12.627498')),
-            bigquery.TableCell(v=to_json_value('2008-12-25T07:30:00')),
-            # For record we cannot use dict because it doesn't create nested
-            # schemas correctly so we have to use this f,v based format
-            bigquery.TableCell(v=to_json_value({'f': [{'v': 'b'}]})),
-            bigquery.TableCell(v=to_json_value([
-                {'v': {'f': [{'v': 'c'}, {'v': [
-                    {'v': {'f': [{'v': [{'v': 'd'}, {'v': 'e'}]}, {'v': None}]}}
-                ]}]}}]))
-        ]),
-        bigquery.TableRow(f=[
-            bigquery.TableCell(v=to_json_value('false')),
-            bigquery.TableCell(v=to_json_value(str(-3.14))),
-            bigquery.TableCell(v=to_json_value(str(10))),
-            bigquery.TableCell(v=to_json_value('xyz')),
-            bigquery.TableCell(v=None),
-            bigquery.TableCell(v=None),
-            bigquery.TableCell(v=None),
-            bigquery.TableCell(v=None),
-            bigquery.TableCell(v=None),
-            # REPEATED field without any values.
-            bigquery.TableCell(v=None)])]
+        bigquery.TableRow(
+            f=[
+                bigquery.TableCell(v=to_json_value('true')),
+                bigquery.TableCell(v=to_json_value(str(2.3))),
+                bigquery.TableCell(v=to_json_value(str(1))),
+                bigquery.TableCell(v=to_json_value('abc')),
+                # For timestamps cannot use str() because it will truncate the
+                # number representing the timestamp.
+                bigquery.TableCell(v=to_json_value('%f' % now)),
+                bigquery.TableCell(v=to_json_value('2016-10-31')),
+                bigquery.TableCell(v=to_json_value('22:39:12.627498')),
+                bigquery.TableCell(v=to_json_value('2008-12-25T07:30:00')),
+                # For record we cannot use dict because it doesn't create nested
+                # schemas correctly so we have to use this f,v based format
+                bigquery.TableCell(v=to_json_value({'f': [{
+                    'v': 'b'
+                }]})),
+                bigquery.TableCell(
+                    v=to_json_value([{
+                        'v': {
+                            'f': [{
+                                'v': 'c'
+                            },
+                                  {
+                                      'v': [{
+                                          'v': {
+                                              'f': [{
+                                                  'v': [{
+                                                      'v': 'd'
+                                                  }, {
+                                                      'v': 'e'
+                                                  }]
+                                              }, {
+                                                  'v': None
+                                              }]
+                                          }
+                                      }]
+                                  }]
+                        }
+                    }]))
+            ]),
+        bigquery.TableRow(
+            f=[
+                bigquery.TableCell(v=to_json_value('false')),
+                bigquery.TableCell(v=to_json_value(str(-3.14))),
+                bigquery.TableCell(v=to_json_value(str(10))),
+                bigquery.TableCell(v=to_json_value('xyz')),
+                bigquery.TableCell(v=None),
+                bigquery.TableCell(v=None),
+                bigquery.TableCell(v=None),
+                bigquery.TableCell(v=None),
+                bigquery.TableCell(v=None),
+                # REPEATED field without any values.
+                bigquery.TableCell(v=None)
+            ])
+    ]
     return table_rows, schema, expected_rows
 
   def test_read_from_table(self):
     client = mock.Mock()
     client.jobs.Insert.return_value = bigquery.Job(
-        jobReference=bigquery.JobReference(
-            jobId='somejob'))
+        jobReference=bigquery.JobReference(jobId='somejob'))
     table_rows, schema, expected_rows = self.get_test_rows()
     client.jobs.GetQueryResults.return_value = bigquery.GetQueryResultsResponse(
         jobComplete=True, rows=table_rows, schema=schema)
@@ -351,8 +413,7 @@ class TestBigQueryReader(unittest.TestCase):
   def test_read_from_query(self):
     client = mock.Mock()
     client.jobs.Insert.return_value = bigquery.Job(
-        jobReference=bigquery.JobReference(
-            jobId='somejob'))
+        jobReference=bigquery.JobReference(jobId='somejob'))
     table_rows, schema, expected_rows = self.get_test_rows()
     client.jobs.GetQueryResults.return_value = bigquery.GetQueryResultsResponse(
         jobComplete=True, rows=table_rows, schema=schema)
@@ -368,14 +429,13 @@ class TestBigQueryReader(unittest.TestCase):
   def test_read_from_query_sql_format(self):
     client = mock.Mock()
     client.jobs.Insert.return_value = bigquery.Job(
-        jobReference=bigquery.JobReference(
-            jobId='somejob'))
+        jobReference=bigquery.JobReference(jobId='somejob'))
     table_rows, schema, expected_rows = self.get_test_rows()
     client.jobs.GetQueryResults.return_value = bigquery.GetQueryResultsResponse(
         jobComplete=True, rows=table_rows, schema=schema)
     actual_rows = []
-    with beam.io.BigQuerySource(
-        query='query', use_standard_sql=True).reader(client) as reader:
+    with beam.io.BigQuerySource(query='query',
+                                use_standard_sql=True).reader(client) as reader:
       for row in reader:
         actual_rows.append(row)
     self.assertEqual(actual_rows, expected_rows)
@@ -386,14 +446,13 @@ class TestBigQueryReader(unittest.TestCase):
   def test_read_from_query_unflatten_records(self):
     client = mock.Mock()
     client.jobs.Insert.return_value = bigquery.Job(
-        jobReference=bigquery.JobReference(
-            jobId='somejob'))
+        jobReference=bigquery.JobReference(jobId='somejob'))
     table_rows, schema, expected_rows = self.get_test_rows()
     client.jobs.GetQueryResults.return_value = bigquery.GetQueryResultsResponse(
         jobComplete=True, rows=table_rows, schema=schema)
     actual_rows = []
-    with beam.io.BigQuerySource(
-        query='query', flatten_results=False).reader(client) as reader:
+    with beam.io.BigQuerySource(query='query',
+                                flatten_results=False).reader(client) as reader:
       for row in reader:
         actual_rows.append(row)
     self.assertEqual(actual_rows, expected_rows)
@@ -416,8 +475,7 @@ class TestBigQueryReader(unittest.TestCase):
   def test_read_from_table_as_tablerows(self):
     client = mock.Mock()
     client.jobs.Insert.return_value = bigquery.Job(
-        jobReference=bigquery.JobReference(
-            jobId='somejob'))
+        jobReference=bigquery.JobReference(jobId='somejob'))
     table_rows, schema, _ = self.get_test_rows()
     client.jobs.GetQueryResults.return_value = bigquery.GetQueryResultsResponse(
         jobComplete=True, rows=table_rows, schema=schema)
@@ -435,16 +493,15 @@ class TestBigQueryReader(unittest.TestCase):
   def test_read_from_table_and_job_complete_retry(self, patched_time_sleep):
     client = mock.Mock()
     client.jobs.Insert.return_value = bigquery.Job(
-        jobReference=bigquery.JobReference(
-            jobId='somejob'))
+        jobReference=bigquery.JobReference(jobId='somejob'))
     table_rows, schema, expected_rows = self.get_test_rows()
     # Return jobComplete=False on first call to trigger the code path where
     # query needs to handle waiting a bit.
     client.jobs.GetQueryResults.side_effect = [
+        bigquery.GetQueryResultsResponse(jobComplete=False),
         bigquery.GetQueryResultsResponse(
-            jobComplete=False),
-        bigquery.GetQueryResultsResponse(
-            jobComplete=True, rows=table_rows, schema=schema)]
+            jobComplete=True, rows=table_rows, schema=schema)
+    ]
     actual_rows = []
     with beam.io.BigQuerySource('dataset.table').reader(client) as reader:
       for row in reader:
@@ -454,8 +511,7 @@ class TestBigQueryReader(unittest.TestCase):
   def test_read_from_table_and_multiple_pages(self):
     client = mock.Mock()
     client.jobs.Insert.return_value = bigquery.Job(
-        jobReference=bigquery.JobReference(
-            jobId='somejob'))
+        jobReference=bigquery.JobReference(jobId='somejob'))
     table_rows, schema, expected_rows = self.get_test_rows()
     # Return a pageToken on first call to trigger the code path where
     # query needs to handle multiple pages of results.
@@ -464,7 +520,8 @@ class TestBigQueryReader(unittest.TestCase):
             jobComplete=True, rows=table_rows, schema=schema,
             pageToken='token'),
         bigquery.GetQueryResultsResponse(
-            jobComplete=True, rows=table_rows, schema=schema)]
+            jobComplete=True, rows=table_rows, schema=schema)
+    ]
     actual_rows = []
     with beam.io.BigQuerySource('dataset.table').reader(client) as reader:
       for row in reader:
@@ -479,13 +536,12 @@ class TestBigQueryReader(unittest.TestCase):
     options = PipelineOptions(flags=['--project', 'myproject'])
     source.pipeline_options = options
     reader = source.reader()
-    self.assertEqual('SELECT * FROM [myproject:mydataset.mytable];',
-                     reader.query)
+    self.assertEqual(
+        'SELECT * FROM [myproject:mydataset.mytable];', reader.query)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryWriter(unittest.TestCase):
-
   @mock.patch('time.sleep', return_value=None)
   def test_no_table_and_create_never(self, patched_time_sleep):
     client = mock.Mock()
@@ -493,8 +549,9 @@ class TestBigQueryWriter(unittest.TestCase):
         response={'status': '404'}, url='', content='')
     create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
     with self.assertRaisesRegex(
-        RuntimeError, r'Table project:dataset\.table not found but create '
-                      r'disposition is CREATE_NEVER'):
+        RuntimeError,
+        r'Table project:dataset\.table not found but create '
+        r'disposition is CREATE_NEVER'):
       with beam.io.BigQuerySink(
           'project:dataset.table',
           create_disposition=create_disposition).writer(client):
@@ -526,8 +583,9 @@ class TestBigQueryWriter(unittest.TestCase):
         response={'status': '404'}, url='', content='')
     create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
     with self.assertRaisesRegex(
-        RuntimeError, r'Table project:dataset\.table requires a schema\. None '
-                      r'can be inferred because the table does not exist'):
+        RuntimeError,
+        r'Table project:dataset\.table requires a schema\. None '
+        r'can be inferred because the table does not exist'):
       with beam.io.BigQuerySink(
           'project:dataset.table',
           create_disposition=create_disposition).writer(client):
@@ -544,8 +602,9 @@ class TestBigQueryWriter(unittest.TestCase):
     client.tabledata.List.return_value = bigquery.TableDataList(totalRows=1)
     write_disposition = beam.io.BigQueryDisposition.WRITE_EMPTY
     with self.assertRaisesRegex(
-        RuntimeError, r'Table project:dataset\.table is not empty but write '
-                      r'disposition is WRITE_EMPTY'):
+        RuntimeError,
+        r'Table project:dataset\.table is not empty but write '
+        r'disposition is WRITE_EMPTY'):
       with beam.io.BigQuerySink(
           'project:dataset.table',
           write_disposition=write_disposition).writer(client):
@@ -628,17 +687,20 @@ class TestBigQueryWriter(unittest.TestCase):
     json_object = bigquery.JsonObject()
     for k, v in iteritems(sample_row):
       json_object.additionalProperties.append(
-          bigquery.JsonObject.AdditionalProperty(
-              key=k, value=to_json_value(v)))
+          bigquery.JsonObject.AdditionalProperty(key=k, value=to_json_value(v)))
     expected_rows.append(
         bigquery.TableDataInsertAllRequest.RowsValueListEntry(
             insertId='_1',  # First row ID generated with prefix ''
             json=json_object))
     client.tabledata.InsertAll.assert_called_with(
         bigquery.BigqueryTabledataInsertAllRequest(
-            projectId='project', datasetId='dataset', tableId='table',
+            projectId='project',
+            datasetId='dataset',
+            tableId='table',
             tableDataInsertAllRequest=bigquery.TableDataInsertAllRequest(
-                rows=expected_rows, skipInvalidRows=False,)))
+                rows=expected_rows,
+                skipInvalidRows=False,
+            )))
 
   def test_table_schema_without_project(self):
     # Writer should pick executing project by default.
@@ -651,7 +713,6 @@ class TestBigQueryWriter(unittest.TestCase):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestRowAsDictJsonCoder(unittest.TestCase):
-
   def test_row_as_dict(self):
     coder = RowAsDictJsonCoder()
     test_value = {'s': 'abc', 'i': 123, 'f': 123.456, 'b': True}
@@ -664,12 +725,8 @@ class TestRowAsDictJsonCoder(unittest.TestCase):
     # To export to BQ, it's necessary to convert to strings, due to the
     # lower precision of JSON numbers. This means that we can't recognize
     # a NUMERIC when we decode from JSON, thus we match the string here.
-    test_value = {'f': 123.456,
-                  'b': True,
-                  'numerico': decimal_value}
-    output_value = {'f': 123.456,
-                    'b': True,
-                    'numerico': str(decimal_value)}
+    test_value = {'f': 123.456, 'b': True, 'numerico': decimal_value}
+    output_value = {'f': 123.456, 'b': True, 'numerico': str(decimal_value)}
     self.assertEqual(output_value, coder.decode(coder.encode(test_value)))
 
   def json_compliance_exception(self, value):

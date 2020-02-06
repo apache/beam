@@ -59,7 +59,6 @@ except ImportError:
   S3ClientError = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -87,9 +86,13 @@ class FuzzedExponentialIntervals(object):
       further tries use max_delay_sec instead of exponentially increasing
       the time. Defaults to 1 hour.
   """
-
-  def __init__(self, initial_delay_secs, num_retries, factor=2, fuzz=0.5,
-               max_delay_secs=60 * 60 * 1):
+  def __init__(
+      self,
+      initial_delay_secs,
+      num_retries,
+      factor=2,
+      fuzz=0.5,
+      max_delay_secs=60 * 60 * 1):
     self._initial_delay_secs = initial_delay_secs
     if num_retries > 10000:
       raise ValueError('num_retries parameter cannot exceed 10000.')
@@ -161,21 +164,24 @@ SERVER_ERROR_OR_TIMEOUT_CODES = [408, 500, 502, 503, 504, 598, 599]
 
 class Clock(object):
   """A simple clock implementing sleep()."""
-
   def sleep(self, value):
     time.sleep(value)
 
 
 def no_retries(fun):
   """A retry decorator for places where we do not want retries."""
-  return with_exponential_backoff(
-      retry_filter=lambda _: False, clock=None)(fun)
+  return with_exponential_backoff(retry_filter=lambda _: False, clock=None)(fun)
 
 
 def with_exponential_backoff(
-    num_retries=7, initial_delay_secs=5.0, logger=_LOGGER.warning,
+    num_retries=7,
+    initial_delay_secs=5.0,
+    logger=_LOGGER.warning,
     retry_filter=retry_on_server_errors_filter,
-    clock=Clock(), fuzz=True, factor=2, max_delay_secs=60 * 60):
+    clock=Clock(),
+    fuzz=True,
+    factor=2,
+    max_delay_secs=60 * 60):
   """Decorator with arguments that control the retry logic.
 
   Args:
@@ -212,15 +218,17 @@ def with_exponential_backoff(
   @retry.with_exponential_backoff()
   make_http_request(args)
   """
-
   def real_decorator(fun):
     """The real decorator whose purpose is to return the wrapped function."""
     @functools.wraps(fun)
     def wrapper(*args, **kwargs):
       retry_intervals = iter(
           FuzzedExponentialIntervals(
-              initial_delay_secs, num_retries, factor,
-              fuzz=0.5 if fuzz else 0, max_delay_secs=max_delay_secs))
+              initial_delay_secs,
+              num_retries,
+              factor,
+              fuzz=0.5 if fuzz else 0,
+              max_delay_secs=max_delay_secs))
       while True:
         try:
           return fun(*args, **kwargs)

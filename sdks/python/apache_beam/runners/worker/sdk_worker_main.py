@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """SDK Fn Harness entry point."""
 
 # pytype: skip-file
@@ -49,7 +50,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class StatusServer(object):
-
   def start(self, status_http_port=0):
     """Executes the serving loop for the status server.
 
@@ -57,10 +57,8 @@ class StatusServer(object):
       status_http_port(int): Binding port for the debug server.
         Default is 0 which means any free unsecured port
     """
-
     class StatusHttpHandler(http.server.BaseHTTPRequestHandler):
       """HTTP handler for serving stacktraces of all threads."""
-
       def do_GET(self):  # pylint: disable=invalid-name
         """Return all thread stacktraces information for GET request."""
         self.send_response(200)
@@ -73,10 +71,12 @@ class StatusServer(object):
         """Do not log any messages."""
         pass
 
-    self.httpd = httpd = http.server.HTTPServer(
-        ('localhost', status_http_port), StatusHttpHandler)
-    _LOGGER.info('Status HTTP server running at %s:%s', httpd.server_name,
-                 httpd.server_port)
+    self.httpd = httpd = http.server.HTTPServer(('localhost', status_http_port),
+                                                StatusHttpHandler)
+    _LOGGER.info(
+        'Status HTTP server running at %s:%s',
+        httpd.server_name,
+        httpd.server_port)
 
     httpd.serve_forever()
 
@@ -86,8 +86,9 @@ def main(unused_argv):
   if 'LOGGING_API_SERVICE_DESCRIPTOR' in os.environ:
     try:
       logging_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
-      text_format.Merge(os.environ['LOGGING_API_SERVICE_DESCRIPTOR'],
-                        logging_service_descriptor)
+      text_format.Merge(
+          os.environ['LOGGING_API_SERVICE_DESCRIPTOR'],
+          logging_service_descriptor)
 
       # Send all logs to the runner.
       fn_log_handler = FnApiLogRecordHandler(logging_service_descriptor)
@@ -96,15 +97,16 @@ def main(unused_argv):
       logging.getLogger().addHandler(fn_log_handler)
       _LOGGER.info('Logging handler created.')
     except Exception:
-      _LOGGER.error("Failed to set up logging handler, continuing without.",
-                    exc_info=True)
+      _LOGGER.error(
+          "Failed to set up logging handler, continuing without.",
+          exc_info=True)
       fn_log_handler = None
   else:
     fn_log_handler = None
 
   # Start status HTTP server thread.
-  thread = threading.Thread(name='status_http_server',
-                            target=StatusServer().start)
+  thread = threading.Thread(
+      name='status_http_server', target=StatusServer().start)
   thread.daemon = True
   thread.setName('status-server-demon')
   thread.start()
@@ -131,15 +133,18 @@ def main(unused_argv):
         'Could not load main session: %s', exception_details, exc_info=True)
 
   try:
-    _LOGGER.info('Python sdk harness started with pipeline_options: %s',
-                 sdk_pipeline_options.get_all_options(drop_default=True))
+    _LOGGER.info(
+        'Python sdk harness started with pipeline_options: %s',
+        sdk_pipeline_options.get_all_options(drop_default=True))
     control_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
     status_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
-    text_format.Merge(os.environ['CONTROL_API_SERVICE_DESCRIPTOR'],
-                      control_service_descriptor)
+    text_format.Merge(
+        os.environ['CONTROL_API_SERVICE_DESCRIPTOR'],
+        control_service_descriptor)
     if 'STATUS_API_SERVICE_DESCRIPTOR' in os.environ:
-      text_format.Merge(os.environ['STATUS_API_SERVICE_DESCRIPTOR'],
-                        status_service_descriptor)
+      text_format.Merge(
+          os.environ['STATUS_API_SERVICE_DESCRIPTOR'],
+          status_service_descriptor)
     # TODO(robertwb): Support credentials.
     assert not control_service_descriptor.oauth2_client_credentials_grant.url
     SdkHarness(
@@ -150,8 +155,7 @@ def main(unused_argv):
         data_buffer_time_limit_ms=_get_data_buffer_time_limit_ms(
             sdk_pipeline_options),
         profiler_factory=profiler.Profile.factory_from_options(
-            sdk_pipeline_options.view_as(ProfilingOptions))
-    ).run()
+            sdk_pipeline_options.view_as(ProfilingOptions))).run()
     _LOGGER.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
     _LOGGER.exception('Python sdk harness failed: ')
@@ -170,9 +174,10 @@ def _parse_pipeline_options(options_json):
     # Remove extra urn part from the key.
     portable_option_regex = r'^beam:option:(?P<key>.*):v1$'
     return PipelineOptions.from_dictionary({
-        re.match(portable_option_regex, k).group('key')
-        if re.match(portable_option_regex, k) else k: v
-        for k, v in options.items()
+        re.match(portable_option_regex, k).group('key') if re.match(
+            portable_option_regex, k) else k: v
+        for k,
+        v in options.items()
     })
 
 
@@ -224,14 +229,15 @@ def _get_data_buffer_time_limit_ms(pipeline_options):
 def _load_main_session(semi_persistent_directory):
   """Loads a pickled main session from the path specified."""
   if semi_persistent_directory:
-    session_file = os.path.join(semi_persistent_directory, 'staged',
-                                names.PICKLED_MAIN_SESSION_FILE)
+    session_file = os.path.join(
+        semi_persistent_directory, 'staged', names.PICKLED_MAIN_SESSION_FILE)
     if os.path.isfile(session_file):
       pickler.load_session(session_file)
     else:
       _LOGGER.warning(
           'No session file found: %s. Functions defined in __main__ '
-          '(interactive session) may fail.', session_file)
+          '(interactive session) may fail.',
+          session_file)
   else:
     _LOGGER.warning(
         'No semi_persistent_directory found: Functions defined in __main__ '
