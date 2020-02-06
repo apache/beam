@@ -20,6 +20,7 @@ A connector for sending API requests to the GCP Video Intelligence API.
 """
 from __future__ import absolute_import
 
+from cachetools.func import ttl_cache
 from future.utils import binary_type, text_type
 from typing import Union
 
@@ -33,7 +34,6 @@ except ImportError:
   raise ImportError(
       'Google Cloud Video Intelligence not supported for this execution environment '
       '(could not import google.cloud.videointelligence).')
-from cachetools.func import ttl_cache
 
 __all__ = ['AnnotateVideo']
 
