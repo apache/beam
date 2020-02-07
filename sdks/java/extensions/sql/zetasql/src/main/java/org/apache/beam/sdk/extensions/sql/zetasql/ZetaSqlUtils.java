@@ -35,10 +35,16 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
 import org.joda.time.Instant;
 
-/** Utility methods for ZetaSQL related operations. */
+/**
+ * Utility methods for ZetaSQL related operations.
+ *
+ * <p>Unsupported ZetaSQL types: INT32, UINT32, UINT64, FLOAT, ENUM, PROTO, GEOGRAPHY
+ * TODO[BEAM-8630]: support ZetaSQL types: DATE, TIME, DATETIME
+ */
 @Internal
 public final class ZetaSqlUtils {
 
@@ -46,8 +52,28 @@ public final class ZetaSqlUtils {
 
   private ZetaSqlUtils() {}
 
-  // Unsupported ZetaSQL types: INT32, UINT32, UINT64, FLOAT, ENUM, PROTO, GEOGRAPHY
-  // TODO[BEAM-8630]: support ZetaSQL types: DATE, TIME, DATETIME
+  public static SqlTypeName zetaSqlTypeToCalciteType(TypeKind zetaSqlType) {
+    switch (zetaSqlType) {
+      case TYPE_INT64:
+        return SqlTypeName.BIGINT;
+      case TYPE_NUMERIC:
+        return SqlTypeName.DECIMAL;
+      case TYPE_DOUBLE:
+        return SqlTypeName.DOUBLE;
+      case TYPE_STRING:
+        return SqlTypeName.VARCHAR;
+      case TYPE_TIMESTAMP:
+        return SqlTypeName.TIMESTAMP;
+      case TYPE_BOOL:
+        return SqlTypeName.BOOLEAN;
+      case TYPE_BYTES:
+        return SqlTypeName.VARBINARY;
+        // TODO[BEAM-9179] Add conversion code for ARRAY and ROW types
+      default:
+        throw new IllegalArgumentException("Unsupported ZetaSQL type: " + zetaSqlType.name());
+    }
+  }
+
   public static Type beamFieldTypeToZetaSqlType(FieldType fieldType) {
     switch (fieldType.getTypeName()) {
       case INT64:
