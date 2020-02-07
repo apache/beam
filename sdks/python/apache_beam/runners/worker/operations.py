@@ -667,10 +667,6 @@ class DoOperation(Operation):
           operation_name=self.name_context.metrics_name())
       self.dofn_runner.setup()
 
-      self.dofn_receiver = (
-          self.dofn_runner if isinstance(self.dofn_runner, Receiver) else
-          DoFnRunnerReceiver(self.dofn_runner))
-
   def start(self):
     # type: () -> None
     with self.scoped_start_state:
@@ -680,7 +676,7 @@ class DoOperation(Operation):
   def process(self, o):
     # type: (WindowedValue) -> None
     with self.scoped_process_state:
-      delayed_application = self.dofn_receiver.receive(o)
+      delayed_application = self.dofn_runner.process(o)
       if delayed_application:
         assert self.execution_context is not None
         self.execution_context.delayed_applications.append(
@@ -688,16 +684,16 @@ class DoOperation(Operation):
 
   def finalize_bundle(self):
     # type: () -> None
-    self.dofn_receiver.finalize()
+    self.dofn_runner.finalize()
 
   def needs_finalization(self):
     # type: () -> bool
-    return self.dofn_receiver.bundle_finalizer_param.has_callbacks()
+    return self.dofn_runner.bundle_finalizer_param.has_callbacks()
 
   def process_timer(self, tag, windowed_timer):
     key, timer_data = windowed_timer.value
     timer_spec = self.timer_specs[tag]
-    self.dofn_receiver.process_user_timer(
+    self.dofn_runner.process_user_timer(
         timer_spec, key, windowed_timer.windows[0], timer_data['timestamp'])
 
   def finish(self):
@@ -719,7 +715,7 @@ class DoOperation(Operation):
       side_input_map.reset()
     if self.user_state_context:
       self.user_state_context.reset()
-    self.dofn_receiver.bundle_finalizer_param.reset()
+    self.dofn_runner.bundle_finalizer_param.reset()
 
   def progress_metrics(self):
     # type: () -> beam_fn_api_pb2.Metrics.PTransform
@@ -820,15 +816,6 @@ class SdfProcessSizedElements(DoOperation):
         mean = (receiver.opcounter.mean_byte_counter.value())[0]
         total += elements * mean
     return total
-
-
-class DoFnRunnerReceiver(Receiver):
-  def __init__(self, dofn_runner):
-    self.dofn_runner = dofn_runner
-
-  def receive(self, windowed_value):
-    # type: (WindowedValue) -> None
-    self.dofn_runner.process(windowed_value)
 
 
 class CombineOperation(Operation):
