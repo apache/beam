@@ -36,6 +36,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import logging
 import time
 from builtins import range
 from builtins import zip
@@ -71,5 +72,6 @@ def run_benchmark(num_maps=100, num_runs=10, num_elements_step=1000):
 
 
 if __name__ == '__main__':
+  logging.basicConfig()
   utils.check_compiled('apache_beam.runners.common')
   run_benchmark()

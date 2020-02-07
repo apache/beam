@@ -35,6 +35,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import argparse
+import logging
 import random
 import re
 import string
@@ -231,6 +232,7 @@ def run_coder_benchmarks(
 
 
 if __name__ == "__main__":
+  logging.basicConfig()
 
   parser = argparse.ArgumentParser()
   parser.add_argument('--filter', default='.*')
