@@ -216,16 +216,17 @@ class DataInputOperation(RunnerIOOperation):
       self.output(decoded_value)
 
   def try_split(self, fraction_of_remainder, total_buffer_size):
+    # type: (...) -> Optional[Tuple[int, Optional[Tuple[operations.DoOperation, common.SplitResultType]], Optional[Tuple[operations.DoOperation, common.SplitResultType]], int]]
     with self.splitting_lock:
       if not self.started:
-        return
+        return None
       if total_buffer_size < self.index + 1:
         total_buffer_size = self.index + 1
       elif self.stop and total_buffer_size > self.stop:
         total_buffer_size = self.stop
       if self.index == -1:
         # We are "finished" with the (non-existent) previous element.
-        current_element_progress = 1
+        current_element_progress = 1.0
       else:
         current_element_progress_object = (
             self.receivers[0].current_element_progress())
@@ -900,7 +901,7 @@ class BundleProcessor(object):
 
   def delayed_bundle_application(self,
                                  op,  # type: operations.DoOperation
-                                 deferred_remainder  # type: Tuple[windowed_value.WindowedValue, Timestamp]
+                                 deferred_remainder  # type: common.SplitResultType
                                 ):
     # type: (...) -> beam_fn_api_pb2.DelayedBundleApplication
     assert op.input_info is not None
@@ -918,7 +919,10 @@ class BundleProcessor(object):
         application=self.construct_bundle_application(
             op, output_watermark, element_and_restriction))
 
-  def bundle_application(self, op, primary):
+  def bundle_application(self,
+                         op,  # type: operations.DoOperation
+                         primary  # type: common.SplitResultType
+                        ):
     ((element_and_restriction, output_watermark), _) = primary
     return self.construct_bundle_application(
         op, output_watermark, element_and_restriction)
@@ -1043,7 +1047,7 @@ class BundleProcessor(object):
 class ExecutionContext(object):
   def __init__(self):
     self.delayed_applications = [
-    ]  # type: List[Tuple[operations.DoOperation, Tuple[windowed_value.WindowedValue, Timestamp]]]
+    ]  # type: List[Tuple[operations.DoOperation, common.SplitResultType]]
 
 
 class BeamTransformFactory(object):
@@ -1412,7 +1416,7 @@ def create_par_do(
 
 
 def _create_pardo_operation(
-    factory,
+    factory,  # type: BeamTransformFactory
     transform_id,  # type: str
     transform_proto,  # type: beam_runner_api_pb2.PTransform
     consumers,
