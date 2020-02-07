@@ -41,7 +41,12 @@ def thread_dump():
   frames = sys._current_frames()  # pylint: disable=protected-access
 
   for t in threading.enumerate():
-    stack_trace = ''.join(traceback.format_stack(frames[t.ident]))
+    try:
+      stack_trace = ''.join(traceback.format_stack(frames[t.ident]))
+    except KeyError:
+      # the thread may have been destroyed already while enumerating, in such
+      # case, skip to next thread.
+      continue
     thread_ident_name = (t.ident, t.name)
     stack_traces[stack_trace].append(thread_ident_name)
 
