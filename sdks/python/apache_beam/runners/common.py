@@ -818,7 +818,7 @@ class PerWindowInvoker(DoFnInvoker):
       return None
 
 
-class DoFnRunner(Receiver):
+class DoFnRunner:
   """For internal use only; no backwards-compatibility guarantees.
 
   A helper class for executing ParDo operations.
@@ -898,10 +898,6 @@ class DoFnRunner(Receiver):
         kwargs,
         user_state_context=user_state_context,
         bundle_finalizer_param=self.bundle_finalizer_param)
-
-  def receive(self, windowed_value):
-    # type: (WindowedValue) -> None
-    self.process(windowed_value)
 
   def process(self, windowed_value):
     # type: (WindowedValue) -> Optional[SplitResultType]
