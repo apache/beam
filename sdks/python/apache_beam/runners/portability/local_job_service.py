@@ -99,12 +99,11 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
               manifest=beam_artifact_api_pb2.Manifest()))
     provision_info = fn_api_runner.ExtendedProvisionInfo(
         beam_provision_api_pb2.ProvisionInfo(
-            job_id=preparation_id,
-            job_name=job_name,
             pipeline_options=options,
             retrieval_token=self._artifact_service.retrieval_token(
                 preparation_id)),
-        self._staging_dir)
+        self._staging_dir,
+        job_name=job_name)
     return BeamJob(
         preparation_id,
         pipeline,
@@ -229,8 +228,8 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
                provision_info,  # type: fn_api_runner.ExtendedProvisionInfo
                artifact_staging_endpoint  # type: Optional[endpoints_pb2.ApiServiceDescriptor]
               ):
-    super(BeamJob, self).__init__(
-        job_id, provision_info.provision_info.job_name, pipeline, options)
+    super(BeamJob,
+          self).__init__(job_id, provision_info.job_name, pipeline, options)
     self._provision_info = provision_info
     self._artifact_staging_endpoint = artifact_staging_endpoint
     self._state_queues = []  # type: List[queue.Queue]
