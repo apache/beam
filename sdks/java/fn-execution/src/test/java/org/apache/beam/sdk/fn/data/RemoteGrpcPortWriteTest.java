@@ -39,8 +39,7 @@ public class RemoteGrpcPortWriteTest {
             .setApiServiceDescriptor(
                 ApiServiceDescriptor.newBuilder()
                     .setUrl("foo")
-                    .setAuthentication(
-                        AuthenticationSpec.getDefaultInstance())
+                    .setAuthentication(AuthenticationSpec.getDefaultInstance())
                     .build())
             .build();
 
@@ -55,8 +54,7 @@ public class RemoteGrpcPortWriteTest {
             .setApiServiceDescriptor(
                 ApiServiceDescriptor.newBuilder()
                     .setUrl("foo")
-                    .setAuthentication(
-                        AuthenticationSpec.getDefaultInstance())
+                    .setAuthentication(AuthenticationSpec.getDefaultInstance())
                     .build())
             .build();
 
