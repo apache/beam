@@ -32,6 +32,7 @@ from builtins import filter
 from builtins import object
 from builtins import zip
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import DefaultDict
 from typing import Dict
 from typing import FrozenSet
@@ -39,6 +40,7 @@ from typing import Hashable
 from typing import Iterator
 from typing import List
 from typing import Optional
+from typing import Tuple
 from typing import Union
 
 from apache_beam import pvalue
@@ -132,6 +134,7 @@ class ConsumerSet(Receiver):
     self.update_counters_finish()
 
   def try_split(self, fraction_of_remainder):
+    # type: (...) -> Optional[Any]
     # TODO(SDF): Consider supporting splitting each consumer individually.
     # This would never come up in the existing SDF expansion, but might
     # be useful to support fused SDF nodes.
@@ -169,8 +172,13 @@ class ConsumerSet(Receiver):
 
 
 class SingletonConsumerSet(ConsumerSet):
-  def __init__(
-      self, counter_factory, step_name, output_index, consumers, coder):
+  def __init__(self,
+               counter_factory,
+               step_name,
+               output_index,
+               consumers,  # type: List[Operation]
+               coder
+              ):
     assert len(consumers) == 1
     super(SingletonConsumerSet, self).__init__(
         counter_factory, step_name, output_index, consumers, coder)
@@ -183,6 +191,7 @@ class SingletonConsumerSet(ConsumerSet):
     self.update_counters_finish()
 
   def try_split(self, fraction_of_remainder):
+    # type: (...) -> Optional[Any]
     return self.consumer.try_split(fraction_of_remainder)
 
   def current_element_progress(self):
@@ -288,6 +297,7 @@ class Operation(object):
     return False
 
   def try_split(self, fraction_of_remainder):
+    # type: (...) -> Optional[Any]
     return None
 
   def current_element_progress(self):
@@ -774,10 +784,12 @@ class SdfProcessSizedElements(DoOperation):
           self.element_start_output_bytes = None
 
   def try_split(self, fraction_of_remainder):
+    # type: (...) -> Optional[Tuple[Tuple[DoOperation, common.SplitResultType], Tuple[DoOperation, common.SplitResultType]]]
     split = self.dofn_runner.try_split(fraction_of_remainder)
     if split:
       primary, residual = split
       return (self, primary), (self, residual)
+    return None
 
   def current_element_progress(self):
     with self.lock:
