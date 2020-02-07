@@ -29,6 +29,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import logging
 import time
 from builtins import range
 
@@ -79,5 +80,6 @@ def run_benchmark(num_runs=50, input_per_source=4000, num_sources=4):
 
 
 if __name__ == '__main__':
+  logging.basicConfig()
   utils.check_compiled('apache_beam.runners.worker.opcounters')
   run_benchmark()
