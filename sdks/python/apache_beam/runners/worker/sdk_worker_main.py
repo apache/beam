@@ -145,8 +145,8 @@ def main(unused_argv):
       text_format.Merge(
           os.environ['STATUS_API_SERVICE_DESCRIPTOR'],
           status_service_descriptor)
-    # TODO(robertwb): Support credentials.
-    assert not control_service_descriptor.oauth2_client_credentials_grant.url
+    # TODO(robertwb): Support authentication.
+    assert not control_service_descriptor.HasField('authentication')
     SdkHarness(
         control_address=control_service_descriptor.url,
         status_address=status_service_descriptor.url,
