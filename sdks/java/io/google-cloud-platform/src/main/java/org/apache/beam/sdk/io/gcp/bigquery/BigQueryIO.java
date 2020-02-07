@@ -977,6 +977,22 @@ public class BigQueryIO {
             throw new IllegalArgumentException(
                 String.format(QUERY_VALIDATION_FAILURE_ERROR, getQuery().get()), e);
           }
+
+          DatasetService datasetService = getBigQueryServices().getDatasetService(bqOptions);
+          // If the user provided a temp dataset, check if the dataset exists before launching the
+          // query
+          if (getQueryTempDataset() != null) {
+            Optional<String> queryTempDataset = Optional.ofNullable(getQueryTempDataset());
+
+            // The temp table is only used for dataset and project id validation, not for table name
+            // validation
+            TableReference tempTable =
+                new TableReference()
+                    .setProjectId(bqOptions.getProject())
+                    .setDatasetId(getQueryTempDataset())
+                    .setTableId("dummy table");
+            BigQueryHelpers.verifyDatasetPresence(datasetService, tempTable);
+          }
         }
       }
     }
