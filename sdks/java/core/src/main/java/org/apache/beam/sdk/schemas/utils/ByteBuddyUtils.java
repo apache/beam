@@ -133,7 +133,6 @@ public class ByteBuddyUtils {
       String className = baseName.substring(lastDot, baseName.length());
       // If the target class is in a prohibited package (java.*) then leave the original package
       // alone.
-      String superPackage = superClass.getPackage().getName();
       String realPackage =
           overridePackage(targetPackage) ? targetPackage : superClass.getPackage().getName();
       return realPackage + className + "$" + SUFFIX + "$" + randomString.nextString();
