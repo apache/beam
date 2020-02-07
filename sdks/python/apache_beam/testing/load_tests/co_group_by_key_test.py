@@ -108,7 +108,7 @@ class CoGroupByKeyTest(LoadTest):
           if i == iterations - 1:
             yield value
 
-  def testCoGroupByKey(self):
+  def test(self):
     pc1 = (
         self.pipeline
         | 'Read ' + INPUT_TAG >> beam.io.Read(
