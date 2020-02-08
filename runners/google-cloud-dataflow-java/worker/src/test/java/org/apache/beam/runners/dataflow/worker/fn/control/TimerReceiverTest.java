@@ -184,8 +184,13 @@ public class TimerReceiverTest implements Serializable {
 
                       @ProcessElement
                       public void processElement(
-                          @Timestamp Instant ts, @TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
-                        timer.withOutputTimestamp(ts).offset(Duration.standardSeconds(1)).setRelative();
+                          @Timestamp Instant ts,
+                          @TimerId(timerId) Timer timer,
+                          OutputReceiver<Integer> r) {
+                        timer
+                            .withOutputTimestamp(ts)
+                            .offset(Duration.standardSeconds(1))
+                            .setRelative();
                       }
 
                       @OnTimer(timerId)

@@ -45,7 +45,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /** {@link Schema} describes the fields in {@link Row}. */
 @Experimental(Kind.SCHEMAS)
-public class fSchema implements Serializable {
+public class Schema implements Serializable {
   // This is the metadata field used to store the logical type identifier.
   private static final String LOGICAL_TYPE_IDENTIFIER = "SchemaLogicalTypeId";
 

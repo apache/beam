@@ -3123,7 +3123,8 @@ public class MyMetricsDoFn extends DoFn<Integer, Integer> {
 ```  
 
 ## 10. State and Timers {#state-and-timers}
-
+Beam's windowing and triggering facilities provide a powerful abstraction for grouping and aggregating unbounded input
+data based on timestamps. However 
 Windows have there limits
 
 model: per-key state. timers for callbacks, window for garbage collection

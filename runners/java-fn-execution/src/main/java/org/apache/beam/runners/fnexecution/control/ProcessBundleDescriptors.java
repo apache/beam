@@ -546,7 +546,6 @@ public class ProcessBundleDescriptors {
     static <K, V, W extends BoundedWindow> TimerSpec<K, V, W> of(
         String transformId,
         String timerId,
-        String timerFamily,
         String inputCollectionId,
         String outputCollectionId,
         String outputTransformId,
@@ -554,7 +553,6 @@ public class ProcessBundleDescriptors {
       return new AutoValue_ProcessBundleDescriptors_TimerSpec(
           transformId,
           timerId,
-          timerFamily,
           inputCollectionId,
           outputCollectionId,
           outputTransformId,
@@ -564,8 +562,6 @@ public class ProcessBundleDescriptors {
     public abstract String transformId();
 
     public abstract String timerId();
-
-    public abstract String timerFamily();
 
     public abstract String inputCollectionId();
 

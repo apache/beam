@@ -17,12 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
+import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-
-import com.google.auto.value.AutoValue;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.StateNamespace;
@@ -55,11 +54,13 @@ public class TimerReceiver {
   abstract static class TimerMapKey {
     static TimerMapKey of(String timerId, String timerFamily) {
       return new AutoValue_TimerReceiver_TimerMapKey(timerId, timerFamily);
-
     }
+
     public abstract String timerId();
+
     public abstract String timerFamily();
   }
+
   private final Map<TimerMapKey, Coder<BoundedWindow>> timerWindowCodersMap;
   private final Map<String, ProcessBundleDescriptors.TimerSpec> timerOutputIdToSpecMap;
   private final Map<TimerMapKey, ProcessBundleDescriptors.TimerSpec> timerIdToTimerSpecMap;
@@ -123,7 +124,8 @@ public class TimerReceiver {
       Timer timer = windowedValue.getValue().getValue();
 
       for (BoundedWindow window : windowedValue.getWindows()) {
-        Coder<BoundedWindow> windowCoder = timerWindowCodersMap.get(TimerMapKey.of(timerSpec.timerId(), timerSpec.timerFamily()));
+        Coder<BoundedWindow> windowCoder =
+            timerWindowCodersMap.get(TimerMapKey.of(timerSpec.timerId(), timerSpec.timerFamily()));
         StateNamespace namespace = StateNamespaces.window(windowCoder, window);
 
         TimeDomain timeDomain = timerSpec.getTimerSpec().getTimeDomain();
@@ -132,7 +134,12 @@ public class TimerReceiver {
 
         TimerInternals timerInternals = stepContext.namespacedToUser().timerInternals();
         timerInternals.setTimer(
-            namespace, timerId, timerFamily, timer.getTimestamp(), windowedValue.getTimestamp(), timeDomain);
+            namespace,
+            timerId,
+            timerFamily,
+            timer.getTimestamp(),
+            windowedValue.getTimestamp(),
+            timeDomain);
 
         timerIdToKey.put(TimerMapKey.of(timerId, timerFamily), windowedValue.getValue().getKey());
         timerIdToPayload.put(TimerMapKey.of(timerId, timerFamily), timer.getPayload());
@@ -208,7 +215,8 @@ public class TimerReceiver {
         .forEach(
             transformTimerMap -> {
               for (ProcessBundleDescriptors.TimerSpec timerSpec : transformTimerMap.values()) {
-                timerIdToTimerSpecMap.put(TimerMapKey.of(timerSpec.timerId(), timerSpec.timerFamily()), timerSpec);
+                timerIdToTimerSpecMap.put(
+                    TimerMapKey.of(timerSpec.timerId(), timerSpec.timerFamily()), timerSpec);
               }
             });
     return timerIdToTimerSpecMap;
