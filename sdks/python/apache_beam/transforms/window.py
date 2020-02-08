@@ -585,13 +585,14 @@ class Sessions(WindowFn):
   def to_runner_api_parameter(self, context):
     return (
         common_urns.session_windows.urn,
-        standard_window_fns_pb2.SessionsPayload(
+        standard_window_fns_pb2.SessionWindowsPayload(
             gap_size=proto_utils.from_micros(
                 duration_pb2.Duration, self.gap_size.micros)))
 
   @staticmethod
   @urns.RunnerApiFn.register_urn(
-      common_urns.session_windows.urn, standard_window_fns_pb2.SessionsPayload)
+      common_urns.session_windows.urn,
+      standard_window_fns_pb2.SessionWindowsPayload)
   def from_runner_api_parameter(fn_parameter, unused_context):
     return Sessions(
         gap_size=Duration(micros=fn_parameter.gap_size.ToMicroseconds()))
