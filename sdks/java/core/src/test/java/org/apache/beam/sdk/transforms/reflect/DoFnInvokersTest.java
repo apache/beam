@@ -114,7 +114,7 @@ public class DoFnInvokersTest {
   }
 
   private void invokeOnTimer(String timerId, DoFn<String, String> fn) {
-    DoFnInvokers.invokerFor(fn).invokeOnTimer(timerId, timerId, mockArgumentProvider);
+    DoFnInvokers.invokerFor(fn).invokeOnTimer(timerId, "", mockArgumentProvider);
   }
 
   @Test

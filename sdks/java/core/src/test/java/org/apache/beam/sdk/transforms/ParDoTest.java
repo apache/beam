@@ -4562,6 +4562,49 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTimerMap.class})
+    public void testTimerFamilyAndTimer() throws Exception {
+      final String timerFamilyId = "foo";
+      final String timerId = "timer";
+
+      DoFn<KV<String, Integer>, String> fn =
+          new DoFn<KV<String, Integer>, String>() {
+
+            @TimerFamily(timerFamilyId)
+            private final TimerSpec spec1 = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
+
+            @TimerId(timerId)
+            private final TimerSpec spec2 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(
+                @TimerFamily(timerFamilyId) TimerMap timerMap,
+                @TimerId(timerId) Timer timer,
+                OutputReceiver<String> r) {
+              timerMap.set("timer", new Instant(1));
+              timer.set(new Instant(2));
+              r.output("process");
+            }
+
+            @OnTimerFamily(timerFamilyId)
+            public void onTimer1(
+                @TimerId String timerId, @Timestamp Instant ts, OutputReceiver<String> r) {
+              r.output("family:" + timerFamilyId + ":" + timerId);
+            }
+
+            @OnTimer(timerId)
+            public void onTimer2(@Timestamp Instant ts, OutputReceiver<String> r) {
+              r.output(timerId);
+            }
+          };
+
+      PCollection<String> output =
+          pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+      PAssert.that(output).containsInAnyOrder("process", "family:foo:timer", "timer");
+      pipeline.run();
+    }
+
+    @Test
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
