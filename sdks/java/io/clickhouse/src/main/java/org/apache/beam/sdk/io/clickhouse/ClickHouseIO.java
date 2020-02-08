@@ -35,6 +35,7 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -112,9 +113,8 @@ import ru.yandex.clickhouse.settings.ClickHouseQueryParam;
  *
  * Nullable row columns are supported through Nullable type in ClickHouse.
  *
- * <p>Nested rows should be unnested using {@link org.apache.beam.sdk.schemas.transforms.Unnest}.
- * Type casting should be done using {@link org.apache.beam.sdk.schemas.transforms.Cast} before
- * {@link ClickHouseIO}.
+ * <p>Nested rows should be unnested using {@link Select#flattenedSchema()}. Type casting should be
+ * done using {@link org.apache.beam.sdk.schemas.transforms.Cast} before {@link ClickHouseIO}.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class ClickHouseIO {
