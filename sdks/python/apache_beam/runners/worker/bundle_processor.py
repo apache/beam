@@ -906,26 +906,24 @@ class BundleProcessor(object):
     # type: (...) -> beam_fn_api_pb2.DelayedBundleApplication
     assert op.input_info is not None
     # TODO(SDF): For non-root nodes, need main_input_coder + residual_coder.
-    ((element_and_restriction, output_watermark),
-     deferred_watermark) = deferred_remainder
-    if deferred_watermark:
-      assert isinstance(deferred_watermark, timestamp.Duration)
+    (element_and_restriction, current_watermark, deferred_timestamp) = (
+        deferred_remainder)
+    if deferred_timestamp:
+      assert isinstance(deferred_timestamp, timestamp.Duration)
       proto_deferred_watermark = duration_pb2.Duration()
-      proto_deferred_watermark.FromMicroseconds(deferred_watermark.micros)
+      proto_deferred_watermark.FromMicroseconds(deferred_timestamp.micros)
     else:
       proto_deferred_watermark = None
     return beam_fn_api_pb2.DelayedBundleApplication(
         requested_time_delay=proto_deferred_watermark,
         application=self.construct_bundle_application(
-            op, output_watermark, element_and_restriction))
+            op, current_watermark, element_and_restriction))
 
   def bundle_application(self,
                          op,  # type: operations.DoOperation
                          primary  # type: common.SplitResultType
                         ):
-    ((element_and_restriction, output_watermark), _) = primary
-    return self.construct_bundle_application(
-        op, output_watermark, element_and_restriction)
+    return self.construct_bundle_application(op, None, primary.primary_value)
 
   def construct_bundle_application(self, op, output_watermark, element):
     transform_id, main_input_tag, main_input_coder, outputs = op.input_info
