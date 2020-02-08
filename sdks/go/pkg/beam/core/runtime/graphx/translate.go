@@ -269,6 +269,10 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 			},
 			SideInputs: si,
 		}
+		if edge.Edge.DoFn.IsSplittable() {
+			payload.Splittable = true
+			payload.RestrictionCoderId = m.coders.Add(edge.Edge.RestrictionCoder)
+		}
 		transformEnvID = m.addDefaultEnv()
 		spec = &pb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 
