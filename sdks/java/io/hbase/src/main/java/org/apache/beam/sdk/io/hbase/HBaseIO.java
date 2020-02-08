@@ -118,16 +118,16 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  *
  * <p>{@link HBaseIO#readAll()} allows to execute multiple {@link Scan}s to multiple {@link Table}s.
- * These queries are encapsulated via an initial {@link PCollection} of {@link HBaseQuery}s and can
- * be used to create advanced compositional patterns like reading from a Source and then based on
- * the data create new HBase scans.
+ * These queries are encapsulated via an initial {@link PCollection} of {@link Read}s and can be
+ * used to create advanced compositional patterns like reading from a Source and then based on the
+ * data create new HBase scans.
  *
  * <p><b>Note:</b> {@link HBaseIO.ReadAll} only works with <a
  * href="https://beam.apache.org/documentation/runners/capability-matrix/">runners that support
  * Splittable DoFn</a>.
  *
  * <pre>{@code
- * PCollection<HBaseQuery> queries = ...;
+ * PCollection<Read> queries = ...;
  * queries.apply("readAll", HBaseIO.readAll().withConfiguration(configuration));
  * }</pre>
  *
@@ -182,31 +182,31 @@ public class HBaseIO {
   public static class Read extends PTransform<PBegin, PCollection<Result>> {
     /** Reads from the HBase instance indicated by the* given configuration. */
     public Read withConfiguration(Configuration configuration) {
-      checkArgument(configuration != null, "configuration can not be null");
+      checkArgument(configuration != null, "configuration cannot be null");
       return new Read(new Configuration(configuration), tableId, scan);
     }
 
     /** Reads from the specified table. */
     public Read withTableId(String tableId) {
-      checkArgument(tableId != null, "tableIdcan not be null");
+      checkArgument(tableId != null, "tableId cannot be null");
       return new Read(configuration, tableId, scan);
     }
 
     /** Filters the rows read from HBase using the given* scan. */
     public Read withScan(Scan scan) {
-      checkArgument(scan != null, "scancan not be null");
+      checkArgument(scan != null, "scan cannot be null");
       return new Read(configuration, tableId, scan);
     }
 
     /** Filters the rows read from HBase using the given* row filter. */
     public Read withFilter(Filter filter) {
-      checkArgument(filter != null, "filtercan not be null");
+      checkArgument(filter != null, "filter cannot be null");
       return withScan(scan.setFilter(filter));
     }
 
     /** Reads only rows in the specified range. */
     public Read withKeyRange(ByteKeyRange keyRange) {
-      checkArgument(keyRange != null, "keyRangecan not be null");
+      checkArgument(keyRange != null, "keyRange cannot be null");
       byte[] startRow = keyRange.getStartKey().getBytes();
       byte[] stopRow = keyRange.getEndKey().getBytes();
       return withScan(scan.setStartRow(startRow).setStopRow(stopRow));
@@ -214,8 +214,8 @@ public class HBaseIO {
 
     /** Reads only rows in the specified range. */
     public Read withKeyRange(byte[] startRow, byte[] stopRow) {
-      checkArgument(startRow != null, "startRowcan not be null");
-      checkArgument(stopRow != null, "stopRowcan not be null");
+      checkArgument(startRow != null, "startRow cannot be null");
+      checkArgument(stopRow != null, "stopRow cannot be null");
       ByteKeyRange keyRange =
           ByteKeyRange.of(ByteKey.copyFrom(startRow), ByteKey.copyFrom(stopRow));
       return withKeyRange(keyRange);
@@ -342,33 +342,21 @@ public class HBaseIO {
 
   /**
    * A {@link PTransform} that works like {@link #read}, but executes read operations coming from a
-   * {@link PCollection} of {@link HBaseQuery}.
+   * {@link PCollection} of {@link Read}.
    */
   @Experimental(Kind.SPLITTABLE_DO_FN)
   public static ReadAll readAll() {
-    return new ReadAll(null);
+    return new ReadAll();
   }
 
   /** Implementation of {@link #readAll}. */
-  public static class ReadAll extends PTransform<PCollection<HBaseQuery>, PCollection<Result>> {
-
-    private ReadAll(SerializableConfiguration serializableConfiguration) {
-      this.serializableConfiguration = serializableConfiguration;
-    }
-
-    /** Reads from the HBase instance indicated by the* given configuration. */
-    public ReadAll withConfiguration(Configuration configuration) {
-      checkArgument(configuration != null, "configuration can not be null");
-      return new ReadAll(new SerializableConfiguration(configuration));
-    }
+  public static class ReadAll extends PTransform<PCollection<Read>, PCollection<Result>> {
+    private ReadAll() {}
 
     @Override
-    public PCollection<Result> expand(PCollection<HBaseQuery> input) {
-      checkArgument(serializableConfiguration != null, "withConfiguration() is required");
-      return input.apply(ParDo.of(new HBaseReadSplittableDoFn(serializableConfiguration)));
+    public PCollection<Result> expand(PCollection<Read> input) {
+      return input.apply(ParDo.of(new HBaseReadSplittableDoFn()));
     }
-
-    private SerializableConfiguration serializableConfiguration;
   }
 
   static class HBaseSource extends BoundedSource<Result> {
@@ -616,13 +604,13 @@ public class HBaseIO {
   public static class Write extends PTransform<PCollection<Mutation>, PDone> {
     /** Writes to the HBase instance indicated by the* given Configuration. */
     public Write withConfiguration(Configuration configuration) {
-      checkArgument(configuration != null, "configuration can not be null");
+      checkArgument(configuration != null, "configuration cannot be null");
       return new Write(configuration, tableId);
     }
 
     /** Writes to the specified table. */
     public Write withTableId(String tableId) {
-      checkArgument(tableId != null, "tableIdcan not be null");
+      checkArgument(tableId != null, "tableId cannot be null");
       return new Write(configuration, tableId);
     }
 
