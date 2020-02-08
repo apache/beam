@@ -118,6 +118,7 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
@@ -4482,7 +4483,17 @@ public class ParDoTest implements Serializable {
 
     @Test
     @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTimerMap.class})
-    public void testTimerFamilyEventTime() throws Exception {
+    public void testTimerFamilyEventTimeBounded() throws Exception {
+      runTestTimerFamilyEventTime(false);
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTimerMap.class})
+    public void testTimerFamilyEventTimeUnbounded() throws Exception {
+      runTestTimerFamilyEventTime(true);
+    }
+
+    public void runTestTimerFamilyEventTime(boolean useStreaming) {
       final String timerFamilyId = "foo";
 
       DoFn<KV<String, Integer>, String> fn =
@@ -4512,14 +4523,27 @@ public class ParDoTest implements Serializable {
           };
 
       PCollection<String> output =
-          pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+          pipeline
+              .apply(Create.of(KV.of("hello", 37)))
+              .setIsBoundedInternal(useStreaming ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
+              .apply(ParDo.of(fn));
       PAssert.that(output).containsInAnyOrder("process", "timer1", "timer2");
       pipeline.run();
     }
 
     @Test
     @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTimerMap.class})
-    public void testTimerWithMultipleTimerFamily() throws Exception {
+    public void testTimerWithMultipleTimerFamilyBounded() throws Exception {
+      runTestTimerWithMultipleTimerFamily(false);
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTimerMap.class})
+    public void testTimerWithMultipleTimerFamilyUnbounded() throws Exception {
+      runTestTimerWithMultipleTimerFamily(true);
+    }
+
+    public void runTestTimerWithMultipleTimerFamily(boolean useStreaming) throws Exception {
       final String timerFamilyId1 = "foo";
       final String timerFamilyId2 = "bar";
 
@@ -4556,14 +4580,27 @@ public class ParDoTest implements Serializable {
           };
 
       PCollection<String> output =
-          pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+          pipeline
+              .apply(Create.of(KV.of("hello", 37)))
+              .setIsBoundedInternal(useStreaming ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
+              .apply(ParDo.of(fn));
       PAssert.that(output).containsInAnyOrder("process", "timer", "timer");
       pipeline.run();
     }
 
     @Test
     @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTimerMap.class})
-    public void testTimerFamilyAndTimer() throws Exception {
+    public void testTimerFamilyAndTimerBounded() throws Exception {
+      runTestTimerFamilyAndTimer(false);
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTimerMap.class})
+    public void testTimerFamilyAndTimerUnbounded() throws Exception {
+      runTestTimerFamilyAndTimer(true);
+    }
+
+    public void runTestTimerFamilyAndTimer(boolean useStreaming) throws Exception {
       final String timerFamilyId = "foo";
       final String timerId = "timer";
 
@@ -4599,7 +4636,10 @@ public class ParDoTest implements Serializable {
           };
 
       PCollection<String> output =
-          pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+          pipeline
+              .apply(Create.of(KV.of("hello", 37)))
+              .setIsBoundedInternal(useStreaming ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
+              .apply(ParDo.of(fn));
       PAssert.that(output).containsInAnyOrder("process", "family:foo:timer", "timer");
       pipeline.run();
     }
