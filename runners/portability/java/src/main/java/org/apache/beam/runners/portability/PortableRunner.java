@@ -19,6 +19,7 @@ package org.apache.beam.runners.portability;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.util.Map;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobRequest;
@@ -143,50 +144,51 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
           prepareJobResponse.getArtifactStagingEndpoint();
       String stagingSessionToken = prepareJobResponse.getStagingSessionToken();
 
-      ImmutableList.Builder<StagedFile> filesToStageBuilder = ImmutableList.builder();
-      for (Map.Entry<String, RunnerApi.Environment> entry :
-          pipelineProto.getComponents().getEnvironmentsMap().entrySet()) {
-        for (RunnerApi.ArtifactInformation info : entry.getValue().getDependenciesList()) {
-          if (!BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE).equals(info.getTypeUrn())) {
-            throw new RuntimeException(
-                String.format("unsupported artifact type %s", info.getTypeUrn()));
-          }
-          if (!BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO)
-              .equals(info.getRoleUrn())) {
-            throw new RuntimeException(
-                String.format("unsupported role type %s", info.getRoleUrn()));
-          }
-          RunnerApi.ArtifactFilePayload filePayload;
-          try {
-            filePayload = RunnerApi.ArtifactFilePayload.parseFrom(info.getTypePayload());
-          } catch (InvalidProtocolBufferException e) {
-            throw new RuntimeException("Error parsing artifact file payload.", e);
-          }
-          RunnerApi.ArtifactStagingToRolePayload stagingRolePayload;
-          try {
-            stagingRolePayload =
-                RunnerApi.ArtifactStagingToRolePayload.parseFrom(info.getRolePayload());
-          } catch (InvalidProtocolBufferException e) {
-            throw new RuntimeException("Error parsing artifact role payload.", e);
-          }
-          filesToStageBuilder.add(
-              StagedFile.of(new File(filePayload.getPath()), stagingRolePayload.getStagedName()));
-        }
-      }
-      ImmutableList<StagedFile> filesToStage = filesToStageBuilder.build();
-
-      String retrievalToken = null;
+      ImmutableMap.Builder<String, String> retrievalTokenMapBuilder = ImmutableMap.builder();
       try (CloseableResource<ManagedChannel> artifactChannel =
           CloseableResource.of(
               channelFactory.forDescriptor(artifactStagingEndpoint), ManagedChannel::shutdown)) {
         ArtifactServiceStager stager = ArtifactServiceStager.overChannel(artifactChannel.get());
 
-        LOG.debug("Actual files staged: {}", filesToStage);
-        retrievalToken = stager.stage(stagingSessionToken, filesToStage);
+        for (Map.Entry<String, RunnerApi.Environment> entry :
+            pipelineProto.getComponents().getEnvironmentsMap().entrySet()) {
+          ImmutableList.Builder<StagedFile> filesToStageBuilder = ImmutableList.builder();
+          for (RunnerApi.ArtifactInformation info : entry.getValue().getDependenciesList()) {
+            if (!BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE)
+                .equals(info.getTypeUrn())) {
+              throw new RuntimeException(
+                  String.format("unsupported artifact type %s", info.getTypeUrn()));
+            }
+            if (!BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO)
+                .equals(info.getRoleUrn())) {
+              throw new RuntimeException(
+                  String.format("unsupported role type %s", info.getRoleUrn()));
+            }
+            RunnerApi.ArtifactFilePayload filePayload;
+            try {
+              filePayload = RunnerApi.ArtifactFilePayload.parseFrom(info.getTypePayload());
+            } catch (InvalidProtocolBufferException e) {
+              throw new RuntimeException("Error parsing artifact file payload.", e);
+            }
+            RunnerApi.ArtifactStagingToRolePayload stagingRolePayload;
+            try {
+              stagingRolePayload =
+                  RunnerApi.ArtifactStagingToRolePayload.parseFrom(info.getRolePayload());
+            } catch (InvalidProtocolBufferException e) {
+              throw new RuntimeException("Error parsing artifact role payload.", e);
+            }
+            filesToStageBuilder.add(
+                StagedFile.of(new File(filePayload.getPath()), stagingRolePayload.getStagedName()));
+          }
+          ImmutableList<StagedFile> filesToStage = filesToStageBuilder.build();
+          LOG.debug("Actual files staged: {}", filesToStage);
+          String retrievalToken = stager.stage(stagingSessionToken, filesToStage);
+          retrievalTokenMapBuilder.put(entry.getKey(), retrievalToken);
+        }
       } catch (CloseableResource.CloseException e) {
         LOG.warn("Error closing artifact staging channel", e);
         // CloseExceptions should only be thrown while closing the channel.
-        checkState(retrievalToken != null);
+        checkState(!retrievalTokenMapBuilder.build().isEmpty());
       } catch (Exception e) {
         throw new RuntimeException("Error staging files.", e);
       }
@@ -194,7 +196,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
       RunJobRequest runJobRequest =
           RunJobRequest.newBuilder()
               .setPreparationId(prepareJobResponse.getPreparationId())
-              .setRetrievalToken(retrievalToken)
+              .putAllRetrievalTokens(retrievalTokenMapBuilder.build())
               .build();
 
       RunJobResponse runJobResponse = jobService.run(runJobRequest);

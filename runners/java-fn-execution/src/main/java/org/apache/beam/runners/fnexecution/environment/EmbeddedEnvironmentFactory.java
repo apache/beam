@@ -26,7 +26,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.EnvironmentNode;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.ServerFactory;
@@ -87,7 +87,7 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
 
   @Override
   @SuppressWarnings("FutureReturnValueIgnored") // no need to monitor shutdown thread
-  public RemoteEnvironment createEnvironment(Environment environment) throws Exception {
+  public RemoteEnvironment createEnvironment(EnvironmentNode environment) throws Exception {
     ExecutorService executor = Executors.newSingleThreadExecutor();
     Future<?> fnHarness =
         executor.submit(
@@ -141,7 +141,7 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
         throw new RuntimeException(interruptEx);
       }
     }
-    return RemoteEnvironment.forHandler(environment, handler);
+    return RemoteEnvironment.forHandler(environment.getEnvironment(), handler);
   }
 
   /** Provider of EmbeddedEnvironmentFactory. */

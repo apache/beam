@@ -914,8 +914,10 @@ type ProcessBundleRequest_CacheToken_UserState struct {
 func (m *ProcessBundleRequest_CacheToken_UserState) Reset() {
 	*m = ProcessBundleRequest_CacheToken_UserState{}
 }
-func (m *ProcessBundleRequest_CacheToken_UserState) String() string { return proto.CompactTextString(m) }
-func (*ProcessBundleRequest_CacheToken_UserState) ProtoMessage()    {}
+func (m *ProcessBundleRequest_CacheToken_UserState) String() string {
+	return proto.CompactTextString(m)
+}
+func (*ProcessBundleRequest_CacheToken_UserState) ProtoMessage() {}
 func (*ProcessBundleRequest_CacheToken_UserState) Descriptor() ([]byte, []int) {
 	return fileDescriptor_6d954c03a4758710, []int{8, 0, 0}
 }
@@ -952,8 +954,10 @@ type ProcessBundleRequest_CacheToken_SideInput struct {
 func (m *ProcessBundleRequest_CacheToken_SideInput) Reset() {
 	*m = ProcessBundleRequest_CacheToken_SideInput{}
 }
-func (m *ProcessBundleRequest_CacheToken_SideInput) String() string { return proto.CompactTextString(m) }
-func (*ProcessBundleRequest_CacheToken_SideInput) ProtoMessage()    {}
+func (m *ProcessBundleRequest_CacheToken_SideInput) String() string {
+	return proto.CompactTextString(m)
+}
+func (*ProcessBundleRequest_CacheToken_SideInput) ProtoMessage() {}
 func (*ProcessBundleRequest_CacheToken_SideInput) Descriptor() ([]byte, []int) {
 	return fileDescriptor_6d954c03a4758710, []int{8, 0, 1}
 }

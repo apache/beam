@@ -24,6 +24,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnExternalWorkerPoolGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.EnvironmentNode;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
@@ -86,14 +87,15 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
 
   /** Creates a new, active {@link RemoteEnvironment} backed by an unmanaged worker. */
   @Override
-  public RemoteEnvironment createEnvironment(Environment environment) throws Exception {
+  public RemoteEnvironment createEnvironment(EnvironmentNode environment) throws Exception {
     Preconditions.checkState(
         environment
+            .getEnvironment()
             .getUrn()
             .equals(BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.EXTERNAL)),
         "The passed environment does not contain an ExternalPayload.");
     final RunnerApi.ExternalPayload externalPayload =
-        RunnerApi.ExternalPayload.parseFrom(environment.getPayload());
+        RunnerApi.ExternalPayload.parseFrom(environment.getEnvironment().getPayload());
     final String workerId = idGenerator.getId();
 
     BeamFnApi.StartWorkerRequest startWorkerRequest =
@@ -135,7 +137,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
     return new RemoteEnvironment() {
       @Override
       public Environment getEnvironment() {
-        return environment;
+        return environment.getEnvironment();
       }
 
       @Override

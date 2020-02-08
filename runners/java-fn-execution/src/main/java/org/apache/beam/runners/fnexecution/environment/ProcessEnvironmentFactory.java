@@ -20,8 +20,8 @@ package org.apache.beam.runners.fnexecution.environment;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.EnvironmentNode;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
@@ -95,14 +95,15 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
 
   /** Creates a new, active {@link RemoteEnvironment} backed by a forked process. */
   @Override
-  public RemoteEnvironment createEnvironment(Environment environment) throws Exception {
+  public RemoteEnvironment createEnvironment(EnvironmentNode environment) throws Exception {
     Preconditions.checkState(
         environment
+            .getEnvironment()
             .getUrn()
             .equals(BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.PROCESS)),
         "The passed environment does not contain a ProcessPayload.");
     final RunnerApi.ProcessPayload processPayload =
-        RunnerApi.ProcessPayload.parseFrom(environment.getPayload());
+        RunnerApi.ProcessPayload.parseFrom(environment.getEnvironment().getPayload());
     final String workerId = idGenerator.getId();
 
     String executable = processPayload.getCommand();
@@ -155,7 +156,8 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
       throw e;
     }
 
-    return ProcessEnvironment.create(processManager, environment, workerId, instructionHandler);
+    return ProcessEnvironment.create(
+        processManager, environment.getEnvironment(), workerId, instructionHandler);
   }
 
   /** Provider of ProcessEnvironmentFactory. */

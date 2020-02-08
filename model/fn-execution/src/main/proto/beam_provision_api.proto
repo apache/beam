@@ -55,9 +55,9 @@ message ProvisionInfo {
     // identical to what is passed to job submission.
     google.protobuf.Struct pipeline_options = 3;
 
-    // (required) The artifact retrieval token produced by
+    // (required) A map from environment_id to artifact retrieval token produced by
     // ArtifactStagingService.CommitManifestResponse.
-    string retrieval_token = 6;
+    map<string, string> retrieval_tokens = 6;
 
     // (optional) The endpoint that the runner is hosting for the SDK to submit
     // status reports to during pipeline execution. This field will only be

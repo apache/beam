@@ -72,10 +72,10 @@ func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pb.Pipeline,
 }
 
 // Submit submits a job to the given job service. It returns a jobID, if successful.
-func Submit(ctx context.Context, client jobpb.JobServiceClient, id, token string) (string, error) {
+func Submit(ctx context.Context, client jobpb.JobServiceClient, id string, tokens map[string]string) (string, error) {
 	req := &jobpb.RunJobRequest{
 		PreparationId:  id,
-		RetrievalToken: token,
+		RetrievalTokens: tokens,
 	}
 
 	resp, err := client.Run(ctx, req)

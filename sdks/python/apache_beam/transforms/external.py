@@ -392,8 +392,14 @@ class ExternalTransform(ptransform.PTransform):
     for id, proto in self._expanded_components.windowing_strategies.items():
       if id.startswith(self._namespace):
         context.windowing_strategies.put_proto(id, proto)
+    default_environment = context.environments.get_by_id(
+        context.default_environment_id())
     for id, proto in self._expanded_components.environments.items():
       if id.startswith(self._namespace):
+        # Temporarily update expanded Environment.
+        # TODO(heejong): remove this when expansion service can provide correct
+        #  dependencies.
+        proto.dependencies.extend(default_environment.get_artifacts())
         context.environments.put_proto(id, proto)
     for id, proto in self._expanded_components.pcollections.items():
       id = pcoll_renames.get(id, id)

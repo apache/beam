@@ -102,7 +102,11 @@ public class FlinkExecutableStageFunctionTest {
               ExecutableStagePayload.UserStateId.newBuilder().setTransformId("transform").build())
           .build();
   private final JobInfo jobInfo =
-      JobInfo.create("job-id", "job-name", "retrieval-token", Struct.getDefaultInstance());
+      JobInfo.create(
+          "job-id",
+          "job-name",
+          ImmutableMap.of("env-id", "retrieval-token"),
+          Struct.getDefaultInstance());
 
   @Before
   public void setUpMocks() throws Exception {

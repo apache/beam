@@ -28,7 +28,6 @@ import static org.junit.Assert.assertThat;
 import java.util.Collections;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
@@ -36,6 +35,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.EnvironmentNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -46,7 +46,8 @@ import org.junit.runners.JUnit4;
 public class ImmutableExecutableStageTest {
   @Test
   public void ofFullComponentsOnlyHasStagePTransforms() throws Exception {
-    Environment env = Environments.createDockerEnvironment("foo");
+    EnvironmentNode env =
+        PipelineNode.environment("foo", Environments.createDockerEnvironment("foo"));
     PTransform pt =
         PTransform.newBuilder()
             .putInputs("input", "input.out")
@@ -79,7 +80,7 @@ public class ImmutableExecutableStageTest {
             .putPcollections("sideInput.in", sideInput)
             .putPcollections("timer.pc", timer)
             .putPcollections("output.out", output)
-            .putEnvironments("foo", env)
+            .putEnvironments(env.getId(), env.getEnvironment())
             .build();
 
     PTransformNode transformNode = PipelineNode.pTransform("pt", pt);

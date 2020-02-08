@@ -101,10 +101,21 @@ public class ExternalTranslation {
           mergingComponentsBuilder.putWindowingStrategies(entry.getKey(), entry.getValue());
         }
       }
+      RunnerApi.Environment defaultEnvironment =
+          RehydratedComponents.forComponents(components.toComponents())
+              .getEnvironment(components.getOnlyEnvironmentId());
       for (Map.Entry<String, RunnerApi.Environment> entry :
           expandedComponents.getEnvironmentsMap().entrySet()) {
         if (entry.getKey().startsWith(nameSpace)) {
-          mergingComponentsBuilder.putEnvironments(entry.getKey(), entry.getValue());
+          // Temporarily update expanded Environment.
+          // TODO(heejong): remove this when expansion service can provide correct dependencies.
+          mergingComponentsBuilder.putEnvironments(
+              entry.getKey(),
+              entry
+                  .getValue()
+                  .toBuilder()
+                  .addAllDependencies(defaultEnvironment.getDependenciesList())
+                  .build());
         }
       }
       for (Map.Entry<String, RunnerApi.PCollection> entry :

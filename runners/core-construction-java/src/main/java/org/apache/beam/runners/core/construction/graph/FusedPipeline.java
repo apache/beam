@@ -105,7 +105,7 @@ public abstract class FusedPipeline {
           String.format(
               "%s/%s",
               stage.getInputPCollection().getPCollection().getUniqueName(),
-              stage.getEnvironment().getUrn());
+              stage.getEnvironment().getEnvironment().getUrn());
       Set<String> usedNames =
           Sets.union(topLevelTransforms.keySet(), getComponents().getTransformsMap().keySet());
       String uniqueId = SyntheticComponents.uniqueId(baseName, usedNames::contains);

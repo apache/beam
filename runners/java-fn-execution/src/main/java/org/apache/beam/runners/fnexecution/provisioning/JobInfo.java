@@ -19,6 +19,7 @@ package org.apache.beam.runners.fnexecution.provisioning;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.util.Map;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 
@@ -29,21 +30,21 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 @AutoValue
 public abstract class JobInfo implements Serializable {
   public static JobInfo create(
-      String jobId, String jobName, String retrievalToken, Struct pipelineOptions) {
-    return new AutoValue_JobInfo(jobId, jobName, retrievalToken, pipelineOptions);
+      String jobId, String jobName, Map<String, String> retrievalTokenMap, Struct pipelineOptions) {
+    return new AutoValue_JobInfo(jobId, jobName, retrievalTokenMap, pipelineOptions);
   }
 
   public abstract String jobId();
 
   public abstract String jobName();
 
-  public abstract String retrievalToken();
+  public abstract Map<String, String> retrievalTokenMap();
 
   public abstract Struct pipelineOptions();
 
   public ProvisionApi.ProvisionInfo toProvisionInfo() {
     return ProvisionApi.ProvisionInfo.newBuilder()
-        .setRetrievalToken(retrievalToken())
+        .putAllRetrievalTokens(retrievalTokenMap())
         .setPipelineOptions(pipelineOptions())
         .build();
   }

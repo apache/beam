@@ -49,6 +49,7 @@ var (
 	provisionEndpoint = flag.String("provision_endpoint", "", "Provision endpoint (required).")
 	controlEndpoint   = flag.String("control_endpoint", "", "Control endpoint (required).")
 	semiPersistDir    = flag.String("semi_persist_dir", "/tmp", "Local semi-persistent directory (optional).")
+	environmentId     = flag.String("environment_id", "", "Environment ID (optional).")
 )
 
 const (
@@ -116,7 +117,20 @@ func main() {
 	materializeArtifactsFunc := func() {
 		dir := filepath.Join(*semiPersistDir, "staged")
 
-		files, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetRetrievalToken(), dir)
+		tokens := info.GetRetrievalTokens()
+		token, ok := tokens[*environmentId]
+		if !ok {
+			if len(tokens) != 1 {
+				log.Fatal("Multiple environments found: please provide a valid environment_id.")
+			}
+			// If there's only one entry in the map, use that token.
+			for _, v := range tokens {
+				token = v
+				break
+			}
+		}
+
+		files, err := artifact.Materialize(ctx, *artifactEndpoint, token, dir)
 		if err != nil {
 			log.Fatalf("Failed to retrieve staged files: %v", err)
 		}

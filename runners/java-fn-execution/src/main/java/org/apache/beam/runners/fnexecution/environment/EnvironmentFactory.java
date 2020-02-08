@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
-import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.EnvironmentNode;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
@@ -32,7 +32,7 @@ import org.apache.beam.sdk.fn.IdGenerator;
 /** Creates {@link Environment environments} which communicate to an {@link SdkHarnessClient}. */
 public interface EnvironmentFactory {
   /** Creates an active {@link Environment} and returns a handle to it. */
-  RemoteEnvironment createEnvironment(RunnerApi.Environment environment) throws Exception;
+  RemoteEnvironment createEnvironment(EnvironmentNode environment) throws Exception;
 
   /** Provider for a {@link EnvironmentFactory} and {@link ServerFactory} for the environment. */
   interface Provider {

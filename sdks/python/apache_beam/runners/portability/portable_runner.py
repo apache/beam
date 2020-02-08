@@ -301,12 +301,13 @@ class PortableRunner(runner.PipelineRunner):
     artifact_endpoint = (
         portable_options.artifact_endpoint if portable_options.artifact_endpoint
         else prepare_response.artifact_staging_endpoint.url)
+    retrieval_tokens = {}
     if artifact_endpoint:
       stager = portable_stager.PortableStager(
           grpc.insecure_channel(artifact_endpoint),
           prepare_response.staging_session_token)
-      resources = []
-      for _, env in proto_pipeline.components.environments.items():
+      for id, env in proto_pipeline.components.environments.items():
+        resources = []
         for dep in env.dependencies:
           if dep.type_urn != common_urns.artifact_types.FILE.urn:
             raise RuntimeError('unsupported artifact type %s' % dep.type_urn)
@@ -314,14 +315,12 @@ class PortableRunner(runner.PipelineRunner):
             raise RuntimeError('unsupported role type %s' % dep.role_urn)
           type_payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
               dep.type_payload)
-          role_payload =\
+          role_payload = \
             beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
                 dep.role_payload)
           resources.append((type_payload.path, role_payload.staged_name))
-      stager.stage_job_resources(resources, staging_location='')
-      retrieval_token = stager.commit_manifest()
-    else:
-      retrieval_token = None
+        stager.stage_job_resources(resources, staging_location='')
+        retrieval_tokens[id] = stager.commit_manifest()
 
     shutil.rmtree(artifact_tmp_dir)
 
@@ -347,7 +346,7 @@ class PortableRunner(runner.PipelineRunner):
     run_response = job_service.Run(
         beam_job_api_pb2.RunJobRequest(
             preparation_id=prepare_response.preparation_id,
-            retrieval_token=retrieval_token))
+            retrieval_tokens=retrieval_tokens))
 
     if state_stream is None:
       state_stream = job_service.GetStateStream(

@@ -28,6 +28,7 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.jar.Attributes;
@@ -112,7 +113,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
     writeAsJson(
         PipelineOptionsTranslation.toProto(pipelineOptions),
         PortablePipelineJarUtils.getPipelineOptionsUri(jobName));
-    writeArtifacts(jobInfo.retrievalToken(), jobName);
+    writeArtifacts(jobInfo.retrievalTokenMap(), jobName);
     // Closing the channel also closes the underlying stream.
     outputChannel.close();
 
@@ -224,7 +225,8 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
    * Uses {@link BeamFileSystemArtifactRetrievalService} to fetch artifacts, then writes the
    * artifacts to {@code outputStream}. Include a {@link ProxyManifest} to locate artifacts later.
    */
-  private void writeArtifacts(String retrievalToken, String jobName) throws Exception {
+  private void writeArtifacts(Map<String, String> retrievalTokenMap, String jobName)
+      throws Exception {
     try (GrpcFnServer artifactServer =
         GrpcFnServer.allocatePortAndCreateFor(
             BeamFileSystemArtifactRetrievalService.create(), InProcessServerFactory.create())) {
@@ -233,22 +235,33 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
               .forDescriptor(artifactServer.getApiServiceDescriptor());
       ArtifactRetrievalServiceBlockingStub retrievalServiceStub =
           ArtifactRetrievalServiceGrpc.newBlockingStub(grpcChannel);
-      ProxyManifest proxyManifest =
-          copyStagedArtifacts(
-              retrievalToken,
-              new ArtifactRetriever() {
-                @Override
-                public GetManifestResponse getManifest(GetManifestRequest request) {
-                  return retrievalServiceStub.getManifest(request);
-                }
+      ProxyManifest.Builder proxyManifestBuilder = ProxyManifest.newBuilder();
+      retrievalTokenMap.forEach(
+          (String envId, String token) -> {
+            try {
+              ProxyManifest proxyManifest =
+                  copyStagedArtifacts(
+                      token,
+                      new ArtifactRetriever() {
+                        @Override
+                        public GetManifestResponse getManifest(GetManifestRequest request) {
+                          return retrievalServiceStub.getManifest(request);
+                        }
 
-                @Override
-                public Iterator<ArtifactChunk> getArtifact(GetArtifactRequest request) {
-                  return retrievalServiceStub.getArtifact(request);
-                }
-              },
-              jobName);
-      writeAsJson(proxyManifest, PortablePipelineJarUtils.getArtifactManifestUri(jobName));
+                        @Override
+                        public Iterator<ArtifactChunk> getArtifact(GetArtifactRequest request) {
+                          return retrievalServiceStub.getArtifact(request);
+                        }
+                      },
+                      jobName);
+              proxyManifestBuilder.mergeFrom(proxyManifest);
+            } catch (IOException e) {
+              throw new RuntimeException(e);
+            }
+          });
+
+      writeAsJson(
+          proxyManifestBuilder.build(), PortablePipelineJarUtils.getArtifactManifestUri(jobName));
       grpcChannel.shutdown();
     }
   }

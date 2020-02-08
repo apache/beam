@@ -77,7 +77,14 @@ func Execute(ctx context.Context, p *pb.Pipeline, endpoint string, opt *JobOptio
 
 	// (3) Submit job
 
-	jobID, err := Submit(ctx, client, prepID, token)
+	// Use the same retrieval token for all environments for now.
+	// Revisit after cross-language support for Go SDK.
+	tokens := make(map[string]string)
+	for id := range p.Components.Environments {
+		tokens[id] = token
+	}
+
+	jobID, err := Submit(ctx, client, prepID, tokens)
 	if err != nil {
 		return "", err
 	}

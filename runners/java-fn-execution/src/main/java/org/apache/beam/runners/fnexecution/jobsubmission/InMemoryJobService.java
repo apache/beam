@@ -58,6 +58,7 @@ import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusException;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusRuntimeException;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -230,7 +231,9 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       // create new invocation
       JobInvocation invocation =
           invoker.invoke(
-              preparation.pipeline(), preparation.options(), request.getRetrievalToken());
+              preparation.pipeline(),
+              preparation.options(),
+              ImmutableMap.copyOf(request.getRetrievalTokensMap()));
       String invocationId = invocation.getId();
 
       invocation.addStateListener(

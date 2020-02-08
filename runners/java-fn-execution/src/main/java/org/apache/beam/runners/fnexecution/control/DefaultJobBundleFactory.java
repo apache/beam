@@ -34,6 +34,7 @@ import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.EnvironmentNode;
 import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
@@ -91,7 +92,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
   private static final IdGenerator factoryIdGenerator = IdGenerators.incrementingLongs();
 
   private final String factoryId = factoryIdGenerator.getId();
-  private final ImmutableList<LoadingCache<Environment, WrappedSdkHarnessClient>> environmentCaches;
+  private final ImmutableList<LoadingCache<EnvironmentNode, WrappedSdkHarnessClient>>
+      environmentCaches;
   private final AtomicInteger stageBundleFactoryCount = new AtomicInteger();
   private final Map<String, EnvironmentFactory.Provider> environmentFactoryProviderMap;
   private final ExecutorService executor;
@@ -99,7 +101,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
   private final IdGenerator stageIdGenerator;
   private final int environmentExpirationMillis;
   private final Semaphore availableCachesSemaphore;
-  private final LinkedBlockingDeque<LoadingCache<Environment, WrappedSdkHarnessClient>>
+  private final LinkedBlockingDeque<LoadingCache<EnvironmentNode, WrappedSdkHarnessClient>>
       availableCaches;
   private final boolean loadBalanceBundles;
 
@@ -159,8 +161,9 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     this.availableCaches = new LinkedBlockingDeque<>(environmentCaches);
   }
 
-  private ImmutableList<LoadingCache<Environment, WrappedSdkHarnessClient>> createEnvironmentCaches(
-      ThrowingFunction<ServerFactory, ServerInfo> serverInfoCreator, int count) {
+  private ImmutableList<LoadingCache<EnvironmentNode, WrappedSdkHarnessClient>>
+      createEnvironmentCaches(
+          ThrowingFunction<ServerFactory, ServerInfo> serverInfoCreator, int count) {
     CacheBuilder builder =
         CacheBuilder.newBuilder()
             .removalListener(
@@ -176,16 +179,16 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       builder = builder.expireAfterWrite(environmentExpirationMillis, TimeUnit.MILLISECONDS);
     }
 
-    ImmutableList.Builder<LoadingCache<Environment, WrappedSdkHarnessClient>> caches =
+    ImmutableList.Builder<LoadingCache<EnvironmentNode, WrappedSdkHarnessClient>> caches =
         ImmutableList.builder();
     for (int i = 0; i < count; i++) {
-      LoadingCache<Environment, WrappedSdkHarnessClient> cache =
+      LoadingCache<EnvironmentNode, WrappedSdkHarnessClient> cache =
           builder.build(
-              new CacheLoader<Environment, WrappedSdkHarnessClient>() {
+              new CacheLoader<EnvironmentNode, WrappedSdkHarnessClient>() {
                 @Override
-                public WrappedSdkHarnessClient load(Environment environment) throws Exception {
+                public WrappedSdkHarnessClient load(EnvironmentNode environment) throws Exception {
                   EnvironmentFactory.Provider environmentFactoryProvider =
-                      environmentFactoryProviderMap.get(environment.getUrn());
+                      environmentFactoryProviderMap.get(environment.getEnvironment().getUrn());
                   ServerFactory serverFactory = environmentFactoryProvider.getServerFactory();
                   ServerInfo serverInfo = serverInfoCreator.apply(serverFactory);
                   EnvironmentFactory environmentFactory =
@@ -254,7 +257,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
   public void close() throws Exception {
     // Clear the cache. This closes all active environments.
     // note this may cause open calls to be cancelled by the peer
-    for (LoadingCache<Environment, WrappedSdkHarnessClient> environmentCache : environmentCaches) {
+    for (LoadingCache<EnvironmentNode, WrappedSdkHarnessClient> environmentCache :
+        environmentCaches) {
       environmentCache.invalidateAll();
       environmentCache.cleanUp();
     }
@@ -343,7 +347,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       // TODO: Consider having BundleProcessor#newBundle take in an OutputReceiverFactory rather
       // than constructing the receiver map here. Every bundle factory will need this.
 
-      final LoadingCache<Environment, WrappedSdkHarnessClient> currentCache;
+      final LoadingCache<EnvironmentNode, WrappedSdkHarnessClient> currentCache;
       final WrappedSdkHarnessClient client;
       if (loadBalanceBundles) {
         // The semaphore is used to ensure fairness, i.e. first stop first go.

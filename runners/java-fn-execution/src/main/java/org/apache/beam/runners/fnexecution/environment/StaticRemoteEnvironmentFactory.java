@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.EnvironmentNode;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
@@ -44,8 +44,9 @@ public class StaticRemoteEnvironmentFactory implements EnvironmentFactory {
   }
 
   @Override
-  public RemoteEnvironment createEnvironment(Environment environment) {
-    return StaticRemoteEnvironment.create(environment, this.instructionRequestHandler);
+  public RemoteEnvironment createEnvironment(EnvironmentNode environment) {
+    return StaticRemoteEnvironment.create(
+        environment.getEnvironment(), this.instructionRequestHandler);
   }
 
   /** Provider for StaticRemoteEnvironmentFactory. */

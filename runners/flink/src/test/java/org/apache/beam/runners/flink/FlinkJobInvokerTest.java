@@ -24,6 +24,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -68,6 +69,7 @@ public class FlinkJobInvokerTest {
     FlinkJobInvoker flinkJobInvoker =
         FlinkJobInvoker.create(new FlinkJobServerDriver.FlinkServerConfiguration());
     // This will call Workarounds.restoreOriginalStdOutAndStdErr() which we want to test
-    flinkJobInvoker.invokeWithExecutor(pipeline, options, "retrievalToken", null);
+    flinkJobInvoker.invokeWithExecutor(
+        pipeline, options, ImmutableMap.of("envId", "retrievalToken"), null);
   }
 }

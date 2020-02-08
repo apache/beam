@@ -52,6 +52,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
@@ -212,7 +213,7 @@ public class FlinkSavepointTest implements Serializable {
           FlinkJobInvoker.create(null)
               .createJobInvocation(
                   "id",
-                  "none",
+                  ImmutableMap.of("none", "none"),
                   executorService,
                   pipelineProto,
                   pipelineOptions,

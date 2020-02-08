@@ -41,6 +41,7 @@ import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.junit.AfterClass;
@@ -194,7 +195,7 @@ public class PortableStateExecutionTest implements Serializable {
         FlinkJobInvoker.create(null)
             .createJobInvocation(
                 "id",
-                "none",
+                ImmutableMap.of("none", "none"),
                 flinkJobExecutor,
                 pipelineProto,
                 options.as(FlinkPipelineOptions.class),

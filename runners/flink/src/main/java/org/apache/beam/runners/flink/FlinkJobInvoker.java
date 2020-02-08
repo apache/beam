@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink;
 
 import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 
+import java.util.Map;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -55,7 +56,7 @@ public class FlinkJobInvoker extends JobInvoker {
   protected JobInvocation invokeWithExecutor(
       RunnerApi.Pipeline pipeline,
       Struct options,
-      @Nullable String retrievalToken,
+      @Nullable Map<String, String> retrievalTokenMap,
       ListeningExecutorService executorService) {
     Workarounds.restoreOriginalStdOutAndStdErrIfApplicable();
 
@@ -89,12 +90,12 @@ public class FlinkJobInvoker extends JobInvoker {
 
     LOG.info("Invoking job {} with pipeline runner {}", invocationId, pipelineRunner);
     return createJobInvocation(
-        invocationId, retrievalToken, executorService, pipeline, flinkOptions, pipelineRunner);
+        invocationId, retrievalTokenMap, executorService, pipeline, flinkOptions, pipelineRunner);
   }
 
   protected JobInvocation createJobInvocation(
       String invocationId,
-      String retrievalToken,
+      Map<String, String> retrievalTokenMap,
       ListeningExecutorService executorService,
       RunnerApi.Pipeline pipeline,
       FlinkPipelineOptions flinkOptions,
@@ -103,7 +104,7 @@ public class FlinkJobInvoker extends JobInvoker {
         JobInfo.create(
             invocationId,
             flinkOptions.getJobName(),
-            retrievalToken,
+            retrievalTokenMap,
             PipelineOptionsTranslation.toProto(flinkOptions));
     return new JobInvocation(jobInfo, executorService, pipeline, pipelineRunner);
   }

@@ -28,7 +28,6 @@ import static org.junit.Assert.assertThat;
 
 import java.util.Collections;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
@@ -40,6 +39,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.EnvironmentNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Test;
@@ -51,8 +51,10 @@ import org.junit.runners.JUnit4;
 public class ExecutableStageTest {
   @Test
   public void testRoundTripToFromTransform() throws Exception {
-    Environment env =
-        org.apache.beam.runners.core.construction.Environments.createDockerEnvironment("foo");
+    EnvironmentNode env =
+        PipelineNode.environment(
+            "foo",
+            org.apache.beam.runners.core.construction.Environments.createDockerEnvironment("foo"));
     PTransform pt =
         PTransform.newBuilder()
             .putInputs("input", "input.out")
@@ -85,7 +87,7 @@ public class ExecutableStageTest {
             .putPcollections("sideInput.in", sideInput)
             .putPcollections("timer.out", timer)
             .putPcollections("output.out", output)
-            .putEnvironments("foo", env)
+            .putEnvironments(env.getId(), env.getEnvironment())
             .build();
 
     PTransformNode transformNode = PipelineNode.pTransform("pt", pt);

@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.construction.graph;
 
 import com.google.auto.value.AutoValue;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 
@@ -29,6 +30,10 @@ public interface PipelineNode {
 
   static PCollectionNode pCollection(String id, PCollection collection) {
     return new AutoValue_PipelineNode_PCollectionNode(id, collection);
+  }
+
+  static EnvironmentNode environment(String id, Environment environment) {
+    return new AutoValue_PipelineNode_EnvironmentNode(id, environment);
   }
 
   String getId();
@@ -49,5 +54,13 @@ public interface PipelineNode {
     public abstract String getId();
 
     public abstract PTransform getTransform();
+  }
+
+  @AutoValue
+  abstract class EnvironmentNode implements PipelineNode {
+    @Override
+    public abstract String getId();
+
+    public abstract Environment getEnvironment();
   }
 }

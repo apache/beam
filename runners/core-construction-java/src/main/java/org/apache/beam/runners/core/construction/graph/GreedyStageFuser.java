@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.function.Supplier;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.EnvironmentNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -76,7 +77,7 @@ public class GreedyStageFuser {
     // Choose the environment from an arbitrary node. The initial nodes may not be empty for this
     // subgraph to make any sense, there has to be at least one processor node
     // (otherwise the stage is gRPC Read -> gRPC Write, which doesn't do anything).
-    Environment environment = getStageEnvironment(pipeline, initialNodes);
+    EnvironmentNode environment = getStageEnvironment(pipeline, initialNodes);
 
     ImmutableSet.Builder<PTransformNode> fusedTransforms = ImmutableSet.builder();
     fusedTransforms.addAll(initialNodes);
@@ -107,7 +108,7 @@ public class GreedyStageFuser {
         continue;
       }
       PCollectionFusibility fusibility =
-          canFuse(pipeline, candidate, environment, fusedCollections);
+          canFuse(pipeline, candidate, environment.getEnvironment(), fusedCollections);
       switch (fusibility) {
         case MATERIALIZE:
           materializedPCollections.add(candidate);
@@ -143,7 +144,7 @@ public class GreedyStageFuser {
         DEFAULT_WIRE_CODER_SETTINGS);
   }
 
-  private static Environment getStageEnvironment(
+  private static EnvironmentNode getStageEnvironment(
       QueryablePipeline pipeline, Set<PTransformNode> initialNodes) {
     Supplier<IllegalArgumentException> missingEnv =
         () ->
@@ -153,8 +154,8 @@ public class GreedyStageFuser {
                     Environment.class.getSimpleName(),
                     PTransformNode.class.getSimpleName(),
                     GreedyStageFuser.class.getSimpleName()));
-    Environment env =
-        pipeline.getEnvironment(initialNodes.iterator().next()).orElseThrow(missingEnv);
+    PTransformNode firstNode = initialNodes.iterator().next();
+    Environment env = pipeline.getEnvironment(firstNode).orElseThrow(missingEnv);
     initialNodes.forEach(
         transformNode ->
             checkArgument(
@@ -164,7 +165,7 @@ public class GreedyStageFuser {
                 ExecutableStage.class.getSimpleName(),
                 env,
                 pipeline.getEnvironment(transformNode).get() /* will throw above if absent. */));
-    return env;
+    return PipelineNode.environment(firstNode.getTransform().getEnvironmentId(), env);
   }
 
   private static PCollectionFusibility canFuse(

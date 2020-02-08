@@ -21,8 +21,8 @@ import com.google.auto.value.AutoValue;
 import java.util.Collection;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.WireCoderSetting;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.EnvironmentNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -32,7 +32,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 public abstract class ImmutableExecutableStage implements ExecutableStage {
   public static ImmutableExecutableStage ofFullComponents(
       Components components,
-      Environment environment,
+      EnvironmentNode environment,
       PCollectionNode input,
       Collection<SideInputReference> sideInputs,
       Collection<UserStateReference> userStates,
@@ -62,7 +62,7 @@ public abstract class ImmutableExecutableStage implements ExecutableStage {
 
   public static ImmutableExecutableStage of(
       Components components,
-      Environment environment,
+      EnvironmentNode environment,
       PCollectionNode input,
       Collection<SideInputReference> sideInputs,
       Collection<UserStateReference> userStates,
@@ -87,7 +87,7 @@ public abstract class ImmutableExecutableStage implements ExecutableStage {
 
   // Redefine the methods to have a known order.
   @Override
-  public abstract Environment getEnvironment();
+  public abstract EnvironmentNode getEnvironment();
 
   @Override
   public abstract PCollectionNode getInputPCollection();

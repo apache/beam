@@ -47,6 +47,7 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions.RetrievalServiceType;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.client.program.DetachedEnvironment;
 import org.kohsuke.args4j.CmdLineException;
@@ -168,7 +169,8 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
     PortablePipelineOptions portablePipelineOptions =
         PipelineOptionsTranslation.fromProto(originalOptions).as(PortablePipelineOptions.class);
     portablePipelineOptions.setRetrievalServiceType(RetrievalServiceType.CLASSLOADER);
-    String retrievalToken = PortablePipelineJarUtils.getArtifactManifestUri(baseJobName);
+    Map<String, String> retrievalTokenMap =
+        ImmutableMap.of("", PortablePipelineJarUtils.getArtifactManifestUri(baseJobName));
 
     FlinkPipelineOptions flinkOptions = portablePipelineOptions.as(FlinkPipelineOptions.class);
     String invocationId =
@@ -184,7 +186,7 @@ public class FlinkPipelineRunner implements PortablePipelineRunner {
         JobInfo.create(
             invocationId,
             flinkOptions.getJobName(),
-            retrievalToken,
+            retrievalTokenMap,
             PipelineOptionsTranslation.toProto(flinkOptions));
     try {
       runner.run(pipeline, jobInfo);

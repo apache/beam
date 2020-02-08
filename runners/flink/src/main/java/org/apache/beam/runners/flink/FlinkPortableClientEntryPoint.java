@@ -23,6 +23,7 @@ import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -226,7 +227,7 @@ public class FlinkPortableClientEntryPoint {
         @Override
         protected JobInvocation createJobInvocation(
             String invocationId,
-            String retrievalToken,
+            Map<String, String> retrievalTokenMap,
             ListeningExecutorService executorService,
             RunnerApi.Pipeline pipeline,
             FlinkPipelineOptions flinkOptions,
@@ -235,7 +236,7 @@ public class FlinkPortableClientEntryPoint {
           actualPipelineRunner = pipelineRunner;
           return super.createJobInvocation(
               invocationId,
-              retrievalToken,
+              retrievalTokenMap,
               executorService,
               pipeline,
               flinkOptions,

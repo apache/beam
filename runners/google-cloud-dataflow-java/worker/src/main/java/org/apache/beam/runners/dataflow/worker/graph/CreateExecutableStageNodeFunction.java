@@ -49,6 +49,7 @@ import org.apache.beam.runners.core.construction.*;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.ImmutableExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.EnvironmentNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.core.construction.graph.SideInputReference;
@@ -464,10 +465,10 @@ public class CreateExecutableStageNodeFunction
     RunnerApi.Components executableStageComponents = componentsBuilder.build();
 
     // Get Environment from ptransform, otherwise, use JAVA_SDK_HARNESS_ENVIRONMENT as default.
-    Environment executableStageEnv =
+    EnvironmentNode executableStageEnv =
         getEnvironmentFromPTransform(executableStageComponents, executableStageTransforms);
     if (executableStageEnv == null) {
-      executableStageEnv = Environments.JAVA_SDK_HARNESS_ENVIRONMENT;
+      executableStageEnv = PipelineNode.environment("", Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
     }
 
     Set<UserStateReference> executableStageUserStateReference = new HashSet<>();
@@ -494,18 +495,20 @@ public class CreateExecutableStageNodeFunction
         ptransformIdToPCollectionViews.build());
   }
 
-  private Environment getEnvironmentFromPTransform(
+  private EnvironmentNode getEnvironmentFromPTransform(
       RunnerApi.Components components, Set<PTransformNode> sdkTransforms) {
     RehydratedComponents sdkComponents = RehydratedComponents.forComponents(components);
-    Environment env = null;
+    EnvironmentNode envNode = null;
     for (PTransformNode pTransformNode : sdkTransforms) {
-      env = Environments.getEnvironment(pTransformNode.getTransform(), sdkComponents).orElse(null);
+      Environment env =
+          Environments.getEnvironment(pTransformNode.getTransform(), sdkComponents).orElse(null);
       if (env != null) {
+        envNode = PipelineNode.environment(pTransformNode.getTransform().getEnvironmentId(), env);
         break;
       }
     }
 
-    return env;
+    return envNode;
   }
 
   /**

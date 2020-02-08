@@ -114,7 +114,7 @@ public class OutputDeduplicatorTest {
     ExecutableStage oneStage =
         ImmutableExecutableStage.of(
             components,
-            Environment.getDefaultInstance(),
+            PipelineNode.environment("env", Environment.getDefaultInstance()),
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
             ImmutableList.of(),
@@ -125,7 +125,7 @@ public class OutputDeduplicatorTest {
     ExecutableStage twoStage =
         ImmutableExecutableStage.of(
             components,
-            Environment.getDefaultInstance(),
+            PipelineNode.environment("env", Environment.getDefaultInstance()),
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
             ImmutableList.of(),
@@ -233,7 +233,7 @@ public class OutputDeduplicatorTest {
     ExecutableStage oneStage =
         ImmutableExecutableStage.of(
             components,
-            Environment.getDefaultInstance(),
+            PipelineNode.environment("env", Environment.getDefaultInstance()),
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
             ImmutableList.of(),
@@ -245,7 +245,7 @@ public class OutputDeduplicatorTest {
     ExecutableStage twoStage =
         ImmutableExecutableStage.of(
             components,
-            Environment.getDefaultInstance(),
+            PipelineNode.environment("env", Environment.getDefaultInstance()),
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
             ImmutableList.of(),
@@ -366,7 +366,7 @@ public class OutputDeduplicatorTest {
     ExecutableStage oneStage =
         ImmutableExecutableStage.of(
             components,
-            Environment.getDefaultInstance(),
+            PipelineNode.environment("env", Environment.getDefaultInstance()),
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
             ImmutableList.of(),
@@ -535,7 +535,7 @@ public class OutputDeduplicatorTest {
     ExecutableStage multiStage =
         ImmutableExecutableStage.of(
             components,
-            Environment.getDefaultInstance(),
+            PipelineNode.environment("env", Environment.getDefaultInstance()),
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
             ImmutableList.of(),
@@ -551,7 +551,7 @@ public class OutputDeduplicatorTest {
     ExecutableStage oneStage =
         ImmutableExecutableStage.of(
             components,
-            Environment.getDefaultInstance(),
+            PipelineNode.environment("env", Environment.getDefaultInstance()),
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
             ImmutableList.of(),
@@ -563,7 +563,7 @@ public class OutputDeduplicatorTest {
     ExecutableStage twoStage =
         ImmutableExecutableStage.of(
             components,
-            Environment.getDefaultInstance(),
+            PipelineNode.environment("env", Environment.getDefaultInstance()),
             PipelineNode.pCollection(redOut.getUniqueName(), redOut),
             ImmutableList.of(),
             ImmutableList.of(),

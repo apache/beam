@@ -1148,8 +1148,10 @@ type MonitoringTableData_MonitoringColumnValue struct {
 func (m *MonitoringTableData_MonitoringColumnValue) Reset() {
 	*m = MonitoringTableData_MonitoringColumnValue{}
 }
-func (m *MonitoringTableData_MonitoringColumnValue) String() string { return proto.CompactTextString(m) }
-func (*MonitoringTableData_MonitoringColumnValue) ProtoMessage()    {}
+func (m *MonitoringTableData_MonitoringColumnValue) String() string {
+	return proto.CompactTextString(m)
+}
+func (*MonitoringTableData_MonitoringColumnValue) ProtoMessage() {}
 func (*MonitoringTableData_MonitoringColumnValue) Descriptor() ([]byte, []int) {
 	return fileDescriptor_6039342a2ba47b72, []int{14, 0}
 }

@@ -33,6 +33,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.EnvironmentNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 
@@ -61,7 +62,7 @@ public interface ExecutableStage {
   RunnerApi.Components getComponents();
 
   /**
-   * Returns the {@link Environment} this stage executes in.
+   * Returns the {@link EnvironmentNode} this stage executes in.
    *
    * <p>An {@link ExecutableStage} consists of {@link PTransform PTransforms} which can all be
    * executed within a single {@link Environment}. The assumption made here is that
@@ -69,7 +70,7 @@ public interface ExecutableStage {
    * topology, which will be handled by runners by performing already-required element routing and
    * runner-side processing.
    */
-  Environment getEnvironment();
+  EnvironmentNode getEnvironment();
 
   /**
    * Returns a set of {@link WireCoderSetting}s this stage executes in.
@@ -143,7 +144,8 @@ public interface ExecutableStage {
     PTransform.Builder pt = PTransform.newBuilder().setUniqueName(uniqueName);
     ExecutableStagePayload.Builder payload = ExecutableStagePayload.newBuilder();
 
-    payload.setEnvironment(getEnvironment());
+    payload.setEnvironment(getEnvironment().getEnvironment());
+    payload.setEnvironmentId(getEnvironment().getId());
     payload.addAllWireCoderSettings(getWireCoderSettings());
 
     // Populate inputs and outputs of the stage payload and outer PTransform simultaneously.
@@ -218,7 +220,8 @@ public interface ExecutableStage {
    */
   static ExecutableStage fromPayload(ExecutableStagePayload payload) {
     Components components = payload.getComponents();
-    Environment environment = payload.getEnvironment();
+    EnvironmentNode environment =
+        PipelineNode.environment(payload.getEnvironmentId(), payload.getEnvironment());
     Collection<WireCoderSetting> wireCoderSettings = payload.getWireCoderSettingsList();
 
     PCollectionNode input =

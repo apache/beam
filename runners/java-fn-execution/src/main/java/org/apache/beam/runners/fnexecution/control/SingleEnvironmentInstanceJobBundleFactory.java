@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.EnvironmentNode;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
@@ -62,7 +63,7 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
 
   private final ConcurrentMap<ExecutableStage, StageBundleFactory> stageBundleFactories =
       new ConcurrentHashMap<>();
-  private final ConcurrentMap<Environment, RemoteEnvironment> environments =
+  private final ConcurrentMap<EnvironmentNode, RemoteEnvironment> environments =
       new ConcurrentHashMap<>();
 
   private final IdGenerator idGenerator;

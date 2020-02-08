@@ -18,6 +18,7 @@
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import javax.annotation.Nullable;
@@ -36,13 +37,14 @@ public abstract class JobInvoker {
   protected abstract JobInvocation invokeWithExecutor(
       RunnerApi.Pipeline pipeline,
       Struct options,
-      @Nullable String retrievalToken,
+      @Nullable Map<String, String> retrievalTokenMap,
       ListeningExecutorService executorService)
       throws IOException;
 
-  JobInvocation invoke(RunnerApi.Pipeline pipeline, Struct options, @Nullable String retrievalToken)
+  JobInvocation invoke(
+      RunnerApi.Pipeline pipeline, Struct options, @Nullable Map<String, String> retrievalTokenMap)
       throws IOException {
-    return invokeWithExecutor(pipeline, options, retrievalToken, this.executorService);
+    return invokeWithExecutor(pipeline, options, retrievalTokenMap, this.executorService);
   }
 
   private ListeningExecutorService createExecutorService(String name) {

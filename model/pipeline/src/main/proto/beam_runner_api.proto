@@ -1462,6 +1462,8 @@ message ExecutableStagePayload {
   // because ExecutableStages use environments directly. This may change in the future.
   Environment environment = 1;
 
+  string environment_id = 11;
+
   // The wire coder settings of this executable stage
   repeated WireCoderSetting wire_coder_settings = 9;
 

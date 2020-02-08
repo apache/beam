@@ -26,8 +26,8 @@ import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.EnvironmentNode;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
@@ -105,14 +105,15 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
 
   /** Creates a new, active {@link RemoteEnvironment} backed by a local Docker container. */
   @Override
-  public RemoteEnvironment createEnvironment(Environment environment) throws Exception {
+  public RemoteEnvironment createEnvironment(EnvironmentNode environment) throws Exception {
     Preconditions.checkState(
         environment
+            .getEnvironment()
             .getUrn()
             .equals(BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER)),
         "The passed environment does not contain a DockerPayload.");
     final RunnerApi.DockerPayload dockerPayload =
-        RunnerApi.DockerPayload.parseFrom(environment.getPayload());
+        RunnerApi.DockerPayload.parseFrom(environment.getEnvironment().getPayload());
     final String workerId = idGenerator.getId();
 
     // Prepare docker invocation.
@@ -146,7 +147,8 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
             .add(String.format("--logging_endpoint=%s", loggingEndpoint))
             .add(String.format("--artifact_endpoint=%s", artifactEndpoint))
             .add(String.format("--provision_endpoint=%s", provisionEndpoint))
-            .add(String.format("--control_endpoint=%s", controlEndpoint));
+            .add(String.format("--control_endpoint=%s", controlEndpoint))
+            .add(String.format("--environment_id=%s", environment.getId()));
     if (semiPersistDir != null) {
       argsBuilder.add(String.format("--semi_persist_dir=%s", semiPersistDir));
     }
@@ -201,7 +203,11 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     }
 
     return DockerContainerEnvironment.create(
-        docker, environment, containerId, instructionHandler, retainDockerContainer);
+        docker,
+        environment.getEnvironment(),
+        containerId,
+        instructionHandler,
+        retainDockerContainer);
   }
 
   private List<String> gcsCredentialArgs() {
