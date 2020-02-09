@@ -45,6 +45,14 @@ public class PubsubMessage {
     this.messageId = messageId;
   }
 
+  public static PubsubMessage ofNoMessageId(com.google.pubsub.v1.PubsubMessage proto) {
+    return new PubsubMessage(proto.getData().toByteArray(), proto.getAttributesMap());
+  }
+
+  public static PubsubMessage of(com.google.pubsub.v1.PubsubMessage proto) {
+    return new PubsubMessage(proto.getData().toByteArray(), proto.getAttributesMap(), proto.getMessageId());
+  }
+
   /** Returns the main PubSub message. */
   public byte[] getPayload() {
     return message;

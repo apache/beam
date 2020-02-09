@@ -32,6 +32,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.api.client.util.Clock;
 import com.google.protobuf.ByteString;
+import com.google.pubsub.v1.PubsubMessage;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -101,7 +102,7 @@ public class PubsubUnboundedSourceTest {
     setupOneMessage(
         ImmutableList.of(
             IncomingMessage.of(
-                com.google.pubsub.v1.PubsubMessage.newBuilder()
+                PubsubMessage.newBuilder()
                     .setData(ByteString.copyFromUtf8(DATA))
                     .build(),
                 TIMESTAMP,
@@ -120,7 +121,7 @@ public class PubsubUnboundedSourceTest {
   }
 
   private static String data(PubsubMessage message) {
-    return new String(message.getPayload(), StandardCharsets.UTF_8);
+    return message.getData().toStringUtf8();
   }
 
   @Test
@@ -226,7 +227,7 @@ public class PubsubUnboundedSourceTest {
       String ackid = String.format("ackid_%d", i);
       incoming.add(
           IncomingMessage.of(
-              com.google.pubsub.v1.PubsubMessage.newBuilder()
+              PubsubMessage.newBuilder()
                   .setData(ByteString.copyFromUtf8(data))
                   .build(),
               TIMESTAMP,
@@ -292,7 +293,7 @@ public class PubsubUnboundedSourceTest {
       String ackId = String.format("ackid_%d", messageNum);
       incoming.add(
           IncomingMessage.of(
-              com.google.pubsub.v1.PubsubMessage.newBuilder()
+              PubsubMessage.newBuilder()
                   .setData(ByteString.copyFromUtf8(data))
                   .build(),
               messageNumToTimestamp(messageNum),

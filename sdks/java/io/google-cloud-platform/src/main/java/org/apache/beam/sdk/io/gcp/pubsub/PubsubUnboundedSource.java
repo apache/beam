@@ -44,10 +44,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
+import com.google.pubsub.v1.PubsubMessage;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
@@ -80,7 +82,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Users should use {@link PubsubIO#read} instead.
+ * Users should use {@link PubsubIO#readMessages} instead.
  *
  * <p>A PTransform which streams messages from Pubsub.
  *
@@ -116,7 +118,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   private static final int DEAULT_ACK_TIMEOUT_SEC = 60;
 
   /** Coder for checkpoints. */
-  private static final PubsubCheckpointCoder<?> CHECKPOINT_CODER = PubsubCheckpointCoder.of();
+  private static final PubsubCheckpointCoder CHECKPOINT_CODER = PubsubCheckpointCoder.of();
 
   /** Maximum number of messages per pull. */
   private static final int PULL_BATCH_SIZE = 1000;
@@ -322,13 +324,13 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   }
 
   /** The coder for our checkpoints. */
-  private static class PubsubCheckpointCoder<T> extends AtomicCoder<PubsubCheckpoint> {
+  private static class PubsubCheckpointCoder extends AtomicCoder<PubsubCheckpoint> {
     private static final Coder<String> SUBSCRIPTION_PATH_CODER =
         NullableCoder.of(StringUtf8Coder.of());
     private static final Coder<List<String>> LIST_CODER = ListCoder.of(StringUtf8Coder.of());
 
-    public static <T> PubsubCheckpointCoder<T> of() {
-      return new PubsubCheckpointCoder<>();
+    public static PubsubCheckpointCoder of() {
+      return new PubsubCheckpointCoder();
     }
 
     private PubsubCheckpointCoder() {}
@@ -884,10 +886,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       if (current == null) {
         throw new NoSuchElementException();
       }
-      return new PubsubMessage(
-          current.message().getData().toByteArray(),
-          current.message().getAttributesMap(),
-          current.recordId());
+      return current.message();
     }
 
     @Override
@@ -1086,15 +1085,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
     @Override
     public Coder<PubsubMessage> getOutputCoder() {
-      if (outer.getNeedsMessageId()) {
-        return outer.getNeedsAttributes()
-            ? PubsubMessageWithAttributesAndMessageIdCoder.of()
-            : PubsubMessageWithMessageIdCoder.of();
-      } else {
-        return outer.getNeedsAttributes()
-            ? PubsubMessageWithAttributesCoder.of()
-            : PubsubMessagePayloadOnlyCoder.of();
-      }
+      return ProtoCoder.of(PubsubMessage.class);
     }
 
     @Override

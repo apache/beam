@@ -1254,15 +1254,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         stepContext.addInput(
             PropertyNames.PUBSUB_ID_ATTRIBUTE, overriddenTransform.getIdAttribute());
       }
-      // In both cases, the transform needs to read PubsubMessage. However, in case it needs
-      // the attributes, we supply an identity "parse fn" so the worker will read PubsubMessage's
-      // from Windmill and simply pass them around; and in case it doesn't need attributes,
-      // we're already implicitly using a "Coder" that interprets the data as a PubsubMessage's
-      // payload.
+      // We use the presence of a non-null string to indicate that the reader should parse the data
+      // as a PubsubMessage, instead of a raw byte string. The naming is for legacy reasons.
       if (overriddenTransform.getNeedsAttributes()) {
-        stepContext.addInput(
-            PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN,
-            byteArrayToJsonString(serializeToByteArray(new IdentityMessageFn())));
+        stepContext.addInput(PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN, "PARSE_PUBSUB_MESSAGE");
       }
       stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
     }

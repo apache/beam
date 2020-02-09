@@ -405,7 +405,7 @@ public class PubsubIO {
    * PubsubMessage#getAttributeMap() attributes}.
    */
   public static Read<PubsubMessage> readMessages() {
-    return Read.newBuilder().setCoder(PubsubMessagePayloadOnlyCoder.of()).build();
+    return Read.newBuilder(PubsubMessage::ofNoMessageId).build();
   }
 
   /**
@@ -415,8 +415,7 @@ public class PubsubIO {
    * PubsubMessage#getAttributeMap() attributes}.
    */
   public static Read<PubsubMessage> readMessagesWithMessageId() {
-    return Read.newBuilder()
-        .setCoder(PubsubMessageWithMessageIdCoder.of())
+    return Read.newBuilder(PubsubMessage::of)
         .setNeedsMessageId(true)
         .build();
   }
@@ -427,8 +426,7 @@ public class PubsubIO {
    * PubsubMessage#getAttributeMap() attributes}.
    */
   public static Read<PubsubMessage> readMessagesWithAttributes() {
-    return Read.newBuilder()
-        .setCoder(PubsubMessageWithAttributesCoder.of())
+    return Read.newBuilder(PubsubMessage::ofNoMessageId)
         .setNeedsAttributes(true)
         .build();
   }
@@ -440,8 +438,7 @@ public class PubsubIO {
    * messageId} from PubSub.
    */
   public static Read<PubsubMessage> readMessagesWithAttributesAndMessageId() {
-    return Read.newBuilder()
-        .setCoder(PubsubMessageWithAttributesAndMessageIdCoder.of())
+    return Read.newBuilder(PubsubMessage::of)
         .setNeedsAttributes(true)
         .setNeedsMessageId(true)
         .build();
@@ -452,8 +449,7 @@ public class PubsubIO {
    * Pub/Sub stream.
    */
   public static Read<String> readStrings() {
-    return Read.newBuilder(
-            (PubsubMessage message) -> new String(message.getPayload(), StandardCharsets.UTF_8))
+    return Read.newBuilder(message -> message.getData().toStringUtf8())
         .setCoder(StringUtf8Coder.of())
         .build();
   }
@@ -488,7 +484,7 @@ public class PubsubIO {
    */
   public static <T> Read<T> readMessagesWithCoderAndParseFn(
       Coder<T> coder, SimpleFunction<PubsubMessage, T> parseFn) {
-    return Read.newBuilder(parseFn).setCoder(coder).build();
+    return Read.newBuilder(proto -> parseFn.apply(PubsubMessage.of(proto))).setCoder(coder).build();
   }
 
   /**
@@ -595,7 +591,7 @@ public class PubsubIO {
 
     /** User function for parsing PubsubMessage object. */
     @Nullable
-    abstract SerializableFunction<PubsubMessage, T> getParseFn();
+    abstract SerializableFunction<com.google.pubsub.v1.PubsubMessage, T> getParseFn();
 
     @Nullable
     @Experimental(Kind.SCHEMAS)
@@ -619,7 +615,7 @@ public class PubsubIO {
 
     abstract Builder<T> toBuilder();
 
-    static <T> Builder<T> newBuilder(SerializableFunction<PubsubMessage, T> parseFn) {
+    static <T> Builder<T> newBuilder(SerializableFunction<com.google.pubsub.v1.PubsubMessage, T> parseFn) {
       Builder<T> builder = new AutoValue_PubsubIO_Read.Builder<T>();
       builder.setParseFn(parseFn);
       builder.setPubsubClientFactory(FACTORY);
@@ -628,7 +624,7 @@ public class PubsubIO {
       return builder;
     }
 
-    static Builder<PubsubMessage> newBuilder() {
+    static Builder<com.google.pubsub.v1.PubsubMessage> newBuilder() {
       return newBuilder(x -> x);
     }
 
@@ -646,7 +642,7 @@ public class PubsubIO {
 
       abstract Builder<T> setCoder(Coder<T> coder);
 
-      abstract Builder<T> setParseFn(SerializableFunction<PubsubMessage, T> parseFn);
+      abstract Builder<T> setParseFn(SerializableFunction<com.google.pubsub.v1.PubsubMessage, T> parseFn);
 
       @Experimental(Kind.SCHEMAS)
       abstract Builder<T> setBeamSchema(@Nullable Schema beamSchema);
@@ -779,7 +775,7 @@ public class PubsubIO {
      * PCollection#setCoder(Coder)}.
      */
     public Read<T> withCoderAndParseFn(Coder<T> coder, SimpleFunction<PubsubMessage, T> parseFn) {
-      return toBuilder().setCoder(coder).setParseFn(parseFn).build();
+      return toBuilder().setCoder(coder).setParseFn(proto -> parseFn.apply(PubsubMessage.of(proto))).build();
     }
 
     @VisibleForTesting
@@ -1018,10 +1014,10 @@ public class PubsubIO {
     }
   }
 
-  private static <T> SerializableFunction<PubsubMessage, T> parsePayloadUsingCoder(Coder<T> coder) {
+  private static <T> SerializableFunction<com.google.pubsub.v1.PubsubMessage, T> parsePayloadUsingCoder(Coder<T> coder) {
     return message -> {
       try {
-        return CoderUtils.decodeFromByteArray(coder, message.getPayload());
+        return CoderUtils.decodeFromByteArray(coder, message.getData().toByteArray());
       } catch (CoderException e) {
         throw new RuntimeException("Could not decode Pubsub message", e);
       }

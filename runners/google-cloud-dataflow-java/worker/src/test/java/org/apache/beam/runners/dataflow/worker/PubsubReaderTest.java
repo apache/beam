@@ -26,9 +26,11 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
+import org.apache.beam.runners.dataflow.worker.PubsubReader.Mode;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import com.google.pubsub.v1.PubsubMessage;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
@@ -50,7 +52,18 @@ public class PubsubReaderTest {
     MockitoAnnotations.initMocks(this);
   }
 
-  private void testReadWith(String parseFn) throws Exception {
+  private static ByteString messageDataOf(Mode mode, String data) {
+    if (mode == Mode.RAW_BYTES) {
+      return ByteString.copyFromUtf8(data);
+    }
+    return ByteString.copyFrom(PubsubMessage.newBuilder().setData(com.google.protobuf.ByteString.copyFromUtf8(data)).build().toByteArray());
+  }
+
+  private static PubsubMessage messageOf(String data) {
+    return PubsubMessage.newBuilder().setData(com.google.protobuf.ByteString.copyFromUtf8(data)).build();
+  }
+
+  private void testReadWith(Mode mode) throws Exception {
     when(mockContext.getWork())
         .thenReturn(
             Windmill.WorkItem.newBuilder()
@@ -62,26 +75,26 @@ public class PubsubReaderTest {
                         .addMessages(
                             Windmill.Message.newBuilder()
                                 .setTimestamp(0)
-                                .setData(ByteString.copyFromUtf8("e0")))
+                                .setData(messageDataOf(mode, "e0")))
                         .addMessages(
                             Windmill.Message.newBuilder()
                                 .setTimestamp(1000)
-                                .setData(ByteString.copyFromUtf8("e1")))
+                                .setData(messageDataOf(mode, "e1")))
                         .addMessages(
                             Windmill.Message.newBuilder()
                                 .setTimestamp(2000)
-                                .setData(ByteString.copyFromUtf8("e2"))))
+                                .setData(messageDataOf(mode, "e2"))))
                 .build());
 
     Map<String, Object> spec = new HashMap<>();
     spec.put(PropertyNames.OBJECT_TYPE_NAME, "");
-    if (parseFn != null) {
-      spec.put(PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN, parseFn);
+    if (mode == Mode.PUBSUB_MESSAGE) {
+      spec.put(PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN, "aaa");
     }
     CloudObject cloudSourceSpec = CloudObject.fromSpec(spec);
     PubsubReader.Factory factory = new PubsubReader.Factory();
-    PubsubReader<String> reader =
-        (PubsubReader<String>)
+    PubsubReader reader =
+        (PubsubReader)
             factory.create(
                 cloudSourceSpec,
                 WindowedValue.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder()),
@@ -89,26 +102,26 @@ public class PubsubReaderTest {
                 mockContext,
                 null);
 
-    NativeReader.NativeReaderIterator<WindowedValue<String>> iter = reader.iterator();
+    NativeReader.NativeReaderIterator<WindowedValue<PubsubMessage>> iter = reader.iterator();
     assertTrue(iter.start());
     assertEquals(
-        iter.getCurrent(), WindowedValue.timestampedValueInGlobalWindow("e0", new Instant(0)));
+        iter.getCurrent(), WindowedValue.timestampedValueInGlobalWindow(messageOf("e0"), new Instant(0)));
     assertTrue(iter.advance());
     assertEquals(
-        iter.getCurrent(), WindowedValue.timestampedValueInGlobalWindow("e1", new Instant(1)));
+        iter.getCurrent(), WindowedValue.timestampedValueInGlobalWindow(messageOf("e1"), new Instant(1)));
     assertTrue(iter.advance());
     assertEquals(
-        iter.getCurrent(), WindowedValue.timestampedValueInGlobalWindow("e2", new Instant(2)));
+        iter.getCurrent(), WindowedValue.timestampedValueInGlobalWindow(messageOf("e2"), new Instant(2)));
     assertFalse(iter.advance());
   }
 
   @Test
-  public void testBasic() throws Exception {
-    testReadWith(null /* No ParseFn */);
+  public void testPubsubMessage() throws Exception {
+    testReadWith(Mode.PUBSUB_MESSAGE);
   }
 
   @Test
-  public void testEmptyParseFn() throws Exception {
-    testReadWith("");
+  public void testRawBytes() throws Exception {
+    testReadWith(Mode.RAW_BYTES);
   }
 }

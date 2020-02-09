@@ -18,9 +18,9 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getBytes;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
@@ -28,34 +28,28 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
-import org.apache.beam.runners.dataflow.worker.windmill.Pubsub;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import com.google.pubsub.v1.PubsubMessage;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** A Reader that receives elements from Pubsub, via a Windmill server. */
-class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
-  private final Coder<T> coder;
+class PubsubReader extends NativeReader<WindowedValue<PubsubMessage>> {
+  // The parsing mode. Whether the response is a serialized PubsubMessage or a raw byte string for
+  // the data field.
+  enum Mode {
+    PUBSUB_MESSAGE, RAW_BYTES
+  }
   private final StreamingModeExecutionContext context;
-  // Function used to parse Windmill data.
-  // If non-null, data from Windmill is expected to be a PubsubMessage protobuf.
-  private final SimpleFunction<PubsubMessage, T> parseFn;
+  private final Mode mode;
 
   PubsubReader(
-      Coder<WindowedValue<T>> coder,
       StreamingModeExecutionContext context,
-      SimpleFunction<PubsubMessage, T> parseFn) {
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    WindowedValueCoder<T> windowedCoder = (WindowedValueCoder) coder;
-    this.coder = windowedCoder.getValueCoder();
+      Mode mode) {
     this.context = context;
-    this.parseFn = parseFn;
+    this.mode = mode;
   }
 
   /** A {@link ReaderFactory.Registrar} for pubsub sources. */
@@ -71,62 +65,48 @@ class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
   }
 
   static class Factory implements ReaderFactory {
-    // Findbugs does not correctly understand inheritance + nullability.
-    //
-    // coder may be null due to parent class signature, and must be checked,
-    // despite not being nullable here
     @Override
     public NativeReader<?> create(
         CloudObject cloudSourceSpec,
-        Coder<?> coder,
+        @Nullable Coder<?> coder,
         @Nullable PipelineOptions options,
         @Nullable DataflowExecutionContext executionContext,
         DataflowOperationContext operationContext)
         throws Exception {
-      checkArgument(coder != null, "coder must not be null");
-      @SuppressWarnings("unchecked")
-      Coder<WindowedValue<Object>> typedCoder = (Coder<WindowedValue<Object>>) coder;
-      SimpleFunction<PubsubMessage, Object> parseFn = null;
       byte[] attributesFnBytes =
           getBytes(cloudSourceSpec, PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN, null);
-      // If attributesFnBytes is set, Pubsub data will be in PubsubMessage protobuf format. The
-      // array should contain a serialized Java function that accepts a PubsubMessage object. The
-      // special case of a zero-length array allows pass-through of the raw protobuf.
+      Mode mode = Mode.RAW_BYTES;
       if (attributesFnBytes != null && attributesFnBytes.length > 0) {
-        parseFn =
-            (SimpleFunction<PubsubMessage, Object>)
-                SerializableUtils.deserializeFromByteArray(attributesFnBytes, "serialized fn info");
+        mode = Mode.PUBSUB_MESSAGE ;
       }
-      return new PubsubReader<>(
-          typedCoder, (StreamingModeExecutionContext) executionContext, parseFn);
+      return new PubsubReader((StreamingModeExecutionContext) executionContext, mode);
     }
   }
 
   @Override
-  public NativeReaderIterator<WindowedValue<T>> iterator() throws IOException {
+  public NativeReaderIterator<WindowedValue<PubsubMessage>> iterator() throws IOException {
     return new PubsubReaderIterator(context.getWork());
   }
 
-  class PubsubReaderIterator extends WindmillReaderIteratorBase<T> {
+  class PubsubReaderIterator extends WindmillReaderIteratorBase<PubsubMessage> {
     protected PubsubReaderIterator(Windmill.WorkItem work) {
       super(work);
     }
 
     @Override
-    protected WindowedValue<T> decodeMessage(Windmill.Message message) throws IOException {
-      T value;
+    protected WindowedValue<PubsubMessage> decodeMessage(Windmill.Message message) throws IOException {
+      PubsubMessage value;
       InputStream data = message.getData().newInput();
       notifyElementRead(data.available());
-      if (parseFn != null) {
-        Pubsub.PubsubMessage pubsubMessage = Pubsub.PubsubMessage.parseFrom(data);
-        value =
-            parseFn.apply(
-                new PubsubMessage(
-                    pubsubMessage.getData().toByteArray(),
-                    pubsubMessage.getAttributesMap(),
-                    pubsubMessage.getMessageId()));
-      } else {
-        value = coder.decode(data, Coder.Context.OUTER);
+      switch (mode) {
+        case RAW_BYTES:
+          value = PubsubMessage.newBuilder().setData(ByteString.readFrom(data)).build();
+          break;
+        case PUBSUB_MESSAGE:
+          value = PubsubMessage.parseFrom(data);
+          break;
+        default:
+          throw new IllegalStateException("Unexpected value: " + mode);
       }
       return WindowedValue.timestampedValueInGlobalWindow(
           value, WindmillTimeUtils.windmillToHarnessTimestamp(message.getTimestamp()));
