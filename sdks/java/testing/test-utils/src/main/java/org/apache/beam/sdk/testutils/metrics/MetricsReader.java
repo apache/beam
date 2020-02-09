@@ -19,7 +19,7 @@ package org.apache.beam.sdk.testutils.metrics;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import com.sun.istack.internal.NotNull;
+import javax.annotation.Nonnull;
 import java.util.Collection;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -175,9 +175,9 @@ public class MetricsReader {
    * @param namespace namespace is required due to fact methods uses it internally
    * @return instance of {@link MetricsReader}
    */
-  @NotNull
+  @Nonnull
   public static MetricsReader ofResults(
-      @NotNull final PipelineResult results, @NotNull final String namespace) {
+      @Nonnull final PipelineResult results, @Nonnull final String namespace) {
     checkNotNull(results);
     checkNotNull(namespace);
     return new MetricsReader(results, namespace);
