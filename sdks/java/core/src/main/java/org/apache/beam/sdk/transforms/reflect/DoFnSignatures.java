@@ -1559,6 +1559,9 @@ public class DoFnSignatures {
       Map<String, TimerFamilyDeclaration> declarations,
       String id,
       Field field) {
+    if (id.isEmpty()) {
+      errors.throwIllegalArgument("TimerFamily id must not be empty");
+    }
 
     if (declarations.containsKey(id)) {
       errors.throwIllegalArgument(

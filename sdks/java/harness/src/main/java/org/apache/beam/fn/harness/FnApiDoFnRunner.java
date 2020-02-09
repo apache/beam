@@ -773,7 +773,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
           (Iterator<BoundedWindow>) timer.getWindows().iterator();
       while (windowIterator.hasNext()) {
         currentWindow = windowIterator.next();
-        doFnInvoker.invokeOnTimer(timerId, timerId, onTimerContext);
+        doFnInvoker.invokeOnTimer(timerId, "", onTimerContext);
       }
     } finally {
       currentTimer = null;
