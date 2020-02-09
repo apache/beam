@@ -445,6 +445,17 @@ public class PubsubIO {
   }
 
   /**
+   * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. The
+   * messages will contain all attributes, the message id, and the ordering key field if present.
+   */
+  public static Read<MessageWithOrderingKey> readMessagesWithOrderingKey() {
+    return Read.newBuilder(MessageWithOrderingKey::of)
+        .setNeedsAttributes(true)
+        .setNeedsMessageId(true)
+        .build();
+  }
+
+  /**
    * Returns A {@link PTransform} that continuously reads UTF-8 encoded strings from a Google Cloud
    * Pub/Sub stream.
    */
