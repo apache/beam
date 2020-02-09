@@ -97,6 +97,7 @@ import org.apache.beam.sdk.testing.UsesSideInputsWithDifferentCoders;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.UsesStrictTimerOrdering;
 import org.apache.beam.sdk.testing.UsesTestStream;
+import org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp;
 import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.testing.UsesTimerMap;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
@@ -3936,8 +3937,12 @@ public class ParDoTest implements Serializable {
 
             @ProcessElement
             public void processElement(
-                @TimerId(timerId) Timer timer, OutputReceiver<KV<String, Long>> o) {
-              timer.withOutputTimestamp(new Instant(5)).set(new Instant(10));
+                @TimerId(timerId) Timer timer,
+                @Timestamp Instant timestamp,
+                OutputReceiver<KV<String, Long>> o) {
+              timer
+                  .withOutputTimestamp(timestamp.plus(Duration.millis(5)))
+                  .set(timestamp.plus(Duration.millis(10)));
               // Output a message. This will cause the next DoFn to set a timer as well.
               o.output(KV.of("foo", 100L));
             }
@@ -3958,6 +3963,7 @@ public class ParDoTest implements Serializable {
             @ProcessElement
             public void processElement(
                 @TimerId(timerId) Timer timer,
+                @Timestamp Instant timestamp,
                 @StateId("timerFired") ValueState<Boolean> timerFiredState) {
               Boolean timerFired = timerFiredState.read();
               assertTrue(timerFired == null || !timerFired);
@@ -3966,7 +3972,7 @@ public class ParDoTest implements Serializable {
               // DoFn timer's watermark hold. This timer should not fire until the previous timer
               // fires and removes
               // the watermark hold.
-              timer.set(new Instant(8));
+              timer.set(timestamp.plus(Duration.millis(8)));
             }
 
             @OnTimer(timerId)
@@ -3993,6 +3999,91 @@ public class ParDoTest implements Serializable {
           pipeline.apply(stream).apply("first", ParDo.of(fn1)).apply("second", ParDo.of(fn2));
 
       PAssert.that(output).containsInAnyOrder(100L); // result output
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesTimersInParDo.class,
+      UsesTestStreamWithProcessingTime.class,
+      UsesTestStreamWithOutputTimestamp.class
+    })
+    public void testOutputTimestampWithProcessingTime() {
+      final String timerId = "foo";
+      DoFn<KV<String, Integer>, KV<String, Integer>> fn1 =
+          new DoFn<KV<String, Integer>, KV<String, Integer>>() {
+
+            @TimerId(timerId)
+            private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+            @ProcessElement
+            public void processElement(
+                @TimerId(timerId) Timer timer,
+                @Timestamp Instant timestamp,
+                OutputReceiver<KV<String, Integer>> o) {
+              timer
+                  .withOutputTimestamp(timestamp.plus(Duration.standardSeconds(5)))
+                  .offset(Duration.standardSeconds(10))
+                  .setRelative();
+              // Output a message. This will cause the next DoFn to set a timer as well.
+              o.output(KV.of("foo", 100));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(OnTimerContext c, BoundedWindow w) {}
+          };
+
+      DoFn<KV<String, Integer>, Integer> fn2 =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @StateId("timerFired")
+            final StateSpec<ValueState<Boolean>> timerFiredState = StateSpecs.value();
+
+            @ProcessElement
+            public void processElement(
+                @TimerId(timerId) Timer timer,
+                @StateId("timerFired") ValueState<Boolean> timerFiredState) {
+              Boolean timerFired = timerFiredState.read();
+              assertTrue(timerFired == null || !timerFired);
+              // Set a timer to 8. This is earlier than the previous DoFn's timer, but after the
+              // previous
+              // DoFn timer's watermark hold. This timer should not fire until the previous timer
+              // fires and removes
+              // the watermark hold.
+              timer.set(new Instant(8));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(
+                @StateId("timerFired") ValueState<Boolean> timerFiredState,
+                OutputReceiver<Integer> o) {
+              timerFiredState.write(true);
+              o.output(100);
+            }
+          };
+
+      TestStream<KV<String, Integer>> stream =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+              .advanceProcessingTime(Duration.standardSeconds(1))
+              // Cause fn2 to set a timer.
+              .addElements(KV.of("key", 1))
+              // Normally this would case fn2's timer to expire, but it shouldn't here because of
+              // the output timestamp.
+              .advanceProcessingTime(Duration.standardSeconds(9))
+              .advanceWatermarkTo(new Instant(11))
+              // If the timer fired, then this would case fn2 to fail with an assertion error.
+              .addElements(KV.of("key", 1))
+              .advanceProcessingTime(Duration.standardSeconds(100))
+              .advanceWatermarkToInfinity();
+      PCollection<Integer> output =
+          pipeline.apply(stream).apply("first", ParDo.of(fn1)).apply("second", ParDo.of(fn2));
+
+      PAssert.that(output).containsInAnyOrder(100); // result output
       pipeline.run();
     }
 
