@@ -120,7 +120,7 @@ public class SimpleDoFnRunnerTest {
 
     runner.onTimer(
         ThrowingDoFn.TIMER_ID,
-        ThrowingDoFn.TIMER_ID,
+        "",
         GlobalWindow.INSTANCE,
         new Instant(0),
         new Instant(0),
