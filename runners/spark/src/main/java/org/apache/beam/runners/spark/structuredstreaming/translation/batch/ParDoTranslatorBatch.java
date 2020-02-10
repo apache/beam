@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.construction.DoFnFeatures;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsContainerStepMapAccumulator;
@@ -38,8 +39,6 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
@@ -72,17 +71,17 @@ class ParDoTranslatorBatch<InputT, OutputT>
     // TODO: add support of Splittable DoFn
     DoFn<InputT, OutputT> doFn = getDoFn(context);
     checkState(
-        !DoFnSignatures.signatureForDoFn(doFn).processElement().isSplittable(),
+        !DoFnFeatures.isSplittable(doFn),
         "Not expected to directly translate splittable DoFn, should have been overridden: %s",
         doFn);
 
     // TODO: add support of states and timers
-    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
-    boolean stateful =
-        signature.stateDeclarations().size() > 0
-            || signature.timerDeclarations().size() > 0
-            || signature.timerFamilyDeclarations().size() > 0;
-    checkState(!stateful, "States and timers are not supported for the moment.");
+    checkState(
+        !DoFnFeatures.isStateful(doFn), "States and timers are not supported for the moment.");
+
+    checkState(
+        !DoFnFeatures.requiresTimeSortedInput(doFn),
+        "@RequiresTimeSortedInput is not " + "supported for the moment");
 
     DoFnSchemaInformation doFnSchemaInformation =
         ParDoTranslation.getSchemaInformation(context.getCurrentTransform());

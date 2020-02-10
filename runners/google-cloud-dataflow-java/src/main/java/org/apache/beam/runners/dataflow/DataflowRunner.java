@@ -60,6 +60,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
+import org.apache.beam.runners.core.construction.DoFnFeatures;
 import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
 import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
@@ -132,8 +133,6 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -151,7 +150,6 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -1937,26 +1935,26 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
-  static void verifyStateSupported(DoFn<?, ?> fn) {
-    DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
-
-    for (DoFnSignature.StateDeclaration stateDecl : signature.stateDeclarations().values()) {
-
-      // https://issues.apache.org/jira/browse/BEAM-1474
-      if (stateDecl.stateType().isSubtypeOf(TypeDescriptor.of(MapState.class))) {
-        throw new UnsupportedOperationException(
-            String.format(
-                "%s does not currently support %s",
-                DataflowRunner.class.getSimpleName(), MapState.class.getSimpleName()));
-      }
-
+  static void verifyDoFnSupported(DoFn<?, ?> fn, boolean streaming) {
+    if (DoFnFeatures.usesSetState(fn)) {
       // https://issues.apache.org/jira/browse/BEAM-1479
-      if (stateDecl.stateType().isSubtypeOf(TypeDescriptor.of(SetState.class))) {
-        throw new UnsupportedOperationException(
-            String.format(
-                "%s does not currently support %s",
-                DataflowRunner.class.getSimpleName(), SetState.class.getSimpleName()));
-      }
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support %s",
+              DataflowRunner.class.getSimpleName(), SetState.class.getSimpleName()));
+    }
+    if (DoFnFeatures.usesMapState(fn)) {
+      // https://issues.apache.org/jira/browse/BEAM-1474
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support %s",
+              DataflowRunner.class.getSimpleName(), MapState.class.getSimpleName()));
+    }
+    if (streaming && DoFnFeatures.requiresTimeSortedInput(fn)) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support @RequiresTimeSortedInput in streaming mode.",
+              DataflowRunner.class.getSimpleName()));
     }
   }
 

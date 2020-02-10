@@ -35,6 +35,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.annotation.Nonnull;
+import org.apache.beam.runners.core.construction.DoFnFeatures;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.sdk.Pipeline;
@@ -46,7 +47,6 @@ import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
@@ -168,10 +168,16 @@ public class Utils {
   static DoFn<?, ?> getDoFn(AppliedPTransform<?, ?, ?> appliedTransform) {
     try {
       DoFn<?, ?> doFn = ParDoTranslation.getDoFn(appliedTransform);
-      if (DoFnSignatures.signatureForDoFn(doFn).processElement().isSplittable()) {
+      if (DoFnFeatures.isSplittable(doFn)) {
         throw new IllegalStateException(
             "Not expected to directly translate splittable DoFn, should have been overridden: "
                 + doFn); // todo
+      }
+      if (DoFnFeatures.requiresTimeSortedInput(doFn)) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "%s doesn't current support @RequiresTimeSortedInput annotation.",
+                JetRunner.class.getSimpleName()));
       }
       return doFn;
     } catch (IOException e) {

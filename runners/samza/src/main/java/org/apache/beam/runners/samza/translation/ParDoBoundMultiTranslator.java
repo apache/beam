@@ -29,6 +29,7 @@ import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.DoFnFeatures;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
@@ -96,12 +97,15 @@ class ParDoBoundMultiTranslator<InT, OutT>
             .collect(
                 Collectors.toMap(e -> e.getKey(), e -> ((PCollection<?>) e.getValue()).getCoder()));
 
-    final DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
-    final Coder<?> keyCoder =
-        signature.usesState() ? ((KvCoder<?, ?>) input.getCoder()).getKeyCoder() : null;
+    boolean isStateful = DoFnFeatures.isStateful(transform.getFn());
+    final Coder<?> keyCoder = isStateful ? ((KvCoder<?, ?>) input.getCoder()).getKeyCoder() : null;
 
-    if (signature.processElement().isSplittable()) {
+    if (DoFnFeatures.isSplittable(transform.getFn())) {
       throw new UnsupportedOperationException("Splittable DoFn is not currently supported");
+    }
+    if (DoFnFeatures.requiresTimeSortedInput(transform.getFn())) {
+      throw new UnsupportedOperationException(
+          "@RequiresTimeSortedInput annotation is not currently supported");
     }
 
     final MessageStream<OpMessage<InT>> inputStream = ctx.getMessageStream(input);
