@@ -43,8 +43,6 @@ public abstract class JobInfo implements Serializable {
 
   public ProvisionApi.ProvisionInfo toProvisionInfo() {
     return ProvisionApi.ProvisionInfo.newBuilder()
-        .setJobId(jobId())
-        .setJobName(jobName())
         .setRetrievalToken(retrievalToken())
         .setPipelineOptions(pipelineOptions())
         .build();
