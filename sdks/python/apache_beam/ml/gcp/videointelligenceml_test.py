@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Unit tests for video_intelligence."""
+"""Unit tests for videointelligenceml."""
 
 # pytype: skip-file
 
