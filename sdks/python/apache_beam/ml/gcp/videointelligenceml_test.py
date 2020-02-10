@@ -33,7 +33,7 @@ from apache_beam.typehints.decorators import TypeCheckError
 try:
   from google.cloud.videointelligence import VideoIntelligenceServiceClient
   from google.cloud import videointelligence
-  from apache_beam.ml.gcp import video_intelligence
+  from apache_beam.ml.gcp import videointelligenceml
 except ImportError:
   VideoIntelligenceServiceClient = None
 
@@ -60,14 +60,14 @@ class VideoIntelligenceTest(unittest.TestCase):
         'gs://cloud-samples-data/video/cat.mp4'
     ]
     expected_counter = len(videos_to_annotate)
-    with mock.patch.object(video_intelligence,
+    with mock.patch.object(videointelligenceml,
                            'get_videointelligence_client',
                            return_value=self._mock_client):
       p = beam.Pipeline()
       _ = (
           p
           | "Create data" >> beam.Create(videos_to_annotate)
-          | "Annotate video" >> video_intelligence.AnnotateVideo(self.features))
+          | "Annotate video" >> videointelligenceml.AnnotateVideo(self.features))
       result = p.run()
       result.wait_until_finish()
 
@@ -84,14 +84,14 @@ class VideoIntelligenceTest(unittest.TestCase):
         base_64_encoded_video, base_64_encoded_video, base_64_encoded_video
     ]
     expected_counter = len(videos_to_annotate)
-    with mock.patch.object(video_intelligence,
+    with mock.patch.object(videointelligenceml,
                            'get_videointelligence_client',
                            return_value=self._mock_client):
       p = beam.Pipeline()
       _ = (
           p
           | "Create data" >> beam.Create(videos_to_annotate)
-          | "Annotate video" >> video_intelligence.AnnotateVideo(self.features))
+          | "Annotate video" >> videointelligenceml.AnnotateVideo(self.features))
       result = p.run()
       result.wait_until_finish()
 
@@ -103,7 +103,7 @@ class VideoIntelligenceTest(unittest.TestCase):
 
   def test_AnnotateVideo_bad_input(self):
     videos_to_annotate = [123456789, 123456789, 123456789]
-    with mock.patch.object(video_intelligence,
+    with mock.patch.object(videointelligenceml,
                            'get_videointelligence_client',
                            return_value=self._mock_client):
       with self.assertRaises(TypeCheckError):
@@ -112,21 +112,21 @@ class VideoIntelligenceTest(unittest.TestCase):
             p
             | "Create data" >> beam.Create(videos_to_annotate)
             |
-            "Annotate video" >> video_intelligence.AnnotateVideo(self.features))
+            "Annotate video" >> videointelligenceml.AnnotateVideo(self.features))
         result = p.run()
         result.wait_until_finish()
 
   def test_AnnotateVideo_video_context(self):
     videos_to_annotate = ['gs://cloud-samples-data/video/cat.mp4']
     expected_counter = len(videos_to_annotate)
-    with mock.patch.object(video_intelligence,
+    with mock.patch.object(videointelligenceml,
                            'get_videointelligence_client',
                            return_value=self._mock_client):
       p = beam.Pipeline()
       _ = (
           p
           | "Create data" >> beam.Create(videos_to_annotate)
-          | "Annotate video" >> video_intelligence.AnnotateVideo(
+          | "Annotate video" >> videointelligenceml.AnnotateVideo(
               self.features,
               video_context=self.video_context,
               location_id=self.location_id))
