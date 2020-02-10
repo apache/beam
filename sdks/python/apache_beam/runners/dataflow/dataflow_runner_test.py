@@ -35,6 +35,7 @@ import pytest
 
 import apache_beam as beam
 import apache_beam.transforms as ptransform
+from apache_beam.coders import coders
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import AppliedPTransform
@@ -503,6 +504,28 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     debug_options = remote_runner.job.options.view_as(DebugOptions)
 
     self.assertFalse(debug_options.lookup_experiment('use_fastavro', False))
+
+  def test_unsupported_fnapi_features(self):
+    remote_runner = DataflowRunner()
+    self.default_properties.append('--experiment=beam_fn_api')
+    self.default_properties.append('--experiment=use_runner_v2')
+
+    with self.assertRaisesRegex(RuntimeError, 'Unsupported'):
+      with Pipeline(remote_runner,
+                    options=PipelineOptions(self.default_properties)) as p:
+        # pylint: disable=expression-not-assigned
+        p | beam.Create([]) | beam.WindowInto(CustomWindowFn())
+
+
+class CustomWindowFn(window.WindowFn):
+  def assign(self, assign_context):
+    return []
+
+  def merge(self, merge_context):
+    pass
+
+  def get_window_coder(self):
+    return coders.BytesCoder()
 
 
 if __name__ == '__main__':
