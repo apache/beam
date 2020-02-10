@@ -146,20 +146,25 @@ You can also create WriteMutation via calling its constructor. For example:::
 
 For more information, review the docs available on WriteMutation class.
 
-WriteToSpanner transform also takes 'max_batch_size_bytes' param which is set
-to 1MB (1048576 bytes) by default. This parameter used to reduce the number of
+WriteToSpanner transform also takes three batching parameters (max_number_rows,
+max_number_cells and max_batch_size_bytes). By default, max_number_rows is set
+to 50 rows, max_number_cells is set to 500 cells and max_batch_size_bytes is
+set to 1MB (1048576 bytes). These parameter used to reduce the number of
 transactions sent to spanner by grouping the mutation into batches. Setting
-this either to smaller value or zero to disable batching.
+these param values either to smaller value or zero to disable batching.
 
 WriteToSpanner transforms starts with the grouping into batches. The first step
 in this process is to make the make the mutation groups of the WriteMutation
 objects and then filtering them into batchable and unbatchable mutation
-groups by getting the mutation size from the method available in the
-`google.cloud.spanner_v1.proto.mutation_pb2.Mutation.ByteSize`, if the size is
-smaller than value of "max_batch_size_bytes" param, it will be tagged as
-"unbatchable" mutation. After this all the batchable mutation are merged into a
-single mutation group whos size is not larger than the "max_batch_size_bytes",
-after this process, all the mutation groups flatten together to process.
+groups. There are three batching parameters (max_number_cells, max_number_rows
+& max_batch_size_bytes). We calculated th mutation byte size from the method
+available in the `google.cloud.spanner_v1.proto.mutation_pb2.Mutation.ByteSize`.
+if the mutation rows, cells or byte size are larger than value of the any
+batching parameters param, it will be tagged as "unbatchable" mutation. After
+this all the batchable mutation are merged into a single mutation group whos
+size is not larger than the "max_batch_size_bytes", after this process, all the
+mutation groups together to process. If the Mutation references a table or
+column does not exits, it will cause a exception and fails the entire pipeline.
 """
 from __future__ import absolute_import
 
@@ -196,8 +201,12 @@ except ImportError:
   BatchSnapshot = None
 
 __all__ = [
-    'create_transaction', 'ReadFromSpanner', 'ReadOperation', 'WriteToSpanner',
-    'WriteMutation', 'MutationGroup'
+    'create_transaction',
+    'ReadFromSpanner',
+    'ReadOperation',
+    'WriteToSpanner',
+    'WriteMutation',
+    'MutationGroup'
 ]
 
 
@@ -506,7 +515,6 @@ def create_transaction(
               exact_staleness)))
 
 
-
 @with_input_types(typing.Dict[typing.Any, typing.Any])
 @with_output_types(typing.List[typing.Any])
 class _ReadFromPartitionFn(DoFn):
@@ -685,9 +693,16 @@ class ReadFromSpanner(PTransform):
 
 @experimental(extra_message="No backwards-compatibility guarantees.")
 class WriteToSpanner(PTransform):
-
-  def __init__(self, project_id, instance_id, database_id, pool=None,
-               credentials=None, max_batch_size_bytes=1048576):
+  def __init__(
+      self,
+      project_id,
+      instance_id,
+      database_id,
+      pool=None,
+      credentials=None,
+      max_batch_size_bytes=1048576,
+      max_number_rows=50,
+      max_number_cells=500):
     """
     A PTransform to write onto Google Cloud Spanner.
 
@@ -696,16 +711,27 @@ class WriteToSpanner(PTransform):
         not the Project Number.
       instance_id: Cloud spanner instance id.
       database_id: Cloud spanner database id.
-      max_batch_size_bytes: (optional) Split the mutation into batches to
+      max_batch_size_bytes: (optional) Split the mutations into batches to
         reduce the number of transaction sent to Spanner. By default it is
         set to 1 MB (1048576 Bytes).
+      max_number_rows: (optional) Split the mutations into batches to
+        reduce the number of transaction sent to Spanner. By default it is
+        set to 50 rows per batch.
+      max_number_cells: (optional) Split the mutations into batches to
+        reduce the number of transaction sent to Spanner. By default it is
+        set to 500 cells per batch.
     """
     self._configuration = _BeamSpannerConfiguration(
-        project=project_id, instance=instance_id, database=database_id,
-        credentials=credentials, pool=pool, snapshot_read_timestamp=None,
-        snapshot_exact_staleness=None
-    )
+        project=project_id,
+        instance=instance_id,
+        database=database_id,
+        credentials=credentials,
+        pool=pool,
+        snapshot_read_timestamp=None,
+        snapshot_exact_staleness=None)
     self._max_batch_size_bytes = max_batch_size_bytes
+    self._max_number_rows = max_number_rows
+    self._max_number_cells = max_number_cells
     self._database_id = database_id
     self._project_id = project_id
     self._instance_id = instance_id
@@ -717,20 +743,29 @@ class WriteToSpanner(PTransform):
         'instance_id': DisplayDataItem(self._instance_id, label='Instance Id'),
         'pool': DisplayDataItem(str(self._pool), label='Pool'),
         'database': DisplayDataItem(self._database_id, label='Database'),
-        'batch_size': DisplayDataItem(self._max_batch_size_bytes,
-                                      label="Batch Size"),
+        'batch_size': DisplayDataItem(
+            self._max_batch_size_bytes, label="Batch Size"),
+        'max_number_rows': DisplayDataItem(
+            self._max_number_rows, label="Max Rows"),
+        'max_number_cells': DisplayDataItem(
+            self._max_number_cells, label="Max Cells"),
     }
     return res
 
   def expand(self, pcoll):
-    return (pcoll
-            | "make batches" >>
-            _WriteGroup(max_batch_size_bytes=self._max_batch_size_bytes)
-            | 'Writing to spanner' >> ParDo(
-                _WriteToSpannerDoFn(self._configuration)))
+    return (
+        pcoll
+        | "make batches" >> _WriteGroup(
+            max_batch_size_bytes=self._max_batch_size_bytes,
+            max_number_rows=self._max_number_rows,
+            max_number_cells=self._max_number_cells)
+        |
+        'Writing to spanner' >> ParDo(_WriteToSpannerDoFn(self._configuration)))
 
 
-class _Mutator(namedtuple('_Mutator', ["mutation", "operation", "kwargs"])):
+class _Mutator(namedtuple('_Mutator',
+                          ["mutation", "operation", "kwargs", "rows", "cells"])
+               ):
   __slots__ = ()
 
   @property
@@ -742,13 +777,16 @@ class MutationGroup(deque):
   """
   A Bundle of Spanner Mutations (_Mutator).
   """
-
   @property
-  def byte_size(self):
-    s = 0
+  def info(self):
+    cells = 0
+    rows = 0
+    bytes = 0
     for m in self.__iter__():
-      s += m.byte_size
-    return s
+      bytes += m.byte_size
+      rows += m.rows
+      cells += m.cells
+    return {"rows": rows, "cells": cells, "byte_size": bytes}
 
   def primary(self):
     return next(self.__iter__())
@@ -762,15 +800,16 @@ class WriteMutation(object):
   _OPERATION_REPLACE = "replace"
   _OPERATION_UPDATE = "update"
 
-  def __init__(self,
-               insert=None,
-               update=None,
-               insert_or_update=None,
-               replace=None,
-               delete=None,
-               columns=None,
-               values=None,
-               keyset=None):
+  def __init__(
+      self,
+      insert=None,
+      update=None,
+      insert_or_update=None,
+      replace=None,
+      delete=None,
+      columns=None,
+      values=None,
+      keyset=None):
     """
     A convenient class to create Spanner Mutations for Write. User can provide
     the operation via constructor or via static methods.
@@ -817,14 +856,14 @@ class WriteMutation(object):
     self._replace = replace
     self._delete = delete
 
-    if sum([
-        1 for x in [self._insert, self._update, self._insert_or_update,
-                    self._replace, self._delete]
-        if x is not None
-    ]) != 1:
-      raise ValueError("No or more than one write mutation operation "
-                       "provided: <%s: %s>" % (self.__class__.__name__,
-                                               str(self.__dict__)))
+    if sum([1 for x in [self._insert,
+                        self._update,
+                        self._insert_or_update,
+                        self._replace,
+                        self._delete] if x is not None]) != 1:
+      raise ValueError(
+          "No or more than one write mutation operation "
+          "provided: <%s: %s>" % (self.__class__.__name__, str(self.__dict__)))
 
   def __call__(self, *args, **kwargs):
     if self._insert is not None:
@@ -853,10 +892,16 @@ class WriteMutation(object):
       columns: Name of the table columns to be modified.
       values: Values to be modified.
     """
+    rows = len(values)
+    cells = len(columns) * len(values)
     return _Mutator(
         mutation=Mutation(insert=batch._make_write_pb(table, columns, values)),
-        operation=WriteMutation._OPERATION_INSERT, kwargs={
-            "table": table, "columns": columns, "values": values})
+        operation=WriteMutation._OPERATION_INSERT,
+        rows=rows,
+        cells=cells,
+        kwargs={
+            "table": table, "columns": columns, "values": values
+        })
 
   @staticmethod
   def update(table, columns, values):
@@ -867,10 +912,17 @@ class WriteMutation(object):
       columns: Name of the table columns to be modified.
       values: Values to be modified.
     """
+    rows = len(values)
+    cells = len(columns) * len(values)
     return _Mutator(
         mutation=Mutation(update=batch._make_write_pb(table, columns, values)),
-        operation=WriteMutation._OPERATION_UPDATE, kwargs={
-            "table": table, "columns": columns, "values": values})
+        operation=WriteMutation._OPERATION_UPDATE,
+        rows=rows,
+        cells=cells,
+        kwargs={
+            "table": table, "columns": columns, "values": values
+        })
+
   @staticmethod
   def insert_or_update(table, columns, values):
     """Insert/update one or more table rows.
@@ -879,11 +931,17 @@ class WriteMutation(object):
       columns: Name of the table columns to be modified.
       values: Values to be modified.
     """
+    rows = len(values)
+    cells = len(columns) * len(values)
     return _Mutator(
         mutation=Mutation(
             insert_or_update=batch._make_write_pb(table, columns, values)),
-        operation=WriteMutation._OPERATION_INSERT_OR_UPDATE, kwargs={
-            "table": table, "columns": columns, "values": values})
+        operation=WriteMutation._OPERATION_INSERT_OR_UPDATE,
+        rows=rows,
+        cells=cells,
+        kwargs={
+            "table": table, "columns": columns, "values": values
+        })
 
   @staticmethod
   def replace(table, columns, values):
@@ -894,10 +952,16 @@ class WriteMutation(object):
       columns: Name of the table columns to be modified.
       values: Values to be modified.
     """
+    rows = len(values)
+    cells = len(columns) * len(values)
     return _Mutator(
         mutation=Mutation(replace=batch._make_write_pb(table, columns, values)),
-        operation=WriteMutation._OPERATION_REPLACE, kwargs={
-            "table": table, "columns": columns, "values": values})
+        operation=WriteMutation._OPERATION_REPLACE,
+        rows=rows,
+        cells=cells,
+        kwargs={
+            "table": table, "columns": columns, "values": values
+        })
 
   @staticmethod
   def delete(table, keyset):
@@ -908,9 +972,14 @@ class WriteMutation(object):
       keyset: Keys/ranges identifying rows to delete.
     """
     delete = Mutation.Delete(table=table, key_set=keyset._to_pb())
-    return _Mutator(mutation=Mutation(delete=delete),
-                    operation=WriteMutation._OPERATION_DELETE,
-                    kwargs={"table": table, "keyset": keyset})
+    return _Mutator(
+        mutation=Mutation(delete=delete),
+        rows=0,
+        cells=0,
+        operation=WriteMutation._OPERATION_DELETE,
+        kwargs={
+            "table": table, "keyset": keyset
+        })
 
 
 @with_input_types(typing.Union[MutationGroup, TaggedOutput])
@@ -919,26 +988,44 @@ class _BatchFn(DoFn):
   """
   Batches mutations together.
   """
-
-  def __init__(self, max_batch_size_bytes):
+  def __init__(self, max_batch_size_bytes, max_number_rows, max_number_cells):
     self._max_batch_size_bytes = max_batch_size_bytes
+    self._max_number_rows = max_number_rows
+    self._max_number_cells = max_number_cells
 
   def start_bundle(self):
     self._batch = MutationGroup()
     self._size_in_bytes = 0
+    self._rows = 0
+    self._cells = 0
+
+  def _reset_count(self):
+    self._batch = MutationGroup()
+    self._size_in_bytes = 0
+    self._rows = 0
+    self._cells = 0
 
   def process(self, element):
-    _max_bytes = self._max_batch_size_bytes
-    mg_size = element.byte_size  # total size of the mutation group.
+    mg_info = element.info
 
-    if mg_size + self._size_in_bytes > _max_bytes:
+    if mg_info['byte_size'] + self._size_in_bytes > self._max_batch_size_bytes \
+        or mg_info['cells'] + self._cells > self._max_number_cells \
+        or mg_info['rows'] + self._rows > self._max_number_rows:
       # Batch is full, output the batch and resetting the count.
-      yield self._batch
-      self._size_in_bytes = 0
-      self._batch = MutationGroup()
+      if self._batch:
+        yield self._batch
+      self._reset_count()
 
     self._batch.extend(element)
-    self._size_in_bytes += mg_size
+
+    # total byte size of the mutation group.
+    self._size_in_bytes += mg_info['byte_size']
+
+    # total rows in the mutation group.
+    self._rows += mg_info['rows']
+
+    # total cells in the mutation group.
+    self._cells += mg_info['cells']
 
   def finish_bundle(self):
     if self._batch is not None:
@@ -955,27 +1042,28 @@ class _BatchableFilterFn(DoFn):
   """
   OUTPUT_TAG_UNBATCHABLE = 'unbatchable'
 
-  def __init__(self, max_batch_size_bytes):
+  def __init__(self, max_batch_size_bytes, max_number_rows, max_number_cells):
     self._max_batch_size_bytes = max_batch_size_bytes
+    self._max_number_rows = max_number_rows
+    self._max_number_cells = max_number_cells
     self._batchable = None
     self._unbatchable = None
 
   def process(self, element):
-    if element.primary().operation == 'delete':
+    if element.primary().operation == WriteMutation._OPERATION_DELETE:
       # As delete mutations are not batchable.
       yield TaggedOutput(_BatchableFilterFn.OUTPUT_TAG_UNBATCHABLE, element)
     else:
-      _max_bytes = self._max_batch_size_bytes
-      mg = element
-      mg_size = mg.byte_size
-      if mg_size > _max_bytes:
+      mg_info = element.info
+      if mg_info['byte_size'] > self._max_batch_size_bytes \
+          or mg_info['cells'] > self._max_number_cells \
+          or mg_info['rows'] > self._max_number_rows:
         yield TaggedOutput(_BatchableFilterFn.OUTPUT_TAG_UNBATCHABLE, element)
       else:
         yield element
 
 
 class _WriteToSpannerDoFn(DoFn):
-
   def __init__(self, spanner_configuration):
     self._spanner_configuration = spanner_configuration
     self._db_instance = None
@@ -1014,7 +1102,6 @@ class _MakeMutationGroupsFn(DoFn):
   """
   Make Mutation group object if the element is the instance of _Mutator.
   """
-
   def process(self, element):
     if isinstance(element, MutationGroup):
       yield element
@@ -1027,23 +1114,32 @@ class _MakeMutationGroupsFn(DoFn):
 
 
 class _WriteGroup(PTransform):
-
-  def __init__(self, max_batch_size_bytes=1048576):
+  def __init__(self, max_batch_size_bytes, max_number_rows, max_number_cells):
     self._max_batch_size_bytes = max_batch_size_bytes
+    self._max_number_rows = max_number_rows
+    self._max_number_cells = max_number_cells
 
   def expand(self, pcoll):
     filter_batchable_mutations = (
         pcoll
         | 'Making mutation groups' >> ParDo(_MakeMutationGroupsFn())
         | 'Filtering Batchable Mutations' >> ParDo(
-            _BatchableFilterFn(self._max_batch_size_bytes)).with_outputs(
-                _BatchableFilterFn.OUTPUT_TAG_UNBATCHABLE, main='batchable'))
+            _BatchableFilterFn(
+                max_batch_size_bytes=self._max_batch_size_bytes,
+                max_number_rows=self._max_number_rows,
+                max_number_cells=self._max_number_cells)).with_outputs(
+                    _BatchableFilterFn.OUTPUT_TAG_UNBATCHABLE, main='batchable')
+    )
 
     batching_batchables = (
         filter_batchable_mutations['batchable']
-        | ParDo(_BatchFn(self._max_batch_size_bytes)))
+        | ParDo(
+            _BatchFn(
+                max_batch_size_bytes=self._max_batch_size_bytes,
+                max_number_rows=self._max_number_rows,
+                max_number_cells=self._max_number_cells)))
 
-    return (
-        (batching_batchables,
-         filter_batchable_mutations[_BatchableFilterFn.OUTPUT_TAG_UNBATCHABLE])
-        | 'Merging batchable and unbatchable' >> Flatten())
+    return ((
+        batching_batchables,
+        filter_batchable_mutations[_BatchableFilterFn.OUTPUT_TAG_UNBATCHABLE])
+            | 'Merging batchable and unbatchable' >> Flatten())

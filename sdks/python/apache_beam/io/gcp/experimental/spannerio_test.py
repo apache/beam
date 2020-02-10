@@ -382,18 +382,18 @@ class SpannerReadTest(unittest.TestCase):
 @mock.patch('apache_beam.io.gcp.experimental.spannerio.Client')
 @mock.patch('google.cloud.spanner_v1.database.BatchCheckout')
 class SpannerWriteTest(unittest.TestCase):
-
   def test_spanner_write(self, mock_batch_snapshot_class, mock_batch_checkout):
     ks = spanner.KeySet(keys=[[1233], [1234]])
 
     mutations = [
         WriteMutation.delete("roles", ks),
-        WriteMutation.insert("roles", ("key", "rolename"),
-                             [('1233', "mutations-inset-1233")]),
-        WriteMutation.insert("roles", ("key", "rolename"),
-                             [('1234', "mutations-inset-1234")]),
-        WriteMutation.update("roles", ("key", "rolename"),
-                             [('1234', "mutations-inset-1233-updated")]),
+        WriteMutation.insert(
+            "roles", ("key", "rolename"), [('1233', "mutations-inset-1233")]),
+        WriteMutation.insert(
+            "roles", ("key", "rolename"), [('1234', "mutations-inset-1234")]),
+        WriteMutation.update(
+            "roles", ("key", "rolename"),
+            [('1234', "mutations-inset-1233-updated")]),
     ]
 
     p = TestPipeline()
@@ -404,8 +404,7 @@ class SpannerWriteTest(unittest.TestCase):
             project_id=TEST_PROJECT_ID,
             instance_id=TEST_INSTANCE_ID,
             database_id=_generate_database_name(),
-            max_batch_size_bytes=1024)
-    )
+            max_batch_size_bytes=1024))
     res = p.run()
     res.wait_until_finish()
 
@@ -416,13 +415,13 @@ class SpannerWriteTest(unittest.TestCase):
     self.assertEqual(batches_counter.committed, 2)
     self.assertEqual(batches_counter.attempted, 2)
 
-  def test_spanner_bundles_size(self, mock_batch_snapshot_class,
-                                mock_batch_checkout):
+  def test_spanner_bundles_size(
+      self, mock_batch_snapshot_class, mock_batch_checkout):
     ks = spanner.KeySet(keys=[[1233], [1234]])
     mutations = [
         WriteMutation.delete("roles", ks),
-        WriteMutation.insert("roles", ("key", "rolename"),
-                             [('1234', "mutations-inset-1234")])
+        WriteMutation.insert(
+            "roles", ("key", "rolename"), [('1234', "mutations-inset-1234")])
     ] * 50
     p = TestPipeline()
     _ = (
@@ -432,8 +431,7 @@ class SpannerWriteTest(unittest.TestCase):
             project_id=TEST_PROJECT_ID,
             instance_id=TEST_INSTANCE_ID,
             database_id=_generate_database_name(),
-            max_batch_size_bytes=1024)
-    )
+            max_batch_size_bytes=1024))
     res = p.run()
     res.wait_until_finish()
 
@@ -444,15 +442,17 @@ class SpannerWriteTest(unittest.TestCase):
     self.assertEqual(batches_counter.committed, 53)
     self.assertEqual(batches_counter.attempted, 53)
 
-  def test_spanner_write_mutation_groups(self, mock_batch_snapshot_class,
-                                         mock_batch_checkout):
+  def test_spanner_write_mutation_groups(
+      self, mock_batch_snapshot_class, mock_batch_checkout):
     ks = spanner.KeySet(keys=[[1233], [1234]])
     mutation_groups = [
         MutationGroup([
-            WriteMutation.insert("roles", ("key", "rolename"),
-                                 [('9001233', "mutations-inset-1233")]),
-            WriteMutation.insert("roles", ("key", "rolename"),
-                                 [('9001234', "mutations-inset-1234")])
+            WriteMutation.insert(
+                "roles", ("key", "rolename"),
+                [('9001233', "mutations-inset-1233")]),
+            WriteMutation.insert(
+                "roles", ("key", "rolename"),
+                [('9001234', "mutations-inset-1234")])
         ]),
         MutationGroup([
             WriteMutation.update(
@@ -470,8 +470,7 @@ class SpannerWriteTest(unittest.TestCase):
             project_id=TEST_PROJECT_ID,
             instance_id=TEST_INSTANCE_ID,
             database_id=_generate_database_name(),
-            max_batch_size_bytes=100)
-    )
+            max_batch_size_bytes=100))
     res = p.run()
     res.wait_until_finish()
 
@@ -482,23 +481,116 @@ class SpannerWriteTest(unittest.TestCase):
     self.assertEqual(batches_counter.committed, 3)
     self.assertEqual(batches_counter.attempted, 3)
 
-  def test_mutation_group_batching(self, mock_batch_snapshot_class,
-                                   mock_batch_checkout):
+  def test_batch_byte_size(
+      self, mock_batch_snapshot_class, mock_batch_checkout):
 
-  # each mutation group byte size is 58 bytes.
-    mutation_group = [MutationGroup([
-        WriteMutation.insert("roles", ("key", "rolename"),
-                             [('1234', "mutations-inset-1234")])])] * 50
+    # each mutation group byte size is 58 bytes.
+    mutation_group = [
+        MutationGroup([
+            WriteMutation.insert(
+                "roles",
+                ("key", "rolename"), [('1234', "mutations-inset-1234")])
+        ])
+    ] * 50
 
     with TestPipeline() as p:
-      # the total 50 mutation gorup size will be 2900 (58 * 50)
+      # the total 50 mutation group size will be 2900 (58 * 50)
       # if we want to make two batches, so batch size should be 1450 (2900 / 2)
       # and each bach should contains 25 mutations.
       res = (
-          p | beam.Create(mutation_group) | beam.ParDo(_BatchFn(1450))
-          | beam.Map(lambda x: len(x))
-      )
-      assert_that(res, equal_to([25, 25]))
+          p | beam.Create(mutation_group)
+          | beam.ParDo(
+              _BatchFn(
+                  max_batch_size_bytes=1450,
+                  max_number_rows=50,
+                  max_number_cells=500))
+          | beam.Map(lambda x: len(x)))
+      assert_that(res, equal_to([25] * 2))
+
+  def test_batch_disable(
+      self, mock_batch_snapshot_class, mock_batch_checkout):
+
+    mutation_group = [
+        MutationGroup([
+            WriteMutation.insert(
+                "roles",
+                ("key", "rolename"), [('1234', "mutations-inset-1234")])
+        ])
+    ] * 4
+
+    with TestPipeline() as p:
+      # to disable to batching, we need to set any of the batching parameters
+      # either to lower value or zero
+      res = (
+          p | beam.Create(mutation_group)
+          | beam.ParDo(
+          _BatchFn(
+              max_batch_size_bytes=1450,
+              max_number_rows=0,
+              max_number_cells=500))
+          | beam.Map(lambda x: len(x)))
+      assert_that(res, equal_to([1] * 4))
+
+  def test_batch_max_rows(
+      self, mock_batch_snapshot_class, mock_batch_checkout):
+
+    mutation_group = [
+        MutationGroup([
+            WriteMutation.insert(
+                "roles",
+                ("key", "rolename"), [
+                    ('1234', "mutations-inset-1234"),
+                    ('1235', "mutations-inset-1235"),
+                ]
+        )]
+    )] * 50
+
+    with TestPipeline() as p:
+      # There are total 50 mutation groups, each contains two rows.
+      # The total number of rows will be 100 (50 * 2).
+      # If each batch contains 10 rows max then batch count should be 10
+      # (contains 5 mutation groups each).
+      res = (
+          p | beam.Create(mutation_group)
+          | beam.ParDo(
+          _BatchFn(
+              max_batch_size_bytes=1048576,
+              max_number_rows=10,
+              max_number_cells=500))
+          | beam.Map(lambda x: len(x)))
+      assert_that(res, equal_to([5] * 10))
+
+  def test_batch_max_cells(
+      self, mock_batch_snapshot_class, mock_batch_checkout):
+
+    mutation_group = [
+        MutationGroup([
+            WriteMutation.insert(
+                "roles",
+                ("key", "rolename"), [
+                    ('1234', "mutations-inset-1234"),
+                    ('1235', "mutations-inset-1235"),
+                ]
+        )]
+    )] * 50
+
+    with TestPipeline() as p:
+      # There are total 50 mutation groups, each contains two rows (or 4 cells).
+      # The total number of cells will be 200 (50 groups * 4 cells).
+      # If each batch contains 50 cells max then batch count should be 5.
+      # 4 batches contains 12 mutations groups and the fifth batch should be
+      # consists of 2 mutation group element.
+      # No. of mutations groups per batch = Max Cells / Cells per mutation group
+      # total_batches = Total Number of Cells / Max Cells
+      res = (
+          p | beam.Create(mutation_group)
+          | beam.ParDo(
+          _BatchFn(
+              max_batch_size_bytes=1048576,
+              max_number_rows=500,
+              max_number_cells=50))
+          | beam.Map(lambda x: len(x)))
+      assert_that(res, equal_to([12, 12, 12, 12, 2]))
 
   def test_write_mutation_error(self, *args):
     with self.assertRaises(ValueError):
@@ -510,13 +602,14 @@ class SpannerWriteTest(unittest.TestCase):
         project_id=TEST_PROJECT_ID,
         instance_id=TEST_INSTANCE_ID,
         database_id=_generate_database_name(),
-        max_batch_size_bytes=1024
-    ).display_data()
+        max_batch_size_bytes=1024).display_data()
     self.assertTrue("project_id" in data)
     self.assertTrue("instance_id" in data)
     self.assertTrue("pool" in data)
     self.assertTrue("database" in data)
     self.assertTrue("batch_size" in data)
+    self.assertTrue("max_number_rows" in data)
+    self.assertTrue("max_number_cells" in data)
 
 
 if __name__ == '__main__':
