@@ -93,7 +93,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  * new TimestampNanos logical type has been introduced to allow representing nanosecond timestamp,
  * as well as a DurationNanos logical type to represent google.com.protobuf.Duration types.
  *
- * <p>Protobuf wrapper classes are translated to nullable types, as follows.
+ * <p>As primitive types are mapped to a <b>not</b> nullable scalar type their nullable counter
+ * parts "wrapper classes" are translated to nullable types, as follows.
  *
  * <ul>
  *   <li>google.protobuf.Int32Value maps to a nullable FieldType.INT32
@@ -105,6 +106,24 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  *   <li>google.protobuf.BoolValue maps to a nullable FieldType.BOOLEAN
  *   <li>google.protobuf.StringValue maps to a nullable FieldType.STRING
  *   <li>google.protobuf.BytesValue maps to a nullable FieldType.BYTES
+ * </ul>
+ *
+ * <p>All message in Protobuf are translated to a nullable Row, except for the well known types
+ * listed above. The rest of the nullable rules are as follows.
+ *
+ * <ul>
+ *   <li>Proto3 primitive types are <b>not</b> nullable
+ *   <li>Proto2 required types are <b>not</b> nullable
+ *   <li>Proto2 optional are <b>not</b> nullable as having an optional value doesn't mean it has not
+ *       value. The spec states it has the optional value.
+ *   <li>Arrays are <b>not</b> nullable, as proto arrays always have an empty array when no value is
+ *       set.
+ *   <li>Maps are <b>not</b> nullable, as proto maps always have an empty map when no value is set
+ *   <li>Elements in an array are <b>not</b> nullable, as nulls are not allowed in an array
+ *   <li>Names and Values are <b>not</b> nullable, as nulls are not allowed. Rows are nullable, as
+ *       messages are nullable.
+ *   <li>Messages, as well as Well Known Types are nullable, unless using proto2 and the required
+ *       label is specified.
  * </ul>
  */
 @Experimental(Experimental.Kind.SCHEMAS)
@@ -169,10 +188,12 @@ public class ProtoSchemaTranslator {
           protoFieldDescriptor.getMessageType().findFieldByName("value");
       fieldType =
           FieldType.map(
-              beamFieldTypeFromProtoField(keyFieldDescriptor),
-              beamFieldTypeFromProtoField(valueFieldDescriptor));
+              beamFieldTypeFromProtoField(keyFieldDescriptor).withNullable(false),
+              beamFieldTypeFromProtoField(valueFieldDescriptor).withNullable(false));
     } else if (protoFieldDescriptor.isRepeated()) {
-      fieldType = FieldType.array(beamFieldTypeFromSingularProtoField(protoFieldDescriptor));
+      fieldType =
+          FieldType.array(
+              beamFieldTypeFromSingularProtoField(protoFieldDescriptor).withNullable(false));
     } else {
       fieldType = beamFieldTypeFromSingularProtoField(protoFieldDescriptor);
     }
@@ -257,8 +278,7 @@ public class ProtoSchemaTranslator {
           case "google.protobuf.BytesValue":
             fieldType =
                 beamFieldTypeFromSingularProtoField(
-                        protoFieldDescriptor.getMessageType().findFieldByNumber(1))
-                    .withNullable(true);
+                    protoFieldDescriptor.getMessageType().findFieldByNumber(1));
             break;
           case "google.protobuf.Duration":
             fieldType = FieldType.logicalType(new NanosDuration());
@@ -268,12 +288,13 @@ public class ProtoSchemaTranslator {
           default:
             fieldType = FieldType.row(getSchema(protoFieldDescriptor.getMessageType()));
         }
+        // all messages are nullable in Proto
+        if (protoFieldDescriptor.isOptional()) {
+          fieldType = fieldType.withNullable(true);
+        }
         break;
       default:
         throw new RuntimeException("Field type not matched.");
-    }
-    if (protoFieldDescriptor.isOptional()) {
-      fieldType = fieldType.withNullable(true);
     }
     return fieldType;
   }
