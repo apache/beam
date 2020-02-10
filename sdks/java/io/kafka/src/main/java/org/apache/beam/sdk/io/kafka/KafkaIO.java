@@ -44,6 +44,7 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -281,7 +282,7 @@ import org.slf4j.LoggerFactory;
  * Kafka cluster. Kafka client usually fails to initialize with a clear error message in case of
  * incompatibility.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class KafkaIO {
 
   /**
@@ -396,7 +397,7 @@ public class KafkaIO {
 
     abstract Builder<K, V> toBuilder();
 
-    @Experimental
+    @Experimental(Kind.PORTABILITY)
     @AutoValue.Builder
     abstract static class Builder<K, V>
         implements ExternalTransformBuilder<External.Configuration, PBegin, PCollection<KV<K, V>>> {
@@ -500,7 +501,7 @@ public class KafkaIO {
      * Exposes {@link KafkaIO.TypedWithoutMetadata} as an external transform for cross-language
      * usage.
      */
-    @Experimental
+    @Experimental(Kind.PORTABILITY)
     @AutoService(ExternalTransformRegistrar.class)
     public static class External implements ExternalTransformRegistrar {
 
@@ -1469,7 +1470,7 @@ public class KafkaIO {
 
     abstract Builder<K, V> toBuilder();
 
-    @Experimental
+    @Experimental(Kind.PORTABILITY)
     @AutoValue.Builder
     abstract static class Builder<K, V>
         implements ExternalTransformBuilder<External.Configuration, PCollection<KV<K, V>>, PDone> {
@@ -1504,7 +1505,7 @@ public class KafkaIO {
     }
 
     /** Exposes {@link KafkaIO.Write} as an external transform for cross-language usage. */
-    @Experimental
+    @Experimental(Kind.PORTABILITY)
     @AutoService(ExternalTransformRegistrar.class)
     public static class External implements ExternalTransformRegistrar {
 
