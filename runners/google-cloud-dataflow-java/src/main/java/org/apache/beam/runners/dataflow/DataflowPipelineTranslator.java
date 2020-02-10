@@ -51,6 +51,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.DoFnFeatures;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -1224,10 +1225,10 @@ public class DataflowPipelineTranslator {
       Map<TupleTag<?>, Coder<?>> outputCoders,
       DoFnSchemaInformation doFnSchemaInformation,
       Map<String, PCollectionView<?>> sideInputMapping) {
-    DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
 
-    if (signature.usesState() || signature.usesTimers()) {
-      DataflowRunner.verifyStateSupported(fn);
+    boolean isStateful = DoFnFeatures.isStateful(fn);
+    if (isStateful) {
+      DataflowRunner.verifyDoFnSupported(fn, context.getPipelineOptions().isStreaming());
       DataflowRunner.verifyStateSupportForWindowingStrategy(windowingStrategy);
     }
 
@@ -1255,8 +1256,7 @@ public class DataflowPipelineTranslator {
 
     // Setting USES_KEYED_STATE will cause an ungrouped shuffle, which works
     // in streaming but does not work in batch
-    if (context.getPipelineOptions().isStreaming()
-        && (signature.usesState() || signature.usesTimers())) {
+    if (context.getPipelineOptions().isStreaming() && isStateful) {
       stepContext.addInput(PropertyNames.USES_KEYED_STATE, "true");
     }
   }

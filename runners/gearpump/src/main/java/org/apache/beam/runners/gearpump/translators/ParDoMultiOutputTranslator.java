@@ -24,7 +24,9 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.construction.DoFnFeatures;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
+import org.apache.beam.runners.gearpump.GearpumpRunner;
 import org.apache.beam.runners.gearpump.translators.functions.DoFnFunction;
 import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils;
 import org.apache.beam.sdk.coders.Coder;
@@ -79,6 +81,13 @@ public class ParDoMultiOutputTranslator<InputT, OutputT>
 
     Map<String, PCollectionView<?>> sideInputMapping =
         ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
+
+    if (DoFnFeatures.requiresTimeSortedInput(transform.getFn())) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s doesn't currently support @RequiresTimeSortedInput annotation",
+              GearpumpRunner.class.getSimpleName()));
+    }
 
     JavaStream<TranslatorUtils.RawUnionValue> outputStream =
         TranslatorUtils.toList(unionStream)

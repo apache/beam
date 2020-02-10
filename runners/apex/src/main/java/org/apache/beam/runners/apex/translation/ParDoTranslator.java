@@ -31,13 +31,12 @@ import java.util.stream.Collectors;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.translation.operators.ApexParDoOperator;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
+import org.apache.beam.runners.core.construction.DoFnFeatures;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
@@ -58,15 +57,19 @@ class ParDoTranslator<InputT, OutputT>
   @Override
   public void translate(ParDo.MultiOutput<InputT, OutputT> transform, TranslationContext context) {
     DoFn<InputT, OutputT> doFn = transform.getFn();
-    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
-    if (signature.processElement().isSplittable()) {
+    if (DoFnFeatures.isSplittable(doFn)) {
       throw new UnsupportedOperationException(
           String.format(
               "%s does not support splittable DoFn: %s", ApexRunner.class.getSimpleName(), doFn));
     }
-
-    if (signature.timerDeclarations().size() > 0) {
+    if (DoFnFeatures.requiresTimeSortedInput(doFn)) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s doesn't currently support @RequiresTimeSortedInput",
+              ApexRunner.class.getSimpleName()));
+    }
+    if (DoFnFeatures.usesTimers(doFn)) {
       throw new UnsupportedOperationException(
           String.format(
               "Found %s annotations on %s, but %s cannot yet be used with timers in the %s.",
