@@ -434,7 +434,7 @@ class BeamModulePlugin implements Plugin<Project> {
         classgraph                                  : "io.github.classgraph:classgraph:$classgraph_version",
         commons_codec                               : "commons-codec:commons-codec:1.14",
         commons_compress                            : "org.apache.commons:commons-compress:1.19",
-        commons_csv                                 : "org.apache.commons:commons-csv:1.7",
+        commons_csv                                 : "org.apache.commons:commons-csv:1.8",
         commons_io                                  : "commons-io:commons-io:2.6",
         commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
