@@ -1,0 +1,84 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+build: ["buildSrc/*", "release/*", "ownership/*", ".github/*", "gradle/*"]
+docker: ["sdks/python/container/*", "sdks/go/container/*", "sdks/java/container/*", "runners/flink/job-server-container/*", "runners/spark/job-server/container/*"]
+examples: ["examples/*"]
+go: ["sdks/go/*"]
+infra: [".test-infra/*"]
+java: ["sdks/java/*"]
+learning: ["learning/*"]
+model: ["model/*"]
+python: ["sdks/python/*"]
+vendor: ["vendor/*"]
+website: ["website/*"]
+
+# Extensions
+extensions: ["sdks/java/extensions/*"]
+"ext/euphoria": ["sdks/java/extensions/euphoria/*"]
+"ext/googlecloud": ["sdks/java/extensions/google-cloud-platform-core/*"]
+"ext/jackson": ["sdks/java/extensions/jackson/*"]
+"ext/join-library": ["sdks/java/extensions/join-library*"]
+"ext/kryo": ["sdks/java/extensions/kryo/*"]
+"ext/protobuf": ["sdks/java/extensions/protobuf/*"]
+"ext/sketching": ["sdks/java/extensions/sketching/*"]
+"ext/sorter": ["sdks/java/extensions/sorter/*"]
+"ext/sql": ["sdks/java/extensions/sql/*"]
+"ext/zeta": ["sdks/java/extensions/zetasketch/*"]
+
+# IO
+io:  ["sdks/java/io/*"]
+"io/amqp":  ["sdks/java/io/amqp/*"]
+"io/aws":  ["sdks/java/io/amazon-web-services/*","sdks/java/io/amazon-web-services2/*"]
+"io/cassandra":  ["sdks/java/io/cassandra/*"]
+"io/clickhouse":  ["sdks/java/io/clickhouse/*"]
+"io/elasticsearch":  ["sdks/java/io/elasticsearch/*","sdks/java/io/elasticsearch-tests/*"]
+"io/googlecloud":  ["sdks/java/io/bigquery-io-perf-tests/*","sdks/java/io/google-cloud-platform/*"]
+"io/hadoop":  ["sdks/java/io/hadoop-common/*","sdks/java/io/hadoop-file-system/*","sdks/java/io/hadoop-format/*"]
+"io/hbase":  ["sdks/java/io/hbase/*"]
+"io/hcatalog":  ["sdks/java/io/hcatalog/*"]
+"io/jdbc":  ["sdks/java/io/jdbc/*"]
+"io/jms":  ["sdks/java/io/jms/*"]
+"io/kafka":  ["sdks/java/io/kafka/*"]
+"io/kinesis":  ["sdks/java/io/kinesis/*"]
+"io/kudu":  ["sdks/java/io/kudu/*"]
+"io/mongodb":  ["sdks/java/io/mongodb/*"]
+"io/mqtt":  ["sdks/java/io/mqtt/*"]
+"io/parquet":  ["sdks/java/io/parquet/*"]
+"io/rabbitmq":  ["sdks/java/io/rabbitmq/*"]
+"io/redis":  ["sdks/java/io/redis/*"]
+"io/solr":  ["sdks/java/io/solr/*"]
+"io/synthetic":  ["sdks/java/io/synthetic/*"]
+"io/tests":  ["sdks/java/io/file-based-io-tests/*"]
+"io/tika":  ["sdks/java/io/tika/*"]
+"io/xml":  ["sdks/java/io/xml/*"]
+
+# Runners
+"runners": ["runners/*"]
+"run/apex": ["runners/apex/*"]
+"run/core": ["runners/core-construction-java/*","runners/core-java/*"]
+"run/dataflow": ["runners/google-cloud-dataflow-java/*"]
+"run/direct": ["runners/direct-java/*"]
+"run/extenstions-java": ["runners/extenstions-java/*"]
+"run/flink": ["runners/flink/*"]
+"run/fn-execution": ["runners/java-fn-execution/*"]
+"run/gearpump": ["runners/gearpump/*"]
+"run/jet": ["runners/jet/*"]
+"run/local": ["runners/local-java/*"]
+"run/portability": ["runners/portability/*"]
+"run/samza": ["runners/samza/*"]
+"run/spark": ["runners/spark/*"]
