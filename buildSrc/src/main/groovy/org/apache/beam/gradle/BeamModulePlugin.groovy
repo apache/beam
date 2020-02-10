@@ -364,8 +364,8 @@ class BeamModulePlugin implements Plugin<Project> {
     // Maven artifacts.
     def apex_core_version = "3.7.0"
     def apex_malhar_version = "3.4.0"
-    def aws_java_sdk_version = "1.11.519"
-    def aws_java_sdk2_version = "2.5.71"
+    def aws_java_sdk_version = "1.11.718"
+    def aws_java_sdk2_version = "2.10.61"
     def cassandra_driver_version = "3.8.0"
     def classgraph_version = "4.8.56"
     def gax_version = "1.53.0"
