@@ -72,10 +72,9 @@ class DeferredDataFrame(frame_base.DeferredFrame):
 
   def __setitem__(self, key, value):
     if isinstance(key, str):
+      # yapf: disable
       return self._elementwise(
-          lambda df,
-          key,
-          value: df.__setitem__(key, value),
+          lambda df, key, value: df.__setitem__(key, value),
           'set_column',
           (key, value),
           inplace=True)
@@ -87,7 +86,7 @@ class DeferredDataFrame(frame_base.DeferredFrame):
       keys = [keys]
     else:
       keys = keys
-    if not set(keys).issubset(self._expr.proxy().columns.to_list()):
+    if not set(keys).issubset(self._expr.proxy().columns):
       raise NotImplementedError(keys)
     return self._elementwise(
         lambda df: df.set_index(keys, **kwargs),
