@@ -15,20 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas;
+package org.apache.beam.sdk.io.kafka;
 
-import java.util.List;
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import java.io.Serializable;
 
 /**
- * A factory interface for creating {@link org.apache.beam.sdk.schemas.FieldValueSetter} objects
- * corresponding to a class.
+ * Provides instances of Confluent Schema Registry client, schema registry url, key and value
+ * subjects.
+ *
+ * <p>Please note, that any instance of {@link CSRClientProvider} must be {@link Serializable} to
+ * ensure it can be sent to worker machines.
  */
-public interface FieldValueSetterFactory extends Factory<List<FieldValueSetter>> {
-  /**
-   * Returns a list of {@link org.apache.beam.sdk.schemas.FieldValueGetter}s for the target class.
-   *
-   * <p>The returned list is ordered by the order of matching fields in the schema.
-   */
-  @Override
-  List<FieldValueSetter> create(Class<?> targetClass, Schema schema);
+public interface CSRClientProvider extends Serializable {
+
+  SchemaRegistryClient getCSRClient();
+
+  String getSchemaRegistryUrl();
+
+  String getKeySchemaSubject();
+
+  String getValueSchemaSubject();
 }

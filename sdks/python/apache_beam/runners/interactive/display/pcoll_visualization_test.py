@@ -43,12 +43,12 @@ except ImportError:
   pass
 
 
-@unittest.skipIf(not ie.current_env().is_interactive_ready,
-                 '[interactive] dependency is not installed.')
-@unittest.skipIf(sys.version_info < (3, 6),
-                 'The tests require at least Python 3.6 to work.')
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
+@unittest.skipIf(
+    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
 class PCollectionVisualizationTest(unittest.TestCase):
-
   def setUp(self):
     ie.new_env()
     # Allow unit test to run outside of ipython kernel since we don't test the
@@ -70,8 +70,8 @@ class PCollectionVisualizationTest(unittest.TestCase):
 
     with self.assertRaises(AssertionError) as ctx:
       pv.PCollectionVisualization(Foo())
-      self.assertTrue('pcoll should be apache_beam.pvalue.PCollection' in
-                      ctx.exception)
+      self.assertTrue(
+          'pcoll should be apache_beam.pvalue.PCollection' in ctx.exception)
 
   def test_pcoll_visualization_generate_unique_display_id(self):
     pv_1 = pv.PCollectionVisualization(self._pcoll)
@@ -88,16 +88,20 @@ class PCollectionVisualizationTest(unittest.TestCase):
     self.assertIsInstance(h, timeloop.Timeloop)
     h.stop()
 
-  @patch('apache_beam.runners.interactive.display.pcoll_visualization'
-         '.PCollectionVisualization._display_dive')
-  @patch('apache_beam.runners.interactive.display.pcoll_visualization'
-         '.PCollectionVisualization._display_overview')
-  @patch('apache_beam.runners.interactive.display.pcoll_visualization'
-         '.PCollectionVisualization._display_dataframe')
-  def test_dynamic_plotting_updates_same_display(self,
-                                                 mocked_display_dataframe,
-                                                 mocked_display_overview,
-                                                 mocked_display_dive):
+  @patch(
+      'apache_beam.runners.interactive.display.pcoll_visualization'
+      '.PCollectionVisualization._display_dive')
+  @patch(
+      'apache_beam.runners.interactive.display.pcoll_visualization'
+      '.PCollectionVisualization._display_overview')
+  @patch(
+      'apache_beam.runners.interactive.display.pcoll_visualization'
+      '.PCollectionVisualization._display_dataframe')
+  def test_dynamic_plotting_updates_same_display(
+      self,
+      mocked_display_dataframe,
+      mocked_display_overview,
+      mocked_display_dive):
     original_pcollection_visualization = pv.PCollectionVisualization(
         self._pcoll)
     # Dynamic plotting always creates a new PCollectionVisualization.
@@ -116,23 +120,18 @@ class PCollectionVisualizationTest(unittest.TestCase):
   def test_auto_stop_dynamic_plotting_when_job_is_terminated(self):
     fake_pipeline_result = runner.PipelineResult(runner.PipelineState.RUNNING)
     ie.current_env().set_pipeline_result(
-        self._p,
-        fake_pipeline_result,
-        is_main_job=True)
+        self._p, fake_pipeline_result, is_main_job=True)
     # When job is running, the dynamic plotting will not be stopped.
     self.assertFalse(ie.current_env().is_terminated(self._p))
 
     fake_pipeline_result = runner.PipelineResult(runner.PipelineState.DONE)
     ie.current_env().set_pipeline_result(
-        self._p,
-        fake_pipeline_result,
-        is_main_job=True)
+        self._p, fake_pipeline_result, is_main_job=True)
     # When job is done, the dynamic plotting will be stopped.
     self.assertTrue(ie.current_env().is_terminated(self._p))
 
   @patch('pandas.DataFrame.sample')
-  def test_display_plain_text_when_kernel_has_no_frontend(self,
-                                                          _mocked_sample):
+  def test_display_plain_text_when_kernel_has_no_frontend(self, _mocked_sample):
     # Resets the notebook check to False.
     ie.current_env()._is_in_notebook = False
     self.assertIsNone(pv.visualize(self._pcoll))

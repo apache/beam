@@ -51,6 +51,8 @@ import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.ArgumentProvider;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.BaseArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -412,6 +414,11 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
                 }
 
                 @Override
+                public boolean isRequiresTimeSortedInput() {
+                  return false;
+                }
+
+                @Override
                 public String translateRestrictionCoderId(SdkComponents newComponents) {
                   return restrictionCoderId;
                 }
@@ -461,7 +468,21 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     @ProcessElement
     public void processElement(ProcessContext context) {
       context.output(
-          KV.of(context.element(), invoker.invokeGetInitialRestriction(context.element())));
+          KV.of(
+              context.element(),
+              invoker.invokeGetInitialRestriction(
+                  new BaseArgumentProvider<InputT, OutputT>() {
+                    @Override
+                    public InputT element(DoFn<InputT, OutputT> doFn) {
+                      return context.element();
+                    }
+
+                    @Override
+                    public String getErrorContext() {
+                      return PairWithRestrictionFn.class.getSimpleName()
+                          + ".invokeGetInitialRestriction";
+                    }
+                  })));
     }
 
     @Teardown
@@ -491,21 +512,40 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
     @ProcessElement
     public void processElement(final ProcessContext c) {
-      final InputT element = c.element().getKey();
       invoker.invokeSplitRestriction(
-          element,
-          c.element().getValue(),
-          new OutputReceiver<RestrictionT>() {
-            @Override
-            public void output(RestrictionT part) {
-              c.output(KV.of(element, part));
-            }
+          (ArgumentProvider)
+              new BaseArgumentProvider<InputT, RestrictionT>() {
+                @Override
+                public InputT element(DoFn<InputT, RestrictionT> doFn) {
+                  return c.element().getKey();
+                }
 
-            @Override
-            public void outputWithTimestamp(RestrictionT part, Instant timestamp) {
-              throw new UnsupportedOperationException();
-            }
-          });
+                @Override
+                public Object restriction() {
+                  return c.element().getValue();
+                }
+
+                @Override
+                public OutputReceiver<RestrictionT> outputReceiver(
+                    DoFn<InputT, RestrictionT> doFn) {
+                  return new OutputReceiver<RestrictionT>() {
+                    @Override
+                    public void output(RestrictionT part) {
+                      c.output(KV.of(c.element().getKey(), part));
+                    }
+
+                    @Override
+                    public void outputWithTimestamp(RestrictionT part, Instant timestamp) {
+                      throw new UnsupportedOperationException();
+                    }
+                  };
+                }
+
+                @Override
+                public String getErrorContext() {
+                  return SplitRestrictionFn.class.getSimpleName() + ".invokeSplitRestriction";
+                }
+              });
     }
 
     @Teardown

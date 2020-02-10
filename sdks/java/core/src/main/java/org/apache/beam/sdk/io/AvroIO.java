@@ -405,9 +405,9 @@ public class AvroIO {
    * FileIO.ReadableFile}, for example, returned by {@link FileIO#readMatches}.
    *
    * @deprecated You can achieve The functionality of {@link #readAllGenericRecords(Schema)} using
-   *     {@link FileIO} matching plus {@link #readGenericRecords(Schema)}. This is the preferred
-   *     method to make composition explicit. {@link ReadAll} will not receive upgrades and will be
-   *     removed in a future version of Beam.
+   *     {@link FileIO} matching plus {@link #readFilesGenericRecords(Schema)}. This is the
+   *     preferred method to make composition explicit. {@link ReadAll} will not receive upgrades
+   *     and will be removed in a future version of Beam.
    */
   @Deprecated
   public static ReadAll<GenericRecord> readAllGenericRecords(Schema schema) {
@@ -438,9 +438,9 @@ public class AvroIO {
    * PCollection}.
    *
    * @deprecated You can achieve The functionality of {@link #readAllGenericRecords(String)} using
-   *     {@link FileIO} matching plus {@link #readGenericRecords(String)}. This is the preferred
-   *     method to make composition explicit. {@link ReadAll} will not receive upgrades and will be
-   *     removed in a future version of Beam.
+   *     {@link FileIO} matching plus {@link #readFilesGenericRecords(String)}. This is the
+   *     preferred method to make composition explicit. {@link ReadAll} will not receive upgrades
+   *     and will be removed in a future version of Beam.
    */
   @Deprecated
   public static ReadAll<GenericRecord> readAllGenericRecords(String schema) {
@@ -563,6 +563,7 @@ public class AvroIO {
         .setNoSpilling(false);
   }
 
+  @Experimental(Kind.SCHEMAS)
   private static <T> PCollection<T> setBeamSchema(
       PCollection<T> pc, Class<T> clazz, @Nullable Schema schema) {
     org.apache.beam.sdk.schemas.Schema beamSchema =

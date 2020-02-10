@@ -38,7 +38,6 @@ from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 
 class DataChannelTest(unittest.TestCase):
-
   @timeout(5)
   def test_grpc_data_channel(self):
     self._grpc_data_channel_test()
@@ -58,8 +57,7 @@ class DataChannelTest(unittest.TestCase):
       data_servicer.get_conn_by_worker_id(worker_id)
 
     server = grpc.server(UnboundedThreadPoolExecutor())
-    beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(
-        data_servicer, server)
+    beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(data_servicer, server)
     test_port = server.add_insecure_port('[::]:0')
     server.start()
 
@@ -98,41 +96,41 @@ class DataChannelTest(unittest.TestCase):
       stream.write(data)
       if not time_based_flush:
         stream.close()
+
     transform_1 = '1'
     transform_2 = '2'
 
     # Single write.
     send('0', transform_1, b'abc')
     self.assertEqual(
-        list(itertools.islice(
-            to_channel.input_elements('0', [transform_1]), 1)),
-        [beam_fn_api_pb2.Elements.Data(
-            instruction_id='0',
-            transform_id=transform_1,
-            data=b'abc')])
+        list(
+            itertools.islice(to_channel.input_elements('0', [transform_1]), 1)),
+        [
+            beam_fn_api_pb2.Elements.Data(
+                instruction_id='0', transform_id=transform_1, data=b'abc')
+        ])
 
     # Multiple interleaved writes to multiple instructions.
     send('1', transform_1, b'abc')
     send('2', transform_1, b'def')
     self.assertEqual(
-        list(itertools.islice(
-            to_channel.input_elements('1', [transform_1]), 1)),
-        [beam_fn_api_pb2.Elements.Data(
-            instruction_id='1',
-            transform_id=transform_1,
-            data=b'abc')])
+        list(
+            itertools.islice(to_channel.input_elements('1', [transform_1]), 1)),
+        [
+            beam_fn_api_pb2.Elements.Data(
+                instruction_id='1', transform_id=transform_1, data=b'abc')
+        ])
     send('2', transform_2, b'ghi')
     self.assertEqual(
-        list(itertools.islice(
-            to_channel.input_elements('2', [transform_1, transform_2]), 2)),
-        [beam_fn_api_pb2.Elements.Data(
-            instruction_id='2',
-            transform_id=transform_1,
-            data=b'def'),
-         beam_fn_api_pb2.Elements.Data(
-             instruction_id='2',
-             transform_id=transform_2,
-             data=b'ghi')])
+        list(
+            itertools.islice(
+                to_channel.input_elements('2', [transform_1, transform_2]), 2)),
+        [
+            beam_fn_api_pb2.Elements.Data(
+                instruction_id='2', transform_id=transform_1, data=b'def'),
+            beam_fn_api_pb2.Elements.Data(
+                instruction_id='2', transform_id=transform_2, data=b'ghi')
+        ])
 
 
 if __name__ == '__main__':

@@ -52,8 +52,13 @@ class QuerySplitterTest(unittest.TestCase):
   def setUp(self):
     pass
 
-  def create_query(self, kinds=(), order=False, limit=None, offset=None,
-                   inequality_filter=False):
+  def create_query(
+      self,
+      kinds=(),
+      order=False,
+      limit=None,
+      offset=None,
+      inequality_filter=False):
     query = query_pb2.Query()
     for kind in kinds:
       query.kind.add().name = kind
@@ -101,12 +106,14 @@ class QuerySplitterTest(unittest.TestCase):
     num_splits = 10
     scatter_query = self.query_splitter._create_scatter_query(query, num_splits)
     self.assertEqual(scatter_query.kind[0], query.kind[0])
-    self.assertEqual(scatter_query.limit.value,
-                     (num_splits -1) * self.query_splitter.KEYS_PER_SPLIT)
-    self.assertEqual(scatter_query.order[0].direction,
-                     query_pb2.PropertyOrder.ASCENDING)
-    self.assertEqual(scatter_query.projection[0].property.name,
-                     self.query_splitter.KEY_PROPERTY_NAME)
+    self.assertEqual(
+        scatter_query.limit.value,
+        (num_splits - 1) * self.query_splitter.KEYS_PER_SPLIT)
+    self.assertEqual(
+        scatter_query.order[0].direction, query_pb2.PropertyOrder.ASCENDING)
+    self.assertEqual(
+        scatter_query.projection[0].property.name,
+        self.query_splitter.KEY_PROPERTY_NAME)
 
   def test_get_splits_with_two_splits(self):
     query = self.create_query(kinds=['shakespeare-demo'])
@@ -208,8 +215,8 @@ class QuerySplitterTest(unittest.TestCase):
 
       self.assertEqual(expected_calls, mock_datastore.run_query.call_args_list)
 
-  def create_scatter_requests(self, query, num_splits, batch_size,
-                              num_entities):
+  def create_scatter_requests(
+      self, query, num_splits, batch_size, num_entities):
     """Creates a list of expected scatter requests from the query splitter.
 
     This list of requests returned is used to verify that the query splitter

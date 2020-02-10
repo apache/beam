@@ -77,13 +77,15 @@ class HBaseReadSplittableDoFn extends DoFn<HBaseQuery, Result> {
   }
 
   @GetInitialRestriction
-  public ByteKeyRange getInitialRestriction(HBaseQuery query) {
+  public ByteKeyRange getInitialRestriction(@Element HBaseQuery query) {
     return HBaseUtils.getByteKeyRange(query.getScan());
   }
 
   @SplitRestriction
   public void splitRestriction(
-      HBaseQuery query, ByteKeyRange range, OutputReceiver<ByteKeyRange> receiver)
+      @Element HBaseQuery query,
+      @Restriction ByteKeyRange range,
+      OutputReceiver<ByteKeyRange> receiver)
       throws Exception {
     List<HRegionLocation> regionLocations =
         HBaseUtils.getRegionLocations(connection, query.getTableId(), range);
@@ -95,7 +97,7 @@ class HBaseReadSplittableDoFn extends DoFn<HBaseQuery, Result> {
   }
 
   @NewTracker
-  public ByteKeyRangeTracker newTracker(ByteKeyRange range) {
+  public ByteKeyRangeTracker newTracker(@Restriction ByteKeyRange range) {
     return ByteKeyRangeTracker.of(range);
   }
 

@@ -94,13 +94,12 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRange(String element) {
+    public OffsetRange getInitialRange(@Element String element) {
       return new OffsetRange(0, element.length());
     }
 
     @SplitRestriction
-    public void splitRange(
-        String element, OffsetRange range, OutputReceiver<OffsetRange> receiver) {
+    public void splitRange(@Restriction OffsetRange range, OutputReceiver<OffsetRange> receiver) {
       receiver.output(new OffsetRange(range.getFrom(), (range.getFrom() + range.getTo()) / 2));
       receiver.output(new OffsetRange((range.getFrom() + range.getTo()) / 2, range.getTo()));
     }
@@ -257,7 +256,7 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRange(String element) {
+    public OffsetRange getInitialRange() {
       return new OffsetRange(0, MAX_INDEX);
     }
   }
@@ -326,7 +325,7 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRestriction(Integer value) {
+    public OffsetRange getInitialRestriction() {
       return new OffsetRange(0, 1);
     }
   }
@@ -469,7 +468,7 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRange(Integer element) {
+    public OffsetRange getInitialRange() {
       return new OffsetRange(0, MAX_INDEX);
     }
   }
@@ -581,7 +580,7 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRestriction(Integer value) {
+    public OffsetRange getInitialRestriction() {
       return new OffsetRange(0, 1);
     }
   }
@@ -690,14 +689,14 @@ public class SplittableDoFnTest implements Serializable {
     private transient State state;
 
     @GetInitialRestriction
-    public OffsetRange getInitialRestriction(String value) {
+    public OffsetRange getInitialRestriction() {
       assertEquals(State.OUTSIDE_BUNDLE, state);
       return new OffsetRange(0, 1);
     }
 
     @SplitRestriction
     public void splitRestriction(
-        String value, OffsetRange range, OutputReceiver<OffsetRange> receiver) {
+        @Restriction OffsetRange range, OutputReceiver<OffsetRange> receiver) {
       assertEquals(State.OUTSIDE_BUNDLE, state);
       receiver.output(range);
     }
@@ -777,13 +776,12 @@ public class SplittableDoFnTest implements Serializable {
               ParDo.of(
                   new DoFn<String, String>() {
                     @ProcessElement
-                    public void process(
-                        @Element String element, RestrictionTracker<OffsetRange, Long> tracker) {
+                    public void process(RestrictionTracker<OffsetRange, Long> tracker) {
                       // Doesn't matter
                     }
 
                     @GetInitialRestriction
-                    public OffsetRange getInitialRestriction(String element) {
+                    public OffsetRange getInitialRestriction() {
                       return new OffsetRange(0, 1);
                     }
                   }));
@@ -796,12 +794,12 @@ public class SplittableDoFnTest implements Serializable {
                   new DoFn<String, String>() {
                     @ProcessElement
                     public ProcessContinuation process(
-                        @Element String element, RestrictionTracker<OffsetRange, Long> tracker) {
+                        RestrictionTracker<OffsetRange, Long> tracker) {
                       return stop();
                     }
 
                     @GetInitialRestriction
-                    public OffsetRange getInitialRestriction(String element) {
+                    public OffsetRange getInitialRestriction() {
                       return new OffsetRange(0, 1);
                     }
                   }));

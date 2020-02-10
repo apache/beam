@@ -61,7 +61,6 @@ except ImportError:
 
 @unittest.skipIf(pa is None, "PyArrow is not installed.")
 class TestParquet(unittest.TestCase):
-
   @classmethod
   def setUpClass(cls):
     # Method has been renamed in Python 3
@@ -74,36 +73,42 @@ class TestParquet(unittest.TestCase):
     filebasedsource.MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 2
     self.temp_dir = tempfile.mkdtemp()
 
-    self.RECORDS = [{'name': 'Thomas',
-                     'favorite_number': 1,
-                     'favorite_color': 'blue'},
-                    {'name': 'Henry',
-                     'favorite_number': 3,
-                     'favorite_color': 'green'},
-                    {'name': 'Toby',
-                     'favorite_number': 7,
-                     'favorite_color': 'brown'},
-                    {'name': 'Gordon',
-                     'favorite_number': 4,
-                     'favorite_color': 'blue'},
-                    {'name': 'Emily',
-                     'favorite_number': -1,
-                     'favorite_color': 'Red'},
-                    {'name': 'Percy',
-                     'favorite_number': 6,
-                     'favorite_color': 'Green'}]
+    self.RECORDS = [{
+        'name': 'Thomas', 'favorite_number': 1, 'favorite_color': 'blue'
+    },
+                    {
+                        'name': 'Henry',
+                        'favorite_number': 3,
+                        'favorite_color': 'green'
+                    },
+                    {
+                        'name': 'Toby',
+                        'favorite_number': 7,
+                        'favorite_color': 'brown'
+                    },
+                    {
+                        'name': 'Gordon',
+                        'favorite_number': 4,
+                        'favorite_color': 'blue'
+                    },
+                    {
+                        'name': 'Emily',
+                        'favorite_number': -1,
+                        'favorite_color': 'Red'
+                    },
+                    {
+                        'name': 'Percy',
+                        'favorite_number': 6,
+                        'favorite_color': 'Green'
+                    }]
 
-    self.SCHEMA = pa.schema([
-        ('name', pa.string()),
-        ('favorite_number', pa.int64()),
-        ('favorite_color', pa.string())
-    ])
+    self.SCHEMA = pa.schema([('name', pa.string()),
+                             ('favorite_number', pa.int64()),
+                             ('favorite_color', pa.string())])
 
-    self.SCHEMA96 = pa.schema([
-        ('name', pa.string()),
-        ('favorite_number', pa.timestamp('ns')),
-        ('favorite_color', pa.string())
-    ])
+    self.SCHEMA96 = pa.schema([('name', pa.string()),
+                               ('favorite_number', pa.timestamp('ns')),
+                               ('favorite_color', pa.string())])
 
   def tearDown(self):
     shutil.rmtree(self.temp_dir)
@@ -129,28 +134,29 @@ class TestParquet(unittest.TestCase):
     for i in range(count):
       data.append(self.RECORDS[i % len_records])
     col_data = self._record_to_columns(data, schema)
-    col_array = [
-        pa.array(c, schema.types[cn]) for cn, c in enumerate(col_data)
-    ]
+    col_array = [pa.array(c, schema.types[cn]) for cn, c in enumerate(col_data)]
     return pa.Table.from_arrays(col_array, schema.names)
 
-  def _write_data(self,
-                  directory=None,
-                  schema=None,
-                  prefix=tempfile.template,
-                  row_group_size=1000,
-                  codec='none',
-                  count=None):
+  def _write_data(
+      self,
+      directory=None,
+      schema=None,
+      prefix=tempfile.template,
+      row_group_size=1000,
+      codec='none',
+      count=None):
     if directory is None:
       directory = self.temp_dir
 
-    with tempfile.NamedTemporaryFile(
-        delete=False, dir=directory, prefix=prefix) as f:
+    with tempfile.NamedTemporaryFile(delete=False, dir=directory,
+                                     prefix=prefix) as f:
       table = self._records_as_arrow(schema, count)
       pq.write_table(
-          table, f, row_group_size=row_group_size, compression=codec,
-          use_deprecated_int96_timestamps=True
-      )
+          table,
+          f,
+          row_group_size=row_group_size,
+          compression=codec,
+          use_deprecated_int96_timestamps=True)
 
       return f.name
 
@@ -163,8 +169,13 @@ class TestParquet(unittest.TestCase):
 
     return temp_dir + os.path.sep + 'mytemp*'
 
-  def _run_parquet_test(self, pattern, columns, desired_bundle_size,
-                        perform_splitting, expected_result):
+  def _run_parquet_test(
+      self,
+      pattern,
+      columns,
+      desired_bundle_size,
+      perform_splitting,
+      expected_result):
     source = _create_parquet_source(pattern, columns=columns)
     if perform_splitting:
       assert desired_bundle_size
@@ -173,8 +184,9 @@ class TestParquet(unittest.TestCase):
           for split in source.split(desired_bundle_size=desired_bundle_size)
       ]
       if len(sources_info) < 2:
-        raise ValueError('Test is trivial. Please adjust it so that at least '
-                         'two splits get generated')
+        raise ValueError(
+            'Test is trivial. Please adjust it so that at least '
+            'two splits get generated')
 
       source_test_utils.assert_sources_equal_reference_source(
           (source, None, None), sources_info)
@@ -203,7 +215,8 @@ class TestParquet(unittest.TestCase):
 
     expected_items = [
         DisplayDataItemMatcher('compression', 'auto'),
-        DisplayDataItemMatcher('file_pattern', file_name)]
+        DisplayDataItemMatcher('file_pattern', file_name)
+    ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_read_display_data(self):
@@ -219,12 +232,15 @@ class TestParquet(unittest.TestCase):
 
     expected_items = [
         DisplayDataItemMatcher('compression', 'auto'),
-        DisplayDataItemMatcher('file_pattern', file_name)]
+        DisplayDataItemMatcher('file_pattern', file_name)
+    ]
 
-    hc.assert_that(DisplayData.create_from(read).items,
-                   hc.contains_inanyorder(*expected_items))
-    hc.assert_that(DisplayData.create_from(read_batched).items,
-                   hc.contains_inanyorder(*expected_items))
+    hc.assert_that(
+        DisplayData.create_from(read).items,
+        hc.contains_inanyorder(*expected_items))
+    hc.assert_that(
+        DisplayData.create_from(read_batched).items,
+        hc.contains_inanyorder(*expected_items))
 
   def test_sink_display_data(self):
     file_name = 'some_parquet_sink'
@@ -232,7 +248,7 @@ class TestParquet(unittest.TestCase):
         file_name,
         self.SCHEMA,
         'none',
-        1024*1024,
+        1024 * 1024,
         1000,
         False,
         '.end',
@@ -241,21 +257,14 @@ class TestParquet(unittest.TestCase):
         'application/x-parquet')
     dd = DisplayData.create_from(sink)
     expected_items = [
-        DisplayDataItemMatcher(
-            'schema',
-            str(self.SCHEMA)),
+        DisplayDataItemMatcher('schema', str(self.SCHEMA)),
         DisplayDataItemMatcher(
             'file_pattern',
             'some_parquet_sink-%(shard_num)05d-of-%(num_shards)05d.end'),
-        DisplayDataItemMatcher(
-            'codec',
-            'none'),
-        DisplayDataItemMatcher(
-            'row_group_buffer_size',
-            str(1024*1024)),
-        DisplayDataItemMatcher(
-            'compression',
-            'uncompressed')]
+        DisplayDataItemMatcher('codec', 'none'),
+        DisplayDataItemMatcher('row_group_buffer_size', str(1024 * 1024)),
+        DisplayDataItemMatcher('compression', 'uncompressed')
+    ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_display_data(self):
@@ -263,21 +272,14 @@ class TestParquet(unittest.TestCase):
     write = WriteToParquet(file_name, self.SCHEMA)
     dd = DisplayData.create_from(write)
     expected_items = [
-        DisplayDataItemMatcher(
-            'codec',
-            'none'),
-        DisplayDataItemMatcher(
-            'schema',
-            str(self.SCHEMA)),
-        DisplayDataItemMatcher(
-            'row_group_buffer_size',
-            str(64*1024*1024)),
+        DisplayDataItemMatcher('codec', 'none'),
+        DisplayDataItemMatcher('schema', str(self.SCHEMA)),
+        DisplayDataItemMatcher('row_group_buffer_size', str(64 * 1024 * 1024)),
         DisplayDataItemMatcher(
             'file_pattern',
             'some_parquet_sink-%(shard_num)05d-of-%(num_shards)05d'),
-        DisplayDataItemMatcher(
-            'compression',
-            'uncompressed')]
+        DisplayDataItemMatcher('compression', 'uncompressed')
+    ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_sink_transform_int96(self):
@@ -377,29 +379,22 @@ class TestParquet(unittest.TestCase):
     file_name = self._write_data(count=120, row_group_size=20)
     source = _create_parquet_source(file_name)
 
-    splits = [
-        split
-        for split in source.split(desired_bundle_size=float('inf'))
-    ]
+    splits = [split for split in source.split(desired_bundle_size=float('inf'))]
     assert len(splits) == 1
 
     source_test_utils.assert_split_at_fraction_exhaustive(
-        splits[0].source, splits[0].start_position, splits[0].stop_position
-    )
+        splits[0].source, splits[0].start_position, splits[0].stop_position)
 
   def test_min_bundle_size(self):
     file_name = self._write_data(count=120, row_group_size=20)
 
-    source = _create_parquet_source(file_name, min_bundle_size=100*1024*1024)
-    splits = [
-        split for split in source.split(desired_bundle_size=1)
-    ]
+    source = _create_parquet_source(
+        file_name, min_bundle_size=100 * 1024 * 1024)
+    splits = [split for split in source.split(desired_bundle_size=1)]
     self.assertEqual(len(splits), 1)
 
     source = _create_parquet_source(file_name, min_bundle_size=0)
-    splits = [
-        split for split in source.split(desired_bundle_size=1)
-    ]
+    splits = [split for split in source.split(desired_bundle_size=1)]
     self.assertNotEqual(len(splits), 1)
 
   def _convert_to_timestamped_record(self, record):
@@ -422,9 +417,7 @@ class TestParquet(unittest.TestCase):
     file_name = self._write_data(count=12000, row_group_size=3000)
     source = _create_parquet_source(file_name)
 
-    splits = [
-        split for split in source.split(desired_bundle_size=float('inf'))
-    ]
+    splits = [split for split in source.split(desired_bundle_size=float('inf'))]
     assert len(splits) == 1
 
     range_tracker = splits[0].source.get_range_tracker(
@@ -441,17 +434,19 @@ class TestParquet(unittest.TestCase):
     # should return (0, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
     self.assertEqual(
         split_points_report,
-        [(0, RangeTracker.SPLIT_POINTS_UNKNOWN),
-         (1, RangeTracker.SPLIT_POINTS_UNKNOWN),
-         (2, RangeTracker.SPLIT_POINTS_UNKNOWN),
-         (3, 1),
+        [
+            (0, RangeTracker.SPLIT_POINTS_UNKNOWN),
+            (1, RangeTracker.SPLIT_POINTS_UNKNOWN),
+            (2, RangeTracker.SPLIT_POINTS_UNKNOWN),
+            (3, 1),
         ])
 
   def test_selective_columns(self):
     file_name = self._write_data()
     orig = self._records_as_arrow()
-    expected_result = [pa.Table.from_arrays([orig.column('name')],
-                                            names=['name'])]
+    expected_result = [
+        pa.Table.from_arrays([orig.column('name')], names=['name'])
+    ]
     self._run_parquet_test(file_name, ['name'], None, False, expected_result)
 
   def test_sink_transform_multiple_row_group(self):

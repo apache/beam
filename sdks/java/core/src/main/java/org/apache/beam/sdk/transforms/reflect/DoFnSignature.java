@@ -116,6 +116,10 @@ public abstract class DoFnSignature {
   @Nullable
   public abstract NewTrackerMethod newTracker();
 
+  /** Details about this {@link DoFn}'s {@link DoFn.GetSize} method. */
+  @Nullable
+  public abstract GetSizeMethod getSize();
+
   /** Details about this {@link DoFn}'s {@link DoFn.OnTimer} methods. */
   @Nullable
   public abstract Map<String, OnTimerMethod> onTimerMethods();
@@ -169,6 +173,8 @@ public abstract class DoFnSignature {
     abstract Builder setGetRestrictionCoder(GetRestrictionCoderMethod getRestrictionCoder);
 
     abstract Builder setNewTracker(NewTrackerMethod newTracker);
+
+    abstract Builder setGetSize(GetSizeMethod getSize);
 
     abstract Builder setStateDeclarations(Map<String, StateDeclaration> stateDeclarations);
 
@@ -235,6 +241,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((WindowParameter) this);
       } else if (this instanceof PaneInfoParameter) {
         return cases.dispatch((PaneInfoParameter) this);
+      } else if (this instanceof RestrictionParameter) {
+        return cases.dispatch((RestrictionParameter) this);
       } else if (this instanceof RestrictionTrackerParameter) {
         return cases.dispatch((RestrictionTrackerParameter) this);
       } else if (this instanceof StateParameter) {
@@ -294,6 +302,8 @@ public abstract class DoFnSignature {
       ResultT dispatch(WindowParameter p);
 
       ResultT dispatch(PaneInfoParameter p);
+
+      ResultT dispatch(RestrictionParameter p);
 
       ResultT dispatch(RestrictionTrackerParameter p);
 
@@ -376,6 +386,11 @@ public abstract class DoFnSignature {
 
         @Override
         public ResultT dispatch(PaneInfoParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(RestrictionParameter p) {
           return dispatchDefault(p);
         }
 
@@ -496,6 +511,11 @@ public abstract class DoFnSignature {
     /** Returns a {@link PipelineOptionsParameter}. */
     public static PipelineOptionsParameter pipelineOptions() {
       return PIPELINE_OPTIONS_PARAMETER;
+    }
+
+    /** Returns a {@link RestrictionParameter}. */
+    public static RestrictionParameter restrictionParameter(TypeDescriptor<?> restrictionT) {
+      return new AutoValue_DoFnSignature_Parameter_RestrictionParameter(restrictionT);
     }
 
     /** Returns a {@link RestrictionTrackerParameter}. */
@@ -697,6 +717,19 @@ public abstract class DoFnSignature {
     }
 
     /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.Restriction}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class RestrictionParameter extends Parameter {
+      // Package visible for AutoValue
+      RestrictionParameter() {}
+
+      public abstract TypeDescriptor<?> restrictionT();
+    }
+
+    /**
      * Descriptor for a {@link Parameter} of a subclass of {@link RestrictionTracker}.
      *
      * <p>All such descriptors are equal.
@@ -762,6 +795,12 @@ public abstract class DoFnSignature {
      */
     public abstract boolean requiresStableInput();
 
+    /**
+     * Whether this method requires time sorted input, expressed via {@link
+     * org.apache.beam.sdk.transforms.DoFn.RequiresTimeSortedInput}.
+     */
+    public abstract boolean requiresTimeSortedInput();
+
     /** Concrete type of the {@link RestrictionTracker} parameter, if present. */
     @Nullable
     public abstract TypeDescriptor<?> trackerT();
@@ -778,6 +817,7 @@ public abstract class DoFnSignature {
         Method targetMethod,
         List<Parameter> extraParameters,
         boolean requiresStableInput,
+        boolean requiresTimeSortedInput,
         TypeDescriptor<?> trackerT,
         @Nullable TypeDescriptor<? extends BoundedWindow> windowT,
         boolean hasReturnValue) {
@@ -785,6 +825,7 @@ public abstract class DoFnSignature {
           targetMethod,
           Collections.unmodifiableList(extraParameters),
           requiresStableInput,
+          requiresTimeSortedInput,
           trackerT,
           windowT,
           hasReturnValue);
@@ -1090,25 +1131,21 @@ public abstract class DoFnSignature {
     @Override
     public abstract Method targetMethod();
 
-    /** Type of the restriction taken and returned. */
-    public abstract TypeDescriptor<?> restrictionT();
-
     /** The window type used by this method, if any. */
     @Nullable
     @Override
     public abstract TypeDescriptor<? extends BoundedWindow> windowT();
 
-    /** Types of optional parameters of the annotated method, in the order they appear. */
+    /** Types of parameters of the annotated method, in the order they appear. */
     @Override
     public abstract List<Parameter> extraParameters();
 
     static SplitRestrictionMethod create(
         Method targetMethod,
-        TypeDescriptor<?> restrictionT,
         TypeDescriptor<? extends BoundedWindow> windowT,
         List<Parameter> extraParameters) {
       return new AutoValue_DoFnSignature_SplitRestrictionMethod(
-          targetMethod, restrictionT, windowT, extraParameters);
+          targetMethod, windowT, extraParameters);
     }
   }
 
@@ -1118,9 +1155,6 @@ public abstract class DoFnSignature {
     /** The annotated method itself. */
     @Override
     public abstract Method targetMethod();
-
-    /** Type of the input restriction. */
-    public abstract TypeDescriptor<?> restrictionT();
 
     /** Type of the returned {@link RestrictionTracker}. */
     public abstract TypeDescriptor<?> trackerT();
@@ -1136,12 +1170,35 @@ public abstract class DoFnSignature {
 
     static NewTrackerMethod create(
         Method targetMethod,
-        TypeDescriptor<?> restrictionT,
         TypeDescriptor<?> trackerT,
         TypeDescriptor<? extends BoundedWindow> windowT,
         List<Parameter> extraParameters) {
       return new AutoValue_DoFnSignature_NewTrackerMethod(
-          targetMethod, restrictionT, trackerT, windowT, extraParameters);
+          targetMethod, trackerT, windowT, extraParameters);
+    }
+  }
+
+  /** Describes a {@link DoFn.NewTracker} method. */
+  @AutoValue
+  public abstract static class GetSizeMethod implements MethodWithExtraParameters {
+    /** The annotated method itself. */
+    @Override
+    public abstract Method targetMethod();
+
+    /** The window type used by this method, if any. */
+    @Nullable
+    @Override
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
+    /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
+    public abstract List<Parameter> extraParameters();
+
+    static GetSizeMethod create(
+        Method targetMethod,
+        TypeDescriptor<? extends BoundedWindow> windowT,
+        List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_GetSizeMethod(targetMethod, windowT, extraParameters);
     }
   }
 

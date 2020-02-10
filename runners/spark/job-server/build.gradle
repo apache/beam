@@ -106,6 +106,7 @@ def portableValidatesRunnerTask(String name) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
       excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       //SplitableDoFnTests
       excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
@@ -121,6 +122,33 @@ project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch")
 task validatesPortableRunner() {
   dependsOn validatesPortableRunnerBatch
 }
+
+def jobPort = BeamModulePlugin.startingExpansionPortNumber.getAndDecrement()
+def artifactPort = BeamModulePlugin.startingExpansionPortNumber.getAndDecrement()
+
+def setupTask = project.tasks.create(name: "sparkJobServerSetup", type: Exec) {
+  dependsOn shadowJar
+  def pythonDir = project.project(":sdks:python").projectDir
+  def sparkJobServerJar = shadowJar.archivePath
+
+  executable 'sh'
+  args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name} && $pythonDir/scripts/run_job_server.sh start --group_id ${project.name} --job_port ${jobPort} --artifact_port ${artifactPort} --job_server_jar ${sparkJobServerJar}"
+}
+
+def cleanupTask = project.tasks.create(name: "sparkJobServerCleanup", type: Exec) {
+  def pythonDir = project.project(":sdks:python").projectDir
+
+  executable 'sh'
+  args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name}"
+}
+
+createCrossLanguageValidatesRunnerTask(
+  startJobServer: setupTask,
+  cleanupJobServer: cleanupTask,
+  jobEndpoint: "localhost:${jobPort}",
+  testClasspathConfiguration: configurations.validatesPortableRunner,
+  numParallelTests: 1
+)
 
 def addTestJavaJarCreator(String pyVersion) {
   def pyBuildPath = pyVersion.startsWith("2") ? "2" : pyVersion.replaceAll("\\.", "")

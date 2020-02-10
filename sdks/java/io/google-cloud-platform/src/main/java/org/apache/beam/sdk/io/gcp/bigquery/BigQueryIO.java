@@ -54,6 +54,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -1782,6 +1783,7 @@ public class BigQueryIO {
 
     abstract Boolean getOptimizeWrites();
 
+    @Experimental(Kind.SCHEMAS)
     abstract Boolean getUseBeamSchema();
 
     abstract Builder<T> toBuilder();
@@ -1855,6 +1857,7 @@ public class BigQueryIO {
 
       abstract Builder<T> setOptimizeWrites(Boolean optimizeWrites);
 
+      @Experimental(Kind.SCHEMAS)
       abstract Builder<T> setUseBeamSchema(Boolean useBeamSchema);
 
       abstract Write<T> build();
@@ -2273,7 +2276,7 @@ public class BigQueryIO {
      * formatFunction is set, then BigQueryIO will automatically turn the input records into
      * TableRows that match the schema.
      */
-    @Experimental
+    @Experimental(Kind.SCHEMAS)
     public Write<T> useBeamSchema() {
       return toBuilder().setUseBeamSchema(true).build();
     }

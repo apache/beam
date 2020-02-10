@@ -34,6 +34,8 @@ import java.util.List;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -109,7 +111,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
             .apply(Window.into(new IdentitySideInputWindowFn()))
             .apply(Sum.integersGlobally().asSingletonView());
 
-    underlying = new TestDoFnRunner<>();
+    underlying = new TestDoFnRunner<>(VarIntCoder.of());
 
     DoFn<KV<String, Integer>, Integer> fn = new MyDoFn();
 
@@ -125,11 +127,28 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     statefulRunner =
         DoFnRunners.defaultStatefulDoFnRunner(
             fn,
+            KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
             getDoFnRunner(fn),
+            asStepContext(stateInternals, timerInternals),
             WINDOWING_STRATEGY,
             new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, WINDOWING_STRATEGY),
             new StatefulDoFnRunner.StateInternalsStateCleaner<>(
                 fn, stateInternals, (Coder) WINDOWING_STRATEGY.getWindowFn().windowCoder()));
+  }
+
+  private StepContext asStepContext(StateInternals stateInternals, TimerInternals timerInternals) {
+    return new StepContext() {
+
+      @Override
+      public StateInternals stateInternals() {
+        return stateInternals;
+      }
+
+      @Override
+      public TimerInternals timerInternals() {
+        return timerInternals;
+      }
+    };
   }
 
   private SimplePushbackSideInputDoFnRunner<Integer, Integer> createRunner(
@@ -297,10 +316,15 @@ public class SimplePushbackSideInputDoFnRunnerTest {
   }
 
   private static class TestDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
+    private final Coder<InputT> inputCoder;
     List<WindowedValue<InputT>> inputElems;
     List<TimerData> firedTimers;
     private boolean started = false;
     private boolean finished = false;
+
+    TestDoFnRunner(Coder<InputT> inputCoder) {
+      this.inputCoder = inputCoder;
+    }
 
     @Override
     public DoFn<InputT, OutputT> getFn() {

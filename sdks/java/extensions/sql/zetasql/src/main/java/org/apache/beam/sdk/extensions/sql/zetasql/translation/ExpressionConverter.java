@@ -27,11 +27,9 @@ import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIMESTAMP;
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.convertDateValueToDateString;
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.convertTimeValueToTimeString;
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.safeMicrosToMillis;
-import static org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable.FUNCTION_FAMILY_DATE_ADD;
 import static org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLCastFunctionImpl.ZETASQL_CAST_OP;
 
 import com.google.common.base.Ascii;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -53,7 +51,6 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedLiteral;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedOrderByScan;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedParameter;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedProjectScan;
-import io.grpc.Status;
 import java.math.BigDecimal;
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -64,11 +61,12 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
-import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters.Kind;
+import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperatorRewriter;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperators;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable;
 import org.apache.beam.sdk.extensions.sql.zetasql.TypeUtils;
+import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlUtils;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnitRange;
@@ -212,7 +210,7 @@ public class ExpressionConverter {
         // ResolvedColumn is not a expression, which means it has to be an input column reference.
         index = indexOfProjectionColumnRef(column.getId(), node.getInputScan().getColumnList());
         if (index < 0 || index >= node.getInputScan().getColumnList().size()) {
-          throw new RuntimeException(
+          throw new IllegalStateException(
               String.format("Cannot find %s in fieldList %s", column, fieldList));
         }
 
@@ -261,7 +259,7 @@ public class ExpressionConverter {
           int ret =
               indexOfResolvedColumnInColumnList(columnList, groupByComputedColumn.getColumn());
           if (ret == -1) {
-            throw new RuntimeException("Cannot find " + windowFn + " in " + groupByList);
+            throw new IllegalStateException("Cannot find " + windowFn + " in " + groupByList);
           } else {
             return ret;
           }
@@ -269,7 +267,7 @@ public class ExpressionConverter {
       }
     }
 
-    throw new RuntimeException("Cannot find " + windowFn + " in " + groupByList);
+    throw new IllegalStateException("Cannot find " + windowFn + " in " + groupByList);
   }
 
   private static int indexOfResolvedColumnInColumnList(
@@ -349,9 +347,10 @@ public class ExpressionConverter {
         ret = convertResolvedStructFieldAccess((ResolvedGetStructField) expr);
         break;
       case RESOLVED_SUBQUERY_EXPR:
-        throw new IllegalArgumentException("Does not support sub-queries");
+        throw new UnsupportedOperationException("Does not support sub-queries");
       default:
-        throw new RuntimeException("Does not support expr node kind " + expr.nodeKind());
+        throw new UnsupportedOperationException(
+            "Does not support expr node kind " + expr.nodeKind());
     }
 
     return ret;
@@ -445,7 +444,8 @@ public class ExpressionConverter {
         }
         break;
       default:
-        throw new RuntimeException("Does not support expr node kind " + expr.nodeKind());
+        throw new UnsupportedOperationException(
+            "Does not support expr node kind " + expr.nodeKind());
     }
 
     return ret;
@@ -466,7 +466,7 @@ public class ExpressionConverter {
     if (functionCall.getFunction().getName().equals(FIXED_WINDOW)
         || functionCall.getFunction().getName().equals(SLIDING_WINDOW)
         || functionCall.getFunction().getName().equals(SESSION_WINDOW)) {
-      throw new RuntimeException(
+      throw new SqlConversionException(
           functionCall.getFunction().getName() + " shouldn't appear in SELECT exprlist.");
     }
 
@@ -504,7 +504,7 @@ public class ExpressionConverter {
                 (ResolvedLiteral) functionCall.getArgumentList().get(1)));
         return rexBuilder().makeCall(SqlOperators.TIMESTAMP_ADD_FN, operands);
       default:
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             "Does not support window start/end: " + functionCall.getFunction().getName());
     }
   }
@@ -531,7 +531,7 @@ public class ExpressionConverter {
         ret = convertValueToRexNode(resolvedLiteral.getType(), resolvedLiteral.getValue());
         break;
       default:
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             MessageFormat.format(
                 "Unsupported ResolvedLiteral type: {0}, kind: {1}, value: {2}, class: {3}",
                 resolvedLiteral.getType().typeName(),
@@ -567,7 +567,7 @@ public class ExpressionConverter {
         break;
       default:
         // TODO: convert struct literal.
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             "Unsupported ResolvedLiteral kind: " + type.getKind() + " type: " + type.typeName());
     }
 
@@ -644,7 +644,7 @@ public class ExpressionConverter {
         ret = rexBuilder().makeBinaryLiteral(new ByteString(value.getBytesValue().toByteArray()));
         break;
       default:
-        throw new RuntimeException("Unsupported column type: " + kind);
+        throw new UnsupportedOperationException("Unsupported column type: " + kind);
     }
 
     return ret;
@@ -668,7 +668,7 @@ public class ExpressionConverter {
     if ("zetasql.functions.DateTimestampPart".equals(type.getDescriptor().getFullName())) {
       return convertTimeUnitRangeEnumToRexNode(type, value);
     } else {
-      throw new RuntimeException(
+      throw new UnsupportedOperationException(
           MessageFormat.format(
               "Unsupported enum. Kind: {0} Type: {1}", type.getKind(), type.typeName()));
     }
@@ -677,7 +677,7 @@ public class ExpressionConverter {
   private RexNode convertTimeUnitRangeEnumToRexNode(Type type, Value value) {
     TimeUnit mappedUnit = TIME_UNIT_CASTING_MAP.get(value.getEnumValue());
     if (mappedUnit == null) {
-      throw new RuntimeException(
+      throw new UnsupportedOperationException(
           MessageFormat.format(
               "Unsupported enum value. Kind: {0} Type: {1} Value: {2} EnumName: {3}",
               type.getKind(), type.typeName(), value.getEnumName(), value.getEnumValue()));
@@ -693,7 +693,7 @@ public class ExpressionConverter {
       List<RelDataTypeField> fieldList) {
     int index = indexOfProjectionColumnRef(columnRef.getColumn().getId(), columnList);
     if (index < 0 || index >= columnList.size()) {
-      throw new RuntimeException(
+      throw new IllegalStateException(
           String.format("Cannot find %s in fieldList %s", columnRef.getColumn(), fieldList));
     }
     return rexBuilder().makeInputRef(fieldList.get(index).getType(), index);
@@ -727,17 +727,16 @@ public class ExpressionConverter {
       ResolvedFunctionCall functionCall,
       List<ResolvedColumn> columnList,
       List<RelDataTypeField> fieldList) {
-    RexNode ret;
-    SqlOperator op;
+    final String funGroup = functionCall.getFunction().getGroup();
+    final String funName = functionCall.getFunction().getName();
+    SqlOperator op =
+        SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(funName);
     List<RexNode> operands = new ArrayList<>();
 
-    if (functionCall.getFunction().getGroup().equals(PRE_DEFINED_WINDOW_FUNCTIONS)) {
-      switch (functionCall.getFunction().getName()) {
+    if (PRE_DEFINED_WINDOW_FUNCTIONS.equals(funGroup)) {
+      switch (funName) {
         case FIXED_WINDOW:
         case SESSION_WINDOW:
-          op =
-              SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
-                  functionCall.getFunction().getName());
           // TODO: check size and type of window function argument list.
           // Add ts column reference to operands.
           operands.add(
@@ -749,9 +748,6 @@ public class ExpressionConverter {
                   (ResolvedLiteral) functionCall.getArgumentList().get(1)));
           break;
         case SLIDING_WINDOW:
-          op =
-              SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
-                  SLIDING_WINDOW);
           // Add ts column reference to operands.
           operands.add(
               convertRexNodeFromResolvedExpr(
@@ -766,95 +762,41 @@ public class ExpressionConverter {
                   (ResolvedLiteral) functionCall.getArgumentList().get(2)));
           break;
         default:
-          throw new RuntimeException("Only support TUMBLE, HOP AND SESSION functions right now.");
+          throw new UnsupportedOperationException(
+              "Only support TUMBLE, HOP AND SESSION functions right now.");
       }
-    } else if (functionCall.getFunction().getGroup().equals("ZetaSQL")) {
-      op =
-          SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
-              functionCall.getFunction().getName());
-
+    } else if ("ZetaSQL".equals(funGroup)) {
       if (op == null) {
-        throw new RuntimeException(
-            "Does not support ZetaSQL function: " + functionCall.getFunction().getName());
-      }
-
-      // There are different processes to handle argument conversion because INTERVAL is not a
-      // type in ZetaSQL.
-      if (FUNCTION_FAMILY_DATE_ADD.contains(functionCall.getFunction().getName())) {
-        return convertTimestampAddFunction(functionCall, columnList, fieldList);
-      } else {
-        for (ResolvedExpr expr : functionCall.getArgumentList()) {
-          operands.add(convertRexNodeFromResolvedExpr(expr, columnList, fieldList));
+        Type returnType = functionCall.getSignature().getResultType().getType();
+        if (returnType != null) {
+          op =
+              SqlOperators.createSimpleSqlFunction(
+                  funName, ZetaSqlUtils.zetaSqlTypeToCalciteType(returnType.getKind()));
+        } else {
+          throw new UnsupportedOperationException("Does not support ZetaSQL function: " + funName);
         }
       }
+
+      for (ResolvedExpr expr : functionCall.getArgumentList()) {
+        operands.add(convertRexNodeFromResolvedExpr(expr, columnList, fieldList));
+      }
     } else {
-      throw new RuntimeException(
-          "Does not support function group: " + functionCall.getFunction().getGroup());
+      throw new UnsupportedOperationException("Does not support function group: " + funGroup);
     }
 
     SqlOperatorRewriter rewriter =
-        SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR_REWRITER.get(
-            functionCall.getFunction().getName());
+        SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR_REWRITER.get(funName);
 
     if (rewriter != null) {
-      ret = rewriter.apply(rexBuilder(), operands);
+      return rewriter.apply(rexBuilder(), operands);
     } else {
-      ret = rexBuilder().makeCall(op, operands);
+      return rexBuilder().makeCall(op, operands);
     }
-    return ret;
-  }
-
-  private RexNode convertTimestampAddFunction(
-      ResolvedFunctionCall functionCall,
-      List<ResolvedColumn> columnList,
-      List<RelDataTypeField> fieldList) {
-
-    TimeUnit unit =
-        TIME_UNIT_CASTING_MAP.get(
-            ((ResolvedLiteral) functionCall.getArgumentList().get(2)).getValue().getEnumValue());
-
-    if ((unit == TimeUnit.MICROSECOND) || (unit == TimeUnit.NANOSECOND)) {
-      throw Status.UNIMPLEMENTED
-          .withDescription("Micro and Nanoseconds are not supported by Beam ZetaSQL")
-          .asRuntimeException();
-    }
-
-    SqlIntervalQualifier qualifier = new SqlIntervalQualifier(unit, null, SqlParserPos.ZERO);
-
-    RexNode intervalArgumentNode =
-        convertRexNodeFromResolvedExpr(
-            functionCall.getArgumentList().get(1), columnList, fieldList);
-
-    RexNode validatedIntervalArgument =
-        rexBuilder()
-            .makeCall(
-                SqlOperators.VALIDATE_TIME_INTERVAL,
-                intervalArgumentNode,
-                rexBuilder().makeFlag(unit));
-
-    RexNode intervalNode =
-        rexBuilder()
-            .makeCall(
-                SqlStdOperatorTable.MULTIPLY,
-                rexBuilder().makeIntervalLiteral(unit.multiplier, qualifier),
-                validatedIntervalArgument);
-
-    RexNode timestampNode =
-        convertRexNodeFromResolvedExpr(
-            functionCall.getArgumentList().get(0), columnList, fieldList);
-
-    RexNode dateTimePlusResult =
-        rexBuilder().makeCall(SqlStdOperatorTable.DATETIME_PLUS, timestampNode, intervalNode);
-
-    RexNode validatedTimestampResult =
-        rexBuilder().makeCall(SqlOperators.VALIDATE_TIMESTAMP, dateTimePlusResult);
-
-    return validatedTimestampResult;
   }
 
   private RexNode convertIntervalToRexIntervalLiteral(ResolvedLiteral resolvedLiteral) {
     if (resolvedLiteral.getType().getKind() != TYPE_STRING) {
-      throw new IllegalArgumentException(INTERVAL_FORMAT_MSG);
+      throw new SqlConversionException(INTERVAL_FORMAT_MSG);
     }
 
     String valStr = resolvedLiteral.getValue().getStringValue();
@@ -862,18 +804,18 @@ public class ExpressionConverter {
         Arrays.stream(valStr.split(" ")).filter(s -> !s.isEmpty()).collect(Collectors.toList());
 
     if (stringList.size() != 3) {
-      throw new IllegalArgumentException(INTERVAL_FORMAT_MSG);
+      throw new SqlConversionException(INTERVAL_FORMAT_MSG);
     }
 
     if (!Ascii.toUpperCase(stringList.get(0)).equals("INTERVAL")) {
-      throw new IllegalArgumentException(INTERVAL_FORMAT_MSG);
+      throw new SqlConversionException(INTERVAL_FORMAT_MSG);
     }
 
     long intervalValue;
     try {
       intervalValue = Long.parseLong(stringList.get(1));
     } catch (NumberFormatException e) {
-      throw new IllegalArgumentException(INTERVAL_FORMAT_MSG, e);
+      throw new SqlConversionException(INTERVAL_FORMAT_MSG, e);
     }
 
     String intervalDatepart = Ascii.toUpperCase(stringList.get(2));
@@ -906,7 +848,7 @@ public class ExpressionConverter {
       case INTERVAL_SECOND:
         return new BigDecimal(value * ONE_SECOND_IN_MILLIS);
       default:
-        throw new IllegalArgumentException(qualifier.typeName().toString());
+        throw new SqlConversionException(qualifier.typeName().toString());
     }
   }
 
@@ -932,7 +874,7 @@ public class ExpressionConverter {
       case "MILLISECOND":
         return new SqlIntervalQualifier(TimeUnit.MILLISECOND, null, SqlParserPos.ZERO);
       default:
-        throw new RuntimeException(
+        throw new SqlConversionException(
             String.format(
                 "Received an undefined INTERVAL unit: %s. Please specify unit from the following"
                     + " list: %s.",
@@ -965,7 +907,7 @@ public class ExpressionConverter {
   private static void isCastingSupported(TypeKind fromType, TypeKind toType) {
     if (UNSUPPORTED_CASTING.containsKey(toType)
         && UNSUPPORTED_CASTING.get(toType).contains(fromType)) {
-      throw new IllegalArgumentException(
+      throw new UnsupportedOperationException(
           "Does not support CAST(" + fromType + " AS " + toType + ")");
     }
   }
@@ -1002,27 +944,28 @@ public class ExpressionConverter {
   }
 
   private RexNode convertResolvedParameter(ResolvedParameter parameter) {
-    if (queryParams.getKind() == Kind.NAMED) {
-      Map<String, Value> queryParameterMap = (Map<String, Value>) queryParams.named();
-      Value value = queryParameterMap.get(parameter.getName());
-      Preconditions.checkState(
-          parameter.getType().equals(value.getType()),
+    Value value;
+    String identifier;
+    switch (queryParams.getKind()) {
+      case NAMED:
+        value = ((Map<String, Value>) queryParams.named()).get(parameter.getName());
+        identifier = parameter.getName();
+        break;
+      case POSITIONAL:
+        // parameter is 1-indexed, while parameter list is 0-indexed.
+        value = ((List<Value>) queryParams.positional()).get((int) parameter.getPosition() - 1);
+        identifier = Long.toString(parameter.getPosition());
+        break;
+      default:
+        throw new IllegalArgumentException("Found unexpected parameter " + parameter);
+    }
+    if (!parameter.getType().equals(value.getType())) {
+      throw new SqlConversionException(
           String.format(
               "Expected resolved parameter %s to have type %s, but it has type %s",
-              parameter.getName(), value.getType(), parameter.getType()));
-      return convertValueToRexNode(value.getType(), value);
-    } else if (queryParams.getKind() == Kind.POSITIONAL) {
-      List<Value> queryParameterList = (List<Value>) queryParams.positional();
-      // parameter is 1-indexed, while parameter list is 0-indexed.
-      Value value = queryParameterList.get((int) parameter.getPosition() - 1);
-      Preconditions.checkState(
-          parameter.getType().equals(value.getType()),
-          String.format(
-              "Expected resolved parameter %d to have type %s, but it has type %s",
-              parameter.getPosition(), value.getType(), parameter.getType()));
-      return convertValueToRexNode(value.getType(), value);
+              identifier, value.getType(), parameter.getType()));
     }
-    throw new IllegalArgumentException("Found unexpected parameter " + parameter);
+    return convertValueToRexNode(value.getType(), value);
   }
 
   private RexNode convertResolvedStructFieldAccess(ResolvedGetStructField resolvedGetStructField) {

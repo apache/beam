@@ -49,17 +49,14 @@ class KeywordOnlyArgsTests(unittest.TestCase):
       pcol = pipeline | 'start' >> beam.Create([1, 2])
       side = pipeline | 'side' >> beam.Create([3, 4])  # 2 values in side input.
       result1 = pcol | 'compute1' >> beam.FlatMap(
-          sort_with_side_inputs,
-          beam.pvalue.AsList(side), reverse=True)
+          sort_with_side_inputs, beam.pvalue.AsList(side), reverse=True)
       assert_that(result1, equal_to([[4, 3, 1], [4, 3, 2]]), label='assert1')
 
       result2 = pcol | 'compute2' >> beam.FlatMap(
-          sort_with_side_inputs,
-          beam.pvalue.AsList(side))
+          sort_with_side_inputs, beam.pvalue.AsList(side))
       assert_that(result2, equal_to([[1, 3, 4], [2, 3, 4]]), label='assert2')
 
-      result3 = pcol | 'compute3' >> beam.FlatMap(
-          sort_with_side_inputs)
+      result3 = pcol | 'compute3' >> beam.FlatMap(sort_with_side_inputs)
       assert_that(result3, equal_to([]), label='assert3')
 
       result4 = pcol | 'compute4' >> beam.FlatMap(
@@ -68,12 +65,14 @@ class KeywordOnlyArgsTests(unittest.TestCase):
 
       result5 = pcol | 'compute5' >> beam.FlatMap(
           sort_with_side_inputs_without_default_values,
-          beam.pvalue.AsList(side), reverse=True)
+          beam.pvalue.AsList(side),
+          reverse=True)
       assert_that(result5, equal_to([[4, 3, 1], [4, 3, 2]]), label='assert5')
 
       result6 = pcol | 'compute6' >> beam.FlatMap(
           sort_with_side_inputs_without_default_values,
-          beam.pvalue.AsList(side), reverse=False)
+          beam.pvalue.AsList(side),
+          reverse=False)
       assert_that(result6, equal_to([[1, 3, 4], [2, 3, 4]]), label='assert6')
 
       result7 = pcol | 'compute7' >> beam.FlatMap(
@@ -83,7 +82,6 @@ class KeywordOnlyArgsTests(unittest.TestCase):
       result8 = pcol | 'compute8' >> beam.FlatMap(
           sort_with_side_inputs_without_default_values, reverse=True)
       assert_that(result8, equal_to([]), label='assert8')
-
 
   def test_combine_keyword_only_args(self):
     with TestPipeline() as pipeline:
@@ -95,8 +93,8 @@ class KeywordOnlyArgsTests(unittest.TestCase):
         return min(sum(values) + sum(s), bound)
 
       pcoll = pipeline | 'start' >> beam.Create([6, 3, 1])
-      result1 = pcoll | 'sum1' >> beam.CombineGlobally(bounded_sum, 5, 8,
-                                                       bound=20)
+      result1 = pcoll | 'sum1' >> beam.CombineGlobally(
+          bounded_sum, 5, 8, bound=20)
       result2 = pcoll | 'sum2' >> beam.CombineGlobally(bounded_sum, 0, 0)
       result3 = pcoll | 'sum3' >> beam.CombineGlobally(bounded_sum)
       result4 = pcoll | 'sum4' >> beam.CombineGlobally(bounded_sum, bound=5)
@@ -117,7 +115,6 @@ class KeywordOnlyArgsTests(unittest.TestCase):
       assert_that(result6, equal_to([10]), label='assert6')
       assert_that(result7, equal_to([10]), label='assert7')
       assert_that(result8, equal_to([5]), label='assert8')
-
 
   def test_do_fn_keyword_only_args(self):
     with TestPipeline() as pipeline:

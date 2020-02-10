@@ -24,7 +24,7 @@ def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
 def bqio_read_test = [
         title          : 'BigQueryIO Read Performance Test Python 10 GB',
-        test           : 'apache_beam.io.gcp.bigquery_read_perf_test:BigQueryReadPerfTest.test',
+        test           : 'apache_beam.io.gcp.bigquery_read_perf_test',
         runner         : CommonTestProperties.Runner.DATAFLOW,
         pipelineOptions: [
                 job_name             : 'performance-tests-bqio-read-python-10gb' + now,
@@ -46,7 +46,7 @@ def bqio_read_test = [
 
 def bqio_write_test = [
         title          : 'BigQueryIO Write Performance Test Python Batch 10 GB',
-        test           : 'apache_beam.io.gcp.bigquery_write_perf_test:BigQueryWritePerfTest.test',
+        test           : 'apache_beam.io.gcp.bigquery_write_perf_test',
         runner         : CommonTestProperties.Runner.DATAFLOW,
         pipelineOptions: [
                 job_name             : 'performance-tests-bqio-write-python-batch-10gb' + now,

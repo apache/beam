@@ -109,6 +109,7 @@ def parse_Bytes(serialized_bytes, msg_class):
 
 def pack_Struct(**kwargs):
   # type: (...) -> struct_pb2.Struct
+
   """Returns a struct containing the values indicated by kwargs.
   """
   msg = struct_pb2.Struct()

@@ -183,12 +183,12 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
         PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
       if (!(filters instanceof DefaultTableFilter)
           && (options == PushDownOptions.NONE || options == PushDownOptions.PROJECT)) {
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             "Filter push-down is not supported, yet non-default filter was passed.");
       }
       if ((!fieldNames.isEmpty() && fieldNames.size() < getSchema().getFieldCount())
           && (options == PushDownOptions.NONE || options == PushDownOptions.FILTER)) {
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             "Project push-down is not supported, yet a list of fieldNames was passed.");
       }
 
@@ -206,7 +206,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
             result = result.apply("IOPushDownFilter_" + node.toString(), filterFromNode(node));
           }
         } else {
-          throw new RuntimeException(
+          throw new UnsupportedOperationException(
               "Was expecting a filter of type TestTableFilter, but received: "
                   + filters.getClass().getSimpleName());
         }
@@ -270,7 +270,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
         operands.add(node);
         operands.add(RexLiteral.fromJdbcString(node.getType(), SqlTypeName.BOOLEAN, "true"));
       } else {
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             "Was expecting a RexCall or a boolean RexInputRef, but received: "
                 + node.getClass().getSimpleName());
       }
@@ -284,7 +284,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
           RexLiteral literal = (RexLiteral) operand;
           literals.add(literal);
         } else {
-          throw new RuntimeException(
+          throw new UnsupportedOperationException(
               "Encountered an unexpected operand: " + operand.getClass().getSimpleName());
         }
       }
@@ -313,7 +313,8 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
           comparison = i -> i != 0;
           break;
         default:
-          throw new RuntimeException("Unsupported node kind: " + node.getKind().toString());
+          throw new UnsupportedOperationException(
+              "Unsupported node kind: " + node.getKind().toString());
       }
 
       return Filter.<Row>create()
@@ -365,7 +366,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
       } else if (operands.get(0) instanceof RexInputRef) { // First operand is a column value
         return row -> comparison.apply(row.<Comparable>getValue(op0).compareTo(op1));
       } else {
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             "Was expecting a RexLiteral and a RexInputRef, but received: "
                 + operands.stream()
                     .map(o -> o.getClass().getSimpleName())

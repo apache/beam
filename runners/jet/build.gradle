@@ -71,6 +71,7 @@ task validatesRunnerBatch(type: Test) {
     useJUnit {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
         excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse' //impulse doesn't cooperate properly with Jet when multiple cluster members are used
         exclude '**/SplittableDoFnTest.class' //Splittable DoFn functionality not yet in the runner
     }

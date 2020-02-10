@@ -25,11 +25,13 @@ import java.util.concurrent.atomic.AtomicInteger
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.Task
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.file.FileTree
 import org.gradle.api.plugins.quality.Checkstyle
 import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.bundling.Jar
@@ -261,10 +263,12 @@ class BeamModulePlugin implements Plugin<Project> {
   class CrossLanguageValidatesRunnerConfiguration {
     // Task name for cross-language validate runner case.
     String name = 'validatesCrossLanguageRunner'
-    // Fully qualified JobServerClass name to use.
-    String jobServerDriver
-    // A string representing the jobServer Configuration.
-    String jobServerConfig
+    // Job endpoint to use.
+    String jobEndpoint = 'localhost:8099'
+    // Job server startup task.
+    Task startJobServer
+    // Job server cleanup task.
+    Task cleanupJobServer
     // Number of parallel test runs.
     Integer numParallelTests = 1
     // Extra options to pass to TestPipeline
@@ -364,7 +368,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def aws_java_sdk2_version = "2.5.71"
     def cassandra_driver_version = "3.8.0"
     def classgraph_version = "4.8.56"
-    def gax_version = "1.52.0"
+    def gax_version = "1.53.0"
     def generated_grpc_ga_version = "1.83.0"
     def generated_grpc_dc_beta_version = "0.29.0-alpha"
     def google_auth_version = "0.19.0"
@@ -387,7 +391,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def proto_google_common_protos_version = "1.17.0"
     def protobuf_version = "3.11.1"
     def quickcheck_version = "0.8"
-    def spark_version = "2.4.4"
+    def spark_version = "2.4.5"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -451,7 +455,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http:$google_auth_version",
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery:1.103.0",
         google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage:0.120.1-beta",
-        google_cloud_bigtable_client_core           : "com.google.cloud.bigtable:bigtable-client-core:1.8.0",
+        google_cloud_bigtable_client_core           : "com.google.cloud.bigtable:bigtable-client-core:1.13.0",
         google_cloud_core                           : "com.google.cloud:google-cloud-core:$google_cloud_core_version",
         google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc:$google_cloud_core_version",
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
@@ -469,6 +473,7 @@ class BeamModulePlugin implements Plugin<Project> {
         grpc_context                                : "io.grpc:grpc-context:$grpc_version",
         grpc_google_cloud_datacatalog_v1beta1       : "com.google.api.grpc:grpc-google-cloud-datacatalog-v1beta1:$generated_grpc_dc_beta_version",
         grpc_google_cloud_pubsub_v1                 : "com.google.api.grpc:grpc-google-cloud-pubsub-v1:$generated_grpc_ga_version",
+        grpc_grpclb                                 : "io.grpc:grpc-grpclb:$grpc_version",
         grpc_protobuf                               : "io.grpc:grpc-protobuf:$grpc_version",
         grpc_protobuf_lite                          : "io.grpc:grpc-protobuf-lite:$grpc_version",
         grpc_netty                                  : "io.grpc:grpc-netty:$grpc_version",
@@ -1386,6 +1391,12 @@ class BeamModulePlugin implements Plugin<Project> {
     project.ext.applyDockerNature = {
       project.apply plugin: "com.palantir.docker"
       project.docker { noCache true }
+      project.tasks.create(name: "copyLicenses", type: Copy) {
+        from "${project.rootProject.projectDir}/LICENSE"
+        from "${project.rootProject.projectDir}/NOTICE"
+        into "build/target"
+      }
+      project.tasks.dockerPrepare.dependsOn project.tasks.copyLicenses
     }
 
     /** ***********************************************************************************************/
@@ -1668,9 +1679,10 @@ class BeamModulePlugin implements Plugin<Project> {
         "python_port": pythonPort
       ]
       def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
+      def pythonContainerSuffix = project.project(':sdks:python').pythonVersion == '2.7' ? '2' : project.project(':sdks:python').pythonVersion.replace('.', '')
       def setupTask = project.tasks.create(name: config.name+"Setup", type: Exec) {
         dependsOn ':sdks:java:container:docker'
-        dependsOn ':sdks:python:container:py2:docker'
+        dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
         dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
         dependsOn ":sdks:python:installGcpTest"
         // setup test env
@@ -1689,22 +1701,21 @@ class BeamModulePlugin implements Plugin<Project> {
         args '-c', "$pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name}"
       }
       setupTask.finalizedBy cleanupTask
+      config.startJobServer.finalizedBy config.cleanupJobServer
 
       // Task for running testcases in Java SDK
       def beamJavaTestPipelineOptions = [
-        "--runner=org.apache.beam.runners.portability.testing.TestPortableRunner",
-        "--jobServerDriver=${config.jobServerDriver}",
+        "--runner=PortableRunner",
+        "--jobEndpoint=${config.jobEndpoint}",
         "--environmentCacheMillis=10000"
       ]
       beamJavaTestPipelineOptions.addAll(config.pipelineOpts)
-      if (config.jobServerConfig) {
-        beamJavaTestPipelineOptions.add("--jobServerConfig=${config.jobServerConfig}")
-      }
       ['Java': javaPort, 'Python': pythonPort].each { sdk, port ->
         def javaTask = project.tasks.create(name: config.name+"JavaUsing"+sdk, type: Test) {
           group = "Verification"
           description = "Validates runner for cross-language capability of using ${sdk} transforms from Java SDK"
           systemProperty "beamTestPipelineOptions", JsonOutput.toJson(beamJavaTestPipelineOptions)
+          systemProperty "expansionJar", expansionJar
           systemProperty "expansionPort", port
           classpath = config.testClasspathConfiguration
           testClassesDirs = project.files(project.project(":runners:core-construction-java").sourceSets.test.output.classesDirs)
@@ -1714,9 +1725,11 @@ class BeamModulePlugin implements Plugin<Project> {
           // see https://issues.apache.org/jira/browse/BEAM-6698
           maxHeapSize = '4g'
           dependsOn setupTask
+          dependsOn config.startJobServer
         }
         mainTask.dependsOn javaTask
         cleanupTask.mustRunAfter javaTask
+        config.cleanupJobServer.mustRunAfter javaTask
 
         // Task for running testcases in Python SDK
         def testOpts = [
@@ -1724,7 +1737,8 @@ class BeamModulePlugin implements Plugin<Project> {
         ]
         def pipelineOpts = [
           "--runner=PortableRunner",
-          "--environment_cache_millis=10000"
+          "--environment_cache_millis=10000",
+          "--job_endpoint=${config.jobEndpoint}"
         ]
         def beamPythonTestPipelineOptions = [
           "pipeline_opts": pipelineOpts,
@@ -1740,12 +1754,11 @@ class BeamModulePlugin implements Plugin<Project> {
           executable 'sh'
           args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           dependsOn setupTask
-          // We need flink-job-server-container dependency since Python PortableRunner automatically
-          // brings the flink-job-server-container up when --job_endpoint is not specified.
-          dependsOn ':runners:flink:1.9:job-server-container:docker'
+          dependsOn config.startJobServer
         }
         mainTask.dependsOn pythonTask
         cleanupTask.mustRunAfter pythonTask
+        config.cleanupJobServer.mustRunAfter pythonTask
       }
     }
 

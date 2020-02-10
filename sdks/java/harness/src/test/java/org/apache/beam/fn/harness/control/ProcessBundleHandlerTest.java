@@ -360,7 +360,7 @@ public class ProcessBundleHandlerTest {
                     .setWindowCoderId("window-strategy-coder")
                     .setWindowFn(
                         RunnerApi.FunctionSpec.newBuilder()
-                            .setUrn("beam:windowfn:global_windows:v0.1"))
+                            .setUrn("beam:window_fn:global_windows:v1"))
                     .setOutputTime(RunnerApi.OutputTime.Enum.END_OF_WINDOW)
                     .setAccumulationMode(RunnerApi.AccumulationMode.Enum.ACCUMULATING)
                     .setTrigger(

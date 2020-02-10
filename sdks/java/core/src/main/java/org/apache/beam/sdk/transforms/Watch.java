@@ -759,12 +759,13 @@ public class Watch {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRestriction(KV<InputT, List<TimestampedValue<OutputT>>> element) {
+    public OffsetRange getInitialRestriction(
+        @Element KV<InputT, List<TimestampedValue<OutputT>>> element) {
       return new OffsetRange(0, element.getValue().size());
     }
 
     @NewTracker
-    public OffsetRangeTracker newTracker(OffsetRange restriction) {
+    public OffsetRangeTracker newTracker(@Restriction OffsetRange restriction) {
       return restriction.newTracker();
     }
 
@@ -924,12 +925,13 @@ public class Watch {
     }
 
     @GetInitialRestriction
-    public GrowthState getInitialRestriction(InputT element) {
+    public GrowthState getInitialRestriction(@Element InputT element) {
       return PollingGrowthState.of(getTerminationCondition().forNewInput(Instant.now(), element));
     }
 
     @NewTracker
-    public GrowthTracker<OutputT, TerminationStateT> newTracker(GrowthState restriction) {
+    public GrowthTracker<OutputT, TerminationStateT> newTracker(
+        @Restriction GrowthState restriction) {
       return new GrowthTracker<>(restriction, coderFunnel);
     }
 

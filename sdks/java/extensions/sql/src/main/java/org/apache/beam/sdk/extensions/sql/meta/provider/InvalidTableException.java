@@ -15,20 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas;
+package org.apache.beam.sdk.extensions.sql.meta.provider;
 
-import java.util.List;
+/** Exception thrown when the request for a table is invalid, such as invalid metadata. */
+public class InvalidTableException extends IllegalArgumentException {
+  public InvalidTableException(String msg) {
+    super(msg);
+  }
 
-/**
- * A factory interface for creating {@link org.apache.beam.sdk.schemas.FieldValueGetter} objects
- * corresponding to a class.
- */
-public interface FieldValueGetterFactory extends Factory<List<FieldValueGetter>> {
-  /**
-   * Returns a list of {@link org.apache.beam.sdk.schemas.FieldValueGetter}s for the target class.
-   *
-   * <p>The returned list is ordered by the order of matching fields in the schema.
-   */
-  @Override
-  List<FieldValueGetter> create(Class<?> targetClass, Schema schema);
+  public InvalidTableException(String msg, Throwable cause) {
+    super(msg, cause);
+  }
+
+  public InvalidTableException(Throwable cause) {
+    super(cause);
+  }
 }

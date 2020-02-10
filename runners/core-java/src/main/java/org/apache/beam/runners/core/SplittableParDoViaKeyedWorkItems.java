@@ -39,6 +39,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.BaseArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -376,7 +377,18 @@ public class SplittableParDoViaKeyedWorkItems {
       }
 
       final RestrictionTracker<RestrictionT, PositionT> tracker =
-          invoker.invokeNewTracker(elementAndRestriction.getValue());
+          invoker.invokeNewTracker(
+              new BaseArgumentProvider<InputT, OutputT>() {
+                @Override
+                public Object restriction() {
+                  return elementAndRestriction.getValue();
+                }
+
+                @Override
+                public String getErrorContext() {
+                  return ProcessFn.class.getSimpleName() + ".invokeNewTracker";
+                }
+              });
       SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, PositionT>.Result result =
           processElementInvoker.invokeProcessElement(
               invoker, elementAndRestriction.getKey(), tracker);
