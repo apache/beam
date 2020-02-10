@@ -46,6 +46,7 @@ import java.util.Comparator;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -192,21 +193,31 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The batches written are obtained from by grouping enough {@link Mutation Mutations} from the
  * Bundle provided by Beam to form (by default) 1000 batches. This group of {@link Mutation
- * Mutations} is then sorted by Key, and the batches are created from the sorted group. This so that
- * each batch will have keys that are 'close' to each other to optimise write performance. This
- * grouping factor (number of batches) is controlled by the parameter {@link
- * Write#withGroupingFactor(int) withGroupingFactor()}.<br>
- * Note that each worker will need enough memory to hold {@code GroupingFactor x MaxBatchSizeBytes}
- * Mutations, so if you have a large {@code MaxBatchSize} you may need to reduce {@code
- * GroupingFactor}
+ * Mutations} is then sorted by table and primary key, and the batches are created from the sorted
+ * group. Each batch will then have rows with keys that are 'close' to each other to optimise write
+ * performance. This grouping factor (number of batches) is controlled by the parameter {@link
+ * Write#withGroupingFactor(int) withGroupingFactor()}.
+ *
+ * <p>Note that each worker will need enough memory to hold {@code GroupingFactor x
+ * MaxBatchSizeBytes} Mutations, so if you have a large {@code MaxBatchSize} you may need to reduce
+ * {@code GroupingFactor}
  *
  * <h3>Database Schema Preparation</h3>
  *
- * <p>The Write transform reads the database schema on pipeline start. If the schema is created as
- * part of the same pipeline, this transform needs to wait until this has happened. Use {@link
- * Write#withSchemaReadySignal(PCollection)} to pass a signal {@link PCollection} which will be used
- * with {@link Wait.OnSignal} to prevent the schema from being read until it is ready. The Write
- * transform will be paused until the signal {@link PCollection} is closed.
+ * <p>The Write transform reads the database schema on pipeline start to know which columns are used
+ * as primary keys of the tables and indexes. This is so that the transform knows how to sort the
+ * grouped Mutations by table name and primary key as described above.
+ *
+ * <p>If the database schema, any additional tables or indexes are created in the same pipeline then
+ * there will be a race condition, leading to a situation where the schema is read before the table
+ * is created its primary key will not be known. This will mean that the sorting/batching will not
+ * be optimal and performance will be reduced (warnings will be logged for rows using unknown
+ * tables)
+ *
+ * <p>To prevent this race condition, use {@link Write#withSchemaReadySignal(PCollection)} to pass a
+ * signal {@link PCollection} (for example the output of the transform that creates the table(s))
+ * which will be used with {@link Wait.OnSignal} to prevent the schema from being read until it is
+ * ready. The Write transform will be paused until this signal {@link PCollection} is closed.
  *
  * <h3>Transactions</h3>
  *
@@ -239,7 +250,7 @@ import org.slf4j.LoggerFactory;
  * <p>{@link SpannerIO.Write} can be used as a streaming sink, however as with batch mode note that
  * the write order of individual {@link Mutation}/{@link MutationGroup} objects is not guaranteed.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class SpannerIO {
   private static final Logger LOG = LoggerFactory.getLogger(SpannerIO.class);
 
@@ -256,7 +267,6 @@ public class SpannerIO {
    * configured with a {@link Read#withInstanceId} and {@link Read#withDatabaseId} that identify the
    * Cloud Spanner database.
    */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   public static Read read() {
     return new AutoValue_SpannerIO_Read.Builder()
         .setSpannerConfig(SpannerConfig.create())
@@ -270,7 +280,6 @@ public class SpannerIO {
    * A {@link PTransform} that works like {@link #read}, but executes read operations coming from a
    * {@link PCollection}.
    */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   public static ReadAll readAll() {
     return new AutoValue_SpannerIO_ReadAll.Builder()
         .setSpannerConfig(SpannerConfig.create())
@@ -310,7 +319,6 @@ public class SpannerIO {
   }
 
   /** Implementation of {@link #readAll}. */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   @AutoValue
   public abstract static class ReadAll
       extends PTransform<PCollection<ReadOperation>, PCollection<Struct>> {
@@ -431,7 +439,6 @@ public class SpannerIO {
   }
 
   /** Implementation of {@link #read}. */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<Struct>> {
 
@@ -617,7 +624,6 @@ public class SpannerIO {
    *
    * @see SpannerIO
    */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   @AutoValue
   public abstract static class CreateTransaction
       extends PTransform<PBegin, PCollectionView<Transaction>> {
@@ -722,7 +728,6 @@ public class SpannerIO {
    *
    * @see SpannerIO
    */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<Mutation>, SpannerWriteResult> {
 

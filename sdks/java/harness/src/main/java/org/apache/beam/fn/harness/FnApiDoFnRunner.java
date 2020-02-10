@@ -773,7 +773,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
           (Iterator<BoundedWindow>) timer.getWindows().iterator();
       while (windowIterator.hasNext()) {
         currentWindow = windowIterator.next();
-        doFnInvoker.invokeOnTimer(timerId, timerId, onTimerContext);
+        doFnInvoker.invokeOnTimer(timerId, "", onTimerContext);
       }
     } finally {
       currentTimer = null;
@@ -916,7 +916,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
       this.currentOutputTimestamp = outputTime;
       return this;
     }
-
     /**
      * For event time timers the target time should be prior to window GC time. So it returns
      * min(time to set, GC Time of window).

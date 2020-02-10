@@ -33,7 +33,6 @@ import subprocess
 import sys
 import threading
 import time
-import uuid
 from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
@@ -461,8 +460,6 @@ class FnApiRunner(runner.PipelineRunner):
     self._use_state_iterables = use_state_iterables
     self._provision_info = provision_info or ExtendedProvisionInfo(
         beam_provision_api_pb2.ProvisionInfo(
-            job_id='unknown-job-id',
-            job_name='unknown-job-name',
             retrieval_token='unused-retrieval-token'))
 
   def _next_uid(self):
@@ -1537,10 +1534,6 @@ class GrpcServer(object):
     # If we have provision info, serve these off the control port as well.
     if self.provision_info:
       if self.provision_info.provision_info:
-        provision_info_proto = self.provision_info.provision_info
-        if not provision_info_proto.worker_id:
-          provision_info_proto = copy.copy(provision_info_proto)
-          provision_info_proto.worker_id = str(uuid.uuid4())
         beam_provision_api_pb2_grpc.add_ProvisionServiceServicer_to_server(
             BasicProvisionService(self.provision_info.provision_info),
             self.control_server)
@@ -1887,11 +1880,13 @@ class WorkerHandlerManager(object):
 class ExtendedProvisionInfo(object):
   def __init__(self,
                provision_info=None,  # type: Optional[beam_provision_api_pb2.ProvisionInfo]
-               artifact_staging_dir=None
+               artifact_staging_dir=None,
+               job_name=None,  # type: Optional[str]
               ):
     self.provision_info = (
         provision_info or beam_provision_api_pb2.ProvisionInfo())
     self.artifact_staging_dir = artifact_staging_dir
+    self.job_name = job_name
 
 
 _split_managers = []

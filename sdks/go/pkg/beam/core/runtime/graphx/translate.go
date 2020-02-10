@@ -43,10 +43,10 @@ const (
 	// URNIterableSideInput = "beam:side_input:iterable:v1"
 	URNMultimapSideInput = "beam:side_input:multimap:v1"
 
-	URNGlobalWindowsWindowFn  = "beam:windowfn:global_windows:v0.1"
-	URNFixedWindowsWindowFn   = "beam:windowfn:fixed_windows:v0.1"
-	URNSlidingWindowsWindowFn = "beam:windowfn:sliding_windows:v0.1"
-	URNSessionsWindowFn       = "beam:windowfn:session_windows:v0.1"
+	URNGlobalWindowsWindowFn  = "beam:window_fn:global_windows:v1"
+	URNFixedWindowsWindowFn   = "beam:window_fn:fixed_windows:v1"
+	URNSlidingWindowsWindowFn = "beam:window_fn:sliding_windows:v1"
+	URNSessionsWindowFn       = "beam:window_fn:session_windows:v1"
 
 	// SDK constants
 
@@ -268,6 +268,10 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 				Payload: []byte(mustEncodeMultiEdgeBase64(edge.Edge)),
 			},
 			SideInputs: si,
+		}
+		if edge.Edge.DoFn.IsSplittable() {
+			payload.Splittable = true
+			payload.RestrictionCoderId = m.coders.Add(edge.Edge.RestrictionCoder)
 		}
 		transformEnvID = m.addDefaultEnv()
 		spec = &pb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
@@ -529,7 +533,7 @@ func makeWindowFn(w *window.Fn) *pb.FunctionSpec {
 		return &pb.FunctionSpec{
 			Urn: URNSessionsWindowFn,
 			Payload: protox.MustEncode(
-				&pb.SessionsPayload{
+				&pb.SessionWindowsPayload{
 					GapSize: ptypes.DurationProto(w.Gap),
 				},
 			),

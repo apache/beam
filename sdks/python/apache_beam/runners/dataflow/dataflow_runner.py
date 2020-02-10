@@ -380,6 +380,25 @@ class DataflowRunner(PipelineRunner):
 
     return FlattenInputVisitor()
 
+  def _check_for_unsupported_fnapi_features(self, pipeline_proto):
+    components = pipeline_proto.components
+    for windowing_strategy in components.windowing_strategies.values():
+      if windowing_strategy.window_fn.urn not in (
+          common_urns.global_windows.urn,
+          common_urns.fixed_windows.urn,
+          common_urns.sliding_windows.urn,
+          common_urns.session_windows.urn):
+        raise RuntimeError(
+            'Unsupported windowing strategy: %s' %
+            windowing_strategy.window_fn.urn)
+      elif components.coders[
+          windowing_strategy.window_coder_id].spec.urn not in (
+              common_urns.coders.GLOBAL_WINDOW.urn,
+              common_urns.coders.INTERVAL_WINDOW.urn):
+        raise RuntimeError(
+            'Unsupported window coder: %s' %
+            components.coders[windowing_strategy.window_coder_id].spec.urn)
+
   def run_pipeline(self, pipeline, options):
     """Remotely executes entire pipeline or parts reachable from node."""
     # Label goog-dataflow-notebook if job is started from notebook.
@@ -425,6 +444,8 @@ class DataflowRunner(PipelineRunner):
         return_context=True, default_environment=default_environment)
 
     if use_fnapi:
+      self._check_for_unsupported_fnapi_features(self.proto_pipeline)
+
       # Cross language transform require using a pipeline object constructed
       # from the full pipeline proto to make sure that expanded version of
       # external transforms are reflected in the Pipeline job graph.

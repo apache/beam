@@ -786,7 +786,7 @@ public class PubsubIO {
     }
 
     /** Exposes {@link PubSubIO.Read} as an external transform for cross-language usage. */
-    @Experimental
+    @Experimental(Kind.PORTABILITY)
     @AutoService(ExternalTransformRegistrar.class)
     public static class External implements ExternalTransformRegistrar {
 
@@ -1089,7 +1089,7 @@ public class PubsubIO {
     }
 
     /** Exposes {@link PubSubIO.Write} as an external transform for cross-language usage. */
-    @Experimental
+    @Experimental(Kind.PORTABILITY)
     @AutoService(ExternalTransformRegistrar.class)
     public static class External implements ExternalTransformRegistrar {
 

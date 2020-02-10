@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.State;
@@ -57,6 +58,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
  * <p>See <a href="https://s.apache.org/a-new-dofn">A new DoFn</a>.
  */
 @AutoValue
+@Internal
 public abstract class DoFnSignature {
   /** Class of the original {@link DoFn} from which this signature was produced. */
   public abstract Class<? extends DoFn<?, ?>> fnClass();

@@ -16,4 +16,8 @@
  * limitations under the License.
  */
 /** Defines IO connectors for Google Cloud Storage. */
+@Experimental(Kind.FILESYSTEM)
 package org.apache.beam.sdk.extensions.gcp.storage;
+
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;

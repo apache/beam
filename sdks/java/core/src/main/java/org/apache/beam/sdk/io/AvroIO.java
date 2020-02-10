@@ -1769,7 +1769,7 @@ public class AvroIO {
    * A {@link Sink} for use with {@link FileIO#write} and {@link FileIO#writeDynamic}, writing
    * elements with a given (common) schema, like {@link #writeGenericRecords(Schema)}.
    */
-  @Experimental
+  @Experimental(Kind.SOURCE_SINK)
   public static <ElementT extends IndexedRecord> Sink<ElementT> sink(Schema schema) {
     return sink(schema.toString());
   }
@@ -1778,7 +1778,7 @@ public class AvroIO {
    * A {@link Sink} for use with {@link FileIO#write} and {@link FileIO#writeDynamic}, writing
    * elements with a given (common) schema, like {@link #writeGenericRecords(String)}.
    */
-  @Experimental
+  @Experimental(Kind.SOURCE_SINK)
   public static <ElementT extends IndexedRecord> Sink<ElementT> sink(String jsonSchema) {
     return new AutoValue_AvroIO_Sink.Builder<ElementT>()
         .setJsonSchema(jsonSchema)

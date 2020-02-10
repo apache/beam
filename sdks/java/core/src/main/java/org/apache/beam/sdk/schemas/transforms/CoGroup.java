@@ -145,7 +145,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
  * }
  * }</pre>
  *
- * <p>The {@link Unnest} transform can then be used to flatten all the subfields into one single
+ * <p> {@link Select#flattenedSchema()}  can then be used to flatten all the subfields into one single
  * top-level row containing all the fields in both Input1 and Input2; this will often be combined
  * with a {@link Select} transform to select out the fields of interest, as the key fields will be
  * identical between input1 and input2.

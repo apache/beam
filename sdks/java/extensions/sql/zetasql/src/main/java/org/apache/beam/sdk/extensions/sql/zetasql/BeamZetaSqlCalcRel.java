@@ -101,7 +101,6 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
               .collect(Collectors.toList());
       final RexNode condition = getProgram().getCondition();
 
-      // TODO[BEAM-8630]: validate sql expressions at pipeline construction time
       Schema outputSchema = CalciteUtils.toSchema(getRowType());
       CalcFn calcFn =
           new CalcFn(
@@ -109,6 +108,10 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
               condition == null ? null : unparseRexNode(condition),
               upstream.getSchema(),
               outputSchema);
+
+      // validate prepared expressions
+      calcFn.setup();
+
       return upstream.apply(ParDo.of(calcFn)).setRowSchema(outputSchema);
     }
   }
