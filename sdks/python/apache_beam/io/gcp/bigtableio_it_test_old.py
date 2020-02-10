@@ -29,6 +29,7 @@ import sys
 import unittest
 
 import apache_beam as beam
+# import apache_beam.io.gcp.bigtableio as bigtableio
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -55,48 +56,42 @@ COLUMN_FAMILY_ID = 'cf1'
 LETTERS_AND_DIGITS = string.ascii_letters + string.digits
 
 
-import apache_beam.io.gcp.bigtableio as bigtableio
-
-
-class GenerateTestRows(beam.PTransform):
-  """ A PTransform to generate dummy rows to write to a Bigtable Table.
-
-  A PTransform that generates a list of `DirectRow`
-  and writes it to a Bigtable Table.
-  """
-  def __init__(self):
-    super(self.__class__, self).__init__()
-    self.beam_options = {'project_id': PROJECT_ID,
-                         'instance_id': INSTANCE_ID,
-                         'table_id': TABLE_ID}
-
-  def _generate(self):
-    COLUMN_COUNT = 10
-    CELL_SIZE = 10
-    for i in range(10000):
-      key = "key_%s" % ('{0:012}'.format(i))
-      test_row = row.DirectRow(row_key=key)
-      # test_row_str = 'TEST_ROW[{}] : ['.format(i+1)
-      value = ''.join(
-          random.choice(LETTERS_AND_DIGITS) for _ in range(CELL_SIZE))
-      for j in range(COLUMN_COUNT):
-        test_row.set_cell(column_family_id=COLUMN_FAMILY_ID,
-                          column=('field%s' % j).encode('utf-8'),
-                          value=value,
-                          timestamp=datetime.datetime.now())
-        # test_row_str += value + ', '
-      # logger.debug('{}]'.format(test_row_str[:-2]))
-      yield test_row
-
-  def expand(self, pvalue):
-    return (pvalue
-            | beam.Create(self._generate())
-            | bigtableio.WriteToBigTable(
-                project_id=self.beam_options['project_id'],
-                instance_id=self.beam_options['instance_id'],
-                table_id=self.beam_options['table_id'])
-            )
-
+# class GenerateTestRows(beam.PTransform):
+#   """ A PTransform to generate dummy rows to write to a Bigtable Table.
+#
+#   A PTransform that generates a list of `DirectRow`
+#   and writes it to a Bigtable Table.
+#   """
+#   def __init__(self):
+#     super(self.__class__, self).__init__()
+#     self.beam_options = {'project_id': PROJECT_ID,
+#                          'instance_id': INSTANCE_ID,
+#                          'table_id': TABLE_ID}
+#
+#   def _generate(self):
+#     for i in range(ROW_COUNT):
+#       key = "key_%s" % ('{0:012}'.format(i))
+#       test_row = row.DirectRow(row_key=key)
+#       # test_row_str = 'TEST_ROW[{}] : ['.format(i+1)
+#       value = ''.join(
+#           random.choice(LETTERS_AND_DIGITS) for _ in range(CELL_SIZE))
+#       for j in range(COLUMN_COUNT):
+#         test_row.set_cell(column_family_id=COLUMN_FAMILY_ID,
+#                           column=('field%s' % j).encode('utf-8'),
+#                           value=value,
+#                           timestamp=datetime.datetime.now())
+#         # test_row_str += value + ', '
+#       # logger.debug('{}]'.format(test_row_str[:-2]))
+#       yield test_row
+#
+#   def expand(self, pvalue):
+#     return (pvalue
+#             | beam.Create(self._generate())
+#             | bigtableio.WriteToBigTable(
+#                 project_id=self.beam_options['project_id'],
+#                 instance_id=self.beam_options['instance_id'],
+#                 table_id=self.beam_options['table_id']))
+#
 # class ReadTestRows(beam.PTransform):
 #   def __init__(self):
 #     # super(self.__class__, self).__init__()
@@ -134,19 +129,18 @@ class BigtableIOTest(unittest.TestCase):
 
     # self.result = None
     #
-    client = Client(project=PROJECT_ID, admin=True)
-    instance = client.instance(instance_id=INSTANCE_ID)
-    self.table = instance.table(table_id=TABLE_ID)
+    # client = Client(project=PROJECT_ID, admin=True)
+    # instance = client.instance(instance_id=INSTANCE_ID)
+    # self.table = instance.table(table_id=TABLE_ID)
     # self.skip_write_test = False
-
+    #
     # if self.table.exists():
     #   self.skip_write_test = True
     #   logging.info('Table "%s" already exists. Skipping the WRITE test...', TABLE_ID)
     # else:
-    if True:
-      column_families = {COLUMN_FAMILY_ID: column_family.MaxVersionsGCRule(2)}
-      self.table.create(column_families=column_families)
-      logging.info('Table "%s" has been created!', TABLE_ID)
+    #   column_families = {COLUMN_FAMILY_ID: column_family.MaxVersionsGCRule(2)}
+    #   self.table.create(column_families=column_families)
+    #   logging.info('Table "%s" has been created!', TABLE_ID)
     # # self.skip_write_test = True
 
   def test_write(self, options):
@@ -179,32 +173,32 @@ class BigtableIOTest(unittest.TestCase):
     )
     # END OF TEMPORARY OVERRIDES #######################################################################################
 
-    # p_options.view_as(SetupOptions).save_main_session = True
+    p_options.view_as(SetupOptions).save_main_session = True
 
     # if self.skip_write_test:
     #   print('WRITE Test skipped.')
     # else:
-    if True:
-      print('Starting WRITE test...')
-      p_options.view_as(GoogleCloudOptions).job_name = '{}-write'.format(JOB_NAME)
-      for key, value in p_options.get_all_options().items():
-        logging.info('Pipeline option {:32s} : {}'.format(key, value))
-
-      p = beam.Pipeline(options=p_options)
-      _ = (p | 'Write Test Rows' >> GenerateTestRows())
-
-      self.result = p.run()
-      self.result.wait_until_finish()
-      assert self.result.state == PipelineState.DONE
-
-      if not hasattr(self.result, 'has_job') or self.result.has_job:
-        query_result = self.result.metrics().query(
-            MetricsFilter().with_name('Written Row'))
-        if query_result['counters']:
-          read_counter = query_result['counters'][0]
-          logging.info('Number of Rows written: %d', read_counter.committed)
-          assert read_counter.committed == ROW_COUNT
-      print('WRITE test complete.')
+    #   print('Starting WRITE test...')
+    #   job = '{}-write'.format(JOB_NAME)
+    #   p_options.view_as(GoogleCloudOptions).job_name = job
+    #   for key, value in p_options.get_all_options().items():
+    #     logging.debug('Pipeline option {:32s} : {}'.format(key, value))
+    #
+    #   p = beam.Pipeline(options=p_options)
+    #   _ = (p | 'Write Test Rows' >> GenerateTestRows())
+    #
+    #   self.result = p.run()
+    #   self.result.wait_until_finish()
+    #   assert self.result.state == PipelineState.DONE
+    #
+    #   if not hasattr(self.result, 'has_job') or self.result.has_job:
+    #     query_result = self.result.metrics().query(
+    #         MetricsFilter().with_name('Written Row'))
+    #     if query_result['counters']:
+    #       read_counter = query_result['counters'][0]
+    #       logging.info('Number of Rows written: %d', read_counter.committed)
+    #       assert read_counter.committed == ROW_COUNT
+    #   print('WRITE test complete.')
 
     print('Starting READ test...')
     p_options.view_as(GoogleCloudOptions).job_name = '{}-read'.format(JOB_NAME)
@@ -216,26 +210,25 @@ class BigtableIOTest(unittest.TestCase):
     # New code #########################################################################################################
     # _ = (p | 'Read Test Rows' >> ReadTestRows())
 
-    # with beam.Pipeline(options=p_options) as p:
-    #   for key, value in p.options.get_all_options().items():
-    #     logging.info('Pipeline option {:32s} = "{}"'.format(key, value))
-    #   # import apache_beam.io.gcp.bigtableio as bigtableio
-    #   import bigtableio
-    #   _ = (p | 'CBT Read Test' >> bigtableio.ReadFromBigTable(project_id=PROJECT_ID,
-    #                                                           instance_id=INSTANCE_ID,
-    #                                                           table_id=TABLE_ID))
-    #   self.result = p.run()
-    #   self.result.wait_until_finish()
-    #   assert self.result.state == PipelineState.DONE
-    #
-    #   if True: # not hasattr(self.result, 'has_job') or self.result.has_job:
-    #     query_result = self.result.metrics().query(
-    #       MetricsFilter().with_name('Rows Read'))
-    #     if query_result['counters']:
-    #       read_counter = query_result['counters'][0]
-    #       logging.info('Number of Rows written: %d', read_counter.committed)
-    #       assert read_counter.committed == ROW_COUNT
+    with beam.Pipeline(options=p_options) as p:
+      for key, value in p.options.get_all_options().items():
+        logging.info('Pipeline option {:32s} = "{}"'.format(key, value))
+      # import apache_beam.io.gcp.bigtableio as bigtableio
+      import bigtableio
+      _ = (p | 'CBT Read Test' >> bigtableio.ReadFromBigTable(project_id=PROJECT_ID,
+                                                              instance_id=INSTANCE_ID,
+                                                              table_id=TABLE_ID))
+      self.result = p.run()
+      self.result.wait_until_finish()
+      assert self.result.state == PipelineState.DONE
 
+      if True: # not hasattr(self.result, 'has_job') or self.result.has_job:
+        query_result = self.result.metrics().query(
+          MetricsFilter().with_name('Rows Read'))
+        if query_result['counters']:
+          read_counter = query_result['counters'][0]
+          logging.info('Number of Rows written: %d', read_counter.committed)
+          assert read_counter.committed == ROW_COUNT
       ####################################################################################################################
 
     # count = (p
@@ -286,7 +279,6 @@ if __name__ == '__main__':
   INSTANCE_ID = 'bigtableio-test'
   TIME_STAMP = datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d-%H%M%S')
   TABLE_ID = 'test-table-1M-20191206-213807'  # 6 keys, 1,000,000 rows
-  TABLE_ID = '0000-{}'.format(TIME_STAMP)
   ROW_COUNT = 1000000  # 'Rows Read' = 1000000
   ROW_COUNT_K = ROW_COUNT // 1000
   JOB_NAME = 'bigtableio-it-test-{}k-rows-{}'.format(
