@@ -48,6 +48,7 @@ import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsPro
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsProvider;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
 
 /**
@@ -106,6 +107,8 @@ public class AwsModule extends SimpleModule {
         return SystemPropertyCredentialsProvider.create();
       } else if (typeName.equals(ProfileCredentialsProvider.class.getSimpleName())) {
         return ProfileCredentialsProvider.create();
+      } else if (typeName.equals(WebIdentityTokenFileCredentialsProvider.class.getSimpleName())) {
+        return WebIdentityTokenFileCredentialsProvider.create();
       } else if (typeName.equals(ContainerCredentialsProvider.class.getSimpleName())) {
         return ContainerCredentialsProvider.builder().build();
       } else {
@@ -124,6 +127,7 @@ public class AwsModule extends SimpleModule {
             EnvironmentVariableCredentialsProvider.class,
             SystemPropertyCredentialsProvider.class,
             ProfileCredentialsProvider.class,
+            WebIdentityTokenFileCredentialsProvider.class,
             ContainerCredentialsProvider.class);
 
     @Override

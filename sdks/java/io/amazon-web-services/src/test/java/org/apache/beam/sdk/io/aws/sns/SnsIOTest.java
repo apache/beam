@@ -19,11 +19,16 @@ package org.apache.beam.sdk.io.aws.sns;
 
 import static org.junit.Assert.fail;
 
+import com.amazonaws.http.SdkHttpMetadata;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.sns.AmazonSNS;
+import com.amazonaws.services.sns.model.GetTopicAttributesResult;
+import com.amazonaws.services.sns.model.InternalErrorException;
 import com.amazonaws.services.sns.model.PublishRequest;
 import com.amazonaws.services.sns.model.PublishResult;
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
@@ -79,6 +84,7 @@ public class SnsIOTest implements Serializable {
     final PublishRequest request2 = createSampleMessage("my_second_message");
 
     final TupleTag<PublishResult> results = new TupleTag<>();
+    final AmazonSNS amazonSnsSuccess = getAmazonSnsMockSuccess();
 
     final PCollectionTuple snsWrites =
         p.apply(Create.of(request1, request2))
@@ -88,7 +94,7 @@ public class SnsIOTest implements Serializable {
                     .withRetryConfiguration(
                         SnsIO.RetryConfiguration.create(
                             5, org.joda.time.Duration.standardMinutes(1)))
-                    .withAWSClientsProvider(new Provider(new AmazonSNSMockSuccess()))
+                    .withAWSClientsProvider(new Provider(amazonSnsSuccess))
                     .withResultOutputTag(results));
 
     final PCollection<Long> publishedResultsSize = snsWrites.get(results).apply(Count.globally());
@@ -103,13 +109,14 @@ public class SnsIOTest implements Serializable {
     thrown.expectMessage("Error writing to SNS");
     final PublishRequest request1 = createSampleMessage("my message that will not be published");
     final TupleTag<PublishResult> results = new TupleTag<>();
+    final AmazonSNS amazonSnsErrors = getAmazonSnsMockErrors();
     p.apply(Create.of(request1))
         .apply(
             SnsIO.write()
                 .withTopicName(topicName)
                 .withRetryConfiguration(
                     SnsIO.RetryConfiguration.create(4, org.joda.time.Duration.standardSeconds(10)))
-                .withAWSClientsProvider(new Provider(new AmazonSNSMockErrors()))
+                .withAWSClientsProvider(new Provider(amazonSnsErrors))
                 .withResultOutputTag(results));
 
     try {
@@ -122,5 +129,37 @@ public class SnsIOTest implements Serializable {
       throw e.getCause();
     }
     fail("Pipeline is expected to fail because we were unable to write to SNS.");
+  }
+
+  private static AmazonSNS getAmazonSnsMockSuccess() {
+    final AmazonSNS amazonSNS = Mockito.mock(AmazonSNS.class);
+    configureAmazonSnsMock(amazonSNS);
+
+    final PublishResult result = Mockito.mock(PublishResult.class);
+    final SdkHttpMetadata metadata = Mockito.mock(SdkHttpMetadata.class);
+    Mockito.when(metadata.getHttpHeaders()).thenReturn(new HashMap<>());
+    Mockito.when(metadata.getHttpStatusCode()).thenReturn(200);
+    Mockito.when(result.getSdkHttpMetadata()).thenReturn(metadata);
+    Mockito.when(result.getMessageId()).thenReturn(UUID.randomUUID().toString());
+    Mockito.when(amazonSNS.publish(Mockito.any())).thenReturn(result);
+    return amazonSNS;
+  }
+
+  private static AmazonSNS getAmazonSnsMockErrors() {
+    final AmazonSNS amazonSNS = Mockito.mock(AmazonSNS.class);
+    configureAmazonSnsMock(amazonSNS);
+
+    Mockito.when(amazonSNS.publish(Mockito.any()))
+        .thenThrow(new InternalErrorException("Service unavailable"));
+    return amazonSNS;
+  }
+
+  private static void configureAmazonSnsMock(AmazonSNS amazonSNS) {
+    final GetTopicAttributesResult result = Mockito.mock(GetTopicAttributesResult.class);
+    final SdkHttpMetadata metadata = Mockito.mock(SdkHttpMetadata.class);
+    Mockito.when(metadata.getHttpHeaders()).thenReturn(new HashMap<>());
+    Mockito.when(metadata.getHttpStatusCode()).thenReturn(200);
+    Mockito.when(result.getSdkHttpMetadata()).thenReturn(metadata);
+    Mockito.when(amazonSNS.getTopicAttributes(Mockito.anyString())).thenReturn(result);
   }
 }
