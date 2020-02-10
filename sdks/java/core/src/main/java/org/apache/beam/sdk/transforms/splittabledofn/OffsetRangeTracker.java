@@ -22,6 +22,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
@@ -29,6 +31,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
  * A {@link RestrictionTracker} for claiming offsets in an {@link OffsetRange} in a monotonically
  * increasing fashion.
  */
+@Experimental(Kind.SPLITTABLE_DO_FN)
 public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
     implements Sizes.HasSize {
   private OffsetRange range;

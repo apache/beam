@@ -38,7 +38,6 @@ import org.apache.beam.runners.core.construction.PTransformTranslation.Transform
 import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoLike;
 import org.apache.beam.runners.core.construction.ReadTranslation.BoundedReadPayloadTranslator;
 import org.apache.beam.runners.core.construction.ReadTranslation.UnboundedReadPayloadTranslator;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -87,7 +86,6 @@ import org.joda.time.Instant;
  * <p>This transform is intended as a helper for internal use by runners when implementing {@code
  * ParDo.of(splittable DoFn)}, but not for direct use by pipeline writers.
  */
-@Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
 public class SplittableParDo<InputT, OutputT, RestrictionT>
     extends PTransform<PCollection<InputT>, PCollectionTuple> {
   /**

@@ -19,8 +19,6 @@ package org.apache.beam.runners.core;
 
 import java.io.IOException;
 import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
@@ -47,7 +45,6 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
  *
  * @param <StateT> The type of state being tagged.
  */
-@Experimental(Kind.STATE)
 public interface StateTag<StateT extends State> extends Serializable {
 
   /** Append the UTF-8 encoding of this tag to the given {@link Appendable}. */

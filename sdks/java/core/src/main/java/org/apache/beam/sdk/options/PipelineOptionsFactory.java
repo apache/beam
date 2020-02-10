@@ -537,7 +537,7 @@ public class PipelineOptionsFactory {
    * @see PipelineOptionsFactory#register(Class)
    * @see Cache#Cache()
    */
-  @Experimental(Experimental.Kind.UNSPECIFIED)
+  @Experimental
   public static synchronized void resetCache() {
     CACHE.set(new Cache());
   }
