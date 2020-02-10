@@ -254,8 +254,9 @@ class HadoopFileSystemTest(unittest.TestCase):
         ('invalid', None, True),
     ]
     for url, expected, full_urls in cases:
+      if self.full_urls != full_urls:
+        continue
       try:
-        self.fs._full_urls = full_urls
         result = self.fs._parse_url(url)
       except ValueError:
         self.assertIsNone(expected, msg=(url, expected, full_urls))
