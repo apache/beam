@@ -192,21 +192,31 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The batches written are obtained from by grouping enough {@link Mutation Mutations} from the
  * Bundle provided by Beam to form (by default) 1000 batches. This group of {@link Mutation
- * Mutations} is then sorted by Key, and the batches are created from the sorted group. This so that
- * each batch will have keys that are 'close' to each other to optimise write performance. This
- * grouping factor (number of batches) is controlled by the parameter {@link
- * Write#withGroupingFactor(int) withGroupingFactor()}.<br>
- * Note that each worker will need enough memory to hold {@code GroupingFactor x MaxBatchSizeBytes}
- * Mutations, so if you have a large {@code MaxBatchSize} you may need to reduce {@code
- * GroupingFactor}
+ * Mutations} is then sorted by table and primary key, and the batches are created from the sorted
+ * group. Each batch will then have rows with keys that are 'close' to each other to optimise write
+ * performance. This grouping factor (number of batches) is controlled by the parameter {@link
+ * Write#withGroupingFactor(int) withGroupingFactor()}.
+ *
+ * <p>Note that each worker will need enough memory to hold {@code GroupingFactor x
+ * MaxBatchSizeBytes} Mutations, so if you have a large {@code MaxBatchSize} you may need to reduce
+ * {@code GroupingFactor}
  *
  * <h3>Database Schema Preparation</h3>
  *
- * <p>The Write transform reads the database schema on pipeline start. If the schema is created as
- * part of the same pipeline, this transform needs to wait until this has happened. Use {@link
- * Write#withSchemaReadySignal(PCollection)} to pass a signal {@link PCollection} which will be used
- * with {@link Wait.OnSignal} to prevent the schema from being read until it is ready. The Write
- * transform will be paused until the signal {@link PCollection} is closed.
+ * <p>The Write transform reads the database schema on pipeline start to know which columns are used
+ * as primary keys of the tables and indexes. This is so that the transform knows how to sort the
+ * grouped Mutations by table name and primary key as described above.
+ *
+ * <p>If the database schema, any additional tables or indexes are created in the same pipeline then
+ * there will be a race condition, leading to a situation where the schema is read before the table
+ * is created its primary key will not be known. This will mean that the sorting/batching will not
+ * be optimal and performance will be reduced (warnings will be logged for rows using unknown
+ * tables)
+ *
+ * <p>To prevent this race condition, use {@link Write#withSchemaReadySignal(PCollection)} to pass a
+ * signal {@link PCollection} (for example the output of the transform that creates the table(s))
+ * which will be used with {@link Wait.OnSignal} to prevent the schema from being read until it is
+ * ready. The Write transform will be paused until this signal {@link PCollection} is closed.
  *
  * <h3>Transactions</h3>
  *
