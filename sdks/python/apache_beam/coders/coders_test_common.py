@@ -78,7 +78,7 @@ class CodersTest(unittest.TestCase):
         coders.FastCoder,
         coders.ProtoCoder,
         coders.RunnerAPICoderHolder,
-        coders.ToStringCoder
+        coders.ToBytesCoder
     ])
     assert not standard - cls.seen, standard - cls.seen
     assert not standard - cls.seen_nested, standard - cls.seen_nested
