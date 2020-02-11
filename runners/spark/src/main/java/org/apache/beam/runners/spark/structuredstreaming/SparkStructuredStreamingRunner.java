@@ -107,7 +107,8 @@ public final class SparkStructuredStreamingRunner
     SparkStructuredStreamingPipelineOptions sparkOptions =
         PipelineOptionsValidator.validate(SparkStructuredStreamingPipelineOptions.class, options);
 
-    if (sparkOptions.getFilesToStage() == null) {
+    if (sparkOptions.getFilesToStage() == null
+        && !PipelineTranslator.isLocalSparkMaster(sparkOptions)) {
       sparkOptions.setFilesToStage(
           detectClassPathResourcesToStage(
               SparkStructuredStreamingRunner.class.getClassLoader(), options));
