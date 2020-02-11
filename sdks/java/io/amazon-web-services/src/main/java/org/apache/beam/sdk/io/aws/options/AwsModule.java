@@ -27,6 +27,7 @@ import com.amazonaws.auth.EC2ContainerCredentialsProviderWrapper;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.PropertiesFileCredentialsProvider;
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
+import com.amazonaws.auth.WebIdentityTokenCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
 import com.amazonaws.services.s3.model.SSECustomerKey;
@@ -122,6 +123,8 @@ public class AwsModule extends SimpleModule {
         return new SystemPropertiesCredentialsProvider();
       } else if (typeName.equals(ProfileCredentialsProvider.class.getSimpleName())) {
         return new ProfileCredentialsProvider();
+      } else if (typeName.equals(WebIdentityTokenCredentialsProvider.class.getSimpleName())) {
+        return WebIdentityTokenCredentialsProvider.create();
       } else if (typeName.equals(EC2ContainerCredentialsProviderWrapper.class.getSimpleName())) {
         return new EC2ContainerCredentialsProviderWrapper();
       } else {
@@ -140,6 +143,7 @@ public class AwsModule extends SimpleModule {
             EnvironmentVariableCredentialsProvider.class,
             SystemPropertiesCredentialsProvider.class,
             ProfileCredentialsProvider.class,
+            WebIdentityTokenCredentialsProvider.class,
             EC2ContainerCredentialsProviderWrapper.class);
 
     @Override
