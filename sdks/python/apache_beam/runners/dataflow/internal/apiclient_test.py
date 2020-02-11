@@ -763,6 +763,33 @@ class UtilTest(unittest.TestCase):
 
     assert encoding == version_to_encoding[sys.version_info[0]]
 
+  @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
+  def test_graph_is_uploaded(self):
+    pipeline_options = PipelineOptions([
+        '--project',
+        'test_project',
+        '--job_name',
+        'test_job_name',
+        '--temp_location',
+        'gs://test-location/temp',
+        '--experiments',
+        'beam_fn_api',
+        '--experiments',
+        'upload_graph'
+    ])
+    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    client = apiclient.DataflowApplicationClient(pipeline_options)
+    with mock.patch.object(client, 'stage_file', side_effect=None):
+      with mock.patch.object(client, 'create_job_description',
+                             side_effect=None):
+        with mock.patch.object(client,
+                               'submit_job_description',
+                               side_effect=None):
+          client.create_job(job)
+          client.stage_file.assert_called_once_with(
+              mock.ANY, "dataflow_graph.json", mock.ANY)
+          client.create_job_description.assert_called_once()
+
 
 if __name__ == '__main__':
   unittest.main()

@@ -556,6 +556,16 @@ class DataflowApplicationClient(object):
       self.stage_file(
           gcs_or_local_path, file_name, io.BytesIO(job.json().encode('utf-8')))
 
+    if job.options.view_as(DebugOptions).lookup_experiment('upload_graph'):
+      self.stage_file(
+          job.options.view_as(GoogleCloudOptions).staging_location,
+          "dataflow_graph.json",
+          io.BytesIO(job.json().encode('utf-8')))
+      job.proto.steps.clear()
+      job.proto.stepsLocation = FileSystems.join(
+          job.options.view_as(GoogleCloudOptions).staging_location,
+          "dataflow_graph.json")
+
     if not template_location:
       return self.submit_job_description(job)
 
