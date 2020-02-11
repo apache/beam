@@ -507,8 +507,7 @@ class SpannerWriteTest(unittest.TestCase):
           | beam.Map(lambda x: len(x)))
       assert_that(res, equal_to([25] * 2))
 
-  def test_batch_disable(
-      self, mock_batch_snapshot_class, mock_batch_checkout):
+  def test_batch_disable(self, mock_batch_snapshot_class, mock_batch_checkout):
 
     mutation_group = [
         MutationGroup([
@@ -524,26 +523,25 @@ class SpannerWriteTest(unittest.TestCase):
       res = (
           p | beam.Create(mutation_group)
           | beam.ParDo(
-          _BatchFn(
-              max_batch_size_bytes=1450,
-              max_number_rows=0,
-              max_number_cells=500))
+              _BatchFn(
+                  max_batch_size_bytes=1450,
+                  max_number_rows=0,
+                  max_number_cells=500))
           | beam.Map(lambda x: len(x)))
       assert_that(res, equal_to([1] * 4))
 
-  def test_batch_max_rows(
-      self, mock_batch_snapshot_class, mock_batch_checkout):
+  def test_batch_max_rows(self, mock_batch_snapshot_class, mock_batch_checkout):
 
     mutation_group = [
         MutationGroup([
             WriteMutation.insert(
-                "roles",
-                ("key", "rolename"), [
+                "roles", ("key", "rolename"),
+                [
                     ('1234', "mutations-inset-1234"),
                     ('1235', "mutations-inset-1235"),
-                ]
-        )]
-    )] * 50
+                ])
+        ])
+    ] * 50
 
     with TestPipeline() as p:
       # There are total 50 mutation groups, each contains two rows.
@@ -553,10 +551,10 @@ class SpannerWriteTest(unittest.TestCase):
       res = (
           p | beam.Create(mutation_group)
           | beam.ParDo(
-          _BatchFn(
-              max_batch_size_bytes=1048576,
-              max_number_rows=10,
-              max_number_cells=500))
+              _BatchFn(
+                  max_batch_size_bytes=1048576,
+                  max_number_rows=10,
+                  max_number_cells=500))
           | beam.Map(lambda x: len(x)))
       assert_that(res, equal_to([5] * 10))
 
@@ -566,13 +564,13 @@ class SpannerWriteTest(unittest.TestCase):
     mutation_group = [
         MutationGroup([
             WriteMutation.insert(
-                "roles",
-                ("key", "rolename"), [
+                "roles", ("key", "rolename"),
+                [
                     ('1234', "mutations-inset-1234"),
                     ('1235', "mutations-inset-1235"),
-                ]
-        )]
-    )] * 50
+                ])
+        ])
+    ] * 50
 
     with TestPipeline() as p:
       # There are total 50 mutation groups, each contains two rows (or 4 cells).
@@ -585,10 +583,10 @@ class SpannerWriteTest(unittest.TestCase):
       res = (
           p | beam.Create(mutation_group)
           | beam.ParDo(
-          _BatchFn(
-              max_batch_size_bytes=1048576,
-              max_number_rows=500,
-              max_number_cells=50))
+              _BatchFn(
+                  max_batch_size_bytes=1048576,
+                  max_number_rows=500,
+                  max_number_cells=50))
           | beam.Map(lambda x: len(x)))
       assert_that(res, equal_to([12, 12, 12, 12, 2]))
 
