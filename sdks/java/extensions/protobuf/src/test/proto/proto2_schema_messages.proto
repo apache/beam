@@ -15,24 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.common;
 
-import java.util.Iterator;
-import java.util.Observable;
-import org.apache.beam.sdk.annotations.Internal;
-
-/**
- * An abstract class used for iterators that notify observers about size in bytes of their elements,
- * as they are being iterated over. The subclasses need to implement the standard Iterator interface
- * and call method notifyValueReturned() for each element read and/or iterated over.
- *
- * @param <V> value type
+/*
+ * Protocol Buffer messages used for testing Proto2 Schema implementation.
  */
-@Internal
-public abstract class ElementByteSizeObservableIterator<V> extends Observable
-    implements Iterator<V> {
-  protected final void notifyValueReturned(long byteSize) {
-    setChanged();
-    notifyObservers(byteSize);
-  }
+
+syntax = "proto2";
+
+package proto2_schema_messages;
+
+option java_package = "org.apache.beam.sdk.extensions.protobuf";
+
+message OptionalPrimitive {
+    optional int32 primitive_int32 = 1;
+    optional bool primitive_bool = 2;
+    optional string primitive_string = 3;
+    optional bytes primitive_bytes = 4;
+}
+
+message RequiredPrimitive {
+    required int32 primitive_int32 = 1;
+    required bool primitive_bool = 2;
+    required string primitive_string = 3;
+    required bytes primitive_bytes = 4;
+}
+
+message RequiredNested {
+    required RequiredPrimitive nested = 1;
+}
+
+message OptionalNested {
+    optional OptionalPrimitive nested = 1;
 }

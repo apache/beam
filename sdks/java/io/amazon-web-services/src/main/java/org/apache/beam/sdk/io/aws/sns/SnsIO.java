@@ -31,6 +31,7 @@ import java.io.Serializable;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -79,7 +80,7 @@ import org.slf4j.LoggerFactory;
  *   <li>an output tag where you can get results. Example in SnsIOTest
  * </ul>
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public final class SnsIO {
 
   // Write data tp SNS

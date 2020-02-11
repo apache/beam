@@ -17,7 +17,11 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+
 /** Definitions and convenience methods for reporting sizes for SplittableDoFns. */
+@Experimental(Kind.SPLITTABLE_DO_FN)
 public final class Sizes {
   /**
    * {@link RestrictionTracker}s which can provide a size should implement this interface.

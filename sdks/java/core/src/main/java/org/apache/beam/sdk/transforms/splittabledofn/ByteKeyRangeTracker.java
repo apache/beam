@@ -22,6 +22,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -36,6 +38,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes
  * <p>Note, one can complete a range by claiming the {@link ByteKey#EMPTY} once one runs out of keys
  * to process.
  */
+@Experimental(Kind.SPLITTABLE_DO_FN)
 public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKey>
     implements Sizes.HasSize {
   /* An empty range which contains no keys. */

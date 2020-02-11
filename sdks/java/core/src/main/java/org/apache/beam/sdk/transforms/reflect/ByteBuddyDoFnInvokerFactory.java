@@ -99,7 +99,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Primitives;
 
 /** Dynamically generates a {@link DoFnInvoker} instances for invoking a {@link DoFn}. */
-public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
+class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
   public static final String START_BUNDLE_CONTEXT_PARAMETER_METHOD = "startBundleContext";
   public static final String FINISH_BUNDLE_CONTEXT_PARAMETER_METHOD = "finishBundleContext";

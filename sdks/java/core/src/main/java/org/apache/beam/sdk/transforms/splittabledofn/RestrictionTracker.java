@@ -17,12 +17,15 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
  * Manages access to the restriction and keeps track of its claimed part for a <a
  * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
  */
+@Experimental(Kind.SPLITTABLE_DO_FN)
 public abstract class RestrictionTracker<RestrictionT, PositionT> {
   /**
    * Attempts to claim the block of work in the current restriction identified by the given

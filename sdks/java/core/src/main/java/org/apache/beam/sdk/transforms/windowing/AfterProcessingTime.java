@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
@@ -33,7 +34,7 @@ import org.joda.time.format.PeriodFormatter;
  * A {@link Trigger} trigger that fires at a specified point in processing time, relative to when
  * input first arrives.
  */
-@Experimental(Experimental.Kind.TRIGGER)
+@Experimental(Kind.TRIGGER)
 public class AfterProcessingTime extends OnceTrigger {
 
   private static final PeriodFormatter DURATION_FORMATTER = PeriodFormat.wordBased(Locale.ENGLISH);

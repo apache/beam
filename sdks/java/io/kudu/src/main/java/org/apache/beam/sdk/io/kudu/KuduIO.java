@@ -28,6 +28,7 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -119,7 +120,7 @@ import org.slf4j.LoggerFactory;
  *
  * {@code KuduIO} does not support authentication in this release.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class KuduIO {
   private static final Logger LOG = LoggerFactory.getLogger(KuduIO.class);
 

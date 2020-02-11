@@ -22,13 +22,14 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.joda.time.Instant;
 
 /** A composite {@link Trigger} that fires when all of its sub-triggers are ready. */
-@Experimental(Experimental.Kind.TRIGGER)
+@Experimental(Kind.TRIGGER)
 public class AfterAll extends OnceTrigger {
 
   private AfterAll(List<Trigger> subTriggers) {
