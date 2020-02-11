@@ -74,7 +74,6 @@ _LOGGER = logging.getLogger(__name__)
 
 class Step(object):
   """Wrapper for a dataflow Step protobuf."""
-
   def __init__(self, step_kind, step_name, additional_properties=None):
     self.step_kind = step_kind
     self.step_name = step_name
@@ -134,7 +133,6 @@ class Step(object):
 
 class Environment(object):
   """Wrapper for a dataflow Environment protobuf."""
-
   def __init__(self, packages, options, environment_version, pipeline_url):
     self.standard_options = options.view_as(StandardOptions)
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
@@ -147,8 +145,7 @@ class Environment(object):
         GoogleCloudOptions.BIGQUERY_API_SERVICE)
     self.proto.tempStoragePrefix = (
         self.google_cloud_options.temp_location.replace(
-            'gs:/',
-            GoogleCloudOptions.STORAGE_API_SERVICE))
+            'gs:/', GoogleCloudOptions.STORAGE_API_SERVICE))
     if self.worker_options.worker_region:
       self.proto.workerRegion = self.worker_options.worker_region
     if self.worker_options.worker_zone:
@@ -165,10 +162,10 @@ class Environment(object):
 
     self.proto.userAgent.additionalProperties.extend([
         dataflow.Environment.UserAgentValue.AdditionalProperty(
-            key='name',
-            value=to_json_value(self._get_python_sdk_name())),
+            key='name', value=to_json_value(self._get_python_sdk_name())),
         dataflow.Environment.UserAgentValue.AdditionalProperty(
-            key='version', value=to_json_value(beam_version.__version__))])
+            key='version', value=to_json_value(beam_version.__version__))
+    ])
     # Version information.
     self.proto.version = dataflow.Environment.VersionValue()
     _verify_interpreter_version_is_supported(options)
@@ -181,16 +178,15 @@ class Environment(object):
         job_type = 'PYTHON_BATCH'
     self.proto.version.additionalProperties.extend([
         dataflow.Environment.VersionValue.AdditionalProperty(
-            key='job_type',
-            value=to_json_value(job_type)),
+            key='job_type', value=to_json_value(job_type)),
         dataflow.Environment.VersionValue.AdditionalProperty(
-            key='major', value=to_json_value(environment_version))])
+            key='major', value=to_json_value(environment_version))
+    ])
     # TODO: Use enumerated type instead of strings for job types.
     if job_type.startswith('FNAPI_'):
       self.debug_options.experiments = self.debug_options.experiments or []
       debug_options_experiments = self.debug_options.experiments
-      runner_harness_override = (
-          get_runner_harness_container_image())
+      runner_harness_override = (get_runner_harness_container_image())
       if runner_harness_override:
         debug_options_experiments.append(
             'runner_harness_container_image=' + runner_harness_override)
@@ -266,12 +262,11 @@ class Environment(object):
     if self.worker_options.use_public_ips is not None:
       if self.worker_options.use_public_ips:
         pool.ipConfiguration = (
-            dataflow.WorkerPool
-            .IpConfigurationValueValuesEnum.WORKER_IP_PUBLIC)
+            dataflow.WorkerPool.IpConfigurationValueValuesEnum.WORKER_IP_PUBLIC)
       else:
         pool.ipConfiguration = (
-            dataflow.WorkerPool
-            .IpConfigurationValueValuesEnum.WORKER_IP_PRIVATE)
+            dataflow.WorkerPool.IpConfigurationValueValuesEnum.WORKER_IP_PRIVATE
+        )
 
     if self.standard_options.streaming:
       # Use separate data disk for streaming.
@@ -288,9 +283,10 @@ class Environment(object):
       self.proto.sdkPipelineOptions = (
           dataflow.Environment.SdkPipelineOptionsValue())
 
-      options_dict = {k: v
-                      for k, v in sdk_pipeline_options.items()
-                      if v is not None}
+      options_dict = {
+          k: v
+          for k, v in sdk_pipeline_options.items() if v is not None
+      }
       options_dict["pipelineUrl"] = pipeline_url
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
@@ -309,7 +305,6 @@ class Environment(object):
 
 class Job(object):
   """Wrapper for a dataflow Job protobuf."""
-
   def __str__(self):
     def encode_shortstrings(input_buffer, errors='strict'):
       """Encoder (from Unicode) that suppresses long base64 strings."""
@@ -333,9 +328,10 @@ class Job(object):
 
     def shortstrings_registerer(encoding_name):
       if encoding_name == 'shortstrings':
-        return codecs.CodecInfo(name='shortstrings',
-                                encode=encode_shortstrings,
-                                decode=decode_shortstrings)
+        return codecs.CodecInfo(
+            name='shortstrings',
+            encode=encode_shortstrings,
+            decode=decode_shortstrings)
       return None
 
     codecs.register(shortstrings_registerer)
@@ -345,7 +341,8 @@ class Job(object):
     # 10,000+ character hex-encoded "serialized_fn" values.
     return json.dumps(
         json.loads(encoding.MessageToJson(self.proto), encoding='shortstrings'),
-        indent=2, sort_keys=True)
+        indent=2,
+        sort_keys=True)
 
   @staticmethod
   def _build_default_job_name(user_name):
@@ -359,8 +356,8 @@ class Job(object):
     app_user_name = 'beamapp-{}'.format(user_name)
     job_name = '{}-{}'.format(app_user_name, date_component)
     if len(job_name) > 63:
-      job_name = '{}-{}'.format(app_user_name[:-(len(job_name) - 63)],
-                                date_component)
+      job_name = '{}-{}'.format(
+          app_user_name[:-(len(job_name) - 63)], date_component)
     return job_name
 
   @staticmethod
@@ -380,16 +377,19 @@ class Job(object):
     required_google_cloud_options = ['project', 'job_name', 'temp_location']
     missing = [
         option for option in required_google_cloud_options
-        if not getattr(self.google_cloud_options, option)]
+        if not getattr(self.google_cloud_options, option)
+    ]
     if missing:
       raise ValueError(
           'Missing required configuration parameters: %s' % missing)
 
     if not self.google_cloud_options.staging_location:
-      _LOGGER.info('Defaulting to the temp_location as staging_location: %s',
-                   self.google_cloud_options.temp_location)
-      (self.google_cloud_options
-       .staging_location) = self.google_cloud_options.temp_location
+      _LOGGER.info(
+          'Defaulting to the temp_location as staging_location: %s',
+          self.google_cloud_options.temp_location)
+      (
+          self.google_cloud_options.staging_location
+      ) = self.google_cloud_options.temp_location
 
     # Make the staging and temp locations job name and time specific. This is
     # needed to avoid clashes between job submissions using the same staging
@@ -418,8 +418,8 @@ class Job(object):
         for _, (key, value) in enumerate(
             self.google_cloud_options.transform_name_mapping.items()):
           self.proto.transformNameMapping.additionalProperties.append(
-              dataflow.Job.TransformNameMappingValue
-              .AdditionalProperty(key=key, value=value))
+              dataflow.Job.TransformNameMappingValue.AdditionalProperty(
+                  key=key, value=value))
     # Labels.
     if self.google_cloud_options.labels:
       self.proto.labels = dataflow.Job.LabelsValue()
@@ -442,12 +442,11 @@ class Job(object):
 
   def __reduce__(self):
     """Reduce hook for pickling the Job class more easily."""
-    return (Job, (self.options,))
+    return (Job, (self.options, ))
 
 
 class DataflowApplicationClient(object):
   """A Dataflow API client used by application code to create and query jobs."""
-
   def __init__(self, options):
     """Initializes a Dataflow API client object."""
     self.standard_options = options.view_as(StandardOptions)
@@ -499,8 +498,13 @@ class DataflowApplicationClient(object):
         staging_location=google_cloud_options.staging_location)
     return resources
 
-  def stage_file(self, gcs_or_local_path, file_name, stream,
-                 mime_type='application/octet-stream', total_size=None):
+  def stage_file(
+      self,
+      gcs_or_local_path,
+      file_name,
+      stream,
+      mime_type='application/octet-stream',
+      total_size=None):
     """Stages a file at a GCS or local path with stream-supplied contents."""
     if not gcs_or_local_path.startswith('gs://'):
       local_path = FileSystems.join(gcs_or_local_path, file_name)
@@ -511,8 +515,7 @@ class DataflowApplicationClient(object):
     gcs_location = FileSystems.join(gcs_or_local_path, file_name)
     bucket, name = gcs_location[5:].split('/', 1)
 
-    request = storage.StorageObjectsInsertRequest(
-        bucket=bucket, name=name)
+    request = storage.StorageObjectsInsertRequest(bucket=bucket, name=name)
     start_time = time.time()
     _LOGGER.info('Starting GCS upload to %s...', gcs_location)
     upload = storage.Upload(stream, mime_type, total_size)
@@ -524,13 +527,16 @@ class DataflowApplicationClient(object):
           404: 'bucket not found',
       }
       if e.status_code in reportable_errors:
-        raise IOError(('Could not upload to GCS path %s: %s. Please verify '
-                       'that credentials are valid and that you have write '
-                       'access to the specified path.') %
+        raise IOError((
+            'Could not upload to GCS path %s: %s. Please verify '
+            'that credentials are valid and that you have write '
+            'access to the specified path.') %
                       (gcs_or_local_path, reportable_errors[e.status_code]))
       raise
-    _LOGGER.info('Completed GCS upload to %s in %s seconds.', gcs_location,
-                 int(time.time() - start_time))
+    _LOGGER.info(
+        'Completed GCS upload to %s in %s seconds.',
+        gcs_location,
+        int(time.time() - start_time))
     return response
 
   @retry.no_retries  # Using no_retries marks this as an integration point.
@@ -547,31 +553,34 @@ class DataflowApplicationClient(object):
     if job_location:
       gcs_or_local_path = os.path.dirname(job_location)
       file_name = os.path.basename(job_location)
-      self.stage_file(gcs_or_local_path, file_name,
-                      io.BytesIO(job.json().encode('utf-8')))
+      self.stage_file(
+          gcs_or_local_path, file_name, io.BytesIO(job.json().encode('utf-8')))
 
     if not template_location:
       return self.submit_job_description(job)
 
-    _LOGGER.info('A template was just created at location %s',
-                 template_location)
+    _LOGGER.info(
+        'A template was just created at location %s', template_location)
     return None
 
   def create_job_description(self, job):
     """Creates a job described by the workflow proto."""
 
     # Stage the pipeline for the runner harness
-    self.stage_file(job.google_cloud_options.staging_location,
-                    shared_names.STAGED_PIPELINE_FILENAME,
-                    io.BytesIO(job.proto_pipeline.SerializeToString()))
+    self.stage_file(
+        job.google_cloud_options.staging_location,
+        shared_names.STAGED_PIPELINE_FILENAME,
+        io.BytesIO(job.proto_pipeline.SerializeToString()))
 
     # Stage other resources for the SDK harness
     resources = self._stage_resources(job.options)
 
     job.proto.environment = Environment(
-        pipeline_url=FileSystems.join(job.google_cloud_options.staging_location,
-                                      shared_names.STAGED_PIPELINE_FILENAME),
-        packages=resources, options=job.options,
+        pipeline_url=FileSystems.join(
+            job.google_cloud_options.staging_location,
+            shared_names.STAGED_PIPELINE_FILENAME),
+        packages=resources,
+        options=job.options,
         environment_version=self.environment_version).proto
     _LOGGER.debug('JOB: %s', job)
 
@@ -584,8 +593,8 @@ class DataflowApplicationClient(object):
     try:
       response = self._client.projects_locations_jobs.GetMetrics(request)
     except exceptions.BadStatusCodeError as e:
-      _LOGGER.error('HTTP status %d. Unable to query metrics',
-                    e.response.status)
+      _LOGGER.error(
+          'HTTP status %d. Unable to query metrics', e.response.status)
       raise
     return response
 
@@ -600,10 +609,11 @@ class DataflowApplicationClient(object):
     try:
       response = self._client.projects_locations_jobs.Create(request)
     except exceptions.BadStatusCodeError as e:
-      _LOGGER.error('HTTP status %d trying to create job'
-                    ' at dataflow service endpoint %s',
-                    e.response.status,
-                    self.google_cloud_options.dataflow_endpoint)
+      _LOGGER.error(
+          'HTTP status %d trying to create job'
+          ' at dataflow service endpoint %s',
+          e.response.status,
+          self.google_cloud_options.dataflow_endpoint)
       _LOGGER.fatal('details of server error: %s', e)
       raise
     _LOGGER.info('Create job: %s', response)
@@ -683,7 +693,11 @@ class DataflowApplicationClient(object):
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_notfound_filter)
   def list_messages(
-      self, job_id, start_time=None, end_time=None, page_token=None,
+      self,
+      job_id,
+      start_time=None,
+      end_time=None,
+      page_token=None,
       minimum_importance=None):
     """List messages associated with the execution of a job.
 
@@ -725,7 +739,8 @@ class DataflowApplicationClient(object):
      messageText: A message string.
     """
     request = dataflow.DataflowProjectsLocationsJobsMessagesListRequest(
-        jobId=job_id, location=self.google_cloud_options.region,
+        jobId=job_id,
+        location=self.google_cloud_options.region,
         projectId=self.google_cloud_options.project)
     if page_token is not None:
       request.pageToken = page_token
@@ -736,33 +751,28 @@ class DataflowApplicationClient(object):
     if minimum_importance is not None:
       if minimum_importance == 'JOB_MESSAGE_DEBUG':
         request.minimumImportance = (
-            dataflow.DataflowProjectsLocationsJobsMessagesListRequest
-            .MinimumImportanceValueValuesEnum
-            .JOB_MESSAGE_DEBUG)
+            dataflow.DataflowProjectsLocationsJobsMessagesListRequest.
+            MinimumImportanceValueValuesEnum.JOB_MESSAGE_DEBUG)
       elif minimum_importance == 'JOB_MESSAGE_DETAILED':
         request.minimumImportance = (
-            dataflow.DataflowProjectsLocationsJobsMessagesListRequest
-            .MinimumImportanceValueValuesEnum
-            .JOB_MESSAGE_DETAILED)
+            dataflow.DataflowProjectsLocationsJobsMessagesListRequest.
+            MinimumImportanceValueValuesEnum.JOB_MESSAGE_DETAILED)
       elif minimum_importance == 'JOB_MESSAGE_BASIC':
         request.minimumImportance = (
-            dataflow.DataflowProjectsLocationsJobsMessagesListRequest
-            .MinimumImportanceValueValuesEnum
-            .JOB_MESSAGE_BASIC)
+            dataflow.DataflowProjectsLocationsJobsMessagesListRequest.
+            MinimumImportanceValueValuesEnum.JOB_MESSAGE_BASIC)
       elif minimum_importance == 'JOB_MESSAGE_WARNING':
         request.minimumImportance = (
-            dataflow.DataflowProjectsLocationsJobsMessagesListRequest
-            .MinimumImportanceValueValuesEnum
-            .JOB_MESSAGE_WARNING)
+            dataflow.DataflowProjectsLocationsJobsMessagesListRequest.
+            MinimumImportanceValueValuesEnum.JOB_MESSAGE_WARNING)
       elif minimum_importance == 'JOB_MESSAGE_ERROR':
         request.minimumImportance = (
-            dataflow.DataflowProjectsLocationsJobsMessagesListRequest
-            .MinimumImportanceValueValuesEnum
-            .JOB_MESSAGE_ERROR)
+            dataflow.DataflowProjectsLocationsJobsMessagesListRequest.
+            MinimumImportanceValueValuesEnum.JOB_MESSAGE_ERROR)
       else:
         raise RuntimeError(
-            'Unexpected value for minimum_importance argument: %r'
-            % minimum_importance)
+            'Unexpected value for minimum_importance argument: %r' %
+            minimum_importance)
     response = self._client.projects_locations_jobs_messages.List(request)
     return response.jobMessages, response.nextPageToken
 
@@ -775,9 +785,8 @@ class DataflowApplicationClient(object):
           pageToken=token)
       response = self._client.projects_locations_jobs.List(request)
       for job in response.jobs:
-        if (job.name == job_name
-            and job.currentState
-            == dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_RUNNING):
+        if (job.name == job_name and job.currentState ==
+            dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_RUNNING):
           return job.id
       token = response.nextPageToken
       if token is None:
@@ -786,7 +795,6 @@ class DataflowApplicationClient(object):
 
 class MetricUpdateTranslators(object):
   """Translators between accumulators and dataflow metric updates."""
-
   @staticmethod
   def translate_boolean(accumulator, metric_update_proto):
     metric_update_proto.boolean = accumulator.value
@@ -825,8 +833,8 @@ class _LegacyDataflowStager(Stager):
     self._dataflow_application_client = dataflow_application_client
 
   def stage_artifact(self, local_path_to_artifact, artifact_name):
-    self._dataflow_application_client._gcs_file_copy(local_path_to_artifact,
-                                                     artifact_name)
+    self._dataflow_application_client._gcs_file_copy(
+        local_path_to_artifact, artifact_name)
 
   def commit_manifest(self):
     pass
@@ -890,11 +898,15 @@ def _use_fnapi(pipeline_options):
 
 
 def _use_unified_worker(pipeline_options):
+  if not _use_fnapi(pipeline_options):
+    return False
   debug_options = pipeline_options.view_as(DebugOptions)
+  use_unified_worker_flag = 'use_unified_worker'
 
-  return _use_fnapi(pipeline_options) and (
-      debug_options.experiments and
-      'use_unified_worker' in debug_options.experiments)
+  if debug_options.lookup_experiment('use_runner_v2'):
+    debug_options.add_experiment(use_unified_worker_flag)
+
+  return debug_options.lookup_experiment(use_unified_worker_flag)
 
 
 def _get_container_image_tag():
@@ -904,8 +916,8 @@ def _get_container_image_tag():
     warnings.warn(
         "A non-standard version of Beam SDK detected: %s. "
         "Dataflow runner will use container image tag %s. "
-        "This use case is not supported." % (
-            beam_version.__version__, base_version))
+        "This use case is not supported." %
+        (beam_version.__version__, base_version))
   return base_version
 
 
@@ -931,8 +943,9 @@ def get_container_image_from_options(pipeline_options):
   elif sys.version_info[0:2] == (3, 7):
     version_suffix = '37'
   else:
-    raise Exception('Dataflow only supports Python versions 2 and 3.5+, got: %s'
-                    % str(sys.version_info[0:2]))
+    raise Exception(
+        'Dataflow only supports Python versions 2 and 3.5+, got: %s' %
+        str(sys.version_info[0:2]))
 
   use_fnapi = _use_fnapi(pipeline_options)
   # TODO(tvalentyn): Use enumerated type instead of strings for job types.
@@ -979,8 +992,9 @@ def get_runner_harness_container_image():
     """
   # Pin runner harness for released versions of the SDK.
   if 'dev' not in beam_version.__version__:
-    return (names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + 'harness' + ':' +
-            _get_container_image_tag())
+    return (
+        names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + 'harness' + ':' +
+        _get_container_image_tag())
   # Don't pin runner harness for dev versions so that we can notice
   # potential incompatibility between runner and sdk harnesses.
   return None
@@ -996,8 +1010,8 @@ def _verify_interpreter_version_is_supported(pipeline_options):
     return
 
   debug_options = pipeline_options.view_as(DebugOptions)
-  if (debug_options.experiments and 'ignore_py3_minor_version' in
-      debug_options.experiments):
+  if (debug_options.experiments and
+      'ignore_py3_minor_version' in debug_options.experiments):
     return
 
   raise Exception(
@@ -1054,7 +1068,6 @@ structured_counter_translations = {
         dataflow.CounterMetadata.KindValueValuesEnum.DISTRIBUTION,
         translate_distribution),
 }
-
 
 counter_translations = {
     cy_combiners.CountCombineFn: (

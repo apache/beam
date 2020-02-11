@@ -46,8 +46,10 @@ def partition_function(test=None):
     )
 
     annuals | 'Annuals' >> beam.Map(lambda x: print('annual: {}'.format(x)))
-    biennials | 'Biennials' >> beam.Map(lambda x: print('biennial: {}'.format(x)))
-    perennials | 'Perennials' >> beam.Map(lambda x: print('perennial: {}'.format(x)))
+    biennials | 'Biennials' >> beam.Map(
+        lambda x: print('biennial: {}'.format(x)))
+    perennials | 'Perennials' >> beam.Map(
+        lambda x: print('perennial: {}'.format(x)))
     # [END partition_function]
     # pylint: enable=line-too-long, expression-not-assigned
     if test:
@@ -78,8 +80,10 @@ def partition_lambda(test=None):
     )
 
     annuals | 'Annuals' >> beam.Map(lambda x: print('annual: {}'.format(x)))
-    biennials | 'Biennials' >> beam.Map(lambda x: print('biennial: {}'.format(x)))
-    perennials | 'Perennials' >> beam.Map(lambda x: print('perennial: {}'.format(x)))
+    biennials | 'Biennials' >> beam.Map(
+        lambda x: print('biennial: {}'.format(x)))
+    perennials | 'Perennials' >> beam.Map(
+        lambda x: print('perennial: {}'.format(x)))
     # [END partition_lambda]
     # pylint: enable=line-too-long, expression-not-assigned
     if test:
@@ -116,7 +120,7 @@ def partition_multiple_arguments(test=None):
     )
 
     train_dataset | 'Train' >> beam.Map(lambda x: print('train: {}'.format(x)))
-    test_dataset | 'Test'  >> beam.Map(lambda x: print('test: {}'.format(x)))
+    test_dataset | 'Test' >> beam.Map(lambda x: print('test: {}'.format(x)))
     # [END partition_multiple_arguments]
     # pylint: enable=expression-not-assigned
     if test:

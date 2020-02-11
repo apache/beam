@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -47,13 +48,14 @@ import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsPro
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsProvider;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
 
 /**
  * A Jackson {@link Module} that registers a {@link JsonSerializer} and {@link JsonDeserializer} for
  * {@link AwsCredentialsProvider} and some subclasses. The serialized form is a JSON map.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 @AutoService(Module.class)
 public class AwsModule extends SimpleModule {
   private static final String ACCESS_KEY_ID = "accessKeyId";
@@ -105,6 +107,8 @@ public class AwsModule extends SimpleModule {
         return SystemPropertyCredentialsProvider.create();
       } else if (typeName.equals(ProfileCredentialsProvider.class.getSimpleName())) {
         return ProfileCredentialsProvider.create();
+      } else if (typeName.equals(WebIdentityTokenFileCredentialsProvider.class.getSimpleName())) {
+        return WebIdentityTokenFileCredentialsProvider.create();
       } else if (typeName.equals(ContainerCredentialsProvider.class.getSimpleName())) {
         return ContainerCredentialsProvider.builder().build();
       } else {
@@ -123,6 +127,7 @@ public class AwsModule extends SimpleModule {
             EnvironmentVariableCredentialsProvider.class,
             SystemPropertyCredentialsProvider.class,
             ProfileCredentialsProvider.class,
+            WebIdentityTokenFileCredentialsProvider.class,
             ContainerCredentialsProvider.class);
 
     @Override

@@ -218,7 +218,6 @@ public class BeamFnDataReadRunnerTest {
             INPUT_TRANSFORM_ID,
             RemoteGrpcPortRead.readFromPort(PORT_SPEC, "localOutput").toPTransform(),
             bundleId::get,
-            CODER_SPEC,
             COMPONENTS.getCodersMap(),
             mockBeamFnDataClient,
             consumers);

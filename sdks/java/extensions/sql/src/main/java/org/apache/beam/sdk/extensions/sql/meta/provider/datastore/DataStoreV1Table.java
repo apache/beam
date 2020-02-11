@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.datastore;
 
 import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.alibaba.fastjson.JSONObject;
 import com.google.datastore.v1.Entity;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.InvalidTableException;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreIO;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -82,19 +82,27 @@ class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
     JSONObject properties = table.getProperties();
     if (properties.containsKey(KEY_FIELD_PROPERTY)) {
       String field = properties.getString(KEY_FIELD_PROPERTY);
-      checkArgument(
-          field != null && !field.isEmpty(), "'%s' property cannot be null.", KEY_FIELD_PROPERTY);
+      if (!(field != null && !field.isEmpty())) {
+        throw new InvalidTableException(
+            String.format("'%s' property cannot be null.", KEY_FIELD_PROPERTY));
+      }
       keyField = field;
     } else {
       keyField = DEFAULT_KEY_FIELD;
     }
     // TODO: allow users to specify a namespace in a location string.
     String location = table.getLocation();
-    checkArgument(location != null, "DataStoreV1 location must be set.");
+    if (location == null) {
+      throw new InvalidTableException("DataStoreV1 location must be set: " + table);
+    }
     Matcher matcher = locationPattern.matcher(location);
-    checkArgument(
-        matcher.matches(),
-        "DataStoreV1 location must be in the following format: 'projectId/kind'");
+
+    if (!matcher.matches()) {
+      throw new InvalidTableException(
+          "DataStoreV1 location must be in the following format: 'projectId/kind'"
+              + " but was:"
+              + location);
+    }
 
     this.projectId = matcher.group("projectId");
     this.kind = matcher.group("kind");
@@ -155,7 +163,8 @@ class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
           throw new IllegalStateException(
               "Field `"
                   + keyField
-                  + "` should of type `VARBINARY`. Please change the type or specify a field to store the KEY value.");
+                  + "` should of type `VARBINARY`. Please change the type or specify a field to"
+                  + " store the KEY value.");
         }
         LOGGER.info("Entity KEY will be stored under `" + keyField + "` field.");
       }
@@ -288,7 +297,8 @@ class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
           throw new IllegalStateException(
               "Field `"
                   + keyField
-                  + "` should of type `VARBINARY`. Please change the type or specify a field to write the KEY value from via TableProperties.");
+                  + "` should of type `VARBINARY`. Please change the type or specify a field to"
+                  + " write the KEY value from via TableProperties.");
         }
         LOGGER.info("Field to use as Entity KEY is set to: `" + keyField + "`.");
       }

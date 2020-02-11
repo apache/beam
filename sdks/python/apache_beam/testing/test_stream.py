@@ -47,13 +47,12 @@ __all__ = [
     'WatermarkEvent',
     'ProcessingTimeEvent',
     'TestStream',
-    ]
+]
 
 
 @total_ordering
 class Event(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
   """Test stream event to be emitted during execution of a TestStream."""
-
   @abstractmethod
   def __eq__(self, other):
     raise NotImplementedError
@@ -77,17 +76,20 @@ class Event(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
   @staticmethod
   def from_runner_api(proto, element_coder):
     if proto.HasField('element_event'):
-      return ElementEvent(
-          [TimestampedValue(
+      return ElementEvent([
+          TimestampedValue(
               element_coder.decode(tv.encoded_element),
               timestamp.Timestamp(micros=1000 * tv.timestamp))
-           for tv in proto.element_event.elements])
+          for tv in proto.element_event.elements
+      ])
     elif proto.HasField('watermark_event'):
-      return WatermarkEvent(timestamp.Timestamp(
-          micros=1000 * proto.watermark_event.new_watermark))
+      return WatermarkEvent(
+          timestamp.Timestamp(
+              micros=1000 * proto.watermark_event.new_watermark))
     elif proto.HasField('processing_time_event'):
-      return ProcessingTimeEvent(timestamp.Duration(
-          micros=1000 * proto.processing_time_event.advance_duration))
+      return ProcessingTimeEvent(
+          timestamp.Duration(
+              micros=1000 * proto.processing_time_event.advance_duration))
     else:
       raise ValueError(
           'Unknown TestStream Event type: %s' % proto.WhichOneof('event'))
@@ -95,14 +97,14 @@ class Event(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
 
 class ElementEvent(Event):
   """Element-producing test stream event."""
-
   def __init__(self, timestamped_values, tag=None):
     self.timestamped_values = timestamped_values
     self.tag = tag
 
   def __eq__(self, other):
-    return (self.timestamped_values == other.timestamped_values and
-            self.tag == other.tag)
+    return (
+        self.timestamped_values == other.timestamped_values and
+        self.tag == other.tag)
 
   def __hash__(self):
     return hash(self.timestamped_values)
@@ -117,12 +119,12 @@ class ElementEvent(Event):
                 beam_runner_api_pb2.TestStreamPayload.TimestampedElement(
                     encoded_element=element_coder.encode(tv.value),
                     timestamp=tv.timestamp.micros // 1000)
-                for tv in self.timestamped_values]))
+                for tv in self.timestamped_values
+            ]))
 
 
 class WatermarkEvent(Event):
   """Watermark-advancing test stream event."""
-
   def __init__(self, new_watermark, tag=None):
     self.new_watermark = timestamp.Timestamp.of(new_watermark)
     self.tag = tag
@@ -138,13 +140,12 @@ class WatermarkEvent(Event):
 
   def to_runner_api(self, unused_element_coder):
     return beam_runner_api_pb2.TestStreamPayload.Event(
-        watermark_event
-        =beam_runner_api_pb2.TestStreamPayload.Event.AdvanceWatermark(
-            new_watermark=self.new_watermark.micros // 1000))
+        watermark_event=beam_runner_api_pb2.TestStreamPayload.Event.
+        AdvanceWatermark(new_watermark=self.new_watermark.micros // 1000))
+
 
 class ProcessingTimeEvent(Event):
   """Processing time-advancing test stream event."""
-
   def __init__(self, advance_by):
     self.advance_by = timestamp.Duration.of(advance_by)
 
@@ -159,9 +160,8 @@ class ProcessingTimeEvent(Event):
 
   def to_runner_api(self, unused_element_coder):
     return beam_runner_api_pb2.TestStreamPayload.Event(
-        processing_time_event
-        =beam_runner_api_pb2.TestStreamPayload.Event.AdvanceProcessingTime(
-            advance_duration=self.advance_by.micros // 1000))
+        processing_time_event=beam_runner_api_pb2.TestStreamPayload.Event.
+        AdvanceProcessingTime(advance_duration=self.advance_by.micros // 1000))
 
 
 class TestStream(PTransform):
@@ -171,7 +171,6 @@ class TestStream(PTransform):
   time. After all of the specified elements are emitted, ceases to produce
   output.
   """
-
   def __init__(self, coder=coders.FastPrimitivesCoder(), events=None):
     super(TestStream, self).__init__()
     assert coder is not None
@@ -273,6 +272,7 @@ class TestStream(PTransform):
             coder_id=context.coders.get_id(self.coder),
             events=[e.to_runner_api(self.coder) for e in self._events]))
 
+  @staticmethod
   @PTransform.register_urn(
       common_urns.primitives.TEST_STREAM.urn,
       beam_runner_api_pb2.TestStreamPayload)

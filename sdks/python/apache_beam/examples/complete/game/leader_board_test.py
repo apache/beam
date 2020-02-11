@@ -54,11 +54,11 @@ class LeaderBoardTest(unittest.TestCase):
       result = (
           self.create_data(p)
           | leader_board.CalculateTeamScores(
-              team_window_duration=60,
-              allowed_lateness=120))
-      assert_that(result, equal_to([
-          ('team1', 14), ('team1', 18), ('team1', 18), ('team2', 2),
-          ('team3', 13)]))
+              team_window_duration=60, allowed_lateness=120))
+      assert_that(
+          result,
+          equal_to([('team1', 14), ('team1', 18), ('team1', 18), ('team2', 2),
+                    ('team3', 13)]))
 
   def test_leader_board_users(self):
     with TestPipeline() as p:

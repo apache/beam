@@ -31,6 +31,7 @@ import com.amazonaws.auth.EC2ContainerCredentialsProviderWrapper;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.PropertiesFileCredentialsProvider;
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
+import com.amazonaws.auth.WebIdentityTokenCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
 import com.amazonaws.services.s3.model.SSECustomerKey;
@@ -142,6 +143,12 @@ public class AwsModuleTest {
     assertEquals(credentialsProvider.getClass(), deserializedCredentialsProvider.getClass());
 
     credentialsProvider = new ProfileCredentialsProvider();
+    serializedCredentialsProvider = objectMapper.writeValueAsString(credentialsProvider);
+    deserializedCredentialsProvider =
+        objectMapper.readValue(serializedCredentialsProvider, AWSCredentialsProvider.class);
+    assertEquals(credentialsProvider.getClass(), deserializedCredentialsProvider.getClass());
+
+    credentialsProvider = WebIdentityTokenCredentialsProvider.create();
     serializedCredentialsProvider = objectMapper.writeValueAsString(credentialsProvider);
     deserializedCredentialsProvider =
         objectMapper.readValue(serializedCredentialsProvider, AWSCredentialsProvider.class);

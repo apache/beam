@@ -27,7 +27,7 @@ def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 def loadTestConfigurations = { datasetName -> [
         [
                 title          : 'GroupByKey Python Load test: reiterate 4 times 10kB values',
-                test           :  'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                test           :  'apache_beam.testing.load_tests.group_by_key_test',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         project              : 'apache-beam-testing',
@@ -49,7 +49,7 @@ def loadTestConfigurations = { datasetName -> [
         ],
         [
                 title          : 'GroupByKey Python Load test: reiterate 4 times 2MB values',
-                test           :  'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                test           :  'apache_beam.testing.load_tests.group_by_key_test',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         project              : 'apache-beam-testing',

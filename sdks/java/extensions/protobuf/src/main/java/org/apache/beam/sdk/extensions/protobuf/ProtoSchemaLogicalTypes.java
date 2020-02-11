@@ -19,6 +19,8 @@ package org.apache.beam.sdk.extensions.protobuf;
 
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
@@ -26,87 +28,33 @@ import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.values.Row;
 
 /** A set of {@link LogicalType} classes to represent protocol buffer types. */
+@Experimental(Kind.SCHEMAS)
 public class ProtoSchemaLogicalTypes {
-  /** Base class for types representing timestamps or durations as nanoseconds. */
-  public abstract static class NanosType<T> implements LogicalType<T, Row> {
-    private final String identifier;
 
-    private static final Schema SCHEMA =
-        Schema.builder().addInt64Field("seconds").addInt32Field("nanos").build();
+  /** Compatible schema with the row schema of NanosDuration and NanosInstant. */
+  private static final Schema SCHEMA =
+      Schema.builder().addInt64Field("seconds").addInt32Field("nanos").build();
 
-    protected NanosType(String identifier) {
-      this.identifier = identifier;
-    }
+  public static class TimestampConvert {
 
-    @Override
-    public String getIdentifier() {
-      return identifier;
-    }
-
-    @Override
-    public FieldType getArgumentType() {
-      return FieldType.STRING;
-    }
-
-    @Override
-    public FieldType getBaseType() {
-      return FieldType.row(SCHEMA);
-    }
-  }
-
-  /** A timestamp represented as nanoseconds since the epoch. */
-  public static class TimestampNanos extends NanosType<Timestamp> {
-    public static final String IDENTIFIER = "ProtoTimestamp";
-
-    public TimestampNanos() {
-      super(IDENTIFIER);
-    }
-
-    @Override
-    public Row toBaseType(Timestamp input) {
-      return toRow(input);
-    }
-
-    @Override
-    public Timestamp toInputType(Row base) {
-      return toTimestamp(base);
-    }
-
+    /** ByteBuddy conversion for Timestamp to NanosInstant base type. */
     public static Row toRow(Timestamp input) {
-      return Row.withSchema(NanosType.SCHEMA)
-          .addValues(input.getSeconds(), input.getNanos())
-          .build();
+      return Row.withSchema(SCHEMA).addValues(input.getSeconds(), input.getNanos()).build();
     }
 
+    /** ByteBuddy conversion for NanosInstant base type to Timestamp. */
     public static Timestamp toTimestamp(Row row) {
       return Timestamp.newBuilder().setSeconds(row.getInt64(0)).setNanos(row.getInt32(1)).build();
     }
   }
 
-  /** A duration represented in nanoseconds. */
-  public static class DurationNanos extends NanosType<Duration> {
-    public static final String IDENTIFIER = "ProtoTimestamp";
-
-    public DurationNanos() {
-      super(IDENTIFIER);
-    }
-
-    @Override
-    public Row toBaseType(Duration input) {
-      return toRow(input);
-    }
-
-    @Override
-    public Duration toInputType(Row base) {
-      return toDuration(base);
-    }
-
+  public static class DurationConvert {
+    /** ByteBuddy conversion for Duration to NanosDuration base type. */
     public static Row toRow(Duration input) {
-      return Row.withSchema(NanosType.SCHEMA)
-          .addValues(input.getSeconds(), input.getNanos())
-          .build();
+      return Row.withSchema(SCHEMA).addValues(input.getSeconds(), input.getNanos()).build();
     }
 
+    /** ByteBuddy conversion for NanosDuration base type to Duration. */
     public static Duration toDuration(Row row) {
       return Duration.newBuilder().setSeconds(row.getInt64(0)).setNanos(row.getInt32(1)).build();
     }

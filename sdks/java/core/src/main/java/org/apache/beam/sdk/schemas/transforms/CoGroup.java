@@ -29,6 +29,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
@@ -144,7 +145,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
  * }
  * }</pre>
  *
- * <p>The {@link Unnest} transform can then be used to flatten all the subfields into one single
+ * <p> {@link Select#flattenedSchema()}  can then be used to flatten all the subfields into one single
  * top-level row containing all the fields in both Input1 and Input2; this will often be combined
  * with a {@link Select} transform to select out the fields of interest, as the key fields will be
  * identical between input1 and input2.
@@ -196,7 +197,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
  *
  * <p>Do note that cross-product joins while simpler and easier to program, can cause performance problems.
  */
-@Experimental(Experimental.Kind.SCHEMAS)
+@Experimental(Kind.SCHEMAS)
 public class CoGroup {
   private static final List NULL_LIST;
 

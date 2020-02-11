@@ -71,7 +71,6 @@ class InteractiveEnvironment(object):
   also visualize and introspect those PCollections in user code since they have
   handles to the variables.
   """
-
   def __init__(self, cache_manager=None):
     self._cache_manager = cache_manager
     # Register a cleanup routine when kernel is restarted or terminated.
@@ -93,6 +92,9 @@ class InteractiveEnvironment(object):
     self._background_caching_pipeline_results = {}
     self._cached_source_signature = {}
     self._tracked_user_pipelines = set()
+    # Tracks the computation completeness of PCollections. PCollections tracked
+    # here don't need to be re-computed when data introspection is needed.
+    self._computed_pcolls = set()
     # Always watch __main__ module.
     self.watch('__main__')
     # Do a warning level logging if current python version is below 3.6.
@@ -110,20 +112,23 @@ class InteractiveEnvironment(object):
       self._is_interactive_ready = True
     except ImportError:
       self._is_interactive_ready = False
-      _LOGGER.warning('Dependencies required for Interactive Beam PCollection '
-                      'visualization are not available, please use: `pip '
-                      'install apache-beam[interactive]` to install necessary '
-                      'dependencies to enable all data visualization features.')
+      _LOGGER.warning(
+          'Dependencies required for Interactive Beam PCollection '
+          'visualization are not available, please use: `pip '
+          'install apache-beam[interactive]` to install necessary '
+          'dependencies to enable all data visualization features.')
 
     self._is_in_ipython = is_in_ipython()
     self._is_in_notebook = is_in_notebook()
     if not self._is_in_ipython:
-      _LOGGER.warning('You cannot use Interactive Beam features when you are '
-                      'not in an interactive environment such as a Jupyter '
-                      'notebook or ipython terminal.')
+      _LOGGER.warning(
+          'You cannot use Interactive Beam features when you are '
+          'not in an interactive environment such as a Jupyter '
+          'notebook or ipython terminal.')
     if self._is_in_ipython and not self._is_in_notebook:
-      _LOGGER.warning('You have limited Interactive Beam features since your '
-                      'ipython kernel is not connected any notebook frontend.')
+      _LOGGER.warning(
+          'You have limited Interactive Beam features since your '
+          'ipython kernel is not connected any notebook frontend.')
 
   @property
   def is_py_version_ready(self):
@@ -278,3 +283,23 @@ class InteractiveEnvironment(object):
   @property
   def tracked_user_pipelines(self):
     return self._tracked_user_pipelines
+
+  def mark_pcollection_computed(self, pcolls):
+    """Marks computation completeness for the given pcolls.
+
+    Interactive Beam can use this information to determine if a computation is
+    needed to introspect the data of any given PCollection.
+    """
+    self._computed_pcolls.update(pcoll for pcoll in pcolls)
+
+  def evict_computed_pcollections(self):
+    """Evicts all computed PCollections.
+
+    Interactive Beam will treat none of the PCollections in any given pipeline
+    as completely computed.
+    """
+    self._computed_pcolls = set()
+
+  @property
+  def computed_pcollections(self):
+    return self._computed_pcolls

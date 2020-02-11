@@ -35,6 +35,7 @@ import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
+import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternalsFactory;
 import org.apache.beam.sdk.coders.Coder;
@@ -68,7 +69,6 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
       DoFn<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> doFn,
       String stepName,
       Coder<WindowedValue<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>>> windowedInputCoder,
-      Coder<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
@@ -83,7 +83,6 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
         doFn,
         stepName,
         windowedInputCoder,
-        inputCoder,
         outputCoders,
         mainOutputTag,
         additionalOutputTags,
@@ -101,7 +100,8 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
   @Override
   protected DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT>
       createWrappingDoFnRunner(
-          DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> wrappedRunner) {
+          DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> wrappedRunner,
+          StepContext stepContext) {
     // don't wrap in anything because we don't need state cleanup because ProcessFn does
     // all that
     return wrappedRunner;

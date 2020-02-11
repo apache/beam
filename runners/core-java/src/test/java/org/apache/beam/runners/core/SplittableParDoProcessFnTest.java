@@ -276,7 +276,7 @@ public class SplittableParDoProcessFnTest {
     }
 
     @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(Integer elem) {
+    public SomeRestriction getInitialRestriction(@Element Integer elem) {
       return new SomeRestriction();
     }
   }
@@ -327,12 +327,12 @@ public class SplittableParDoProcessFnTest {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRestriction(Instant elem) {
+    public OffsetRange getInitialRestriction(@Element Instant elem) {
       throw new IllegalStateException("Expected to be supplied explicitly in this test");
     }
 
     @NewTracker
-    public OffsetRangeTracker newTracker(OffsetRange range) {
+    public OffsetRangeTracker newTracker(@Restriction OffsetRange range) {
       return new OffsetRangeTracker(range);
     }
   }
@@ -375,7 +375,7 @@ public class SplittableParDoProcessFnTest {
     }
 
     @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(Integer elem) {
+    public SomeRestriction getInitialRestriction(@Element Integer elem) {
       return new SomeRestriction();
     }
   }
@@ -437,7 +437,7 @@ public class SplittableParDoProcessFnTest {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRestriction(Integer elem) {
+    public OffsetRange getInitialRestriction(@Element Integer elem) {
       throw new UnsupportedOperationException("Expected to be supplied explicitly in this test");
     }
   }
@@ -559,7 +559,7 @@ public class SplittableParDoProcessFnTest {
     }
 
     @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(Integer element) {
+    public SomeRestriction getInitialRestriction(@Element Integer element) {
       return new SomeRestriction();
     }
 

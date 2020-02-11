@@ -49,7 +49,6 @@ from apache_beam.transforms import userstate
 
 _LOGGER = logging.getLogger(__name__)
 
-
 if __name__ == '__main__':
   # Run as
   #
@@ -60,15 +59,23 @@ if __name__ == '__main__':
   #     [FlinkRunnerTest.test_method, ...]
 
   parser = argparse.ArgumentParser(add_help=True)
-  parser.add_argument('--flink_job_server_jar',
-                      help='Job server jar to submit jobs.')
-  parser.add_argument('--streaming', default=False, action='store_true',
-                      help='Job type. batch or streaming')
-  parser.add_argument('--environment_type', default='docker',
-                      help='Environment type. docker or process')
+  parser.add_argument(
+      '--flink_job_server_jar', help='Job server jar to submit jobs.')
+  parser.add_argument(
+      '--streaming',
+      default=False,
+      action='store_true',
+      help='Job type. batch or streaming')
+  parser.add_argument(
+      '--environment_type',
+      default='docker',
+      help='Environment type. docker or process')
   parser.add_argument('--environment_config', help='Environment config.')
-  parser.add_argument('--extra_experiments', default=[], action='append',
-                      help='Beam experiments config.')
+  parser.add_argument(
+      '--extra_experiments',
+      default=[],
+      action='append',
+      help='Beam experiments config.')
   known_args, args = parser.parse_known_args(sys.argv)
   sys.argv = args
 
@@ -111,12 +118,13 @@ if __name__ == '__main__':
         conf_path = path.join(cls.conf_dir, 'flink-conf.yaml')
         file_reporter = 'org.apache.beam.runners.flink.metrics.FileReporter'
         with open(conf_path, 'w') as f:
-          f.write(linesep.join([
-              'metrics.reporters: file',
-              'metrics.reporter.file.class: %s' % file_reporter,
-              'metrics.reporter.file.path: %s' % cls.test_metrics_path,
-              'metrics.scope.operator: <operator_name>',
-          ]))
+          f.write(
+              linesep.join([
+                  'metrics.reporters: file',
+                  'metrics.reporter.file.class: %s' % file_reporter,
+                  'metrics.reporter.file.path: %s' % cls.test_metrics_path,
+                  'metrics.scope.operator: <operator_name>',
+              ]))
 
     @classmethod
     def _subprocess_command(cls, job_port, expansion_port):
@@ -130,13 +138,20 @@ if __name__ == '__main__':
       try:
         return [
             'java',
-            '-jar', flink_job_server_jar,
-            '--flink-master', '[local]',
-            '--flink-conf-dir', cls.conf_dir,
-            '--artifacts-dir', tmp_dir,
-            '--job-port', str(job_port),
-            '--artifact-port', '0',
-            '--expansion-port', str(expansion_port),
+            '-jar',
+            flink_job_server_jar,
+            '--flink-master',
+            '[local]',
+            '--flink-conf-dir',
+            cls.conf_dir,
+            '--artifacts-dir',
+            tmp_dir,
+            '--job-port',
+            str(job_port),
+            '--artifact-port',
+            '0',
+            '--expansion-port',
+            str(expansion_port),
         ]
       finally:
         rmtree(tmp_dir)
@@ -147,8 +162,8 @@ if __name__ == '__main__':
 
     def create_options(self):
       options = super(FlinkRunnerTest, self).create_options()
-      options.view_as(DebugOptions).experiments = [
-          'beam_fn_api'] + extra_experiments
+      options.view_as(
+          DebugOptions).experiments = ['beam_fn_api'] + extra_experiments
       options._all_options['parallelism'] = 2
       options._all_options['shutdown_sources_on_final_watermark'] = True
       options.view_as(PortableOptions).environment_type = (
@@ -177,8 +192,8 @@ if __name__ == '__main__':
       with self.create_pipeline() as p:
         res = (
             p
-            | GenerateSequence(start=1, stop=10,
-                               expansion_service=get_expansion_service()))
+            | GenerateSequence(
+                start=1, stop=10, expansion_service=get_expansion_service()))
 
         assert_that(res, equal_to([i for i in range(1, 10)]))
 
@@ -188,43 +203,50 @@ if __name__ == '__main__':
       with self.assertRaises(Exception) as ctx:
         with self.create_pipeline() as p:
           # pylint: disable=expression-not-assigned
-          (p
-           | ReadFromKafka(consumer_config={'bootstrap.servers':
-                                            'notvalid1:7777, notvalid2:3531'},
-                           topics=['topic1', 'topic2'],
-                           key_deserializer='org.apache.kafka.'
-                                            'common.serialization.'
-                                            'ByteArrayDeserializer',
-                           value_deserializer='org.apache.kafka.'
-                                              'common.serialization.'
-                                              'LongDeserializer',
-                           expansion_service=get_expansion_service()))
-      self.assertTrue('No resolvable bootstrap urls given in bootstrap.servers'
-                      in str(ctx.exception),
-                      'Expected to fail due to invalid bootstrap.servers, but '
-                      'failed due to:\n%s' % str(ctx.exception))
+          (
+              p
+              | ReadFromKafka(
+                  consumer_config={
+                      'bootstrap.servers': 'notvalid1:7777, notvalid2:3531'
+                  },
+                  topics=['topic1', 'topic2'],
+                  key_deserializer='org.apache.kafka.'
+                  'common.serialization.'
+                  'ByteArrayDeserializer',
+                  value_deserializer='org.apache.kafka.'
+                  'common.serialization.'
+                  'LongDeserializer',
+                  expansion_service=get_expansion_service()))
+      self.assertTrue(
+          'No resolvable bootstrap urls given in bootstrap.servers' in str(
+              ctx.exception),
+          'Expected to fail due to invalid bootstrap.servers, but '
+          'failed due to:\n%s' % str(ctx.exception))
 
       # We just test the expansion but do not execute.
       # pylint: disable=expression-not-assigned
-      (self.create_pipeline()
-       | Impulse()
-       | Map(lambda input: (1, input))
-       | WriteToKafka(producer_config={'bootstrap.servers':
-                                       'localhost:9092, notvalid2:3531'},
-                      topic='topic1',
-                      key_serializer='org.apache.kafka.'
-                                     'common.serialization.'
-                                     'LongSerializer',
-                      value_serializer='org.apache.kafka.'
-                                       'common.serialization.'
-                                       'ByteArraySerializer',
-                      expansion_service=get_expansion_service()))
+      (
+          self.create_pipeline()
+          | Impulse()
+          | Map(lambda input: (1, input))
+          | WriteToKafka(
+              producer_config={
+                  'bootstrap.servers': 'localhost:9092, notvalid2:3531'
+              },
+              topic='topic1',
+              key_serializer='org.apache.kafka.'
+              'common.serialization.'
+              'LongSerializer',
+              value_serializer='org.apache.kafka.'
+              'common.serialization.'
+              'ByteArraySerializer',
+              expansion_service=get_expansion_service()))
 
     def test_flattened_side_input(self):
       # Blocked on support for transcoding
       # https://jira.apache.org/jira/browse/BEAM-6523
-      super(FlinkRunnerTest, self).test_flattened_side_input(
-          with_transcoding=False)
+      super(FlinkRunnerTest,
+            self).test_flattened_side_input(with_transcoding=False)
 
     def test_metrics(self):
       """Run a simple DoFn that increments a counter and verifies state
@@ -256,10 +278,11 @@ if __name__ == '__main__':
       options.view_as(DebugOptions).experiments = experiments
       with Pipeline(self.get_runner(), options) as p:
         # pylint: disable=expression-not-assigned
-        (p
-         | "create" >> beam.Create(list(range(0, 110)))
-         | "mapper" >> beam.Map(lambda x: (x % 10, 'val'))
-         | "stateful" >> beam.ParDo(DoFn()))
+        (
+            p
+            | "create" >> beam.Create(list(range(0, 110)))
+            | "mapper" >> beam.Map(lambda x: (x % 10, 'val'))
+            | "stateful" >> beam.ParDo(DoFn()))
 
       lines_expected = {'counter: 110'}
       if streaming:
@@ -270,7 +293,7 @@ if __name__ == '__main__':
             # once. Caching is only initialized after the first bundle. Caching
             # depends on the cache token which is lazily initialized by the
             # Runner's StateRequestHandlers.
-            'stateful.beam.metric:statecache:size: 10',
+            'stateful.beam.metric:statecache:size: 20',
             'stateful.beam.metric:statecache:get: 10',
             'stateful.beam.metric:statecache:miss: 0',
             'stateful.beam.metric:statecache:hit: 10',
@@ -278,17 +301,19 @@ if __name__ == '__main__':
             'stateful.beam.metric:statecache:extend: 10',
             'stateful.beam.metric:statecache:evict: 0',
             # Counters
-            # (total of get/hit will be off by 10 due to the caching
-            # only getting initialized after the first bundle.
-            # Caching depends on the cache token which is lazily
+            # (total of get/hit will be off by 10 due to the cross-bundle
+            # caching only getting initialized after the first bundle.
+            # Cross-bundle caching depends on the cache token which is lazily
             # initialized by the Runner's StateRequestHandlers).
-            'stateful.beam.metric:statecache:get_total: 100',
-            'stateful.beam.metric:statecache:miss_total: 10',
+            # If cross-bundle caching is not requested, caching is done
+            # at the bundle level.
+            'stateful.beam.metric:statecache:get_total: 110',
+            'stateful.beam.metric:statecache:miss_total: 20',
             'stateful.beam.metric:statecache:hit_total: 90',
-            'stateful.beam.metric:statecache:put_total: 10',
-            'stateful.beam.metric:statecache:extend_total: 100',
+            'stateful.beam.metric:statecache:put_total: 20',
+            'stateful.beam.metric:statecache:extend_total: 110',
             'stateful.beam.metric:statecache:evict_total: 0',
-            ])
+        ])
       else:
         # Batch has a different processing model. All values for
         # a key are processed at once.
@@ -297,7 +322,7 @@ if __name__ == '__main__':
             'stateful).beam.metric:statecache:capacity: 123',
             # For the first key, the cache token will not be set yet.
             # It's lazily initialized after first access in StateRequestHandlers
-            'stateful).beam.metric:statecache:size: 9',
+            'stateful).beam.metric:statecache:size: 10',
             # We have 11 here because there are 110 / 10 elements per key
             'stateful).beam.metric:statecache:get: 11',
             'stateful).beam.metric:statecache:miss: 1',
@@ -307,21 +332,22 @@ if __name__ == '__main__':
             'stateful).beam.metric:statecache:extend: 1',
             'stateful).beam.metric:statecache:evict: 0',
             # Counters
-            'stateful).beam.metric:statecache:get_total: 99',
-            'stateful).beam.metric:statecache:miss_total: 9',
-            'stateful).beam.metric:statecache:hit_total: 90',
-            'stateful).beam.metric:statecache:put_total: 9',
-            'stateful).beam.metric:statecache:extend_total: 9',
+            'stateful).beam.metric:statecache:get_total: 110',
+            'stateful).beam.metric:statecache:miss_total: 10',
+            'stateful).beam.metric:statecache:hit_total: 100',
+            'stateful).beam.metric:statecache:put_total: 10',
+            'stateful).beam.metric:statecache:extend_total: 10',
             'stateful).beam.metric:statecache:evict_total: 0',
-            ])
+        ])
       lines_actual = set()
       with open(self.test_metrics_path, 'r') as f:
-        line = f.readline()
-        while line:
+        for line in f:
           for metric_str in lines_expected:
+            metric_name = metric_str.split()[0]
             if metric_str in line:
               lines_actual.add(metric_str)
-          line = f.readline()
+            elif metric_name in line:
+              lines_actual.add(line)
       self.assertSetEqual(lines_actual, lines_expected)
 
     def test_sdf_with_watermark_tracking(self):
@@ -344,7 +370,8 @@ if __name__ == '__main__':
     def create_options(self):
       options = super(FlinkRunnerTestOptimized, self).create_options()
       options.view_as(DebugOptions).experiments = [
-          'pre_optimize=all'] + options.view_as(DebugOptions).experiments
+          'pre_optimize=all'
+      ] + options.view_as(DebugOptions).experiments
       return options
 
     def test_external_transforms(self):

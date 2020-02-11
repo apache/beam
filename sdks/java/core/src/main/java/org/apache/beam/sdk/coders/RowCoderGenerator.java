@@ -27,6 +27,8 @@ import java.util.BitSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -94,6 +96,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
  * }
  * </code></pre>
  */
+@Experimental(Kind.SCHEMAS)
 public abstract class RowCoderGenerator {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
   private static final ForLoadedType CODER_TYPE = new ForLoadedType(Coder.class);

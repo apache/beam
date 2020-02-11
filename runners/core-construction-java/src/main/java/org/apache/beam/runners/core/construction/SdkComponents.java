@@ -28,7 +28,6 @@ import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
@@ -296,7 +295,6 @@ public class SdkComponents {
    * contained {@link Coder coders}, {@link WindowingStrategy windowing strategies}, {@link
    * PCollection PCollections}, and {@link PTransform PTransforms}.
    */
-  @Experimental
   public RunnerApi.Components toComponents() {
     return componentsBuilder.build();
   }

@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas;
+package org.apache.beam.sdk.testing;
+
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 
 /**
- * A factory for creating {@link SchemaUserTypeCreator} objects from a user class and its inferred
- * schema.
+ * Category tag for validation tests which utilize{@link DoFn.RequiresTimeSortedInput} in stateful
+ * {@link ParDo}.
  */
-public interface UserTypeCreatorFactory extends Factory<SchemaUserTypeCreator> {
-  @Override
-  SchemaUserTypeCreator create(Class<?> clazz, Schema schema);
-}
+public @interface UsesRequiresTimeSortedInput {}

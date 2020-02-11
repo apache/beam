@@ -48,7 +48,6 @@ from apache_beam.testing.util import equal_to
 
 class _MockMongoColl(object):
   """Fake mongodb collection cursor."""
-
   def __init__(self, docs):
     self.docs = docs
 
@@ -75,9 +74,8 @@ class _MockMongoColl(object):
 
   def sort(self, sort_items):
     key, order = sort_items[0]
-    self.docs = sorted(self.docs,
-                       key=lambda x: x[key],
-                       reverse=(order != ASCENDING))
+    self.docs = sorted(
+        self.docs, key=lambda x: x[key], reverse=(order != ASCENDING))
     return self
 
   def limit(self, num):
@@ -92,7 +90,6 @@ class _MockMongoColl(object):
 
 class _MockMongoDb(object):
   """Fake Mongo Db."""
-
   def __init__(self, docs):
     self.docs = docs
 
@@ -125,8 +122,11 @@ class _MockMongoDb(object):
     # Return ids of elements in the range with chunk size skip and exclude
     # head element. For simplicity of tests every document is considered 1Mb
     # by default.
-    return {'splitKeys': [{'_id': x['_id']} for x in
-                          self.docs[start_index:end_index:maxChunkSize]][1:]}
+    return {
+        'splitKeys': [{
+            '_id': x['_id']
+        } for x in self.docs[start_index:end_index:maxChunkSize]][1:]
+    }
 
 
 class _MockMongoClient(object):
@@ -154,8 +154,8 @@ class MongoSourceTest(unittest.TestCase):
     self._docs = [{'_id': self._ids[i], 'x': i} for i in range(len(self._ids))]
     mock_client.return_value = _MockMongoClient(self._docs)
 
-    self.mongo_source = _BoundedMongoSource('mongodb://test', 'testdb',
-                                            'testcoll')
+    self.mongo_source = _BoundedMongoSource(
+        'mongodb://test', 'testdb', 'testcoll')
 
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_estimate_size(self, mock_client):
@@ -167,13 +167,15 @@ class MongoSourceTest(unittest.TestCase):
     mock_client.return_value = _MockMongoClient(self._docs)
     for size in [i * 1024 * 1024 for i in (1, 2, 10)]:
       splits = list(
-          self.mongo_source.split(start_position=None,
-                                  stop_position=None,
-                                  desired_bundle_size=size))
+          self.mongo_source.split(
+              start_position=None, stop_position=None,
+              desired_bundle_size=size))
 
       reference_info = (self.mongo_source, None, None)
-      sources_info = ([(split.source, split.start_position, split.stop_position)
-                       for split in splits])
+      sources_info = ([
+          (split.source, split.start_position, split.stop_position)
+          for split in splits
+      ])
       source_test_utils.assert_sources_equal_reference_source(
           reference_info, sources_info)
 
@@ -189,8 +191,8 @@ class MongoSourceTest(unittest.TestCase):
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_get_range_tracker(self, mock_client):
     mock_client.return_value = _MockMongoClient(self._docs)
-    self.assertIsInstance(self.mongo_source.get_range_tracker(None, None),
-                          _ObjectIdRangeTracker)
+    self.assertIsInstance(
+        self.mongo_source.get_range_tracker(None, None), _ObjectIdRangeTracker)
 
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_read(self, mock_client):
@@ -256,14 +258,14 @@ class ReadFromMongoDBTest(unittest.TestCase):
 class GenerateObjectIdFnTest(unittest.TestCase):
   def test_process(self):
     with TestPipeline() as p:
-      output = (p | "Create" >> beam.Create([{
-          'x': 1
-      }, {
-          'x': 2,
-          '_id': 123
-      }])
-                | "Generate ID" >> beam.ParDo(_GenerateObjectIdFn())
-                | "Check" >> beam.Map(lambda x: '_id' in x))
+      output = (
+          p | "Create" >> beam.Create([{
+              'x': 1
+          }, {
+              'x': 2, '_id': 123
+          }])
+          | "Generate ID" >> beam.ParDo(_GenerateObjectIdFn())
+          | "Check" >> beam.Map(lambda x: '_id' in x))
       assert_that(output, equal_to([True] * 2))
 
 
@@ -272,8 +274,9 @@ class WriteMongoFnTest(unittest.TestCase):
   def test_process(self, mock_sink):
     docs = [{'x': 1}, {'x': 2}, {'x': 3}]
     with TestPipeline() as p:
-      _ = (p | "Create" >> beam.Create(docs)
-           | "Write" >> beam.ParDo(_WriteMongoFn(batch_size=2)))
+      _ = (
+          p | "Create" >> beam.Create(docs)
+          | "Write" >> beam.ParDo(_WriteMongoFn(batch_size=2)))
       p.run()
 
       self.assertEqual(
@@ -289,8 +292,9 @@ class MongoSinkTest(unittest.TestCase):
   def test_write(self, mock_client):
     docs = [{'x': 1}, {'x': 2}, {'x': 3}]
     _MongoSink(uri='test', db='test', coll='test').write(docs)
-    self.assertTrue(mock_client.return_value.__getitem__.return_value.
-                    __getitem__.return_value.bulk_write.called)
+    self.assertTrue(
+        mock_client.return_value.__getitem__.return_value.__getitem__.
+        return_value.bulk_write.called)
 
 
 class WriteToMongoDBTest(unittest.TestCase):
@@ -300,8 +304,9 @@ class WriteToMongoDBTest(unittest.TestCase):
     docs = [{'x': 1, '_id': id}]
     expected_update = [ReplaceOne({'_id': id}, {'x': 1, '_id': id}, True, None)]
     with TestPipeline() as p:
-      _ = (p | "Create" >> beam.Create(docs)
-           | "Write" >> WriteToMongoDB(db='test', coll='test'))
+      _ = (
+          p | "Create" >> beam.Create(docs)
+          | "Write" >> WriteToMongoDB(db='test', coll='test'))
       p.run()
       mock_client.return_value.__getitem__.return_value.__getitem__. \
         return_value.bulk_write.assert_called_with(expected_update)
@@ -311,13 +316,13 @@ class WriteToMongoDBTest(unittest.TestCase):
     docs = [{'x': 1}]
     expected_update = [
         ReplaceOne({'_id': mock.ANY}, {
-            'x': 1,
-            '_id': mock.ANY
+            'x': 1, '_id': mock.ANY
         }, True, None)
     ]
     with TestPipeline() as p:
-      _ = (p | "Create" >> beam.Create(docs)
-           | "Write" >> WriteToMongoDB(db='test', coll='test'))
+      _ = (
+          p | "Create" >> beam.Create(docs)
+          | "Write" >> WriteToMongoDB(db='test', coll='test'))
       p.run()
       mock_client.return_value.__getitem__.return_value.__getitem__. \
         return_value.bulk_write.assert_called_with(expected_update)
@@ -349,10 +354,12 @@ class ObjectIdHelperTest(TestCase):
 
   def test_increment_id(self):
     test_cases = [
-        (objectid.ObjectId('000000000000000100000000'),
-         objectid.ObjectId('0000000000000000ffffffff')),
-        (objectid.ObjectId('000000010000000000000000'),
-         objectid.ObjectId('00000000ffffffffffffffff')),
+        (
+            objectid.ObjectId('000000000000000100000000'),
+            objectid.ObjectId('0000000000000000ffffffff')),
+        (
+            objectid.ObjectId('000000010000000000000000'),
+            objectid.ObjectId('00000000ffffffffffffffff')),
     ]
     for (first, second) in test_cases:
       self.assertEqual(second, _ObjectIdHelper.increment_id(first, -1))
@@ -376,9 +383,10 @@ class ObjectRangeTrackerTest(TestCase):
     for pos in test_cases:
       id = _ObjectIdHelper.int_to_id(pos - start_int)
       desired_fraction = (pos - start_int) / (stop_int - start_int)
-      self.assertAlmostEqual(tracker.position_to_fraction(id, start, stop),
-                             desired_fraction,
-                             places=20)
+      self.assertAlmostEqual(
+          tracker.position_to_fraction(id, start, stop),
+          desired_fraction,
+          places=20)
 
       convert_id = tracker.fraction_to_position(
           (pos - start_int) / (stop_int - start_int), start, stop)

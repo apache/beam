@@ -47,9 +47,9 @@ public interface QueryPlanner {
 
     abstract void none();
 
-    public abstract Map named();
+    public abstract Map<String, ?> named();
 
-    public abstract List positional();
+    public abstract List<?> positional();
 
     public static QueryParameters ofNone() {
       return AutoOneOf_QueryPlanner_QueryParameters.none();

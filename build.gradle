@@ -219,6 +219,10 @@ task pythonLintPreCommit() {
   dependsOn ":sdks:python:test-suites:tox:py37:lint"
 }
 
+task pythonFormatterPreCommit() {
+  dependsOn 'sdks:python:test-suites:tox:py37:formatter'
+}
+
 task python2PostCommit() {
   dependsOn ":sdks:python:test-suites:portable:py2:crossLanguageTests"
   dependsOn ":sdks:python:test-suites:dataflow:py2:postCommitIT"
@@ -303,7 +307,7 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
 
   configurations { linkageCheckerJava }
   dependencies {
-    linkageCheckerJava "com.google.cloud.tools:dependencies:1.1.2"
+    linkageCheckerJava "com.google.cloud.tools:dependencies:1.1.3"
   }
 
   // We need to evaluate all the projects first so that we can find depend on all the

@@ -26,7 +26,6 @@ import logging
 import sys
 import typing
 from builtins import next
-from builtins import range
 
 from apache_beam.typehints import typehints
 
@@ -41,54 +40,34 @@ _TypeMapEntry = collections.namedtuple(
     '_TypeMapEntry', ['match', 'arity', 'beam_type'])
 
 
-def _get_compatible_args(typ):
-  if isinstance(typ, typing.TypeVar):
-    return (typ.__name__,)
-  # On Python versions < 3.5.3, the Tuple and Union type from typing do
-  # not have an __args__ attribute, but a __tuple_params__, and a
-  # __union_params__ argument respectively.
-  if (3, 0, 0) <= sys.version_info[0:3] < (3, 5, 3):
-    if getattr(typ, '__tuple_params__', None) is not None:
-      if typ.__tuple_use_ellipsis__:
-        return typ.__tuple_params__ + (Ellipsis,)
-      else:
-        return typ.__tuple_params__
-    elif getattr(typ, '__union_params__', None) is not None:
-      return typ.__union_params__
-  return None
-
-
 def _get_args(typ):
-  """Returns the index-th argument to the given type."""
+  """Returns a list of arguments to the given type.
+
+  Args:
+    typ: A typing module typing type.
+
+  Returns:
+    A tuple of args.
+  """
   try:
+    if typ.__args__ is None:
+      return ()
     return typ.__args__
   except AttributeError:
-    compatible_args = _get_compatible_args(typ)
-    if compatible_args is None:
-      raise
-    return compatible_args
-
-
-def _get_arg(typ, index):
-  """Returns the index-th argument to the given type."""
-  try:
-    return typ.__args__[index]
-  except AttributeError:
-    compatible_args = _get_compatible_args(typ)
-    if compatible_args is None:
-      raise
-    return compatible_args[index]
-
-
-def _len_arg(typ):
-  """Returns the length of the arguments to the given type."""
-  try:
-    return len(typ.__args__)
-  except AttributeError:
-    compatible_args = _get_compatible_args(typ)
-    if compatible_args is None:
-      return 0
-    return len(compatible_args)
+    if isinstance(typ, typing.TypeVar):
+      return (typ.__name__, )
+    # On Python versions < 3.5.3, the Tuple and Union type from typing do
+    # not have an __args__ attribute, but a __tuple_params__, and a
+    # __union_params__ argument respectively.
+    if (3, 0, 0) <= sys.version_info[0:3] < (3, 5, 3):
+      if getattr(typ, '__tuple_params__', None) is not None:
+        if typ.__tuple_use_ellipsis__:
+          return typ.__tuple_params__ + (Ellipsis, )
+        else:
+          return typ.__tuple_params__
+      elif getattr(typ, '__union_params__', None) is not None:
+        return typ.__union_params__
+    return ()
 
 
 def _safe_issubclass(derived, parent):
@@ -119,11 +98,6 @@ def _match_issubclass(match_against):
   return lambda user_type: _safe_issubclass(user_type, match_against)
 
 
-def _match_same_type(match_against):
-  # For types that can't be compared with isinstance or _safe_issubclass.
-  return lambda user_type: type(user_type) == type(match_against)
-
-
 def _match_is_exactly_mapping(user_type):
   # Avoid unintentionally catching all subtypes (e.g. strings and mappings).
   if sys.version_info < (3, 7):
@@ -134,6 +108,8 @@ def _match_is_exactly_mapping(user_type):
 
 
 def _match_is_exactly_iterable(user_type):
+  if user_type is typing.Iterable:
+    return True
   # Avoid unintentionally catching all subtypes (e.g. strings and mappings).
   if sys.version_info < (3, 7):
     expected_origin = typing.Iterable
@@ -143,8 +119,9 @@ def _match_is_exactly_iterable(user_type):
 
 
 def _match_is_named_tuple(user_type):
-  return (_safe_issubclass(user_type, typing.Tuple) and
-          hasattr(user_type, '_field_types'))
+  return (
+      _safe_issubclass(user_type, typing.Tuple) and
+      hasattr(user_type, '_field_types'))
 
 
 def _match_is_optional(user_type):
@@ -182,6 +159,10 @@ def _match_is_union(user_type):
   return False
 
 
+def is_Any(typ):
+  return typ is typing.Any
+
+
 # Mapping from typing.TypeVar/typehints.TypeVariable ids to an object of the
 # other type. Bidirectional mapping preserves typing.TypeVar instances.
 _type_var_cache = {}  # type: typing.Dict[int, typehints.TypeVariable]
@@ -199,7 +180,7 @@ def convert_to_beam_type(typ):
     conversion.
 
   Raises:
-    ~exceptions.ValueError: The type was malformed.
+    ValueError: The type was malformed.
   """
   if isinstance(typ, typing.TypeVar):
     # This is a special case, as it's not parameterized by types.
@@ -222,10 +203,7 @@ def convert_to_beam_type(typ):
     return typ
 
   type_map = [
-      _TypeMapEntry(
-          match=_match_same_type(typing.Any),
-          arity=0,
-          beam_type=typehints.Any),
+      _TypeMapEntry(match=is_Any, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(
           match=_match_issubclass(typing.Dict),
           arity=2,
@@ -239,8 +217,7 @@ def convert_to_beam_type(typ):
           arity=1,
           beam_type=typehints.List),
       _TypeMapEntry(
-          match=_match_issubclass(typing.Set),
-          arity=1,
+          match=_match_issubclass(typing.Set), arity=1,
           beam_type=typehints.Set),
       # NamedTuple is a subclass of Tuple, but it needs special handling.
       # We just convert it to Any for now.
@@ -269,14 +246,34 @@ def convert_to_beam_type(typ):
     _LOGGER.info('Using Any for unsupported type: %s', typ)
     return typehints.Any
 
-  if matched_entry.arity == -1:
-    arity = _len_arg(typ)
+  args = _get_args(typ)
+  len_args = len(args)
+  if len_args == 0 and len_args != matched_entry.arity:
+    arity = matched_entry.arity
+    # Handle unsubscripted types.
+    if _match_issubclass(typing.Tuple)(typ):
+      args = (typehints.TypeVariable('T'), Ellipsis)
+    elif _match_is_union(typ):
+      raise ValueError('Unsupported Union with no arguments.')
+    elif _match_issubclass(typing.Generator)(typ):
+      raise ValueError('Unsupported Generator with no arguments.')
+    elif _match_issubclass(typing.Dict)(typ):
+      args = (typehints.TypeVariable('KT'), typehints.TypeVariable('VT'))
+    elif (_match_issubclass(typing.Iterator)(typ) or
+          _match_issubclass(typing.Generator)(typ) or
+          _match_is_exactly_iterable(typ)):
+      args = (typehints.TypeVariable('T_co'), )
+    else:
+      args = (typehints.TypeVariable('T'), ) * arity
+  elif matched_entry.arity == -1:
+    arity = len_args
   else:
     arity = matched_entry.arity
-    if _len_arg(typ) != arity:
-      raise ValueError('expecting type %s to have arity %d, had arity %d '
-                       'instead' % (str(typ), arity, _len_arg(typ)))
-  typs = [convert_to_beam_type(_get_arg(typ, i)) for i in range(arity)]
+    if len_args != arity:
+      raise ValueError(
+          'expecting type %s to have arity %d, had arity %d '
+          'instead' % (str(typ), arity, len_args))
+  typs = convert_to_beam_types(args)
   if arity == 0:
     # Nullary types (e.g. Any) don't accept empty tuples as arguments.
     return matched_entry.beam_type
@@ -317,7 +314,7 @@ def convert_to_typing_type(typ):
     Converted version of typ, or unchanged.
 
   Raises:
-    ~exceptions.ValueError: The type was malformed or could not be converted.
+    ValueError: The type was malformed or could not be converted.
   """
   if isinstance(typ, typehints.TypeVariable):
     # This is a special case, as it's not parameterized by types.

@@ -199,7 +199,7 @@ public class DateTimeUtils {
   private static void safeCheckSubMillisPrecision(long micros) {
     long subMilliPrecision = micros % 1000L;
     if (subMilliPrecision != 0) {
-      throw new IllegalArgumentException(
+      throw new UnsupportedOperationException(
           String.format(
               "%s has sub-millisecond precision, which Beam ZetaSQL does"
                   + " not currently support.",

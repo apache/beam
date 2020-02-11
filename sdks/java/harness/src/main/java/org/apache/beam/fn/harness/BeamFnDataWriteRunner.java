@@ -91,25 +91,10 @@ public class BeamFnDataWriteRunner<InputT> {
         Consumer<ThrowingRunnable> tearDownFunctions,
         BundleSplitListener splitListener)
         throws IOException {
-      RunnerApi.Coder coderSpec;
-      if (RemoteGrpcPortWrite.fromPTransform(pTransform).getPort().getCoderId().isEmpty()) {
-        LOG.error(
-            "Missing required coder_id on grpc_port for %s; using deprecated fallback.",
-            pTransformId);
-        coderSpec =
-            coders.get(
-                pCollections.get(getOnlyElement(pTransform.getInputsMap().values())).getCoderId());
-      } else {
-        coderSpec = null;
-      }
+
       BeamFnDataWriteRunner<InputT> runner =
           new BeamFnDataWriteRunner<>(
-              pTransformId,
-              pTransform,
-              processBundleInstructionId,
-              coderSpec,
-              coders,
-              beamFnDataClient);
+              pTransformId, pTransform, processBundleInstructionId, coders, beamFnDataClient);
       startFunctionRegistry.register(pTransformId, runner::registerForOutput);
       pCollectionConsumerRegistry.register(
           getOnlyElement(pTransform.getInputsMap().values()),
@@ -133,7 +118,6 @@ public class BeamFnDataWriteRunner<InputT> {
       String pTransformId,
       RunnerApi.PTransform remoteWriteNode,
       Supplier<String> processBundleInstructionIdSupplier,
-      RunnerApi.Coder coderSpec,
       Map<String, RunnerApi.Coder> coders,
       BeamFnDataClient beamFnDataClientFactory)
       throws IOException {
@@ -145,17 +129,9 @@ public class BeamFnDataWriteRunner<InputT> {
 
     RehydratedComponents components =
         RehydratedComponents.forComponents(Components.newBuilder().putAllCoders(coders).build());
-    @SuppressWarnings("unchecked")
-    Coder<WindowedValue<InputT>> coder;
-    if (!port.getCoderId().isEmpty()) {
-      coder =
-          (Coder<WindowedValue<InputT>>)
-              CoderTranslation.fromProto(coders.get(port.getCoderId()), components);
-    } else {
-      // TODO: remove this path once it is no longer used
-      coder = (Coder<WindowedValue<InputT>>) CoderTranslation.fromProto(coderSpec, components);
-    }
-    this.coder = coder;
+    this.coder =
+        (Coder<WindowedValue<InputT>>)
+            CoderTranslation.fromProto(coders.get(port.getCoderId()), components);
   }
 
   public void registerForOutput() {

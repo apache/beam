@@ -40,7 +40,6 @@ from apache_beam.runners.interactive.display import pipeline_graph
 # size of PCollection samples cached.
 SAMPLE_SIZE = 8
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -49,13 +48,14 @@ class InteractiveRunner(runners.PipelineRunner):
 
   Allows interactively building and running Beam Python pipelines.
   """
-
-  def __init__(self,
-               underlying_runner=None,
-               cache_dir=None,
-               cache_format='text',
-               render_option=None,
-               skip_display=False):
+  def __init__(
+      self,
+      underlying_runner=None,
+      cache_dir=None,
+      cache_format='text',
+      render_option=None,
+      skip_display=False,
+      force_compute=True):
     """Constructor of InteractiveRunner.
 
     Args:
@@ -68,17 +68,23 @@ class InteractiveRunner(runners.PipelineRunner):
       skip_display: (bool) whether to skip display operations when running the
           pipeline. Useful if running large pipelines when display is not
           needed.
+      force_compute: (bool) whether sequential pipeline runs can use cached data
+          of PCollections computed from the previous runs including show API
+          invocation from interactive_beam module. If True, always run the whole
+          pipeline and compute data for PCollections forcefully. If False, use
+          available data and run minimum pipeline fragment to only compute data
+          not available.
     """
-    self._underlying_runner = (underlying_runner
-                               or direct_runner.DirectRunner())
+    self._underlying_runner = (
+        underlying_runner or direct_runner.DirectRunner())
     if not ie.current_env().cache_manager():
       ie.current_env().set_cache_manager(
-          cache.FileBasedCacheManager(cache_dir,
-                                      cache_format))
+          cache.FileBasedCacheManager(cache_dir, cache_format))
     self._cache_manager = ie.current_env().cache_manager()
     self._render_option = render_option
     self._in_session = False
     self._skip_display = skip_display
+    self._force_compute = force_compute
 
   def is_fnapi_compatible(self):
     # TODO(BEAM-8436): return self._underlying_runner.is_fnapi_compatible()
@@ -127,6 +133,9 @@ class InteractiveRunner(runners.PipelineRunner):
     return self._underlying_runner.apply(transform, pvalueish, options)
 
   def run_pipeline(self, pipeline, options):
+    if self._force_compute:
+      ie.current_env().evict_computed_pcollections()
+
     pipeline_instrument = inst.pin(pipeline, options)
 
     # The user_pipeline analyzed might be None if the pipeline given has nothing
@@ -151,24 +160,26 @@ class InteractiveRunner(runners.PipelineRunner):
           render_option=self._render_option)
       a_pipeline_graph.display_graph()
 
-    main_job_result = PipelineResult(pipeline_to_execute.run(),
-                                     pipeline_instrument)
+    main_job_result = PipelineResult(
+        pipeline_to_execute.run(), pipeline_instrument)
     # In addition to this pipeline result setting, redundant result setting from
     # outer scopes are also recommended since the user_pipeline might not be
     # available from within this scope.
     if user_pipeline:
       ie.current_env().set_pipeline_result(
-          user_pipeline,
-          main_job_result,
-          is_main_job=True)
+          user_pipeline, main_job_result, is_main_job=True)
     main_job_result.wait_until_finish()
+
+    if main_job_result.state is beam.runners.runner.PipelineState.DONE:
+      # pylint: disable=dict-values-not-iterating
+      ie.current_env().mark_pcollection_computed(
+          pipeline_instrument.runner_pcoll_to_user_pcoll.values())
 
     return main_job_result
 
 
 class PipelineResult(beam.runners.runner.PipelineResult):
   """Provides access to information about a pipeline."""
-
   def __init__(self, underlying_result, pipeline_instrument):
     """Constructor of PipelineResult.
 

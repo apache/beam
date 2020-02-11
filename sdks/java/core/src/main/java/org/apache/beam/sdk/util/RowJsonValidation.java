@@ -27,6 +27,8 @@ import static org.apache.beam.sdk.schemas.Schema.TypeName.INT32;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.INT64;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.STRING;
 
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -35,6 +37,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * Validates if the types specified in {@link Row} {@link Schema} are supported for conversion from
  * Json.
  */
+@Experimental(Kind.SCHEMAS)
 class RowJsonValidation {
 
   private static final ImmutableSet<Schema.TypeName> SUPPORTED_TYPES =
