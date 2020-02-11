@@ -38,6 +38,7 @@ import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsPro
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsProvider;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
 
 /** Tests {@link AwsModule}. */
@@ -88,6 +89,12 @@ public class AwsModuleTest {
     assertEquals(credentialsProvider.getClass(), deserializedCredentialsProvider.getClass());
 
     credentialsProvider = ProfileCredentialsProvider.create();
+    serializedCredentialsProvider = objectMapper.writeValueAsString(credentialsProvider);
+    deserializedCredentialsProvider =
+        objectMapper.readValue(serializedCredentialsProvider, AwsCredentialsProvider.class);
+    assertEquals(credentialsProvider.getClass(), deserializedCredentialsProvider.getClass());
+
+    credentialsProvider = WebIdentityTokenFileCredentialsProvider.create();
     serializedCredentialsProvider = objectMapper.writeValueAsString(credentialsProvider);
     deserializedCredentialsProvider =
         objectMapper.readValue(serializedCredentialsProvider, AwsCredentialsProvider.class);
