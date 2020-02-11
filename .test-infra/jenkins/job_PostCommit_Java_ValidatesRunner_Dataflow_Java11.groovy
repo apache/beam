@@ -45,13 +45,9 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflo
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':runners:google-cloud-dataflow-java:validatesRunner')
       switches('-x shadowJar')
-      switches('-x shadowTestJar')
       switches('-x compileJava')
-      switches('-x compileTestJava')
       switches('-x jar')
-      switches('-x testJar')
       switches('-x classes')
-      switches('-x testClasses')
       switches("-Dorg.gradle.java.home=${JAVA_11_HOME}")
 
       commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())

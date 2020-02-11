@@ -42,25 +42,24 @@ builder.build {
     steps {
         gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks ':runners:google-cloud-dataflow-java:testJar'
-            tasks ':runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar'
+            tasks 'javaExamplesDataflowPrecommit'
             switches "-Dorg.gradle.java.home=${commonJobProperties.JAVA_8_HOME}"
             switches '-PdisableSpotlessCheck=true'
+            switches '-x runLegacyWorkerPreCommitTest'
+            switches '-x runApplianceTest'
+            switches '-x runWindmillTest'
             commonJobProperties.setGradleSwitches(delegate)
         }
 
         gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks ':runners:google-cloud-dataflow-java:examples:preCommit'
-            tasks ':runners:google-cloud-dataflow-java:examples-streaming:preCommit'
+            tasks ':runners:google-cloud-dataflow-java:examples:runLegacyWorkerPreCommitTest'
+            tasks ':runners:google-cloud-dataflow-java:examples-streaming:runApplianceTest'
+            tasks ':runners:google-cloud-dataflow-java:examples-streaming:runWindmillTest'
             switches '-x shadowJar'
-            switches '-x shadowTestJar'
             switches '-x compileJava'
-            switches '-x compileTestJava'
             switches '-x jar'
-            switches '-x testJar'
             switches '-x classes'
-            switches '-x testClasses'
             switches "-Dorg.gradle.java.home=${commonJobProperties.JAVA_11_HOME}"
             switches '-PdisableSpotlessCheck=true'
             commonJobProperties.setGradleSwitches(delegate)

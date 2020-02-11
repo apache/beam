@@ -62,18 +62,14 @@ builder.build {
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks ':model:pipeline:build'
-      tasks ':model:job-management:build'
-      tasks ':model:fn-execution:build'
-      tasks ':runners:google-cloud-dataflow-java:worker:legacy-worker:build'
-      tasks ':sdks:java:core:buildNeeded'
-      tasks ':sdks:java:core:buildDependents'
-      tasks ':sdks:java:javadoc:allJavadoc'
-      tasks ':sdks:java:extensions:sql:jdbc:preCommit'
-      tasks ':examples:java:testJar'
-      tasks ':runners:direct-java:shadowJar'
+      tasks 'javaPreCommit'
       switches "-Dorg.gradle.java.home=${commonJobProperties.JAVA_8_HOME}"
       switches '-PdisableSpotlessCheck=true'
+      switches '-x directRunnerPreCommit'
+      switches '-x flinkRunnerPreCommit'
+      switches '-x sparkRunnerPreCommit'
+      switches '-x shadowJarTest'
+      switches '-x runNeedsRunnerTests'
       commonJobProperties.setGradleSwitches(delegate)
     }
 
@@ -82,15 +78,12 @@ builder.build {
       tasks ':examples:java:directRunnerPreCommit'
       tasks ':examples:java:flinkRunnerPreCommit'
       tasks ':examples:java:sparkRunnerPreCommit'
-      tasks ':runners:direct-java:needsRunnerTests'
+      tasks ':sdks:java:extensions:sql:jdbc:shadowJarTest'
+      tasks ':runners:direct-java:runNeedsRunnerTests'
       switches '-x shadowJar'
-      switches '-x shadowTestJar'
       switches '-x compileJava'
-      switches '-x compileTestJava'
       switches '-x jar'
-      switches '-x testJar'
       switches '-x classes'
-      switches '-x testClasses'
       switches "-Dorg.gradle.java.home=${commonJobProperties.JAVA_11_HOME}"
       switches '-PdisableSpotlessCheck=true'
       commonJobProperties.setGradleSwitches(delegate)

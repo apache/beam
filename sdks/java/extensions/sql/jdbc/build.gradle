@@ -66,7 +66,7 @@ test {
   }
 }
 
-task shadowJarTest(type: Test, dependsOn: ":sdks:java:extensions:sql:jdbc:shadowJar") {
+task shadowJarTest(type: Test) {
   group = "Verification"
 
   // Disable Gradle cache (it should not be used because the IT's won't run).
@@ -102,7 +102,8 @@ task endToEndTest(type: Test) {
 }
 
 /* Define a common precommit task which depends on all the individual precommits. */
-task preCommit() {
+task preCommit(type: Test) {
+  dependsOn ":sdks:java:extensions:sql:jdbc:shadowJar"
   dependsOn "shadowJarTest"
 }
 

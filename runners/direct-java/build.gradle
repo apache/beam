@@ -91,7 +91,7 @@ dependencies {
   validatesRunner project(path: project.path, configuration: "shadowTest")
 }
 
-task needsRunnerTests(type: Test) {
+task runNeedsRunnerTests(type: Test) {
   group = "Verification"
   description = "Runs tests that require a runner to validate that piplines/transforms work correctly"
 
@@ -111,6 +111,11 @@ task needsRunnerTests(type: Test) {
     excludeCategories "org.apache.beam.sdk.testing.UsesMetricsPusher"
     excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
   }
+}
+
+// This is kind of wrapper to enable to skip particular task but still invoke all dependencies
+task needsRunnerTests(type: Test) {
+  dependsOn runNeedsRunnerTests
 }
 
 // NOTE: This will also run 'NeedsRunner' tests, which are run in the :needsRunnerTests task as well.
