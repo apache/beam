@@ -355,8 +355,7 @@ class TriggerCopyJobs(beam.DoFn):
         write_disposition=write_disposition)
 
     if wait_for_job:
-      self.bq_wrapper.wait_for_bq_job(job_reference,
-                                      sleep_duration_sec=10)
+      self.bq_wrapper.wait_for_bq_job(job_reference, sleep_duration_sec=10)
 
     yield (destination, job_reference)
 
