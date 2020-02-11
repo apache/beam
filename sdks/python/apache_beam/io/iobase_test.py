@@ -15,13 +15,12 @@
 # limitations under the License.
 #
 
-"""Unit tests for the SDFRestrictionProvider module."""
+"""Unit tests for classes in iobase.py."""
 
 # pytype: skip-file
 
 from __future__ import absolute_import
 
-import time
 import unittest
 
 import mock
@@ -31,9 +30,6 @@ from apache_beam.io.concat_source import ConcatSource
 from apache_beam.io.concat_source_test import RangeSource
 from apache_beam.io import iobase
 from apache_beam.io.iobase import SourceBundle
-from apache_beam.io.restriction_trackers import OffsetRange
-from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
-from apache_beam.utils import timestamp
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -225,86 +221,6 @@ class UseSdfBoundedSourcesTests(unittest.TestCase):
 
   def test_sdf_wrap_range_source(self):
     self._run_sdf_wrapper_pipeline(RangeSource(0, 4), [0, 1, 2, 3])
-
-
-class ThreadsafeRestrictionTrackerTest(unittest.TestCase):
-  def test_initialization(self):
-    with self.assertRaises(ValueError):
-      iobase.ThreadsafeRestrictionTracker(RangeSource(0, 1))
-
-  def test_defer_remainder_with_wrong_time_type(self):
-    threadsafe_tracker = iobase.ThreadsafeRestrictionTracker(
-        OffsetRestrictionTracker(OffsetRange(0, 10)))
-    with self.assertRaises(ValueError):
-      threadsafe_tracker.defer_remainder(10)
-
-  def test_self_checkpoint_immediately(self):
-    restriction_tracker = OffsetRestrictionTracker(OffsetRange(0, 10))
-    threadsafe_tracker = iobase.ThreadsafeRestrictionTracker(
-        restriction_tracker)
-    threadsafe_tracker.defer_remainder()
-    deferred_residual, deferred_time = threadsafe_tracker.deferred_status()
-    expected_residual = OffsetRange(0, 10)
-    self.assertEqual(deferred_residual, expected_residual)
-    self.assertTrue(isinstance(deferred_time, timestamp.Duration))
-    self.assertEqual(deferred_time, 0)
-
-  def test_self_checkpoint_with_relative_time(self):
-    threadsafe_tracker = iobase.ThreadsafeRestrictionTracker(
-        OffsetRestrictionTracker(OffsetRange(0, 10)))
-    threadsafe_tracker.defer_remainder(timestamp.Duration(100))
-    time.sleep(2)
-    _, deferred_time = threadsafe_tracker.deferred_status()
-    self.assertTrue(isinstance(deferred_time, timestamp.Duration))
-    # The expectation = 100 - 2 - some_delta
-    self.assertTrue(deferred_time <= 98)
-
-  def test_self_checkpoint_with_absolute_time(self):
-    threadsafe_tracker = iobase.ThreadsafeRestrictionTracker(
-        OffsetRestrictionTracker(OffsetRange(0, 10)))
-    now = timestamp.Timestamp.now()
-    schedule_time = now + timestamp.Duration(100)
-    self.assertTrue(isinstance(schedule_time, timestamp.Timestamp))
-    threadsafe_tracker.defer_remainder(schedule_time)
-    time.sleep(2)
-    _, deferred_time = threadsafe_tracker.deferred_status()
-    self.assertTrue(isinstance(deferred_time, timestamp.Duration))
-    # The expectation =
-    # schedule_time - the time when deferred_status is called - some_delta
-    self.assertTrue(deferred_time <= 98)
-
-
-class RestrictionTrackerViewTest(unittest.TestCase):
-  def test_initialization(self):
-    with self.assertRaises(ValueError):
-      iobase.RestrictionTrackerView(
-          OffsetRestrictionTracker(OffsetRange(0, 10)))
-
-  def test_api_expose(self):
-    threadsafe_tracker = iobase.ThreadsafeRestrictionTracker(
-        OffsetRestrictionTracker(OffsetRange(0, 10)))
-    tracker_view = iobase.RestrictionTrackerView(threadsafe_tracker)
-    current_restriction = tracker_view.current_restriction()
-    self.assertEqual(current_restriction, OffsetRange(0, 10))
-    self.assertTrue(tracker_view.try_claim(0))
-    tracker_view.defer_remainder()
-    deferred_remainder, deferred_watermark = (
-        threadsafe_tracker.deferred_status())
-    self.assertEqual(deferred_remainder, OffsetRange(1, 10))
-    self.assertEqual(deferred_watermark, timestamp.Duration())
-
-  def test_non_expose_apis(self):
-    threadsafe_tracker = iobase.ThreadsafeRestrictionTracker(
-        OffsetRestrictionTracker(OffsetRange(0, 10)))
-    tracker_view = iobase.RestrictionTrackerView(threadsafe_tracker)
-    with self.assertRaises(AttributeError):
-      tracker_view.check_done()
-    with self.assertRaises(AttributeError):
-      tracker_view.current_progress()
-    with self.assertRaises(AttributeError):
-      tracker_view.try_split()
-    with self.assertRaises(AttributeError):
-      tracker_view.deferred_status()
 
 
 if __name__ == '__main__':

@@ -44,6 +44,10 @@ from past.builtins import unicode
 from apache_beam.internal import util
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.pvalue import TaggedOutput
+from apache_beam.runners.sdf_utils import RestrictionTrackerView
+from apache_beam.runners.sdf_utils import SplitResultPrimary
+from apache_beam.runners.sdf_utils import SplitResultResidual
+from apache_beam.runners.sdf_utils import ThreadsafeRestrictionTracker
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import core
 from apache_beam.transforms import userstate
@@ -57,12 +61,8 @@ from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
-  from apache_beam.io import iobase
   from apache_beam.transforms import sideinputs
   from apache_beam.transforms.core import TimerSpec
-
-SplitResultType = Tuple[Tuple[WindowedValue, Optional[Timestamp]],
-                        Optional[Timestamp]]
 
 
 class NameContext(object):
@@ -414,7 +414,7 @@ class DoFnInvoker(object):
 
   def invoke_process(self,
                      windowed_value,  # type: WindowedValue
-                     restriction_tracker=None,  # type: Optional[iobase.RestrictionTracker]
+                     restriction_tracker=None,  # type: Optional[RestrictionTracker]
                      additional_args=None,
                      additional_kwargs=None
                     ):
@@ -499,7 +499,7 @@ class SimpleInvoker(DoFnInvoker):
 
   def invoke_process(self,
                      windowed_value,  # type: WindowedValue
-                     restriction_tracker=None,  # type: Optional[iobase.RestrictionTracker]
+                     restriction_tracker=None,  # type: Optional[RestrictionTracker]
                      additional_args=None,
                      additional_kwargs=None
                     ):
@@ -536,7 +536,7 @@ class PerWindowInvoker(DoFnInvoker):
     self.watermark_estimator_param = (
         self.signature.process_method.watermark_estimator_arg_name
         if self.watermark_estimator else None)
-    self.threadsafe_restriction_tracker = None  # type: Optional[iobase.ThreadsafeRestrictionTracker]
+    self.threadsafe_restriction_tracker = None  # type: Optional[ThreadsafeRestrictionTracker]
     self.current_windowed_value = None  # type: Optional[WindowedValue]
     self.bundle_finalizer_param = bundle_finalizer_param
     self.is_key_param_required = False
@@ -649,11 +649,10 @@ class PerWindowInvoker(DoFnInvoker):
         raise ValueError(
             'A RestrictionTracker %r was provided but DoFn does not have a '
             'RestrictionTrackerParam defined' % restriction_tracker)
-      from apache_beam.io import iobase
-      self.threadsafe_restriction_tracker = iobase.ThreadsafeRestrictionTracker(
+      self.threadsafe_restriction_tracker = ThreadsafeRestrictionTracker(
           restriction_tracker)
       additional_kwargs[restriction_tracker_param] = (
-          iobase.RestrictionTrackerView(self.threadsafe_restriction_tracker))
+          RestrictionTrackerView(self.threadsafe_restriction_tracker))
 
       if self.watermark_estimator:
         # The watermark estimator needs to be reset for every element.
@@ -685,7 +684,7 @@ class PerWindowInvoker(DoFnInvoker):
                                  additional_args,
                                  additional_kwargs,
                                 ):
-    # type: (...) -> Optional[SplitResultType]
+    # type: (...) -> Optional[SplitResultResidual]
     if self.has_windowed_inputs:
       window, = windowed_value.windows
       side_inputs = [si[window] for si in self.side_inputs]
@@ -766,22 +765,23 @@ class PerWindowInvoker(DoFnInvoker):
       # ProcessSizedElementAndRestriction.
       self.threadsafe_restriction_tracker.check_done()
       deferred_status = self.threadsafe_restriction_tracker.deferred_status()
-      output_watermark = None
+      current_watermark = None
       if self.watermark_estimator:
-        output_watermark = self.watermark_estimator.current_watermark()
+        current_watermark = self.watermark_estimator.current_watermark()
       if deferred_status:
-        deferred_restriction, deferred_watermark = deferred_status
+        deferred_restriction, deferred_timestamp = deferred_status
         element = windowed_value.value
         size = self.signature.get_restriction_provider().restriction_size(
             element, deferred_restriction)
-        return ((
-            windowed_value.with_value(((element, deferred_restriction), size)),
-            output_watermark),
-                deferred_watermark)
+        residual_value = ((element, deferred_restriction), size)
+        return SplitResultResidual(
+            residual_value=windowed_value.with_value(residual_value),
+            current_watermark=current_watermark,
+            deferred_timestamp=deferred_timestamp)
     return None
 
   def try_split(self, fraction):
-    # type: (...) -> Optional[Tuple[SplitResultType, SplitResultType]]
+    # type: (...) -> Optional[Tuple[SplitResultPrimary, SplitResultResidual]]
     if self.threadsafe_restriction_tracker and self.current_windowed_value:
       # Temporary workaround for [BEAM-7473]: get current_watermark before
       # split, in case watermark gets advanced before getting split results.
@@ -797,20 +797,21 @@ class PerWindowInvoker(DoFnInvoker):
         restriction_provider = self.signature.get_restriction_provider()
         primary_size = restriction_provider.restriction_size(element, primary)
         residual_size = restriction_provider.restriction_size(element, residual)
-        return (((
-            self.current_windowed_value.with_value(
-                ((element, primary), primary_size)),
-            None),
-                 None),
-                ((
-                    self.current_windowed_value.with_value(
-                        ((element, residual), residual_size)),
-                    current_watermark),
-                 None))
+        primary_value = ((element, primary), primary_size)
+        residual_value = ((element, residual), residual_size)
+        return (
+            SplitResultPrimary(
+                primary_value=self.current_windowed_value.with_value(
+                    primary_value)),
+            SplitResultResidual(
+                residual_value=self.current_windowed_value.with_value(
+                    residual_value),
+                current_watermark=current_watermark,
+                deferred_timestamp=None))
     return None
 
   def current_element_progress(self):
-    # type: () -> Optional[iobase.RestrictionProgress]
+    # type: () -> Optional[RestrictionProgress]
     restriction_tracker = self.threadsafe_restriction_tracker
     if restriction_tracker:
       return restriction_tracker.current_progress()
@@ -900,7 +901,7 @@ class DoFnRunner:
         bundle_finalizer_param=self.bundle_finalizer_param)
 
   def process(self, windowed_value):
-    # type: (WindowedValue) -> Optional[SplitResultType]
+    # type: (WindowedValue) -> Optional[SplitResultResidual]
     try:
       return self.do_fn_invoker.invoke_process(windowed_value)
     except BaseException as exn:
@@ -908,7 +909,7 @@ class DoFnRunner:
       return None
 
   def process_with_sized_restriction(self, windowed_value):
-    # type: (WindowedValue) -> Optional[SplitResultType]
+    # type: (WindowedValue) -> Optional[SplitResultResidual]
     (element, restriction), _ = windowed_value.value
     return self.do_fn_invoker.invoke_process(
         windowed_value.with_value(element),
@@ -916,12 +917,12 @@ class DoFnRunner:
             restriction))
 
   def try_split(self, fraction):
-    # type: (...) -> Optional[Tuple[SplitResultType, SplitResultType]]
+    # type: (...) -> Optional[Tuple[SplitResultPrimary, SplitResultResidual]]
     assert isinstance(self.do_fn_invoker, PerWindowInvoker)
     return self.do_fn_invoker.try_split(fraction)
 
   def current_element_progress(self):
-    # type: () -> Optional[iobase.RestrictionProgress]
+    # type: () -> Optional[RestrictionProgress]
     assert isinstance(self.do_fn_invoker, PerWindowInvoker)
     return self.do_fn_invoker.current_element_progress()
 
