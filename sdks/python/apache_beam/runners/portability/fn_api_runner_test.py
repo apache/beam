@@ -45,7 +45,6 @@ from tenacity import retry
 from tenacity import stop_after_attempt
 
 import apache_beam as beam
-from apache_beam.io import iobase
 from apache_beam.io import restriction_trackers
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
@@ -53,6 +52,7 @@ from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.portability import fn_api_runner
+from apache_beam.runners.sdf_utils import RestrictionTrackerView
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statesampler
@@ -455,7 +455,7 @@ class FnApiRunnerTest(unittest.TestCase):
           element,
           restriction_tracker=beam.DoFn.RestrictionParam(
               ExpandStringsProvider())):
-        assert isinstance(restriction_tracker, iobase.RestrictionTrackerView)
+        assert isinstance(restriction_tracker, RestrictionTrackerView)
         cur = restriction_tracker.current_restriction().start
         while restriction_tracker.try_claim(cur):
           yield element[cur]
@@ -473,7 +473,7 @@ class FnApiRunnerTest(unittest.TestCase):
           element,
           restriction_tracker=beam.DoFn.RestrictionParam(
               ExpandStringsProvider())):
-        assert isinstance(restriction_tracker, iobase.RestrictionTrackerView)
+        assert isinstance(restriction_tracker, RestrictionTrackerView)
         cur = restriction_tracker.current_restriction().start
         while restriction_tracker.try_claim(cur):
           yield element[cur]
@@ -520,7 +520,7 @@ class FnApiRunnerTest(unittest.TestCase):
           element,
           restriction_tracker=beam.DoFn.RestrictionParam(
               ExpandStringsProvider())):
-        assert isinstance(restriction_tracker, iobase.RestrictionTrackerView)
+        assert isinstance(restriction_tracker, RestrictionTrackerView)
         cur = restriction_tracker.current_restriction().start
         while restriction_tracker.try_claim(cur):
           counter.inc()
