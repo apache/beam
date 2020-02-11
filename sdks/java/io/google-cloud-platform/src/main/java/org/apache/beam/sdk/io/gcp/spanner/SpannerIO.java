@@ -1370,7 +1370,7 @@ public class SpannerIO {
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       Iterable<MutationGroup> mutations = c.element();
-      boolean tryIndividual = false;
+
       // Batch upsert rows.
       try {
         mutationGroupBatchesReceived.inc();
@@ -1427,7 +1427,8 @@ public class SpannerIO {
             if (sleepTimeMsecs == BackOff.STOP) {
               LOG.error(
                   "DEADLINE_EXCEEDED writing batch of {} mutations to Cloud Spanner. "
-                      + "Aborting after too many retries.");
+                      + "Aborting after too many retries.",
+                  mutationsSize);
               spannerWriteFail.inc();
               throw exception;
             }
