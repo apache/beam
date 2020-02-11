@@ -67,7 +67,8 @@ class VideoIntelligenceTest(unittest.TestCase):
       _ = (
           p
           | "Create data" >> beam.Create(videos_to_annotate)
-          | "Annotate video" >> videointelligenceml.AnnotateVideo(self.features))
+          |
+          "Annotate video" >> videointelligenceml.AnnotateVideo(self.features))
       result = p.run()
       result.wait_until_finish()
 
@@ -91,7 +92,8 @@ class VideoIntelligenceTest(unittest.TestCase):
       _ = (
           p
           | "Create data" >> beam.Create(videos_to_annotate)
-          | "Annotate video" >> videointelligenceml.AnnotateVideo(self.features))
+          |
+          "Annotate video" >> videointelligenceml.AnnotateVideo(self.features))
       result = p.run()
       result.wait_until_finish()
 
@@ -111,8 +113,8 @@ class VideoIntelligenceTest(unittest.TestCase):
         _ = (
             p
             | "Create data" >> beam.Create(videos_to_annotate)
-            |
-            "Annotate video" >> videointelligenceml.AnnotateVideo(self.features))
+            | "Annotate video" >> videointelligenceml.AnnotateVideo(
+                self.features))
         result = p.run()
         result.wait_until_finish()
 
