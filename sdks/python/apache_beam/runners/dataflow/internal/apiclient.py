@@ -184,12 +184,15 @@ class Environment(object):
     ])
     # TODO: Use enumerated type instead of strings for job types.
     if job_type.startswith('FNAPI_'):
+      self.debug_options = self.debug_options or DebugOptions()
       self.debug_options.experiments = self.debug_options.experiments or []
+      if not self.debug_options.lookup_experiment(
+          'runner_harness_container_image'):
+        runner_harness_override = (get_runner_harness_container_image())
+        if runner_harness_override:
+          self.debug_options.add_experiment(
+              'runner_harness_container_image=' + runner_harness_override)
       debug_options_experiments = self.debug_options.experiments
-      runner_harness_override = (get_runner_harness_container_image())
-      if runner_harness_override:
-        debug_options_experiments.append(
-            'runner_harness_container_image=' + runner_harness_override)
       # Add use_multiple_sdk_containers flag if it's not already present. Do not
       # add the flag if 'no_use_multiple_sdk_containers' is present.
       # TODO: Cleanup use_multiple_sdk_containers once we deprecate Python SDK
