@@ -255,54 +255,32 @@ class BigtableIOTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-  # parser = argparse.ArgumentParser()
-  #
-  # parser.add_argument('--project', type=str)
-  # parser.add_argument('--instance', type=str)
-  # parser.add_argument('--table', type=str, default='test-table')
-  # parser.add_argument('--job_name', type=str, default='bigtableio-it-test')
-  # parser.add_argument('--row_count', type=int, default=10000)
+  parser = argparse.ArgumentParser()
+
+  parser.add_argument('--project', type=str)
+  parser.add_argument('--instance', type=str)
+  parser.add_argument('--table', type=str)
+  parser.add_argument('--job_name', type=str, default='bigtableio-read-it-test')
+  parser.add_argument('--row_count', type=int, default=10000)
   # parser.add_argument('--column_count', type=int, default=10)
   # parser.add_argument('--cell_size', type=int, default=100)
-  # parser.add_argument('--log_level', type=int, default=logging.INFO)
-  # parser.add_argument('--log_dir', type=str, default='C:\\cbt\\')
-  # parser.add_argument('--runner', type=str, default='direct')
-  #
-  # args, argv = parser.parse_known_args()
-  #
-  # PROJECT_ID = args.project
-  # INSTANCE_ID = args.instance
-  # TABLE_ID = args.table
-  # # TABLE_ID = 'test-table-10k-20190918-141848'
-  # ROW_COUNT = args.row_count
+  parser.add_argument('--log_level', type=int, default=logging.INFO)
+  parser.add_argument('--log_dir', type=str, default='C:\\cbt\\')
+  parser.add_argument('--runner', type=str, default='dataflow')
+
+  args, argv = parser.parse_known_args()
+
+  PROJECT_ID = args.project
+  INSTANCE_ID = args.instance
+  TABLE_ID = args.table
+  ROW_COUNT = args.row_count
   # COLUMN_COUNT = args.column_count
   # CELL_SIZE = args.cell_size
-  # JOB_NAME = args.job_name
+  JOB_NAME = args.job_name
 
-  # TEMPORARY OVERRIDES --- TO BE REMOVED!!! #########################################################################
-  import time
 
-  PROJECT_ID = 'grass-clump-479'
-  INSTANCE_ID = 'bigtableio-test'
-  TIME_STAMP = datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d-%H%M%S')
-  TABLE_ID = 'test-table-1M-20191206-213807'  # 6 keys, 1,000,000 rows
-  TABLE_ID = '0000-{}'.format(TIME_STAMP)
-  ROW_COUNT = 1000000  # 'Rows Read' = 1000000
-  ROW_COUNT_K = ROW_COUNT // 1000
-  JOB_NAME = 'bigtableio-it-test-{}k-rows-{}'.format(
-    ROW_COUNT_K,
-    TIME_STAMP
-  )
-  NUM_WORKERS = 50
-  STAGING_LOCATION = 'gs://mf2199/stage'
-  TEMP_LOCATION = 'gs://mf2199/temp'
-  SETUP_FILE = 'C:\\git\\beam_bigtable\\beam_bigtable_package\\setup.py'
-  EXTRA_PACKAGE = 'C:\\git\\beam_bigtable\\beam_bigtable_package\\dist\\bigtableio-0.3.125.tar.gz'
-  LOG_LEVEL = logging.INFO
-  # END OF TEMPORARY OVERRIDES #######################################################################################
-
-  # logging.getLogger().setLevel(args.log_level)
-  logging.getLogger().setLevel(LOG_LEVEL)
+  logging.getLogger().setLevel(args.log_level)
+  # logging.getLogger().setLevel(LOG_LEVEL)
 
   # logging.basicConfig(filename='{}{}.log'.format(args.log_dir, TABLE_ID),
   #                     filemode='w',
