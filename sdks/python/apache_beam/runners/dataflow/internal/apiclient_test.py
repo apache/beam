@@ -318,7 +318,7 @@ class UtilTest(unittest.TestCase):
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0')
-  def test_harness_override_present_in_released_sdks(self):
+  def test_harness_override_default_in_released_sdks(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp', '--streaming'])
     override = ''.join([
@@ -331,6 +331,30 @@ class UtilTest(unittest.TestCase):
                                 '2.0.0', #any environment version
                                 FAKE_PIPELINE_URL)
     self.assertIn(override, env.proto.experiments)
+
+  @mock.patch(
+      'apache_beam.runners.dataflow.internal.apiclient.'
+      'beam_version.__version__',
+      '2.2.0')
+  def test_harness_override_custom_in_released_sdks(self):
+    pipeline_options = PipelineOptions([
+        '--temp_location',
+        'gs://any-location/temp',
+        '--streaming',
+        '--experiments=runner_harness_container_image=fake_image'
+    ])
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
+    self.assertEqual(
+        1,
+        len([
+            x for x in env.proto.experiments
+            if x.startswith('runner_harness_container_image=')
+        ]))
+    self.assertIn(
+        'runner_harness_container_image=fake_image', env.proto.experiments)
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
