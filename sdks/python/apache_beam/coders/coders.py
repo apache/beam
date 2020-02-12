@@ -445,6 +445,7 @@ class ToBytesCoder(Coder):
   def is_deterministic(self):
     return True
 
+
 # alias to the old class name for a courtesy to users who reference it
 ToStringCoder = ToBytesCoder
 
