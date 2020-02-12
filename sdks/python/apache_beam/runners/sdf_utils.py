@@ -64,10 +64,10 @@ class ThreadsafeRestrictionTracker(object):
           'RestrictionTracker.')
     self._restriction_tracker = restriction_tracker
     # Records an absolute timestamp when defer_remainder is called.
-    self._deferred_timestamp = None
+    self._timestamp = None
     self._lock = lock
     self._deferred_residual = None
-    self._deferred_watermark = None
+    self._deferred_timestamp = None
 
   def current_restriction(self):
     with self._lock:
@@ -96,13 +96,13 @@ class ThreadsafeRestrictionTracker(object):
 
     # Record current time for calculating deferred_time later.
     with self._lock:
-      self._deferred_timestamp = Timestamp.now()
+      self._timestamp = Timestamp.now()
       if (deferred_time and not isinstance(deferred_time, Duration) and
           not isinstance(deferred_time, Timestamp)):
         raise ValueError(
             'The timestamp of deter_remainder() should be a '
             'Duration or a Timestamp, or None.')
-      self._deferred_watermark = deferred_time
+      self._deferred_timestamp = deferred_time
       checkpoint = self.try_split(0)
       if checkpoint:
         _, self._deferred_residual = checkpoint
@@ -136,20 +136,20 @@ class ThreadsafeRestrictionTracker(object):
     Returns: (deferred_residual, time_delay) if having any residual, else None.
     """
     if self._deferred_residual:
-      # If _deferred_watermark is None, create Duration(0).
-      if not self._deferred_watermark:
-        self._deferred_watermark = Duration()
+      # If _deferred_timestamp is None, create Duration(0).
+      if not self._deferred_timestamp:
+        self._deferred_timestamp = Duration()
       # If an absolute timestamp is provided, calculate the delta between
       # the absoluted time and the time deferred_status() is called.
-      elif isinstance(self._deferred_watermark, Timestamp):
-        self._deferred_watermark = (
-            self._deferred_watermark - Timestamp.now())
+      elif isinstance(self._deferred_timestamp, Timestamp):
+        self._deferred_timestamp = (
+            self._deferred_timestamp - Timestamp.now())
       # If a Duration is provided, the deferred time should be:
       # provided duration - the spent time since the defer_remainder() is
       # called.
-      elif isinstance(self._deferred_watermark, Duration):
-        self._deferred_watermark -= (Timestamp.now() - self._deferred_timestamp)
-      return self._deferred_residual, self._deferred_watermark
+      elif isinstance(self._deferred_timestamp, Duration):
+        self._deferred_timestamp -= (Timestamp.now() - self._timestamp)
+      return self._deferred_residual, self._deferred_timestamp
     return None
 
 
