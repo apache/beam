@@ -51,7 +51,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.DoFnFeatures;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -1226,7 +1225,7 @@ public class DataflowPipelineTranslator {
       DoFnSchemaInformation doFnSchemaInformation,
       Map<String, PCollectionView<?>> sideInputMapping) {
 
-    boolean isStateful = DoFnFeatures.isStateful(fn);
+    boolean isStateful = DoFnSignatures.isStateful(fn);
     if (isStateful) {
       DataflowRunner.verifyDoFnSupported(fn, context.getPipelineOptions().isStreaming());
       DataflowRunner.verifyStateSupportForWindowingStrategy(windowingStrategy);
