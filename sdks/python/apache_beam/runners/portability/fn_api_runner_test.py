@@ -505,8 +505,9 @@ class FnApiRunnerTest(unittest.TestCase):
         cur = restriction_tracker.current_restriction().start
         while restriction_tracker.try_claim(cur):
           watermark_estimator.set_watermark(timestamp.Timestamp(cur))
-          assert (watermark_estimator.current_watermark() ==
-                  timestamp.Timestamp(cur))
+          assert (
+              watermark_estimator.current_watermark() == timestamp.Timestamp(
+                  cur))
           yield element[cur]
           if cur % 2 == 1:
             restriction_tracker.defer_remainder(timestamp.Duration(micros=5))

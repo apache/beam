@@ -25,6 +25,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 from __future__ import absolute_import
 
+import threading
 import traceback
 from builtins import next
 from builtins import object
@@ -49,6 +50,7 @@ from apache_beam.runners.sdf_utils import RestrictionTrackerView
 from apache_beam.runners.sdf_utils import SplitResultPrimary
 from apache_beam.runners.sdf_utils import SplitResultResidual
 from apache_beam.runners.sdf_utils import ThreadsafeRestrictionTracker
+from apache_beam.runners.sdf_utils import ThreadsafeWatermarkEstimator
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import core
 from apache_beam.transforms import userstate
@@ -59,7 +61,6 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
-from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
@@ -169,11 +170,11 @@ class MethodWrapper(object):
       method_name: name of the method as a string.
     """
 
-    if not isinstance(obj_to_invoke, (
-        DoFn, RestrictionProvider, WatermarkEstimatorProvider)):
-      raise ValueError('\'obj_to_invoke\' has to be either a \'DoFn\' or '
-                       'a \'RestrictionProvider\'. Received %r instead.'
-                       % obj_to_invoke)
+    if not isinstance(obj_to_invoke,
+                      (DoFn, RestrictionProvider, WatermarkEstimatorProvider)):
+      raise ValueError(
+          '\'obj_to_invoke\' has to be either a \'DoFn\' or '
+          'a \'RestrictionProvider\'. Received %r instead.' % obj_to_invoke)
 
     self.args, self.defaults = core.get_function_arguments(obj_to_invoke,
                                                            method_name)
@@ -342,7 +343,8 @@ class DoFnSignature(object):
       if self.is_tracking_watermark():
         restriction_coder = TupleCoder([
             (self.get_restriction_provider().restriction_coder()),
-            (self.get_watermark_estimator_provider().estimator_state_coder())])
+            (self.get_watermark_estimator_provider().estimator_state_coder())
+        ])
       else:
         restriction_coder = (
             self.get_restriction_provider().restriction_coder())
@@ -538,182 +540,6 @@ class SimpleInvoker(DoFnInvoker):
         windowed_value, self.process_method(windowed_value.value))
 
 
-class _ThreadsafeWatermarkEstimator(object):
-  """A threadsafe wrapper which wraps a WatermarkEstimator with locking
-  mechanism to guarantee multi-thread safety.
-  """
-  def __init__(self, watermark_estimator, lock):
-    from apache_beam.io.iobase import WatermarkEstimator
-    if not isinstance(watermark_estimator, WatermarkEstimator):
-      raise ValueError('Initializing Threadsafe requires a WatermarkEstimator')
-    self._watermark_estimator = watermark_estimator
-    self._lock = lock
-
-  def __getattr__(self, attr):
-    if hasattr(self._watermark_estimator, attr):
-      def method_wrapper(*args, **kw):
-        with self._lock:
-          return getattr(self._watermark_estimator, attr)(*args, **kw)
-      return method_wrapper
-    raise AttributeError(attr)
-
-  def get_estimator_state_with_lock(self):
-    # The caller should hold the lock before entering this function.
-    if not self._lock.locked():
-      raise RuntimeError('Expected lock to be held to guarantee thread-safe '
-                         'access.')
-    return self._watermark_estimator.get_estimator_state()
-
-  def get_estimator_state(self):
-    with self._lock:
-      return self.get_estimator_state_with_lock()
-
-  def current_watermark_with_lock(self):
-    # The caller should hold the lock before entering this function.
-    if not self._lock.locked():
-      raise RuntimeError('Expected lock to be held to guarantee thread-safe '
-                         'access.')
-    return self._watermark_estimator.current_watermark()
-
-  def current_watermark(self):
-    with self._lock:
-      return self.current_watermark_with_lock()
-
-  def observe_timestamp(self, timestamp):
-    if not isinstance(timestamp, Timestamp):
-      raise ValueError('Input of observe_timestamp should be a Timestamp '
-                       'object')
-    with self._lock:
-      self._watermark_estimator.observe_timestamp(timestamp)
-
-
-class _ThreadsafeRestrictionTracker(object):
-  """A thread-safe wrapper which wraps a `RestrictionTracker`.
-
-  This wrapper guarantees synchronization of modifying restrictions across
-  multiple threads.
-  """
-
-  def __init__(self, restriction_tracker, lock):
-    from apache_beam.io.iobase import RestrictionTracker
-    if not isinstance(restriction_tracker, RestrictionTracker):
-      raise ValueError(
-          'Initialize ThreadsafeRestrictionTracker requires'
-          'RestrictionTracker.')
-    self._restriction_tracker = restriction_tracker
-    # Records an absolute timestamp when defer_remainder is called.
-    self._deferred_timestamp = None
-    self._lock = lock
-    self._deferred_residual = None
-    self._deferred_watermark = None
-
-  def current_restriction(self):
-    with self._lock:
-      return self._restriction_tracker.current_restriction()
-
-  def try_claim(self, position):
-    with self._lock:
-      return self._restriction_tracker.try_claim(position)
-
-  def defer_remainder(self, deferred_time=None):
-    """Performs self-checkpoint on current processing restriction with an
-    expected resuming time.
-
-    Self-checkpoint could happen during processing elements. When executing an
-    DoFn.process(), you may want to stop processing an element and resuming
-    later if current element has been processed quit a long time or you also
-    want to have some outputs from other elements. ``defer_remainder()`` can be
-    called on per element if needed.
-
-    Args:
-      deferred_time: A relative ``Duration`` that indicates the ideal time gap
-      between now and resuming, or an absolute ``Timestamp`` for resuming
-      execution time. If the time_delay is None, the deferred work will be
-      executed as soon as possible.
-    """
-
-    # Record current time for calculating deferred_time later.
-    with self._lock:
-      self._deferred_timestamp = Timestamp.now()
-      if (deferred_time and
-          not isinstance(deferred_time, Duration) and
-          not isinstance(deferred_time, Timestamp)):
-        raise ValueError('The timestamp of deter_remainder() should be a '
-                         'Duration or a Timestamp, or None.')
-      self._deferred_watermark = deferred_time
-      checkpoint = self.try_split(0)
-      if checkpoint:
-        _, self._deferred_residual = checkpoint
-
-  def check_done(self):
-    with self._lock:
-      return self._restriction_tracker.check_done()
-
-  def current_progress(self):
-    with self._lock:
-      return self._restriction_tracker.current_progress()
-
-  def try_split(self, fraction_of_remainder):
-    # The caller should hold the lock before entering this function.
-    if not self._lock.locked():
-      raise RuntimeError('Expected lock to be held to guarantee thread-safe '
-                         'access.')
-    return self._restriction_tracker.try_split(fraction_of_remainder)
-
-  def deferred_status(self):
-    # type: () -> Optional[Tuple[Any, Timestamp]]
-    """Returns deferred work which is produced by ``defer_remainder()``.
-
-    When there is a self-checkpoint performed, the system needs to fulfill the
-    DelayedBundleApplication with deferred_work for a  ProcessBundleResponse.
-    The system calls this API to get deferred_residual with watermark together
-    to help the runner to schedule a future work.
-
-    Returns: (deferred_residual, time_delay) if having any residual, else None.
-    """
-    if self._deferred_residual:
-      # If _deferred_watermark is None, create Duration(0).
-      if not self._deferred_watermark:
-        self._deferred_watermark = Duration()
-      # If an absolute timestamp is provided, calculate the delta between
-      # the absoluted time and the time deferred_status() is called.
-      elif isinstance(self._deferred_watermark, Timestamp):
-        self._deferred_watermark = (self._deferred_watermark -
-                                    Timestamp.now())
-      # If a Duration is provided, the deferred time should be:
-      # provided duration - the spent time since the defer_remainder() is
-      # called.
-      elif isinstance(self._deferred_watermark, Duration):
-        self._deferred_watermark -= (Timestamp.now() - self._deferred_timestamp)
-      return self._deferred_residual, self._deferred_watermark
-
-
-class _RestrictionTrackerView(object):
-  """A DoFn view of thread-safe RestrictionTracker.
-
-  The RestrictionTrackerView wraps a ThreadsafeRestrictionTracker and only
-  exposes APIs that will be called by a ``DoFn.process()``. During execution
-  time, the RestrictionTrackerView will be fed into the ``DoFn.process`` as a
-  restriction_tracker.
-  """
-
-  def __init__(self, threadsafe_restriction_tracker):
-    if not isinstance(threadsafe_restriction_tracker,
-                      _ThreadsafeRestrictionTracker):
-      raise ValueError('Initialize RestrictionTrackerView requires '
-                       'ThreadsafeRestrictionTracker.')
-    self._threadsafe_restriction_tracker = threadsafe_restriction_tracker
-
-  def current_restriction(self):
-    return self._threadsafe_restriction_tracker.current_restriction()
-
-  def try_claim(self, position):
-    return self._threadsafe_restriction_tracker.try_claim(position)
-
-  def defer_remainder(self, deferred_time=None):
-    self._threadsafe_restriction_tracker.defer_remainder(deferred_time)
-
-
 class PerWindowInvoker(DoFnInvoker):
   """An invoker that processes elements considering windowing information."""
 
@@ -857,15 +683,15 @@ class PerWindowInvoker(DoFnInvoker):
         raise ValueError(
             'A RestrictionTracker %r was provided but DoFn does not have a '
             'RestrictionTrackerParam defined' % restriction_tracker)
-      self.threadsafe_restriction_tracker = _ThreadsafeRestrictionTracker(
+      self.threadsafe_restriction_tracker = ThreadsafeRestrictionTracker(
           restriction_tracker, self._synchronized_lock)
       additional_kwargs[restriction_tracker_param] = (
-          _RestrictionTrackerView(self.threadsafe_restriction_tracker))
+          RestrictionTrackerView(self.threadsafe_restriction_tracker))
 
       if watermark_estimator:
         self.threadsafe_watermark_estimator = (
-            _ThreadsafeWatermarkEstimator(watermark_estimator,
-                                          self._synchronized_lock))
+            ThreadsafeWatermarkEstimator(
+                watermark_estimator, self._synchronized_lock))
         watermark_param = (
             self.signature.process_method.watermark_estimator_provider_arg_name)
         additional_kwargs[watermark_param] = self.threadsafe_watermark_estimator
@@ -985,19 +811,21 @@ class PerWindowInvoker(DoFnInvoker):
         size = self.signature.get_restriction_provider().restriction_size(
             element, deferred_restriction)
         if self.threadsafe_watermark_estimator:
-          output_watermark = (
+          current_watermark = (
               self.threadsafe_watermark_estimator.current_watermark())
           estimator_state = (
               self.threadsafe_watermark_estimator.get_estimator_state())
-          return ((
-              windowed_value.with_value(
-                  ((element, (deferred_restriction, estimator_state)), size)),
-              output_watermark), deferred_watermark)
+          residual_value = ((element, (deferred_restriction, estimator_state)), size)
+          return SplitResultResidual(
+              residual_value=windowed_value.with_value(residual_value),
+              current_watermark=current_watermark,
+              deferred_timestamp=deferred_timestamp)
         else:
-          return ((
-              windowed_value.with_value(
-                  ((element, deferred_restriction), size)), None),
-                  deferred_watermark)
+          residual_value = ((element, deferred_restriction), size)
+          return SplitResultResidual(
+              residual_value=windowed_value.with_value(residual_value),
+              current_watermark=None,
+              deferred_timestamp=deferred_timestamp)
         return None
 
   def try_split(self, fraction):
@@ -1010,20 +838,25 @@ class PerWindowInvoker(DoFnInvoker):
       # Make sure that the RestrictionTracker and WatermarkEstimator are locked
       # together.
       with self._synchronized_lock:
-        split = restriction_tracker.try_split(fraction)
+        split = self.threadsafe_restriction_tracker.try_split(fraction)
         if self.threadsafe_watermark_estimator:
           current_watermark = (
               self.threadsafe_watermark_estimator.current_watermark_with_lock())
-          estimator_state = (self.threadsafe_watermark_estimator
-                             .get_estimator_state_with_lock())
+          estimator_state = (
+              self.threadsafe_watermark_estimator.get_estimator_state_with_lock(
+              ))
       if split:
         primary, residual = split
         element = self.current_windowed_value.value
         restriction_provider = self.signature.get_restriction_provider()
         primary_size = restriction_provider.restriction_size(element, primary)
         residual_size = restriction_provider.restriction_size(element, residual)
-        primary_value = ((element, (primary, None)), primary_size)
-        residual_value = ((element, (residual, estimator_state), residual_size)
+        if self.threadsafe_watermark_estimator:
+          primary_value = ((element, (primary, None)), primary_size)
+          residual_value = ((element, (residual, estimator_state), residual_size))
+        else:
+          primary_value = ((element, primary), primary_size)
+          residual_value = ((element, residual), residual_size)
         return (
             SplitResultPrimary(
                 primary_value=self.current_windowed_value.with_value(
@@ -1138,8 +971,7 @@ class DoFnRunner:
     if self.do_fn_invoker.signature.is_tracking_watermark():
       (element, (restriction, estimator_state)), _ = windowed_value.value
       watermark_estimator = (
-          self.do_fn_invoker.invoke_create_watermark_estimator(
-              estimator_state))
+          self.do_fn_invoker.invoke_create_watermark_estimator(estimator_state))
     else:
       (element, restriction), _ = windowed_value.value
       watermark_estimator = None
@@ -1148,7 +980,6 @@ class DoFnRunner:
         restriction_tracker=self.do_fn_invoker.invoke_create_tracker(
             restriction),
         watermark_estimator=watermark_estimator)
-
 
   def try_split(self, fraction):
     # type: (...) -> Optional[Tuple[SplitResultPrimary, SplitResultResidual]]
@@ -1216,7 +1047,8 @@ class DoFnRunner:
 
 
 class OutputProcessor(object):
-  def process_outputs(self, windowed_input_element, results, watermark_estimator=None):
+  def process_outputs(
+      self, windowed_input_element, results, watermark_estimator=None):
     # type: (WindowedValue, Iterable[Any]) -> None
     raise NotImplementedError
 
@@ -1243,10 +1075,8 @@ class _OutputProcessor(OutputProcessor):
     self.tagged_receivers = tagged_receivers
     self.per_element_output_counter = per_element_output_counter
 
-  def process_outputs(self,
-                      windowed_input_element,
-                      results,
-                      watermark_estimator=None):
+  def process_outputs(
+      self, windowed_input_element, results, watermark_estimator=None):
     # type: (WindowedValue, Iterable[Any]) -> None
 
     """Dispatch the result of process computation to the appropriate receivers.

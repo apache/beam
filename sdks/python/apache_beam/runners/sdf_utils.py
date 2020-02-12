@@ -23,7 +23,6 @@ from __future__ import absolute_import
 from __future__ import division
 
 import logging
-import threading
 from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
@@ -31,12 +30,12 @@ from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 
-from apache_beam.utils import timestamp
+from apache_beam.utils.timestamp import Duration
+from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
   from apache_beam.io.iobase import RestrictionTracker
-  from apache_beam.utils.timestamp import Timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,8 +45,8 @@ SplitResultPrimary = NamedTuple(
 SplitResultResidual = NamedTuple(
     'SplitResultResidual',
     [('residual_value', WindowedValue),
-     ('current_watermark', timestamp.Timestamp),
-     ('deferred_timestamp', timestamp.Duration)])
+     ('current_watermark', Timestamp),
+     ('deferred_timestamp', Duration)])
 
 
 class ThreadsafeRestrictionTracker(object):
@@ -56,7 +55,7 @@ class ThreadsafeRestrictionTracker(object):
   This wrapper guarantees synchronization of modifying restrictions across
   multi-thread.
   """
-  def __init__(self, restriction_tracker):
+  def __init__(self, restriction_tracker, lock):
     # type: (RestrictionTracker) -> None
     from apache_beam.io.iobase import RestrictionTracker
     if not isinstance(restriction_tracker, RestrictionTracker):
@@ -66,7 +65,7 @@ class ThreadsafeRestrictionTracker(object):
     self._restriction_tracker = restriction_tracker
     # Records an absolute timestamp when defer_remainder is called.
     self._deferred_timestamp = None
-    self._lock = threading.RLock()
+    self._lock = lock
     self._deferred_residual = None
     self._deferred_watermark = None
 
@@ -89,23 +88,24 @@ class ThreadsafeRestrictionTracker(object):
     called on per element if needed.
 
     Args:
-      deferred_time: A relative ``timestamp.Duration`` that indicates the ideal
-        time gap between now and resuming, or an absolute
-        ``timestamp.Timestamp`` for resuming execution time. If the time_delay
-        is None, the deferred work will be executed as soon as possible.
+      deferred_time: A relative ``Duration`` that indicates the ideal time gap
+        between now and resuming, or an absolute ``Timestamp`` for resuming
+        execution time. If the time_delay is None, the deferred work will be
+        executed as soon as possible.
     """
 
     # Record current time for calculating deferred_time later.
-    self._deferred_timestamp = timestamp.Timestamp.now()
-    if (deferred_time and not isinstance(deferred_time, timestamp.Duration) and
-        not isinstance(deferred_time, timestamp.Timestamp)):
-      raise ValueError(
-          'The timestamp of deter_remainder() should be a '
-          'Duration or a Timestamp, or None.')
-    self._deferred_watermark = deferred_time
-    checkpoint = self.try_split(0)
-    if checkpoint:
-      _, self._deferred_residual = checkpoint
+    with self._lock:
+      self._deferred_timestamp = Timestamp.now()
+      if (deferred_time and not isinstance(deferred_time, Duration) and
+          not isinstance(deferred_time, Timestamp)):
+        raise ValueError(
+            'The timestamp of deter_remainder() should be a '
+            'Duration or a Timestamp, or None.')
+      self._deferred_watermark = deferred_time
+      checkpoint = self.try_split(0)
+      if checkpoint:
+        _, self._deferred_residual = checkpoint
 
   def check_done(self):
     with self._lock:
@@ -116,8 +116,12 @@ class ThreadsafeRestrictionTracker(object):
       return self._restriction_tracker.current_progress()
 
   def try_split(self, fraction_of_remainder):
-    with self._lock:
-      return self._restriction_tracker.try_split(fraction_of_remainder)
+    # The caller should hold the lock before entering this function.
+    if not self._lock.locked():
+      raise RuntimeError(
+          'Expected lock to be held to guarantee thread-safe '
+          'access.')
+    return self._restriction_tracker.try_split(fraction_of_remainder)
 
   def deferred_status(self):
     # type: () -> Optional[Tuple[Any, Timestamp]]
@@ -134,18 +138,17 @@ class ThreadsafeRestrictionTracker(object):
     if self._deferred_residual:
       # If _deferred_watermark is None, create Duration(0).
       if not self._deferred_watermark:
-        self._deferred_watermark = timestamp.Duration()
+        self._deferred_watermark = Duration()
       # If an absolute timestamp is provided, calculate the delta between
       # the absoluted time and the time deferred_status() is called.
-      elif isinstance(self._deferred_watermark, timestamp.Timestamp):
+      elif isinstance(self._deferred_watermark, Timestamp):
         self._deferred_watermark = (
-            self._deferred_watermark - timestamp.Timestamp.now())
+            self._deferred_watermark - Timestamp.now())
       # If a Duration is provided, the deferred time should be:
       # provided duration - the spent time since the defer_remainder() is
       # called.
-      elif isinstance(self._deferred_watermark, timestamp.Duration):
-        self._deferred_watermark -= (
-            timestamp.Timestamp.now() - self._deferred_timestamp)
+      elif isinstance(self._deferred_watermark, Duration):
+        self._deferred_watermark -= (Timestamp.now() - self._deferred_timestamp)
       return self._deferred_residual, self._deferred_watermark
     return None
 
@@ -174,3 +177,57 @@ class RestrictionTrackerView(object):
 
   def defer_remainder(self, deferred_time=None):
     self._threadsafe_restriction_tracker.defer_remainder(deferred_time)
+
+
+class ThreadsafeWatermarkEstimator(object):
+  """A threadsafe wrapper which wraps a WatermarkEstimator with locking
+  mechanism to guarantee multi-thread safety.
+  """
+  def __init__(self, watermark_estimator, lock):
+    from apache_beam.io.iobase import WatermarkEstimator
+    if not isinstance(watermark_estimator, WatermarkEstimator):
+      raise ValueError('Initializing Threadsafe requires a WatermarkEstimator')
+    self._watermark_estimator = watermark_estimator
+    self._lock = lock
+
+  def __getattr__(self, attr):
+    if hasattr(self._watermark_estimator, attr):
+
+      def method_wrapper(*args, **kw):
+        with self._lock:
+          return getattr(self._watermark_estimator, attr)(*args, **kw)
+
+      return method_wrapper
+    raise AttributeError(attr)
+
+  def get_estimator_state_with_lock(self):
+    # The caller should hold the lock before entering this function.
+    if not self._lock.locked():
+      raise RuntimeError(
+          'Expected lock to be held to guarantee thread-safe '
+          'access.')
+    return self._watermark_estimator.get_estimator_state()
+
+  def get_estimator_state(self):
+    with self._lock:
+      return self.get_estimator_state_with_lock()
+
+  def current_watermark_with_lock(self):
+    # The caller should hold the lock before entering this function.
+    if not self._lock.locked():
+      raise RuntimeError(
+          'Expected lock to be held to guarantee thread-safe '
+          'access.')
+    return self._watermark_estimator.current_watermark()
+
+  def current_watermark(self):
+    with self._lock:
+      return self.current_watermark_with_lock()
+
+  def observe_timestamp(self, timestamp):
+    if not isinstance(timestamp, Timestamp):
+      raise ValueError(
+          'Input of observe_timestamp should be a Timestamp '
+          'object')
+    with self._lock:
+      self._watermark_estimator.observe_timestamp(timestamp)
