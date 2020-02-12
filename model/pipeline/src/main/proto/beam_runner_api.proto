@@ -76,23 +76,25 @@ message Components {
 }
 
 // A Pipeline is a hierarchical graph of PTransforms, linked
-// by PCollections.
+// by PCollections. A typical graph may look like:
 //
-// This is represented by a number of by-reference maps to nodes,
-// PCollections, SDK environments, UDF, etc., for
+//   Impulse -> PCollection -> ParDo -> PCollection -> GroupByKey -> ...
+//                                   \> PCollection -> ParDo      -> ...
+//                                                  \> ParDo      -> ...
+//   Impulse -> PCollection -> ParDo -> PCollection -> ...
+//
+// This is represented by a number of by-reference maps to transforms,
+// PCollections, SDK environments, coders, etc., for
 // supporting compact reuse and arbitrary graph structure.
-//
-// All of the keys in the maps here are arbitrary strings that are only
-// required to be internally consistent within this proto message.
 message Pipeline {
 
   // (Required) The coders, UDFs, graph nodes, etc, that make up
   // this pipeline.
   Components components = 1;
 
-  // (Required) The ids of all PTransforms that are not contained within another PTransform.
-  // These must be in shallow topological order, so that traversing them recursively
-  // in this order yields a recursively topological traversal.
+  // (Required) The ids of all PTransforms that are not contained within another
+  // PTransform. These must be in shallow topological order, so that traversing
+  // them recursively in this order yields a recursively topological traversal.
   repeated string root_transform_ids = 2;
 
   // (Optional) Static display data for the pipeline. If there is none,
@@ -100,9 +102,23 @@ message Pipeline {
   repeated DisplayData display_data = 3;
 }
 
-// An applied PTransform! This does not contain the graph data, but only the
-// fields specific to a graph node that is a Runner API transform
-// between PCollections.
+// Transforms are the operations in your pipeline, and provide a generic
+// processing framework. You provide processing logic in the form of a function
+// object (colloquially referred to as “user code”), and your user code is
+// applied to each element of an input PCollection (or more than one
+// PCollection). Depending on the pipeline runner and back-end that you choose,
+// many different workers across a cluster may execute instances of your user
+// code in parallel. The user code running on each worker generates the output
+// elements that are ultimately added to the final output PCollection that the
+// transform produces.
+//
+// The Beam SDKs contain a number of different transforms that you can apply to
+// your pipeline’s PCollections. These include general-purpose core transforms,
+// such as ParDo or Combine. There are also pre-written composite transforms
+// included in the SDKs, which combine one or more of the core transforms in a
+// useful processing pattern, such as counting or combining elements in a
+// collection. You can also define your own more complex composite transforms to
+// fit your pipeline’s exact use case.
 message PTransform {
 
   // (Required) A unique name for the application node.
@@ -123,16 +139,9 @@ message PTransform {
   //
   // For primitive transform in the Runner API, this is required, and the
   // payloads are well-defined messages. When the URN indicates ParDo it
-  // is a ParDoPayload, and so on.
-  //
-  // TODO: document the standardized URNs and payloads
-  // TODO: separate standardized payloads into a separate proto file
-  //
-  // For some special composite transforms, the payload is also officially
-  // defined:
-  //
-  //  - when the URN is "beam:transforms:combine" it is a CombinePayload
-  //
+  // is a ParDoPayload, and so on. For some special composite transforms,
+  // the payload is also officially defined. See StandardPTransforms for
+  // details.
   FunctionSpec spec = 1;
 
   // (Optional) if this node is a composite, a list of the ids of
@@ -151,7 +160,6 @@ message PTransform {
   //
   // All inputs are recorded here so that the topological ordering of
   // the graph is consistent whether or not the payload is understood.
-  //
   map<string, string> inputs = 3;
 
   // (Required) A map from local names of outputs (unique only within this map,
@@ -163,7 +171,6 @@ message PTransform {
   //
   //  - for a ParDo transform, these are tags on PCollections, which will be
   //    embedded in the DoFn.
-  //
   map<string, string> outputs = 4;
 
   // (Optional) Static display data for this PTransform application. If
@@ -177,27 +184,71 @@ message PTransform {
 }
 
 message StandardPTransforms {
+  // Primitive transforms may not specify composite sub-transforms.
   enum Primitives {
-    // Represents Beam's parallel do operation.
-    // Payload: ParDoPayload.
+    // ParDo is a Beam transform for generic parallel processing. The ParDo
+    // processing paradigm is similar to the “Map” phase of a
+    // Map/Shuffle/Reduce-style algorithm: a ParDo transform considers each
+    // element in the input PCollection, performs some processing function
+    // (your user code) on that element, and emits zero, one, or multiple
+    // elements to an output PCollection.
+    //
+    // See https://beam.apache.org/documentation/programming-guide/#pardo
+    // for additional details.
+    //
+    // Payload: ParDoPayload
     PAR_DO = 0 [(beam_urn) = "beam:transform:pardo:v1"];
 
-    // Represents Beam's flatten operation.
-    // Payload: None.
+    // Flatten is a Beam transform for PCollection objects that store the same
+    // data type. Flatten merges multiple PCollection objects into a single
+    // logical PCollection.
+    //
+    // See https://beam.apache.org/documentation/programming-guide/#flatten
+    // for additional details.
+    //
+    // Payload: None
     FLATTEN = 1 [(beam_urn) = "beam:transform:flatten:v1"];
 
-    // Represents Beam's group-by-key operation.
+    // GroupByKey is a Beam transform for processing collections of key/value
+    // pairs. It’s a parallel reduction operation, analogous to the Shuffle
+    // phase of a Map/Shuffle/Reduce-style algorithm. The input to GroupByKey is
+    // a collection of key/value pairs that represents a multimap, where the
+    // collection contains multiple pairs that have the same key, but different
+    // values. Given such a collection, you use GroupByKey to collect all of the
+    // values associated with each unique key.
+    //
+    // See https://beam.apache.org/documentation/programming-guide/#groupbykey
+    // for additional details.
+    //
     // Payload: None
     GROUP_BY_KEY = 2 [(beam_urn) = "beam:transform:group_by_key:v1"];
 
-    // Represents the operation generating a single empty element.
+    // A transform which produces a single empty byte array at the minimum
+    // timestamp in the GlobalWindow.
+    //
+    // Payload: None
     IMPULSE = 3 [(beam_urn) = "beam:transform:impulse:v1"];
 
-    // Represents the Window.into() operation.
-    // Payload: WindowIntoPayload.
+    // Windowing subdivides a PCollection according to the timestamps of its
+    // individual elements. Transforms that aggregate multiple elements, such as
+    // GroupByKey and Combine, work implicitly on a per-window basis — they
+    // process each PCollection as a succession of multiple, finite windows,
+    // though the entire collection itself may be of unbounded size.
+    //
+    // See https://beam.apache.org/documentation/programming-guide/#windowing
+    // for additional details.
+    //
+    // Payload: WindowIntoPayload
     ASSIGN_WINDOWS = 4 [(beam_urn) = "beam:transform:window_into:v1"];
 
-    // Represents the TestStream.
+    // A testing input that generates an unbounded {@link PCollection} of
+    // elements, advancing the watermark and processing time as elements are
+    // emitted. After all of the specified elements are emitted, ceases to
+    // produce output.
+    //
+    // See https://beam.apache.org/blog/2016/10/20/test-stream.html
+    // for additional details.
+    //
     // Payload: TestStreamPayload
     TEST_STREAM = 5 [(beam_urn) = "beam:transform:teststream:v1"];
 
@@ -211,7 +262,7 @@ message StandardPTransforms {
     // nonce is used by a runner to associate each input with its output.
     // The nonce is represented as an opaque set of bytes.
     //
-    // Payload: WindowMappingFn from SideInputSpec.
+    // Payload: SideInput#window_mapping_fn FunctionSpec
     MAP_WINDOWS = 6 [(beam_urn) = "beam:transform:map_windows:v1"];
 
     // Used to merge windows during a GroupByKey.
@@ -228,7 +279,7 @@ message StandardPTransforms {
     // to associate each input with its output. The nonce is represented as an
     // opaque set of bytes.
     //
-    // Payload: WindowFn from WindowingStrategy.
+    // Payload: WindowingStrategy#window_fn FunctionSpec
     MERGE_WINDOWS = 7 [(beam_urn) = "beam:transform:merge_windows:v1"];
   }
   enum DeprecatedPrimitives {

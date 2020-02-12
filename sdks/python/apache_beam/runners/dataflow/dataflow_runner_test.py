@@ -31,7 +31,6 @@ from datetime import datetime
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
 import mock
-import pytest
 
 import apache_beam as beam
 import apache_beam.transforms as ptransform
@@ -257,8 +256,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                     PipelineOptions(self.default_properties)) as p:
         _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
 
-  # TODO(BEAM-8095): Segfaults in Python 3.7 with xdist.
-  @pytest.mark.no_xdist
   def test_remote_runner_display_data(self):
     remote_runner = DataflowRunner()
     p = Pipeline(
