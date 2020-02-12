@@ -671,7 +671,7 @@ class PerWindowInvoker(DoFnInvoker):
       restriction = self.invoke_initial_restriction(windowed_value.value)
       restriction_tracker = self.invoke_create_tracker(restriction)
 
-    if restriction_tracker:
+    if restriction_tracker is not None:
       if len(windowed_value.windows) > 1 and self.has_windowed_inputs:
         # Should never get here due to window explosion in
         # the upstream pair-with-restriction.
@@ -688,7 +688,7 @@ class PerWindowInvoker(DoFnInvoker):
       additional_kwargs[restriction_tracker_param] = (
           RestrictionTrackerView(self.threadsafe_restriction_tracker))
 
-      if watermark_estimator:
+      if watermark_estimator is not None:
         self.threadsafe_watermark_estimator = (
             ThreadsafeWatermarkEstimator(
                 watermark_estimator, self._synchronized_lock))
