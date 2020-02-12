@@ -86,7 +86,6 @@ builder.build {
       switches '-x classes'
       switches "-Dorg.gradle.java.home=${commonJobProperties.JAVA_11_HOME}"
       switches '-PdisableSpotlessCheck=true'
-      switches '-PcompileWithJava11=true'
       commonJobProperties.setGradleSwitches(delegate)
     }
   }

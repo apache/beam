@@ -35,16 +35,7 @@ dependencies {
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 
-def shouldCompileWithJava11 = project.findProperty('compileWithJava11')
-
-task useJava11(type: Test) {
-  applyJava11()
-}
-
 task runWindmillTest(type: Test) {
-  if (shouldCompileWithJava11) {
-    dependsOn useJava11
-  }
   def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
 
   // Set workerHarnessContainerImage to empty to make Dataflow pick up the non-versioned container
@@ -71,9 +62,6 @@ task windmillPreCommit(type: Test) {
 }
 
 task runApplianceTest(type: Test) {
-  if (shouldCompileWithJava11) {
-    dependsOn useJava11
-  }
   def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
 
   // Set workerHarnessContainerImage to empty to make Dataflow pick up the non-versioned container

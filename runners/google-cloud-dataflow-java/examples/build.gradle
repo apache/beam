@@ -62,16 +62,7 @@ def commonConfig = { dataflowWorkerJar, workerHarnessContainerImage = '', additi
      }
  }
 
-def shouldCompileWithJava11 = project.findProperty('compileWithJava11')
-
-task useJava11(type: Test) {
-    applyJava11()
-}
-
 task runLegacyWorkerPreCommitTest(type: Test) {
-    if (shouldCompileWithJava11) {
-        dependsOn useJava11
-    }
     def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
     with commonConfig(dataflowWorkerJar)
 }

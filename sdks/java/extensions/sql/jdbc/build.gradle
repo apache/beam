@@ -66,16 +66,7 @@ test {
   }
 }
 
-def shouldCompileWithJava11 = project.findProperty('compileWithJava11')
-
-task useJava11(type: Test) {
-  applyJava11()
-}
-
 task shadowJarTest(type: Test) {
-  if (shouldCompileWithJava11) {
-    dependsOn useJava11
-  }
   group = "Verification"
 
   // Disable Gradle cache (it should not be used because the IT's won't run).
