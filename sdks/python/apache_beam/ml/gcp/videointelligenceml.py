@@ -32,8 +32,8 @@ try:
   from google.cloud import videointelligence
 except ImportError:
   raise ImportError(
-      'Google Cloud Video Intelligence not supported for this execution environment '
-      '(could not import google.cloud.videointelligence).')
+      'Google Cloud Video Intelligence not supported for this execution '
+      'environment (could not import google.cloud.videointelligence).')
 
 __all__ = ['AnnotateVideo']
 
@@ -70,7 +70,8 @@ class AnnotateVideo(PTransform):
         metadata: (Sequence[Tuple[str, str]]) Optional.
           Additional metadata that is provided to the method.
         timeout: (int) Optional.
-          The time in seconds to wait for the response from the Video Intelligence API
+          The time in seconds to wait for the response from the
+          Video Intelligence API
     """
     super(AnnotateVideo, self).__init__()
     self.features = features
