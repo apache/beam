@@ -21,6 +21,8 @@ package org.apache.beam.gradle
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import org.gradle.api.JavaVersion
+
 import java.util.concurrent.atomic.AtomicInteger
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
@@ -1261,6 +1263,11 @@ class BeamModulePlugin implements Plugin<Project> {
           }
         }
       }
+    }
+
+    project.ext.applyJava11 = {
+      project.sourceCompatibility = JavaVersion.VERSION_11
+      project.targetCompatibility = JavaVersion.VERSION_11
     }
 
     // When applied in a module's build.gradle file, this closure provides task for running

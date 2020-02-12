@@ -91,7 +91,16 @@ dependencies {
   validatesRunner project(path: project.path, configuration: "shadowTest")
 }
 
+def shouldCompileWithJava11 = project.findProperty('compileWithJava11')
+
+task useJava11(type: Test) {
+  applyJava11()
+}
+
 task runNeedsRunnerTests(type: Test) {
+  if (shouldCompileWithJava11) {
+    dependsOn useJava11
+  }
   group = "Verification"
   description = "Runs tests that require a runner to validate that piplines/transforms work correctly"
 

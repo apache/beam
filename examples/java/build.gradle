@@ -101,8 +101,17 @@ def preCommitRunnerClass = [
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 
+def shouldCompileWithJava11 = project.findProperty('compileWithJava11')
+
+task useJava11(type: Test) {
+  applyJava11()
+}
+
 for (String runner : preCommitRunners) {
   tasks.create(name: runner + "PreCommit", type: Test) {
+    if (shouldCompileWithJava11) {
+      dependsOn useJava11
+    }
     def preCommitBeamTestPipelineOptions = [
        "--project=${gcpProject}",
        "--tempRoot=${gcsTempRoot}",
