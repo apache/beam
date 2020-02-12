@@ -91,7 +91,7 @@ class CombineTest(LoadTest):
     def process(self, element):
       yield element
 
-  def testCombineGlobally(self):
+  def test(self):
     input = (
         self.pipeline
         | beam.io.Read(SyntheticSource(self.parse_synthetic_source_options()))
