@@ -30,7 +30,7 @@ from apache_beam.metrics import MetricsFilter
 from apache_beam.typehints.decorators import TypeCheckError
 
 # Protect against environments where video intelligence lib is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
+# pylint: disable=ungrouped-imports
 try:
   from google.cloud.videointelligence import VideoIntelligenceServiceClient
   from google.cloud import videointelligence
