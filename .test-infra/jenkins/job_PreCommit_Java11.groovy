@@ -81,9 +81,13 @@ builder.build {
       tasks ':sdks:java:extensions:sql:jdbc:shadowJarTest'
       tasks ':runners:direct-java:runNeedsRunnerTests'
       switches '-x shadowJar'
+      switches '-x shadowTestJar'
       switches '-x compileJava'
+      switches '-x compileTestJava'
       switches '-x jar'
+      switches '-x testJar'
       switches '-x classes'
+      switches '-x testClasses'
       switches "-Dorg.gradle.java.home=${commonJobProperties.JAVA_11_HOME}"
       switches '-PdisableSpotlessCheck=true'
       commonJobProperties.setGradleSwitches(delegate)
