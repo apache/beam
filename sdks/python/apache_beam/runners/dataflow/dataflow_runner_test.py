@@ -31,7 +31,6 @@ from datetime import datetime
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
 import mock
-import pytest
 
 import apache_beam as beam
 import apache_beam.transforms as ptransform
