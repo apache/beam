@@ -64,4 +64,13 @@ message ProvisionInfo {
     // populated if the runner supports SDK status reports. For more details see
     // https://s.apache.org/beam-fn-api-harness-status
     org.apache.beam.model.pipeline.v1.ApiServiceDescriptor status_endpoint = 7;
+
+    // (optional) The logging endpoint this SDK should use.
+    org.apache.beam.model.pipeline.v1.ApiServiceDescriptor logging_endpoint = 8;
+
+    // (optional) The artifact retrieval endpoint this SDK should use.
+    org.apache.beam.model.pipeline.v1.ApiServiceDescriptor artifact_endpoint = 9;
+
+    // (optional) The control endpoint this SDK should use.
+    org.apache.beam.model.pipeline.v1.ApiServiceDescriptor control_endpoint = 10;
 }
