@@ -29,7 +29,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -40,6 +40,7 @@ import org.apache.thrift.TBase;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.protocol.TProtocolFactory;
+import org.apache.thrift.protocol.TSimpleJSONProtocol;
 import org.apache.thrift.transport.TIOStreamTransport;
 import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
@@ -50,17 +51,8 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Reading Thrift Files</h3>
  *
- * <p>For simple reading, use {@link ThriftIO#} with the desired file pattern to read from.
- *
- * <p>For example:
- *
- * <pre>{@code
- * PCollection<ExampleType> examples = pipeline.apply(ThriftIO.read().from("/foo/bar/*"));
- * ...
- * }</pre>
- *
- * <p>For more advanced use cases, like reading each file in a {@link PCollection} of {@link
- * FileIO.ReadableFile}, use the {@link ReadFiles} transform.
+ * <p>For reading each file in a {@link PCollection} of {@link FileIO.ReadableFile}, use the {@link
+ * ThriftIO#readFiles(Class)} transform.
  *
  * <p>For example:
  *
@@ -92,7 +84,7 @@ import org.slf4j.LoggerFactory;
  * <p>This IO API is considered experimental and may break or receive backwards-incompatible changes
  * in future versions of the Apache Beam SDK.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class ThriftIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(ThriftIO.class);
@@ -130,7 +122,18 @@ public class ThriftIO {
     @Nullable
     abstract TProtocolFactory getTProtocolFactory();
 
+    /**
+     * Specifies the {@link TProtocolFactory} to be used to decode Thrift objects.
+     *
+     * @param protocol {@link TProtocolFactory} used to decode Thrift objects.
+     * @return ReadFiles object with protocol set.
+     * @throws IllegalArgumentException if {@link TSimpleJSONProtocol} is passed as it is
+     *     write-only.
+     */
     public ReadFiles<T> withProtocol(TProtocolFactory protocol) {
+      checkArgument(
+          !(protocol instanceof TSimpleJSONProtocol.Factory),
+          "TSimpleJSONProtocol is a write only protocol");
       return toBuilder().setTProtocolFactory(protocol).build();
     }
 
@@ -139,10 +142,9 @@ public class ThriftIO {
       checkNotNull(getRecordClass(), "Record class cannot be null");
       checkNotNull(getTProtocolFactory(), "Thrift protocol cannot be null");
 
-      final Coder<T> coder = ThriftCoder.of();
       return input
           .apply(ParDo.of(new ReadFn<>(getRecordClass(), getTProtocolFactory())))
-          .setCoder(coder);
+          .setCoder(ThriftCoder.of(getRecordClass(), getTProtocolFactory()));
     }
 
     @AutoValue.Builder
@@ -153,11 +155,7 @@ public class ThriftIO {
 
       abstract Builder<T> setTProtocolFactory(TProtocolFactory tProtocol);
 
-      abstract ReadFiles<T> autoBuild();
-
-      public ReadFiles<T> build() {
-        return autoBuild();
-      }
+      abstract ReadFiles<T> build();
     }
 
     /**
@@ -175,21 +173,16 @@ public class ThriftIO {
       }
 
       @ProcessElement
-      public void processElement(ProcessContext processContext) {
-        FileIO.ReadableFile file = processContext.element();
-
+      public void processElement(@Element FileIO.ReadableFile file, OutputReceiver<T> out) {
         try {
-
           InputStream inputStream = Channels.newInputStream(file.open());
           TIOStreamTransport streamTransport = new TIOStreamTransport(inputStream);
           TProtocol protocol = tProtocol.getProtocol(streamTransport);
-
           while (true) {
             TBase<?, ?> tb = (TBase<?, ?>) tBaseType.getDeclaredConstructor().newInstance();
             tb.read(protocol);
-            processContext.output((T) tb);
+            out.output((T) tb);
           }
-
         } catch (Exception ioe) {
           if (ioe.getClass() != TTransportException.class) {
             String filename = file.getMetadata().resourceId().toString();
@@ -271,9 +264,7 @@ public class ThriftIO {
       TProtocol protocol = protocolFactory.getProtocol(new TIOStreamTransport(baos));
 
       try {
-
         element.write(protocol);
-
       } catch (TException te) {
         LOG.error("Error in writing element to TProtocol: " + te);
         throw new RuntimeException(te);

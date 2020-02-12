@@ -18,6 +18,7 @@
 
 plugins {
     id 'org.apache.beam.module'
+    id "org.jruyi.thrift" version "0.4.1"
 }
 applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.thrift')
 
@@ -32,9 +33,23 @@ dependencies {
     testCompile library.java.junit
     testCompile library.java.hamcrest_core
     testCompile library.java.hamcrest_library
+    testCompile library.java.jackson_databind
     testCompile "com.google.code.gson:gson:2.8.6"
     testCompile "commons-io:commons-io:2.6"
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(":runners:direct-java")
 }
 
+sourceSets {
+    test {
+        java.srcDirs += "$buildDir/generated-sources/thrift/test_thrift"
+    }
+}
+
+test {
+    compileThrift {
+        createGenFolder false
+        sourceDir "$projectDir/src/test/resources/thrift"
+        generator 'java'
+    }
+}

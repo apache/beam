@@ -17,22 +17,57 @@
  */
 package org.apache.beam.sdk.io.thrift;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.thrift.TBase;
+import org.apache.thrift.TException;
+import org.apache.thrift.protocol.TProtocol;
+import org.apache.thrift.protocol.TProtocolFactory;
+import org.apache.thrift.transport.TIOStreamTransport;
 
-public class ThriftCoder<T> extends CustomCoder<T> {
+/**
+ * A {@link org.apache.beam.sdk.coders.Coder} using a Thrift {@link TProtocol} to
+ * serialize/deserialize elements.
+ *
+ * @param <T> type of element handled by coder.
+ */
+class ThriftCoder<T> extends CustomCoder<T> {
 
-  public static <T> ThriftCoder<T> of() {
-    return new ThriftCoder<>();
+  private final Class<T> type;
+  private final TProtocolFactory protocolFactory;
+  private final TBase<?, ?> tBase;
+
+  protected ThriftCoder(Class<T> type, TProtocolFactory protocolFactory) {
+    this.type = type;
+    this.protocolFactory = protocolFactory;
+    try {
+      this.tBase = (TBase<?, ?>) type.getDeclaredConstructor().newInstance();
+    } catch (Exception e) {
+      throw new RuntimeException("Could not create instance of " + this.type.toString());
+    }
   }
 
   /**
-   * Encodes the given value of type {@code T} onto the given output stream.
+   * Returns an {@link ThriftCoder} instance for the provided {@code clazz} and {@code
+   * protocolFactory}.
+   *
+   * @param clazz {@link TBase} class used to decode into/ encode from.
+   * @param protocolFactory factory for {@link TProtocol} to be used to encode/decode.
+   * @param <T> element type
+   * @return ThriftCoder initalized with class to be encoded/decoded and {@link TProtocolFactory}
+   *     used to encode/decode.
+   */
+  static <T> ThriftCoder<T> of(Class<T> clazz, TProtocolFactory protocolFactory) {
+    return new ThriftCoder<>(clazz, protocolFactory);
+  }
+
+  /**
+   * Encodes the given value of type {@code T} onto the given output stream using provided {@link
+   * ThriftCoder#protocolFactory}.
    *
    * @param value {@link org.apache.thrift.TBase} to encode.
    * @param outStream stream to output encoded value to.
@@ -41,28 +76,34 @@ public class ThriftCoder<T> extends CustomCoder<T> {
    */
   @Override
   public void encode(T value, OutputStream outStream) throws CoderException, IOException {
-    ObjectOutputStream oos = new ObjectOutputStream(outStream);
-    oos.writeObject(value);
-    oos.flush();
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    TProtocol protocol = protocolFactory.getProtocol(new TIOStreamTransport(baos));
+    try {
+      tBase.write(protocol);
+    } catch (TException te) {
+      throw new CoderException("Could not write value. Error: " + te.getMessage());
+    }
+    outStream.write(baos.toByteArray());
   }
 
   /**
-   * Decodes a value of type {@code T} from the given input stream in the given context. Returns the
-   * decoded value.
+   * Decodes a value of type {@code T} from the given input stream using provided {@link
+   * ThriftCoder#protocolFactory}. Returns the decoded value.
    *
-   * @param inStream
+   * @param inStream stream of input values to be decoded
    * @throws IOException if reading from the {@code InputStream} fails for some reason
    * @throws CoderException if the value could not be decoded for some reason
+   * @returns {@link TBase}
    */
   @Override
   public T decode(InputStream inStream) throws CoderException, IOException {
     try {
-
-      ObjectInputStream ois = new ObjectInputStream(inStream);
-      return (T) ois.readObject();
-    } catch (Exception classNotFoundException) {
-      throw new RuntimeException(
-          "Could not deserialize bytes to Document" + classNotFoundException);
+      TProtocol protocol = protocolFactory.getProtocol(new TIOStreamTransport(inStream));
+      TBase<?, ?> value = (TBase<?, ?>) type.getDeclaredConstructor().newInstance();
+      value.read(protocol);
+      return (T) value;
+    } catch (Exception te) {
+      throw new CoderException("Could not read value. Error: " + te.getMessage());
     }
   }
 }
