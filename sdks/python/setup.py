@@ -136,7 +136,7 @@ else:
 
 REQUIRED_PACKAGES = [
     'avro>=1.8.1,<2.0.0; python_version < "3.0"',
-    'avro-python3>=1.8.1,<2.0.0; python_version >= "3.0"',
+    'avro-python3>=1.8.1,!=1.9.2,<2.0.0; python_version >= "3.0"',
     'crcmod>=1.7,<2.0',
     # Dill doesn't have forwards-compatibility guarantees within minor version.
     # Pickles created with a new version of dill may not unpickle using older
