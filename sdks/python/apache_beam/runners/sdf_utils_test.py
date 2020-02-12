@@ -21,31 +21,35 @@
 
 from __future__ import absolute_import
 
+import threading
 import time
 import unittest
 
 from apache_beam.io.concat_source_test import RangeSource
 from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
+from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
 from apache_beam.runners.sdf_utils import ThreadsafeRestrictionTracker
+from apache_beam.runners.sdf_utils import ThreadsafeWatermarkEstimator
 from apache_beam.utils import timestamp
 
 
 class ThreadsafeRestrictionTrackerTest(unittest.TestCase):
   def test_initialization(self):
     with self.assertRaises(ValueError):
-      ThreadsafeRestrictionTracker(RangeSource(0, 1))
+      ThreadsafeRestrictionTracker(RangeSource(0, 1), threading.Lock())
 
   def test_defer_remainder_with_wrong_time_type(self):
     threadsafe_tracker = ThreadsafeRestrictionTracker(
-        OffsetRestrictionTracker(OffsetRange(0, 10)))
+        OffsetRestrictionTracker(OffsetRange(0, 10)), threading.Lock())
     with self.assertRaises(ValueError):
       threadsafe_tracker.defer_remainder(10)
 
   def test_self_checkpoint_immediately(self):
     restriction_tracker = OffsetRestrictionTracker(OffsetRange(0, 10))
-    threadsafe_tracker = ThreadsafeRestrictionTracker(restriction_tracker)
+    threadsafe_tracker = ThreadsafeRestrictionTracker(
+        restriction_tracker, threading.Lock())
     threadsafe_tracker.defer_remainder()
     deferred_residual, deferred_time = threadsafe_tracker.deferred_status()
     expected_residual = OffsetRange(0, 10)
@@ -55,7 +59,7 @@ class ThreadsafeRestrictionTrackerTest(unittest.TestCase):
 
   def test_self_checkpoint_with_relative_time(self):
     threadsafe_tracker = ThreadsafeRestrictionTracker(
-        OffsetRestrictionTracker(OffsetRange(0, 10)))
+        OffsetRestrictionTracker(OffsetRange(0, 10)), threading.Lock())
     threadsafe_tracker.defer_remainder(timestamp.Duration(100))
     time.sleep(2)
     _, deferred_time = threadsafe_tracker.deferred_status()
@@ -65,7 +69,7 @@ class ThreadsafeRestrictionTrackerTest(unittest.TestCase):
 
   def test_self_checkpoint_with_absolute_time(self):
     threadsafe_tracker = ThreadsafeRestrictionTracker(
-        OffsetRestrictionTracker(OffsetRange(0, 10)))
+        OffsetRestrictionTracker(OffsetRange(0, 10)), threading.Lock())
     now = timestamp.Timestamp.now()
     schedule_time = now + timestamp.Duration(100)
     self.assertTrue(isinstance(schedule_time, timestamp.Timestamp))
@@ -81,11 +85,12 @@ class ThreadsafeRestrictionTrackerTest(unittest.TestCase):
 class RestrictionTrackerViewTest(unittest.TestCase):
   def test_initialization(self):
     with self.assertRaises(ValueError):
-      RestrictionTrackerView(OffsetRestrictionTracker(OffsetRange(0, 10)))
+      RestrictionTrackerView(
+          OffsetRestrictionTracker(OffsetRange(0, 10)))
 
   def test_api_expose(self):
     threadsafe_tracker = ThreadsafeRestrictionTracker(
-        OffsetRestrictionTracker(OffsetRange(0, 10)))
+        OffsetRestrictionTracker(OffsetRange(0, 10)), threading.Lock())
     tracker_view = RestrictionTrackerView(threadsafe_tracker)
     current_restriction = tracker_view.current_restriction()
     self.assertEqual(current_restriction, OffsetRange(0, 10))
@@ -98,7 +103,7 @@ class RestrictionTrackerViewTest(unittest.TestCase):
 
   def test_non_expose_apis(self):
     threadsafe_tracker = ThreadsafeRestrictionTracker(
-        OffsetRestrictionTracker(OffsetRange(0, 10)))
+        OffsetRestrictionTracker(OffsetRange(0, 10)), threading.Lock())
     tracker_view = RestrictionTrackerView(threadsafe_tracker)
     with self.assertRaises(AttributeError):
       tracker_view.check_done()
@@ -108,6 +113,33 @@ class RestrictionTrackerViewTest(unittest.TestCase):
       tracker_view.try_split()
     with self.assertRaises(AttributeError):
       tracker_view.deferred_status()
+
+
+class ThreadsafeWatermarkEstimatorTest(unittest.TestCase):
+  def test_initialization(self):
+    with self.assertRaises(ValueError):
+      ThreadsafeWatermarkEstimator(None, threading.Lock())
+
+  def test_get_estimator_state(self):
+    estimator = ThreadsafeWatermarkEstimator(
+        ManualWatermarkEstimator(None), threading.Lock())
+    self.assertIsNone(estimator.get_estimator_state())
+    estimator.set_watermark(timestamp.Timestamp(10))
+    self.assertEqual(estimator.get_estimator_state(), timestamp.Timestamp(10))
+
+  def test_track_timestamp(self):
+    estimator = ThreadsafeWatermarkEstimator(
+        ManualWatermarkEstimator(None), threading.Lock())
+    estimator.observe_timestamp(timestamp.Timestamp(10))
+    self.assertIsNone(estimator.current_watermark())
+    estimator.set_watermark(timestamp.Timestamp(20))
+    self.assertEqual(estimator.current_watermark(), timestamp.Timestamp(20))
+
+  def test_non_exsited_attr(self):
+    estimator = ThreadsafeWatermarkEstimator(
+        ManualWatermarkEstimator(None), threading.Lock())
+    with self.assertRaises(AttributeError):
+      estimator.non_existed_call()
 
 
 if __name__ == '__main__':
