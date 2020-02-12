@@ -60,7 +60,6 @@ import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
-import org.apache.beam.runners.core.construction.DoFnFeatures;
 import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
 import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
@@ -133,6 +132,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -1935,22 +1935,30 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
+  static void verifyDoFnSupportedBatch(DoFn<?, ?> fn) {
+    verifyDoFnSupported(fn, false);
+  }
+
+  static void verifyDoFnSupportedStreaming(DoFn<?, ?> fn) {
+    verifyDoFnSupported(fn, true);
+  }
+
   static void verifyDoFnSupported(DoFn<?, ?> fn, boolean streaming) {
-    if (DoFnFeatures.usesSetState(fn)) {
+    if (DoFnSignatures.usesSetState(fn)) {
       // https://issues.apache.org/jira/browse/BEAM-1479
       throw new UnsupportedOperationException(
           String.format(
               "%s does not currently support %s",
               DataflowRunner.class.getSimpleName(), SetState.class.getSimpleName()));
     }
-    if (DoFnFeatures.usesMapState(fn)) {
+    if (DoFnSignatures.usesMapState(fn)) {
       // https://issues.apache.org/jira/browse/BEAM-1474
       throw new UnsupportedOperationException(
           String.format(
               "%s does not currently support %s",
               DataflowRunner.class.getSimpleName(), MapState.class.getSimpleName()));
     }
-    if (streaming && DoFnFeatures.requiresTimeSortedInput(fn)) {
+    if (streaming && DoFnSignatures.requiresTimeSortedInput(fn)) {
       throw new UnsupportedOperationException(
           String.format(
               "%s does not currently support @RequiresTimeSortedInput in streaming mode.",
