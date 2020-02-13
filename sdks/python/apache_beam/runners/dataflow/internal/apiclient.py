@@ -561,7 +561,7 @@ class DataflowApplicationClient(object):
           job.options.view_as(GoogleCloudOptions).staging_location,
           "dataflow_graph.json",
           io.BytesIO(job.json().encode('utf-8')))
-      job.proto.steps.clear()
+      del job.proto.steps[:]
       job.proto.stepsLocation = FileSystems.join(
           job.options.view_as(GoogleCloudOptions).staging_location,
           "dataflow_graph.json")
