@@ -837,24 +837,19 @@ class PerWindowInvoker(DoFnInvoker):
       # together.
       with self._synchronized_lock:
         split = self.threadsafe_restriction_tracker.try_split(fraction)
-        if self.threadsafe_watermark_estimator:
-          current_watermark = (
-              self.threadsafe_watermark_estimator.current_watermark_with_lock())
-          estimator_state = (
-              self.threadsafe_watermark_estimator.get_estimator_state_with_lock(
-              ))
+        current_watermark = (
+            self.threadsafe_watermark_estimator.current_watermark_with_lock())
+        estimator_state = (
+            self.threadsafe_watermark_estimator.get_estimator_state_with_lock(
+            ))
       if split:
         primary, residual = split
         element = self.current_windowed_value.value
         restriction_provider = self.signature.get_restriction_provider()
         primary_size = restriction_provider.restriction_size(element, primary)
         residual_size = restriction_provider.restriction_size(element, residual)
-        if self.threadsafe_watermark_estimator:
-          primary_value = ((element, (primary, None)), primary_size)
-          residual_value = ((element, (residual, estimator_state), residual_size))
-        else:
-          primary_value = ((element, primary), primary_size)
-          residual_value = ((element, residual), residual_size)
+        primary_value = ((element, (primary, None)), primary_size)
+        residual_value = ((element, (residual, estimator_state)), residual_size)
         return (
             SplitResultPrimary(
                 primary_value=self.current_windowed_value.with_value(
