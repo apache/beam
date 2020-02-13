@@ -22,6 +22,7 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
+import logging
 import unittest
 
 import mock
@@ -142,3 +143,8 @@ class VideoIntelligenceTest(unittest.TestCase):
       if query_result['counters']:
         read_counter = query_result['counters'][0]
         self.assertTrue(read_counter.committed == expected_counter)
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
