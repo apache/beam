@@ -627,7 +627,14 @@ service TestStreamService {
   // A TestStream will request for events using this RPC.
   rpc Events(EventsRequest) returns (stream TestStreamPayload.Event) {}
 }
-message EventsRequest {}
+
+message EventsRequest {
+  // The set of PCollections to read from. These are the PTransform outputs
+  // local names. These are a subset of the TestStream's outputs. This allows
+  // Interactive Beam to cache many PCollections from a pipeline then replay a
+  // subset of them.
+  repeated string output_ids = 1;
+}
 
 // The payload for the special-but-not-primitive WriteFiles transform.
 message WriteFilesPayload {
