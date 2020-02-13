@@ -97,11 +97,17 @@ func main() {
 	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pb.ApiServiceDescriptor{Url: *loggingEndpoint}))
 	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pb.ApiServiceDescriptor{Url: *controlEndpoint}))
 
+	if info.GetStatusEndpoint() != nil {
+		os.Setenv("STATUS_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(info.GetStatusEndpoint()))
+	}
+
 	const jarsDir = "/opt/apache/beam/jars"
 	cp := []string{
 		filepath.Join(jarsDir, "slf4j-api.jar"),
 		filepath.Join(jarsDir, "slf4j-jdk14.jar"),
 		filepath.Join(jarsDir, "beam-sdks-java-harness.jar"),
+		filepath.Join(jarsDir, "beam-sdks-java-io-kafka.jar"),
+		filepath.Join(jarsDir, "kafka-clients.jar"),
 	}
 
 	var hasWorkerExperiment = strings.Contains(options, "use_staged_dataflow_worker_jar")

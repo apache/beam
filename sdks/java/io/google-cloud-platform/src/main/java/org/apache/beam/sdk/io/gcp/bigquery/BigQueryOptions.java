@@ -45,4 +45,30 @@ public interface BigQueryOptions
   Integer getHTTPWriteTimeout();
 
   void setHTTPWriteTimeout(Integer timeout);
+
+  @Description(
+      "If specified, the given number of maximum concurrent threads will be used to insert "
+          + "rows from one bundle to BigQuery service with streaming insert API.")
+  @Default.Integer(3)
+  Integer getInsertBundleParallelism();
+
+  void setInsertBundleParallelism(Integer parallelism);
+
+  @Description("The number of keys used per table when doing streaming inserts to BigQuery.")
+  @Default.Integer(50)
+  Integer getNumStreamingKeys();
+
+  void setNumStreamingKeys(Integer value);
+
+  @Description("The maximum number of rows to batch in a single streaming insert to BigQuery.")
+  @Default.Long(500)
+  Long getMaxStreamingRowsToBatch();
+
+  void setMaxStreamingRowsToBatch(Long value);
+
+  @Description("The maximum byte size of a single streaming insert to BigQuery.")
+  @Default.Long(64L * 1024L)
+  Long getMaxStreamingBatchSize();
+
+  void setMaxStreamingBatchSize(Long value);
 }

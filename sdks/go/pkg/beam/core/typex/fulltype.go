@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // FullType represents the tree structure of data types processed by the graph.
@@ -178,6 +180,14 @@ func SkipW(t FullType) FullType {
 	return t
 }
 
+// SkipK skips the key in a KV layer, if present. If no, returns the input.
+func SkipK(t FullType) FullType {
+	if t.Type() == KVType {
+		return t.Components()[1]
+	}
+	return t
+}
+
 // IsKV returns true iff the type is a KV.
 func IsKV(t FullType) bool {
 	return t.Type() == KVType
@@ -298,7 +308,7 @@ func IsBound(t FullType) bool {
 // produce {"T" -> string}.
 func Bind(types, models []FullType) (map[string]reflect.Type, error) {
 	if len(types) != len(models) {
-		return nil, fmt.Errorf("invalid number of modes: %v, want %v", len(models), len(types))
+		return nil, errors.Errorf("typex.Bind: invalid number of models: %v, want %v", len(models), len(types))
 	}
 
 	m := make(map[string]reflect.Type)
@@ -307,7 +317,7 @@ func Bind(types, models []FullType) (map[string]reflect.Type, error) {
 		model := models[i]
 
 		if !IsStructurallyAssignable(model, t) {
-			return nil, fmt.Errorf("%v is not assignable to %v", model, t)
+			return nil, errors.Errorf("typex.Bind: %v is not assignable to %v", model, t)
 		}
 		if err := walk(t, model, m); err != nil {
 			return nil, err
@@ -326,7 +336,7 @@ func walk(t, model FullType, m map[string]reflect.Type) error {
 
 		name := t.Type().Name()
 		if current, ok := m[name]; ok && current != model.Type() {
-			return fmt.Errorf("bind conflict for %v: %v != %v", name, current, model.Type())
+			return errors.Errorf("bind conflict for %v: %v != %v", name, current, model.Type())
 		}
 		m[name] = model.Type()
 		return nil
@@ -363,7 +373,7 @@ func substitute(t FullType, m map[string]reflect.Type) (FullType, error) {
 		name := t.Type().Name()
 		repl, ok := m[name]
 		if !ok {
-			return nil, fmt.Errorf("type variable not bound: %v", name)
+			return nil, errors.Errorf("substituting type %v: type not bound", name)
 		}
 		return New(repl), nil
 	case Container:
@@ -374,7 +384,7 @@ func substitute(t FullType, m map[string]reflect.Type) (FullType, error) {
 		if IsList(t.Type()) {
 			return New(reflect.SliceOf(comp[0].Type()), comp...), nil
 		}
-		panic(fmt.Sprintf("Unexpected aggregate: %v", t))
+		return nil, errors.Errorf("unexpected aggregate %v, only slices allowed", t)
 	case Composite:
 		comp, err := substituteList(t.Components(), m)
 		if err != nil {

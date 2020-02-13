@@ -21,6 +21,7 @@ package org.apache.beam.gradle
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.file.FileTree
 import org.gradle.api.publish.maven.MavenPublication
 
@@ -35,11 +36,11 @@ import org.gradle.api.publish.maven.MavenPublication
  *   <li>Increment the vendored artifact version only if we need to release a new version.
  * </ul>
  *
- * <p>Example for com.google.guava:guava:20.0:
+ * <p>Example for com.google.guava:guava:26.0-jre:
  * <ul>
  *   <li>groupId: org.apache.beam
- *   <li>artifactId: guava-20_0
- *   <li>namespace: org.apache.beam.vendor.guava.v20_0
+ *   <li>artifactId: guava-26_0-jre
+ *   <li>namespace: org.apache.beam.vendor.guava.v26_0_jre
  *   <li>version: 0.1
  * </ul>
  *
@@ -51,6 +52,7 @@ class VendorJavaPlugin implements Plugin<Project> {
   static class VendorJavaPluginConfig {
     List<String> dependencies
     List<String> runtimeDependencies
+    List<String> testDependencies
     Map<String, String> relocations
     List<String> exclusions
     String groupId
@@ -69,6 +71,9 @@ class VendorJavaPlugin implements Plugin<Project> {
     // task
     project.ext.vendorJava = {
       VendorJavaPluginConfig config = it ? it as VendorJavaPluginConfig : new VendorJavaPluginConfig()
+
+      project.apply plugin: 'base'
+      project.archivesBaseName = config.artifactId
 
       if (!isRelease(project)) {
         config.version += '-SNAPSHOT'
@@ -93,7 +98,8 @@ class VendorJavaPlugin implements Plugin<Project> {
 
       project.dependencies {
         config.dependencies.each { compile it }
-        config.runtimeDependencies.each { runtime it }
+        config.runtimeDependencies.each { runtimeOnly it }
+        config.testDependencies.each { compileOnly it}
       }
 
       // Create a task which emulates the maven-archiver plugin in generating a
@@ -129,7 +135,7 @@ artifactId=${project.name}
               include "**/*.class"
               exclude "org/apache/beam/vendor/**"
               // BEAM-5919: Exclude paths for Java 9 multi-release jars.
-              exclude "META-INF/versions/*/module-info.class"
+              exclude "**/module-info.class"
               exclude "META-INF/versions/*/org/apache/beam/vendor/**"
             }
             if (exposedClasses.files) {
@@ -143,6 +149,8 @@ artifactId=${project.name}
       // Only publish vendored dependencies if specifically requested.
       if (project.hasProperty("vendoredDependenciesOnly")) {
         project.apply plugin: 'maven-publish'
+        // Ensure that we validate the contents of the jar before publishing
+        project.publish.dependsOn project.check
 
         // Have the shaded jar include both the generate pom.xml and its properties file
         // emulating the behavior of the maven-archiver plugin.
@@ -276,6 +284,55 @@ artifactId=${project.name}
               }
 
               pom.withXml {
+                def root = asNode()
+                def dependenciesNode = root.appendNode('dependencies')
+                def generateDependenciesFromConfiguration = { param ->
+                  project.configurations."${param.configuration}".allDependencies.each {
+                    def dependencyNode = dependenciesNode.appendNode('dependency')
+                    def appendClassifier = { dep ->
+                      dep.artifacts.each { art ->
+                        if (art.hasProperty('classifier')) {
+                          dependencyNode.appendNode('classifier', art.classifier)
+                        }
+                      }
+                    }
+
+                    if (it instanceof ProjectDependency) {
+                      dependencyNode.appendNode('groupId', it.getDependencyProject().mavenGroupId)
+                      dependencyNode.appendNode('artifactId', it.getDependencyProject().archivesBaseName)
+                      dependencyNode.appendNode('version', it.version)
+                      dependencyNode.appendNode('scope', param.scope)
+                      appendClassifier(it)
+                    } else {
+                      dependencyNode.appendNode('groupId', it.group)
+                      dependencyNode.appendNode('artifactId', it.name)
+                      dependencyNode.appendNode('version', it.version)
+                      dependencyNode.appendNode('scope', param.scope)
+                      appendClassifier(it)
+                    }
+
+                    // Start with any exclusions that were added via configuration exclude rules.
+                    // Then add all the exclusions that are specific to the dependency (if any
+                    // were declared). Finally build the node that represents all exclusions.
+                    def exclusions = []
+                    exclusions += project.configurations."${param.configuration}".excludeRules
+                    if (it.hasProperty('excludeRules')) {
+                      exclusions += it.excludeRules
+                    }
+                    if (!exclusions.empty) {
+                      def exclusionsNode = dependencyNode.appendNode('exclusions')
+                      exclusions.each { exclude ->
+                        def exclusionNode = exclusionsNode.appendNode('exclusion')
+                        exclusionNode.appendNode('groupId', exclude.group)
+                        exclusionNode.appendNode('artifactId', exclude.module)
+                      }
+                    }
+                  }
+                }
+
+                generateDependenciesFromConfiguration(configuration: 'runtimeOnly', scope: 'runtime')
+                generateDependenciesFromConfiguration(configuration: 'compileOnly', scope: 'provided')
+
                 // NB: This must come after asNode() logic, as it seems asNode()
                 // removes XML comments.
                 // TODO: Load this from file?

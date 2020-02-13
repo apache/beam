@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.WriteFiles.UNKNOWN_SHARDNUM;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets.UTF_8;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets.UTF_8;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
@@ -47,6 +47,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.zip.GZIPInputStream;
 import org.apache.beam.sdk.io.FileBasedSink.CompressionType;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
@@ -58,7 +59,8 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
 import org.junit.Rule;
@@ -139,6 +141,20 @@ public class FileBasedSinkTest {
         writer.println(line);
       }
     }
+  }
+
+  /** Test whether WriteOperation can create a unique temporary directory. */
+  @Test
+  public void testTemporaryDirectoryUniqueness() {
+    List<SimpleSink.SimpleWriteOperation<Void>> writeOps = Lists.newArrayListWithCapacity(1000);
+    for (int i = 0; i < 1000; i++) {
+      writeOps.add(buildWriteOperation());
+    }
+    Set<String> tempDirectorySet = Sets.newHashSetWithExpectedSize(1000);
+    for (SimpleSink.SimpleWriteOperation<Void> op : writeOps) {
+      tempDirectorySet.add(op.getTempDirectory().toString());
+    }
+    assertEquals(1000, tempDirectorySet.size());
   }
 
   /** Removes temporary files when temporary and output directories differ. */

@@ -25,7 +25,7 @@ import java.util.Set;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryMatcher;
 import org.apache.beam.sdk.util.ApiSurface;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -39,7 +39,7 @@ public class GcpApiSurfaceTest {
   @Test
   public void testGcpApiSurface() throws Exception {
 
-    final Package thisPackage = getClass().getPackage();
+    final Package thisPackage = this.getClass().getPackage();
     final ClassLoader thisClassLoader = getClass().getClassLoader();
 
     final ApiSurface apiSurface =
@@ -61,12 +61,11 @@ public class GcpApiSurfaceTest {
             classesInPackage("com.google.api.client.util"),
             classesInPackage("com.google.api.services.bigquery.model"),
             classesInPackage("com.google.auth"),
-            classesInPackage("com.google.bigtable.admin.v2"),
             classesInPackage("com.google.bigtable.v2"),
             classesInPackage("com.google.cloud.bigquery.storage.v1beta1"),
             classesInPackage("com.google.cloud.bigtable.config"),
-            classesInPackage("com.google.cloud.bigtable.data"),
             classesInPackage("com.google.spanner.v1"),
+            classesInPackage("com.google.pubsub.v1"),
             Matchers.equalTo(com.google.api.gax.rpc.ApiException.class),
             Matchers.<Class<?>>equalTo(com.google.api.gax.longrunning.OperationFuture.class),
             Matchers.<Class<?>>equalTo(com.google.api.gax.longrunning.OperationSnapshot.class),
@@ -79,7 +78,6 @@ public class GcpApiSurfaceTest {
                 com.google.api.gax.retrying.TimedAttemptSettings.Builder.class),
             Matchers.<Class<?>>equalTo(com.google.api.gax.rpc.StatusCode.class),
             Matchers.<Class<?>>equalTo(com.google.api.gax.rpc.StatusCode.Code.class),
-            Matchers.<Class<?>>equalTo(com.google.api.resourcenames.ResourceName.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableClusterName.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableInstanceName.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableTableName.class),

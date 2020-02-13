@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
@@ -25,29 +25,31 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobStatus;
+import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.cloud.bigquery.storage.v1beta1.TableReferenceProto;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -469,8 +471,7 @@ public class BigQueryHelpers {
     }
   }
 
-  @VisibleForTesting
-  static String toJsonString(Object item) {
+  public static String toJsonString(Object item) {
     if (item == null) {
       return null;
     }
@@ -483,8 +484,7 @@ public class BigQueryHelpers {
     }
   }
 
-  @VisibleForTesting
-  static <T> T fromJsonString(String json, Class<T> clazz) {
+  public static <T> T fromJsonString(String json, Class<T> clazz) {
     if (json == null) {
       return null;
     }
@@ -539,6 +539,23 @@ public class BigQueryHelpers {
             e);
       }
     }
+  }
+
+  /**
+   * It returns the number of rows for a given table.
+   *
+   * @return The number of rows in the table or null if it cannot get any estimate.
+   */
+  @Nullable
+  public static BigInteger getNumRows(BigQueryOptions options, TableReference tableRef)
+      throws InterruptedException, IOException {
+
+    DatasetService datasetService = new BigQueryServicesImpl().getDatasetService(options);
+    Table table = datasetService.getTable(tableRef);
+    if (table == null) {
+      return null;
+    }
+    return table.getNumRows();
   }
 
   static String getDatasetLocation(

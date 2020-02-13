@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"cloud.google.com/go/storage"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/filesystem"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
@@ -50,7 +51,7 @@ func New(ctx context.Context) filesystem.Interface {
 
 		client, err = storage.NewClient(ctx, option.WithoutAuthentication())
 		if err != nil {
-			panic(fmt.Sprintf("failed to create GCS client: %v", err))
+			panic(errors.Wrapf(err, "failed to create GCS client"))
 		}
 	}
 	return &fs{client: client}

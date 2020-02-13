@@ -53,8 +53,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.CombineFnUtil;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBasedTable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Table;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
 import org.joda.time.Instant;
 
 /**

@@ -17,9 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
-import static org.apache.calcite.config.CalciteConnectionProperty.SCHEMA_FACTORY;
-import static org.codehaus.commons.compiler.CompilerFactoryFactory.getDefaultCompilerFactory;
+import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.CalciteConnectionProperty.SCHEMA_FACTORY;
+import static org.apache.beam.vendor.calcite.v1_20_0.org.codehaus.commons.compiler.CompilerFactoryFactory.getDefaultCompilerFactory;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -31,19 +32,19 @@ import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.calcite.avatica.AvaticaFactory;
-import org.apache.calcite.jdbc.CalciteConnection;
-import org.apache.calcite.jdbc.CalciteFactory;
-import org.apache.calcite.jdbc.Driver;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelTraitDef;
-import org.apache.calcite.prepare.CalcitePrepareImpl;
-import org.apache.calcite.rel.RelCollationTraitDef;
-import org.apache.calcite.rel.rules.CalcRemoveRule;
-import org.apache.calcite.rel.rules.SortRemoveRule;
-import org.apache.calcite.runtime.Hook;
-import org.apache.calcite.tools.RuleSet;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.AvaticaFactory;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteConnection;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteFactory;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.Driver;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitDef;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.prepare.CalcitePrepareImpl;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollationTraitDef;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.CalcRemoveRule;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.SortRemoveRule;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.runtime.Hook;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 
 /**
  * Calcite JDBC driver with Beam defaults.
@@ -100,6 +101,8 @@ public class JdbcDriver extends Driver {
     INSTANCE.register();
   }
 
+  public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
   @Override
   protected AvaticaFactory createFactory() {
     return JdbcFactory.wrap((CalciteFactory) super.createFactory());
@@ -141,7 +144,7 @@ public class JdbcDriver extends Driver {
    * not this path. The CLI ends up using the schema factory that populates the default schema with
    * all table providers it can find. See {@link BeamCalciteSchemaFactory}.
    */
-  public static JdbcConnection connect(TableProvider tableProvider) {
+  public static JdbcConnection connect(TableProvider tableProvider, PipelineOptions options) {
     try {
       Properties properties = new Properties();
       properties.setProperty(
@@ -149,6 +152,7 @@ public class JdbcDriver extends Driver {
       JdbcConnection connection =
           (JdbcConnection) INSTANCE.connect(CONNECT_STRING_PREFIX, properties);
       connection.setSchema(TOP_LEVEL_BEAM_SCHEMA, tableProvider);
+      connection.setPipelineOptions(options);
       return connection;
     } catch (SQLException e) {
       throw new RuntimeException(e);

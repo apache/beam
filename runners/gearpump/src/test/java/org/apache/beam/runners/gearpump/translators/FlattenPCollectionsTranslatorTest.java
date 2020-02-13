@@ -47,9 +47,9 @@ public class FlattenPCollectionsTranslatorTest {
   private FlattenPCollectionsTranslator translator = new FlattenPCollectionsTranslator();
   private Flatten.PCollections transform = mock(Flatten.PCollections.class);
 
-  private static class UnboundedSourceWrapperMatcher extends ArgumentMatcher<DataSource> {
+  private static class UnboundedSourceWrapperMatcher implements ArgumentMatcher<DataSource> {
     @Override
-    public boolean matches(Object o) {
+    public boolean matches(DataSource o) {
       return o instanceof UnboundedSourceWrapper;
     }
   }
@@ -148,6 +148,6 @@ public class FlattenPCollectionsTranslatorTest {
 
     translator.translate(transform, translationContext);
     verify(javaStream1).map(any(MapFunction.class), eq("dummy"));
-    verify(javaStream1).merge(any(JavaStream.class), eq(1), eq(transformName));
+    verify(javaStream1).merge(eq(null), eq(1), eq(transformName));
   }
 }

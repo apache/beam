@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
+import org.apache.beam.runners.flink.translation.utils.Workarounds;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
@@ -36,8 +37,8 @@ import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.client.program.DetachedEnvironment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -77,7 +78,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
     if (flinkOptions.getFilesToStage() == null) {
       flinkOptions.setFilesToStage(
-          detectClassPathResourcesToStage(FlinkRunner.class.getClassLoader()));
+          detectClassPathResourcesToStage(FlinkRunner.class.getClassLoader(), options));
       LOG.info(
           "PipelineOptions.filesToStage was not specified. "
               + "Defaulting to files from the classpath: will stage {} files. "
@@ -89,9 +90,10 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     return new FlinkRunner(flinkOptions);
   }
 
-  private FlinkRunner(FlinkPipelineOptions options) {
+  protected FlinkRunner(FlinkPipelineOptions options) {
     this.options = options;
     this.ptransformViewsWithNonDeterministicKeyCoders = new HashSet<>();
+    Workarounds.restoreOriginalStdOutAndStdErrIfApplicable();
   }
 
   @Override

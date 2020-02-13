@@ -18,7 +18,8 @@
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 
 interface MonitoringInfoToCounterUpdateTransformer {
 
@@ -29,5 +30,6 @@ interface MonitoringInfoToCounterUpdateTransformer {
    * @param src
    * @return CounterUpdate or null if MonitoringInfo is invalid/unsupported.
    */
+  @Nullable
   CounterUpdate transform(MonitoringInfo src);
 }

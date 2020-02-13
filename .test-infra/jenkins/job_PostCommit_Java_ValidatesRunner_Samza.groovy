@@ -37,7 +37,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Samza',
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-runners-samza:validatesRunner')
+      tasks(':runners:samza:validatesRunner')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }

@@ -21,7 +21,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
@@ -69,6 +69,11 @@ public class SimpleExecutionState extends ExecutionState {
     }
   }
 
+  /** Reset the totalMillis spent in the state. */
+  public void reset() {
+    this.totalMillis = 0;
+  }
+
   public String getUrn() {
     return this.urn;
   }
@@ -90,9 +95,9 @@ public class SimpleExecutionState extends ExecutionState {
   public String getLullMessage(Thread trackedThread, Duration millis) {
     // TODO(ajamato): Share getLullMessage code with DataflowExecutionState.
     String userStepName =
-        this.labelsMetadata.getOrDefault(SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, null);
+        this.labelsMetadata.getOrDefault(MonitoringInfoConstants.Labels.PTRANSFORM, null);
     StringBuilder message = new StringBuilder();
-    message.append("Processing stuck");
+    message.append("Operation ongoing");
     if (userStepName != null) {
       message.append(" in step ").append(userStepName);
     }

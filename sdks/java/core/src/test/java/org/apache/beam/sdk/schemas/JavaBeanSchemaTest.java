@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ARRAY_OF_BYTE_ARRAY_BEAM_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ITERABLE_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_ARRAYS_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_ARRAY_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_BEAN_SCHEMA;
@@ -26,13 +28,17 @@ import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.SIMPLE_BEAN_SCHEMA
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.ArrayOfByteArray;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.IterableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.MismatchingNullableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedArrayBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedArraysBean;
@@ -41,11 +47,12 @@ import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedMapBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.PrimitiveArrayBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBeanWithAnnotations;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Ints;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
 import org.joda.time.DateTime;
 import org.junit.Rule;
 import org.junit.Test;
@@ -123,7 +130,7 @@ public class JavaBeanSchemaTest {
     assertEquals((short) 2, (Object) row.getInt16("aShort"));
     assertEquals((int) 3, (Object) row.getInt32("anInt"));
     assertEquals((long) 4, (Object) row.getInt64("aLong"));
-    assertEquals(true, (Object) row.getBoolean("aBoolean"));
+    assertTrue(row.getBoolean("aBoolean"));
     assertEquals(DATE.toInstant(), row.getDateTime("dateTime"));
     assertEquals(DATE.toInstant(), row.getDateTime("instant"));
     assertArrayEquals(BYTE_ARRAY, row.getBytes("bytes"));
@@ -143,13 +150,25 @@ public class JavaBeanSchemaTest {
     assertEquals((short) 2, bean.getaShort());
     assertEquals((int) 3, bean.getAnInt());
     assertEquals((long) 4, bean.getaLong());
-    assertEquals(true, bean.isaBoolean());
+    assertTrue(bean.isaBoolean());
     assertEquals(DATE, bean.getDateTime());
     assertEquals(DATE.toInstant(), bean.getInstant());
     assertArrayEquals("not equal", BYTE_ARRAY, bean.getBytes());
     assertArrayEquals("not equal", BYTE_ARRAY, bean.getByteBuffer().array());
     assertEquals(BigDecimal.ONE, bean.getBigDecimal());
     assertEquals("stringbuilder", bean.getStringBuilder().toString());
+  }
+
+  @Test
+  public void testToRowSerializable() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SerializableUtils.ensureSerializableRoundTrip(registry.getToRowFunction(SimpleBean.class));
+  }
+
+  @Test
+  public void testFromRowSerializable() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SerializableUtils.ensureSerializableRoundTrip(registry.getFromRowFunction(SimpleBean.class));
   }
 
   @Test
@@ -177,7 +196,7 @@ public class JavaBeanSchemaTest {
     assertEquals((short) 2, (Object) nestedRow.getInt16("aShort"));
     assertEquals((int) 3, (Object) nestedRow.getInt32("anInt"));
     assertEquals((long) 4, (Object) nestedRow.getInt64("aLong"));
-    assertEquals(true, nestedRow.getBoolean("aBoolean"));
+    assertTrue(nestedRow.getBoolean("aBoolean"));
     assertEquals(DATE.toInstant(), nestedRow.getDateTime("dateTime"));
     assertEquals(DATE.toInstant(), nestedRow.getDateTime("instant"));
     assertArrayEquals("not equal", BYTE_ARRAY, nestedRow.getBytes("bytes"));
@@ -199,7 +218,7 @@ public class JavaBeanSchemaTest {
     assertEquals((short) 2, bean.getNested().getaShort());
     assertEquals((int) 3, bean.getNested().getAnInt());
     assertEquals((long) 4, bean.getNested().getaLong());
-    assertEquals(true, bean.getNested().isaBoolean());
+    assertTrue(bean.getNested().isaBoolean());
     assertEquals(DATE, bean.getNested().getDateTime());
     assertEquals(DATE.toInstant(), bean.getNested().getInstant());
     assertArrayEquals("not equal", BYTE_ARRAY, bean.getNested().getBytes());
@@ -256,7 +275,7 @@ public class JavaBeanSchemaTest {
 
     NestedArrayBean bean = new NestedArrayBean(simple1, simple2, simple3);
     Row row = registry.getToRowFunction(NestedArrayBean.class).apply(bean);
-    List<Row> rows = row.getArray("beans");
+    List<Row> rows = (List) row.getArray("beans");
     assertSame(simple1, registry.getFromRowFunction(SimpleBean.class).apply(rows.get(0)));
     assertSame(simple2, registry.getFromRowFunction(SimpleBean.class).apply(rows.get(1)));
     assertSame(simple3, registry.getFromRowFunction(SimpleBean.class).apply(rows.get(2)));
@@ -367,7 +386,7 @@ public class JavaBeanSchemaTest {
     assertEquals((short) 2, (Object) row.getInt16("aShort"));
     assertEquals((int) 3, (Object) row.getInt32("anInt"));
     assertEquals((long) 4, (Object) row.getInt64("aLong"));
-    assertEquals(true, (Object) row.getBoolean("aBoolean"));
+    assertTrue(row.getBoolean("aBoolean"));
     assertEquals(DATE.toInstant(), row.getDateTime("dateTime"));
     assertEquals(DATE.toInstant(), row.getDateTime("instant"));
     assertArrayEquals(BYTE_ARRAY, row.getBytes("bytes"));
@@ -389,5 +408,55 @@ public class JavaBeanSchemaTest {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     thrown.expect(RuntimeException.class);
     Schema schema = registry.getSchema(MismatchingNullableBean.class);
+  }
+
+  @Test
+  public void testFromRowIterable() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(IterableBean.class);
+    SchemaTestUtils.assertSchemaEquivalent(ITERABLE_BEAM_SCHEMA, schema);
+
+    List<String> list = Lists.newArrayList("one", "two");
+    Row iterableRow = Row.withSchema(ITERABLE_BEAM_SCHEMA).addIterable(list).build();
+    IterableBean converted = registry.getFromRowFunction(IterableBean.class).apply(iterableRow);
+    assertEquals(list, Lists.newArrayList(converted.getStrings()));
+
+    // Make sure that the captured Iterable is backed by the previous one.
+    list.add("three");
+    assertEquals(list, Lists.newArrayList(converted.getStrings()));
+  }
+
+  @Test
+  public void testToRowArrayOfBytes() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(ArrayOfByteArray.class);
+    SchemaTestUtils.assertSchemaEquivalent(ARRAY_OF_BYTE_ARRAY_BEAM_SCHEMA, schema);
+
+    ArrayOfByteArray arrayOfByteArray =
+        new ArrayOfByteArray(
+            ImmutableList.of(ByteBuffer.wrap(BYTE_ARRAY), ByteBuffer.wrap(BYTE_ARRAY)));
+    Row expectedRow =
+        Row.withSchema(ARRAY_OF_BYTE_ARRAY_BEAM_SCHEMA)
+            .addArray(ImmutableList.of(BYTE_ARRAY, BYTE_ARRAY))
+            .build();
+    Row converted = registry.getToRowFunction(ArrayOfByteArray.class).apply(arrayOfByteArray);
+    assertEquals(expectedRow, converted);
+  }
+
+  @Test
+  public void testFromRowArrayOfBytes() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(ArrayOfByteArray.class);
+    SchemaTestUtils.assertSchemaEquivalent(ARRAY_OF_BYTE_ARRAY_BEAM_SCHEMA, schema);
+
+    ArrayOfByteArray expectedArrayOfByteArray =
+        new ArrayOfByteArray(
+            ImmutableList.of(ByteBuffer.wrap(BYTE_ARRAY), ByteBuffer.wrap(BYTE_ARRAY)));
+    Row row =
+        Row.withSchema(ARRAY_OF_BYTE_ARRAY_BEAM_SCHEMA)
+            .addArray(ImmutableList.of(BYTE_ARRAY, BYTE_ARRAY))
+            .build();
+    ArrayOfByteArray converted = registry.getFromRowFunction(ArrayOfByteArray.class).apply(row);
+    assertEquals(expectedArrayOfByteArray, converted);
   }
 }

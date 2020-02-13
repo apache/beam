@@ -16,9 +16,8 @@
 package beam
 
 import (
-	"fmt"
-
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // External defines a Beam external transform. The interpretation of this primitive is runner
@@ -34,11 +33,11 @@ func External(s Scope, spec string, payload []byte, in []PCollection, out []Full
 // failed.
 func TryExternal(s Scope, spec string, payload []byte, in []PCollection, out []FullType, bounded bool) ([]PCollection, error) {
 	if !s.IsValid() {
-		return nil, fmt.Errorf("invalid scope")
+		return nil, errors.New("invalid scope")
 	}
 	for i, col := range in {
 		if !col.IsValid() {
-			return nil, fmt.Errorf("invalid pcollection to external: index %v", i)
+			return nil, errors.Errorf("invalid pcollection to external: index %v", i)
 		}
 	}
 

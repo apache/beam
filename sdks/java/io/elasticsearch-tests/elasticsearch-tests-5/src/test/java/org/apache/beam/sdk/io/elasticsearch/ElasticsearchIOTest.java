@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.elasticsearch;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_TYPE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.getEsIndex;
+import static org.elasticsearch.test.ESIntegTestCase.Scope.SUITE;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import java.io.IOException;
@@ -44,6 +45,8 @@ Cannot have @BeforeClass @AfterClass with ESIntegTestCase
 
 /** Tests for {@link ElasticsearchIO} version 5. */
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
+// use cluster of 1 node that has data + master roles
+@ESIntegTestCase.ClusterScope(scope = SUITE, numDataNodes = 1, supportsDedicatedMasters = false)
 public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable {
 
   private ElasticsearchIOTestCommon elasticsearchIOTestCommon;
@@ -87,11 +90,10 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
 
   @Before
   public void setup() throws IOException {
-    internalCluster().ensureAtMostNumDataNodes(1);
     if (connectionConfiguration == null) {
       connectionConfiguration =
           ConnectionConfiguration.create(fillAddresses(), getEsIndex(), ES_TYPE)
-              .withSocketAndRetryTimeout(120000)
+              .withSocketTimeout(120000)
               .withConnectTimeout(5000);
       elasticsearchIOTestCommon =
           new ElasticsearchIOTestCommon(connectionConfiguration, getRestClient(), false);
@@ -118,12 +120,21 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   }
 
   @Test
-  public void testReadWithQuery() throws Exception {
+  public void testReadWithQueryString() throws Exception {
     // need to create the index using the helper method (not create it at first insertion)
     // for the indexSettings() to be run
     createIndex(getEsIndex());
     elasticsearchIOTestCommon.setPipeline(pipeline);
-    elasticsearchIOTestCommon.testReadWithQuery();
+    elasticsearchIOTestCommon.testReadWithQueryString();
+  }
+
+  @Test
+  public void testReadWithQueryValueProvider() throws Exception {
+    // need to create the index using the helper method (not create it at first insertion)
+    // for the indexSettings() to be run
+    createIndex(getEsIndex());
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testReadWithQueryValueProvider();
   }
 
   @Test

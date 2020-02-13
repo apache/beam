@@ -28,16 +28,20 @@ import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.hcatalog.test.EmbeddedMetastoreService;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.hadoop.hive.ql.CommandNeedRetryException;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link HCatalogBeamSchema}. */
+@RunWith(JUnit4.class)
 public class HCatalogBeamSchemaTest implements Serializable {
+
+  private static final String TEST_TABLE_PARTITIONED = TEST_TABLE + "_partitioned";
   @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
 
   private static EmbeddedMetastoreService service;
@@ -61,19 +65,19 @@ public class HCatalogBeamSchemaTest implements Serializable {
   }
 
   @Test
-  public void testHasDB() throws Exception {
+  public void testHasDB() {
     HCatalogBeamSchema hcatSchema = HCatalogBeamSchema.create(service.getHiveConfAsMap());
     assertTrue(hcatSchema.hasDatabase(TEST_DATABASE));
   }
 
   @Test
-  public void testDoesntHaveDB() throws Exception {
+  public void testDoesntHaveDB() {
     HCatalogBeamSchema hcatSchema = HCatalogBeamSchema.create(service.getHiveConfAsMap());
     assertFalse(hcatSchema.hasDatabase("non-existent-db"));
   }
 
   @Test
-  public void testGetTableSchema() throws Exception {
+  public void testGetTableSchema() {
     HCatalogBeamSchema hcatSchema = HCatalogBeamSchema.create(service.getHiveConfAsMap());
     Schema schema = hcatSchema.getTableSchema(TEST_DATABASE, TEST_TABLE).get();
 
@@ -87,7 +91,23 @@ public class HCatalogBeamSchemaTest implements Serializable {
   }
 
   @Test
-  public void testDoesntHaveTable() throws Exception {
+  public void testGetTableSchemaForPartitionedTable() {
+    HCatalogBeamSchema hcatSchema = HCatalogBeamSchema.create(service.getHiveConfAsMap());
+    Schema schema = hcatSchema.getTableSchema(TEST_DATABASE, TEST_TABLE_PARTITIONED).get();
+
+    Schema expectedSchema =
+        Schema.builder()
+            .addNullableField("mycol1", Schema.FieldType.STRING)
+            .addNullableField("mycol2", Schema.FieldType.INT32)
+            .addNullableField("part1", Schema.FieldType.STRING)
+            .addNullableField("part2", Schema.FieldType.INT32)
+            .build();
+
+    assertEquals(expectedSchema, schema);
+  }
+
+  @Test
+  public void testDoesntHaveTable() {
     HCatalogBeamSchema hcatSchema = HCatalogBeamSchema.create(service.getHiveConfAsMap());
     assertFalse(hcatSchema.getTableSchema(TEST_DATABASE, "non-existent-table").isPresent());
   }
@@ -97,8 +117,14 @@ public class HCatalogBeamSchemaTest implements Serializable {
     insertTestData(service.getHiveConfAsMap());
   }
 
-  private void reCreateTestTable() throws CommandNeedRetryException {
+  private void reCreateTestTable() {
     service.executeQuery("drop table " + TEST_TABLE);
+    service.executeQuery("drop table " + TEST_TABLE_PARTITIONED);
     service.executeQuery("create table " + TEST_TABLE + "(mycol1 string, mycol2 int)");
+    service.executeQuery(
+        "create table "
+            + TEST_TABLE_PARTITIONED
+            + "(mycol1 string, mycol2 int) "
+            + "partitioned by (part1 string, part2 int)");
   }
 }

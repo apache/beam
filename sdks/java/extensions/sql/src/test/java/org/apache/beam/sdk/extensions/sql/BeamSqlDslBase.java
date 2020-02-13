@@ -29,7 +29,6 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PBegin;
@@ -256,66 +255,34 @@ public class BeamSqlDslBase {
   @Before
   public void preparePCollections() {
     boundedInput1 =
-        pipeline.apply(
-            "boundedInput1",
-            Create.of(rowsInTableA)
-                .withSchema(
-                    schemaInTableA,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+        pipeline.apply("boundedInput1", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
 
     boundedInput2 =
         pipeline.apply(
-            "boundedInput2",
-            Create.of(rowsInTableA.get(0))
-                .withSchema(
-                    schemaInTableA,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+            "boundedInput2", Create.of(rowsInTableA.get(0)).withRowSchema(schemaInTableA));
 
     boundedInputFloatDouble =
         pipeline.apply(
             "boundedInputFloatDouble",
-            Create.of(rowsOfFloatDouble)
-                .withSchema(
-                    schemaFloatDouble,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+            Create.of(rowsOfFloatDouble).withRowSchema(schemaFloatDouble));
 
     boundedInputBytes =
-        pipeline.apply(
-            "boundedInputBytes",
-            Create.of(rowsOfBytes)
-                .withSchema(
-                    schemaBytes,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+        pipeline.apply("boundedInputBytes", Create.of(rowsOfBytes).withRowSchema(schemaBytes));
 
     boundedInputBytesPaddingTest =
         pipeline.apply(
             "boundedInputBytesPaddingTest",
-            Create.of(rowsOfBytesPaddingTest)
-                .withSchema(
-                    schemaBytesPaddingTest,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+            Create.of(rowsOfBytesPaddingTest).withRowSchema(schemaBytesPaddingTest));
     boundedInputMonthly =
         pipeline.apply(
-            "boundedInputMonthly",
-            Create.of(monthlyRowsInTableA)
-                .withSchema(
-                    schemaInTableA,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+            "boundedInputMonthly", Create.of(monthlyRowsInTableA).withRowSchema(schemaInTableA));
 
     unboundedInput1 = prepareUnboundedPCollection1();
     unboundedInput2 = prepareUnboundedPCollection2();
   }
 
   private PCollection<Row> prepareUnboundedPCollection1() {
-    TestStream.Builder<Row> values =
-        TestStream.create(
-            schemaInTableA, SerializableFunctions.identity(), SerializableFunctions.identity());
+    TestStream.Builder<Row> values = TestStream.create(schemaInTableA);
 
     for (Row row : rowsInTableA) {
       values = values.advanceWatermarkTo(new Instant(row.getDateTime("f_timestamp")));
@@ -330,9 +297,7 @@ public class BeamSqlDslBase {
   }
 
   private PCollection<Row> prepareUnboundedPCollection2() {
-    TestStream.Builder<Row> values =
-        TestStream.create(
-            schemaInTableA, SerializableFunctions.identity(), SerializableFunctions.identity());
+    TestStream.Builder<Row> values = TestStream.create(schemaInTableA);
 
     Row row = rowsInTableA.get(0);
     values = values.advanceWatermarkTo(new Instant(row.getDateTime("f_timestamp")));

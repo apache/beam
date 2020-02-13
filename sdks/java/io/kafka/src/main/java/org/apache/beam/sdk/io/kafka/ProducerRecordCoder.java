@@ -79,14 +79,14 @@ public class ProducerRecordCoder<K, V> extends StructuredCoder<ProducerRecord<K,
 
     Headers headers = (Headers) toHeaders(headerCoder.decode(inStream));
     KV<K, V> kv = kvCoder.decode(inStream);
-    if (ConsumerSpEL.hasHeaders) {
+    if (ConsumerSpEL.hasHeaders()) {
       return new ProducerRecord<>(topic, partition, timestamp, kv.getKey(), kv.getValue(), headers);
     }
     return new ProducerRecord<>(topic, partition, timestamp, kv.getKey(), kv.getValue());
   }
 
   private Object toHeaders(Iterable<KV<String, byte[]>> records) {
-    if (!ConsumerSpEL.hasHeaders) {
+    if (!ConsumerSpEL.hasHeaders()) {
       return null;
     }
 
@@ -97,7 +97,7 @@ public class ProducerRecordCoder<K, V> extends StructuredCoder<ProducerRecord<K,
   }
 
   private Iterable<KV<String, byte[]>> toIterable(ProducerRecord record) {
-    if (!ConsumerSpEL.hasHeaders) {
+    if (!ConsumerSpEL.hasHeaders()) {
       return Collections.emptyList();
     }
     List<KV<String, byte[]>> vals = new ArrayList<>();
@@ -128,13 +128,18 @@ public class ProducerRecordCoder<K, V> extends StructuredCoder<ProducerRecord<K,
     if (consistentWithEquals()) {
       return value;
     } else {
-      return new ProducerRecord<>(
-          value.topic(),
-          value.partition(),
-          value.timestamp(),
-          value.key(),
-          value.value(),
-          value.headers());
+      if (!ConsumerSpEL.hasHeaders()) {
+        return new ProducerRecord<>(
+            value.topic(), value.partition(), value.timestamp(), value.key(), value.value());
+      } else {
+        return new ProducerRecord<>(
+            value.topic(),
+            value.partition(),
+            value.timestamp(),
+            value.key(),
+            value.value(),
+            value.headers());
+      }
     }
   }
 

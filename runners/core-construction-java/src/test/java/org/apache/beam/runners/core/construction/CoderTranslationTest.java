@@ -28,25 +28,33 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
+import org.apache.avro.SchemaBuilder;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -57,11 +65,13 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link CoderTranslation}. */
 public class CoderTranslationTest {
-  private static final Set<StructuredCoder<?>> KNOWN_CODERS =
-      ImmutableSet.<StructuredCoder<?>>builder()
+  private static final Set<Coder<?>> KNOWN_CODERS =
+      ImmutableSet.<Coder<?>>builder()
           .add(ByteArrayCoder.of())
+          .add(BooleanCoder.of())
           .add(KvCoder.of(VarLongCoder.of(), VarLongCoder.of()))
           .add(VarLongCoder.of())
+          .add(StringUtf8Coder.of())
           .add(IntervalWindowCoder.of())
           .add(IterableCoder.of(ByteArrayCoder.of()))
           .add(Timer.Coder.of(ByteArrayCoder.of()))
@@ -70,6 +80,15 @@ public class CoderTranslationTest {
           .add(
               FullWindowedValueCoder.of(
                   IterableCoder.of(VarLongCoder.of()), IntervalWindowCoder.of()))
+          .add(WindowedValue.ParamWindowedValueCoder.of(IterableCoder.of(VarLongCoder.of())))
+          .add(DoubleCoder.of())
+          .add(
+              RowCoder.of(
+                  Schema.of(
+                      Field.of("i16", FieldType.INT16),
+                      Field.of("array", FieldType.array(FieldType.STRING)),
+                      Field.of("map", FieldType.map(FieldType.STRING, FieldType.INT32)),
+                      Field.of("bar", FieldType.logicalType(FixedBytes.of(123))))))
           .build();
 
   /**
@@ -123,6 +142,13 @@ public class CoderTranslationTest {
               StringUtf8Coder.of(),
               SerializableCoder.of(Record.class),
               new RecordCoder(),
+              KvCoder.of(
+                  new RecordCoder(),
+                  AvroCoder.of(SchemaBuilder.record("record").fields().endRecord())))
+          .add(
+              StringUtf8Coder.of(),
+              SerializableCoder.of(Record.class),
+              new RecordCoder(),
               KvCoder.of(new RecordCoder(), AvroCoder.of(Record.class)))
           .build();
     }
@@ -145,7 +171,7 @@ public class CoderTranslationTest {
       if (KNOWN_CODERS.contains(coder)) {
         for (RunnerApi.Coder encodedCoder : encodedComponents.getCodersMap().values()) {
           assertThat(
-              encodedCoder.getSpec().getSpec().getUrn(),
+              encodedCoder.getSpec().getUrn(),
               not(equalTo(CoderTranslation.JAVA_SERIALIZED_CODER_URN)));
         }
       }

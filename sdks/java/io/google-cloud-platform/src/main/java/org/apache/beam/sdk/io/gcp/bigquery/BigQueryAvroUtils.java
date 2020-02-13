@@ -21,10 +21,10 @@ import static java.time.temporal.ChronoField.HOUR_OF_DAY;
 import static java.time.temporal.ChronoField.MINUTE_OF_HOUR;
 import static java.time.temporal.ChronoField.NANO_OF_SECOND;
 import static java.time.temporal.ChronoField.SECOND_OF_MINUTE;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Verify.verify;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Verify.verifyNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verify;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verifyNotNull;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
@@ -44,9 +44,10 @@ import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
@@ -64,7 +65,7 @@ class BigQueryAvroUtils {
    * <p>Some BigQuery types are duplicated here since slightly different Avro records are produced
    * when exporting data in Avro format and when reading data directly using the read API.
    */
-  public static final ImmutableMultimap<String, Type> BIG_QUERY_TO_AVRO_TYPES =
+  static final ImmutableMultimap<String, Type> BIG_QUERY_TO_AVRO_TYPES =
       ImmutableMultimap.<String, Type>builder()
           .put("STRING", Type.STRING)
           .put("GEOGRAPHY", Type.STRING)
@@ -89,31 +90,23 @@ class BigQueryAvroUtils {
   private static final DateTimeFormatter DATE_AND_SECONDS_FORMATTER =
       DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC();
 
-  private static String formatTimestamp(String timestamp) {
-    // timestamp is in "seconds since epoch" format, with scientific notation.
-    // e.g., "1.45206229112345E9" to mean "2016-01-06 06:38:11.123456 UTC".
+  @VisibleForTesting
+  static String formatTimestamp(Long timestampMicro) {
+    // timestampMicro is in "microseconds since epoch" format,
+    // e.g., 1452062291123456L means "2016-01-06 06:38:11.123456 UTC".
     // Separate into seconds and microseconds.
-    double timestampDoubleMicros = Double.parseDouble(timestamp) * 1000000;
-    long timestampMicros = (long) timestampDoubleMicros;
-    long seconds = timestampMicros / 1000000;
-    int micros = (int) (timestampMicros % 1000000);
-    String dayAndTime = DATE_AND_SECONDS_FORMATTER.print(seconds * 1000);
+    long timestampSec = timestampMicro / 1_000_000;
+    long micros = timestampMicro % 1_000_000;
+    if (micros < 0) {
+      micros += 1_000_000;
+      timestampSec -= 1;
+    }
+    String dayAndTime = DATE_AND_SECONDS_FORMATTER.print(timestampSec * 1000);
 
-    // No sub-second component.
     if (micros == 0) {
       return String.format("%s UTC", dayAndTime);
     }
-
-    // Sub-second component.
-    int digits = 6;
-    int subsecond = micros;
-    while (subsecond % 10 == 0) {
-      digits--;
-      subsecond /= 10;
-    }
-    String formatString = String.format("%%0%dd", digits);
-    String fractionalSeconds = String.format(formatString, subsecond);
-    return String.format("%s.%s UTC", dayAndTime, fractionalSeconds);
+    return String.format("%s.%06d UTC", dayAndTime, micros);
   }
 
   /**
@@ -311,12 +304,10 @@ class BigQueryAvroUtils {
         verify(v instanceof Boolean, "Expected Boolean, got %s", v.getClass());
         return v;
       case "TIMESTAMP":
-        // TIMESTAMP data types are represented as Avro LONG types. They are converted back to
-        // Strings with variable precision (up to six digits) to match the JSON files exported by
-        // BigQuery.
+        // TIMESTAMP data types are represented as Avro LONG types, microseconds since the epoch.
+        // Values may be negative since BigQuery timestamps start at 0001-01-01 00:00:00 UTC.
         verify(v instanceof Long, "Expected Long, got %s", v.getClass());
-        double doubleValue = ((Long) v) / 1_000_000.0;
-        return formatTimestamp(Double.toString(doubleValue));
+        return formatTimestamp((Long) v);
       case "RECORD":
         verify(v instanceof GenericRecord, "Expected GenericRecord, got %s", v.getClass());
         return convertGenericRecordToTableRow((GenericRecord) v, fieldSchema.getFields());
@@ -369,14 +360,20 @@ class BigQueryAvroUtils {
     }
     return Schema.createRecord(
         schemaName,
-        "org.apache.beam.sdk.io.gcp.bigquery",
         "Translated Avro Schema for " + schemaName,
+        "org.apache.beam.sdk.io.gcp.bigquery",
         false,
         avroFields);
   }
 
   private static Field convertField(TableFieldSchema bigQueryField) {
-    Type avroType = BIG_QUERY_TO_AVRO_TYPES.get(bigQueryField.getType()).iterator().next();
+    ImmutableCollection<Type> avroTypes = BIG_QUERY_TO_AVRO_TYPES.get(bigQueryField.getType());
+    if (avroTypes.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Unable to map BigQuery field type " + bigQueryField.getType() + " to avro type.");
+    }
+
+    Type avroType = avroTypes.iterator().next();
     Schema elementSchema;
     if (avroType == Type.RECORD) {
       elementSchema = toGenericAvroSchema(bigQueryField.getName(), bigQueryField.getFields());

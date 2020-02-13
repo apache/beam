@@ -25,6 +25,7 @@ import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.ByteKeyRangeTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.hadoop.hbase.HRegionLocation;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
@@ -57,7 +58,8 @@ class HBaseReadSplittableDoFn extends DoFn<HBaseQuery, Result> {
   }
 
   @ProcessElement
-  public void processElement(ProcessContext c, ByteKeyRangeTracker tracker) throws Exception {
+  public void processElement(ProcessContext c, RestrictionTracker<ByteKeyRange, ByteKey> tracker)
+      throws Exception {
     final HBaseQuery query = c.element();
     TableName tableName = TableName.valueOf(query.getTableId());
     Table table = connection.getTable(tableName);
@@ -75,27 +77,27 @@ class HBaseReadSplittableDoFn extends DoFn<HBaseQuery, Result> {
   }
 
   @GetInitialRestriction
-  public ByteKeyRange getInitialRestriction(HBaseQuery query) {
-    return ByteKeyRange.of(
-        ByteKey.copyFrom(query.getScan().getStartRow()),
-        ByteKey.copyFrom(query.getScan().getStopRow()));
+  public ByteKeyRange getInitialRestriction(@Element HBaseQuery query) {
+    return HBaseUtils.getByteKeyRange(query.getScan());
   }
 
   @SplitRestriction
   public void splitRestriction(
-      HBaseQuery query, ByteKeyRange range, OutputReceiver<ByteKeyRange> receiver)
+      @Element HBaseQuery query,
+      @Restriction ByteKeyRange range,
+      OutputReceiver<ByteKeyRange> receiver)
       throws Exception {
     List<HRegionLocation> regionLocations =
-        HBaseUtils.getRegionLocations(connection, query.getTableId(), query.getScan());
+        HBaseUtils.getRegionLocations(connection, query.getTableId(), range);
     List<ByteKeyRange> splitRanges =
-        HBaseUtils.getRanges(regionLocations, query.getTableId(), query.getScan());
+        HBaseUtils.getRanges(regionLocations, query.getTableId(), range);
     for (ByteKeyRange splitRange : splitRanges) {
       receiver.output(ByteKeyRange.of(splitRange.getStartKey(), splitRange.getEndKey()));
     }
   }
 
   @NewTracker
-  public ByteKeyRangeTracker newTracker(ByteKeyRange range) {
+  public ByteKeyRangeTracker newTracker(@Restriction ByteKeyRange range) {
     return ByteKeyRangeTracker.of(range);
   }
 

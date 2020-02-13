@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,10 +33,12 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -52,8 +54,8 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -251,13 +253,24 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
-            public Row asRow(@Nullable String id) {
+            public InputT sideInput(String sideInputTag) {
+              throw new UnsupportedOperationException("SideInputs are not supported by DoFnTester");
+            }
+
+            @Override
+            public InputT schemaElement(int index) {
               throw new UnsupportedOperationException("Schemas are not supported by DoFnTester");
             }
 
             @Override
             public Instant timestamp(DoFn<InputT, OutputT> doFn) {
               return processContext.timestamp();
+            }
+
+            @Override
+            public String timerId(DoFn<InputT, OutputT> doFn) {
+              throw new UnsupportedOperationException(
+                  "Cannot access timerId as parameter outside of @OnTimer method.");
             }
 
             @Override
@@ -287,6 +300,12 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
+            public Object restriction() {
+              throw new UnsupportedOperationException(
+                  "Not expected to access Restriction from a regular DoFn in DoFnTester");
+            }
+
+            @Override
             public RestrictionTracker<?, ?> restrictionTracker() {
               throw new UnsupportedOperationException(
                   "Not expected to access RestrictionTracker from a regular DoFn in DoFnTester");
@@ -300,6 +319,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             @Override
             public Timer timer(String timerId) {
               throw new UnsupportedOperationException("DoFnTester doesn't support timers yet");
+            }
+
+            @Override
+            public TimerMap timerFamily(String tagId) {
+              throw new UnsupportedOperationException("DoFnTester doesn't support timerFamily yet");
             }
           });
     } catch (UserCodeException e) {
@@ -515,7 +539,18 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
           Materializations.MULTIMAP_MATERIALIZATION_URN,
           view.getViewFn().getMaterialization().getUrn());
       return ((ViewFn<Materializations.MultimapView, T>) view.getViewFn())
-          .apply(o -> Collections.emptyList());
+          .apply(
+              new MultimapView() {
+                @Override
+                public Iterable get() {
+                  return Collections.emptyList();
+                }
+
+                @Override
+                public Iterable get(@Nullable Object o) {
+                  return Collections.emptyList();
+                }
+              });
     }
 
     @Override
@@ -667,6 +702,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             @Override
             @Nullable
             public Void dispatch(DoFnSignature.Parameter.PaneInfoParameter p) {
+              return null;
+            }
+
+            @Override
+            public Void dispatch(DoFnSignature.Parameter.TimerIdParameter p) {
               return null;
             }
 

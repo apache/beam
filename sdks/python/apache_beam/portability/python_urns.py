@@ -38,8 +38,8 @@ GENERIC_COMPOSITE_TRANSFORM = "beam:transform:generic_composite:v1"
 EMBEDDED_PYTHON = "beam:env:embedded_python:v1"
 
 # Invoke UserFns in process, but over GRPC channels.
-# Payload: (optional) Number of worker threads, as a decimal string.
-# (Used for testing.)
+# Payload: (optional) Number of worker threads, followed by ',' and the size of
+# the state cache, as a decimal string, e.g. '2,1000'.
 EMBEDDED_PYTHON_GRPC = "beam:env:embedded_python_grpc:v1"
 
 # Instantiate SDK harness via a command line provided in the payload.

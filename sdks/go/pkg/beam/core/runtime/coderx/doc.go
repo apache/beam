@@ -19,3 +19,4 @@ package coderx
 
 //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
 //go:generate starcgen --package=coderx --identifiers=encString,decString,encUint32,decUint32,encInt32,decInt32,encUint64,decUint64,encInt64,decInt64,encVarIntZ,decVarIntZ,encVarUintZ,decVarUintZ,encFloat,decFloat
+//go:generate go fmt

@@ -18,6 +18,7 @@
 
 import CommonJobProperties as commonJobProperties
 import CommonTestProperties.Runner
+import CommonTestProperties.SDK
 import CommonTestProperties.TriggeringContext
 import NexmarkBigqueryProperties
 import NexmarkBuilder as Nexmark
@@ -37,11 +38,13 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
     shell('echo *** RUN NEXMARK IN BATCH MODE USING FLINK RUNNER ***')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-sdks-java-nexmark:run')
+      tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":beam-runners-flink_2.11"' +
+      switches('-Pnexmark.runner=":runners:flink:1.9"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              '--runner=FlinkRunner',
+              '--shutdownSourcesOnFinalWatermark=true',
               '--streaming=false',
               '--suite=SMOKE',
               '--streamTimeout=60' ,
@@ -52,11 +55,13 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
     shell('echo *** RUN NEXMARK IN STREAMING MODE USING FLINK RUNNER ***')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-sdks-java-nexmark:run')
+      tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":beam-runners-flink_2.11"' +
+      switches('-Pnexmark.runner=":runners:flink:1.9"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              '--runner=FlinkRunner',
+              '--shutdownSourcesOnFinalWatermark=true',
               '--streaming=true',
               '--suite=SMOKE',
               '--streamTimeout=60' ,
@@ -67,11 +72,13 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
     shell('echo *** RUN NEXMARK IN SQL BATCH MODE USING FLINK RUNNER ***')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-sdks-java-nexmark:run')
+      tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":beam-runners-flink_2.11"' +
+      switches('-Pnexmark.runner=":runners:flink:1.9"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              '--runner=FlinkRunner',
+              '--shutdownSourcesOnFinalWatermark=true',
               '--queryLanguage=sql',
               '--streaming=false',
               '--suite=SMOKE',
@@ -82,11 +89,13 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
     shell('echo *** RUN NEXMARK IN SQL STREAMING MODE USING FLINK RUNNER ***')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':beam-sdks-java-nexmark:run')
+      tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":beam-runners-flink_2.11"' +
+      switches('-Pnexmark.runner=":runners:flink:1.9"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              '--runner=FlinkRunner',
+              '--shutdownSourcesOnFinalWatermark=true',
               '--queryLanguage=sql',
               '--streaming=true',
               '--suite=SMOKE',
@@ -106,9 +115,10 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Fl
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
   def final JOB_SPECIFIC_OPTIONS = [
-          'suite'        : 'SMOKE',
-          'streamTimeout': 60,
+          'suite' : 'SMOKE',
+          'streamTimeout' : 60,
+          'shutdownSourcesOnFinalWatermark' : true,
   ]
 
-  Nexmark.standardJob(delegate, Runner.FLINK, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
+  Nexmark.standardJob(delegate, Runner.FLINK, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
 }

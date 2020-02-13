@@ -21,12 +21,13 @@ def basePath = '..'
 /* All properties required for loading the Flink build script */
 project.ext {
   // Set the version of all Flink-related dependencies here.
-  flink_version = '1.7.1'
-  // Look for the source code in the parent module
-  main_source_dirs = ["$basePath/src/main/java"]
-  test_source_dirs = ["$basePath/src/test/java"]
-  main_resources_dirs = ["$basePath/src/main/resources"]
-  test_resources_dirs = ["$basePath/src/test/resources"]
+  flink_version = '1.7.2'
+  // Version specific code overrides.
+  main_source_overrides = ['./src/main/java']
+  test_source_overrides = ['./src/test/java']
+  main_resources_overrides = []
+  test_resources_overrides = []
+  archives_base_name = 'beam-runners-flink-1.7'
 }
 
 // Load the main build script which contains all build logic.

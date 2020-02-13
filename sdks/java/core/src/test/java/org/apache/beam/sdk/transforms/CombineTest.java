@@ -21,8 +21,8 @@ import static org.apache.beam.sdk.testing.CombineFnTester.testCombineFn;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
@@ -80,10 +80,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -632,6 +632,10 @@ public class CombineTest implements Serializable {
         }
         return sum;
       }
+
+      public int add(int a, int b) {
+        return a + b;
+      }
     }
   }
 
@@ -907,6 +911,20 @@ public class CombineTest implements Serializable {
       pipeline.run();
     }
 
+    /** Tests creation of a per-key binary {@link Combine} via a Java 8 lambda. */
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testBinaryCombinePerKeyLambda() {
+
+      PCollection<KV<String, Integer>> output =
+          pipeline
+              .apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 3), KV.of("c", 4)))
+              .apply(Combine.perKey((a, b) -> a + b));
+
+      PAssert.that(output).containsInAnyOrder(KV.of("a", 4), KV.of("b", 2), KV.of("c", 4));
+      pipeline.run();
+    }
+
     /** Tests creation of a per-key {@link Combine} via a Java 8 method reference. */
     @Test
     @Category(ValidatesRunner.class)
@@ -916,6 +934,20 @@ public class CombineTest implements Serializable {
           pipeline
               .apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 3), KV.of("c", 4)))
               .apply(Combine.perKey(new Summer()::sum));
+
+      PAssert.that(output).containsInAnyOrder(KV.of("a", 4), KV.of("b", 2), KV.of("c", 4));
+      pipeline.run();
+    }
+
+    /** Tests creation of a per-key binary {@link Combine} via a Java 8 method reference. */
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testBinaryCombinePerKeyInstanceMethodReference() {
+
+      PCollection<KV<String, Integer>> output =
+          pipeline
+              .apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 3), KV.of("c", 4)))
+              .apply(Combine.perKey(new Summer()::add));
 
       PAssert.that(output).containsInAnyOrder(KV.of("a", 4), KV.of("b", 2), KV.of("c", 4));
       pipeline.run();

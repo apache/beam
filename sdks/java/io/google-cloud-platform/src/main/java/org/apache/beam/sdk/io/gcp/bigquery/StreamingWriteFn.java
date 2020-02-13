@@ -34,8 +34,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Instant;
 
 /** Implementation of DoFn to perform streaming BigQuery write. */
@@ -49,6 +49,7 @@ class StreamingWriteFn<ErrorT, ElementT>
   private final ErrorContainer<ErrorT> errorContainer;
   private final boolean skipInvalidRows;
   private final boolean ignoreUnknownValues;
+  private final boolean ignoreInsertIds;
   private final SerializableFunction<ElementT, TableRow> toTableRow;
 
   /** JsonTableRows to accumulate BigQuery rows in order to batch writes. */
@@ -67,6 +68,7 @@ class StreamingWriteFn<ErrorT, ElementT>
       ErrorContainer<ErrorT> errorContainer,
       boolean skipInvalidRows,
       boolean ignoreUnknownValues,
+      boolean ignoreInsertIds,
       SerializableFunction<ElementT, TableRow> toTableRow) {
     this.bqServices = bqServices;
     this.retryPolicy = retryPolicy;
@@ -74,6 +76,7 @@ class StreamingWriteFn<ErrorT, ElementT>
     this.errorContainer = errorContainer;
     this.skipInvalidRows = skipInvalidRows;
     this.ignoreUnknownValues = ignoreUnknownValues;
+    this.ignoreInsertIds = ignoreInsertIds;
     this.toTableRow = toTableRow;
   }
 
@@ -145,7 +148,8 @@ class StreamingWriteFn<ErrorT, ElementT>
                     failedInserts,
                     errorContainer,
                     skipInvalidRows,
-                    ignoreUnknownValues);
+                    ignoreUnknownValues,
+                    ignoreInsertIds);
         byteCounter.inc(totalBytes);
       } catch (IOException e) {
         throw new RuntimeException(e);

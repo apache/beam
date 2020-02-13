@@ -79,7 +79,7 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
   }
 
   private Object toHeaders(Iterable<KV<String, byte[]>> records) {
-    if (!ConsumerSpEL.hasHeaders) {
+    if (!ConsumerSpEL.hasHeaders()) {
       return null;
     }
 
@@ -90,7 +90,7 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
   }
 
   private Iterable<KV<String, byte[]>> toIterable(KafkaRecord record) {
-    if (!ConsumerSpEL.hasHeaders) {
+    if (!ConsumerSpEL.hasHeaders()) {
       return Collections.emptyList();
     }
 
@@ -129,7 +129,7 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
           value.getOffset(),
           value.getTimestamp(),
           value.getTimestampType(),
-          !ConsumerSpEL.hasHeaders ? null : value.getHeaders(),
+          !ConsumerSpEL.hasHeaders() ? null : value.getHeaders(),
           (KV<Object, Object>) kvCoder.structuralValue(value.getKV()));
     }
   }

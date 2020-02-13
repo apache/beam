@@ -27,7 +27,7 @@ import java.io.PrintStream;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import org.apache.beam.runners.dataflow.worker.LogSaver;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;

@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.samza;
 
+import static org.apache.samza.config.JobConfig.JOB_LOGGED_STORE_BASE_DIR;
+import static org.apache.samza.config.JobConfig.JOB_NON_LOGGED_STORE_BASE_DIR;
+
 import java.io.File;
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -31,9 +34,6 @@ import org.apache.commons.io.FileUtils;
 
 /** Test {@link SamzaRunner}. */
 public class TestSamzaRunner extends PipelineRunner<PipelineResult> {
-  // TODO: use Samza Java configs once upgrade to 1.2.1
-  private static final String JOB_LOGGED_STORE_BASE_DIR = "job.logged.store.base.dir";
-  private static final String JOB_NON_LOGGED_STORE_BASE_DIR = "job.non-logged.store.base.dir";
 
   private final SamzaRunner delegate;
 

@@ -17,8 +17,15 @@
  */
 package org.apache.beam.sdk.testutils.metrics;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+
+import com.sun.istack.internal.NotNull;
+import java.util.Collection;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.DistributionResult;
@@ -26,9 +33,10 @@ import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsFilter;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.slf4j.LoggerFactory;
 
@@ -46,14 +54,18 @@ public class MetricsReader {
   private final long now;
 
   @VisibleForTesting
-  MetricsReader(PipelineResult result, String namespace, long now) {
+  MetricsReader(PipelineResult result, String defaultNamespace, long now) {
     this.result = result;
-    this.namespace = namespace;
+    this.namespace = defaultNamespace;
     this.now = now;
   }
 
   public MetricsReader(PipelineResult result, String namespace) {
     this(result, namespace, System.currentTimeMillis());
+  }
+
+  public MetricsReader withNamespace(String namespace) {
+    return new MetricsReader(result, namespace, now);
   }
 
   /**
@@ -88,6 +100,11 @@ public class MetricsReader {
   public long getStartTimeMetric(String name) {
     Iterable<MetricResult<DistributionResult>> timeDistributions = getDistributions(name);
     return getLowestMin(timeDistributions);
+  }
+
+  public Collection<NamedTestResult> readAll(
+      Set<Function<MetricsReader, NamedTestResult>> suppliers) {
+    return suppliers.stream().map(supp -> supp.apply(this)).collect(Collectors.toSet());
   }
 
   private Long getLowestMin(Iterable<MetricResult<DistributionResult>> distributions) {
@@ -149,5 +166,20 @@ public class MetricsReader {
    */
   private boolean isCredible(long value) {
     return (Math.abs(value - now) <= Duration.standardDays(10000).getMillis());
+  }
+
+  /**
+   * Factory method. Returns instance of {@link MetricsReader}.
+   *
+   * @param results pipeline from which metrics are read from
+   * @param namespace namespace is required due to fact methods uses it internally
+   * @return instance of {@link MetricsReader}
+   */
+  @NotNull
+  public static MetricsReader ofResults(
+      @NotNull final PipelineResult results, @NotNull final String namespace) {
+    checkNotNull(results);
+    checkNotNull(namespace);
+    return new MetricsReader(results, namespace);
   }
 }

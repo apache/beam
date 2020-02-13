@@ -1,0 +1,106 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
+applyPythonNature()
+enablePythonPerformanceTest()
+
+dependencies {
+  distTarBall project(path: ":sdks:python", configuration: "distTarBall")
+}
+
+// Required to setup a Python 3 virtualenv.
+pythonVersion = '3.6'
+
+
+def runScriptsDir = "${rootDir}/sdks/python/scripts"
+
+// Basic test options for ITs running on Jenkins.
+def basicTestOpts = [
+    "--nocapture",  // print stdout instantly
+    "--processes=8",  // run tests in parallel
+    "--process-timeout=4500", // timeout of whole command execution
+]
+
+task postCommitIT {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+
+  doLast {
+    def testOpts = basicTestOpts + ["--attr=IT"]
+
+     def cmdArgs = mapToArgString([
+        "test_opts": testOpts,
+        "sdk_location": files(configurations.distTarBall.files).singleFile,
+        "worker_jar": dataflowWorkerJar,
+        "suite": "postCommitIT-df-py36"
+    ])
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
+task validatesRunnerBatchTests {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+
+  doLast {
+    def testOpts = basicTestOpts + ["--attr=ValidatesRunner"]
+    def cmdArgs = mapToArgString([
+        "test_opts": testOpts,
+        "sdk_location": files(configurations.distTarBall.files).singleFile,
+        "worker_jar": dataflowWorkerJar,
+        "suite": "validatesRunnerBatchTests-df-py36"
+    ])
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
+task validatesRunnerStreamingTests {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+
+  doLast {
+    // TODO(BEAM-3544,BEAM-5025): Disable tests with 'sickbay-streaming' tag.
+    def testOpts = basicTestOpts + ["--attr=ValidatesRunner,!sickbay-streaming"]
+    def argMap = ["test_opts": testOpts,
+                  "streaming": "true",
+                  "sdk_location": files(configurations.distTarBall.files).singleFile,
+                  "worker_jar": dataflowWorkerJar,
+                  "suite": "validatesRunnerStreamingTests-df-py36"]
+    def cmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}

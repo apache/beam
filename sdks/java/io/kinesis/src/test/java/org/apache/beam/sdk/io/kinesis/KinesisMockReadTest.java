@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists.newArrayList;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists.newArrayList;
 
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import java.util.List;
@@ -26,12 +26,15 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.DateTime;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests {@link AmazonKinesisMock}. */
+@RunWith(JUnit4.class)
 public class KinesisMockReadTest {
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
@@ -49,6 +52,7 @@ public class KinesisMockReadTest {
                     .withStreamName("stream")
                     .withInitialPositionInStream(InitialPositionInStream.TRIM_HORIZON)
                     .withAWSClientsProvider(new AmazonKinesisMock.Provider(testData, 10))
+                    .withArrivalTimeWatermarkPolicy()
                     .withMaxNumRecords(noOfShards * noOfEventsPerShard))
             .apply(ParDo.of(new KinesisRecordToTestData()));
     PAssert.that(result).containsInAnyOrder(Iterables.concat(testData));

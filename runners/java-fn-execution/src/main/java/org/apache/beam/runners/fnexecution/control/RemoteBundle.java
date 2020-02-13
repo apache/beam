@@ -19,7 +19,6 @@ package org.apache.beam.runners.fnexecution.control;
 
 import java.util.Map;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.util.WindowedValue;
 
 /**
  * A bundle capable of handling input data elements for a {@link
@@ -37,7 +36,16 @@ public interface RemoteBundle extends AutoCloseable {
    * Get a map of PCollection ids to {@link FnDataReceiver receiver}s which consume input elements,
    * forwarding them to the remote environment.
    */
-  Map<String, FnDataReceiver<WindowedValue<?>>> getInputReceivers();
+  Map<String, FnDataReceiver> getInputReceivers();
+
+  /**
+   * Ask the remote bundle to split its current processing based upon its knowledge of remaining
+   * work. A fraction of 0, is equivalent to asking the SDK to checkpoint.
+   *
+   * <p>This method will return after the request has been issued. Any splits will be forwarded to
+   * the {@link BundleSplitHandler}.
+   */
+  void split(double fractionOfRemainder);
 
   /**
    * Closes this bundle. This causes the input {@link FnDataReceiver} to be closed (future calls to

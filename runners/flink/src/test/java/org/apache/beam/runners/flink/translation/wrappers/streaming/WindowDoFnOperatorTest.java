@@ -50,7 +50,7 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -189,7 +189,7 @@ public class WindowDoFnOperatorTest {
         emptyList(),
         PipelineOptionsFactory.as(FlinkPipelineOptions.class),
         VarLongCoder.of(),
-        null /* key selector */);
+        new WorkItemKeySelector(VarLongCoder.of()));
   }
 
   private KeyedOneInputStreamOperatorTestHarness<

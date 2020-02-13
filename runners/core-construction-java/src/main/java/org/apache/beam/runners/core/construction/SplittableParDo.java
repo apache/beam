@@ -17,10 +17,11 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -29,9 +30,9 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Parameter;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.TimerFamilySpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoLike;
@@ -43,12 +44,15 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.ArgumentProvider;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.BaseArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -62,8 +66,8 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.joda.time.Instant;
 
 /**
@@ -364,8 +368,14 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
           ParDoTranslation.payloadForParDoLike(
               new ParDoLike() {
                 @Override
-                public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
-                  return ParDoTranslation.translateDoFn(fn, pke.getMainOutputTag(), newComponents);
+                public FunctionSpec translateDoFn(SdkComponents newComponents) {
+                  // Schemas not yet supported on splittable DoFn.
+                  return ParDoTranslation.translateDoFn(
+                      fn,
+                      pke.getMainOutputTag(),
+                      Collections.emptyMap(),
+                      DoFnSchemaInformation.create(),
+                      newComponents);
                 }
 
                 @Override
@@ -392,8 +402,20 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
                 }
 
                 @Override
+                public Map<String, TimerFamilySpec> translateTimerFamilySpecs(
+                    SdkComponents newComponents) {
+                  // SDFs don't have timers.
+                  return ImmutableMap.of();
+                }
+
+                @Override
                 public boolean isSplittable() {
                   return true;
+                }
+
+                @Override
+                public boolean isRequiresTimeSortedInput() {
+                  return false;
                 }
 
                 @Override
@@ -446,7 +468,21 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     @ProcessElement
     public void processElement(ProcessContext context) {
       context.output(
-          KV.of(context.element(), invoker.invokeGetInitialRestriction(context.element())));
+          KV.of(
+              context.element(),
+              invoker.invokeGetInitialRestriction(
+                  new BaseArgumentProvider<InputT, OutputT>() {
+                    @Override
+                    public InputT element(DoFn<InputT, OutputT> doFn) {
+                      return context.element();
+                    }
+
+                    @Override
+                    public String getErrorContext() {
+                      return PairWithRestrictionFn.class.getSimpleName()
+                          + ".invokeGetInitialRestriction";
+                    }
+                  })));
     }
 
     @Teardown
@@ -476,21 +512,40 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
     @ProcessElement
     public void processElement(final ProcessContext c) {
-      final InputT element = c.element().getKey();
       invoker.invokeSplitRestriction(
-          element,
-          c.element().getValue(),
-          new OutputReceiver<RestrictionT>() {
-            @Override
-            public void output(RestrictionT part) {
-              c.output(KV.of(element, part));
-            }
+          (ArgumentProvider)
+              new BaseArgumentProvider<InputT, RestrictionT>() {
+                @Override
+                public InputT element(DoFn<InputT, RestrictionT> doFn) {
+                  return c.element().getKey();
+                }
 
-            @Override
-            public void outputWithTimestamp(RestrictionT part, Instant timestamp) {
-              throw new UnsupportedOperationException();
-            }
-          });
+                @Override
+                public Object restriction() {
+                  return c.element().getValue();
+                }
+
+                @Override
+                public OutputReceiver<RestrictionT> outputReceiver(
+                    DoFn<InputT, RestrictionT> doFn) {
+                  return new OutputReceiver<RestrictionT>() {
+                    @Override
+                    public void output(RestrictionT part) {
+                      c.output(KV.of(c.element().getKey(), part));
+                    }
+
+                    @Override
+                    public void outputWithTimestamp(RestrictionT part, Instant timestamp) {
+                      throw new UnsupportedOperationException();
+                    }
+                  };
+                }
+
+                @Override
+                public String getErrorContext() {
+                  return SplitRestrictionFn.class.getSimpleName() + ".invokeSplitRestriction";
+                }
+              });
     }
 
     @Teardown

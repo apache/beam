@@ -17,47 +17,35 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
 
-/**
- * Traverses the Pipeline to determine the translation mode (i.e. streaming or batch) for this
- * pipeline.
- */
+/** Tests for {@link PipelineTranslationModeOptimizer}. */
 public class PipelineTranslationModeOptimizerTest {
 
   @Test
-  public void testTranslationModeOverrideWithUnboundedSources() {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+  public void testUnboundedCollectionProducingTransform() {
+    PipelineOptions options = PipelineOptionsFactory.create();
     options.setRunner(FlinkRunner.class);
-    options.setStreaming(false);
-
-    FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
     Pipeline pipeline = Pipeline.create(options);
     pipeline.apply(GenerateSequence.from(0));
-    flinkEnv.translate(pipeline);
 
-    assertThat(options.isStreaming(), is(true));
+    assertThat(PipelineTranslationModeOptimizer.hasUnboundedOutput(pipeline), is(true));
   }
 
   @Test
-  public void testTranslationModeNoOverrideWithoutUnboundedSources() {
-    boolean[] testArgs = new boolean[] {true, false};
-    for (boolean streaming : testArgs) {
-      FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
-      options.setRunner(FlinkRunner.class);
-      options.setStreaming(streaming);
+  public void testBoundedCollectionProducingTransform() {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.setRunner(FlinkRunner.class);
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline.apply(GenerateSequence.from(0).to(10));
 
-      FlinkPipelineExecutionEnvironment flinkEnv = new FlinkPipelineExecutionEnvironment(options);
-      Pipeline pipeline = Pipeline.create(options);
-      flinkEnv.translate(pipeline);
-
-      assertThat(options.isStreaming(), is(streaming));
-    }
+    assertThat(PipelineTranslationModeOptimizer.hasUnboundedOutput(pipeline), is(false));
   }
 }

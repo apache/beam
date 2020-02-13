@@ -37,6 +37,9 @@ BEAM_PYTHON_SDK=$BEAM_PYTHON_SDK_ZIP
 ASC_FILE_NAME=$BEAM_PYTHON_SDK_ZIP".asc"
 SHA512_FILE_NAME=$BEAM_PYTHON_SDK_ZIP".sha512"
 
+# Cleanup Pubsub once script exits
+trap cleanup_pubsub EXIT
+
 
 #######################################
 # Remove temp directory when complete.
@@ -72,30 +75,7 @@ function verify_hash() {
   wget https://dist.apache.org/repos/dist/dev/beam/KEYS
   gpg --import KEYS
   gpg --verify $ASC_FILE_NAME $BEAM_PYTHON_SDK
-  echo "test place 1"
   gsutil version -l
-}
-
-
-#######################################
-# Create a new virtualenv and install the SDK
-# Globals:
-#   BEAM_PYTHON_SDK
-# Arguments:
-#   None
-#######################################
-function install_sdk() {
-  print_separator "Creating new virtualenv and installing the SDK"
-  echo "test place 2"
-  gsutil version -l
-  virtualenv temp_virtualenv
-  . temp_virtualenv/bin/activate
-  gcloud_version=$(gcloud --version | head -1 | awk '{print $4}')
-  if [[ "$gcloud_version" < "300" ]]; then
-    update_gcloud
-  fi
-  pip install google-compute-engine
-  pip install $BEAM_PYTHON_SDK[gcp]
 }
 
 
@@ -139,7 +119,7 @@ function verify_wordcount_dataflow() {
     --num_workers $NUM_WORKERS \
     --sdk_location $BEAM_PYTHON_SDK
 
-# verify results.
+  # verify results.
   wordcount_output_in_gcs="gs://$BUCKET_NAME/$WORDCOUNT_OUTPUT"
   gcs_pull_result=$(gsutil ls gs://$BUCKET_NAME)
   if [[ $gcs_pull_result != *$wordcount_output_in_gcs* ]]; then
@@ -162,6 +142,7 @@ function verify_wordcount_dataflow() {
 #   None
 #######################################
 function verify_streaming_wordcount_direct() {
+  cleanup_pubsub
   create_pubsub
   print_separator "Running Streaming wordcount example with DirectRunner"
   python -m apache_beam.examples.streaming_wordcount \
@@ -171,12 +152,10 @@ function verify_streaming_wordcount_direct() {
   pid=$!
   sleep 15
 
-# verify result
+  # verify result
   run_pubsub_publish
   verify_steaming_result "DirectRunner" $pid
 
-# Delete the pubsub topics and subscription before running the second job. Will recreate them in the second job.
-  cleanup_pubsub
   kill -9 $pid
   sleep 10
 }
@@ -191,6 +170,7 @@ function verify_streaming_wordcount_direct() {
 #   None
 #######################################
 function verify_streaming_wordcount_dataflow() {
+  cleanup_pubsub
   create_pubsub
   print_separator "Running Streaming wordcount example with DataflowRunner "
   python -m apache_beam.examples.streaming_wordcount \
@@ -216,7 +196,6 @@ function verify_streaming_wordcount_dataflow() {
 
   kill -9 $pid
   gcloud dataflow jobs cancel $running_job
-  cleanup_pubsub
 }
 
 
@@ -234,6 +213,7 @@ function verify_streaming_wordcount_dataflow() {
 #   VERSION
 # Arguments:
 #   $1 - sdk types: [tar, wheel]
+#   $2 - python interpreter version: [python2.7, python3.5, ...]
 #######################################
 function run_release_candidate_python_quickstart(){
   print_separator "Start Quickstarts Examples"
@@ -242,14 +222,14 @@ function run_release_candidate_python_quickstart(){
   echo $TMPDIR
   pushd $TMPDIR
 
-  download_files $1
+  download_files $1 $2
   # get exact names of sdk and other files
   BEAM_PYTHON_SDK=$(get_sdk_name $1)
   ASC_FILE_NAME=$(get_asc_name $1)
   SHA512_FILE_NAME=$(get_sha512_name $1)
 
   verify_hash
-  install_sdk
+  install_sdk $1 $2
   verify_wordcount_direct
   verify_wordcount_dataflow
   verify_streaming_wordcount_direct

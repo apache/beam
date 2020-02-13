@@ -48,7 +48,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -156,6 +156,7 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            null,
             null);
 
     Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
@@ -230,6 +231,7 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            null,
             null);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());
@@ -292,6 +294,7 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            null,
             null);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());
@@ -354,6 +357,7 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            null,
             null);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());

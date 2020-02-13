@@ -28,7 +28,7 @@ import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
 
 /** Creates a {@link DataflowMapTaskExecutor} from a {@link MapTask} definition. */
 public interface DataflowMapTaskExecutorFactory {

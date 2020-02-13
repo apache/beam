@@ -33,7 +33,6 @@ import org.apache.beam.examples.WordCount;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -64,10 +63,12 @@ import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests {@link HadoopFormatIO} output with batch and stream pipeline. */
+@RunWith(JUnit4.class)
 public class HadoopFormatIOSequenceFileTest {
 
   private static final Instant START_TIME = new Instant(0);
@@ -104,7 +105,6 @@ public class HadoopFormatIOSequenceFileTest {
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @Test
-  @Category(ValidatesRunner.class)
   public void batchTest() {
 
     String outputDir = getOutputDirPath("batchTest");
@@ -130,7 +130,6 @@ public class HadoopFormatIOSequenceFileTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
   public void batchTestWithoutPartitioner() {
     String outputDir = getOutputDirPath("batchTestWithoutPartitioner");
 
@@ -299,10 +298,7 @@ public class HadoopFormatIOSequenceFileTest {
   private Map<String, Long> loadWrittenDataAsMap(String outputDirPath) {
     return loadWrittenData(outputDirPath).stream()
         .collect(
-            Collectors.toMap(
-                kv -> kv.getKey().toString(),
-                kv -> kv.getValue().get(),
-                (first, second) -> first + second));
+            Collectors.toMap(kv -> kv.getKey().toString(), kv -> kv.getValue().get(), Long::sum));
   }
 
   private <T> TimestampedValue<T> event(T eventValue, Long timestamp) {
@@ -312,7 +308,7 @@ public class HadoopFormatIOSequenceFileTest {
 
   private static class ConvertToHadoopFormatFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
 
-    private SerializableFunction<InputT, OutputT> transformFn;
+    private final SerializableFunction<InputT, OutputT> transformFn;
 
     ConvertToHadoopFormatFn(SerializableFunction<InputT, OutputT> transformFn) {
       this.transformFn = transformFn;
@@ -329,19 +325,14 @@ public class HadoopFormatIOSequenceFileTest {
     public void processElement(@DoFn.Element String element, OutputReceiver<String> receiver) {
       receiver.output(element.toLowerCase());
     }
-
-    @Override
-    public TypeDescriptor<String> getOutputTypeDescriptor() {
-      return super.getOutputTypeDescriptor();
-    }
   }
 
   private static class ConfigTransform<KeyT, ValueT>
       extends PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>> {
 
-    private String outputDirPath;
-    private Class<?> keyClass;
-    private Class<?> valueClass;
+    private final String outputDirPath;
+    private final Class<?> keyClass;
+    private final Class<?> valueClass;
     private int windowNum = 0;
 
     private ConfigTransform(String outputDirPath, Class<?> keyClass, Class<?> valueClass) {

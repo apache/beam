@@ -27,9 +27,9 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Ints;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
@@ -134,6 +134,11 @@ public enum Compression {
    *
    * <p>The {@code .zst} extension is specified in <a href=https://tools.ietf.org/html/rfc8478>RFC
    * 8478</a>.
+   *
+   * <p>The Beam Java SDK does not pull in the Zstd library by default, so it is the user's
+   * responsibility to declare an explicit dependency on {@code zstd-jni}. Attempts to read or write
+   * .zst files without {@code zstd-jni} loaded will result in {@code NoClassDefFoundError} at
+   * runtime.
    */
   ZSTD(".zst", ".zst", ".zstd") {
     @Override

@@ -1,0 +1,93 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import groovy.json.JsonOutput
+
+plugins { id 'org.apache.beam.module' }
+
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.sql.datacatalog')
+
+dependencies {
+  compile library.java.grpc_google_cloud_datacatalog_v1beta1
+  compile library.java.proto_google_cloud_datacatalog_v1beta1
+  provided project(":sdks:java:extensions:sql")
+
+  // For Data Catalog GRPC client
+  provided library.java.grpc_all
+  provided library.java.google_auth_library_oauth2_http
+  provided library.java.grpc_netty
+  provided library.java.netty_tcnative_boringssl_static
+
+  // Dependencies for the example
+  provided project(":sdks:java:io:google-cloud-platform")
+  provided library.java.slf4j_api
+
+  testCompile project(":sdks:java:extensions:sql:zetasql")
+  testRuntimeOnly library.java.slf4j_simple
+}
+
+task runDataCatalogExample(type: JavaExec) {
+  description = "Run SQL example of how to use Data Catalog table provider"
+  main = "org.apache.beam.sdk.extensions.sql.example.BeamSqlDataCatalogExample"
+  classpath = sourceSets.main.runtimeClasspath
+
+  def runner = project.findProperty('runner') ?: 'DirectRunner'
+  def queryString = project.findProperty('queryString') ?: ''
+  def outputFilePrefix = project.findProperty('outputFilePrefix') ?: ''
+  def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+  def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
+
+  args = [
+    "--runner=${runner}",
+    "--queryString=${queryString}",
+    "--outputFilePrefix=${outputFilePrefix}",
+    "--project=${gcpProject}",
+    "--tempLocation=${gcsTempRoot}",
+  ]
+}
+
+task integrationTest(type: Test) {
+  group = "Verification"
+  def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+  def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
+
+  // Disable Gradle cache (it should not be used because the IT's won't run).
+  outputs.upToDateWhen { false }
+
+  def pipelineOptions = [
+          "--project=${gcpProject}",
+          "--tempLocation=${gcsTempRoot}",
+          "--blockOnRun=false"]
+
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
+
+  include '**/*IT.class'
+  maxParallelForks 4
+  classpath = project(":sdks:java:extensions:sql:datacatalog")
+          .sourceSets
+          .test
+          .runtimeClasspath
+  testClassesDirs = files(project(":sdks:java:extensions:sql:datacatalog").sourceSets.test.output.classesDirs)
+  useJUnit {}
+}
+
+task postCommit {
+  group = "Verification"
+  description = "Various integration tests"
+  dependsOn integrationTest
+}

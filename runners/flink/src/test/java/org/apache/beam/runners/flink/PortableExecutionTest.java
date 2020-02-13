@@ -26,6 +26,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
+import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -42,9 +43,9 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -140,15 +141,16 @@ public class PortableExecutionTest implements Serializable {
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
 
     // execute the pipeline
-    FlinkJobInvocation jobInvocation =
-        FlinkJobInvocation.create(
-            "fakeId",
-            "fakeRetrievalToken",
-            flinkJobExecutor,
-            pipelineProto,
-            options.as(FlinkPipelineOptions.class),
-            null,
-            Collections.emptyList());
+    JobInvocation jobInvocation =
+        FlinkJobInvoker.create(null)
+            .createJobInvocation(
+                "fakeId",
+                "fakeRetrievalToken",
+                flinkJobExecutor,
+                pipelineProto,
+                options.as(FlinkPipelineOptions.class),
+                new FlinkPipelineRunner(
+                    options.as(FlinkPipelineOptions.class), null, Collections.emptyList()));
     jobInvocation.start();
     while (jobInvocation.getState() != Enum.DONE) {
       Thread.sleep(1000);

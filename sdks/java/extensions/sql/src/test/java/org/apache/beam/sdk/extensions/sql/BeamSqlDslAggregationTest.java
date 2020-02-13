@@ -36,7 +36,6 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -104,13 +103,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .getRows();
 
     boundedInput3 =
-        pipeline.apply(
-            "boundedInput3",
-            Create.of(rowsInTableB)
-                .withSchema(
-                    schemaInTableB,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+        pipeline.apply("boundedInput3", Create.of(rowsInTableB).withRowSchema(schemaInTableB));
   }
 
   /** GROUP-BY with single aggregation function with bounded PCollection. */
@@ -165,6 +158,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             + "sum(f_double) as sum5, avg(f_double) as avg5, "
             + "max(f_double) as max5, min(f_double) as min5, "
             + "max(f_timestamp) as max6, min(f_timestamp) as min6, "
+            + "max(f_string) as max7, min(f_string) as min7, "
             + "var_pop(f_double) as varpop1, var_samp(f_double) as varsamp1, "
             + "var_pop(f_int) as varpop2, var_samp(f_int) as varsamp2 "
             + "FROM TABLE_A group by f_int2";
@@ -199,6 +193,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .addDoubleField("min5")
             .addDateTimeField("max6")
             .addDateTimeField("min6")
+            .addStringField("max7")
+            .addStringField("min7")
             .addDoubleField("varpop1")
             .addDoubleField("varsamp1")
             .addInt32Field("varpop2")
@@ -232,6 +228,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
                 1.0,
                 parseTimestampWithoutTimeZone("2017-01-01 02:04:03"),
                 parseTimestampWithoutTimeZone("2017-01-01 01:01:03"),
+                "第四行",
+                "string_row1",
                 1.25,
                 1.666666667,
                 1,
@@ -419,8 +417,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     PCollection<Row> input =
         pipeline.apply(
-            TestStream.create(
-                    inputSchema, SerializableFunctions.identity(), SerializableFunctions.identity())
+            TestStream.create(inputSchema)
                 .addElements(
                     Row.withSchema(inputSchema)
                         .addValues(1, parseTimestampWithoutTimeZone("2017-01-01 01:01:01"))
@@ -604,6 +601,17 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   }
 
   @Test
+  public void testUnsupportedDistinct2() throws Exception {
+    exceptions.expect(UnsupportedOperationException.class);
+    exceptions.expectMessage(containsString("COUNT DISTINCT"));
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    String sql = "SELECT f_int2, COUNT(DISTINCT f_long)" + "FROM PCOLLECTION GROUP BY f_int2";
+    boundedInput1.apply("testUnsupportedDistinct", SqlTransform.query(sql));
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
   public void testUnsupportedGlobalWindowWithDefaultTrigger() {
     exceptions.expect(UnsupportedOperationException.class);
 
@@ -680,13 +688,44 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
                             2, 4,
                             2, 5)
                         .getRows()))
-            .setSchema(schema, SerializableFunctions.identity(), SerializableFunctions.identity());
+            .setRowSchema(schema);
 
     String sql = "SELECT SUM(f_intValue) FROM PCOLLECTION GROUP BY f_intGroupingKey";
 
     PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
 
     PAssert.that(result).containsInAnyOrder(rowsWithSingleIntField("sum", Arrays.asList(3, 3, 9)));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testSupportsAggregationWithFilterWithoutProjection() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schema =
+        Schema.builder().addInt32Field("f_intGroupingKey").addInt32Field("f_intValue").build();
+
+    PCollection<Row> inputRows =
+        pipeline
+            .apply(
+                Create.of(
+                    TestUtils.rowsBuilderOf(schema)
+                        .addRows(
+                            0, 1,
+                            0, 2,
+                            1, 3,
+                            2, 4,
+                            2, 5)
+                        .getRows()))
+            .setRowSchema(schema);
+
+    String sql =
+        "SELECT SUM(f_intValue) FROM PCOLLECTION WHERE f_intValue < 5 GROUP BY f_intGroupingKey";
+
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    PAssert.that(result).containsInAnyOrder(rowsWithSingleIntField("sum", Arrays.asList(3, 3, 4)));
 
     pipeline.run();
   }

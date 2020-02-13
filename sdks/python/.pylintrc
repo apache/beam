@@ -84,16 +84,24 @@ disable =
   attribute-defined-outside-init,
   bad-builtin,
   bad-super-call,
+  bad-continuation,
   broad-except,
+  chained-comparison,
+  comparison-with-callable,
   consider-using-enumerate,
+  consider-using-in,
+  consider-using-set-comprehension,
+  consider-using-sys-exit,
   cyclic-import,
   design,
   fixme,
   function-redefined,
   global-statement,
   import-error,
+  import-outside-toplevel,
   import-self,
   inconsistent-return-statements,
+  invalid-overridden-method,
   invalid-name,
   invalid-unary-operand-type,
   keyword-arg-before-vararg,
@@ -104,9 +112,13 @@ disable =
   misplaced-bare-raise,
   missing-docstring,
   multiple-statements,
+  no-else-break,
+  no-else-continue,
+  no-else-raise,
   no-else-return,
   no-member,
   no-name-in-module,
+  no-self-argument,
   no-self-use,
   no-value-for-parameter,
   not-callable,
@@ -121,15 +133,21 @@ disable =
   relative-import,
   similarities,
   simplifiable-if-statement,
+  stop-iteration-return,
   super-init-not-called,
   super-on-old-class,
+  try-except-raise,
   undefined-variable,
   unexpected-keyword-arg,
   unidiomatic-typecheck,
+  unnecessary-comprehension,
   unnecessary-lambda,
+  unnecessary-pass,
   unneeded-not,
+  unsubscriptable-object,
   unused-argument,
   unused-wildcard-import,
+  useless-object-inheritance,
   wildcard-import,
   wrong-import-order,
 
@@ -158,10 +176,11 @@ indent-string='  '
 indent-after-paren=4
 
 # Regexp for a line that is allowed to be longer than the limit.
-# Long import lines or URLs in comments or pydocs. 
+# Long import lines or URLs in comments or pydocs.
 ignore-long-lines=(?x)
   (^\s*(import|from)\s
    |^\s*(\#\ )?<?(https?|ftp):\/\/[^\s\/$.?#].[^\s]*>?$
+   |^.*\#\ type\:
    )
 
 [VARIABLES]

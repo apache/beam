@@ -18,11 +18,11 @@ package dataflowlib
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"os"
 
 	"cloud.google.com/go/storage"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
 )
 
@@ -35,7 +35,7 @@ func StageModel(ctx context.Context, project, modelURL string, model []byte) err
 func StageFile(ctx context.Context, project, url, filename string) error {
 	fd, err := os.Open(filename)
 	if err != nil {
-		return fmt.Errorf("failed to open file %s: %v", filename, err)
+		return errors.Wrapf(err, "failed to open file %s", filename)
 	}
 	defer fd.Close()
 
@@ -45,7 +45,7 @@ func StageFile(ctx context.Context, project, url, filename string) error {
 func upload(ctx context.Context, project, object string, r io.Reader) error {
 	bucket, obj, err := gcsx.ParseObject(object)
 	if err != nil {
-		return fmt.Errorf("invalid staging location %v: %v", object, err)
+		return errors.Wrapf(err, "invalid staging location %v", object)
 	}
 	client, err := gcsx.NewClient(ctx, storage.ScopeReadWrite)
 	if err != nil {

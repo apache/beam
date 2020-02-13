@@ -18,18 +18,25 @@
 package org.apache.beam.runners.spark.translation.streaming;
 
 import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.StreamingTest;
 import org.apache.beam.runners.spark.io.CreateStream;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -38,6 +45,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -51,6 +59,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Never;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -393,6 +402,33 @@ public class CreateStreamTest implements Serializable {
     p.run();
   }
 
+  /**
+   * Test that {@link ParDo} aligns both setup and teardown calls in streaming pipelines. See
+   * https://issues.apache.org/jira/browse/BEAM-6859.
+   */
+  @Test
+  public void testParDoCallsSetupAndTeardown() {
+    Instant instant = new Instant(0);
+
+    p.apply(
+            CreateStream.of(VarIntCoder.of(), batchDuration())
+                .emptyBatch()
+                .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(5)))
+                .nextBatch(
+                    TimestampedValue.of(1, instant),
+                    TimestampedValue.of(2, instant),
+                    TimestampedValue.of(3, instant))
+                .advanceNextBatchWatermarkToInfinity())
+        .apply(ParDo.of(new LifecycleDoFn()));
+
+    p.run();
+
+    assertThat(
+        "Function should have been torn down",
+        LifecycleDoFn.teardownCalls.intValue(),
+        is(equalTo(LifecycleDoFn.setupCalls.intValue())));
+  }
+
   @Test
   public void testElementAtPositiveInfinityThrows() {
     CreateStream<Integer> source =
@@ -421,8 +457,71 @@ public class CreateStreamTest implements Serializable {
     source.advanceWatermarkForNextBatch(BoundedWindow.TIMESTAMP_MAX_VALUE);
   }
 
+  @Test
+  public void testInStreamingModeCountByKey() throws Exception {
+    Instant instant = new Instant(0);
+
+    CreateStream<KV<Integer, Long>> kvSource =
+        CreateStream.of(KvCoder.of(VarIntCoder.of(), VarLongCoder.of()), batchDuration())
+            .emptyBatch()
+            .advanceWatermarkForNextBatch(instant)
+            .nextBatch(
+                TimestampedValue.of(KV.of(1, 100L), instant.plus(Duration.standardSeconds(3L))),
+                TimestampedValue.of(KV.of(1, 300L), instant.plus(Duration.standardSeconds(4L))))
+            .advanceWatermarkForNextBatch(instant.plus(Duration.standardSeconds(7L)))
+            .nextBatch(
+                TimestampedValue.of(KV.of(1, 400L), instant.plus(Duration.standardSeconds(8L))))
+            .advanceNextBatchWatermarkToInfinity();
+
+    PCollection<KV<Integer, Long>> output =
+        p.apply("create kv Source", kvSource)
+            .apply(
+                "window input",
+                Window.<KV<Integer, Long>>into(FixedWindows.of(Duration.standardSeconds(3L)))
+                    .withAllowedLateness(Duration.ZERO))
+            .apply(Count.perKey());
+
+    PAssert.that("Wrong count value ", output)
+        .satisfies(
+            (SerializableFunction<Iterable<KV<Integer, Long>>, Void>)
+                input -> {
+                  for (KV<Integer, Long> element : input) {
+                    if (element.getKey() == 1) {
+                      Long countValue = element.getValue();
+                      assertNotEquals("Count Value is 0 !!!", 0L, countValue.longValue());
+                    } else {
+                      fail("Unknown key in the output PCollection");
+                    }
+                  }
+                  return null;
+                });
+    p.run();
+  }
+
   private Duration batchDuration() {
     return Duration.millis(
         (p.getOptions().as(SparkPipelineOptions.class)).getBatchIntervalMillis());
+  }
+
+  private static class LifecycleDoFn extends DoFn<Integer, Integer> {
+    static AtomicInteger setupCalls = new AtomicInteger(0);
+    static AtomicInteger teardownCalls = new AtomicInteger(0);
+
+    @Setup
+    public void setup() {
+      setupCalls.incrementAndGet();
+    }
+
+    @Teardown
+    public void teardown() {
+      teardownCalls.incrementAndGet();
+    }
+
+    @SuppressWarnings("unused")
+    @ProcessElement
+    public void process(ProcessContext context) {
+      Integer element = context.element();
+      context.output(element);
+    }
   }
 }

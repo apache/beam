@@ -38,37 +38,38 @@ class KeyedPushedBackElementsHandler<K, T> implements PushedBackElementsHandler<
   static <K, T> KeyedPushedBackElementsHandler<K, T> create(
       KeySelector<T, K> keySelector,
       KeyedStateBackend<K> backend,
-      ListStateDescriptor<T> stateDescriptor) {
+      ListStateDescriptor<T> stateDescriptor)
+      throws Exception {
     return new KeyedPushedBackElementsHandler<>(keySelector, backend, stateDescriptor);
   }
 
   private final KeySelector<T, K> keySelector;
   private final KeyedStateBackend<K> backend;
-  private final ListStateDescriptor<T> stateDescriptor;
+  private final String stateName;
+  private final ListState<T> state;
 
   private KeyedPushedBackElementsHandler(
       KeySelector<T, K> keySelector,
       KeyedStateBackend<K> backend,
-      ListStateDescriptor<T> stateDescriptor) {
+      ListStateDescriptor<T> stateDescriptor)
+      throws Exception {
     this.keySelector = keySelector;
     this.backend = backend;
-    this.stateDescriptor = stateDescriptor;
+    this.stateName = stateDescriptor.getName();
+    // Eagerly retrieve the state to work around https://jira.apache.org/jira/browse/FLINK-12653
+    this.state =
+        backend.getPartitionedState(
+            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
   }
 
   @Override
   public Stream<T> getElements() {
-
     return backend
-        .getKeys(stateDescriptor.getName(), VoidNamespace.INSTANCE)
+        .getKeys(stateName, VoidNamespace.INSTANCE)
         .flatMap(
             key -> {
               try {
                 backend.setCurrentKey(key);
-
-                ListState<T> state =
-                    backend.getPartitionedState(
-                        VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
-
                 return StreamSupport.stream(state.get().spliterator(), false);
               } catch (Exception e) {
                 throw new RuntimeException("Error reading keyed state.", e);
@@ -80,29 +81,16 @@ class KeyedPushedBackElementsHandler<K, T> implements PushedBackElementsHandler<
   public void clear() throws Exception {
     // TODO we have to collect all keys because otherwise we get ConcurrentModificationExceptions
     // from flink. We can change this once it's fixed in Flink
-
-    List<K> keys =
-        backend
-            .getKeys(stateDescriptor.getName(), VoidNamespace.INSTANCE)
-            .collect(Collectors.toList());
+    List<K> keys = backend.getKeys(stateName, VoidNamespace.INSTANCE).collect(Collectors.toList());
 
     for (K key : keys) {
       backend.setCurrentKey(key);
-
-      ListState<T> state =
-          backend.getPartitionedState(
-              VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
-
       state.clear();
     }
   }
 
   @Override
   public void pushBack(T element) throws Exception {
-    ListState<T> state =
-        backend.getPartitionedState(
-            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
-
     backend.setCurrentKey(keySelector.getKey(element));
     state.add(element);
   }

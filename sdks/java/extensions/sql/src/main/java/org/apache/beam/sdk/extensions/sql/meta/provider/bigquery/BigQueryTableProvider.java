@@ -17,12 +17,16 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
+import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.MoreObjects.firstNonNull;
+
+import com.alibaba.fastjson.JSONObject;
 import com.google.auto.service.AutoService;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions.TruncateTimestamps;
 
 /**
  * BigQuery table provider.
@@ -49,9 +53,15 @@ public class BigQueryTableProvider extends InMemoryMetaTableProvider {
 
   @Override
   public BeamSqlTable buildBeamSqlTable(Table table) {
-    Schema schema = table.getSchema();
-    String filePattern = table.getLocation();
+    return new BigQueryTable(table, getConversionOptions(table.getProperties()));
+  }
 
-    return new BeamBigQueryTable(schema, filePattern);
+  protected static ConversionOptions getConversionOptions(JSONObject properties) {
+    return ConversionOptions.builder()
+        .setTruncateTimestamps(
+            firstNonNull(properties.getBoolean("truncateTimestamps"), false)
+                ? TruncateTimestamps.TRUNCATE
+                : TruncateTimestamps.REJECT)
+        .build();
   }
 }

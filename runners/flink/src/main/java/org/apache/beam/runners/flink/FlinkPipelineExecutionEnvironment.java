@@ -17,12 +17,12 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import org.apache.beam.runners.core.construction.PipelineResources;
+import org.apache.beam.runners.core.construction.resources.PipelineResources;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -82,12 +82,14 @@ class FlinkPipelineExecutionEnvironment {
     this.flinkBatchEnv = null;
     this.flinkStreamEnv = null;
 
-    pipeline.replaceAll(FlinkTransformOverrides.getDefaultOverrides(options));
+    final boolean hasUnboundedOutput =
+        PipelineTranslationModeOptimizer.hasUnboundedOutput(pipeline);
+    if (hasUnboundedOutput) {
+      LOG.info("Found unbounded PCollection. Switching to streaming execution.");
+      options.setStreaming(true);
+    }
 
-    PipelineTranslationModeOptimizer optimizer = new PipelineTranslationModeOptimizer(options);
-    optimizer.translate(pipeline);
-
-    // Needs to be done before creating the Flink ExecutionEnvironments
+    // Staged files need to be set before initializing the execution environments
     prepareFilesToStageForRemoteClusterExecution(options);
 
     FlinkPipelineTranslator translator;
@@ -95,8 +97,7 @@ class FlinkPipelineExecutionEnvironment {
       this.flinkStreamEnv =
           FlinkExecutionEnvironments.createStreamExecutionEnvironment(
               options, options.getFilesToStage());
-      if (optimizer.hasUnboundedSources()
-          && !flinkStreamEnv.getCheckpointConfig().isCheckpointingEnabled()) {
+      if (hasUnboundedOutput && !flinkStreamEnv.getCheckpointConfig().isCheckpointingEnabled()) {
         LOG.warn(
             "UnboundedSources present which rely on checkpointing, but checkpointing is disabled.");
       }
@@ -107,6 +108,10 @@ class FlinkPipelineExecutionEnvironment {
               options, options.getFilesToStage());
       translator = new FlinkBatchPipelineTranslator(flinkBatchEnv, options);
     }
+
+    // Transform replacements need to receive the finalized PipelineOptions
+    // including execution mode (batch/streaming) and parallelism.
+    pipeline.replaceAll(FlinkTransformOverrides.getDefaultOverrides(options));
 
     translator.translate(pipeline);
   }

@@ -21,7 +21,7 @@ import com.google.auto.value.AutoValue;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
  * The results of a query for metrics. Allows accessing all of the metrics that matched the filter.
@@ -50,17 +50,10 @@ public abstract class MetricQueryResults {
           sb.append(", ");
         }
         MetricName name = metricResult.getName();
-        sb.append(metricResult.getStep())
-            .append(":")
-            .append(name.getNamespace())
-            .append(":")
-            .append(name.getName())
-            .append(": ")
-            .append(metricResult.getAttempted());
-        try {
+        sb.append(metricResult.getKey()).append(": ").append(metricResult.getAttempted());
+        if (metricResult.hasCommitted()) {
           T committed = metricResult.getCommitted();
           sb.append(", ").append(committed);
-        } catch (UnsupportedOperationException ignored) {
         }
       }
       sb.append(")");

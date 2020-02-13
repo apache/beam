@@ -20,30 +20,46 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
 from builtins import object
+from typing import TYPE_CHECKING
+from typing import Optional
 
 from apache_beam import pvalue
 from apache_beam.io import iobase
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.display import HasDisplayData
 
+if TYPE_CHECKING:
+  from apache_beam import coders
+
+_LOGGER = logging.getLogger(__name__)
+
 
 def _dict_printable_fields(dict_object, skip_fields):
   """Returns a list of strings for the interesting fields of a dict."""
-  return ['%s=%r' % (name, value)
-          for name, value in dict_object.items()
-          # want to output value 0 but not None nor []
-          if (value or value == 0)
-          and name not in skip_fields]
+  return [
+      '%s=%r' % (name, value) for name,
+      value in dict_object.items()
+      # want to output value 0 but not None nor []
+      if (value or value == 0) and name not in skip_fields
+  ]
 
 
-_minor_fields = ['coder', 'key_coder', 'value_coder',
-                 'config_bytes', 'elements',
-                 'append_trailing_newlines', 'strip_trailing_newlines',
-                 'compression_type']
+_minor_fields = [
+    'coder',
+    'key_coder',
+    'value_coder',
+    'config_bytes',
+    'elements',
+    'append_trailing_newlines',
+    'strip_trailing_newlines',
+    'compression_type'
+]
 
 
 class NativeSource(iobase.SourceBase):
@@ -54,6 +70,7 @@ class NativeSource(iobase.SourceBase):
 
   This class is deprecated and should not be used to define new sources.
   """
+  coder = None  # type: Optional[coders.Coder]
 
   def reader(self):
     """Returns a NativeSourceReader instance associated with this source."""
@@ -65,13 +82,11 @@ class NativeSource(iobase.SourceBase):
   def __repr__(self):
     return '<{name} {vals}>'.format(
         name=self.__class__.__name__,
-        vals=', '.join(_dict_printable_fields(self.__dict__,
-                                              _minor_fields)))
+        vals=', '.join(_dict_printable_fields(self.__dict__, _minor_fields)))
 
 
 class NativeSourceReader(object):
   """A reader for a source implemented by Dataflow service."""
-
   def __enter__(self):
     """Opens everything necessary for a reader to function properly."""
     raise NotImplementedError
@@ -96,7 +111,6 @@ class NativeSourceReader(object):
       A SourceReaderProgress object that gives the current progress of the
       reader.
     """
-    return
 
   def request_dynamic_split(self, dynamic_split_request):
     """Attempts to split the input in two parts.
@@ -136,18 +150,22 @@ class NativeSourceReader(object):
       or a 'DynamicSplitResult' describing how the input was split into a
       primary and residual part.
     """
-    logging.debug(
+    _LOGGER.debug(
         'SourceReader %r does not support dynamic splitting. Ignoring dynamic '
         'split request: %r',
-        self, dynamic_split_request)
-    return
+        self,
+        dynamic_split_request)
 
 
 class ReaderProgress(object):
   """A representation of how far a NativeSourceReader has read."""
-
-  def __init__(self, position=None, percent_complete=None, remaining_time=None,
-               consumed_split_points=None, remaining_split_points=None):
+  def __init__(
+      self,
+      position=None,
+      percent_complete=None,
+      remaining_time=None,
+      consumed_split_points=None,
+      remaining_split_points=None):
 
     self._position = position
 
@@ -155,8 +173,8 @@ class ReaderProgress(object):
       percent_complete = float(percent_complete)
       if percent_complete < 0 or percent_complete > 1:
         raise ValueError(
-            'The percent_complete argument was %f. Must be in range [0, 1].'
-            % percent_complete)
+            'The percent_complete argument was %f. Must be in range [0, 1].' %
+            percent_complete)
     self._percent_complete = percent_complete
 
     self._remaining_time = remaining_time
@@ -196,9 +214,14 @@ class ReaderProgress(object):
 
 class ReaderPosition(object):
   """A representation of position in an iteration of a 'NativeSourceReader'."""
-
-  def __init__(self, end=None, key=None, byte_offset=None, record_index=None,
-               shuffle_position=None, concat_position=None):
+  def __init__(
+      self,
+      end=None,
+      key=None,
+      byte_offset=None,
+      record_index=None,
+      shuffle_position=None,
+      concat_position=None):
     """Initializes ReaderPosition.
 
     A ReaderPosition may get instantiated for one of these position types. Only
@@ -231,7 +254,6 @@ class ConcatPosition(object):
   This is used to represent the position of a source that encapsulate several
   other sources.
   """
-
   def __init__(self, index, position):
     """Initializes ConcatPosition.
 
@@ -249,7 +271,6 @@ class ConcatPosition(object):
 class DynamicSplitRequest(object):
   """Specifies how 'NativeSourceReader.request_dynamic_split' should split.
   """
-
   def __init__(self, progress):
     assert isinstance(progress, ReaderProgress)
     self.progress = progress
@@ -260,7 +281,6 @@ class DynamicSplitResult(object):
 
 
 class DynamicSplitResultWithPosition(DynamicSplitResult):
-
   def __init__(self, stop_position):
     assert isinstance(stop_position, ReaderPosition)
     self.stop_position = stop_position
@@ -272,7 +292,6 @@ class NativeSink(HasDisplayData):
   This class is to be only inherited by sinks natively implemented by Cloud
   Dataflow service, hence should not be sub-classed by users.
   """
-
   def writer(self):
     """Returns a SinkWriter for this source."""
     raise NotImplementedError
@@ -285,7 +304,6 @@ class NativeSink(HasDisplayData):
 
 class NativeSinkWriter(object):
   """A writer for a sink implemented by Dataflow service."""
-
   def __enter__(self):
     """Opens everything necessary for a writer to function properly."""
     raise NotImplementedError
@@ -313,7 +331,6 @@ class _NativeWrite(ptransform.PTransform):
 
   Applying this transform results in a ``pvalue.PDone``.
   """
-
   def __init__(self, sink):
     """Initializes a Write transform.
 

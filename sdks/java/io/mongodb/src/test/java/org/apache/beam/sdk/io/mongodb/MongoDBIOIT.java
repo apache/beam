@@ -20,9 +20,16 @@ package org.apache.beam.sdk.io.mongodb;
 import static org.apache.beam.sdk.io.common.IOITHelper.executeWithRetry;
 import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
 
-import com.mongodb.MongoClient;
+import com.google.cloud.Timestamp;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Function;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
@@ -31,12 +38,18 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
+import org.apache.beam.sdk.testutils.metrics.MetricsReader;
+import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.bson.Document;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -65,6 +78,15 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class MongoDBIOIT {
+
+  private static final String NAMESPACE = MongoDBIOIT.class.getName();
+  private static String bigQueryDataset;
+  private static String bigQueryTable;
+  private static String mongoUrl;
+  private static MongoClient mongoClient;
+
+  private double initialCollectionSize;
+  private double finalCollectionSize;
 
   /** MongoDBIOIT options. */
   public interface MongoDBPipelineOptions extends IOTestPipelineOptions {
@@ -104,6 +126,17 @@ public class MongoDBIOIT {
     PipelineOptionsFactory.register(MongoDBPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(MongoDBPipelineOptions.class);
     collection = String.format("test_%s", new Date().getTime());
+    bigQueryDataset = options.getBigQueryDataset();
+    bigQueryTable = options.getBigQueryTable();
+    mongoUrl =
+        String.format("mongodb://%s:%s", options.getMongoDBHostName(), options.getMongoDBPort());
+    mongoClient = MongoClients.create(mongoUrl);
+  }
+
+  @After
+  public void cleanUp() {
+    initialCollectionSize = -1d;
+    finalCollectionSize = -1d;
   }
 
   @AfterClass
@@ -111,27 +144,28 @@ public class MongoDBIOIT {
     executeWithRetry(MongoDBIOIT::dropDatabase);
   }
 
-  public static void dropDatabase() throws Exception {
-    new MongoClient(options.getMongoDBHostName())
-        .getDatabase(options.getMongoDBDatabaseName())
-        .drop();
+  public static void dropDatabase() {
+    mongoClient.getDatabase(options.getMongoDBDatabaseName()).drop();
   }
 
   @Test
   public void testWriteAndRead() {
-    final String mongoUrl =
-        String.format("mongodb://%s:%s", options.getMongoDBHostName(), options.getMongoDBPort());
+    initialCollectionSize = getCollectionSizeInBytes(collection);
 
     writePipeline
         .apply("Generate sequence", GenerateSequence.from(0).to(options.getNumberOfRecords()))
         .apply("Produce documents", MapElements.via(new LongToDocumentFn()))
+        .apply("Collect write time metric", ParDo.of(new TimeMonitor<>(NAMESPACE, "write_time")))
         .apply(
             "Write documents to MongoDB",
             MongoDbIO.write()
                 .withUri(mongoUrl)
                 .withDatabase(options.getMongoDBDatabaseName())
                 .withCollection(collection));
-    writePipeline.run().waitUntilFinish();
+    PipelineResult writeResult = writePipeline.run();
+    writeResult.waitUntilFinish();
+
+    finalCollectionSize = getCollectionSizeInBytes(collection);
 
     PCollection<String> consolidatedHashcode =
         readPipeline
@@ -141,13 +175,72 @@ public class MongoDBIOIT {
                     .withUri(mongoUrl)
                     .withDatabase(options.getMongoDBDatabaseName())
                     .withCollection(collection))
+            .apply("Collect read time metrics", ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")))
             .apply("Map documents to Strings", MapElements.via(new DocumentToStringFn()))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
     String expectedHash = getHashForRecordCount(options.getNumberOfRecords(), EXPECTED_HASHES);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
-    readPipeline.run().waitUntilFinish();
+    PipelineResult readResult = readPipeline.run();
+    readResult.waitUntilFinish();
+    collectAndPublishMetrics(writeResult, readResult);
+  }
+
+  private double getCollectionSizeInBytes(final String collectionName) {
+    return mongoClient.getDatabase(options.getMongoDBDatabaseName())
+        .runCommand(new Document("collStats", collectionName)).entrySet().stream()
+        .filter(entry -> entry.getKey().equals("size"))
+        .map(entry -> Double.parseDouble(String.valueOf(entry.getValue())))
+        .findFirst()
+        .orElseThrow(() -> new IllegalStateException("Unable to retrieve collection stats"));
+  }
+
+  private void collectAndPublishMetrics(PipelineResult writeResult, PipelineResult readResult) {
+    String uuid = UUID.randomUUID().toString();
+    String timestamp = Timestamp.now().toString();
+
+    Set<Function<MetricsReader, NamedTestResult>> readSuppliers = getReadSuppliers(uuid, timestamp);
+    Set<Function<MetricsReader, NamedTestResult>> writeSuppliers =
+        getWriteSuppliers(uuid, timestamp);
+    IOITMetrics readMetrics =
+        new IOITMetrics(readSuppliers, readResult, NAMESPACE, uuid, timestamp);
+    IOITMetrics writeMetrics =
+        new IOITMetrics(writeSuppliers, writeResult, NAMESPACE, uuid, timestamp);
+    readMetrics.publish(bigQueryDataset, bigQueryTable);
+    writeMetrics.publish(bigQueryDataset, bigQueryTable);
+  }
+
+  private Set<Function<MetricsReader, NamedTestResult>> getWriteSuppliers(
+      final String uuid, final String timestamp) {
+    final Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
+    suppliers.add(getTimeMetric(uuid, timestamp, "write_time"));
+    suppliers.add(
+        reader -> NamedTestResult.create(uuid, timestamp, "data_size", getWrittenDataSize()));
+    return suppliers;
+  }
+
+  private double getWrittenDataSize() {
+    if (initialCollectionSize == -1d || finalCollectionSize == -1d) {
+      throw new IllegalStateException("Collection size not fetched");
+    }
+    return finalCollectionSize - initialCollectionSize;
+  }
+
+  private Set<Function<MetricsReader, NamedTestResult>> getReadSuppliers(
+      String uuid, String timestamp) {
+    Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
+    suppliers.add(getTimeMetric(uuid, timestamp, "read_time"));
+    return suppliers;
+  }
+
+  private Function<MetricsReader, NamedTestResult> getTimeMetric(
+      final String uuid, final String timestamp, final String metricName) {
+    return reader -> {
+      long writeStart = reader.getStartTimeMetric(metricName);
+      long writeEnd = reader.getEndTimeMetric(metricName);
+      return NamedTestResult.create(uuid, timestamp, metricName, (writeEnd - writeStart) / 1e3);
+    };
   }
 
   private static class LongToDocumentFn extends SimpleFunction<Long, Document> {

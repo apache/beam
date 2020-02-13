@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.util.ArrayDeque;
@@ -43,11 +43,11 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.OutputDeduplicator.DeduplicationResult;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ComparisonChain;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ComparisonChain;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -188,10 +188,11 @@ public class GreedyPipelineFuser {
         rootNode.getTransform().getInputsMap());
     checkArgument(
         !pipeline.getEnvironment(rootNode).isPresent(),
-        "%s requires all root nodes to be runner-implemented %s primitives, "
+        "%s requires all root nodes to be runner-implemented %s or %s primitives, "
             + "but transform %s executes in environment %s",
         GreedyPipelineFuser.class.getSimpleName(),
         PTransformTranslation.IMPULSE_TRANSFORM_URN,
+        PTransformTranslation.READ_TRANSFORM_URN,
         rootNode.getId(),
         pipeline.getEnvironment(rootNode));
     Set<PTransformNode> unfused = new HashSet<>();
@@ -414,7 +415,8 @@ public class GreedyPipelineFuser {
         stage.getUserStates(),
         stage.getTimers(),
         pTransformNodes,
-        stage.getOutputPCollections());
+        stage.getOutputPCollections(),
+        stage.getWireCoderSettings());
   }
 
   /**

@@ -1,0 +1,52 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins {
+  id 'org.apache.beam.module'
+}
+
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.sql.zetasql')
+
+description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL :: ZetaSQL"
+ext.summary = "ZetaSQL to Calcite translator"
+
+def zetasql_version = "2020.01.1"
+
+dependencies {
+  compile project(":sdks:java:core")
+  compile project(":sdks:java:extensions:sql")
+  compile library.java.vendored_calcite_1_20_0
+  compile library.java.guava
+  compile library.java.grpc_all
+  compile library.java.protobuf_java
+  compile library.java.protobuf_java_util
+  compile "com.google.api.grpc:proto-google-common-protos:1.12.0" // Interfaces with ZetaSQL use this
+  compile "com.google.api.grpc:grpc-google-common-protos:1.12.0" // Interfaces with ZetaSQL use this
+  compile "com.google.zetasql:zetasql-jni-channel:$zetasql_version"
+  compile "com.google.zetasql:zetasql-client:$zetasql_version"
+  compile "com.google.zetasql:zetasql-types:$zetasql_version"
+  testCompile library.java.vendored_calcite_1_20_0
+  testCompile library.java.vendored_guava_26_0_jre
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  testCompile library.java.mockito_core
+  testCompile library.java.quickcheck_core
+  testRuntimeClasspath library.java.slf4j_jdk14
+}
+

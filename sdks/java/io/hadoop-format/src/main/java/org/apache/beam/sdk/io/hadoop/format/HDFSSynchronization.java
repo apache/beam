@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.hadoop.format;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Random;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -180,7 +180,7 @@ public class HDFSSynchronization implements ExternalSynchronization {
    * @param <X> exception type
    */
   @FunctionalInterface
-  public interface ThrowingFunction<T1, T2, X extends Exception> extends Serializable {
+  interface ThrowingFunction<T1, T2, X extends Exception> extends Serializable {
     T2 apply(T1 value) throws X;
   }
 }

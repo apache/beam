@@ -42,8 +42,8 @@ public abstract class InferableFunction<InputT, OutputT>
     // reflection.
     try {
       Method methodThatMustBeOverridden =
-          InferableFunction.class.getDeclaredMethod("apply", new Class[] {Object.class});
-      Method methodOnSubclass = getClass().getMethod("apply", new Class[] {Object.class});
+          InferableFunction.class.getDeclaredMethod("apply", Object.class);
+      Method methodOnSubclass = getClass().getMethod("apply", Object.class);
 
       if (methodOnSubclass.equals(methodThatMustBeOverridden)) {
         throw new IllegalStateException(

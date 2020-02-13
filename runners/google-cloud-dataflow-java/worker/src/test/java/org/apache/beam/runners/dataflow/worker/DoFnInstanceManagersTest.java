@@ -23,8 +23,10 @@ import static org.hamcrest.Matchers.theInstance;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import java.util.Collections;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -65,7 +67,9 @@ public class DoFnInstanceManagersTest {
             WindowingStrategy.globalDefault(),
             null /* side input views */,
             null /* input coder */,
-            new TupleTag<>(PropertyNames.OUTPUT) /* main output id */);
+            new TupleTag<>(PropertyNames.OUTPUT) /* main output id */,
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     DoFnInstanceManager mgr = DoFnInstanceManagers.singleInstance(info);
     assertThat(mgr.peek(), Matchers.<DoFnInfo<?, ?>>theInstance(info));
@@ -85,7 +89,9 @@ public class DoFnInstanceManagersTest {
             WindowingStrategy.globalDefault(),
             null /* side input views */,
             null /* input coder */,
-            new TupleTag<>(PropertyNames.OUTPUT) /* main output id */);
+            new TupleTag<>(PropertyNames.OUTPUT) /* main output id */,
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     DoFnInstanceManager mgr = DoFnInstanceManagers.singleInstance(info);
     mgr.abort(mgr.get());
@@ -104,7 +110,9 @@ public class DoFnInstanceManagersTest {
             WindowingStrategy.globalDefault(),
             null /* side input views */,
             null /* input coder */,
-            new TupleTag<>(PropertyNames.OUTPUT) /* main output id */);
+            new TupleTag<>(PropertyNames.OUTPUT) /* main output id */,
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     DoFnInstanceManager mgr = DoFnInstanceManagers.cloningPool(info);
     DoFnInfo<?, ?> retrievedInfo = mgr.get();
@@ -125,7 +133,9 @@ public class DoFnInstanceManagersTest {
             WindowingStrategy.globalDefault(),
             null /* side input views */,
             null /* input coder */,
-            new TupleTag<>(PropertyNames.OUTPUT) /* main output id */);
+            new TupleTag<>(PropertyNames.OUTPUT) /* main output id */,
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     DoFnInstanceManager mgr = DoFnInstanceManagers.cloningPool(info);
     DoFnInfo<?, ?> retrievedInfo = mgr.get();
@@ -148,7 +158,9 @@ public class DoFnInstanceManagersTest {
             WindowingStrategy.globalDefault(),
             null /* side input views */,
             null /* input coder */,
-            new TupleTag<>(PropertyNames.OUTPUT) /* main output id */);
+            new TupleTag<>(PropertyNames.OUTPUT) /* main output id */,
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     DoFnInstanceManager mgr = DoFnInstanceManagers.cloningPool(info);
 

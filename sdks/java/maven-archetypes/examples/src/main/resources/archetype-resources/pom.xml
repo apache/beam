@@ -30,8 +30,8 @@
     <beam.version>@project.version@</beam.version>
 
     <bigquery.version>@bigquery.version@</bigquery.version>
-    <google-clients.version>@google-clients.version@</google-clients.version>
-    <guava.version>@guava.version@</guava.version>
+    <google-api-client.version>@google-api-client.version@</google-api-client.version>
+    <google-http-client.version>@google-http-client.version@</google-http-client.version>
     <hamcrest.version>@hamcrest.version@</hamcrest.version>
     <jackson.version>@jackson.version@</jackson.version>
     <joda.version>@joda.version@</joda.version>
@@ -47,6 +47,7 @@
     <hadoop.version>@hadoop.version@</hadoop.version>
     <maven-surefire-plugin.version>@maven-surefire-plugin.version@</maven-surefire-plugin.version>
     <nemo.version>@nemo.version@</nemo.version>
+    <flink.artifact.name>@flink.artifact.name@</flink.artifact.name>
   </properties>
 
   <repositories>
@@ -177,7 +178,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-reference-java</artifactId>
+          <artifactId>beam-runners-portability-java</artifactId>
           <version>${beam.version}</version>
           <scope>runtime</scope>
         </dependency>
@@ -249,7 +250,10 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-flink_2.11</artifactId>
+          <!-- Please see the Flink Runner page for an up-to-date list
+               of supported Flink versions and their artifact names:
+               https://beam.apache.org/documentation/runners/flink/ -->
+          <artifactId>${flink.artifact.name}</artifactId>
           <version>${beam.version}</version>
           <scope>runtime</scope>
         </dependency>
@@ -359,6 +363,19 @@
         </dependency>
       </dependencies>
     </profile>
+
+    <profile>
+      <id>jet-runner</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-jet</artifactId>
+          <version>${beam.version}</version>
+          <scope>runtime</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+
   </profiles>
 
   <dependencies>
@@ -380,7 +397,7 @@
     <dependency>
       <groupId>com.google.api-client</groupId>
       <artifactId>google-api-client</artifactId>
-      <version>${google-clients.version}</version>
+      <version>${google-api-client.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency of google-api-client -->
@@ -408,7 +425,7 @@
     <dependency>
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client</artifactId>
-      <version>${google-clients.version}</version>
+      <version>${google-http-client.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency of google-api-client -->
@@ -439,12 +456,6 @@
       <version>${joda.version}</version>
     </dependency>
 
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>${guava.version}</version>
-    </dependency>
-
     <!-- Add slf4j API frontend binding with JUL backend -->
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -467,7 +478,7 @@
       <artifactId>hamcrest-core</artifactId>
       <version>${hamcrest.version}</version>
     </dependency>
-    
+
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-library</artifactId>
@@ -487,7 +498,7 @@
       <version>${beam.version}</version>
       <scope>test</scope>
     </dependency>
-    
+
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.gcp.options;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings.isNullOrEmpty;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings.isNullOrEmpty;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.api.client.http.HttpRequestInitializer;
@@ -27,7 +27,6 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.services.cloudresourcemanager.CloudResourceManager;
 import com.google.api.services.cloudresourcemanager.model.Project;
 import com.google.api.services.storage.model.Bucket;
-import com.google.api.services.storage.model.Bucket.Encryption;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
@@ -48,20 +47,20 @@ import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.GcpCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
+import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
+import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
+import org.apache.beam.sdk.extensions.gcp.util.Transport;
+import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.InstanceBuilder;
-import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
-import org.apache.beam.sdk.util.Transport;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,10 +94,42 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    */
   @Description(
       "GCP availability zone for running GCP operations. "
+          + "and GCE availability zone for launching workers "
           + "Default is up to the individual service.")
   String getZone();
 
   void setZone(String value);
+
+  /**
+   * The Compute Engine region (https://cloud.google.com/compute/docs/regions-zones/regions-zones)
+   * in which worker processing should occur, e.g. "us-west1". Mutually exclusive with {@link
+   * #getWorkerZone()}. If neither workerRegion nor workerZone is specified, default to same value
+   * as region.
+   */
+  @Description(
+      "The Compute Engine region "
+          + "(https://cloud.google.com/compute/docs/regions-zones/regions-zones) in which worker "
+          + "processing should occur, e.g. \"us-west1\". Mutually exclusive with workerZone. If "
+          + "neither workerRegion nor workerZone is specified, default to same value as region.")
+  String getWorkerRegion();
+
+  void setWorkerRegion(String workerRegion);
+
+  /**
+   * The Compute Engine zone (https://cloud.google.com/compute/docs/regions-zones/regions-zones) in
+   * which worker processing should occur, e.g. "us-west1-a". Mutually exclusive with {@link
+   * #getWorkerRegion()}. If neither workerRegion nor workerZone is specified, the Dataflow service
+   * will choose a zone in region based on available capacity.
+   */
+  @Description(
+      "The Compute Engine zone "
+          + "(https://cloud.google.com/compute/docs/regions-zones/regions-zones) in which worker "
+          + "processing should occur, e.g. \"us-west1-a\". Mutually exclusive with workerRegion. "
+          + "If neither workerRegion nor workerZone is specified, the Dataflow service will choose "
+          + "a zone in region based on available capacity.")
+  String getWorkerZone();
+
+  void setWorkerZone(String workerZone);
 
   /**
    * The class of the credential factory that should be created and used to create credentials. If
@@ -295,6 +326,10 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
     static String tryCreateDefaultBucket(PipelineOptions options, CloudResourceManager crmClient) {
       GcsOptions gcsOptions = options.as(GcsOptions.class);
 
+      checkArgument(
+          isNullOrEmpty(gcsOptions.getDataflowKmsKey()),
+          "Cannot create a default bucket when --dataflowKmsKey is set.");
+
       final String projectId = gcsOptions.getProject();
       checkArgument(!isNullOrEmpty(projectId), "--project is a required option.");
 
@@ -312,11 +347,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       }
       final String bucketName = "dataflow-staging-" + region + "-" + projectNumber;
       LOG.info("No tempLocation specified, attempting to use default bucket: {}", bucketName);
-      Bucket bucket =
-          new Bucket()
-              .setName(bucketName)
-              .setLocation(region)
-              .setEncryption(new Encryption().setDefaultKmsKeyName(gcsOptions.getDataflowKmsKey()));
+      Bucket bucket = new Bucket().setName(bucketName).setLocation(region);
       // Always try to create the bucket before checking access, so that we do not
       // race with other pipelines that may be attempting to do the same thing.
       try {

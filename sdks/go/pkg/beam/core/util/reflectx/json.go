@@ -17,8 +17,9 @@ package reflectx
 
 import (
 	"encoding/json"
-	"fmt"
 	"reflect"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // UnmarshalJSON decodes a json string as then given type. It is suitable
@@ -26,7 +27,7 @@ import (
 func UnmarshalJSON(t reflect.Type, str string) (interface{}, error) {
 	data := reflect.New(t).Interface()
 	if err := json.Unmarshal([]byte(str), data); err != nil {
-		return nil, fmt.Errorf("failed to decode data: %v", err)
+		return nil, errors.Wrap(err, "failed to decode data")
 	}
 	return reflect.ValueOf(data).Elem().Interface(), nil
 }

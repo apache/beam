@@ -30,7 +30,6 @@ import static org.mockito.Mockito.when;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.dataflow.worker.NameContextsForTests;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
@@ -60,8 +59,7 @@ import org.mockito.MockitoAnnotations;
 public class RemoteGrpcPortReadOperationTest {
   private static final Coder<WindowedValue<String>> CODER =
       WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
-  private static final BeamFnApi.Target TARGET =
-      BeamFnApi.Target.newBuilder().setPrimitiveTransformReference("1").setName("name").build();
+  private static final String TRANSFORM_ID = "1";
   private static final String BUNDLE_ID = "999";
   private static final String BUNDLE_ID_2 = "222";
 
@@ -79,7 +77,7 @@ public class RemoteGrpcPortReadOperationTest {
     operation =
         new RemoteGrpcPortReadOperation<>(
             beamFnDataService,
-            TARGET,
+            TRANSFORM_ID,
             bundleIdSupplier,
             CODER,
             new OutputReceiver[] {testReceiver},
@@ -100,7 +98,8 @@ public class RemoteGrpcPortReadOperationTest {
 
     operation.start();
     verify(beamFnDataService)
-        .receive(eq(LogicalEndpoint.of(BUNDLE_ID, TARGET)), eq(CODER), consumerCaptor.capture());
+        .receive(
+            eq(LogicalEndpoint.of(BUNDLE_ID, TRANSFORM_ID)), eq(CODER), consumerCaptor.capture());
 
     Future<Void> operationFinish =
         Executors.newSingleThreadExecutor()
@@ -132,7 +131,8 @@ public class RemoteGrpcPortReadOperationTest {
     when(bundleIdSupplier.getId()).thenReturn(BUNDLE_ID_2);
     operation.start();
     verify(beamFnDataService)
-        .receive(eq(LogicalEndpoint.of(BUNDLE_ID_2, TARGET)), eq(CODER), consumerCaptor.capture());
+        .receive(
+            eq(LogicalEndpoint.of(BUNDLE_ID_2, TRANSFORM_ID)), eq(CODER), consumerCaptor.capture());
   }
 
   @Test
@@ -144,7 +144,8 @@ public class RemoteGrpcPortReadOperationTest {
 
     operation.start();
     verify(beamFnDataService)
-        .receive(eq(LogicalEndpoint.of(BUNDLE_ID, TARGET)), eq(CODER), consumerCaptor.capture());
+        .receive(
+            eq(LogicalEndpoint.of(BUNDLE_ID, TRANSFORM_ID)), eq(CODER), consumerCaptor.capture());
 
     assertFalse(inboundDataClient.isDone());
     operation.abort();

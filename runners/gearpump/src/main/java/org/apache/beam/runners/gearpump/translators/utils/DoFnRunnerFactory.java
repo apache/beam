@@ -33,6 +33,7 @@ import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -48,6 +49,8 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
   private final TupleTag<OutputT> mainOutputTag;
   private final List<TupleTag<?>> sideOutputTags;
   private final StepContext stepContext;
+  private final DoFnSchemaInformation doFnSchemaInformation;
+  private final Map<String, PCollectionView<?>> sideInputMapping;
   Map<TupleTag<?>, Coder<?>> outputCoders;
   private final WindowingStrategy<?, ?> windowingStrategy;
 
@@ -60,7 +63,9 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
       List<TupleTag<?>> sideOutputTags,
       StepContext stepContext,
       Map<TupleTag<?>, Coder<?>> outputCoders,
-      WindowingStrategy<?, ?> windowingStrategy) {
+      WindowingStrategy<?, ?> windowingStrategy,
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     this.fn = doFn;
     this.serializedOptions = new SerializablePipelineOptions(pipelineOptions);
     this.sideInputs = sideInputs;
@@ -70,6 +75,8 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
     this.stepContext = stepContext;
     this.outputCoders = outputCoders;
     this.windowingStrategy = windowingStrategy;
+    this.doFnSchemaInformation = doFnSchemaInformation;
+    this.sideInputMapping = sideInputMapping;
   }
 
   public PushbackSideInputDoFnRunner<InputT, OutputT> createRunner(
@@ -86,7 +93,9 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
             stepContext,
             null,
             outputCoders,
-            windowingStrategy);
+            windowingStrategy,
+            doFnSchemaInformation,
+            sideInputMapping);
     return SimplePushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
   }
 }

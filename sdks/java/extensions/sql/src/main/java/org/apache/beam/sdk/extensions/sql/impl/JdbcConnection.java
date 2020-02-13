@@ -25,10 +25,10 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.calcite.jdbc.CalciteConnection;
-import org.apache.calcite.jdbc.CalciteSchema;
-import org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteConnection;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 
 /**
  * Beam JDBC Connection.
@@ -45,6 +45,7 @@ public class JdbcConnection extends CalciteConnectionWrapper {
   private static final String PIPELINE_OPTION_PREFIX = "beam.";
 
   private Map<String, String> pipelineOptionsMap;
+  private PipelineOptions pipelineOptions;
 
   private JdbcConnection(CalciteConnection connection) throws SQLException {
     super(connection);
@@ -95,6 +96,14 @@ public class JdbcConnection extends CalciteConnectionWrapper {
    */
   public void setPipelineOptionsMap(Map<String, String> pipelineOptionsMap) {
     this.pipelineOptionsMap = ImmutableMap.copyOf(pipelineOptionsMap);
+  }
+
+  public void setPipelineOptions(PipelineOptions pipelineOptions) {
+    this.pipelineOptions = pipelineOptions;
+  }
+
+  public PipelineOptions getPipelineOptions() {
+    return this.pipelineOptions;
   }
 
   /** Get the current default schema from the root schema. */

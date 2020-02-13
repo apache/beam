@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """A microbenchmark for measuring DistributionAccumulator performance
 
 This runs a sequence of distribution.update for random input value to calculate
@@ -22,6 +23,8 @@ A typical update operation should run into 0.6 microseconds
 Run as
   python -m apache_beam.tools.distribution_counter_microbenchmark
 """
+
+# pytype: skip-file
 
 from __future__ import absolute_import
 from __future__ import division
@@ -59,7 +62,7 @@ def run_benchmark(num_runs=100, num_input=10000, seed=time.time()):
     start = time.time()
     counter.add_inputs_for_test(inputs)
     time_cost = time.time() - start
-    print("Run %d: Total time cost %g sec" % (i+1, time_cost))
+    print("Run %d: Total time cost %g sec" % (i + 1, time_cost))
     total_time += time_cost / num_input
   print("Per element update time cost:", total_time / num_runs)
 

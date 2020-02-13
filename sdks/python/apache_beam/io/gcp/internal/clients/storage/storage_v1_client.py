@@ -22,6 +22,7 @@ from __future__ import absolute_import
 
 from apitools.base.py import base_api
 
+from apache_beam.io.gcp.gcsio_overrides import GcsIOOverrides
 from apache_beam.io.gcp.internal.clients.storage import \
     storage_v1_messages as messages
 
@@ -52,10 +53,11 @@ class StorageV1(base_api.BaseApiClient):
     super(StorageV1, self).__init__(
         url, credentials=credentials,
         get_credentials=get_credentials, http=http, model=model,
-        log_request=log_request, log_response=log_response,
+        log_request=log_request, log_response=log_response, num_retries=20,
         credentials_args=credentials_args,
         default_global_params=default_global_params,
         additional_http_headers=additional_http_headers,
+        retry_func=GcsIOOverrides.retry_func,
         response_encoding=response_encoding)
     self.bucketAccessControls = self.BucketAccessControlsService(self)
     self.buckets = self.BucketsService(self)

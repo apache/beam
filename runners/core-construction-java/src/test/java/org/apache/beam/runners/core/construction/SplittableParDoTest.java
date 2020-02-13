@@ -29,6 +29,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
@@ -58,7 +59,7 @@ public class SplittableParDoTest {
     }
 
     @Override
-    protected boolean tryClaimImpl(Void position) {
+    public boolean tryClaim(Void position) {
       return false;
     }
 
@@ -68,8 +69,8 @@ public class SplittableParDoTest {
     }
 
     @Override
-    public SomeRestriction checkpoint() {
-      return someRestriction;
+    public SplitResult<SomeRestriction> trySplit(double fractionOfRemainder) {
+      return SplitResult.of(null, someRestriction);
     }
 
     @Override
@@ -78,10 +79,11 @@ public class SplittableParDoTest {
 
   private static class BoundedFakeFn extends DoFn<Integer, String> {
     @ProcessElement
-    public void processElement(ProcessContext context, SomeRestrictionTracker tracker) {}
+    public void processElement(
+        ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {}
 
     @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(Integer element) {
+    public SomeRestriction getInitialRestriction(@Element Integer element) {
       return null;
     }
   }
@@ -89,12 +91,12 @@ public class SplittableParDoTest {
   private static class UnboundedFakeFn extends DoFn<Integer, String> {
     @ProcessElement
     public ProcessContinuation processElement(
-        ProcessContext context, SomeRestrictionTracker tracker) {
+        ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {
       return stop();
     }
 
     @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(Integer element) {
+    public SomeRestriction getInitialRestriction(@Element Integer element) {
       return null;
     }
   }

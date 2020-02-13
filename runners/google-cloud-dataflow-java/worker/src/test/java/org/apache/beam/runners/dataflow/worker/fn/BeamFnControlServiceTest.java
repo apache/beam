@@ -18,11 +18,13 @@
 package org.apache.beam.runners.dataflow.worker.fn;
 
 import static org.junit.Assert.assertNotNull;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import java.net.InetAddress;
 import java.net.ServerSocket;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
@@ -33,11 +35,11 @@ import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.net.HostAndPort;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -67,6 +69,15 @@ public class BeamFnControlServiceTest {
 
   @Test
   public void testClientConnecting() throws Exception {
+    CountDownLatch requestCompleted = new CountDownLatch(1);
+    doAnswer(
+            invocation -> {
+              requestCompleted.countDown();
+              return null;
+            })
+        .when(requestObserver)
+        .onCompleted();
+
     PipelineOptions options = PipelineOptionsFactory.create();
     Endpoints.ApiServiceDescriptor descriptor = findOpenPort();
     BeamFnControlService service =
@@ -77,7 +88,7 @@ public class BeamFnControlServiceTest {
     Server server = ServerFactory.createDefault().create(ImmutableList.of(service), descriptor);
     String url = service.getApiServiceDescriptor().getUrl();
     BeamFnControlGrpc.BeamFnControlStub clientStub =
-        BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext(true).build());
+        BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext().build());
 
     // Connect from the client.
     clientStub.control(requestObserver);
@@ -87,7 +98,8 @@ public class BeamFnControlServiceTest {
     server.shutdown();
     server.awaitTermination(1, TimeUnit.SECONDS);
     server.shutdownNow();
-    Thread.sleep(1000); // Wait for stub to close stream.
+
+    requestCompleted.await(5, TimeUnit.SECONDS); // Wait until request streams have been closed.
 
     verify(requestObserver).onCompleted();
     verifyNoMoreInteractions(requestObserver);
@@ -95,6 +107,22 @@ public class BeamFnControlServiceTest {
 
   @Test
   public void testMultipleClientsConnecting() throws Exception {
+    CountDownLatch requestCompleted = new CountDownLatch(2);
+    doAnswer(
+            invocation -> {
+              requestCompleted.countDown();
+              return null;
+            })
+        .when(requestObserver)
+        .onCompleted();
+    doAnswer(
+            invocation -> {
+              requestCompleted.countDown();
+              return null;
+            })
+        .when(anotherRequestObserver)
+        .onCompleted();
+
     PipelineOptions options = PipelineOptionsFactory.create();
     Endpoints.ApiServiceDescriptor descriptor = findOpenPort();
     BeamFnControlService service =
@@ -106,9 +134,9 @@ public class BeamFnControlServiceTest {
 
     String url = service.getApiServiceDescriptor().getUrl();
     BeamFnControlGrpc.BeamFnControlStub clientStub =
-        BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext(true).build());
+        BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext().build());
     BeamFnControlGrpc.BeamFnControlStub anotherClientStub =
-        BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext(true).build());
+        BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext().build());
 
     // Connect from the client.
     clientStub.control(requestObserver);
@@ -126,7 +154,8 @@ public class BeamFnControlServiceTest {
     server.shutdown();
     server.awaitTermination(1, TimeUnit.SECONDS);
     server.shutdownNow();
-    Thread.sleep(1000); // Wait for stub to close stream.
+
+    requestCompleted.await(5, TimeUnit.SECONDS); // Wait until request streams have been closed.
 
     verify(requestObserver).onCompleted();
     verifyNoMoreInteractions(requestObserver);

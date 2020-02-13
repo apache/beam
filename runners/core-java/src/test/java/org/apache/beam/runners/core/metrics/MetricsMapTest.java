@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -71,6 +72,27 @@ public class MetricsMapTest {
     AtomicLong bar = metricsMap.get("bar");
     assertThat(
         metricsMap.entries(), containsInAnyOrder(hasEntry("foo", foo), hasEntry("bar", bar)));
+  }
+
+  @Test
+  public void testEquals() {
+    MetricsMap<String, AtomicLong> metricsMap = new MetricsMap<>(unusedKey -> new AtomicLong());
+    MetricsMap<String, AtomicLong> equal = new MetricsMap<>(unusedKey -> new AtomicLong());
+    Assert.assertEquals(metricsMap, equal);
+    Assert.assertEquals(metricsMap.hashCode(), equal.hashCode());
+  }
+
+  @Test
+  public void testNotEquals() {
+    MetricsMap<String, AtomicLong> metricsMap = new MetricsMap<>(unusedKey -> new AtomicLong());
+
+    Assert.assertNotEquals(metricsMap, new Object());
+
+    MetricsMap<String, AtomicLong> differentMetrics =
+        new MetricsMap<>(unusedKey -> new AtomicLong());
+    differentMetrics.get("key");
+    Assert.assertNotEquals(metricsMap, differentMetrics);
+    Assert.assertNotEquals(metricsMap.hashCode(), differentMetrics.hashCode());
   }
 
   private static Matcher<Map.Entry<String, AtomicLong>> hasEntry(

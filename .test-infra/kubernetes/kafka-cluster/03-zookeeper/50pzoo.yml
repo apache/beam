@@ -1,0 +1,100 @@
+#    Licensed to the Apache Software Foundation (ASF) under one or more
+#    contributor license agreements.  See the NOTICE file distributed with
+#    this work for additional information regarding copyright ownership.
+#    The ASF licenses this file to You under the Apache License, Version 2.0
+#    (the "License"); you may not use this file except in compliance with
+#    the License.  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pzoo
+spec:
+  selector:
+    matchLabels:
+      app: zookeeper
+      storage: persistent
+  serviceName: "pzoo"
+  replicas: 3
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: Parallel
+  template:
+    metadata:
+      labels:
+        app: zookeeper
+        storage: persistent
+      annotations:
+    spec:
+      terminationGracePeriodSeconds: 10
+      initContainers:
+      - name: init-config
+        image: solsson/kafka-initutils@sha256:2cdb90ea514194d541c7b869ac15d2d530ca64889f56e270161fe4e5c3d076ea
+        command: ['/bin/bash', '/etc/kafka-configmap/init.sh']
+        volumeMounts:
+        - name: configmap
+          mountPath: /etc/kafka-configmap
+        - name: config
+          mountPath: /etc/kafka
+        - name: data
+          mountPath: /var/lib/zookeeper
+      containers:
+      - name: zookeeper
+        image: solsson/kafka:2.1.1@sha256:8bc8242c649c395ab79d76cc83b1052e63b4efea7f83547bf11eb3ef5ea6f8e1
+        env:
+        - name: KAFKA_LOG4J_OPTS
+          value: -Dlog4j.configuration=file:/etc/kafka/log4j.properties
+        command:
+        - ./bin/zookeeper-server-start.sh
+        - /etc/kafka/zookeeper.properties
+        lifecycle:
+          preStop:
+            exec:
+             command: ["sh", "-ce", "kill -s TERM 1; while $(kill -0 1 2>/dev/null); do sleep 1; done"]
+        ports:
+        - containerPort: 2181
+          name: client
+        - containerPort: 2888
+          name: peer
+        - containerPort: 3888
+          name: leader-election
+        resources:
+          requests:
+            cpu: 10m
+            memory: 100Mi
+          limits:
+            memory: 120Mi
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - '[ "imok" = "$(echo ruok | nc -w 1 -q 1 127.0.0.1 2181)" ]'
+        volumeMounts:
+        - name: config
+          mountPath: /etc/kafka
+        - name: data
+          mountPath: /var/lib/zookeeper
+      volumes:
+      - name: configmap
+        configMap:
+          name: zookeeper-config
+      - name: config
+        emptyDir: {}
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: kafka-zookeeper
+      resources:
+        requests:
+          storage: 1Gi

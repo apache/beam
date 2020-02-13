@@ -48,26 +48,6 @@ function complete() {
 
 
 #######################################
-# Download files from RC staging location, install python sdk
-# Globals:
-#   BEAM_PYTHON_SDK
-# Arguments:
-#   None
-#######################################
-function install_sdk() {
-  print_separator "Creating new virtualenv and installing the SDK"
-  virtualenv temp_virtualenv
-  . temp_virtualenv/bin/activate
-  gcloud_version=$(gcloud --version | head -1 | awk '{print $4}')
-  if [[ "$gcloud_version" < "189" ]]; then
-    update_gcloud
-  fi
-  pip install google-compute-engine
-  pip install $BEAM_PYTHON_SDK[gcp]
-}
-
-
-#######################################
 # Run UserScore with DirectRunner
 # Globals:
 #   USERSCORE_OUTPUT_PREFIX, DATASET, BUCKET_NAME
@@ -164,6 +144,7 @@ function verify_hourlyteamscore_dataflow() {
 #   VERSION
 # Arguments:
 #   $1 - sdk types: [tar, wheel]
+#   $2 - python interpreter version: [python2.7, python3.5, ...]
 #######################################
 function run_release_candidate_python_mobile_gaming() {
   print_separator "Start Mobile Gaming Examples"
@@ -173,11 +154,11 @@ function run_release_candidate_python_mobile_gaming() {
   echo $TMPDIR
   pushd $TMPDIR
 
-  download_files $1
+  download_files $1 $2
   # get exact names of sdk and other files
   BEAM_PYTHON_SDK=$(get_sdk_name $1)
 
-  install_sdk
+  install_sdk $1 $2
   verify_userscore_direct
   verify_userscore_dataflow
   verify_hourlyteamscore_direct

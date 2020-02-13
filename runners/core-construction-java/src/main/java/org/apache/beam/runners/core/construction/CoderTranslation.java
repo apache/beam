@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -26,20 +26,19 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableBiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableBiMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Converts to and from Beam Runner API representations of {@link Coder Coders}. */
 public class CoderTranslation {
   // This URN says that the coder is just a UDF blob this SDK understands
   // TODO: standardize such things
-  public static final String JAVA_SERIALIZED_CODER_URN = "urn:beam:coders:javasdk:0.1";
+  public static final String JAVA_SERIALIZED_CODER_URN = "beam:coders:javasdk:0.1";
 
   @VisibleForTesting
   static final BiMap<Class<? extends Coder>, String> KNOWN_CODER_URNS = loadCoderURNs();
@@ -90,11 +89,9 @@ public class CoderTranslation {
     return RunnerApi.Coder.newBuilder()
         .addAllComponentCoderIds(componentIds)
         .setSpec(
-            SdkFunctionSpec.newBuilder()
-                .setSpec(
-                    FunctionSpec.newBuilder()
-                        .setUrn(KNOWN_CODER_URNS.get(coder.getClass()))
-                        .setPayload(ByteString.copyFrom(translator.getPayload(coder)))))
+            FunctionSpec.newBuilder()
+                .setUrn(KNOWN_CODER_URNS.get(coder.getClass()))
+                .setPayload(ByteString.copyFrom(translator.getPayload(coder))))
         .build();
   }
 
@@ -111,19 +108,16 @@ public class CoderTranslation {
     RunnerApi.Coder.Builder coderBuilder = RunnerApi.Coder.newBuilder();
     return coderBuilder
         .setSpec(
-            SdkFunctionSpec.newBuilder()
-                .setSpec(
-                    FunctionSpec.newBuilder()
-                        .setUrn(JAVA_SERIALIZED_CODER_URN)
-                        .setPayload(
-                            ByteString.copyFrom(SerializableUtils.serializeToByteArray(coder)))
-                        .build()))
+            FunctionSpec.newBuilder()
+                .setUrn(JAVA_SERIALIZED_CODER_URN)
+                .setPayload(ByteString.copyFrom(SerializableUtils.serializeToByteArray(coder)))
+                .build())
         .build();
   }
 
   public static Coder<?> fromProto(RunnerApi.Coder protoCoder, RehydratedComponents components)
       throws IOException {
-    String coderSpecUrn = protoCoder.getSpec().getSpec().getUrn();
+    String coderSpecUrn = protoCoder.getSpec().getUrn();
     if (coderSpecUrn.equals(JAVA_SERIALIZED_CODER_URN)) {
       return fromCustomCoder(protoCoder);
     }
@@ -132,7 +126,7 @@ public class CoderTranslation {
 
   private static Coder<?> fromKnownCoder(RunnerApi.Coder coder, RehydratedComponents components)
       throws IOException {
-    String coderUrn = coder.getSpec().getSpec().getUrn();
+    String coderUrn = coder.getSpec().getUrn();
     List<Coder<?>> coderComponents = new ArrayList<>();
     for (String componentId : coder.getComponentCoderIdsList()) {
       Coder<?> innerCoder = components.getCoder(componentId);
@@ -145,13 +139,12 @@ public class CoderTranslation {
         "Unknown Coder URN %s. Known URNs: %s",
         coderUrn,
         KNOWN_CODER_URNS.values());
-    return translator.fromComponents(
-        coderComponents, coder.getSpec().getSpec().getPayload().toByteArray());
+    return translator.fromComponents(coderComponents, coder.getSpec().getPayload().toByteArray());
   }
 
   private static Coder<?> fromCustomCoder(RunnerApi.Coder protoCoder) throws IOException {
     return (Coder<?>)
         SerializableUtils.deserializeFromByteArray(
-            protoCoder.getSpec().getSpec().getPayload().toByteArray(), "Custom Coder Bytes");
+            protoCoder.getSpec().getPayload().toByteArray(), "Custom Coder Bytes");
   }
 }

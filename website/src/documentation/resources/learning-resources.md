@@ -47,7 +47,7 @@ If you have additional material that you would like to see here, please let us k
 *   **[Programming Guide](https://beam.apache.org/documentation/programming-guide/)** - The Programming Guide contains more in-depth information on most topics in the Apache Beam SDK. These include descriptions on how everything works as well as code snippets to see how to use every part. This can be used as a reference guidebook.
 *   **[The world beyond batch: Streaming 101](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101)** - Covers some basic background information, terminology, time domains, batch processing, and streaming.
 *   **[The world beyond batch: Streaming 102](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102)** - Tour of the unified batch and streaming programming model in Beam, alongside with an example to explain many of the concepts.
-*   **[Apache Beam Execution Model](https://beam.apache.org/documentation/execution-model/)** - Explanation on how runners execute an Apache Beam pipeline. This includes why serialization is important, and how a runner might distribute the work in parallel to multiple machines.
+*   **[Apache Beam Execution Model](https://beam.apache.org/documentation/runtime/model)** - Explanation on how runners execute an Apache Beam pipeline. This includes why serialization is important, and how a runner might distribute the work in parallel to multiple machines.
 
 ### Common Patterns
 
@@ -94,6 +94,33 @@ If you have additional material that you would like to see here, please let us k
 *   **[Python Qwik Start](https://qwiklabs.com/focuses/1100?locale=en&parent=catalog)** (30m) - Run a word count pipeline on the Dataflow runner.
 *   **[NDVI from Landsat Images](https://qwiklabs.com/focuses/1849?locale=en&parent=catalog)** (45m) - Process Landsat satellite data in a distributed environment to compute the [Normalized Difference Vegetation Index](https://en.wikipedia.org/wiki/Normalized_difference_vegetation_index) (NDVI).
 *   **[Simulate historic flights](https://qwiklabs.com/focuses/1159?locale=en&parent=catalog)** (60m) - Simulate real-time historic internal flights in the United States and store the resulting simulated data in BigQuery.
+
+## Beam Katas {#beam-katas}
+
+Beam Katas are interactive Beam coding exercises (i.e. [code katas](http://codekata.com/))
+that can help you to learn Apache Beam concepts and programming model hands-on.
+Built based on [JetBrains Educational Products](https://www.jetbrains.com/education/), Beam Katas 
+objective is to provide a series of structured hands-on learning experiences for learners 
+to understand about Apache Beam and its SDKs by solving exercises with gradually increasing 
+complexity. Beam Katas are available for both Java and Python SDKs.
+
+### Java
+
+*   Download [IntelliJ Edu](https://www.jetbrains.com/education/download/#section=idea)
+*   Upon opening the IDE, expand the "Learn and Teach" menu, then select "Browse Courses"
+*   Search for "Beam Katas - Java"
+*   Expand the "Advanced Settings" and modify the "Location" and "Jdk" appropriately
+*   Click "Join"
+*   [Learn more](https://www.jetbrains.com/help/education/learner-start-guide.html?section=Introduction%20to%20Java#explore_course) about how to use the Education product
+
+### Python
+
+*   Download [PyCharm Edu](https://www.jetbrains.com/education/download/#section=pycharm-edu)
+*   Upon opening the IDE, expand the "Learn and Teach" menu, then select "Browse Courses"
+*   Search for "Beam Katas - Python"
+*   Expand the "Advanced Settings" and modify the "Location" and "Interpreter" appropriately
+*   Click "Join"
+*   [Learn more](https://www.jetbrains.com/help/education/learner-start-guide.html?section=Introduction%20to%20Python#explore_course) about how to use the Education product
 
 ## Code Examples {#code-examples}
 

@@ -40,15 +40,17 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.samza.context.Context;
 import org.joda.time.Instant;
 
@@ -70,7 +72,9 @@ public class SamzaDoFnRunners {
       DoFnRunners.OutputManager outputManager,
       Coder<InT> inputCoder,
       List<TupleTag<?>> sideOutputTags,
-      Map<TupleTag<?>, Coder<?>> outputCoders) {
+      Map<TupleTag<?>, Coder<?>> outputCoders,
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     final KeyedInternals keyedInternals;
     final TimerInternals timerInternals;
     final StateInternals stateInternals;
@@ -91,6 +95,7 @@ public class SamzaDoFnRunners {
       timerInternals = timerInternalsFactory.timerInternalsForKey(null);
     }
 
+    final StepContext stepContext = createStepContext(stateInternals, timerInternals);
     final DoFnRunner<InT, FnOutT> underlyingRunner =
         DoFnRunners.simpleRunner(
             pipelineOptions,
@@ -99,10 +104,12 @@ public class SamzaDoFnRunners {
             outputManager,
             mainOutputTag,
             sideOutputTags,
-            createStepContext(stateInternals, timerInternals),
+            stepContext,
             inputCoder,
             outputCoders,
-            windowingStrategy);
+            windowingStrategy,
+            doFnSchemaInformation,
+            sideInputMapping);
 
     final DoFnRunner<InT, FnOutT> doFnRunnerWithMetrics =
         pipelineOptions.getEnableMetrics()
@@ -114,7 +121,9 @@ public class SamzaDoFnRunners {
       final DoFnRunner<InT, FnOutT> statefulDoFnRunner =
           DoFnRunners.defaultStatefulDoFnRunner(
               doFn,
+              inputCoder,
               doFnRunnerWithMetrics,
+              stepContext,
               windowingStrategy,
               new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, windowingStrategy),
               createStateCleaner(doFn, windowingStrategy, keyedInternals.stateInternals()));
@@ -218,6 +227,7 @@ public class SamzaDoFnRunners {
                 StateRequestHandler.unsupported(),
                 BundleProgressHandler.ignored());
 
+        // TODO: side input support needs to implement to handle this properly
         inputReceiver = Iterables.getOnlyElement(remoteBundle.getInputReceivers().values());
         bundledEventsBag
             .read()
@@ -255,7 +265,12 @@ public class SamzaDoFnRunners {
 
     @Override
     public void onTimer(
-        String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {}
+        String timerId,
+        String timerFamilyId,
+        BoundedWindow window,
+        Instant timestamp,
+        Instant outputTimestamp,
+        TimeDomain timeDomain) {}
 
     @Override
     public void finishBundle() {

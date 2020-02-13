@@ -19,6 +19,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // TODO(BEAM-490): This file contains support for the handling of CoGBK
@@ -167,7 +169,7 @@ func (f *filterStream) Read() (*FullValue, error) {
 
 		v, err := f.dec.Decode(bytes.NewReader(value))
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode union value '%v' for key %v: %v", value, key, err)
+			return nil, errors.Wrapf(err, "failed to decode union value '%v' for key %v", value, key)
 		}
 		v.Timestamp = elm.Timestamp
 		v.Windows = elm.Windows

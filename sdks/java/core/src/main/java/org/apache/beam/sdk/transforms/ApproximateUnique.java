@@ -32,16 +32,30 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Objects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashingOutputStream;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashingOutputStream;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 
 /**
  * {@code PTransform}s for estimating the number of distinct elements in a {@code PCollection}, or
  * the number of distinct values associated with each key in a {@code PCollection} of {@code KV}s.
+ *
+ * <p>Consider using {@code HllCount} in the {@code zetasketch} extension module if you need better
+ * performance or need to save intermediate aggregation result into a sketch for later processing.
+ *
+ * <p>For example, to estimate the number of distinct elements in a {@code PCollection<String>}:
+ *
+ * <pre>{@code
+ * PCollection<String> input = ...;
+ * PCollection<Long> countDistinct =
+ *     input.apply(HllCount.Init.forStrings().globally()).apply(HllCount.Extract.globally());
+ * }</pre>
+ *
+ * For more details about using {@code HllCount} and the {@code zetasketch} extension module, see
+ * https://s.apache.org/hll-in-beam#bookmark=id.v6chsij1ixo7.
  */
 public class ApproximateUnique {
 
@@ -144,7 +158,7 @@ public class ApproximateUnique {
    *
    * @param <T> the type of the elements in the input {@code PCollection}
    */
-  static class Globally<T> extends PTransform<PCollection<T>, PCollection<Long>> {
+  public static final class Globally<T> extends PTransform<PCollection<T>, PCollection<Long>> {
 
     /**
      * The number of entries in the statistical sample; the higher this number, the more accurate
@@ -200,7 +214,8 @@ public class ApproximateUnique {
    * @param <K> the type of the keys in the input and output {@code PCollection}s
    * @param <V> the type of the values in the input {@code PCollection}
    */
-  static class PerKey<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Long>>> {
+  public static final class PerKey<K, V>
+      extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Long>>> {
 
     /**
      * The number of entries in the statistical sample; the higher this number, the more accurate

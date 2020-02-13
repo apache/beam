@@ -39,8 +39,8 @@ import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.node.ObjectNode;
 import org.hamcrest.collection.IsIn;
@@ -48,6 +48,7 @@ import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -100,6 +101,7 @@ public class BeamSqlLineIT implements Serializable {
   }
 
   @Test
+  @Ignore("https://jira.apache.org/jira/browse/BEAM-7582")
   public void testSelectFromPubsub() throws Exception {
     String[] args =
         buildArgs(
@@ -134,6 +136,7 @@ public class BeamSqlLineIT implements Serializable {
   }
 
   @Test
+  @Ignore("https://jira.apache.org/jira/browse/BEAM-7582")
   public void testFilterForSouthManhattan() throws Exception {
     String[] args =
         buildArgs(

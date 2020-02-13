@@ -29,8 +29,8 @@ This section provides in-depth conceptual information and reference material for
 
 Learn about the Beam Programming Model and the concepts common to all Beam SDKs and Runners.
 
-* The [Programming Guide]({{ site.baseurl }}/documentation/programming-guide/) introduces all the key Beam concepts.
-* Learn about Beam's [execution model]({{ site.baseurl }}/documentation/execution-model/) to better understand how pipelines execute.
+* Read the [Programming Guide]({{ site.baseurl }}/documentation/programming-guide/), which introduces all the key Beam concepts.
+* Learn about Beam's [execution model]({{ site.baseurl }}/documentation/runtime/model) to better understand how pipelines execute.
 * Visit [Learning Resources]({{ site.baseurl }}/documentation/resources/learning-resources) for some of our favorite articles and talks about Beam.
 
 ## Pipeline Fundamentals
@@ -61,9 +61,10 @@ A Beam Runner runs a Beam pipeline on a specific (often distributed) data proces
 * [GearpumpRunner]({{ site.baseurl }}/documentation/runners/gearpump/): Runs on [Apache Gearpump (incubating)](http://gearpump.apache.org).
 * [SamzaRunner]({{ site.baseurl }}/documentation/runners/samza/): Runs on [Apache Samza](http://samza.apache.org).
 * [NemoRunner]({{ site.baseurl }}/documentation/runners/nemo/): Runs on [Apache Nemo](http://nemo.apache.org).
+* [JetRunner]({{ site.baseurl }}/documentation/runners/jet/): Runs on [Hazelcast Jet](https://jet.hazelcast.org/).
 
 ### Choosing a Runner
 
 Beam is designed to enable pipelines to be portable across different runners. However, given every runner has different capabilities, they also have different abilities to implement the core concepts in the Beam model. The [Capability Matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/) provides a detailed comparison of runner functionality.
 
-Once you have chosen which runner to use, see that runner's page for more information about any initial runner-specific setup as well as any required or optional `PipelineOptions` for configuring it's execution. You may also want to refer back to the Quickstart for [Java]({{ site.baseurl }}/get-started/quickstart-java), [Python]({{ site.baseurl }}/get-started/quickstart-py) or [Go]({{ site.baseurl }}/get-started/quickstart-go) for instructions on executing the sample WordCount pipeline.
+Once you have chosen which runner to use, see that runner's page for more information about any initial runner-specific setup as well as any required or optional `PipelineOptions` for configuring its execution. You may also want to refer back to the Quickstart for [Java]({{ site.baseurl }}/get-started/quickstart-java), [Python]({{ site.baseurl }}/get-started/quickstart-py) or [Go]({{ site.baseurl }}/get-started/quickstart-go) for instructions on executing the sample WordCount pipeline.

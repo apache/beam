@@ -36,6 +36,12 @@ fi
 echo "[Input Required] Please enter the release version:"
 read VERSION
 
+echo "================Listing all GPG keys================="
+gpg --list-keys --keyid-format LONG --fingerprint --fingerprint
+echo "Please copy the public key which is associated with your Apache account:"
+
+read SIGNING_KEY
+
 cd ~
 if [[ -d ${VERSION} ]]; then
   rm -rf ${VERSION}
@@ -43,14 +49,18 @@ fi
 
 svn co ${BEAM_SVN_DIR}/${VERSION}
 cd ${VERSION}/${PYTHON_ARTIFACTS_DIR}
+
+echo "Fetch wheels artifacts"
+gsutil cp -r gs://beam-wheels-staging/apache_beam-${VERSION}\*.whl .
+
 echo "Start signing and hashing python wheels artifacts"
 rm *.whl.asc || true
 rm *.whl.sha512 ||true
 for artifact in *.whl; do
-  gpg --armor --detach-sig $artifact
+  gpg --local-user ${SIGNING_KEY} --armor --detach-sig $artifact
   sha512sum $artifact > ${artifact}.sha512
 done
-svn add --force *
+svn add --force .
 svn commit --no-auth-cache
 
 rm -rf ~/${VERSION}

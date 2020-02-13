@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -51,15 +51,15 @@ import org.apache.beam.sdk.util.common.ReflectHelpers.ObjectsClassComparator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSetMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.SetMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSetMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.SetMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,8 +103,7 @@ public class CoderRegistry {
           Boolean.class, CoderProviders.fromStaticMethods(Boolean.class, BooleanCoder.class));
       builder.put(Byte.class, CoderProviders.fromStaticMethods(Byte.class, ByteCoder.class));
       builder.put(BitSet.class, CoderProviders.fromStaticMethods(BitSet.class, BitSetCoder.class));
-      builder.put(
-          FloatCoder.class, CoderProviders.fromStaticMethods(Float.class, FloatCoder.class));
+      builder.put(Float.class, CoderProviders.fromStaticMethods(Float.class, FloatCoder.class));
       builder.put(Double.class, CoderProviders.fromStaticMethods(Double.class, DoubleCoder.class));
       builder.put(
           Instant.class, CoderProviders.fromStaticMethods(Instant.class, InstantCoder.class));

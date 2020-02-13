@@ -23,7 +23,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.ArrayBlockingQueue;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.coders.Coder.Context;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
  * Provides an efficient encoding for {@link Iterable}s containing small values by buffering up to

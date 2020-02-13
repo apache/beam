@@ -44,7 +44,7 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -77,6 +77,10 @@ public class CoderRegistryTest {
   public void testSimpleDefaultCoder() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
     assertEquals(StringUtf8Coder.of(), registry.getCoder(String.class));
+    assertEquals(VarIntCoder.of(), registry.getCoder(Integer.class));
+    assertEquals(VarLongCoder.of(), registry.getCoder(Long.class));
+    assertEquals(FloatCoder.of(), registry.getCoder(Float.class));
+    assertEquals(DoubleCoder.of(), registry.getCoder(Double.class));
   }
 
   @Test

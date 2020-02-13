@@ -23,7 +23,7 @@ import static org.junit.Assert.assertThat;
 
 import java.util.Collections;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.sdk.function.ThrowingFunction;
@@ -33,9 +33,9 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -110,7 +110,7 @@ public class WindowMergingFnRunnerTest {
   private static <W extends BoundedWindow> RunnerApi.PTransform createMergeTransformForWindowFn(
       WindowFn<?, W> windowFn) throws Exception {
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environment.newBuilder().setUrl("java").build());
+    components.registerEnvironment(Environments.createDockerEnvironment("test"));
     RunnerApi.FunctionSpec functionSpec =
         RunnerApi.FunctionSpec.newBuilder()
             .setUrn(WindowMergingFnRunner.URN)

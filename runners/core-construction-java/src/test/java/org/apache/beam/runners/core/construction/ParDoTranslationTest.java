@@ -47,6 +47,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine.BinaryCombineLongFn;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.View;
@@ -61,7 +62,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -116,11 +117,12 @@ public class ParDoTranslationTest {
     public void testToProto() throws Exception {
       SdkComponents components = SdkComponents.create();
       components.registerEnvironment(Environments.createDockerEnvironment("java"));
-      ParDoPayload payload = ParDoTranslation.translateParDo(parDo, p, components);
+      ParDoPayload payload =
+          ParDoTranslation.translateParDo(parDo, DoFnSchemaInformation.create(), p, components);
 
       assertThat(ParDoTranslation.getDoFn(payload), equalTo(parDo.getFn()));
       assertThat(ParDoTranslation.getMainOutputTag(payload), equalTo(parDo.getMainOutputTag()));
-      for (PCollectionView<?> view : parDo.getSideInputs()) {
+      for (PCollectionView<?> view : parDo.getSideInputs().values()) {
         payload.getSideInputsOrThrow(view.getTagInternal().getId());
       }
     }
@@ -146,7 +148,7 @@ public class ParDoTranslationTest {
 
       // Decode
       ParDoPayload parDoPayload = ParDoPayload.parseFrom(protoTransform.getSpec().getPayload());
-      for (PCollectionView<?> view : parDo.getSideInputs()) {
+      for (PCollectionView<?> view : parDo.getSideInputs().values()) {
         SideInput sideInput = parDoPayload.getSideInputsOrThrow(view.getTagInternal().getId());
         PCollectionView<?> restoredView =
             PCollectionViewTranslation.viewFromProto(
@@ -258,12 +260,12 @@ public class ParDoTranslationTest {
     }
 
     @GetInitialRestriction
-    public Integer restriction(KV<Long, String> elem) {
+    public Integer restriction(@Element KV<Long, String> elem) {
       return 42;
     }
 
     @NewTracker
-    public RestrictionTracker<Integer, ?> newTracker(Integer restriction) {
+    public RestrictionTracker<Integer, ?> newTracker(@Restriction Integer restriction) {
       throw new UnsupportedOperationException("Should never be called; only to test translation");
     }
 

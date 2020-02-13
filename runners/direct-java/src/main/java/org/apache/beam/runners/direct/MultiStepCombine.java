@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -56,7 +56,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
 /** A {@link Combine} that performs the combine in multiple steps. */
@@ -174,7 +174,7 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
   @Nonnull
   @Override
   public String getUrn() {
-    return "urn:beam:directrunner:transforms:multistepcombine:v1";
+    return "beam:directrunner:transforms:multistepcombine:v1";
   }
 
   @Nullable
@@ -310,7 +310,7 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
   }
 
   static final String DIRECT_MERGE_ACCUMULATORS_EXTRACT_OUTPUT_URN =
-      "urn:beam:directrunner:transforms:merge_accumulators_extract_output:v1";
+      "beam:directrunner:transforms:merge_accumulators_extract_output:v1";
   /**
    * A primitive {@link PTransform} that merges iterables of accumulators and extracts the output.
    *

@@ -30,6 +30,7 @@ import (
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dot"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/flink"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/spark"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/universal"
 )
 

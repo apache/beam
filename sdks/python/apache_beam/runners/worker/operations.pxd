@@ -68,10 +68,11 @@ cdef class Operation(object):
   cpdef start(self)
   cpdef process(self, WindowedValue windowed_value)
   cpdef finish(self)
+  cpdef teardown(self)
   cpdef output(self, WindowedValue windowed_value, int output_index=*)
   cpdef execution_time_monitoring_infos(self, transform_id)
   cpdef user_monitoring_infos(self, transform_id)
-  cpdef element_count_monitoring_infos(self, transform_id)
+  cpdef pcollection_count_monitoring_infos(self, transform_id)
   cpdef monitoring_infos(self, transform_id)
 
 
@@ -97,8 +98,9 @@ cdef class DoOperation(Operation):
   cdef public object input_info
 
 
-cdef class SdfProcessElements(DoOperation):
-  pass
+cdef class SdfProcessSizedElements(DoOperation):
+  cdef object lock
+  cdef object element_start_output_bytes
 
 
 cdef class CombineOperation(Operation):
@@ -109,11 +111,13 @@ cdef class PGBKCVOperation(Operation):
   cdef public object combine_fn
   cdef public object combine_fn_add_input
   cdef public object combine_fn_compact
+  cdef public bint is_default_windowing
+  cdef public object timestamp_combiner
   cdef dict table
   cdef long max_keys
   cdef long key_count
 
-  cpdef output_key(self, tuple wkey, value)
+  cpdef output_key(self, wkey, value, timestamp)
 
 
 cdef class FlattenOperation(Operation):

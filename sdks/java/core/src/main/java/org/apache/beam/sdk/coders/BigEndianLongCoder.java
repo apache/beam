@@ -26,7 +26,7 @@ import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/** A {@link BigEndianLongCoder} encodes {@link Long}s in 8 bytes, big-endian. */
+/** A {@link BigEndianLongCoder} encodes {@link Long Longs} in 8 bytes, big-endian. */
 public class BigEndianLongCoder extends AtomicCoder<Long> {
 
   public static BigEndianLongCoder of() {

@@ -23,7 +23,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.Set;
 import org.apache.beam.sdk.util.ApiSurface;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.hamcrest.Matcher;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -57,7 +57,8 @@ public class GcpCoreApiSurfaceTest {
             classesInPackage("java"),
             classesInPackage("javax"),
             classesInPackage("org.apache.beam.sdk"),
-            classesInPackage("org.joda.time"));
+            classesInPackage("org.joda.time"),
+            classesInPackage("org.junit"));
 
     assertThat(apiSurface, containsOnlyClassesMatching(allowedClasses));
   }

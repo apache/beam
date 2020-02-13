@@ -19,7 +19,7 @@ from __future__ import print_function
 import unittest, mock
 import jira_utils
 from mock import patch, mock_open, Mock
-from jira_manager import JiraManager
+from .jira_manager import JiraManager
 from datetime import datetime
 
 MOCKED_DEP_CURRENT_VERSION = '0.1.0'
@@ -67,7 +67,7 @@ class JiraManagerTest(unittest.TestCase):
                     dep0:
                       owners: owner0, owner1 , owner2,
                   """
-    with patch('__builtin__.open', mock_open(read_data=owners_yaml)):
+    with patch('builtins.open', mock_open(read_data=owners_yaml)):
       manager = JiraManager('url', 'username', 'password', owners_yaml)
       manager.run('dep0',
                   MOCKED_DEP_CURRENT_VERSION,
@@ -94,7 +94,7 @@ class JiraManagerTest(unittest.TestCase):
     summary = self._get_experct_summary(dep_name)
     description = self._get_expected_description(dep_name, MOCKED_DEP_LATEST_VERSION, [])
 
-    with patch('__builtin__.open', mock_open(read_data=owners_yaml)):
+    with patch('builtins.open', mock_open(read_data=owners_yaml)):
       with patch('jira_utils.jira_manager.JiraManager._search_issues',
         return_value=[MockedJiraIssue('BEAM-1000', summary, description, 'Open')]):
         manager = JiraManager('url', 'username', 'password', owners_yaml)
@@ -122,7 +122,7 @@ class JiraManagerTest(unittest.TestCase):
     summary = self._get_experct_summary('group0')
     description = self._get_expected_description(dep_name, MOCKED_DEP_LATEST_VERSION, [])
 
-    with patch('__builtin__.open', mock_open(read_data=owners_yaml)):
+    with patch('builtins.open', mock_open(read_data=owners_yaml)):
       with patch('jira_utils.jira_manager.JiraManager._search_issues',
         side_effect = [[MockedJiraIssue('BEAM-1000', summary, description, 'Open')],
                       []]):
@@ -156,7 +156,7 @@ class JiraManagerTest(unittest.TestCase):
                   """
     summary = self._get_experct_summary('group0')
     description = self._get_expected_description(dep_name, MOCKED_DEP_LATEST_VERSION, [])
-    with patch('__builtin__.open', mock_open(read_data=owners_yaml)):
+    with patch('builtins.open', mock_open(read_data=owners_yaml)):
       with patch('jira_utils.jira_manager.JiraManager._search_issues',
         side_effect = [[MockedJiraIssue('BEAM-1000', summary, description, 'Closed')],
                       []]):
@@ -185,7 +185,7 @@ class JiraManagerTest(unittest.TestCase):
                   """
     summary = self._get_experct_summary(dep_name)
     description = self._get_expected_description(dep_name, MOCKED_DEP_LATEST_VERSION, [])
-    with patch('__builtin__.open', mock_open(read_data=owners_yaml)):
+    with patch('builtins.open', mock_open(read_data=owners_yaml)):
       with patch('jira_utils.jira_manager.JiraManager._search_issues',
                  side_effect = [[MockedJiraIssue('BEAM-1000', summary, description, 'Closed')],
                                 []]):
@@ -215,7 +215,7 @@ class JiraManagerTest(unittest.TestCase):
                     """
     summary = self._get_experct_summary(dep_name)
     description = self._get_expected_description(dep_name, issue_closed_version, [])
-    with patch('__builtin__.open', mock_open(read_data=owners_yaml)):
+    with patch('builtins.open', mock_open(read_data=owners_yaml)):
       with patch('jira_utils.jira_manager.JiraManager._search_issues',
                  side_effect = [[MockedJiraIssue('BEAM-1000', summary, description, 'Closed')],
                                 []]):

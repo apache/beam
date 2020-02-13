@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -29,6 +30,8 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.state.StateSpec;
@@ -38,7 +41,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -48,42 +50,45 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelCollation;
-import org.apache.calcite.rel.RelCollationImpl;
-import org.apache.calcite.rel.RelFieldCollation;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Sort;
-import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.rex.RexLiteral;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollation;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollationImpl;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelFieldCollation;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Sort;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 
 /**
  * {@code BeamRelNode} to replace a {@code Sort} node.
  *
- * <p>Since Beam does not fully supported global sort we are using {@link Top} to implement the
- * {@code Sort} algebra. The following types of ORDER BY are supported:
+ * <p>Since Beam does not fully support global sort, it uses {@link Top} to implement the {@code
+ * Sort} algebra. The following types of ORDER BY are supported:
  *
  * <pre>{@code
- * select * from t order by id desc limit 10;
- * select * from t order by id desc limit 10 offset 5;
+ * SELECT * FROM t ORDER BY id DESC LIMIT 10;
+ * SELECT * FROM t ORDER BY id DESC LIMIT 10 OFFSET 5;
  * }</pre>
  *
- * <p>but Order BY without a limit is NOT supported:
+ * <p>but an ORDER BY without a LIMIT is NOT supported. For example, the following will throw an
+ * exception:
  *
  * <pre>{@code
- * select * from t order by id desc
+ * SELECT * FROM t ORDER BY id DESC;
  * }</pre>
  *
  * <h3>Constraints</h3>
  *
  * <ul>
- *   <li>Due to the constraints of {@link Top}, the result of a `ORDER BY LIMIT` must fit into the
+ *   <li>Due to the constraints of {@link Top}, the result of a ORDER BY LIMIT must fit into the
  *       memory of a single machine.
- *   <li>Since `WINDOW`(HOP, TUMBLE, SESSION etc) is always associated with `GroupBy`, it does not
- *       make much sense to use `ORDER BY` with `WINDOW`.
+ *   <li>Since WINDOW (HOP, TUMBLE, SESSION, etc.) is always associated with `GroupBy`, it does not
+ *       make much sense to use ORDER BY with WINDOW.
  * </ul>
  */
 public class BeamSortRel extends Sort implements BeamRelNode {
@@ -132,6 +137,22 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     }
   }
 
+  @Override
+  public NodeStats estimateNodeStats(RelMetadataQuery mq) {
+    // Sorting does not change rate or row count of the input.
+    return BeamSqlRelUtils.getNodeStats(this.input, mq);
+  }
+
+  @Override
+  public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+    NodeStats inputEstimates = BeamSqlRelUtils.getNodeStats(this.input, mq);
+
+    final double rowSize = getRowType().getFieldCount();
+    final double cpu = inputEstimates.getRowCount() * inputEstimates.getRowCount() * rowSize;
+    final double cpuRate = inputEstimates.getRate() * inputEstimates.getWindow() * rowSize;
+    return BeamCostModel.FACTORY.makeCost(cpu, cpuRate);
+  }
+
   public boolean isLimitOnly() {
     return fieldIndices.isEmpty();
   }
@@ -164,9 +185,10 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       if (fieldIndices.isEmpty()) {
         // TODO(https://issues.apache.org/jira/projects/BEAM/issues/BEAM-4702)
         // Figure out which operations are per-window and which are not.
+
         return upstream
             .apply(Window.into(new GlobalWindows()))
-            .apply(new LimitTransform<>())
+            .apply(new LimitTransform<>(startIndex))
             .setRowSchema(CalciteUtils.toSchema(getRowType()));
       } else {
 
@@ -201,42 +223,58 @@ public class BeamSortRel extends Sort implements BeamRelNode {
 
         return rawStream
             .apply("flatten", Flatten.iterables())
-            .setSchema(
-                CalciteUtils.toSchema(getRowType()),
-                SerializableFunctions.identity(),
-                SerializableFunctions.identity());
+            .setRowSchema(CalciteUtils.toSchema(getRowType()));
       }
     }
   }
 
   private class LimitTransform<T> extends PTransform<PCollection<T>, PCollection<T>> {
+    private final int startIndex;
+
+    public LimitTransform(int startIndex) {
+      this.startIndex = startIndex;
+    }
+
     @Override
     public PCollection<T> expand(PCollection<T> input) {
       Coder<T> coder = input.getCoder();
       PCollection<KV<String, T>> keyedRow =
           input.apply(WithKeys.of("DummyKey")).setCoder(KvCoder.of(StringUtf8Coder.of(), coder));
 
-      return keyedRow.apply(ParDo.of(new LimitFn<T>(getCount())));
+      return keyedRow.apply(ParDo.of(new LimitFn<T>(getCount(), startIndex)));
     }
   }
 
   private static class LimitFn<T> extends DoFn<KV<String, T>, T> {
     private final Integer limitCount;
+    private final Integer startIndex;
 
-    public LimitFn(int c) {
+    public LimitFn(int c, int s) {
       limitCount = c;
+      startIndex = s;
     }
 
     @StateId("counter")
     private final StateSpec<ValueState<Integer>> counterState = StateSpecs.value(VarIntCoder.of());
 
+    @StateId("skipped_rows")
+    private final StateSpec<ValueState<Integer>> skippedRowsState =
+        StateSpecs.value(VarIntCoder.of());
+
     @ProcessElement
     public void processElement(
-        ProcessContext context, @StateId("counter") ValueState<Integer> counterState) {
-      int current = (counterState.read() != null ? counterState.read() : 0);
-      if (current < limitCount) {
-        context.output(context.element().getValue());
-        counterState.write(current + 1);
+        ProcessContext context,
+        @StateId("counter") ValueState<Integer> counterState,
+        @StateId("skipped_rows") ValueState<Integer> skippedRowsState) {
+      Integer toSkipRows = firstNonNull(skippedRowsState.read(), startIndex);
+      if (toSkipRows == 0) {
+        int current = firstNonNull(counterState.read(), 0);
+        if (current < limitCount) {
+          counterState.write(current + 1);
+          context.output(context.element().getValue());
+        }
+      } else {
+        skippedRowsState.write(toSkipRows - 1);
       }
     }
   }

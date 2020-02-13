@@ -137,8 +137,7 @@ public class DatastoreV1Test {
     DatastoreV1.Read initialRead =
         DatastoreIO.v1().read().withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
 
-    when(mockDatastoreFactory.getDatastore(
-            any(PipelineOptions.class), any(String.class), any(String.class)))
+    when(mockDatastoreFactory.getDatastore(any(PipelineOptions.class), any(String.class), any()))
         .thenReturn(mockDatastore);
     when(mockDatastoreFactory.getQuerySplitter()).thenReturn(mockQuerySplitter);
   }
@@ -402,8 +401,8 @@ public class DatastoreV1Test {
     Entity entity = Entity.newBuilder().setKey(key).build();
     UpsertFn upsertFn = new UpsertFn();
 
-    Mutation exceptedMutation = makeUpsert(entity).build();
-    assertEquals(upsertFn.apply(entity), exceptedMutation);
+    Mutation expectedMutation = makeUpsert(entity).build();
+    assertEquals(expectedMutation, upsertFn.apply(entity));
   }
 
   /** Test that entities with incomplete keys cannot be deleted. */
@@ -426,8 +425,8 @@ public class DatastoreV1Test {
     Entity entity = Entity.newBuilder().setKey(key).build();
     DeleteEntityFn deleteEntityFn = new DeleteEntityFn();
 
-    Mutation exceptedMutation = makeDelete(entity.getKey()).build();
-    assertEquals(deleteEntityFn.apply(entity), exceptedMutation);
+    Mutation expectedMutation = makeDelete(entity.getKey()).build();
+    assertEquals(expectedMutation, deleteEntityFn.apply(entity));
   }
 
   /** Test that incomplete keys cannot be deleted. */
@@ -448,8 +447,8 @@ public class DatastoreV1Test {
     Key key = makeKey("bird", "finch").build();
     DeleteKeyFn deleteKeyFn = new DeleteKeyFn();
 
-    Mutation exceptedMutation = makeDelete(key).build();
-    assertEquals(deleteKeyFn.apply(key), exceptedMutation);
+    Mutation expectedMutation = makeDelete(key).build();
+    assertEquals(expectedMutation, deleteKeyFn.apply(key));
   }
 
   @Test

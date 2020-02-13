@@ -18,6 +18,7 @@
 package org.apache.beam.runners.samza;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
+import static org.apache.samza.config.TaskConfig.TASK_SHUTDOWN_MS;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
@@ -35,10 +36,9 @@ import org.slf4j.LoggerFactory;
 /** The result from executing a Samza Pipeline. */
 public class SamzaPipelineResult implements PipelineResult {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaPipelineResult.class);
+  private static final long DEFAULT_SHUTDOWN_MS = 5000L;
   // allow some buffer on top of samza's own shutdown timeout
   private static final long SHUTDOWN_TIMEOUT_BUFFER = 5000L;
-  // TODO: use new Samza Java Configs
-  private static final String TASK_SHUTDOWN_MS = "task.shutdown.ms";
   private static final long DEFAULT_TASK_SHUTDOWN_MS = 30000L;
 
   private final SamzaExecutionContext executionContext;

@@ -24,6 +24,8 @@ import os
 import platform
 import sys
 import warnings
+from distutils import log
+from distutils.errors import DistutilsError
 from distutils.version import StrictVersion
 
 # Pylint and isort disagree here.
@@ -31,11 +33,42 @@ from distutils.version import StrictVersion
 import setuptools
 from pkg_resources import DistributionNotFound
 from pkg_resources import get_distribution
+from pkg_resources import normalize_path
+from pkg_resources import to_filename
+from setuptools import Command
 from setuptools.command.build_py import build_py
 from setuptools.command.develop import develop
 from setuptools.command.egg_info import egg_info
-from setuptools.command.sdist import sdist
 from setuptools.command.test import test
+
+
+class mypy(Command):
+  user_options = []
+
+  def initialize_options(self):
+    """Abstract method that is required to be overwritten"""
+
+  def finalize_options(self):
+    """Abstract method that is required to be overwritten"""
+
+  def get_project_path(self):
+    self.run_command('egg_info')
+
+    # Build extensions in-place
+    self.reinitialize_command('build_ext', inplace=1)
+    self.run_command('build_ext')
+
+    ei_cmd = self.get_finalized_command("egg_info")
+
+    project_path = normalize_path(ei_cmd.egg_base)
+    return os.path.join(project_path, to_filename(ei_cmd.egg_name))
+
+  def run(self):
+    import subprocess
+    args = ['mypy', self.get_project_path()]
+    result = subprocess.call(args)
+    if result != 0:
+      raise DistutilsError("mypy exited with status %d" % result)
 
 
 def get_version():
@@ -113,8 +146,9 @@ REQUIRED_PACKAGES = [
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8',  # LI specific: we internally use httplib2 >= 0.12.0
     'mock>=1.0.1,<3.0.0',
+    'numpy>=1.14.3,<2',
+    'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<4',
-    # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
     'protobuf>=3.5.0.post1,<4',
     # [BEAM-6287] pyarrow is not supported on Windows for Python 2
     # ('pyarrow>=0.11.1,<0.12.0; python_version >= "3.0" or '
@@ -123,30 +157,60 @@ REQUIRED_PACKAGES = [
     'pytz>=2018.3',
     # [BEAM-5628] Beam VCF IO is not supported in Python 3.
     'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
-    'pyyaml>=3.12,<4.0.0',
-    'typing>=3.6.0,<3.7.0; python_version < "3.5.0"',
+    # fixes and additions have been made since typing 3.5
+    'typing>=3.7.0,<3.8.0; python_version < "3.8.0"',
+    'typing-extensions>=3.7.0,<3.8.0; python_version < "3.8.0"',
     ]
 
+# [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
+if sys.platform == 'win32' and sys.maxsize <= 2**32:
+  REQUIRED_PACKAGES = [
+      p for p in REQUIRED_PACKAGES if not p.startswith('pyarrow')
+  ]
+
 REQUIRED_TEST_PACKAGES = [
+    'freezegun>=0.3.12',
     'nose>=1.3.7',
-    'numpy>=1.14.3,<2',
-    'pandas>=0.23.4,<0.24',
-    'parameterized>=0.6.0,<0.7.0',
-    'pyhamcrest>=1.9,<2.0',
+    'nose_xunitmp>=0.4.1',
+    'pandas>=0.23.4,<0.25',
+    'parameterized>=0.6.0,<0.8.0',
+    # pyhamcrest==1.10.0 doesn't work on Py2. Beam still supports Py2.
+    # See: https://github.com/hamcrest/PyHamcrest/issues/131.
+    'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
+    'pyyaml>=3.12,<6.0.0',
+    'requests_mock>=1.7,<2.0',
     'tenacity>=5.0.2,<6.0',
+    'pytest>=4.4.0,<5.0',
+    'pytest-xdist>=1.29.0,<2',
+    'pytest-timeout>=1.3.3,<2',
     ]
 
 GCP_REQUIREMENTS = [
-    # google-apitools 0.5.23 and above has important Python 3 supports.
-    'google-apitools>=0.5.26,<0.5.27',
-    'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
-    # [BEAM-4543] Datastore IO is not supported in Python 3.
+    'cachetools>=3.1.0,<4',
+    'google-apitools>=0.5.28,<0.5.29',
+    # [BEAM-4543] googledatastore is not supported in Python 3.
     'googledatastore>=7.0.1,<7.1; python_version < "3.0"',
-    'google-cloud-pubsub==0.39.0',
+    'google-cloud-datastore>=1.7.1,<1.8.0',
+    'google-cloud-pubsub>=0.39.0,<1.1.0',
     # GCP packages required by tests
-    'google-cloud-bigquery>=1.6.0,<1.7.0',
-    'google-cloud-core==0.28.1',
-    'google-cloud-bigtable==0.31.1',
+    'google-cloud-bigquery>=1.6.0,<1.18.0',
+    'google-cloud-core>=0.28.1,<2',
+    'google-cloud-bigtable>=0.31.1,<1.1.0',
+    # [BEAM-4543] googledatastore is not supported in Python 3.
+    'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4; python_version < "3.0"',
+    'google-cloud-spanner>=1.13.0,<1.14.0',
+    'grpcio-gcp>=0.2.2,<1',
+]
+
+INTERACTIVE_BEAM = [
+    'facets-overview>=1.0.0,<2',
+    'ipython>=5.8.0,<6',
+    # jsons is supported by Python 3.5.3+.
+    'jsons>=1.0.0,<2; python_version >= "3.5.3"',
+    'timeloop>=1.0.2,<2',
+]
+AWS_REQUIREMENTS = [
+    'boto3 >=1.9'
 ]
 
 
@@ -159,7 +223,7 @@ def generate_protos_first(original_cmd):
 
     class cmd(original_cmd, object):
       def run(self):
-        gen_protos.generate_proto_files()
+        gen_protos.generate_proto_files(log=log)
         super(cmd, self).run()
     return cmd
   except ImportError:
@@ -169,10 +233,10 @@ def generate_protos_first(original_cmd):
 
 python_requires = '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*'
 
-if sys.version_info[0] == 3:
+if sys.version_info[0] == 2:
   warnings.warn(
-      'Python 3 support for the Apache Beam SDK is not yet fully supported. '
-      'You may encounter buggy behavior or missing features.')
+      'You are using Apache Beam with Python 2. '
+      'New releases of Apache Beam will soon support Python 3 only.')
 
 setuptools.setup(
     name=PACKAGE_NAME,
@@ -185,10 +249,12 @@ setuptools.setup(
     author_email=PACKAGE_EMAIL,
     packages=setuptools.find_packages(),
     package_data={'apache_beam': [
-        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'testing/data/*.yaml']},
+        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'testing/data/*.yaml',
+        'portability/api/*.yaml']},
     ext_modules=cythonize([
         'apache_beam/**/*.pyx',
         'apache_beam/coders/coder_impl.py',
+        'apache_beam/metrics/cells.py',
         'apache_beam/metrics/execution.py',
         'apache_beam/runners/common.py',
         'apache_beam/runners/worker/logger.py',
@@ -201,11 +267,13 @@ setuptools.setup(
     install_requires=REQUIRED_PACKAGES,
     python_requires=python_requires,
     test_suite='nose.collector',
-    tests_require=REQUIRED_TEST_PACKAGES,
+    # BEAM-8840: Do NOT use tests_require or setup_requires.
     extras_require={
         'docs': ['Sphinx>=1.5.2,<2.0'],
         'test': REQUIRED_TEST_PACKAGES,
         'gcp': GCP_REQUIREMENTS,
+        'interactive': INTERACTIVE_BEAM,
+        'aws': AWS_REQUIREMENTS
     },
     zip_safe=False,
     # PyPI package information.
@@ -215,6 +283,8 @@ setuptools.setup(
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
@@ -228,7 +298,7 @@ setuptools.setup(
         'build_py': generate_protos_first(build_py),
         'develop': generate_protos_first(develop),
         'egg_info': generate_protos_first(egg_info),
-        'sdist': generate_protos_first(sdist),
         'test': generate_protos_first(test),
+        'mypy': generate_protos_first(mypy),
     },
 )

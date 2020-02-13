@@ -23,8 +23,9 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.get
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.ServerSocket;
+import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.elasticsearch.client.Request;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.Node;
@@ -49,7 +50,7 @@ public class ElasticsearchIOTest implements Serializable {
 
   private static final String ES_IP = "127.0.0.1";
   private static final int MAX_STARTUP_WAITING_TIME_MSEC = 5000;
-
+  private static int esHttpPort;
   private static Node node;
   private static RestClient restClient;
   private static ConnectionConfiguration connectionConfiguration;
@@ -62,9 +63,7 @@ public class ElasticsearchIOTest implements Serializable {
 
   @BeforeClass
   public static void beforeClass() throws IOException {
-    ServerSocket serverSocket = new ServerSocket(0);
-    int esHttpPort = serverSocket.getLocalPort();
-    serverSocket.close();
+    esHttpPort = NetworkTestHelper.getAvailableLocalPort();
     LOG.info("Starting embedded Elasticsearch instance ({})", esHttpPort);
     Settings.Builder settingsBuilder =
         Settings.settingsBuilder()
@@ -86,15 +85,16 @@ public class ElasticsearchIOTest implements Serializable {
     connectionConfiguration =
         ConnectionConfiguration.create(
                 new String[] {"http://" + ES_IP + ":" + esHttpPort}, getEsIndex(), ES_TYPE)
-            .withSocketAndRetryTimeout(120000)
+            .withSocketTimeout(120000)
             .withConnectTimeout(5000);
     restClient = connectionConfiguration.createClient();
     elasticsearchIOTestCommon =
         new ElasticsearchIOTestCommon(connectionConfiguration, restClient, false);
     int waitingTime = 0;
     int healthCheckFrequency = 500;
+    Request request = new Request("HEAD", "/");
     while ((waitingTime < MAX_STARTUP_WAITING_TIME_MSEC)
-        && restClient.performRequest("HEAD", "/").getStatusLine().getStatusCode() != 200) {
+        && restClient.performRequest(request).getStatusLine().getStatusCode() != 200) {
       try {
         Thread.sleep(healthCheckFrequency);
         waitingTime += healthCheckFrequency;
@@ -116,7 +116,7 @@ public class ElasticsearchIOTest implements Serializable {
 
   @Before
   public void before() throws Exception {
-    ElasticSearchIOTestUtils.deleteIndex(connectionConfiguration, restClient);
+    ElasticsearchIOTestUtils.deleteIndex(connectionConfiguration, restClient);
   }
 
   @Test
@@ -131,9 +131,15 @@ public class ElasticsearchIOTest implements Serializable {
   }
 
   @Test
-  public void testReadWithQuery() throws Exception {
+  public void testReadWithQueryString() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
-    elasticsearchIOTestCommon.testReadWithQuery();
+    elasticsearchIOTestCommon.testReadWithQueryString();
+  }
+
+  @Test
+  public void testReadWithQueryValueProvider() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testReadWithQueryValueProvider();
   }
 
   @Test

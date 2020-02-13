@@ -27,11 +27,11 @@ import org.apache.samza.config.ConfigFactory;
 import org.apache.samza.config.factories.PropertiesConfigFactory;
 import org.apache.samza.metrics.MetricsReporter;
 
-/** Options which can be used to configure a Samza PipelineRunner. */
+/** Options which can be used to configure a Samza PortablePipelineRunner. */
 public interface SamzaPipelineOptions extends PipelineOptions {
 
   @Description(
-      "The config for Samza using a properties file. It is *optional*. "
+      "The config file for Samza. It is *optional*. By default Samza supports properties config."
           + "Without a config file, Samza uses a default config for local execution.")
   String getConfigFilePath();
 

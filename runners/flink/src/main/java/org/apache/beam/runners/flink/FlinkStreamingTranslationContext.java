@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -34,7 +34,7 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -49,9 +49,8 @@ class FlinkStreamingTranslationContext {
   private final PipelineOptions options;
 
   /**
-   * Keeps a mapping between the output value of the PTransform (in Dataflow) and the Flink Operator
-   * that produced it, after the translation of the correspondinf PTransform to its Flink
-   * equivalent.
+   * Keeps a mapping between the output value of the PTransform and the Flink Operator that produced
+   * it, after the translation of the correspondinf PTransform to its Flink equivalent.
    */
   private final Map<PValue, DataStream<?>> dataStreams;
 

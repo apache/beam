@@ -6,7 +6,9 @@ task :test do
   HTMLProofer.check_directory("./generated-local-content", {
     :typhoeus => {
       :timeout => 120,
-      :connecttimeout => 90,
+    },
+    :hydra => {
+      :max_concurrency => 5,
     },
     :allow_hash_href => true,
     :check_html => true,
@@ -18,5 +20,6 @@ task :test do
         # /example.com/, # BEAM-1234 failing due to expired SSL cert
     ],
     :parallel => { :in_processes => 4 },
+    :disable_external => ENV["disable_external"],
     }).run
 end

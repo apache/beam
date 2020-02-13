@@ -33,12 +33,14 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
 /** Tests functionality of {@link HDFSSynchronization} class. */
+@RunWith(JUnit4.class)
 public class HDFSSynchronizationTest {
-
-  public static final String DEFAULT_JOB_ID = String.valueOf(1);
+  private static final String DEFAULT_JOB_ID = String.valueOf(1);
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   private HDFSSynchronization tested;
@@ -76,9 +78,7 @@ public class HDFSSynchronizationTest {
   /** Missing job id in configuration will throw exception. */
   @Test(expected = NullPointerException.class)
   public void testMissingJobId() {
-
     Configuration conf = new Configuration();
-
     tested.tryAcquireJobLock(conf);
   }
 
@@ -102,7 +102,6 @@ public class HDFSSynchronizationTest {
 
   @Test
   public void testTaskIdLockAcquire() {
-
     int tasksCount = 100;
     for (int i = 0; i < tasksCount; i++) {
       TaskID taskID = tested.acquireTaskIdLock(configuration);
@@ -129,7 +128,6 @@ public class HDFSSynchronizationTest {
 
   @Test
   public void testCatchingRemoteException() throws IOException {
-
     FileSystem mockedFileSystem = Mockito.mock(FileSystem.class);
     RemoteException thrownException =
         new RemoteException(AlreadyBeingCreatedException.class.getName(), "Failed to CREATE_FILE");

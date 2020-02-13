@@ -23,6 +23,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // TODO(herohde) 4/26/2017: SideInput representation? We want it to be amenable
@@ -158,7 +159,7 @@ func (v *iterValue) invoke(args []reflect.Value) []reflect.Value {
 		if err == io.EOF {
 			return []reflect.Value{reflect.ValueOf(false)}
 		}
-		panic(fmt.Sprintf("broken stream: %v", err))
+		panic(errors.Wrap(err, "broken stream"))
 	}
 
 	// We expect 1-3 out parameters: func (*int, *string) bool.

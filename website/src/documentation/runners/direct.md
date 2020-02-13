@@ -82,4 +82,92 @@ Local execution is limited by the memory available in your local environment. It
 
 If your pipeline uses an unbounded data source or sink, you must set the `streaming` option to `true`.
 
+### Execution Mode
 
+Python [FnApiRunner](https://beam.apache.org/contribute/runner-guide/#the-fn-api) supports multi-threading and multi-processing mode.
+
+<strong>Setting parallelism</strong>
+
+Number of threads or subprocesses is defined by setting the `direct_num_workers` option. There are several ways to set this option.
+
+* Passing through CLI when executing a pipeline.
+```
+python wordcount.py --input xx --output xx --direct_num_workers 2
+```
+
+* Setting with `PipelineOptions`.
+```
+from apache_beam.options.pipeline_options import PipelineOptions
+pipeline_options = PipelineOptions(['--direct_num_workers', '2'])
+```
+
+* Adding to existing `PipelineOptions`.
+```
+from apache_beam.options.pipeline_options import DirectOptions
+pipeline_options = PipelineOptions(xxx)
+pipeline_options.view_as(DirectOptions).direct_num_workers = 2
+```
+
+
+
+<strong>Setting running mode</strong>
+
+From 2.19, a new option was added to set running mode. We can use `direct_running_mode` option to set the running mode.
+`direct_running_mode` can be one of [`'in_memory'`, `'multi_threading'`, `'multi_processing'`].
+
+<b>in_memory</b>: Runner and workers' communication happens in memory (not through gRPC). This is a default mode.
+
+<b>multi_threading</b>: Runner and workers communicate through gRPC and each worker runs in a thread.
+
+<b>multi_processing</b>: Runner and workers communicate through gRPC and each worker runs in a subprocess.
+
+Same as other options, `direct_running_mode` can be passed through CLI or set with `PipelineOptions`.
+
+For the versions before 2.19.0, the running mode should be set with `FnApiRunner()`. Please refer following examples.
+
+#### Running with multi-threading mode
+
+```
+import argparse
+
+import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.runners.portability import fn_api_runner
+from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.portability import python_urns
+
+parser = argparse.ArgumentParser()
+parser.add_argument(...)
+known_args, pipeline_args = parser.parse_known_args(argv)
+pipeline_options = PipelineOptions(pipeline_args)
+
+p = beam.Pipeline(options=pipeline_options,
+      runner=fn_api_runner.FnApiRunner(
+          default_environment=beam_runner_api_pb2.Environment(
+          urn=python_urns.EMBEDDED_PYTHON_GRPC)))
+```
+
+#### Running with multi-processing mode
+
+```
+import argparse
+import sys
+
+import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.runners.portability import fn_api_runner
+from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.portability import python_urns
+
+parser = argparse.ArgumentParser()
+parser.add_argument(...)
+known_args, pipeline_args = parser.parse_known_args(argv)
+pipeline_options = PipelineOptions(pipeline_args)
+
+p = beam.Pipeline(options=pipeline_options,
+      runner=fn_api_runner.FnApiRunner(
+          default_environment=beam_runner_api_pb2.Environment(
+              urn=python_urns.SUBPROCESS_SDK,
+              payload=b'%s -m apache_beam.runners.worker.sdk_worker_main'
+                        % sys.executable.encode('ascii'))))
+```

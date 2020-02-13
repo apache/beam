@@ -42,9 +42,7 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/TFRecordIO.java">TFRecordIO</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/xml/src/main/java/org/apache/beam/sdk/io/xml/XmlIO.java">XmlIO</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/tika/src/main/java/org/apache/beam/sdk/io/tika/TikaIO.java">TikaIO</a></p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/parquet/src/main/java/org/apache/beam/sdk/io/parquet/ParquetIO.java">ParquetIO</a></p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/rabbitmq/src/main/java/org/apache/beam/sdk/io/rabbitmq/RabbitMqIO.java">RabbitMqIO</a></p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/amazon-web-services/src/main/java/org/apache/beam/sdk/io/aws/sqs/SqsIO.java">SqsIO</a></p>
+    <p><a href="{{site.baseurl}}/documentation/io/built-in/parquet">ParquetIO</a></p>
   </td>
   <td>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/kinesis">Amazon Kinesis</a></p>
@@ -53,6 +51,8 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/pubsub">Google Cloud Pub/Sub</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/jms">JMS</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/mqtt">MQTT</a></p>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/rabbitmq/src/main/java/org/apache/beam/sdk/io/rabbitmq/RabbitMqIO.java">RabbitMqIO</a></p>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/amazon-web-services/src/main/java/org/apache/beam/sdk/io/aws/sqs/SqsIO.java">SqsIO</a></p>
   </td>
   <td>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/cassandra">Apache Cassandra</a></p>
@@ -76,17 +76,18 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
   <td>
     <p>Beam Python supports Apache HDFS, Google Cloud Storage, and local filesystems.</p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/avroio.py">avroio</a></p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/parquetio.py">parquetio</a></p>
+    <p><a href="{{site.baseurl}}/documentation/io/built-in/parquet">parquetio.py</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/textio.py">textio</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/tfrecordio.py">tfrecordio</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/vcfio.py">vcfio</a></p>
   </td>
   <td>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/pubsub.py">Google Cloud Pub/Sub</a></p>
   </td>
   <td>
     <p><a href="{{site.baseurl}}/documentation/io/built-in/google-bigquery/">Google BigQuery</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/io/gcp/datastore">Google Cloud Datastore</a></p>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/bigtableio.py">Google Cloud Bigtable</a> (Write)</p>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/mongodbio.py">MongoDB</a></p>
   </td>
 </tr>
 <tr>

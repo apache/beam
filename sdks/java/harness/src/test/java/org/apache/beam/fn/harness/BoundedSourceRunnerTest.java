@@ -38,15 +38,16 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Suppliers;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.hamcrest.Matchers;
 import org.hamcrest.collection.IsMapContaining;
 import org.junit.Test;
@@ -57,7 +58,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BoundedSourceRunnerTest {
 
-  public static final String URN = "urn:org.apache.beam:source:java:0.1";
+  public static final String URN = "beam:source:java:0.1";
 
   @Test
   public void testRunReadLoopWithMultipleSources() throws Exception {
@@ -141,10 +142,11 @@ public class BoundedSourceRunnerTest {
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(
             mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
+    List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
 
     RunnerApi.FunctionSpec functionSpec =
         RunnerApi.FunctionSpec.newBuilder()
-            .setUrn("urn:org.apache.beam:source:java:0.1")
+            .setUrn("beam:source:java:0.1")
             .setPayload(
                 ByteString.copyFrom(SerializableUtils.serializeToByteArray(CountingSource.upTo(3))))
             .build();
@@ -170,6 +172,7 @@ public class BoundedSourceRunnerTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            teardownFunctions::add,
             null /* splitListener */);
 
     // This is testing a deprecated way of running sources and should be removed
@@ -188,6 +191,7 @@ public class BoundedSourceRunnerTest {
     assertThat(outputValues, contains(valueInGlobalWindow(0L), valueInGlobalWindow(1L)));
 
     assertThat(finishFunctionRegistry.getFunctions(), Matchers.empty());
+    assertThat(teardownFunctions, Matchers.empty());
   }
 
   @Test

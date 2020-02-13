@@ -16,9 +16,8 @@
 package beam
 
 import (
-	"fmt"
-
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // GroupByKey is a PTransform that takes a PCollection of type KV<A,B>,
@@ -64,18 +63,22 @@ func CoGroupByKey(s Scope, cols ...PCollection) PCollection {
 	return Must(TryCoGroupByKey(s, cols...))
 }
 
+func addCoGBKCtx(err error, s Scope) error {
+	return errors.WithContextf(err, "inserting CoGroupByKey in scope %s", s)
+}
+
 // TryCoGroupByKey inserts a CoGBK transform into the pipeline. Returns
 // an error on failure.
 func TryCoGroupByKey(s Scope, cols ...PCollection) (PCollection, error) {
 	if !s.IsValid() {
-		return PCollection{}, fmt.Errorf("invalid scope")
+		return PCollection{}, addCoGBKCtx(errors.New("invalid scope"), s)
 	}
 	if len(cols) < 1 {
-		return PCollection{}, fmt.Errorf("need at least 1 pcollection")
+		return PCollection{}, addCoGBKCtx(errors.New("need at least 1 pcollection"), s)
 	}
 	for i, in := range cols {
 		if !in.IsValid() {
-			return PCollection{}, fmt.Errorf("invalid pcollection to CoGBK: index %v", i)
+			return PCollection{}, addCoGBKCtx(errors.Errorf("invalid pcollection to CoGBK: index %v", i), s)
 		}
 	}
 

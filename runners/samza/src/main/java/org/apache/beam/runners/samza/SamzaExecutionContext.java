@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.samza;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.File;
 import java.io.IOException;
@@ -44,7 +44,7 @@ import org.apache.beam.runners.samza.metrics.SamzaMetricsContainer;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.vendor.grpc.v1p13p1.io.netty.util.internal.StringUtil;
+import org.apache.beam.vendor.grpc.v1p26p0.io.netty.util.internal.StringUtil;
 import org.apache.commons.io.FileUtils;
 import org.apache.samza.context.ApplicationContainerContext;
 import org.apache.samza.context.ApplicationContainerContextFactory;
@@ -156,7 +156,8 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
 
         fnDataServer =
             GrpcFnServer.allocatePortAndCreateFor(
-                GrpcDataService.create(dataExecutor, OutboundObserverFactory.serverDirect()),
+                GrpcDataService.create(
+                    options, dataExecutor, OutboundObserverFactory.serverDirect()),
                 dataStateServerFactory);
         LOG.info("Started data server on port {}", fnDataServer.getServer().getPort());
 

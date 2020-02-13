@@ -36,4 +36,26 @@ public class DoFnInvokers {
   }
 
   private DoFnInvokers() {}
+
+  /**
+   * Tries to invoke setup on the given {@link DoFn}. If setup throws any exception, the given
+   * {@link DoFn} will be torn down immediately and the exception rethrown.
+   *
+   * <p>On success returns an {@link DoFnInvoker} for the given {@link DoFn}.
+   */
+  public static <InputT, OutputT> DoFnInvoker<InputT, OutputT> tryInvokeSetupFor(
+      DoFn<InputT, OutputT> fn) {
+    DoFnInvoker<InputT, OutputT> doFnInvoker = invokerFor(fn);
+    try {
+      doFnInvoker.invokeSetup();
+    } catch (Exception e) {
+      try {
+        doFnInvoker.invokeTeardown();
+      } catch (Exception suppressed) {
+        e.addSuppressed(suppressed);
+      }
+      throw e;
+    }
+    return doFnInvoker;
+  }
 }

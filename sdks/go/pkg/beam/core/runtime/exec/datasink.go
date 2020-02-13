@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
@@ -71,7 +72,7 @@ func (n *DataSink) ProcessElement(ctx context.Context, value *FullValue, values 
 		return err
 	}
 	if err := n.enc.Encode(value, &b); err != nil {
-		return fmt.Errorf("failed to encode element %v with coder %v: %v", value, n.enc, err)
+		return errors.WithContextf(err, "encoding element %v with coder %v", value, n.enc)
 	}
 	if _, err := n.w.Write(b.Bytes()); err != nil {
 		return err

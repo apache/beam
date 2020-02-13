@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -41,7 +41,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -135,7 +135,7 @@ public class EvaluationContext {
   public Map<TupleTag<?>, Coder<?>> getOutputCoders() {
     return currentTransform.getOutputs().entrySet().stream()
         .filter(e -> e.getValue() instanceof PCollection)
-        .collect(Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
+        .collect(Collectors.toMap(Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
   }
 
   /**
@@ -146,7 +146,7 @@ public class EvaluationContext {
    * some intermediate data in shuffle operations, even without users calling persist.
    *
    * @param pvalue output of transform
-   * @param transform
+   * @param transform the transform to check
    * @return if PCollection will be cached
    */
   public boolean shouldCache(PTransform<?, ? extends PValue> transform, PValue pvalue) {
@@ -235,8 +235,7 @@ public class EvaluationContext {
   @SuppressWarnings("TypeParameterUnusedInFormals")
   public <T> T get(PValue value) {
     if (pobjects.containsKey(value)) {
-      T result = (T) pobjects.get(value);
-      return result;
+      return (T) pobjects.get(value);
     }
     if (pcollections.containsKey(value)) {
       JavaRDD<?> rdd = ((BoundedDataset) pcollections.get(value)).getRDD();

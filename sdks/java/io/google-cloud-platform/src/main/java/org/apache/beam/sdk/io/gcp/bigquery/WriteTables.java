@@ -17,8 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
@@ -28,6 +29,8 @@ import com.google.api.services.bigquery.model.TimePartitioning;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -37,6 +40,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.PendingJob;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.PendingJobManager;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
@@ -59,10 +63,10 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,6 +93,7 @@ class WriteTables<DestinationT>
   private final PCollectionView<String> loadJobIdPrefixView;
   private final WriteDisposition firstPaneWriteDisposition;
   private final CreateDisposition firstPaneCreateDisposition;
+  private final Set<SchemaUpdateOption> schemaUpdateOptions;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private final List<PCollectionView<?>> sideInputs;
   private final TupleTag<KV<TableDestination, String>> mainOutputTag;
@@ -97,6 +102,7 @@ class WriteTables<DestinationT>
   private final int maxRetryJobs;
   private final boolean ignoreUnknownValues;
   @Nullable private final String kmsKey;
+  private final String sourceFormat;
 
   private class WriteTablesDoFn
       extends DoFn<KV<ShardedKey<DestinationT>, List<String>>, KV<TableDestination, String>> {
@@ -165,6 +171,16 @@ class WriteTables<DestinationT>
               + "but %s returned null for destination %s",
           dynamicDestinations,
           destination);
+      boolean destinationCoderSupportsClustering =
+          !(dynamicDestinations.getDestinationCoder() instanceof TableDestinationCoderV2);
+      checkArgument(
+          tableDestination.getClustering() == null || destinationCoderSupportsClustering,
+          "DynamicDestinations.getTable() may only return destinations with clustering configured"
+              + " if a destination coder is supplied that supports clustering, but %s is configured"
+              + " to use TableDestinationCoderV2. Set withClustering() on BigQueryIO.write() and, "
+              + " if you provided a custom DynamicDestinations instance, override"
+              + " getDestinationCoder() to return TableDestinationCoderV3.",
+          dynamicDestinations);
       TableReference tableReference = tableDestination.getTableReference();
       if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
         tableReference.setProjectId(c.getPipelineOptions().as(BigQueryOptions.class).getProject());
@@ -203,10 +219,12 @@ class WriteTables<DestinationT>
               jobIdPrefix,
               tableReference,
               tableDestination.getTimePartitioning(),
+              tableDestination.getClustering(),
               tableSchema,
               partitionFiles,
               writeDisposition,
-              createDisposition);
+              createDisposition,
+              schemaUpdateOptions);
       pendingJobs.add(
           new PendingJobData(window, retryJob, partitionFiles, tableDestination, tableReference));
     }
@@ -274,7 +292,10 @@ class WriteTables<DestinationT>
       @Nullable ValueProvider<String> loadJobProjectId,
       int maxRetryJobs,
       boolean ignoreUnknownValues,
-      String kmsKey) {
+      String kmsKey,
+      String sourceFormat,
+      Set<SchemaUpdateOption> schemaUpdateOptions) {
+
     this.tempTable = tempTable;
     this.bqServices = bqServices;
     this.loadJobIdPrefixView = loadJobIdPrefixView;
@@ -288,6 +309,8 @@ class WriteTables<DestinationT>
     this.maxRetryJobs = maxRetryJobs;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.kmsKey = kmsKey;
+    this.sourceFormat = sourceFormat;
+    this.schemaUpdateOptions = schemaUpdateOptions;
   }
 
   @Override
@@ -327,10 +350,12 @@ class WriteTables<DestinationT>
       String jobIdPrefix,
       TableReference ref,
       TimePartitioning timePartitioning,
+      Clustering clustering,
       @Nullable TableSchema schema,
       List<String> gcsUris,
       WriteDisposition writeDisposition,
-      CreateDisposition createDisposition) {
+      CreateDisposition createDisposition,
+      Set<SchemaUpdateOption> schemaUpdateOptions) {
     JobConfigurationLoad loadConfig =
         new JobConfigurationLoad()
             .setDestinationTable(ref)
@@ -338,10 +363,19 @@ class WriteTables<DestinationT>
             .setSourceUris(gcsUris)
             .setWriteDisposition(writeDisposition.name())
             .setCreateDisposition(createDisposition.name())
-            .setSourceFormat("NEWLINE_DELIMITED_JSON")
+            .setSourceFormat(sourceFormat)
             .setIgnoreUnknownValues(ignoreUnknownValues);
+    if (schemaUpdateOptions != null) {
+      List<String> options =
+          schemaUpdateOptions.stream().map(Enum::name).collect(Collectors.toList());
+      loadConfig.setSchemaUpdateOptions(options);
+    }
     if (timePartitioning != null) {
       loadConfig.setTimePartitioning(timePartitioning);
+      // only set clustering if timePartitioning is set
+      if (clustering != null) {
+        loadConfig.setClustering(clustering);
+      }
     }
     if (kmsKey != null) {
       loadConfig.setDestinationEncryptionConfiguration(

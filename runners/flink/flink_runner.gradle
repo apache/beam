@@ -26,7 +26,10 @@
 import groovy.json.JsonOutput
 
 apply plugin: 'org.apache.beam.module'
-applyJavaNature()
+applyJavaNature(
+    automaticModuleName: 'org.apache.beam.runners.flink',
+    archivesBaseName: (project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName)
+)
 
 description = "Apache Beam :: Runners :: Flink $flink_version"
 
@@ -35,29 +38,74 @@ description = "Apache Beam :: Runners :: Flink $flink_version"
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference the "sourceSets.test.output" directly.
  */
-evaluationDependsOn(":beam-sdks-java-core")
-evaluationDependsOn(":beam-runners-core-java")
+evaluationDependsOn(":sdks:java:core")
+evaluationDependsOn(":runners:core-java")
+
+/*
+ * Copy & merge source overrides into build directory.
+ */
+def sourceOverridesBase = "${project.buildDir}/source-overrides/src"
+
+def copySourceOverrides = tasks.register('copySourceOverrides', Copy) {
+  it.from main_source_overrides
+  it.into "${sourceOverridesBase}/main/java"
+  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
+}
+compileJava.dependsOn copySourceOverrides
+
+def copyResourcesOverrides = tasks.register('copyResourcesOverrides', Copy) {
+  it.from main_resources_overrides
+  it.into "${sourceOverridesBase}/main/resources"
+  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
+}
+compileJava.dependsOn copyResourcesOverrides
+
+def copyTestSourceOverrides = tasks.register('copyTestSourceOverrides', Copy) {
+  it.from test_source_overrides
+  it.into "${sourceOverridesBase}/test/java"
+  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
+}
+compileTestJava.dependsOn copyTestSourceOverrides
+
+def copyTestResourcesOverrides = tasks.register('copyTestResourcesOverrides', Copy) {
+  it.from test_resources_overrides
+  it.into "${sourceOverridesBase}/test/resources"
+  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
+}
+compileJava.dependsOn copyTestResourcesOverrides
 
 /*
  * We have to explicitly set all directories here to make sure each
  * version of Flink has the correct overrides set.
  */
+def sourceBase = "${project.projectDir}/../src"
 sourceSets {
   main {
     java {
-      srcDirs = main_source_dirs
+      srcDirs = ["${sourceBase}/main/java", "${sourceOverridesBase}/main/java"]
     }
     resources {
-      srcDirs = main_resources_dirs
+      srcDirs = ["${sourceBase}/main/resources", "${sourceOverridesBase}/main/resources"]
     }
   }
   test {
     java {
-      srcDirs = test_source_dirs
+      srcDirs = ["${sourceBase}/test/java", "${sourceOverridesBase}/test/java"]
     }
     resources {
-      srcDirs = test_resources_dirs
+      srcDirs = ["${sourceBase}/test/resources", "${sourceOverridesBase}/test/resources"]
     }
+  }
+}
+
+/*
+ * By default, Spotless operates on the project files only.
+ * BeamModulePlugin sets a custom configuration which we override here in order
+ * for the Flink Runner's multiple source directories to be all scanned.
+ */
+spotless {
+  java {
+    target target + project.fileTree(project.projectDir.parentFile) { include 'src/*/java/**/*.java' }
   }
 }
 
@@ -70,55 +118,59 @@ test {
   }
   // TODO Running tests of all Flink versions in parallel can be too harsh on Jenkins memory
   // Run them serially for now, to avoid "Exit code 137", i.e. Jenkins host killing the Gradle test process
-  if (project.name == "beam-runners-flink-1.6") {
-    mustRunAfter(":beam-runners-flink_2.11:test")
-  } else if (project.name == "beam-runners-flink-1.7") {
-    mustRunAfter(":beam-runners-flink_2.11:test")
-    mustRunAfter(":beam-runners-flink-1.6:test")
+  if (project.path == ":runners:flink:1.8") {
+    mustRunAfter(":runners:flink:1.7:test")
+  } else if (project.path == ":runners:flink:1.9") {
+    mustRunAfter(":runners:flink:1.7:test")
+    mustRunAfter(":runners:flink:1.8:test")
   }
 }
 
 configurations {
   validatesRunner
+  miniCluster
 }
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-runners-core-java", configuration: "shadow")
-  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
-  shadow project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
-  shadow library.java.vendored_grpc_1_13_1
-  shadow library.java.jackson_annotations
-  shadow library.java.slf4j_api
-  shadow library.java.joda_time
-  shadow library.java.commons_compress
-  shadow library.java.args4j
-  shadow "org.apache.flink:flink-clients_2.11:$flink_version"
-  shadow "org.apache.flink:flink-core:$flink_version"
-  shadow "org.apache.flink:flink-metrics-core:$flink_version"
-  shadow "org.apache.flink:flink-java:$flink_version"
-  shadow "org.apache.flink:flink-runtime_2.11:$flink_version"
-  shadow "org.apache.flink:flink-streaming-java_2.11:$flink_version"
-  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  compileOnly project(":sdks:java:build-tools")
+  compile library.java.vendored_guava_26_0_jre
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":runners:core-java")
+  compile project(":runners:core-construction-java")
+  compile project(":runners:java-fn-execution")
+  compile project(":sdks:java:extensions:google-cloud-platform-core")
+  compile library.java.vendored_grpc_1_26_0
+  compile library.java.jackson_annotations
+  compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile library.java.commons_compress
+  compile library.java.args4j
+  compile "org.apache.flink:flink-clients_2.11:$flink_version"
+  compile "org.apache.flink:flink-core:$flink_version"
+  compile "org.apache.flink:flink-metrics-core:$flink_version"
+  compile "org.apache.flink:flink-java:$flink_version"
+  compile "org.apache.flink:flink-runtime_2.11:$flink_version"
+  compile "org.apache.flink:flink-streaming-java_2.11:$flink_version"
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   // FlinkStateInternalsTest extends abstract StateInternalsTest
-  shadowTest project(path: ":beam-runners-core-java", configuration: "shadowTest")
-  shadowTest library.java.commons_lang3
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.junit
-  shadowTest library.java.mockito_core
-  shadowTest library.java.google_api_services_bigquery
-  shadowTest library.java.slf4j_simple
-  shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
-  shadowTest library.java.jackson_dataformat_yaml
-  shadowTest "org.apache.flink:flink-core:$flink_version:tests"
-  shadowTest "org.apache.flink:flink-runtime_2.11:$flink_version:tests"
-  shadowTest "org.apache.flink:flink-streaming-java_2.11:$flink_version:tests"
-  shadowTest "org.apache.flink:flink-test-utils_2.11:$flink_version"
-  shadowTest project(":beam-sdks-java-harness")
-  validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  validatesRunner project(path: ":beam-runners-core-java", configuration: "shadowTest")
-  validatesRunner project(path: project.path, configuration: "shadow")
+  testCompile project(path: ":runners:core-java", configuration: "testRuntime")
+  testCompile library.java.hamcrest_core
+  testCompile library.java.junit
+  testCompile library.java.mockito_core
+  testCompile library.java.powermock
+  testCompile library.java.google_api_services_bigquery
+  testCompile project(":sdks:java:io:google-cloud-platform")
+  testCompile library.java.jackson_dataformat_yaml
+  testCompile "org.apache.flink:flink-core:$flink_version:tests"
+  testCompile "org.apache.flink:flink-runtime_2.11:$flink_version:tests"
+  testCompile "org.apache.flink:flink-streaming-java_2.11:$flink_version:tests"
+  testCompile "org.apache.flink:flink-test-utils_2.11:$flink_version"
+  testCompile project(":sdks:java:harness")
+  testRuntimeOnly library.java.slf4j_simple
+  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
+  validatesRunner project(project.path)
+  miniCluster "org.apache.flink:flink-runtime-web_2.11:$flink_version"
 }
 
 class ValidatesRunnerConfig {
@@ -128,19 +180,21 @@ class ValidatesRunnerConfig {
 
 def createValidatesRunnerTask(Map m) {
   def config = m as ValidatesRunnerConfig
-  tasks.create(name: config.name, type: Test) {
+  tasks.register(config.name, Test) {
     group = "Verification"
     def runnerType = config.streaming ? "streaming" : "batch"
     description = "Validates the ${runnerType} runner"
     def pipelineOptions = JsonOutput.toJson(
         ["--runner=TestFlinkRunner",
          "--streaming=${config.streaming}",
-         // TODO This should be changed to > 1
-         "--parallelism=1",
+         "--parallelism=2",
         ])
     systemProperty "beamTestPipelineOptions", pipelineOptions
     classpath = configurations.validatesRunner
-    testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs, project(":beam-runners-core-java").sourceSets.test.output.classesDirs)
+    testClassesDirs = files(
+      project(":sdks:java:core").sourceSets.test.output.classesDirs,
+      project(":runners:core-java").sourceSets.test.output.classesDirs,
+    )
     // maxParallelForks decreased from 4 in order to avoid OOM errors
     maxParallelForks 2
     useJUnit {
@@ -148,12 +202,16 @@ def createValidatesRunnerTask(Map m) {
       excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
       excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
       excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
       if (config.streaming) {
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'  // BEAM-8598
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
       } else {
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       }
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     }
   }
 }
@@ -161,12 +219,38 @@ def createValidatesRunnerTask(Map m) {
 createValidatesRunnerTask(name: "validatesRunnerBatch", streaming: false)
 createValidatesRunnerTask(name: "validatesRunnerStreaming", streaming: true)
 
-task validatesRunner {
-  group = "Verification"
+tasks.register('validatesRunner') {
+  group = 'Verification'
   description "Validates Flink runner"
   dependsOn validatesRunnerBatch
   dependsOn validatesRunnerStreaming
 }
 
-// Generates :beam-runners-flink_2.11:runQuickstartJavaFlinkLocal
+// Generates :runners:flink:1.9:runQuickstartJavaFlinkLocal
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')
+
+/**
+ * Updates the documentation with the current pipeline options.
+ */
+def createPipelineOptionsTableTask(String target) {
+  tasks.register("generatePipelineOptionsTable${target}", JavaExec) {
+    group = 'Website'
+    description = "Generates a table with pipeline options for the Flink Runner documentation page"
+    classpath = sourceSets.test.runtimeClasspath
+    main = 'org.apache.beam.runners.flink.website.PipelineOptionsTableGenerator'
+    args = [target]
+    standardOutput = new ByteArrayOutputStream()
+    doLast {
+      def dest = file("${project(':website').getProjectDir()}/src/_includes/flink_${target.toLowerCase()}_pipeline_options.html")
+      if (!dest.exists()) {
+        throw new GradleException("Pipeline options file is not in expected location: ${dest}")
+      }
+      dest.write(standardOutput.toString())
+    }
+  }
+}
+createPipelineOptionsTableTask('Java')
+createPipelineOptionsTableTask('Python')
+// Update the pipeline options documentation before running the tests
+test.dependsOn(generatePipelineOptionsTableJava)
+test.dependsOn(generatePipelineOptionsTablePython)

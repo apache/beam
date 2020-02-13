@@ -83,12 +83,13 @@ func splitFn(key string, v int, a, b, c, d func(int)) {
 func CoGBK() *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
 
-	as := beam.ParDo(s, genA, beam.Impulse(s))
-	bs := beam.ParDo(s, genB, beam.Impulse(s))
-	cs := beam.ParDo(s, genC, beam.Impulse(s))
+	s2 := s.Scope("SubScope")
+	as := beam.ParDo(s2, genA, beam.Impulse(s))
+	bs := beam.ParDo(s2, genB, beam.Impulse(s))
+	cs := beam.ParDo(s2, genC, beam.Impulse(s))
+	grouped := beam.CoGroupByKey(s2, as, bs, cs)
+	joined := beam.ParDo(s2, joinFn, grouped)
 
-	grouped := beam.CoGroupByKey(s, as, bs, cs)
-	joined := beam.ParDo(s, joinFn, grouped)
 	a, b, c, d := beam.ParDo4(s, splitFn, joined)
 
 	passert.Sum(s, a, "a", 1, 18)

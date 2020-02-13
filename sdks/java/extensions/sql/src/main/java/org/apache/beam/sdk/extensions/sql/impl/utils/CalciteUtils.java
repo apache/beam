@@ -21,19 +21,19 @@ import java.lang.reflect.Type;
 import java.util.Date;
 import java.util.Map;
 import java.util.stream.IntStream;
-import org.apache.beam.sdk.schemas.LogicalTypes;
-import org.apache.beam.sdk.schemas.LogicalTypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableBiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.calcite.avatica.util.ByteString;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableBiMap;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.Instant;
 import org.joda.time.base.AbstractInstant;
 
@@ -49,7 +49,7 @@ public class CalciteUtils {
     public static final String IDENTIFIER = "SqlDateType";
 
     public DateType() {
-      super(IDENTIFIER, "", FieldType.DATETIME);
+      super(IDENTIFIER, FieldType.STRING, "", FieldType.DATETIME);
     }
   }
 
@@ -58,7 +58,7 @@ public class CalciteUtils {
     public static final String IDENTIFIER = "SqlTimeType";
 
     public TimeType() {
-      super(IDENTIFIER, "", FieldType.DATETIME);
+      super(IDENTIFIER, FieldType.STRING, "", FieldType.DATETIME);
     }
   }
 
@@ -67,7 +67,7 @@ public class CalciteUtils {
     public static final String IDENTIFIER = "SqlTimeWithLocalTzType";
 
     public TimeWithLocalTzType() {
-      super(IDENTIFIER, "", FieldType.DATETIME);
+      super(IDENTIFIER, FieldType.STRING, "", FieldType.DATETIME);
     }
   }
 
@@ -76,7 +76,7 @@ public class CalciteUtils {
     public static final String IDENTIFIER = "SqlTimestampWithLocalTzType";
 
     public TimestampWithLocalTzType() {
-      super(IDENTIFIER, "", FieldType.DATETIME);
+      super(IDENTIFIER, FieldType.STRING, "", FieldType.DATETIME);
     }
   }
 
@@ -85,7 +85,7 @@ public class CalciteUtils {
     public static final String IDENTIFIER = "SqlCharType";
 
     public CharType() {
-      super(IDENTIFIER, "", FieldType.STRING);
+      super(IDENTIFIER, FieldType.STRING, "", FieldType.STRING);
     }
   }
 
@@ -157,8 +157,26 @@ public class CalciteUtils {
           .put(TIMESTAMP_WITH_LOCAL_TZ, SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
           .build();
 
-  private static final BiMap<SqlTypeName, FieldType> CALCITE_TO_BEAM_TYPE_MAPPING =
-      BEAM_TO_CALCITE_TYPE_MAPPING.inverse();
+  private static final ImmutableMap<SqlTypeName, FieldType> CALCITE_TO_BEAM_TYPE_MAPPING =
+      ImmutableMap.<SqlTypeName, FieldType>builder()
+          .put(SqlTypeName.TINYINT, TINY_INT)
+          .put(SqlTypeName.SMALLINT, SMALL_INT)
+          .put(SqlTypeName.INTEGER, INTEGER)
+          .put(SqlTypeName.BIGINT, BIG_INT)
+          .put(SqlTypeName.FLOAT, FLOAT)
+          .put(SqlTypeName.DOUBLE, DOUBLE)
+          .put(SqlTypeName.DECIMAL, DECIMAL)
+          .put(SqlTypeName.BOOLEAN, BOOLEAN)
+          .put(SqlTypeName.VARBINARY, VARBINARY)
+          .put(SqlTypeName.BINARY, VARBINARY)
+          .put(SqlTypeName.VARCHAR, VARCHAR)
+          .put(SqlTypeName.CHAR, CHAR)
+          .put(SqlTypeName.DATE, DATE)
+          .put(SqlTypeName.TIME, TIME)
+          .put(SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE, TIME_WITH_LOCAL_TZ)
+          .put(SqlTypeName.TIMESTAMP, TIMESTAMP)
+          .put(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TZ)
+          .build();
 
   // Since there are multiple Calcite type that correspond to a single Beam type, this is the
   // default mapping.
@@ -177,12 +195,13 @@ public class CalciteUtils {
       case ROW:
         return SqlTypeName.ROW;
       case ARRAY:
+      case ITERABLE:
         return SqlTypeName.ARRAY;
       case MAP:
         return SqlTypeName.MAP;
       default:
         if (type.getTypeName().isLogicalType()
-            && type.getLogicalType().getIdentifier().equals(LogicalTypes.FixedBytes.IDENTIFIER)) {
+            && type.getLogicalType().getIdentifier().equals(FixedBytes.IDENTIFIER)) {
           return SqlTypeName.VARBINARY;
         }
         SqlTypeName typeName = BEAM_TO_CALCITE_TYPE_MAPPING.get(type.withNullable(false));
@@ -251,6 +270,7 @@ public class CalciteUtils {
   public static RelDataType toRelDataType(RelDataTypeFactory dataTypeFactory, FieldType fieldType) {
     switch (fieldType.getTypeName()) {
       case ARRAY:
+      case ITERABLE:
         return dataTypeFactory.createArrayType(
             toRelDataType(dataTypeFactory, fieldType.getCollectionElementType()),
             UNLIMITED_ARRAY_SIZE);

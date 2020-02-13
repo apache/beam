@@ -20,7 +20,6 @@ package dataflow
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -32,6 +31,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
@@ -49,17 +49,21 @@ var (
 	stagingLocation      = flag.String("staging_location", "", "GCS staging location (required).")
 	image                = flag.String("worker_harness_container_image", "", "Worker harness container image (required).")
 	labels               = flag.String("labels", "", "JSON-formatted map[string]string of job labels (optional).")
+	serviceAccountEmail  = flag.String("service_account_email", "", "Service account email (optional).")
 	numWorkers           = flag.Int64("num_workers", 0, "Number of workers (optional).")
 	maxNumWorkers        = flag.Int64("max_num_workers", 0, "Maximum number of workers during scaling (optional).")
 	autoscalingAlgorithm = flag.String("autoscaling_algorithm", "", "Autoscaling mode to use (optional).")
 	zone                 = flag.String("zone", "", "GCP zone (optional)")
-	region               = flag.String("region", "us-central1", "GCP Region (optional)")
+	region               = flag.String("region", "", "GCP Region (optional but encouraged)")
 	network              = flag.String("network", "", "GCP network (optional)")
+	subnetwork           = flag.String("subnetwork", "", "GCP subnetwork (optional)")
+	noUsePublicIPs       = flag.Bool("no_use_public_ips", false, "Workers must not use public IP addresses (optional)")
 	tempLocation         = flag.String("temp_location", "", "Temp location (optional)")
 	machineType          = flag.String("worker_machine_type", "", "GCE machine type (optional)")
 	minCPUPlatform       = flag.String("min_cpu_platform", "", "GCE minimum cpu platform (optional)")
 	workerJar            = flag.String("dataflow_worker_jar", "", "Dataflow worker jar (optional)")
 
+	executeAsync   = flag.Bool("execute_async", false, "Asynchronous execution. Submit the job and return immediately.")
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
 
@@ -89,13 +93,19 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if *stagingLocation == "" {
 		return errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
 	}
+	if *region == "" {
+		*region = "us-central1"
+		log.Warn(ctx, "--region not set; will default to us-central1. Future releases of Beam will "+
+			"require the user to set the region explicitly. "+
+			"https://cloud.google.com/compute/docs/regions-zones/regions-zones")
+	}
 	if *image == "" {
 		*image = getContainerImage(ctx)
 	}
 	var jobLabels map[string]string
 	if *labels != "" {
 		if err := json.Unmarshal([]byte(*labels), &jobLabels); err != nil {
-			return fmt.Errorf("error reading --label flag as JSON: %v", err)
+			return errors.Wrapf(err, "error reading --label flag as JSON")
 		}
 	}
 
@@ -126,22 +136,25 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 
 	opts := &dataflowlib.JobOptions{
-		Name:           jobopts.GetJobName(),
-		Experiments:    experiments,
-		Options:        beam.PipelineOptions.Export(),
-		Project:        project,
-		Region:         *region,
-		Zone:           *zone,
-		Network:        *network,
-		NumWorkers:     *numWorkers,
-		MaxNumWorkers:  *maxNumWorkers,
-		Algorithm:      *autoscalingAlgorithm,
-		MachineType:    *machineType,
-		Labels:         jobLabels,
-		TempLocation:   *tempLocation,
-		Worker:         *jobopts.WorkerBinary,
-		WorkerJar:      *workerJar,
-		TeardownPolicy: *teardownPolicy,
+		Name:                jobopts.GetJobName(),
+		Experiments:         experiments,
+		Options:             beam.PipelineOptions.Export(),
+		Project:             project,
+		Region:              *region,
+		Zone:                *zone,
+		Network:             *network,
+		Subnetwork:          *subnetwork,
+		NoUsePublicIPs:      *noUsePublicIPs,
+		NumWorkers:          *numWorkers,
+		MaxNumWorkers:       *maxNumWorkers,
+		Algorithm:           *autoscalingAlgorithm,
+		MachineType:         *machineType,
+		Labels:              jobLabels,
+		ServiceAccountEmail: *serviceAccountEmail,
+		TempLocation:        *tempLocation,
+		Worker:              *jobopts.WorkerBinary,
+		WorkerJar:           *workerJar,
+		TeardownPolicy:      *teardownPolicy,
 	}
 	if opts.TempLocation == "" {
 		opts.TempLocation = gcsx.Join(*stagingLocation, "tmp")
@@ -155,7 +168,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 	model, err := graphx.Marshal(edges, &graphx.Options{Environment: createEnvironment(ctx)})
 	if err != nil {
-		return fmt.Errorf("failed to generate model pipeline: %v", err)
+		return errors.WithContext(err, "generating model pipeline")
 	}
 
 	// NOTE(herohde) 10/8/2018: the last segment of the names must be "worker" and "dataflow-worker.jar".
@@ -177,7 +190,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return nil
 	}
 
-	_, err = dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, false)
+	_, err = dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, *executeAsync)
 	return err
 }
 func gcsRecorderHook(opts []string) perf.CaptureHook {
@@ -189,7 +202,7 @@ func gcsRecorderHook(opts []string) perf.CaptureHook {
 	return func(ctx context.Context, spec string, r io.Reader) error {
 		client, err := gcsx.NewClient(ctx, storage.ScopeReadWrite)
 		if err != nil {
-			return fmt.Errorf("couldn't establish GCS client: %v", err)
+			return errors.WithContext(err, "establishing GCS client")
 		}
 		return gcsx.WriteObject(ctx, client, bucket, path.Join(prefix, spec), r)
 	}
@@ -216,11 +229,10 @@ func createEnvironment(ctx context.Context) pb.Environment {
 		payload := &pb.DockerPayload{ContainerImage: config}
 		serializedPayload, err := proto.Marshal(payload)
 		if err != nil {
-			panic(fmt.Sprintf(
-				"Failed to serialize Environment payload %v for config %v: %v", payload, config, err))
+			panic(errors.Wrapf(err,
+				"Failed to serialize Environment payload %v for config %v", payload, config))
 		}
 		environment = pb.Environment{
-			Url:     config,
 			Urn:     urn,
 			Payload: serializedPayload,
 		}

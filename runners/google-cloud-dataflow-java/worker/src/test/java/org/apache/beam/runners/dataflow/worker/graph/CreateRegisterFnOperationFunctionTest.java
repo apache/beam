@@ -21,9 +21,9 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.InstructionOutput;
@@ -32,8 +32,8 @@ import com.google.api.services.dataflow.model.ParallelInstruction;
 import com.google.api.services.dataflow.model.ReadInstruction;
 import com.google.auto.value.AutoValue;
 import java.util.List;
-import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.DefaultEdge;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.HappensBeforeEdge;
@@ -41,12 +41,12 @@ import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
 import org.apache.beam.sdk.fn.IdGenerators;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Graphs;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.NetworkBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Graphs;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Network;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.NetworkBuilder;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Test;
@@ -60,7 +60,7 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class CreateRegisterFnOperationFunctionTest {
 
-  @Mock private BiFunction<String, String, Node> portSupplier;
+  @Mock private Supplier<Node> portSupplier;
   @Mock private Function<MutableNetwork<Node, Edge>, Node> registerFnOperationFunction;
   private Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>>
       createRegisterFnOperation;
@@ -80,9 +80,10 @@ public class CreateRegisterFnOperationFunctionTest {
     MutableNetwork<Node, Edge> expectedNetwork = createEmptyNetwork();
 
     assertNetworkMaintainsBipartiteStructure(appliedNetwork);
-    assertTrue(
+    assertEquals(
         String.format("Expected network %s but got network %s", expectedNetwork, appliedNetwork),
-        Graphs.equivalent(expectedNetwork, appliedNetwork));
+        expectedNetwork,
+        appliedNetwork);
   }
 
   @Test
@@ -109,9 +110,10 @@ public class CreateRegisterFnOperationFunctionTest {
         createRegisterFnOperation.apply(Graphs.copyOf(expectedNetwork));
 
     assertNetworkMaintainsBipartiteStructure(appliedNetwork);
-    assertTrue(
+    assertEquals(
         String.format("Expected network %s but got network %s", expectedNetwork, appliedNetwork),
-        Graphs.equivalent(expectedNetwork, appliedNetwork));
+        expectedNetwork,
+        appliedNetwork);
   }
 
   @Test
@@ -149,12 +151,14 @@ public class CreateRegisterFnOperationFunctionTest {
 
     assertNetworkMaintainsBipartiteStructure(appliedNetwork);
     assertNetworkMaintainsBipartiteStructure(networkCapture.getValue());
-    assertTrue(
+    assertEquals(
         String.format("Expected network %s but got network %s", expectedNetwork, appliedNetwork),
-        Graphs.equivalent(expectedNetwork, appliedNetwork));
-    assertTrue(
+        expectedNetwork,
+        appliedNetwork);
+    assertEquals(
         String.format("Expected network %s but got network %s", network, networkCapture.getValue()),
-        Graphs.equivalent(network, networkCapture.getValue()));
+        network,
+        networkCapture.getValue());
   }
 
   @Test
@@ -167,7 +171,7 @@ public class CreateRegisterFnOperationFunctionTest {
 
     Node firstPort = TestNode.create("FirstPort");
     Node secondPort = TestNode.create("SecondPort");
-    when(portSupplier.apply(anyString(), anyString())).thenReturn(firstPort, secondPort);
+    when(portSupplier.get()).thenReturn(firstPort, secondPort);
 
     Node readNode = createReadNode("Read", Nodes.ExecutionLocation.RUNNER_HARNESS);
     Edge readNodeEdge = DefaultEdge.create();
@@ -257,7 +261,7 @@ public class CreateRegisterFnOperationFunctionTest {
 
     Node firstPort = TestNode.create("FirstPort");
     Node secondPort = TestNode.create("SecondPort");
-    when(portSupplier.apply(anyString(), anyString())).thenReturn(firstPort, secondPort);
+    when(portSupplier.get()).thenReturn(firstPort, secondPort);
 
     Node readNode = createReadNode("Read", Nodes.ExecutionLocation.SDK_HARNESS);
     Edge readNodeEdge = DefaultEdge.create();
@@ -372,7 +376,7 @@ public class CreateRegisterFnOperationFunctionTest {
 
     Node firstPort = TestNode.create("FirstPort");
     Node secondPort = TestNode.create("SecondPort");
-    when(portSupplier.apply(anyString(), anyString())).thenReturn(firstPort, secondPort);
+    when(portSupplier.get()).thenReturn(firstPort, secondPort);
 
     Node runnerReadNode = createReadNode("RunnerRead", Nodes.ExecutionLocation.RUNNER_HARNESS);
     Edge runnerReadNodeEdge = DefaultEdge.create();

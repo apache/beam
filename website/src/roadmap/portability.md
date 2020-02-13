@@ -41,11 +41,12 @@ vice versa.  The framework introduces a new runner, the _Universal
 Local Runner (ULR)_, as a practical reference implementation that
 complements the direct runners. Finally, it enables cross-language
 pipelines (sharing I/O or transformations across SDKs) and
-user-customized execution environments ("custom containers").
+user-customized [execution environments]({{ site.baseurl }}/documentation/runtime/environments/)
+("custom containers").
 
 The portability API consists of a set of smaller contracts that
 isolate SDKs and runners for job submission, management and
-execution. These contracts use protobufs and gRPC for broad language
+execution. These contracts use protobufs and [gRPC](https://grpc.io) for broad language
 support.
 
  * **Job submission and management**: The _Runner API_ defines a
@@ -138,34 +139,33 @@ common pattern for new portability features is that the overall
 feature is in "beam-model" with subtasks for each SDK and runner in
 their respective components.
 
-**JIRA:** [query](https://issues.apache.org/jira/issues/?filter=12341256)
+**JIRA:** [query](https://issues.apache.org/jira/issues/?jql=project %3D BEAM AND resolution %3D Unresolved AND labels %3D portability order by priority DESC%2Cupdated DESC)
 
 ## Status
 
 MVP, and FeatureCompletness nearly done (missing SDF, timers) for
 SDKs, Python ULR, and shared java runners library.
-Flink is the first runner to fully leverage this, with focus moving to
-Performance.
+Currently, the Flink and Spark runners support portable pipeline execution.
 See the
 [Portability support table](https://s.apache.org/apache-beam-portability-support-table)
 for details.
 
+Prerequisites: [Docker](https://docs.docker.com/compose/install/), [Python](https://docs.python-guide.org/starting/install3/linux/), [Java 8](https://openjdk.java.net/install/)
+
 ### Running Python wordcount on Flink {#python-on-flink}
 
-The Flink runner is currently the only runner to support portable pipeline execution.
-To run a basic Python wordcount (in batch mode) with embedded Flink:
+The Beam Flink runner can run Python pipelines in batch and streaming modes.
+Please see the [Flink Runner page]({{ site.baseurl }}/documentation/runners/flink/) for more information on
+how to run portable pipelines on top of Flink.
 
-1. Run once to build the SDK harness container: `./gradlew :beam-sdks-python-container:docker`
-2. Start the Flink portable JobService endpoint: `./gradlew :beam-runners-flink_2.11-job-server:runShadow`
-3. Submit the wordcount pipeline to above endpoint: `./gradlew :beam-sdks-python:portableWordCount -PjobEndpoint=localhost:8099`
+### Running Python wordcount on Spark {#python-on-spark}
 
-To run the pipeline in streaming mode: `./gradlew :beam-sdks-python:portableWordCount -PjobEndpoint=localhost:8099 -Pstreaming`
+The Beam Spark runner can run Python pipelines in batch mode.
+Please see the [Spark Runner page]({{ site.baseurl }}/documentation/runners/spark/) for more information on
+how to run portable pipelines on top of Spark.
 
-To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-docs-release-1.5/quickstart/setup_quickstart.html):
+Python streaming mode is not yet supported on Spark.
 
-1. Start Flink cluster (e.g. locally on `localhost:8081`)
-2. Create shaded JobService jar: `./gradlew :beam-runners-flink_2.11-job-server:installShadowDist`
-3. Optional optimization step: Place the generated JobServer Jar `beam/runners/flink/job-server/build/libs/beam-runners-flink_2.11-job-server-2.7.0-SNAPSHOT.jar` in `flink/lib` and change class loading order for Flink by adding `classloader.resolve-order: parent-first` to `conf/flink-conf.yaml`.
-4. Start JobService with Flink web service endpoint: `./gradlew :beam-runners-flink_2.11-job-server:runShadow -PflinkMasterUrl=localhost:8081`
-5. Submit the pipeline as above.
+## SDK Harness Configuration {#sdk-harness-config}
 
+See [here]({{ site.baseurl }}/documentation/runtime/sdk-harness-config/) for more information on SDK harness deployment options.

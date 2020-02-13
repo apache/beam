@@ -25,7 +25,7 @@ import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.Dataflow
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /**
  * This class tracks time and bytes spent when consuming side inputs.
@@ -110,10 +110,10 @@ public class DataflowSideInputReadCounter implements SideInputReadCounter {
     this.declaringOperationContext = operationContext;
     byteCounters = new HashMap<>();
     executionStates = new HashMap<>();
-    checkState();
+    updateCurrentStateIfOutdated();
   }
 
-  private void checkState() {
+  private void updateCurrentStateIfOutdated() {
     DataflowExecutionState currentState =
         (DataflowExecutionState) executionContext.getExecutionStateTracker().getCurrentState();
     if (currentState == null
@@ -160,11 +160,11 @@ public class DataflowSideInputReadCounter implements SideInputReadCounter {
 
   @Override
   public Closeable enter() {
-    checkState();
     // Only update status from tracked thread to avoid race condition and inconsistent state updates
     if (executionContext.getExecutionStateTracker().getTrackedThread() != Thread.currentThread()) {
       return () -> {};
     }
+    updateCurrentStateIfOutdated();
     return executionContext.getExecutionStateTracker().enterState(currentExecutionState);
   }
 

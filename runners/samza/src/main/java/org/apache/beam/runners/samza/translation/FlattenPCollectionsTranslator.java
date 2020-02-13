@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.samza.translation;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -32,7 +34,7 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.samza.operators.MessageStream;
 
 /**
@@ -65,17 +67,12 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
       inputStreams.add(ctx.getMessageStream(input));
     }
 
-    if (inputStreams.size() == 0) {
+    if (inputStreams.isEmpty()) {
       // for some of the validateRunner tests only
       final MessageStream<OpMessage<T>> noOpStream =
           ctx.getDummyStream()
               .flatMap(OpAdapter.adapt((Op<String, T, Void>) (inputElement, emitter) -> {}));
       ctx.registerMessageStream(output, noOpStream);
-      return;
-    }
-
-    if (inputStreams.size() == 1) {
-      ctx.registerMessageStream(output, Iterables.getOnlyElement(inputStreams));
       return;
     }
 
@@ -97,17 +94,10 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
     final List<MessageStream<OpMessage<T>>> inputStreams = ctx.getAllInputMessageStreams(transform);
     final String outputId = ctx.getOutputId(transform);
 
-    if (inputStreams.isEmpty()) {
-      // For portable api there should be at least the impulse as a dummy input
-      // We will know once validateRunner tests are available for portable runners
-      throw new IllegalArgumentException(
-          String.format("no input streams defined for Flatten: %s", transform.getId()));
-    }
-
-    if (inputStreams.size() == 1) {
-      ctx.registerMessageStream(outputId, Iterables.getOnlyElement(inputStreams));
-      return;
-    }
+    // For portable api there should be at least the impulse as a dummy input
+    // We will know once validateRunner tests are available for portable runners
+    checkState(
+        !inputStreams.isEmpty(), "no input streams defined for Flatten: %s", transform.getId());
 
     ctx.registerMessageStream(outputId, mergeInputStreams(inputStreams));
   }
@@ -115,6 +105,9 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
   // Merge multiple input streams into one, as this is what "flatten" is meant to do
   private static <T> MessageStream<OpMessage<T>> mergeInputStreams(
       List<MessageStream<OpMessage<T>>> inputStreams) {
+    if (inputStreams.size() == 1) {
+      return Iterables.getOnlyElement(inputStreams);
+    }
     final Set<MessageStream<OpMessage<T>>> streamsToMerge = new HashSet<>();
     inputStreams.forEach(
         stream -> {

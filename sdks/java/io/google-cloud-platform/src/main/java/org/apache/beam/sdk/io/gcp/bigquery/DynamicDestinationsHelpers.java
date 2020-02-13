@@ -17,24 +17,41 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.BackOffUtils;
+import com.google.api.client.util.Sleeper;
+import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonTableRefToTableSpec;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Contains some useful helper instances of {@link DynamicDestinations}. */
 class DynamicDestinationsHelpers {
+  private static final Logger LOG = LoggerFactory.getLogger(DynamicDestinationsHelpers.class);
+
   /** Always returns a constant table destination. */
   static class ConstantTableDestinations<T> extends DynamicDestinations<T, TableDestination> {
     private final ValueProvider<String> tableSpec;
@@ -75,17 +92,20 @@ class DynamicDestinationsHelpers {
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      return TableDestinationCoder.of();
+      return TableDestinationCoderV2.of();
     }
   }
 
-  /** Returns a tables based on a user-supplied function. */
+  /** Returns tables based on a user-supplied function. */
   static class TableFunctionDestinations<T> extends DynamicDestinations<T, TableDestination> {
     private final SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction;
+    private final boolean clusteringEnabled;
 
     TableFunctionDestinations(
-        SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction) {
+        SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction,
+        boolean clusteringEnabled) {
       this.tableFunction = tableFunction;
+      this.clusteringEnabled = clusteringEnabled;
     }
 
     @Override
@@ -111,7 +131,11 @@ class DynamicDestinationsHelpers {
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      return TableDestinationCoderV2.of();
+      if (clusteringEnabled) {
+        return TableDestinationCoderV3.of();
+      } else {
+        return TableDestinationCoderV2.of();
+      }
     }
   }
 
@@ -149,25 +173,46 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
+    Coder<DestinationT> getDestinationCoderWithDefault(CoderRegistry registry)
+        throws CannotProvideCoderException {
+      Coder<DestinationT> destinationCoder = getDestinationCoder();
+      if (destinationCoder != null) {
+        return destinationCoder;
+      }
+      return inner.getDestinationCoderWithDefault(registry);
+    }
+
+    @Override
+    public List<PCollectionView<?>> getSideInputs() {
+      return inner.getSideInputs();
+    }
+
+    @Override
+    void setSideInputAccessorFromProcessContext(DoFn<?, ?>.ProcessContext context) {
+      super.setSideInputAccessorFromProcessContext(context);
+      inner.setSideInputAccessorFromProcessContext(context);
+    }
+
+    @Override
     public String toString() {
       return MoreObjects.toStringHelper(this).add("inner", inner).toString();
     }
   }
 
   /** Returns the same schema for every table. */
-  static class ConstantSchemaDestinations<T>
-      extends DelegatingDynamicDestinations<T, TableDestination> {
+  static class ConstantSchemaDestinations<T, DestinationT>
+      extends DelegatingDynamicDestinations<T, DestinationT> {
     @Nullable private final ValueProvider<String> jsonSchema;
 
     ConstantSchemaDestinations(
-        DynamicDestinations<T, TableDestination> inner, ValueProvider<String> jsonSchema) {
+        DynamicDestinations<T, DestinationT> inner, ValueProvider<String> jsonSchema) {
       super(inner);
       checkArgument(jsonSchema != null, "jsonSchema can not be null");
       this.jsonSchema = jsonSchema;
     }
 
     @Override
-    public TableSchema getSchema(TableDestination destination) {
+    public TableSchema getSchema(DestinationT destination) {
       String jsonSchema = this.jsonSchema.get();
       checkArgument(jsonSchema != null, "jsonSchema can not be null");
       return BigQueryHelpers.fromJsonString(jsonSchema, TableSchema.class);
@@ -186,16 +231,19 @@ class DynamicDestinationsHelpers {
       extends DelegatingDynamicDestinations<T, TableDestination> {
 
     @Nullable private final ValueProvider<String> jsonTimePartitioning;
+    @Nullable private final ValueProvider<String> jsonClustering;
 
     ConstantTimePartitioningDestinations(
         DynamicDestinations<T, TableDestination> inner,
-        ValueProvider<String> jsonTimePartitioning) {
+        ValueProvider<String> jsonTimePartitioning,
+        ValueProvider<String> jsonClustering) {
       super(inner);
       checkArgument(jsonTimePartitioning != null, "jsonTimePartitioning provider can not be null");
       if (jsonTimePartitioning.isAccessible()) {
         checkArgument(jsonTimePartitioning.get() != null, "jsonTimePartitioning can not be null");
       }
       this.jsonTimePartitioning = jsonTimePartitioning;
+      this.jsonClustering = jsonClustering;
     }
 
     @Override
@@ -204,20 +252,31 @@ class DynamicDestinationsHelpers {
       String partitioning = this.jsonTimePartitioning.get();
       checkArgument(partitioning != null, "jsonTimePartitioning can not be null");
       return new TableDestination(
-          destination.getTableSpec(), destination.getTableDescription(), partitioning);
+          destination.getTableSpec(),
+          destination.getTableDescription(),
+          partitioning,
+          Optional.ofNullable(jsonClustering).map(ValueProvider::get).orElse(null));
     }
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      return TableDestinationCoderV2.of();
+      if (jsonClustering != null) {
+        return TableDestinationCoderV3.of();
+      } else {
+        return TableDestinationCoderV2.of();
+      }
     }
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(this)
-          .add("inner", inner)
-          .add("jsonTimePartitioning", jsonTimePartitioning)
-          .toString();
+      MoreObjects.ToStringHelper helper =
+          MoreObjects.toStringHelper(this)
+              .add("inner", inner)
+              .add("jsonTimePartitioning", jsonTimePartitioning);
+      if (jsonClustering != null) {
+        helper.add("jsonClustering", jsonClustering);
+      }
+      return helper.toString();
     }
   }
 
@@ -263,6 +322,84 @@ class DynamicDestinationsHelpers {
           .add("inner", inner)
           .add("schemaView", schemaView)
           .toString();
+    }
+  }
+
+  static <T, DestinationT> DynamicDestinations<T, DestinationT> matchTableDynamicDestinations(
+      DynamicDestinations<T, DestinationT> inner, BigQueryServices bqServices) {
+    return new MatchTableDynamicDestinations<>(inner, bqServices);
+  }
+
+  static class MatchTableDynamicDestinations<T, DestinationT>
+      extends DelegatingDynamicDestinations<T, DestinationT> {
+    private final BigQueryServices bqServices;
+
+    private MatchTableDynamicDestinations(
+        DynamicDestinations<T, DestinationT> inner, BigQueryServices bqServices) {
+      super(inner);
+      this.bqServices = bqServices;
+    }
+
+    private Table getBigQueryTable(TableReference tableReference) {
+      BackOff backoff =
+          BackOffAdapter.toGcpBackOff(
+              FluentBackoff.DEFAULT
+                  .withMaxRetries(3)
+                  .withInitialBackoff(Duration.standardSeconds(1))
+                  .withMaxBackoff(Duration.standardSeconds(2))
+                  .backoff());
+      try {
+        do {
+          try {
+            BigQueryOptions bqOptions = getPipelineOptions().as(BigQueryOptions.class);
+            return bqServices.getDatasetService(bqOptions).getTable(tableReference);
+          } catch (InterruptedException | IOException e) {
+            LOG.info("Failed to get BigQuery table " + tableReference);
+          }
+        } while (nextBackOff(Sleeper.DEFAULT, backoff));
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+      return null;
+    }
+
+    /** Identical to {@link BackOffUtils#next} but without checked IOException. */
+    private static boolean nextBackOff(Sleeper sleeper, BackOff backoff)
+        throws InterruptedException {
+      try {
+        return BackOffUtils.next(sleeper, backoff);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    /** Returns a {@link TableDestination} object for the destination. May not return null. */
+    @Override
+    public TableDestination getTable(DestinationT destination) {
+      TableDestination wrappedDestination = super.getTable(destination);
+      Table existingTable = getBigQueryTable(wrappedDestination.getTableReference());
+
+      if (existingTable == null) {
+        return wrappedDestination;
+      } else {
+        return new TableDestination(
+            wrappedDestination.getTableSpec(),
+            existingTable.getDescription(),
+            existingTable.getTimePartitioning(),
+            existingTable.getClustering());
+      }
+    }
+
+    /** Returns the table schema for the destination. May not return null. */
+    @Override
+    public TableSchema getSchema(DestinationT destination) {
+      TableDestination wrappedDestination = super.getTable(destination);
+      Table existingTable = getBigQueryTable(wrappedDestination.getTableReference());
+      if (existingTable == null) {
+        return super.getSchema(destination);
+      } else {
+        return existingTable.getSchema();
+      }
     }
   }
 }

@@ -29,7 +29,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ByteArrayShuff
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleBatchReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntry;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShufflePosition;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 
 /** ChunkingShuffleBatchReader reads data from a shuffle dataset using a ShuffleReader. */
 final class ChunkingShuffleBatchReader implements ShuffleBatchReader {
@@ -59,14 +59,18 @@ final class ChunkingShuffleBatchReader implements ShuffleBatchReader {
     }
     DataInputStream input = new DataInputStream(new ByteArrayInputStream(result.chunk));
     ArrayList<ShuffleEntry> entries = new ArrayList<>();
+    long batchSize = 0;
     while (input.available() > 0) {
-      entries.add(getShuffleEntry(input));
+      ShuffleEntry entry = getShuffleEntry(input);
+      batchSize += entry.length();
+      entries.add(entry);
     }
     return new Batch(
         entries,
         result.nextStartPosition == null
             ? null
-            : ByteArrayShufflePosition.of(result.nextStartPosition));
+            : ByteArrayShufflePosition.of(result.nextStartPosition),
+        batchSize);
   }
 
   /**

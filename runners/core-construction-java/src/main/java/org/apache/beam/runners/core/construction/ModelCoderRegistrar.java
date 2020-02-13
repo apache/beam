@@ -17,25 +17,30 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableBiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableBiMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 /** The {@link CoderTranslatorRegistrar} for coders which are shared across languages. */
 @AutoService(CoderTranslatorRegistrar.class)
@@ -46,6 +51,8 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
   static final BiMap<Class<? extends Coder>, String> BEAM_MODEL_CODER_URNS =
       ImmutableBiMap.<Class<? extends Coder>, String>builder()
           .put(ByteArrayCoder.class, ModelCoders.BYTES_CODER_URN)
+          .put(BooleanCoder.class, ModelCoders.BOOL_CODER_URN)
+          .put(StringUtf8Coder.class, ModelCoders.STRING_UTF8_CODER_URN)
           .put(KvCoder.class, ModelCoders.KV_CODER_URN)
           .put(VarLongCoder.class, ModelCoders.INT64_CODER_URN)
           .put(IntervalWindowCoder.class, ModelCoders.INTERVAL_WINDOW_CODER_URN)
@@ -54,6 +61,11 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
           .put(LengthPrefixCoder.class, ModelCoders.LENGTH_PREFIX_CODER_URN)
           .put(GlobalWindow.Coder.class, ModelCoders.GLOBAL_WINDOW_CODER_URN)
           .put(FullWindowedValueCoder.class, ModelCoders.WINDOWED_VALUE_CODER_URN)
+          .put(
+              WindowedValue.ParamWindowedValueCoder.class,
+              ModelCoders.PARAM_WINDOWED_VALUE_CODER_URN)
+          .put(DoubleCoder.class, ModelCoders.DOUBLE_CODER_URN)
+          .put(RowCoder.class, ModelCoders.ROW_CODER_URN)
           .build();
 
   public static final Set<String> WELL_KNOWN_CODER_URNS = BEAM_MODEL_CODER_URNS.values();
@@ -62,6 +74,8 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
   static final Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> BEAM_MODEL_CODERS =
       ImmutableMap.<Class<? extends Coder>, CoderTranslator<? extends Coder>>builder()
           .put(ByteArrayCoder.class, CoderTranslators.atomic(ByteArrayCoder.class))
+          .put(BooleanCoder.class, CoderTranslators.atomic(BooleanCoder.class))
+          .put(StringUtf8Coder.class, CoderTranslators.atomic(StringUtf8Coder.class))
           .put(VarLongCoder.class, CoderTranslators.atomic(VarLongCoder.class))
           .put(IntervalWindowCoder.class, CoderTranslators.atomic(IntervalWindowCoder.class))
           .put(GlobalWindow.Coder.class, CoderTranslators.atomic(GlobalWindow.Coder.class))
@@ -70,6 +84,9 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
           .put(Timer.Coder.class, CoderTranslators.timer())
           .put(LengthPrefixCoder.class, CoderTranslators.lengthPrefix())
           .put(FullWindowedValueCoder.class, CoderTranslators.fullWindowedValue())
+          .put(WindowedValue.ParamWindowedValueCoder.class, CoderTranslators.paramWindowedValue())
+          .put(DoubleCoder.class, CoderTranslators.atomic(DoubleCoder.class))
+          .put(RowCoder.class, CoderTranslators.row())
           .build();
 
   static {

@@ -28,13 +28,16 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.UnsignedBytes;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for {@link MutationKeyEncoder}. */
+@RunWith(JUnit4.class)
 public class MutationKeyEncoderTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 

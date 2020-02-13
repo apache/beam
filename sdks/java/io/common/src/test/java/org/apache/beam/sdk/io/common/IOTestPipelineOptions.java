@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.common;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
@@ -30,4 +31,16 @@ public interface IOTestPipelineOptions extends TestPipelineOptions {
   Integer getNumberOfRecords();
 
   void setNumberOfRecords(Integer count);
+
+  @Description("BigQuery dataset to publish results to.")
+  @Nullable
+  String getBigQueryDataset();
+
+  void setBigQueryDataset(@Nullable String dataset);
+
+  @Description("BigQuery table to publish results to.")
+  @Nullable
+  String getBigQueryTable();
+
+  void setBigQueryTable(@Nullable String tableName);
 }

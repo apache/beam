@@ -26,8 +26,8 @@ import com.google.api.services.cloudresourcemanager.CloudResourceManager.Project
 import com.google.api.services.storage.Storage;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GoogleApiDebugOptions.GoogleApiTracer;
+import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.junit.Test;
 import org.junit.runner.RunWith;

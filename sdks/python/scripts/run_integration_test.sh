@@ -18,10 +18,10 @@
 
 ###########################################################################
 #
-# This script is useful to run single or a set of Python integration tests
-# manually or through Gradle. Note, this script doesn't setup python
-# environment which is required before running tests. Use Gradle task
-# `beam-sdks-python:integrationTests` to do both together.
+# This script is used in Gradle to run single or a set of Python integration tests
+# locally or on Jenkins. Note, this script doesn't setup python environment which is
+# required for integration test. In order to do so, run Gradle tasks defined in
+# :sdks:python:test-suites instead.
 #
 # In order to run test with customer options, use following commandline flags:
 #
@@ -48,6 +48,9 @@
 #                      during execution. Commonly used options like `--attr`,
 #                      `--tests`, `--nologcapture`. More can be found in
 #                      https://nose.readthedocs.io/en/latest/man.html#options
+#     suite         -> Namespace for this run of tests. Required if running
+#                      under Jenkins. Used to differentiate runs of the same
+#                      tests with different interpreters/dependencies/etc.
 #
 # Example usages:
 #     - Run full set of PostCommit tests with default pipeline options:
@@ -72,10 +75,12 @@ SLEEP_SECS=20
 STREAMING=false
 WORKER_JAR=""
 KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
+SUITE=""
 
 # Default test (nose) options.
-# Default test sets are full integration tests.
-TEST_OPTS="--attr=IT --nocapture"
+# Run WordCountIT.test_wordcount_it by default if no test options are
+# provided.
+TEST_OPTS="--tests=apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it --nocapture"
 
 while [[ $# -gt 0 ]]
 do
@@ -126,6 +131,11 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --dataflow_endpoint)
+        DATAFLOW_ENDPOINT="$2"
+        shift # past argument
+        shift # past value
+        ;;
     --pipeline_opts)
         PIPELINE_OPTS="$2"
         shift # past argument
@@ -136,6 +146,11 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --suite)
+        SUITE="$2"
+        shift # past argument
+        shift # past value
+        ;;
     *)    # unknown option
         echo "Unknown option: $1"
         exit 1
@@ -143,8 +158,27 @@ case $key in
 esac
 done
 
+if [[ "$JENKINS_HOME" != "" && "$SUITE" == "" ]]; then
+    echo "Argument --suite is required in a Jenkins environment."
+    exit 1
+fi
+XUNIT_FILE="nosetests-$SUITE.xml"
+
 set -o errexit
-set -o verbose
+
+
+###########################################################################
+
+# Check that the script is running in a known directory.
+if [[ $PWD != *sdks/python* ]]; then
+  echo 'Unable to locate Apache Beam Python SDK root directory'
+  exit 1
+fi
+
+# Go to the Apache Beam Python SDK root
+if [[ $PWD != *sdks/python ]]; then
+  cd $(pwd | sed 's/sdks\/python.*/sdks\/python/')
+fi
 
 
 ###########################################################################
@@ -152,28 +186,18 @@ set -o verbose
 
 if [[ -z $PIPELINE_OPTS ]]; then
 
-  # Check that the script is running in a known directory.
-  if [[ $PWD != *sdks/python* ]]; then
-    echo 'Unable to locate Apache Beam Python SDK root directory'
-    exit 1
-  fi
-
-  # Go to the Apache Beam Python SDK root
-  if [[ "*sdks/python" != $PWD ]]; then
-    cd $(pwd | sed 's/sdks\/python.*/sdks\/python/')
-  fi
-
-  # Create a tarball if not exists
-  if [[ $(find ${SDK_LOCATION}) ]]; then
-    SDK_LOCATION=$(find ${SDK_LOCATION})
+  # Get tar ball path
+  if [[ $(find ${SDK_LOCATION} 2> /dev/null) ]]; then
+    SDK_LOCATION=$(find ${SDK_LOCATION} | tail -n1)
   else
-    python setup.py -q sdist
-    SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
+    echo "[WARNING] Could not find SDK tarball in SDK_LOCATION: $SDK_LOCATION."
   fi
 
   # Install test dependencies for ValidatesRunner tests.
-  echo "pyhamcrest" > postcommit_requirements.txt
-  echo "mock" >> postcommit_requirements.txt
+  # pyhamcrest==1.10.0 doesn't work on Py2.
+  # See: https://github.com/hamcrest/PyHamcrest/issues/131.
+  echo "pyhamcrest!=1.10.0,<2.0.0" > postcommit_requirements.txt
+  echo "mock<3.0.0" >> postcommit_requirements.txt
 
   # Options used to run testing pipeline on Cloud Dataflow Service. Also used for
   # running on DirectRunner (some options ignored).
@@ -206,6 +230,10 @@ if [[ -z $PIPELINE_OPTS ]]; then
     )
   fi
 
+  if [[ ! -z "$DATAFLOW_ENDPOINT" ]]; then
+    opts+=("--dataflow_endpoint=$DATAFLOW_ENDPOINT")
+  fi
+
   PIPELINE_OPTS=$(IFS=" " ; echo "${opts[*]}")
 
 fi
@@ -214,6 +242,11 @@ fi
 # Run tests and validate that jobs finish successfully.
 
 echo ">>> RUNNING integration tests with pipeline options: $PIPELINE_OPTS"
+echo ">>>   test options: $TEST_OPTS"
+# TODO(BEAM-3713): Pass $SUITE once migrated to pytest. xunitmp doesn't support
+#   suite names.
 python setup.py nosetests \
   --test-pipeline-options="$PIPELINE_OPTS" \
+  --with-xunitmp --xunitmp-file=$XUNIT_FILE \
+  --ignore-files '.*py3\d?\.py$' \
   $TEST_OPTS

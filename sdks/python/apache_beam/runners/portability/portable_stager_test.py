@@ -13,7 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Test cases for :module:`artifact_service_client`."""
+
+# pytype: skip-file
 
 from __future__ import absolute_import
 from __future__ import division
@@ -27,17 +30,16 @@ import shutil
 import string
 import tempfile
 import unittest
-from concurrent import futures
 
 import grpc
 
 from apache_beam.portability.api import beam_artifact_api_pb2
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.runners.portability import portable_stager
+from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 
 class PortableStagerTest(unittest.TestCase):
-
   def setUp(self):
     self._temp_dir = tempfile.mkdtemp()
     self._remote_dir = tempfile.mkdtemp()
@@ -56,7 +58,7 @@ class PortableStagerTest(unittest.TestCase):
           describing the name of the artifacts in local temp folder and desired
           name in staging location.
     """
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    server = grpc.server(UnboundedThreadPoolExecutor())
     staging_service = TestLocalFileSystemArtifactStagingServiceServicer(
         self._remote_dir)
     beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
@@ -110,15 +112,15 @@ class PortableStagerTest(unittest.TestCase):
       random.shuffle(chars)
       chars = list(int(size / len(chars)) * chars + chars[0:size % len(chars)])
       if type == 's':
-        with open(
-            os.path.join(self._temp_dir, from_file), 'w',
-            buffering=2 << 22) as f:
+        with open(os.path.join(self._temp_dir, from_file),
+                  'w',
+                  buffering=2 << 22) as f:
           f.write(''.join(chars))
       if type == 'b':
         chars = [char.encode('ascii') for char in chars]
-        with open(
-            os.path.join(self._temp_dir, from_file), 'wb',
-            buffering=2 << 22) as f:
+        with open(os.path.join(self._temp_dir, from_file),
+                  'wb',
+                  buffering=2 << 22) as f:
           f.write(b''.join(chars))
 
     copied_files, retrieval_tokens = self._stage_files(
@@ -131,15 +133,16 @@ class PortableStagerTest(unittest.TestCase):
           filecmp.cmp(from_file, to_file),
           'Local file {0} and remote file {1} are not the same.'.format(
               from_file, to_file))
-    self.assertEqual([to_file for _, to_file, _, _ in files].sort(), [
-        staged_file_metadata.name for staged_file_metadata in copied_files
-    ].sort())
+    self.assertEqual([to_file for _, to_file, _, _ in files].sort(),
+                     [
+                         staged_file_metadata.name
+                         for staged_file_metadata in copied_files
+                     ].sort())
     self.assertEqual(retrieval_tokens, frozenset(['token']))
 
 
 class TestLocalFileSystemArtifactStagingServiceServicer(
     beam_artifact_api_pb2_grpc.ArtifactStagingServiceServicer):
-
   def __init__(self, temp_dir):
     super(TestLocalFileSystemArtifactStagingServiceServicer, self).__init__()
     self.temp_dir = temp_dir

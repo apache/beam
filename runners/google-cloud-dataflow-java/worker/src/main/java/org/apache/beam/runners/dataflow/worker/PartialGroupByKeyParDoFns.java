@@ -47,9 +47,9 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CountingOutputStream;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingOutputStream;
 import org.joda.time.Instant;
 
 /** A factory class that creates {@link ParDoFn} for {@link PartialGroupByKeyInstruction}. */

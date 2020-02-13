@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.samza.runtime;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -46,6 +46,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
@@ -57,7 +58,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.samza.config.Config;
 import org.apache.samza.context.Context;
 import org.apache.samza.operators.Scheduler;
@@ -120,6 +121,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   private transient AtomicLong bundleStartTime;
   private transient AtomicBoolean isBundleStarted;
   private transient Scheduler<KeyedTimerData<Void>> bundleTimerScheduler;
+  private DoFnSchemaInformation doFnSchemaInformation;
+  private Map<String, PCollectionView<?>> sideInputMapping;
 
   public DoFnOp(
       TupleTag<FnOutT> mainOutputTag,
@@ -138,7 +141,9 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       PCollection.IsBounded isBounded,
       boolean isPortable,
       RunnerApi.ExecutableStagePayload stagePayload,
-      Map<String, TupleTag<?>> idToTupleTagMap) {
+      Map<String, TupleTag<?>> idToTupleTagMap,
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     this.mainOutputTag = mainOutputTag;
     this.doFn = doFn;
     this.sideInputs = sideInputs;
@@ -158,6 +163,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     this.idToTupleTagMap = new HashMap<>(idToTupleTagMap);
     this.bundleCheckTimerId = "_samza_bundle_check_" + transformId;
     this.bundleStateId = "_samza_bundle_" + transformId;
+    this.doFnSchemaInformation = doFnSchemaInformation;
+    this.sideInputMapping = sideInputMapping;
   }
 
   @Override
@@ -237,7 +244,9 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
               outputManagerFactory.create(emitter),
               inputCoder,
               sideOutputTags,
-              outputCoders);
+              outputCoders,
+              doFnSchemaInformation,
+              sideInputMapping);
     }
 
     this.pushbackFnRunner =
@@ -455,7 +464,13 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       // Need to pass in the keyed TimerData here
       ((DoFnRunnerWithKeyedInternals) fnRunner).onTimer(keyedTimerData, window);
     } else {
-      pushbackFnRunner.onTimer(timer.getTimerId(), window, timer.getTimestamp(), timer.getDomain());
+      pushbackFnRunner.onTimer(
+          timer.getTimerId(),
+          timer.getTimerFamilyId(),
+          window,
+          timer.getTimestamp(),
+          timer.getOutputTimestamp(),
+          timer.getDomain());
     }
   }
 

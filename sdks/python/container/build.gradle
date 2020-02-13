@@ -18,14 +18,13 @@
 
 plugins { id 'org.apache.beam.module' }
 applyGoNature()
-applyDockerNature()
 
 description = "Apache Beam :: SDKs :: Python :: Container"
 
 // Figure out why the golang plugin does not add a build dependency between projects.
 // Without the line below, we get spurious errors about not being able to resolve
 // "./github.com/apache/beam/sdks/go"
-resolveBuildDependencies.dependsOn ":beam-sdks-go:goBuild"
+resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
 
 configurations {
   sdkSourceTarball
@@ -36,19 +35,10 @@ dependencies {
   golang {
     // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
     // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
-    build name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
-    test name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
+    build name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
+    test name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
   }
-  sdkSourceTarball project(path: ":beam-sdks-python", configuration: "distConfig")
-}
-
-task copyDockerfileDependencies(type: Copy, dependsOn: goBuild) {
-  from configurations.sdkSourceTarball
-  from file("./base_image_requirements.txt")
-  into "build/target"
-  if(configurations.sdkSourceTarball.isEmpty()) {
-    throw new StopExecutionException('sdk source tarball is empty');
-  }
+  sdkSourceTarball project(path: ":sdks:python", configuration: "distTarBall")
 }
 
 golang {
@@ -60,15 +50,13 @@ golang {
   }
 }
 
-docker {
-  name containerImageName(name: "python")
-  files "./build"
+task buildAll {
+  dependsOn ':sdks:python:container:py2:docker'
+  dependsOn ':sdks:python:container:py35:docker'
+  dependsOn ':sdks:python:container:py36:docker'
+  dependsOn ':sdks:python:container:py37:docker'
 }
 
 artifacts {
   sdkHarnessLauncher file: file('./build/target/launcher'), builtBy: goBuild
 }
-
-// Ensure that making the docker image builds any required artifacts
-dockerPrepare.dependsOn goBuild
-dockerPrepare.dependsOn copyDockerfileDependencies

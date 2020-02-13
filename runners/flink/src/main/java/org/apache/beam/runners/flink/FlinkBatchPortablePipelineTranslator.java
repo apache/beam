@@ -18,10 +18,11 @@
 package org.apache.beam.runners.flink;
 
 import static org.apache.beam.runners.core.construction.ExecutableStageTranslation.generateNameFromStagePayload;
-import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.createOutputMap;
-import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.getWindowingStrategy;
-import static org.apache.beam.runners.flink.translation.utils.FlinkPipelineTranslatorUtils.instantiateCoder;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.runners.flink.translation.utils.FlinkPortableRunnerUtils.requiresTimeSortedInput;
+import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.createOutputMap;
+import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.getWindowingStrategy;
+import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.instantiateCoder;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -48,8 +49,7 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
-import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
-import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
+import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContextFactory;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStagePruningFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkPartialReduceFunction;
@@ -71,19 +71,19 @@ import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -95,6 +95,7 @@ import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.SingleInputUdfOperator;
+import org.apache.flink.api.java.operators.UnsortedGrouping;
 
 /**
  * A translator that translates bounded portable pipelines into executable Flink pipelines.
@@ -147,13 +148,11 @@ public class FlinkBatchPortablePipelineTranslator
         PTransformTranslation.IMPULSE_TRANSFORM_URN,
         FlinkBatchPortablePipelineTranslator::translateImpulse);
     translatorMap.put(
-        PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN,
-        FlinkBatchPortablePipelineTranslator::translateAssignWindows);
-    translatorMap.put(
         ExecutableStage.URN, FlinkBatchPortablePipelineTranslator::translateExecutableStage);
     translatorMap.put(
         PTransformTranslation.RESHUFFLE_URN,
         FlinkBatchPortablePipelineTranslator::translateReshuffle);
+
     return new FlinkBatchPortablePipelineTranslator(translatorMap.build());
   }
 
@@ -286,52 +285,6 @@ public class FlinkBatchPortablePipelineTranslator
         inputDataSet.rebalance());
   }
 
-  private static <T> void translateAssignWindows(
-      PTransformNode transform, RunnerApi.Pipeline pipeline, BatchTranslationContext context) {
-    RunnerApi.Components components = pipeline.getComponents();
-    RunnerApi.WindowIntoPayload payload;
-    try {
-      payload =
-          RunnerApi.WindowIntoPayload.parseFrom(transform.getTransform().getSpec().getPayload());
-    } catch (InvalidProtocolBufferException e) {
-      throw new IllegalArgumentException(e);
-    }
-    // TODO: https://issues.apache.org/jira/browse/BEAM-4296
-    // This only works for well known window fns, we should defer this execution to the SDK
-    // if the WindowFn can't be parsed or just defer it all the time.
-    WindowFn<T, ? extends BoundedWindow> windowFn =
-        (WindowFn<T, ? extends BoundedWindow>)
-            WindowingStrategyTranslation.windowFnFromProto(payload.getWindowFn());
-
-    String inputCollectionId =
-        Iterables.getOnlyElement(transform.getTransform().getInputsMap().values());
-    String outputCollectionId =
-        Iterables.getOnlyElement(transform.getTransform().getOutputsMap().values());
-    PCollectionNode collectionNode =
-        PipelineNode.pCollection(
-            outputCollectionId, components.getPcollectionsOrThrow(outputCollectionId));
-    Coder<WindowedValue<T>> outputCoder;
-    try {
-      outputCoder = WireCoders.instantiateRunnerWireCoder(collectionNode, components);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    TypeInformation<WindowedValue<T>> resultTypeInfo = new CoderTypeInformation<>(outputCoder);
-
-    DataSet<WindowedValue<T>> inputDataSet = context.getDataSetOrThrow(inputCollectionId);
-
-    FlinkAssignWindows<T, ? extends BoundedWindow> assignWindowsFunction =
-        new FlinkAssignWindows<>(windowFn);
-
-    DataSet<WindowedValue<T>> resultDataSet =
-        inputDataSet
-            .flatMap(assignWindowsFunction)
-            .name(transform.getTransform().getUniqueName())
-            .returns(resultTypeInfo);
-
-    context.addDataSet(outputCollectionId, resultDataSet);
-  }
-
   private static <InputT> void translateExecutableStage(
       PTransformNode transform, RunnerApi.Pipeline pipeline, BatchTranslationContext context) {
     // TODO: Fail on splittable DoFns.
@@ -377,10 +330,12 @@ public class FlinkBatchPortablePipelineTranslator
 
     final FlinkExecutableStageFunction<InputT> function =
         new FlinkExecutableStageFunction<>(
+            transform.getTransform().getUniqueName(),
+            context.getPipelineOptions(),
             stagePayload,
             context.getJobInfo(),
             outputMap,
-            FlinkExecutableStageContext.factory(context.getPipelineOptions()),
+            FlinkExecutableStageContextFactory.getInstance(),
             getWindowingStrategy(inputPCollectionId, components).getWindowFn().windowCoder());
 
     final String operatorName = generateNameFromStagePayload(stagePayload);
@@ -403,8 +358,16 @@ public class FlinkBatchPortablePipelineTranslator
 
       Grouping<WindowedValue<InputT>> groupedInput =
           inputDataSet.groupBy(new KvKeySelector<>(keyCoder));
+      boolean requiresTimeSortedInput = requiresTimeSortedInput(stagePayload, false);
+      if (requiresTimeSortedInput) {
+        groupedInput =
+            ((UnsortedGrouping<WindowedValue<InputT>>) groupedInput)
+                .sortGroup(WindowedValue::getTimestamp, Order.ASCENDING);
+      }
+
       taggedDataset =
           new GroupReduceOperator<>(groupedInput, typeInformation, function, operatorName);
+
     } else {
       taggedDataset =
           new MapPartitionOperator<>(inputDataSet, typeInformation, function, operatorName);
@@ -651,7 +614,7 @@ public class FlinkBatchPortablePipelineTranslator
       String collectionId) {
     TypeInformation<WindowedValue<?>> outputType = new CoderTypeInformation<>(outputCoder);
     FlinkExecutableStagePruningFunction pruningFunction =
-        new FlinkExecutableStagePruningFunction(unionTag);
+        new FlinkExecutableStagePruningFunction(unionTag, context.getPipelineOptions());
     FlatMapOperator<RawUnionValue, WindowedValue<?>> pruningOperator =
         new FlatMapOperator<>(
             taggedDataset,

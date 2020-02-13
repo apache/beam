@@ -40,7 +40,7 @@ import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 
 /** Built-in aggregations functions for COUNT/MAX/MIN/SUM/AVG/VAR_POP/VAR_SAMP. */
 public class BeamBuiltinAggregations {
@@ -87,6 +87,7 @@ public class BeamBuiltinAggregations {
       case FLOAT:
       case DATETIME:
       case DECIMAL:
+      case STRING:
         return new CustMax<>();
       case INT32:
         return Max.ofIntegers();
@@ -112,6 +113,7 @@ public class BeamBuiltinAggregations {
       case FLOAT:
       case DATETIME:
       case DECIMAL:
+      case STRING:
         return new CustMin();
       case INT32:
         return Min.ofIntegers();

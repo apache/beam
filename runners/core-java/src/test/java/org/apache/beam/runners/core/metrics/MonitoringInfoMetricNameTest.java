@@ -34,17 +34,15 @@ public class MonitoringInfoMetricNameTest implements Serializable {
   @Test
   public void testElementCountConstruction() {
     HashMap<String, String> labels = new HashMap<String, String>();
-    String urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
+    String urn = MonitoringInfoConstants.Urns.ELEMENT_COUNT;
     MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
-    assertEquals(null, name.getName());
-    assertEquals(null, name.getNamespace());
     assertEquals(labels, name.getLabels());
     assertEquals(urn, name.getUrn());
 
     assertEquals(name, name); // test self equals;
 
     // Reconstruct and test equality and hash code equivalence
-    urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
+    urn = MonitoringInfoConstants.Urns.ELEMENT_COUNT;
     labels = new HashMap<String, String>();
     MonitoringInfoMetricName name2 = MonitoringInfoMetricName.named(urn, labels);
 
@@ -53,34 +51,47 @@ public class MonitoringInfoMetricNameTest implements Serializable {
   }
 
   @Test
-  public void testUserCounterUrnConstruction() {
-    String urn = SimpleMonitoringInfoBuilder.userMetricUrn("namespace", "name");
+  public void testGetNameReturnsNameIfLabelIsPresent() {
     HashMap<String, String> labels = new HashMap<String, String>();
-    MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
-    assertEquals("name", name.getName());
-    assertEquals("namespace", name.getNamespace());
-    assertEquals(labels, name.getLabels());
-    assertEquals(urn, name.getUrn());
+    labels.put(MonitoringInfoConstants.Labels.NAME, "anyName");
+    MonitoringInfoMetricName name = MonitoringInfoMetricName.named("anyUrn", labels);
+    assertEquals("anyName", name.getName());
+  }
 
-    assertEquals(name, name); // test self equals;
+  @Test
+  public void testGetNamespaceReturnsNamespaceIfLabelIsPresent() {
+    HashMap<String, String> labels = new HashMap<>();
+    labels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "anyTransform");
+    labels.put(MonitoringInfoConstants.Labels.NAMESPACE, "anyNamespace");
+    labels.put(MonitoringInfoConstants.Labels.PCOLLECTION, "anyPCollection");
+    MonitoringInfoMetricName name = MonitoringInfoMetricName.named("anyUrn", labels);
+    assertEquals("anyNamespace", name.getNamespace());
+  }
 
-    // Reconstruct and test equality and hash code equivalence
-    urn = SimpleMonitoringInfoBuilder.userMetricUrn("namespace", "name");
-    labels = new HashMap<String, String>();
-    MonitoringInfoMetricName name2 = MonitoringInfoMetricName.named(urn, labels);
+  @Test
+  public void testGetNamespaceReturnsTransformIfNamespaceLabelIsNotPresent() {
+    HashMap<String, String> labels = new HashMap<>();
+    labels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "anyTransform");
+    MonitoringInfoMetricName name = MonitoringInfoMetricName.named("anyUrn", labels);
+    assertEquals("anyTransform", name.getNamespace());
+  }
 
-    assertEquals(name, name2);
-    assertEquals(name.hashCode(), name2.hashCode());
+  @Test
+  public void testGetNamespaceReturnsPCollectionIfNamespaceLabelIsNotPresent() {
+    HashMap<String, String> labels = new HashMap<>();
+    labels.put(MonitoringInfoConstants.Labels.PCOLLECTION, "anyPCollection");
+    MonitoringInfoMetricName name = MonitoringInfoMetricName.named("anyUrn", labels);
+    assertEquals("anyPCollection", name.getNamespace());
   }
 
   @Test
   public void testNotEqualsDiffLabels() {
     HashMap<String, String> labels = new HashMap<String, String>();
-    String urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
+    String urn = MonitoringInfoConstants.Urns.ELEMENT_COUNT;
     MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
 
     // Reconstruct and test equality and hash code equivalence
-    urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
+    urn = MonitoringInfoConstants.Urns.ELEMENT_COUNT;
     labels = new HashMap<String, String>();
     labels.put("label", "value1");
     MonitoringInfoMetricName name2 = MonitoringInfoMetricName.named(urn, labels);
@@ -92,7 +103,7 @@ public class MonitoringInfoMetricNameTest implements Serializable {
   @Test
   public void testNotEqualsDiffUrn() {
     HashMap<String, String> labels = new HashMap<String, String>();
-    String urn = SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN;
+    String urn = MonitoringInfoConstants.Urns.ELEMENT_COUNT;
     MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
 
     // Reconstruct and test equality and hash code equivalence
@@ -108,7 +119,7 @@ public class MonitoringInfoMetricNameTest implements Serializable {
   public void testNullLabelsThrows() {
     thrown.expect(IllegalArgumentException.class);
     HashMap<String, String> labels = null;
-    MonitoringInfoMetricName.named(SimpleMonitoringInfoBuilder.ELEMENT_COUNT_URN, labels);
+    MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.ELEMENT_COUNT, labels);
   }
 
   @Test

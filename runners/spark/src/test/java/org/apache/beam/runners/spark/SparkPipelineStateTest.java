@@ -51,7 +51,7 @@ public class SparkPipelineStateTest implements Serializable {
     }
   }
 
-  private transient SparkPipelineOptions options =
+  private final transient SparkPipelineOptions options =
       PipelineOptionsFactory.as(SparkPipelineOptions.class);
 
   @Rule public transient TestName testName = new TestName();

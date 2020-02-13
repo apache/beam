@@ -206,10 +206,10 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
     public <T> ValueByBuilder<InputT, T> keyBy(
         UnaryFunction<InputT, T> keyExtractor, @Nullable TypeDescriptor<T> keyType) {
       @SuppressWarnings("unchecked")
-      final Builder<InputT, T> casted = (Builder<InputT, T>) this;
-      casted.keyExtractor = requireNonNull(keyExtractor);
-      casted.keyType = keyType;
-      return casted;
+      final Builder<InputT, T> cast = (Builder<InputT, T>) this;
+      cast.keyExtractor = requireNonNull(keyExtractor);
+      cast.keyType = keyType;
+      return cast;
     }
 
     @Override
@@ -309,9 +309,9 @@ public class SumByKey<InputT, KeyT> extends ShuffleOperator<InputT, KeyT, KV<Key
             getWindow().isPresent(),
             builder -> {
               @SuppressWarnings("unchecked")
-              final ReduceByKey.WindowByInternalBuilder<InputT, KeyT, Long> casted =
+              final ReduceByKey.WindowByInternalBuilder<InputT, KeyT, Long> cast =
                   (ReduceByKey.WindowByInternalBuilder) builder;
-              return casted.windowBy(
+              return cast.windowBy(
                   getWindow()
                       .orElseThrow(
                           () ->

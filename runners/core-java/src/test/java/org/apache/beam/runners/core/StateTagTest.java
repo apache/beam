@@ -45,7 +45,7 @@ public class StateTagTest {
     StateTag<?> barVarInt = StateTags.value("bar", VarIntCoder.of());
 
     assertEquals(fooVarInt1, fooVarInt2);
-    assertNotEquals(fooVarInt1, fooBigEndian);
+    assertEquals(fooVarInt1, fooBigEndian);
     assertNotEquals(fooVarInt1, barVarInt);
   }
 
@@ -57,7 +57,7 @@ public class StateTagTest {
     StateTag<?> barVarInt = StateTags.bag("bar", VarIntCoder.of());
 
     assertEquals(fooVarInt1, fooVarInt2);
-    assertNotEquals(fooVarInt1, fooBigEndian);
+    assertEquals(fooVarInt1, fooBigEndian);
     assertNotEquals(fooVarInt1, barVarInt);
   }
 
@@ -69,7 +69,7 @@ public class StateTagTest {
     StateTag<?> barVarInt = StateTags.set("bar", VarIntCoder.of());
 
     assertEquals(fooVarInt1, fooVarInt2);
-    assertNotEquals(fooVarInt1, fooBigEndian);
+    assertEquals(fooVarInt1, fooBigEndian);
     assertNotEquals(fooVarInt1, barVarInt);
   }
 
@@ -84,9 +84,9 @@ public class StateTagTest {
     StateTag<?> barStringVarInt = StateTags.map("bar", StringUtf8Coder.of(), VarIntCoder.of());
 
     assertEquals(fooStringVarInt1, fooStringVarInt2);
-    assertNotEquals(fooStringVarInt1, fooStringBigEndian);
-    assertNotEquals(fooStringBigEndian, fooVarIntBigEndian);
-    assertNotEquals(fooStringVarInt1, fooVarIntBigEndian);
+    assertEquals(fooStringVarInt1, fooStringBigEndian);
+    assertEquals(fooStringBigEndian, fooVarIntBigEndian);
+    assertEquals(fooStringVarInt1, fooVarIntBigEndian);
     assertNotEquals(fooStringVarInt1, barStringVarInt);
   }
 
@@ -134,8 +134,8 @@ public class StateTagTest {
         StateTags.convertToBagTagInternal((StateTag) fooCoder1Min));
 
     // Different input coder coder.
-    assertNotEquals(fooCoder1Max1, fooCoder2Max);
-    assertNotEquals(
+    assertEquals(fooCoder1Max1, fooCoder2Max);
+    assertEquals(
         StateTags.convertToBagTagInternal((StateTag) fooCoder1Max1),
         StateTags.convertToBagTagInternal((StateTag) fooCoder2Max));
 
@@ -181,8 +181,8 @@ public class StateTagTest {
         StateTags.convertToBagTagInternal((StateTag) fooCoder1Min));
 
     // Different input coder coder.
-    assertNotEquals(fooCoder1Max1, fooCoder2Max);
-    assertNotEquals(
+    assertEquals(fooCoder1Max1, fooCoder2Max);
+    assertEquals(
         StateTags.convertToBagTagInternal((StateTag) fooCoder1Max1),
         StateTags.convertToBagTagInternal((StateTag) fooCoder2Max));
 

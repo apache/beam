@@ -28,7 +28,11 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^sdks/java/.*$',
       '^runners/.*$',
       '^examples/java/.*$',
+      '^examples/kotlin/.*$',
       '^release/.*$',
+    ],
+    excludePathPatterns: [
+      '^sdks/java/extensions/sql/.*$'
     ]
 )
 builder.build {
@@ -41,9 +45,11 @@ builder.build {
         checkStyle {
           pattern('**/build/reports/checkstyle/*.xml')
         }
-        findBugs {
-          pattern('**/build/reports/findbugs/*.xml')
-        }
+        configure { node ->
+          node / 'spotBugs' << 'io.jenkins.plugins.analysis.warnings.SpotBugs' {
+            pattern('**/build/reports/spotbugs/*.xml')
+          }
+       }
       }
       enabledForFailure(true)
     }

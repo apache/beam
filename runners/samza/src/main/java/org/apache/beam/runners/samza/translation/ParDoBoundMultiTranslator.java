@@ -29,6 +29,7 @@ import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
@@ -43,6 +44,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -52,7 +54,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.samza.operators.MessageStream;
 import org.apache.samza.operators.functions.FlatMapFunction;
 import org.apache.samza.operators.functions.WatermarkFunction;
@@ -88,13 +90,11 @@ class ParDoBoundMultiTranslator<InT, OutT>
       TransformHierarchy.Node node,
       TranslationContext ctx) {
     final PCollection<? extends InT> input = ctx.getInput(transform);
-    final HashMap<TupleTag<?>, Coder<?>> outputCoders =
-        new HashMap<>(
-            ctx.getCurrentTransform().getOutputs().entrySet().stream()
-                .filter(e -> e.getValue() instanceof PCollection)
-                .collect(
-                    Collectors.toMap(
-                        e -> e.getKey(), e -> ((PCollection<?>) e.getValue()).getCoder())));
+    final Map<TupleTag<?>, Coder<?>> outputCoders =
+        ctx.getCurrentTransform().getOutputs().entrySet().stream()
+            .filter(e -> e.getValue() instanceof PCollection)
+            .collect(
+                Collectors.toMap(e -> e.getKey(), e -> ((PCollection<?>) e.getValue()).getCoder()));
 
     final DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
     final Coder<?> keyCoder =
@@ -106,7 +106,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
     final MessageStream<OpMessage<InT>> inputStream = ctx.getMessageStream(input);
     final List<MessageStream<OpMessage<InT>>> sideInputStreams =
-        transform.getSideInputs().stream()
+        transform.getSideInputs().values().stream()
             .map(ctx::<InT>getViewStream)
             .collect(Collectors.toList());
     final ArrayList<Map.Entry<TupleTag<?>, PValue>> outputs =
@@ -128,9 +128,15 @@ class ParDoBoundMultiTranslator<InT, OutT>
     }
 
     final HashMap<String, PCollectionView<?>> idToPValueMap = new HashMap<>();
-    for (PCollectionView<?> view : transform.getSideInputs()) {
+    for (PCollectionView<?> view : transform.getSideInputs().values()) {
       idToPValueMap.put(ctx.getViewId(view), view);
     }
+
+    DoFnSchemaInformation doFnSchemaInformation;
+    doFnSchemaInformation = ParDoTranslation.getSchemaInformation(ctx.getCurrentTransform());
+
+    Map<String, PCollectionView<?>> sideInputMapping =
+        ParDoTranslation.getSideInputMapping(ctx.getCurrentTransform());
 
     final DoFnOp<InT, OutT, RawUnionValue> op =
         new DoFnOp<>(
@@ -140,7 +146,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
             (Coder<InT>) input.getCoder(),
             null,
             outputCoders,
-            transform.getSideInputs(),
+            transform.getSideInputs().values(),
             transform.getAdditionalOutputTags().getAll(),
             input.getWindowingStrategy(),
             idToPValueMap,
@@ -150,7 +156,9 @@ class ParDoBoundMultiTranslator<InT, OutT>
             input.isBounded(),
             false,
             null,
-            Collections.emptyMap());
+            Collections.emptyMap(),
+            doFnSchemaInformation,
+            sideInputMapping);
 
     final MessageStream<OpMessage<InT>> mergedStreams;
     if (sideInputStreams.isEmpty()) {
@@ -232,6 +240,12 @@ class ParDoBoundMultiTranslator<InT, OutT>
     WindowedValue.WindowedValueCoder<InT> windowedInputCoder =
         ctx.instantiateCoder(inputId, pipeline.getComponents());
 
+    final DoFnSchemaInformation doFnSchemaInformation;
+    doFnSchemaInformation = ParDoTranslation.getSchemaInformation(transform.getTransform());
+
+    Map<String, PCollectionView<?>> sideInputMapping =
+        ParDoTranslation.getSideInputMapping(transform.getTransform());
+
     final RunnerApi.PCollection input = pipeline.getComponents().getPcollectionsOrThrow(inputId);
     final PCollection.IsBounded isBounded = SamzaPipelineTranslatorUtils.isBounded(input);
 
@@ -245,7 +259,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
             Collections.emptyMap(), // output coders not in use
             Collections.emptyList(), // sideInputs not in use until side input support
             new ArrayList<>(idToTupleTagMap.values()), // used by java runner only
-            ctx.getPortableWindowStrategy(transform, pipeline),
+            SamzaPipelineTranslatorUtils.getPortableWindowStrategy(transform, pipeline),
             Collections.emptyMap(), // idToViewMap not in use until side input support
             new DoFnOp.MultiOutputManagerFactory(tagToIndexMap),
             ctx.getTransformFullName(),
@@ -253,7 +267,9 @@ class ParDoBoundMultiTranslator<InT, OutT>
             isBounded,
             true,
             stagePayload,
-            idToTupleTagMap);
+            idToTupleTagMap,
+            doFnSchemaInformation,
+            sideInputMapping);
 
     final MessageStream<OpMessage<InT>> mergedStreams;
     if (sideInputStreams.isEmpty()) {

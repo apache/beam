@@ -20,6 +20,8 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import uuid
@@ -58,6 +60,7 @@ def create_run_query(entities, batch_size):
     if end == len(entities) or count == req.query.limit.value:
       finish = True
     return create_response(entities[start:end], str(end), finish)
+
   return run_query
 
 
@@ -70,7 +73,6 @@ def create_commit(mutations):
   Returns:
     A fake Datastore commit method
   """
-
   def commit(req):
     for mutation in req.mutations:
       mutations.append(mutation)

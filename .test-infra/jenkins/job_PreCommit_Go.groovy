@@ -25,7 +25,6 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     triggerPathPatterns: [
       '^model/.*$',
       '^sdks/go/.*$',
-      '^runners/.*$',
       '^release/.*$',
     ]
 )

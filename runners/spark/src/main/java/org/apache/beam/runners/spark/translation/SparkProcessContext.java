@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -32,7 +32,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.AbstractIterator;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.AbstractIterator;
 
 /** Spark runner process context processes Spark partitions using Beam's {@link DoFnRunner}. */
 class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
@@ -40,7 +40,7 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
   private final DoFn<FnInputT, FnOutputT> doFn;
   private final DoFnRunner<FnInputT, FnOutputT> doFnRunner;
   private final SparkOutputManager<OutputT> outputManager;
-  private Iterator<TimerInternals.TimerData> timerDataIterator;
+  private final Iterator<TimerInternals.TimerData> timerDataIterator;
 
   SparkProcessContext(
       DoFn<FnInputT, FnOutputT> doFn,
@@ -114,18 +114,18 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
 
     @Override
     protected OutputT computeNext() {
-      // Process each element from the (input) iterator, which produces, zero, one or more
-      // output elements (of type V) in the output iterator. Note that the output
-      // collection (and iterator) is reset between each call to processElement, so the
-      // collection only holds the output values for each call to processElement, rather
-      // than for the whole partition (which would use too much memory).
-      if (!isBundleStarted) {
-        isBundleStarted = true;
-        // call startBundle() before beginning to process the partition.
-        doFnRunner.startBundle();
-      }
-
       try {
+        // Process each element from the (input) iterator, which produces, zero, one or more
+        // output elements (of type V) in the output iterator. Note that the output
+        // collection (and iterator) is reset between each call to processElement, so the
+        // collection only holds the output values for each call to processElement, rather
+        // than for the whole partition (which would use too much memory).
+        if (!isBundleStarted) {
+          isBundleStarted = true;
+          // call startBundle() before beginning to process the partition.
+          doFnRunner.startBundle();
+        }
+
         while (true) {
           if (outputIterator.hasNext()) {
             return outputIterator.next();
@@ -161,7 +161,13 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
       StateNamespace namespace = timer.getNamespace();
       checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
       BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
-      doFnRunner.onTimer(timer.getTimerId(), window, timer.getTimestamp(), timer.getDomain());
+      doFnRunner.onTimer(
+          timer.getTimerId(),
+          timer.getTimerFamilyId(),
+          window,
+          timer.getTimestamp(),
+          timer.getOutputTimestamp(),
+          timer.getDomain());
     }
   }
 }

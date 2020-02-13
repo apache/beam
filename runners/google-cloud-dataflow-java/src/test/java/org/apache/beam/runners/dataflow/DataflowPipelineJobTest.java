@@ -23,8 +23,8 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
@@ -51,17 +51,17 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
+import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
+import org.apache.beam.sdk.extensions.gcp.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.util.BackOffAdapter;
-import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -225,13 +225,27 @@ public class DataflowPipelineJobTest {
   }
 
   /**
+   * Tests that the {@link DataflowPipelineJob} understands that the {@link State#UPDATED UPDATED}
+   * state is terminal.
+   */
+  @Test
+  public void testWaitToFinishLogsError() throws Exception {
+    assertEquals(State.UPDATED, mockWaitToFinishInState(State.UPDATED));
+    expectedLogs.verifyInfo(
+        String.format(
+            "Job %s has been updated and is running as the new job with id %s.",
+            JOB_ID, REPLACEMENT_JOB_ID));
+  }
+
+  /**
    * Tests that the {@link DataflowPipelineJob} understands that the {@link State#UNKNOWN UNKNOWN}
    * state is terminal.
    */
   @Test
   public void testWaitToFinishUnknown() throws Exception {
     assertEquals(null, mockWaitToFinishInState(State.UNKNOWN));
-    expectedLogs.verifyWarn("No terminal state was returned. State value UNKNOWN");
+    expectedLogs.verifyWarn(
+        "No terminal state was returned within allotted timeout. State value UNKNOWN");
   }
 
   @Test
@@ -311,13 +325,31 @@ public class DataflowPipelineJobTest {
 
     assertEquals(
         State.RUNNING,
-        job.getStateWithRetries(
+        job.getStateWithRetriesOrUnknownOnException(
             BackOffAdapter.toGcpBackOff(DataflowPipelineJob.STATUS_BACKOFF_FACTORY.backoff()),
             fastClock));
   }
 
   @Test
-  public void testGetStateWithExceptionReturnsUnknown() throws Exception {
+  public void testGetStateWithRetriesPassesExceptionThrough() throws Exception {
+    Dataflow.Projects.Locations.Jobs.Get statusRequest =
+        mock(Dataflow.Projects.Locations.Jobs.Get.class);
+
+    when(mockJobs.get(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID))).thenReturn(statusRequest);
+    when(statusRequest.execute()).thenThrow(IOException.class);
+
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, ImmutableMap.of());
+
+    long startTime = fastClock.nanoTime();
+    thrown.expect(IOException.class);
+    job.getStateWithRetries(
+        BackOffAdapter.toGcpBackOff(DataflowPipelineJob.STATUS_BACKOFF_FACTORY.backoff()),
+        fastClock);
+  }
+
+  @Test
+  public void testGetStateNoThrowWithExceptionReturnsUnknown() throws Exception {
     Dataflow.Projects.Locations.Jobs.Get statusRequest =
         mock(Dataflow.Projects.Locations.Jobs.Get.class);
 
@@ -330,7 +362,7 @@ public class DataflowPipelineJobTest {
     long startTime = fastClock.nanoTime();
     assertEquals(
         State.UNKNOWN,
-        job.getStateWithRetries(
+        job.getStateWithRetriesOrUnknownOnException(
             BackOffAdapter.toGcpBackOff(DataflowPipelineJob.STATUS_BACKOFF_FACTORY.backoff()),
             fastClock));
     long timeDiff = TimeUnit.NANOSECONDS.toMillis(fastClock.nanoTime() - startTime);

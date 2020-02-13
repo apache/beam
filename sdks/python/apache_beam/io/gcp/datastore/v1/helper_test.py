@@ -16,10 +16,11 @@
 #
 
 """Tests for datastore helper."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import errno
-import os
 import random
 import sys
 import unittest
@@ -28,17 +29,12 @@ from socket import error as SocketError
 
 from mock import MagicMock
 
-# pylint: disable=ungrouped-imports
-try: # TODO(BEAM-4543): googledatastore dependency does not work on Python 3.
-  from apache_beam.io.gcp.datastore.v1 import fake_datastore
-  from apache_beam.io.gcp.datastore.v1 import helper
-  from apache_beam.testing.test_utils import patch_retry
-except ImportError:
-  pass
-
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
+  from apache_beam.testing.test_utils import patch_retry
+  from apache_beam.io.gcp.datastore.v1 import fake_datastore
+  from apache_beam.io.gcp.datastore.v1 import helper
   from google.cloud.proto.datastore.v1 import datastore_pb2
   from google.cloud.proto.datastore.v1 import entity_pb2
   from google.cloud.proto.datastore.v1 import query_pb2
@@ -46,19 +42,16 @@ try:
   from google.rpc import code_pb2
   from googledatastore.connection import RPCError
   from googledatastore import helper as datastore_helper
-except ImportError:
+except (ImportError, TypeError):
   datastore_helper = None
 # pylint: enable=wrong-import-order, wrong-import-position
-# pylint: enable=ungrouped-imports
 
 
-@unittest.skipIf(sys.version_info[0] == 3 and
-                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                 'This test still needs to be fixed on Python 3'
-                 'TODO: BEAM-4543')
+@unittest.skipIf(
+    sys.version_info[0] == 3,
+    'v1/helper does not support Python 3 TODO: BEAM-4543')
 @unittest.skipIf(datastore_helper is None, 'GCP dependencies are not installed')
 class HelperTest(unittest.TestCase):
-
   def setUp(self):
     self._mock_datastore = MagicMock()
     self._query = query_pb2.Query()
@@ -91,31 +84,31 @@ class HelperTest(unittest.TestCase):
   def test_query_iterator(self):
     self._mock_datastore.run_query.side_effect = (
         self.permanent_retriable_datastore_failure)
-    query_iterator = helper.QueryIterator("project", None, self._query,
-                                          self._mock_datastore)
+    query_iterator = helper.QueryIterator(
+        "project", None, self._query, self._mock_datastore)
     self.assertRaises(RPCError, iter(query_iterator).next)
     self.assertEqual(6, len(self._mock_datastore.run_query.call_args_list))
 
   def test_query_iterator_with_transient_failures(self):
     self._mock_datastore.run_query.side_effect = (
         self.transient_retriable_datastore_failure)
-    query_iterator = helper.QueryIterator("project", None, self._query,
-                                          self._mock_datastore)
+    query_iterator = helper.QueryIterator(
+        "project", None, self._query, self._mock_datastore)
     fail_count = 5
     self._transient_fail_count = fail_count
     for _ in query_iterator:
       pass
 
-    self.assertEqual(fail_count + 1,
-                     len(self._mock_datastore.run_query.call_args_list))
+    self.assertEqual(
+        fail_count + 1, len(self._mock_datastore.run_query.call_args_list))
 
   def test_query_iterator_with_non_retriable_failures(self):
     self._mock_datastore.run_query.side_effect = (
         self.non_retriable_datastore_failure)
-    query_iterator = helper.QueryIterator("project", None, self._query,
-                                          self._mock_datastore)
-    self.assertRaises(tuple(map(type, self._non_retriable_errors)),
-                      iter(query_iterator).next)
+    query_iterator = helper.QueryIterator(
+        "project", None, self._query, self._mock_datastore)
+    self.assertRaises(
+        tuple(map(type, self._non_retriable_errors)), iter(query_iterator).next)
     self.assertEqual(1, len(self._mock_datastore.run_query.call_args_list))
 
   def test_query_iterator_with_single_batch(self):
@@ -157,8 +150,8 @@ class HelperTest(unittest.TestCase):
     entities = fake_datastore.create_entities(num_entities)
     self._mock_datastore.run_query.side_effect = \
         fake_datastore.create_run_query(entities, batch_size)
-    query_iterator = helper.QueryIterator("project", None, self._query,
-                                          self._mock_datastore)
+    query_iterator = helper.QueryIterator(
+        "project", None, self._query, self._mock_datastore)
 
     i = 0
     for entity in query_iterator:

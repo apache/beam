@@ -1,0 +1,52 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.testing.expansion')
+
+description = "Apache Beam :: SDKs :: Java :: Test Expansion Service"
+ext.summary = """Testing Expansion Service used for executing cross-language transform tests."""
+
+
+dependencies {
+  compile project(path: ":runners:core-construction-java")
+  compile project(path: ":sdks:java:io:parquet")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+}
+
+task runTestExpansionService (type: JavaExec) {
+  main = "org.apache.beam.sdk.testing.expansion.TestExpansionService"
+  classpath = sourceSets.test.runtimeClasspath
+  args = [project.findProperty("constructionService.port") ?: "8097"]
+}
+
+task buildTestExpansionServiceJar(type: ShadowJar) {
+  appendix = "testExpansionService"
+  // Use zip64 mode to avoid "Archive contains more than 65535 entries".
+  zip64 = true
+  mergeServiceFiles()
+  manifest {
+    attributes(
+            'Main-Class': 'org.apache.beam.sdk.testing.expansion.TestExpansionService'
+    )
+  }
+  from { project.configurations.testRuntime.collect { it.isDirectory() ? it : zipTree(it) }}
+  from sourceSets.main.output
+  from sourceSets.test.output
+}

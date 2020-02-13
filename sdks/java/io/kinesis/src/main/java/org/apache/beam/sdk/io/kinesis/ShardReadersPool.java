@@ -17,8 +17,9 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -31,8 +32,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +47,7 @@ import org.slf4j.LoggerFactory;
 class ShardReadersPool {
 
   private static final Logger LOG = LoggerFactory.getLogger(ShardReadersPool.class);
-  private static final int DEFAULT_CAPACITY_PER_SHARD = 10_000;
+  public static final int DEFAULT_CAPACITY_PER_SHARD = 10_000;
   private static final int ATTEMPTS_TO_SHUTDOWN = 3;
 
   /**
@@ -70,20 +74,19 @@ class ShardReadersPool {
   private final ConcurrentMap<String, AtomicInteger> numberOfRecordsInAQueueByShard;
 
   private final SimplifiedKinesisClient kinesis;
+  private final WatermarkPolicyFactory watermarkPolicyFactory;
   private final KinesisReaderCheckpoint initialCheckpoint;
   private final int queueCapacityPerShard;
   private final AtomicBoolean poolOpened = new AtomicBoolean(true);
 
-  ShardReadersPool(SimplifiedKinesisClient kinesis, KinesisReaderCheckpoint initialCheckpoint) {
-    this(kinesis, initialCheckpoint, DEFAULT_CAPACITY_PER_SHARD);
-  }
-
   ShardReadersPool(
       SimplifiedKinesisClient kinesis,
       KinesisReaderCheckpoint initialCheckpoint,
+      WatermarkPolicyFactory watermarkPolicyFactory,
       int queueCapacityPerShard) {
     this.kinesis = kinesis;
     this.initialCheckpoint = initialCheckpoint;
+    this.watermarkPolicyFactory = watermarkPolicyFactory;
     this.queueCapacityPerShard = queueCapacityPerShard;
     this.executorService = Executors.newCachedThreadPool();
     this.numberOfRecordsInAQueueByShard = new ConcurrentHashMap<>();
@@ -203,13 +206,11 @@ class ShardReadersPool {
     }
   }
 
-  boolean allShardsUpToDate() {
-    boolean shardsUpToDate = true;
-    ImmutableMap<String, ShardRecordsIterator> currentShardIterators = shardIteratorsMap.get();
-    for (ShardRecordsIterator shardRecordsIterator : currentShardIterators.values()) {
-      shardsUpToDate &= shardRecordsIterator.isUpToDate();
-    }
-    return shardsUpToDate;
+  Instant getWatermark() {
+    return shardIteratorsMap.get().values().stream()
+        .map(ShardRecordsIterator::getShardWatermark)
+        .min(Comparator.naturalOrder())
+        .orElse(BoundedWindow.TIMESTAMP_MAX_VALUE);
   }
 
   KinesisReaderCheckpoint getCheckpointMark() {
@@ -228,7 +229,7 @@ class ShardReadersPool {
   ShardRecordsIterator createShardIterator(
       SimplifiedKinesisClient kinesis, ShardCheckpoint checkpoint)
       throws TransientKinesisException {
-    return new ShardRecordsIterator(checkpoint, kinesis);
+    return new ShardRecordsIterator(checkpoint, kinesis, watermarkPolicyFactory);
   }
 
   /**
@@ -301,5 +302,10 @@ class ShardReadersPool {
       }
     }
     return shardsMap.build();
+  }
+
+  @VisibleForTesting
+  BlockingQueue<KinesisRecord> getRecordsQueue() {
+    return recordsQueue;
   }
 }

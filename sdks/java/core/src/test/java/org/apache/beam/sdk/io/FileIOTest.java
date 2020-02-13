@@ -45,6 +45,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo;
 import org.apache.beam.sdk.transforms.Contextful;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Requirements;
@@ -55,7 +56,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -200,7 +201,7 @@ public class FileIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({NeedsRunner.class, UsesUnboundedSplittableParDo.class})
   public void testMatchWatchForNewFiles() throws IOException, InterruptedException {
     // Write some files to a "source" directory.
     final Path sourcePath = tmpFolder.getRoot().toPath().resolve("source");

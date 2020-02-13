@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
@@ -35,8 +35,8 @@ class DirectGroupByKey<K, V>
     extends ForwardingPTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
   private final PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> original;
 
-  static final String DIRECT_GBKO_URN = "urn:beam:directrunner:transforms:gbko:v1";
-  static final String DIRECT_GABW_URN = "urn:beam:directrunner:transforms:gabw:v1";
+  static final String DIRECT_GBKO_URN = "beam:directrunner:transforms:gbko:v1";
+  static final String DIRECT_GABW_URN = "beam:directrunner:transforms:gabw:v1";
   private final WindowingStrategy<?, ?> outputWindowingStrategy;
 
   DirectGroupByKey(

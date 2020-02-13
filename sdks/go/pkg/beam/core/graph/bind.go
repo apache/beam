@@ -16,11 +16,11 @@
 package graph
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // TODO(herohde) 4/21/2017: Bind is where most user mistakes will likely show
@@ -60,29 +60,34 @@ import (
 //
 // Here, the inbound shape and output types are different from before.
 func Bind(fn *funcx.Fn, typedefs map[string]reflect.Type, in ...typex.FullType) ([]typex.FullType, []InputKind, []typex.FullType, []typex.FullType, error) {
+	addContext := func(err error, fn *funcx.Fn) error {
+		return errors.WithContextf(err, "binding fn %v", fn.Fn.Name())
+	}
+
 	inbound, kinds, err := findInbound(fn, in...)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, addContext(err, fn)
 	}
 	outbound, err := findOutbound(fn)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, addContext(err, fn)
 	}
 
 	subst, err := typex.Bind(inbound, in)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, addContext(err, fn)
 	}
 	for k, v := range typedefs {
-		if _, exists := subst[k]; exists {
-			return nil, nil, nil, nil, fmt.Errorf("type %v already defined by fn", k)
+		if substK, exists := subst[k]; exists {
+			err := errors.Errorf("cannot substitute type %v with %v, already defined as %v", k, v, substK)
+			return nil, nil, nil, nil, addContext(err, fn)
 		}
 		subst[k] = v
 	}
 
 	out, err := typex.Substitute(outbound, subst)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, addContext(err, fn)
 	}
 	return inbound, kinds, outbound, out, nil
 }
@@ -102,7 +107,7 @@ func findOutbound(fn *funcx.Fn) ([]typex.FullType, error) {
 	case 2:
 		outbound = append(outbound, typex.NewKV(typex.New(ret[0]), typex.New(ret[1])))
 	default:
-		return nil, fmt.Errorf("too many return values: %v", ret)
+		return nil, errors.Errorf("too many return values: %v", ret)
 	}
 
 	for _, param := range params {
@@ -127,37 +132,42 @@ func returnTypes(list []funcx.ReturnParam) []reflect.Type {
 
 func findInbound(fn *funcx.Fn, in ...typex.FullType) ([]typex.FullType, []InputKind, error) {
 	// log.Printf("Bind inbound: %v %v", fn, in)
+	addContext := func(err error, p []funcx.FnParam, in interface{}) error {
+		return errors.WithContextf(err, "binding params %v to input %v", p, in)
+	}
 
 	var inbound []typex.FullType
 	var kinds []InputKind
 	params := funcx.SubParams(fn.Param, fn.Params(funcx.FnValue|funcx.FnIter|funcx.FnReIter)...)
 	index := 0
 	for _, input := range in {
-		elm, kind, err := tryBindInbound(input, params[index:], index == 0)
+		arity, err := inboundArity(input, index == 0)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to bind %v to input %v: %v", fn, in, err)
+			return nil, nil, addContext(err, params, input)
+		}
+		if len(params)-index < arity {
+			return nil, nil, addContext(errors.New("too few params"), params[index:], input)
+		}
+
+		paramsToBind := params[index : index+arity]
+		elm, kind, err := tryBindInbound(input, paramsToBind, index == 0)
+		if err != nil {
+			return nil, nil, addContext(err, paramsToBind, input)
 		}
 		inbound = append(inbound, elm)
 		kinds = append(kinds, kind)
-		index += inboundArity(input, index == 0)
+		index += arity
 	}
 	if index < len(params) {
-		return nil, nil, fmt.Errorf("found too few input to bind to %v: %v. Forgot an input or to annotate options?", params, in)
+		return nil, nil, addContext(errors.New("too few inputs: forgot an input or to annotate options?"), params, in)
 	}
 	if index > len(params) {
-		return nil, nil, fmt.Errorf("found too many input to bind to %v: %v", params, in)
+		return nil, nil, addContext(errors.New("too many inputs"), params, in)
 	}
 	return inbound, kinds, nil
 }
 
 func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.FullType, InputKind, error) {
-	arity := inboundArity(t, isMain)
-	if len(args) < arity {
-		return nil, Main, fmt.Errorf("too few parameters to bind %v", t)
-	}
-
-	// log.Printf("Bind inbound %v to %v (main: %v)", candidate, args, isMain)
-
 	kind := Main
 	var other typex.FullType
 
@@ -186,7 +196,7 @@ func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.
 				values, _ := funcx.UnfoldIter(args[0].T)
 				trimmed := trimIllegal(values)
 				if len(trimmed) != 1 {
-					return nil, kind, fmt.Errorf("%v cannot bind to %v", t, args[0])
+					return nil, kind, errors.Errorf("%v cannot bind to %v", t, args[0])
 				}
 
 				kind = Iter
@@ -196,14 +206,14 @@ func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.
 				values, _ := funcx.UnfoldReIter(args[0].T)
 				trimmed := trimIllegal(values)
 				if len(trimmed) != 1 {
-					return nil, kind, fmt.Errorf("%v cannot bind to %v", t, args[0])
+					return nil, kind, errors.Errorf("%v cannot bind to %v", t, args[0])
 				}
 
 				kind = ReIter
 				other = typex.New(trimmed[0])
 
 			default:
-				panic(fmt.Sprintf("Unexpected param kind: %v", arg))
+				return nil, kind, errors.Errorf("unexpected param kind: %v", arg)
 			}
 		}
 	case typex.Composite:
@@ -211,10 +221,10 @@ func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.
 		case typex.KVType:
 			if isMain {
 				if args[0].Kind != funcx.FnValue {
-					return nil, kind, fmt.Errorf("key of %v cannot bind to %v", t, args[0])
+					return nil, kind, errors.Errorf("key of %v cannot bind to %v", t, args[0])
 				}
 				if args[1].Kind != funcx.FnValue {
-					return nil, kind, fmt.Errorf("value of %v cannot bind to %v", t, args[1])
+					return nil, kind, errors.Errorf("value of %v cannot bind to %v", t, args[1])
 				}
 				other = typex.NewKV(typex.New(args[0].T), typex.New(args[1].T))
 			} else {
@@ -225,7 +235,7 @@ func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.
 					values, _ := funcx.UnfoldIter(args[0].T)
 					trimmed := trimIllegal(values)
 					if len(trimmed) != 2 {
-						return nil, kind, fmt.Errorf("%v cannot bind to %v", t, args[0])
+						return nil, kind, errors.Errorf("%v cannot bind to %v", t, args[0])
 					}
 
 					kind = Iter
@@ -235,31 +245,31 @@ func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.
 					values, _ := funcx.UnfoldReIter(args[0].T)
 					trimmed := trimIllegal(values)
 					if len(trimmed) != 2 {
-						return nil, kind, fmt.Errorf("%v cannot bind to %v", t, args[0])
+						return nil, kind, errors.Errorf("%v cannot bind to %v", t, args[0])
 					}
 
 					kind = ReIter
 					other = typex.NewKV(typex.New(trimmed[0]), typex.New(trimmed[1]))
 
 				default:
-					return nil, kind, fmt.Errorf("%v cannot bind to %v", t, args[0])
+					return nil, kind, errors.Errorf("%v cannot bind to %v", t, args[0])
 				}
 			}
 
 		case typex.CoGBKType:
 			if args[0].Kind != funcx.FnValue {
-				return nil, kind, fmt.Errorf("key of %v cannot bind to %v", t, args[0])
+				return nil, kind, errors.Errorf("key of %v cannot bind to %v", t, args[0])
 			}
 
 			components := []typex.FullType{typex.New(args[0].T)}
 
-			for i := 1; i < arity; i++ {
+			for i := 1; i < len(args); i++ {
 				switch args[i].Kind {
 				case funcx.FnIter:
 					values, _ := funcx.UnfoldIter(args[i].T)
 					trimmed := trimIllegal(values)
 					if len(trimmed) != 1 {
-						return nil, kind, fmt.Errorf("values of %v cannot bind to %v", t, args[i])
+						return nil, kind, errors.Errorf("values of %v cannot bind to %v", t, args[i])
 					}
 					components = append(components, typex.New(trimmed[0]))
 
@@ -267,45 +277,45 @@ func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.
 					values, _ := funcx.UnfoldReIter(args[i].T)
 					trimmed := trimIllegal(values)
 					if len(trimmed) != 1 {
-						return nil, kind, fmt.Errorf("values of %v cannot bind to %v", t, args[i])
+						return nil, kind, errors.Errorf("values of %v cannot bind to %v", t, args[i])
 					}
 					components = append(components, typex.New(trimmed[0]))
 				default:
-					return nil, kind, fmt.Errorf("values of %v cannot bind to %v", t, args[i])
+					return nil, kind, errors.Errorf("values of %v cannot bind to %v", t, args[i])
 				}
 			}
 			other = typex.NewCoGBK(components...)
 
 		default:
-			panic("Unexpected inbound type")
+			return nil, kind, errors.Errorf("unexpected inbound type: %v", t.Type())
 		}
 
 	default:
-		return nil, kind, fmt.Errorf("unexpected inbound type %v", t)
+		return nil, kind, errors.Errorf("unexpected inbound class: %v", t.Class())
 	}
 
 	if !typex.IsStructurallyAssignable(t, other) {
-		return nil, kind, fmt.Errorf("%v is not assignable to %v", t, other)
+		return nil, kind, errors.Errorf("%v is not assignable to %v", t, other)
 	}
 	return other, kind, nil
 }
 
-func inboundArity(t typex.FullType, isMain bool) int {
+func inboundArity(t typex.FullType, isMain bool) (int, error) {
 	if t.Class() == typex.Composite {
 		switch t.Type() {
 		case typex.KVType:
 			if isMain {
-				return 2
+				return 2, nil
 			}
 			// A KV side input must be a single iterator/map.
-			return 1
+			return 1, nil
 		case typex.CoGBKType:
-			return len(t.Components())
+			return len(t.Components()), nil
 		default:
-			panic("Unexpected inbound type")
+			return 0, errors.Errorf("unexpected composite inbound type: %v", t.Type())
 		}
 	}
-	return 1
+	return 1, nil
 }
 
 func trimIllegal(list []reflect.Type) []reflect.Type {

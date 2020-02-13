@@ -17,71 +17,29 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
-
 import com.google.api.services.bigquery.model.TableRow;
-import java.io.IOException;
-import java.nio.channels.Channels;
-import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
-import java.util.UUID;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
-import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.MimeTypes;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CountingOutputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Writes {@link TableRow} objects out to a file. Used when doing batch load jobs into BigQuery. */
-class TableRowWriter implements AutoCloseable {
-  private static final Logger LOG = LoggerFactory.getLogger(TableRowWriter.class);
-
+class TableRowWriter<T> extends BigQueryRowWriter<T> {
   private static final Coder<TableRow> CODER = TableRowJsonCoder.of();
   private static final byte[] NEWLINE = "\n".getBytes(StandardCharsets.UTF_8);
-  private ResourceId resourceId;
-  private WritableByteChannel channel;
-  private CountingOutputStream out;
 
-  private boolean isClosed = false;
+  private final SerializableFunction<T, TableRow> toRow;
 
-  static final class Result {
-    final ResourceId resourceId;
-    final long byteSize;
-
-    public Result(ResourceId resourceId, long byteSize) {
-      this.resourceId = resourceId;
-      this.byteSize = byteSize;
-    }
-  }
-
-  TableRowWriter(String basename) throws Exception {
-    String uId = UUID.randomUUID().toString();
-    resourceId = FileSystems.matchNewResource(basename + uId, false);
-    LOG.info("Opening TableRowWriter to {}.", resourceId);
-    channel = FileSystems.create(resourceId, MimeTypes.TEXT);
-    out = new CountingOutputStream(Channels.newOutputStream(channel));
-  }
-
-  void write(TableRow value) throws Exception {
-    CODER.encode(value, out, Context.OUTER);
-    out.write(NEWLINE);
-  }
-
-  long getByteSize() {
-    return out.getCount();
+  TableRowWriter(String basename, SerializableFunction<T, TableRow> toRow) throws Exception {
+    super(basename, MimeTypes.TEXT);
+    this.toRow = toRow;
   }
 
   @Override
-  public void close() throws IOException {
-    checkState(!isClosed, "Already closed");
-    isClosed = true;
-    channel.close();
-  }
-
-  Result getResult() {
-    checkState(isClosed, "Not yet closed");
-    return new Result(resourceId, out.getCount());
+  void write(T value) throws Exception {
+    TableRow tableRow = toRow.apply(value);
+    CODER.encode(tableRow, getOutputStream(), Context.OUTER);
+    getOutputStream().write(NEWLINE);
   }
 }

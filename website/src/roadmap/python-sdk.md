@@ -22,12 +22,16 @@ limitations under the License.
 
 ## Python 3 Support
 
-Work is in progress to add Python 3 support to Beam.  Current goal is to make Beam codebase compatible both with Python 2.7 and Python 3.4.
+Apache Beam 2.14.0 and higher support Python 3.5, 3.6, and 3.7. We continue to [improve](https://issues.apache.org/jira/browse/BEAM-1251?focusedCommentId=16890504&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-1689050) the experience for Python 3 users and phase out Python 2 support ([BEAM-8371](https://issues.apache.org/jira/browse/BEAM-8371)):
+ 
 
- - [Proposal](https://docs.google.com/document/d/1xDG0MWVlDKDPu_IW9gtMvxi2S9I0GB0VDTkPhjXT0nE)
  - [Kanban Board](https://issues.apache.org/jira/secure/RapidBoard.jspa?rapidView=245&view=detail)
  - [Python 3 Conversion Quick Start Guide](https://docs.google.com/document/d/1s1BJVCY65LB_SYK1SU1u7NbZiFANoq-nEYaEvzRbYlA)
+ - [Tracking Issue](https://issues.apache.org/jira/browse/BEAM-1251)
+ - [Original Proposal](https://docs.google.com/document/d/1xDG0MWVlDKDPu_IW9gtMvxi2S9I0GB0VDTkPhjXT0nE)
 
-Contributions are welcome! If you are interested to help, you can select an unassigned issue in the Kanban board and assign it to yourself. Comment on the issue if you cannot assign it yourself.
-When submitting a new PR, please tag [@RobbeSneyders](https://github.com/robbesneyders), [@aaltay](https://github.com/aaltay), and [@tvalentyn](https://github.com/tvalentyn).
+Contributions and feedback are welcome! 
 
+If you are interested to help, you can select an unassigned issue in the Kanban board and assign it to yourself. Comment on the issue if you cannot assign it yourself. When submitting a new PR, please tag  [@aaltay](https://github.com/aaltay), and [@tvalentyn](https://github.com/tvalentyn).
+
+To report a Python3-related issue, it is best to create a subtask to [BEAM-1251](https://issues.apache.org/jira/browse/BEAM-1251) , and cc: [~altay] and [~tvalentyn] in JIRA comment. You can also discuss encountered issues on user@ or dev@ mailing lists as appropriate.

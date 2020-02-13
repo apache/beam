@@ -132,10 +132,10 @@ public class RightJoin {
     public <FirstT, SecondT> ByBuilder<FirstT, SecondT> of(
         PCollection<FirstT> left, PCollection<SecondT> right) {
       @SuppressWarnings("unchecked")
-      final Builder<FirstT, SecondT, ?> casted = (Builder) this;
-      casted.left = requireNonNull(left);
-      casted.right = requireNonNull(right);
-      return casted;
+      final Builder<FirstT, SecondT, ?> cast = (Builder) this;
+      cast.left = requireNonNull(left);
+      cast.right = requireNonNull(right);
+      return cast;
     }
 
     @Override
@@ -144,11 +144,11 @@ public class RightJoin {
         UnaryFunction<RightT, T> rightKeyExtractor,
         @Nullable TypeDescriptor<T> keyType) {
       @SuppressWarnings("unchecked")
-      final Builder<LeftT, RightT, T> casted = (Builder) this;
-      casted.leftKeyExtractor = requireNonNull(leftKeyExtractor);
-      casted.rightKeyExtractor = requireNonNull(rightKeyExtractor);
-      casted.keyType = keyType;
-      return casted;
+      final Builder<LeftT, RightT, T> cast = (Builder) this;
+      cast.leftKeyExtractor = requireNonNull(leftKeyExtractor);
+      cast.rightKeyExtractor = requireNonNull(rightKeyExtractor);
+      cast.keyType = keyType;
+      return cast;
     }
 
     @Override

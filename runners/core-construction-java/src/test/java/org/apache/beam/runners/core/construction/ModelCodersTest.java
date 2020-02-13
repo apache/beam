@@ -24,7 +24,6 @@ import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.runners.core.construction.ModelCoders.KvCoderComponents;
 import org.apache.beam.runners.core.construction.ModelCoders.WindowedValueCoderComponents;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -72,9 +71,7 @@ public class ModelCodersTest {
     thrown.expect(IllegalArgumentException.class);
     ModelCoders.getWindowedValueCoderComponents(
         Coder.newBuilder()
-            .setSpec(
-                SdkFunctionSpec.newBuilder()
-                    .setSpec(FunctionSpec.newBuilder().setUrn(ModelCoders.LENGTH_PREFIX_CODER_URN)))
+            .setSpec(FunctionSpec.newBuilder().setUrn(ModelCoders.LENGTH_PREFIX_CODER_URN))
             .build());
   }
 
@@ -82,7 +79,7 @@ public class ModelCodersTest {
   public void windowedValueCoderComponentsNoUrn() {
     thrown.expect(IllegalArgumentException.class);
     ModelCoders.getWindowedValueCoderComponents(
-        Coder.newBuilder().setSpec(SdkFunctionSpec.getDefaultInstance()).build());
+        Coder.newBuilder().setSpec(FunctionSpec.getDefaultInstance()).build());
   }
 
   @Test
@@ -104,9 +101,7 @@ public class ModelCodersTest {
     thrown.expect(IllegalArgumentException.class);
     ModelCoders.getKvCoderComponents(
         Coder.newBuilder()
-            .setSpec(
-                SdkFunctionSpec.newBuilder()
-                    .setSpec(FunctionSpec.newBuilder().setUrn(ModelCoders.LENGTH_PREFIX_CODER_URN)))
+            .setSpec(FunctionSpec.newBuilder().setUrn(ModelCoders.LENGTH_PREFIX_CODER_URN))
             .build());
   }
 
@@ -114,6 +109,6 @@ public class ModelCodersTest {
   public void kvCoderComponentsNoUrn() {
     thrown.expect(IllegalArgumentException.class);
     ModelCoders.getKvCoderComponents(
-        Coder.newBuilder().setSpec(SdkFunctionSpec.getDefaultInstance()).build());
+        Coder.newBuilder().setSpec(FunctionSpec.getDefaultInstance()).build());
   }
 }

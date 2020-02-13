@@ -45,11 +45,12 @@ import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -57,8 +58,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link GrpcDataService}. */
 @RunWith(JUnit4.class)
 public class GrpcDataServiceTest {
-  private static final BeamFnApi.Target TARGET =
-      BeamFnApi.Target.newBuilder().setPrimitiveTransformReference("888").setName("test").build();
+  private static final String TRANSFORM_ID = "888";
   private static final Coder<WindowedValue<String>> CODER =
       LengthPrefixCoder.of(WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()));
 
@@ -69,7 +69,9 @@ public class GrpcDataServiceTest {
     final CountDownLatch waitForInboundElements = new CountDownLatch(1);
     GrpcDataService service =
         GrpcDataService.create(
-            Executors.newCachedThreadPool(), OutboundObserverFactory.serverDirect());
+            PipelineOptionsFactory.create(),
+            Executors.newCachedThreadPool(),
+            OutboundObserverFactory.serverDirect());
     try (GrpcFnServer<GrpcDataService> server =
         GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
       Collection<Future<Void>> clientFutures = new ArrayList<>();
@@ -92,7 +94,7 @@ public class GrpcDataServiceTest {
 
       for (int i = 0; i < 3; ++i) {
         CloseableFnDataReceiver<WindowedValue<String>> consumer =
-            service.send(LogicalEndpoint.of(Integer.toString(i), TARGET), CODER);
+            service.send(LogicalEndpoint.of(Integer.toString(i), TRANSFORM_ID), CODER);
 
         consumer.accept(WindowedValue.valueInGlobalWindow("A" + i));
         consumer.accept(WindowedValue.valueInGlobalWindow("B" + i));
@@ -117,12 +119,14 @@ public class GrpcDataServiceTest {
     final CountDownLatch waitForInboundElements = new CountDownLatch(1);
     GrpcDataService service =
         GrpcDataService.create(
-            Executors.newCachedThreadPool(), OutboundObserverFactory.serverDirect());
+            PipelineOptionsFactory.create(),
+            Executors.newCachedThreadPool(),
+            OutboundObserverFactory.serverDirect());
     try (GrpcFnServer<GrpcDataService> server =
         GrpcFnServer.allocatePortAndCreateFor(service, InProcessServerFactory.create())) {
       Collection<Future<Void>> clientFutures = new ArrayList<>();
       for (int i = 0; i < 3; ++i) {
-        final String instructionReference = Integer.toString(i);
+        final String instructionId = Integer.toString(i);
         clientFutures.add(
             executorService.submit(
                 () -> {
@@ -132,7 +136,7 @@ public class GrpcDataServiceTest {
                   StreamObserver<Elements> outboundObserver =
                       BeamFnDataGrpc.newStub(channel)
                           .data(TestStreams.withOnNext(clientInboundElements::add).build());
-                  outboundObserver.onNext(elementsWithData(instructionReference));
+                  outboundObserver.onNext(elementsWithData(instructionId));
                   waitForInboundElements.await();
                   outboundObserver.onCompleted();
                   return null;
@@ -146,7 +150,9 @@ public class GrpcDataServiceTest {
         serverInboundValues.add(serverInboundValue);
         readFutures.add(
             service.receive(
-                LogicalEndpoint.of(Integer.toString(i), TARGET), CODER, serverInboundValue::add));
+                LogicalEndpoint.of(Integer.toString(i), TRANSFORM_ID),
+                CODER,
+                serverInboundValue::add));
       }
       for (InboundDataClient readFuture : readFutures) {
         readFuture.awaitCompletion();
@@ -171,8 +177,8 @@ public class GrpcDataServiceTest {
     return BeamFnApi.Elements.newBuilder()
         .addData(
             BeamFnApi.Elements.Data.newBuilder()
-                .setInstructionReference(id)
-                .setTarget(TARGET)
+                .setInstructionId(id)
+                .setTransformId(TRANSFORM_ID)
                 .setData(
                     ByteString.copyFrom(
                             encodeToByteArray(CODER, WindowedValue.valueInGlobalWindow("A" + id)))
@@ -184,7 +190,8 @@ public class GrpcDataServiceTest {
                             ByteString.copyFrom(
                                 encodeToByteArray(
                                     CODER, WindowedValue.valueInGlobalWindow("C" + id))))))
-        .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionReference(id).setTarget(TARGET))
+        .addData(
+            BeamFnApi.Elements.Data.newBuilder().setInstructionId(id).setTransformId(TRANSFORM_ID))
         .build();
   }
 }

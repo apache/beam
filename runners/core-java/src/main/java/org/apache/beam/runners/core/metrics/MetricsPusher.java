@@ -29,12 +29,11 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.metrics.MetricsSink;
 import org.apache.beam.sdk.util.InstanceBuilder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 /** Component that regularly merges metrics and pushes them to a metrics sink. */
 @Experimental(Experimental.Kind.METRICS)
@@ -96,8 +95,7 @@ public class MetricsPusher implements Serializable {
       try {
         // merge metrics
         MetricResults metricResults = asAttemptedOnlyMetricResults(metricsContainerStepMap);
-        MetricQueryResults metricQueryResults =
-            metricResults.queryMetrics(MetricsFilter.builder().build());
+        MetricQueryResults metricQueryResults = metricResults.allMetrics();
         if ((Iterables.size(metricQueryResults.getDistributions()) != 0)
             || (Iterables.size(metricQueryResults.getGauges()) != 0)
             || (Iterables.size(metricQueryResults.getCounters()) != 0)) {

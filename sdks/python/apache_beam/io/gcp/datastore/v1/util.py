@@ -19,12 +19,26 @@
 #
 # For internal use only; no backwards-compatibility guarantees.
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
 import math
 from builtins import object
 from builtins import range
+
+# Constants used in batched mutation RPCs:
+WRITE_BATCH_INITIAL_SIZE = 200
+# Max allowed Datastore writes per batch, and max bytes per batch.
+# Note that the max bytes per batch set here is lower than the 10MB limit
+# actually enforced by the API, to leave space for the CommitRequest wrapper
+# around the mutations.
+# https://cloud.google.com/datastore/docs/concepts/limits
+WRITE_BATCH_MAX_SIZE = 500
+WRITE_BATCH_MAX_BYTES_SIZE = 9000000
+WRITE_BATCH_MIN_SIZE = 10
+WRITE_BATCH_TARGET_LATENCY_MS = 5000
 
 
 class MovingSum(object):
@@ -37,7 +51,6 @@ class MovingSum(object):
   convenience we expose the count of entries as well so this doubles as a
   moving average tracker.
   """
-
   def __init__(self, window_ms, bucket_ms):
     if window_ms <= bucket_ms or bucket_ms <= 0:
       raise ValueError("window_ms > bucket_ms > 0 please")
@@ -66,8 +79,8 @@ class MovingSum(object):
     Args:
       now: int, milliseconds since epoch
     """
-    if now >= (self._current_ms_since_epoch
-               + self._bucket_ms * self._num_buckets):
+    if now >= (self._current_ms_since_epoch +
+               self._bucket_ms * self._num_buckets):
       # Time moved forward so far that all currently held data is outside of
       # the window.  It is faster to simply reset our data.
       self._Reset(now)
@@ -76,7 +89,7 @@ class MovingSum(object):
     while now > self._current_ms_since_epoch + self._bucket_ms:
       # Advance time by one _bucket_ms, setting the new bucket's counts to 0.
       self._current_ms_since_epoch += self._bucket_ms
-      self._current_index = (self._current_index+1) % self._num_buckets
+      self._current_index = (self._current_index + 1) % self._num_buckets
       self._buckets[self._current_index] = [0, 0]
       # Intentional dead reckoning here; we don't care about staying precisely
       # aligned with multiples of _bucket_ms since the epoch, we just need our
@@ -98,3 +111,34 @@ class MovingSum(object):
 
   def has_data(self, now):
     return self.count(now) > 0
+
+
+class DynamicBatchSizer(object):
+  """Determines request sizes for future Datastore RPCs."""
+  def __init__(self):
+    self._commit_time_per_entity_ms = MovingSum(
+        window_ms=120000, bucket_ms=10000)
+
+  def get_batch_size(self, now):
+    """Returns the recommended size for datastore RPCs at this time."""
+    if not self._commit_time_per_entity_ms.has_data(now):
+      return WRITE_BATCH_INITIAL_SIZE
+
+    recent_mean_latency_ms = (
+        self._commit_time_per_entity_ms.sum(now) //
+        self._commit_time_per_entity_ms.count(now))
+    return max(
+        WRITE_BATCH_MIN_SIZE,
+        min(
+            WRITE_BATCH_MAX_SIZE,
+            WRITE_BATCH_TARGET_LATENCY_MS // max(recent_mean_latency_ms, 1)))
+
+  def report_latency(self, now, latency_ms, num_mutations):
+    """Report the latency of a Datastore RPC.
+
+    Args:
+      now: double, completion time of the RPC as seconds since the epoch.
+      latency_ms: double, the observed latency in milliseconds for this RPC.
+      num_mutations: int, number of mutations contained in the RPC.
+    """
+    self._commit_time_per_entity_ms.add(now, latency_ms / num_mutations)

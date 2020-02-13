@@ -15,11 +15,12 @@
 # limitations under the License.
 #
 
-
 """Observable base class for iterables.
 
 For internal use only; no backwards-compatibility guarantees.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from builtins import object
@@ -32,7 +33,6 @@ class ObservableMixin(object):
 
   Subclasses need to call self.notify_observers with any object yielded.
   """
-
   def __init__(self):
     self.observers = []
 

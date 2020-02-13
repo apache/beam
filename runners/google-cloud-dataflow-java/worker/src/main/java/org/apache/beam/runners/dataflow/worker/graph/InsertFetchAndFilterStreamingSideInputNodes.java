@@ -37,12 +37,12 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
 
 /**
  * Inserts a {@link ParDoFn} that handles filtering blocked side inputs and fetching ready side
@@ -132,7 +132,7 @@ public class InsertFetchAndFilterStreamingSideInputNodes {
       }
 
       // Gather all the side input window mapping fns which we need to request the SDK to map
-      ImmutableMap.Builder<PCollectionView<?>, RunnerApi.SdkFunctionSpec>
+      ImmutableMap.Builder<PCollectionView<?>, RunnerApi.FunctionSpec>
           pCollectionViewsToWindowMapingsFns = ImmutableMap.builder();
       parDoPayload
           .getSideInputsMap()

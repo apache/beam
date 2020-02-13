@@ -19,7 +19,7 @@ package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.runners.spark.SparkContextOptions;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.coders.BeamSparkRunnerRegistrator;
+import org.apache.beam.runners.spark.coders.SparkRunnerKryoRegistrator;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.slf4j.Logger;
@@ -94,7 +94,7 @@ public final class SparkContextFactory {
 
       conf.setAppName(contextOptions.getAppName());
       // register immutable collections serializers because the SDK uses them.
-      conf.set("spark.kryo.registrator", BeamSparkRunnerRegistrator.class.getName());
+      conf.set("spark.kryo.registrator", SparkRunnerKryoRegistrator.class.getName());
       return new JavaSparkContext(conf);
     }
   }

@@ -17,37 +17,47 @@
  */
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.DescribePipelineOptionsRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.DescribePipelineOptionsResponse;
+import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobPipelineRequest;
+import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobPipelineResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateRequest;
-import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateResponse;
+import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobsRequest;
+import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobsResponse;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobInfo;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessagesRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessagesResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobStateEvent;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.PipelineValidator;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
 import org.apache.beam.sdk.function.ThrowingConsumer;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.StatusException;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusException;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,12 +73,16 @@ import org.slf4j.LoggerFactory;
 public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implements FnService {
   private static final Logger LOG = LoggerFactory.getLogger(InMemoryJobService.class);
 
+  /** The default maximum number of completed invocations to keep. */
+  public static final int DEFAULT_MAX_INVOCATION_HISTORY = 10;
+
   /**
    * Creates an InMemoryJobService.
    *
    * @param stagingServiceDescriptor Endpoint for the staging service.
    * @param stagingServiceTokenProvider Function mapping a preparationId to a staging service token.
-   * @param invoker A JobInvoker that will actually create the jobs.
+   * @param cleanupJobFn A cleanup function to run, parameterized with the staging token of a job.
+   * @param invoker A JobInvoker which creates the jobs.
    * @return A new InMemoryJobService.
    */
   public static InMemoryJobService create(
@@ -77,22 +91,60 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       ThrowingConsumer<Exception, String> cleanupJobFn,
       JobInvoker invoker) {
     return new InMemoryJobService(
-        stagingServiceDescriptor, stagingServiceTokenProvider, cleanupJobFn, invoker);
+        stagingServiceDescriptor,
+        stagingServiceTokenProvider,
+        cleanupJobFn,
+        invoker,
+        DEFAULT_MAX_INVOCATION_HISTORY);
   }
 
-  private final ConcurrentMap<String, JobPreparation> preparations;
-  private final ConcurrentMap<String, JobInvocation> invocations;
-  private final ConcurrentMap<String, String> stagingSessionTokens;
+  /**
+   * Creates an InMemoryJobService.
+   *
+   * @param stagingServiceDescriptor The endpoint for the staging service.
+   * @param stagingServiceTokenProvider Function mapping a preparationId to a staging service token.
+   * @param cleanupJobFn A cleanup function to run, parameterized with the staging token of a job.
+   * @param invoker A JobInvoker which creates the jobs.
+   * @param maxInvocationHistory The maximum number of completed invocations to keep.
+   * @return A new InMemoryJobService.
+   */
+  public static InMemoryJobService create(
+      Endpoints.ApiServiceDescriptor stagingServiceDescriptor,
+      Function<String, String> stagingServiceTokenProvider,
+      ThrowingConsumer<Exception, String> cleanupJobFn,
+      JobInvoker invoker,
+      int maxInvocationHistory) {
+    return new InMemoryJobService(
+        stagingServiceDescriptor,
+        stagingServiceTokenProvider,
+        cleanupJobFn,
+        invoker,
+        maxInvocationHistory);
+  }
+
+  /** Map of preparationId to preparation. */
+  private final ConcurrentHashMap<String, JobPreparation> preparations;
+  /** Map of preparationId to staging token. */
+  private final ConcurrentHashMap<String, String> stagingSessionTokens;
+  /** Map of invocationId to invocation. */
+  private final ConcurrentHashMap<String, JobInvocation> invocations;
+  /** InvocationIds of completed invocations in least-recently-completed order. */
+  private final ConcurrentLinkedDeque<String> completedInvocationsIds;
+
   private final Endpoints.ApiServiceDescriptor stagingServiceDescriptor;
   private final Function<String, String> stagingServiceTokenProvider;
   private final ThrowingConsumer<Exception, String> cleanupJobFn;
   private final JobInvoker invoker;
 
+  /** The maximum number of past invocations to keep. */
+  private final int maxInvocationHistory;
+
   private InMemoryJobService(
       Endpoints.ApiServiceDescriptor stagingServiceDescriptor,
       Function<String, String> stagingServiceTokenProvider,
       ThrowingConsumer<Exception, String> cleanupJobFn,
-      JobInvoker invoker) {
+      JobInvoker invoker,
+      int maxInvocationHistory) {
     this.stagingServiceDescriptor = stagingServiceDescriptor;
     this.stagingServiceTokenProvider = stagingServiceTokenProvider;
     this.cleanupJobFn = cleanupJobFn;
@@ -100,9 +152,10 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
 
     this.preparations = new ConcurrentHashMap<>();
     this.invocations = new ConcurrentHashMap<>();
-
-    // Map "preparation ID" to staging token
     this.stagingSessionTokens = new ConcurrentHashMap<>();
+    this.completedInvocationsIds = new ConcurrentLinkedDeque<>();
+    Preconditions.checkArgument(maxInvocationHistory >= 0);
+    this.maxInvocationHistory = maxInvocationHistory;
   }
 
   @Override
@@ -184,26 +237,31 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       String invocationId = invocation.getId();
 
       invocation.addStateListener(
-          state -> {
-            if (!JobInvocation.isTerminated(state)) {
+          event -> {
+            if (!JobInvocation.isTerminated(event.getState())) {
               return;
             }
             String stagingSessionToken = stagingSessionTokens.get(preparationId);
             stagingSessionTokens.remove(preparationId);
-            if (cleanupJobFn != null) {
-              try {
+            try {
+              if (cleanupJobFn != null) {
                 cleanupJobFn.accept(stagingSessionToken);
-              } catch (Exception e) {
-                LOG.error(
-                    "Failed to remove job staging directory for token {}: {}",
-                    stagingSessionToken,
-                    e);
               }
+            } catch (Exception e) {
+              LOG.warn(
+                  "Failed to remove job staging directory for token {}: {}",
+                  stagingSessionToken,
+                  e);
+            } finally {
+              onFinishedInvocationCleanup(invocationId);
             }
           });
 
       invocation.start();
       invocations.put(invocationId, invocation);
+      // Cleanup this preparation because we are running it now.
+      // If we fail, we need to prepare again.
+      preparations.remove(preparationId);
       RunJobResponse response = RunJobResponse.newBuilder().setJobId(invocationId).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
@@ -219,16 +277,56 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
   }
 
   @Override
-  public void getState(
-      GetJobStateRequest request, StreamObserver<GetJobStateResponse> responseObserver) {
+  public void getJobs(GetJobsRequest request, StreamObserver<GetJobsResponse> responseObserver) {
+    LOG.trace("{} {}", GetJobsRequest.class.getSimpleName(), request);
+
+    try {
+      List<JobInfo> result = new ArrayList<>();
+      for (JobInvocation invocation : invocations.values()) {
+        result.add(invocation.toProto());
+      }
+      GetJobsResponse response = GetJobsResponse.newBuilder().addAllJobInfo(result).build();
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (Exception e) {
+      LOG.error("Encountered Unexpected Exception", e);
+      responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+    }
+  }
+
+  @Override
+  public void getState(GetJobStateRequest request, StreamObserver<JobStateEvent> responseObserver) {
     LOG.trace("{} {}", GetJobStateRequest.class.getSimpleName(), request);
     String invocationId = request.getJobId();
     try {
       JobInvocation invocation = getInvocation(invocationId);
-      JobState.Enum state = invocation.getState();
-      GetJobStateResponse response = GetJobStateResponse.newBuilder().setState(state).build();
+      JobStateEvent response = invocation.getStateEvent();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
+    } catch (StatusRuntimeException | StatusException e) {
+      responseObserver.onError(e);
+    } catch (Exception e) {
+      String errMessage =
+          String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
+      LOG.error(errMessage, e);
+      responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+    }
+  }
+
+  @Override
+  public void getPipeline(
+      GetJobPipelineRequest request, StreamObserver<GetJobPipelineResponse> responseObserver) {
+    LOG.trace("{} {}", GetJobPipelineRequest.class.getSimpleName(), request);
+    String invocationId = request.getJobId();
+    try {
+      JobInvocation invocation = getInvocation(invocationId);
+      RunnerApi.Pipeline pipeline = invocation.getPipeline();
+      GetJobPipelineResponse response =
+          GetJobPipelineResponse.newBuilder().setPipeline(pipeline).build();
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException | StatusException e) {
+      responseObserver.onError(e);
     } catch (Exception e) {
       String errMessage =
           String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
@@ -248,6 +346,8 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       CancelJobResponse response = CancelJobResponse.newBuilder().setState(state).build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
+    } catch (StatusRuntimeException | StatusException e) {
+      responseObserver.onError(e);
     } catch (Exception e) {
       String errMessage =
           String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
@@ -258,19 +358,22 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
 
   @Override
   public void getStateStream(
-      GetJobStateRequest request, StreamObserver<GetJobStateResponse> responseObserver) {
+      GetJobStateRequest request, StreamObserver<JobStateEvent> responseObserver) {
     LOG.trace("{} {}", GetJobStateRequest.class.getSimpleName(), request);
     String invocationId = request.getJobId();
     try {
       JobInvocation invocation = getInvocation(invocationId);
-      Consumer<JobState.Enum> stateListener =
-          state -> {
-            responseObserver.onNext(GetJobStateResponse.newBuilder().setState(state).build());
-            if (JobInvocation.isTerminated(state)) {
+
+      Consumer<JobStateEvent> stateListener =
+          event -> {
+            responseObserver.onNext(event);
+            if (JobInvocation.isTerminated(event.getState())) {
               responseObserver.onCompleted();
             }
           };
       invocation.addStateListener(stateListener);
+    } catch (StatusRuntimeException | StatusException e) {
+      responseObserver.onError(e);
     } catch (Exception e) {
       String errMessage =
           String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
@@ -289,13 +392,13 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       // and message listener.
       StreamObserver<JobMessagesResponse> syncResponseObserver =
           SynchronizedStreamObserver.wrapping(responseObserver);
-      Consumer<JobState.Enum> stateListener =
-          state -> {
+      Consumer<JobStateEvent> stateListener =
+          event -> {
             syncResponseObserver.onNext(
-                JobMessagesResponse.newBuilder()
-                    .setStateResponse(GetJobStateResponse.newBuilder().setState(state).build())
-                    .build());
-            if (JobInvocation.isTerminated(state)) {
+                JobMessagesResponse.newBuilder().setStateResponse(event).build());
+            // The terminal state is always updated after the last message, that's
+            // why we can end the stream here.
+            if (JobInvocation.isTerminated(invocation.getStateEvent().getState())) {
               responseObserver.onCompleted();
             }
           };
@@ -304,14 +407,44 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
               syncResponseObserver.onNext(
                   JobMessagesResponse.newBuilder().setMessageResponse(message).build());
 
-      invocation.addStateListener(stateListener);
       invocation.addMessageListener(messageListener);
+      // The order matters here. Make sure to send all the message first because the stream
+      // will be ended by the terminal state request.
+      invocation.addStateListener(stateListener);
+
+    } catch (StatusRuntimeException | StatusException e) {
+      responseObserver.onError(e);
     } catch (Exception e) {
       String errMessage =
           String.format("Encountered Unexpected Exception for Invocation %s", invocationId);
       LOG.error(errMessage, e);
       responseObserver.onError(Status.INTERNAL.withCause(e).asException());
     }
+  }
+
+  @Override
+  public void getJobMetrics(
+      JobApi.GetJobMetricsRequest request,
+      StreamObserver<JobApi.GetJobMetricsResponse> responseObserver) {
+
+    String invocationId = request.getJobId();
+    LOG.info("Getting job metrics for {}", invocationId);
+
+    try {
+      JobInvocation invocation = getInvocation(invocationId);
+      JobApi.MetricResults metrics = invocation.getMetrics();
+      JobApi.GetJobMetricsResponse response =
+          JobApi.GetJobMetricsResponse.newBuilder().setMetrics(metrics).build();
+
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException | StatusException e) {
+      responseObserver.onError(e);
+    } catch (Exception e) {
+      LOG.error(String.format("Encountered exception for job invocation %s", invocationId), e);
+      responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+    }
+    LOG.info("Finished getting job metrics for {}", invocationId);
   }
 
   @Override
@@ -344,5 +477,15 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
       throw Status.NOT_FOUND.asException();
     }
     return invocation;
+  }
+
+  private void onFinishedInvocationCleanup(String invocationId) {
+    completedInvocationsIds.addLast(invocationId);
+    while (completedInvocationsIds.size() > maxInvocationHistory) {
+      // Clean up invocations
+      // "preparations" is cleaned up when adding to "invocations"
+      // "stagingTokens" is cleaned up when the invocation finishes
+      invocations.remove(completedInvocationsIds.removeFirst());
+    }
   }
 }

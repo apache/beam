@@ -465,7 +465,8 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
 
     @Override
     public AccumT getAccum() {
-      return readInternal();
+      AccumT accum = readInternal();
+      return accum != null ? accum : combineFn.createAccumulator();
     }
 
     @Override
@@ -589,7 +590,8 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     @Override
     public AccumT getAccum() {
       try {
-        return readInternal();
+        AccumT accum = readInternal();
+        return accum != null ? accum : combineFn.createAccumulator();
       } catch (Exception e) {
         throw new RuntimeException("Error reading state.", e);
       }
@@ -724,7 +726,8 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     @Override
     public AccumT getAccum() {
       try {
-        return readInternal();
+        AccumT accum = readInternal();
+        return accum != null ? accum : combineFn.createAccumulator(context);
       } catch (Exception e) {
         throw new RuntimeException("Error reading state.", e);
       }
@@ -739,6 +742,9 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     public OutputT read() {
       try {
         AccumT accum = readInternal();
+        if (accum == null) {
+          accum = combineFn.createAccumulator(context);
+        }
         return combineFn.extractOutput(accum, context);
       } catch (Exception e) {
         throw new RuntimeException("Error reading state.", e);

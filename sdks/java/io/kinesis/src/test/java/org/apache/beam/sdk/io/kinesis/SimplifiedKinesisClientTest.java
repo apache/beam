@@ -19,11 +19,11 @@ package org.apache.beam.sdk.io.kinesis;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.failBecauseExceptionWasNotThrown;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.when;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.AmazonServiceException.ErrorType;
@@ -74,14 +74,13 @@ public class SimplifiedKinesisClientTest {
 
   @Test
   public void shouldReturnIteratorStartingWithSequenceNumber() throws Exception {
-    given(
-            kinesis.getShardIterator(
-                new GetShardIteratorRequest()
-                    .withStreamName(STREAM)
-                    .withShardId(SHARD_1)
-                    .withShardIteratorType(ShardIteratorType.AT_SEQUENCE_NUMBER)
-                    .withStartingSequenceNumber(SEQUENCE_NUMBER)))
-        .willReturn(new GetShardIteratorResult().withShardIterator(SHARD_ITERATOR));
+    when(kinesis.getShardIterator(
+            new GetShardIteratorRequest()
+                .withStreamName(STREAM)
+                .withShardId(SHARD_1)
+                .withShardIteratorType(ShardIteratorType.AT_SEQUENCE_NUMBER)
+                .withStartingSequenceNumber(SEQUENCE_NUMBER)))
+        .thenReturn(new GetShardIteratorResult().withShardIterator(SHARD_ITERATOR));
 
     String stream =
         underTest.getShardIterator(
@@ -93,14 +92,13 @@ public class SimplifiedKinesisClientTest {
   @Test
   public void shouldReturnIteratorStartingWithTimestamp() throws Exception {
     Instant timestamp = Instant.now();
-    given(
-            kinesis.getShardIterator(
-                new GetShardIteratorRequest()
-                    .withStreamName(STREAM)
-                    .withShardId(SHARD_1)
-                    .withShardIteratorType(ShardIteratorType.AT_SEQUENCE_NUMBER)
-                    .withTimestamp(timestamp.toDate())))
-        .willReturn(new GetShardIteratorResult().withShardIterator(SHARD_ITERATOR));
+    when(kinesis.getShardIterator(
+            new GetShardIteratorRequest()
+                .withStreamName(STREAM)
+                .withShardId(SHARD_1)
+                .withShardIteratorType(ShardIteratorType.AT_SEQUENCE_NUMBER)
+                .withTimestamp(timestamp.toDate())))
+        .thenReturn(new GetShardIteratorResult().withShardIterator(SHARD_ITERATOR));
 
     String stream =
         underTest.getShardIterator(
@@ -152,7 +150,7 @@ public class SimplifiedKinesisClientTest {
             .withShardId(SHARD_1)
             .withShardIteratorType(ShardIteratorType.LATEST);
 
-    given(kinesis.getShardIterator(request)).willThrow(thrownException);
+    when(kinesis.getShardIterator(request)).thenThrow(thrownException);
 
     try {
       underTest.getShardIterator(STREAM, SHARD_1, ShardIteratorType.LATEST, null, null);
@@ -169,13 +167,13 @@ public class SimplifiedKinesisClientTest {
     Shard shard1 = new Shard().withShardId(SHARD_1);
     Shard shard2 = new Shard().withShardId(SHARD_2);
     Shard shard3 = new Shard().withShardId(SHARD_3);
-    given(kinesis.describeStream(STREAM, null))
-        .willReturn(
+    when(kinesis.describeStream(STREAM, null))
+        .thenReturn(
             new DescribeStreamResult()
                 .withStreamDescription(
                     new StreamDescription().withShards(shard1, shard2).withHasMoreShards(true)));
-    given(kinesis.describeStream(STREAM, SHARD_2))
-        .willReturn(
+    when(kinesis.describeStream(STREAM, SHARD_2))
+        .thenReturn(
             new DescribeStreamResult()
                 .withStreamDescription(
                     new StreamDescription().withShards(shard3).withHasMoreShards(false)));
@@ -220,7 +218,7 @@ public class SimplifiedKinesisClientTest {
 
   private void shouldHandleShardListingError(
       Exception thrownException, Class<? extends Exception> expectedExceptionClass) {
-    given(kinesis.describeStream(STREAM, null)).willThrow(thrownException);
+    when(kinesis.describeStream(STREAM, null)).thenThrow(thrownException);
     try {
       underTest.listShards(STREAM);
       failBecauseExceptionWasNotThrown(expectedExceptionClass);
@@ -241,7 +239,7 @@ public class SimplifiedKinesisClientTest {
     GetMetricStatisticsResult result =
         new GetMetricStatisticsResult().withDatapoints(new Datapoint().withSum(1.0));
 
-    given(cloudWatch.getMetricStatistics(metricStatisticsRequest)).willReturn(result);
+    when(cloudWatch.getMetricStatistics(metricStatisticsRequest)).thenReturn(result);
 
     long backlogBytes = underTest.getBacklogBytes(STREAM, countSince, countTo);
 
@@ -262,7 +260,7 @@ public class SimplifiedKinesisClientTest {
                 new Datapoint().withSum(3.0),
                 new Datapoint().withSum(2.0));
 
-    given(cloudWatch.getMetricStatistics(metricStatisticsRequest)).willReturn(result);
+    when(cloudWatch.getMetricStatistics(metricStatisticsRequest)).thenReturn(result);
 
     long backlogBytes = underTest.getBacklogBytes(STREAM, countSince, countTo);
 
@@ -317,7 +315,7 @@ public class SimplifiedKinesisClientTest {
     GetMetricStatisticsRequest metricStatisticsRequest =
         underTest.createMetricStatisticsRequest(STREAM, countSince, countTo, periodTime);
 
-    given(cloudWatch.getMetricStatistics(metricStatisticsRequest)).willThrow(thrownException);
+    when(cloudWatch.getMetricStatistics(metricStatisticsRequest)).thenThrow(thrownException);
     try {
       underTest.getBacklogBytes(STREAM, countSince, countTo);
       failBecauseExceptionWasNotThrown(expectedExceptionClass);

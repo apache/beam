@@ -652,9 +652,11 @@ public class TestJavaBeans {
   @DefaultSchema(JavaBeanSchema.class)
   public static class NestedCollectionBean {
     private List<SimpleBean> simples;
+    private Iterable<SimpleBean> iterableSimples;
 
     public NestedCollectionBean(List<SimpleBean> simples) {
       this.simples = simples;
+      this.iterableSimples = simples;
     }
 
     public NestedCollectionBean() {}
@@ -663,8 +665,16 @@ public class TestJavaBeans {
       return simples;
     }
 
+    public Iterable<SimpleBean> getIterableSimples() {
+      return iterableSimples;
+    }
+
     public void setSimples(List<SimpleBean> simples) {
       this.simples = simples;
+    }
+
+    public void setIterableSimples(Iterable<SimpleBean> iterableSimples) {
+      this.iterableSimples = iterableSimples;
     }
 
     @Override
@@ -676,7 +686,8 @@ public class TestJavaBeans {
         return false;
       }
       NestedCollectionBean that = (NestedCollectionBean) o;
-      return Objects.equals(simples, that.simples);
+      return Objects.equals(simples, that.simples)
+          && Objects.equals(iterableSimples, that.iterableSimples);
     }
 
     @Override
@@ -687,7 +698,10 @@ public class TestJavaBeans {
 
   /** The schema for {@link NestedCollectionBean}. * */
   public static final Schema NESTED_COLLECTION_BEAN_SCHEMA =
-      Schema.builder().addArrayField("simples", FieldType.row(SIMPLE_BEAN_SCHEMA)).build();
+      Schema.builder()
+          .addArrayField("simples", FieldType.row(SIMPLE_BEAN_SCHEMA))
+          .addIterableField("iterableSimples", FieldType.row(SIMPLE_BEAN_SCHEMA))
+          .build();
 
   /** A Bean containing a simple {@link Map}. * */
   @DefaultSchema(JavaBeanSchema.class)
@@ -917,4 +931,86 @@ public class TestJavaBeans {
   /** The schema for {@link BeanWithByteArray}. * */
   public static final Schema BEAN_WITH_BYTE_ARRAY_SCHEMA =
       Schema.builder().addByteArrayField("bytes1").addByteArrayField("bytes2").build();
+
+  /** A bean containing an Iterable. * */
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class IterableBean {
+    private Iterable<String> strings;
+
+    public IterableBean(Iterable<String> strings) {
+      this.strings = strings;
+    }
+
+    public IterableBean() {}
+
+    public Iterable<String> getStrings() {
+      return strings;
+    }
+
+    public void setStrings(Iterable<String> strings) {
+      this.strings = strings;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      IterableBean that = (IterableBean) o;
+      return Objects.equals(strings, that.strings);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(strings);
+    }
+  }
+
+  /** The schema for {@link NestedArrayBean}. * */
+  public static final Schema ITERABLE_BEAM_SCHEMA =
+      Schema.builder().addIterableField("strings", FieldType.STRING).build();
+
+  /** A bean containing an Array of ByteArray. * */
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class ArrayOfByteArray {
+    private List<ByteBuffer> byteBuffers;
+
+    public ArrayOfByteArray(List<ByteBuffer> byteBuffers) {
+      this.byteBuffers = byteBuffers;
+    }
+
+    public ArrayOfByteArray() {}
+
+    public List<ByteBuffer> getByteBuffers() {
+      return byteBuffers;
+    }
+
+    public void setByteBuffers(List<ByteBuffer> byteBuffers) {
+      this.byteBuffers = byteBuffers;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      ArrayOfByteArray that = (ArrayOfByteArray) o;
+      return Objects.equals(byteBuffers, that.byteBuffers);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(byteBuffers);
+    }
+  }
+
+  /** The schema for {@link NestedArrayBean}. * */
+  public static final Schema ARRAY_OF_BYTE_ARRAY_BEAM_SCHEMA =
+      Schema.builder().addArrayField("byteBuffers", FieldType.BYTES).build();
 }

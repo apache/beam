@@ -45,9 +45,9 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Wait;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicate;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Predicates;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicate;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.After;
 import org.junit.Before;
@@ -68,6 +68,12 @@ public class SpannerWriteIT {
 
   /** Pipeline options for this test. */
   public interface SpannerTestPipelineOptions extends TestPipelineOptions {
+    @Description("Project that hosts Spanner instance")
+    @Nullable
+    String getInstanceProjectId();
+
+    void setInstanceProjectId(String value);
+
     @Description("Instance ID to write to in Spanner")
     @Default.String("beam-test")
     String getInstanceId();
@@ -98,7 +104,10 @@ public class SpannerWriteIT {
     PipelineOptionsFactory.register(SpannerTestPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(SpannerTestPipelineOptions.class);
 
-    project = options.as(GcpOptions.class).getProject();
+    project = options.getInstanceProjectId();
+    if (project == null) {
+      project = options.as(GcpOptions.class).getProject();
+    }
 
     spanner = SpannerOptions.newBuilder().setProjectId(project).build().getService();
 

@@ -25,8 +25,11 @@ should find all such places. For this reason even places where retry is not
 needed right now use a @retry.no_retries decorator.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
+import functools
 import logging
 import random
 import sys
@@ -45,9 +48,18 @@ from apache_beam.io.filesystem import BeamIOError
 # TODO(sourabhbajaj): Remove the GCP specific error code to a submodule
 try:
   from apitools.base.py.exceptions import HttpError
-except ImportError:
+except ImportError as e:
   HttpError = None
+
+# Protect against environments where aws tools are not available.
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  from apache_beam.io.aws.clients.s3.messages import S3ClientError
+except ImportError:
+  S3ClientError = None
 # pylint: enable=wrong-import-order, wrong-import-position
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class PermanentException(Exception):
@@ -74,9 +86,13 @@ class FuzzedExponentialIntervals(object):
       further tries use max_delay_sec instead of exponentially increasing
       the time. Defaults to 1 hour.
   """
-
-  def __init__(self, initial_delay_secs, num_retries, factor=2, fuzz=0.5,
-               max_delay_secs=60 * 60 * 1):
+  def __init__(
+      self,
+      initial_delay_secs,
+      num_retries,
+      factor=2,
+      fuzz=0.5,
+      max_delay_secs=60 * 60 * 1):
     self._initial_delay_secs = initial_delay_secs
     if num_retries > 10000:
       raise ValueError('num_retries parameter cannot exceed 10000.')
@@ -100,14 +116,42 @@ def retry_on_server_errors_filter(exception):
   """Filter allowing retries on server errors and non-HttpErrors."""
   if (HttpError is not None) and isinstance(exception, HttpError):
     return exception.status_code >= 500
+  if (S3ClientError is not None) and isinstance(exception, S3ClientError):
+    return exception.code >= 500
   return not isinstance(exception, PermanentException)
+
+
+# TODO(BEAM-6202): Dataflow returns 404 for job ids that actually exist.
+# Retry on those errors.
+def retry_on_server_errors_and_notfound_filter(exception):
+  if HttpError is not None and isinstance(exception, HttpError):
+    if exception.status_code == 404:  # 404 Not Found
+      return True
+  return retry_on_server_errors_filter(exception)
 
 
 def retry_on_server_errors_and_timeout_filter(exception):
   if HttpError is not None and isinstance(exception, HttpError):
     if exception.status_code == 408:  # 408 Request Timeout
       return True
+  if S3ClientError is not None and isinstance(exception, S3ClientError):
+    if exception.code == 408:  # 408 Request Timeout
+      return True
   return retry_on_server_errors_filter(exception)
+
+
+def retry_on_server_errors_timeout_or_quota_issues_filter(exception):
+  """Retry on server, timeout and 403 errors.
+
+  403 errors can be accessDenied, billingNotEnabled, and also quotaExceeded,
+  rateLimitExceeded."""
+  if HttpError is not None and isinstance(exception, HttpError):
+    if exception.status_code == 403:
+      return True
+  if S3ClientError is not None and isinstance(exception, S3ClientError):
+    if exception.code == 403:
+      return True
+  return retry_on_server_errors_and_timeout_filter(exception)
 
 
 def retry_on_beam_io_error_filter(exception):
@@ -120,21 +164,24 @@ SERVER_ERROR_OR_TIMEOUT_CODES = [408, 500, 502, 503, 504, 598, 599]
 
 class Clock(object):
   """A simple clock implementing sleep()."""
-
   def sleep(self, value):
     time.sleep(value)
 
 
 def no_retries(fun):
   """A retry decorator for places where we do not want retries."""
-  return with_exponential_backoff(
-      retry_filter=lambda _: False, clock=None)(fun)
+  return with_exponential_backoff(retry_filter=lambda _: False, clock=None)(fun)
 
 
 def with_exponential_backoff(
-    num_retries=7, initial_delay_secs=5.0, logger=logging.warning,
+    num_retries=7,
+    initial_delay_secs=5.0,
+    logger=_LOGGER.warning,
     retry_filter=retry_on_server_errors_filter,
-    clock=Clock(), fuzz=True, factor=2, max_delay_secs=60 * 60):
+    clock=Clock(),
+    fuzz=True,
+    factor=2,
+    max_delay_secs=60 * 60):
   """Decorator with arguments that control the retry logic.
 
   Args:
@@ -142,7 +189,7 @@ def with_exponential_backoff(
     initial_delay_secs: The delay before the first retry, in seconds.
     logger: A callable used to report an exception. Must have the same signature
       as functions in the standard logging module. The default is
-      logging.warning.
+      _LOGGER.warning.
     retry_filter: A callable getting the exception raised and returning True
       if the retry should happen. For instance we do not want to retry on
       404 Http errors most of the time. The default value will return true
@@ -171,14 +218,17 @@ def with_exponential_backoff(
   @retry.with_exponential_backoff()
   make_http_request(args)
   """
-
   def real_decorator(fun):
     """The real decorator whose purpose is to return the wrapped function."""
+    @functools.wraps(fun)
     def wrapper(*args, **kwargs):
       retry_intervals = iter(
           FuzzedExponentialIntervals(
-              initial_delay_secs, num_retries, factor,
-              fuzz=0.5 if fuzz else 0, max_delay_secs=max_delay_secs))
+              initial_delay_secs,
+              num_retries,
+              factor,
+              fuzz=0.5 if fuzz else 0,
+              max_delay_secs=max_delay_secs))
       while True:
         try:
           return fun(*args, **kwargs)

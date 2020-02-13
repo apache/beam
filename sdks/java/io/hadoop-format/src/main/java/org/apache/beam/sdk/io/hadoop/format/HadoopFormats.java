@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.hadoop.format;
 import java.lang.reflect.InvocationTargetException;
 import java.util.UUID;
 import javax.annotation.Nullable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.MRJobConfig;
@@ -38,7 +38,7 @@ final class HadoopFormats {
 
   private static final int DEFAULT_JOB_NUMBER = 0;
   static final Class<HashPartitioner> DEFAULT_PARTITIONER_CLASS_ATTR = HashPartitioner.class;
-  static final int DEFAULT_NUM_REDUCERS = 1;
+  private static final int DEFAULT_NUM_REDUCERS = 1;
 
   private HadoopFormats() {}
 
@@ -92,7 +92,7 @@ final class HadoopFormats {
   /**
    * Creates {@link TaskAttemptContext}.
    *
-   * @param conf cofniguration
+   * @param conf configuration
    * @param taskAttemptID taskAttemptId
    * @return new {@link TaskAttemptContext}
    */

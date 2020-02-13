@@ -30,7 +30,7 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.testing.UsesMetricsPusher;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -50,6 +50,7 @@ import org.slf4j.LoggerFactory;
 public class SparkMetricsPusherTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkMetricsPusherTest.class);
+  private static final String COUNTER_NAME = "counter";
 
   @Rule public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
 
@@ -96,7 +97,7 @@ public class SparkMetricsPusherTest {
     // give metrics pusher time to push
     Thread.sleep(
         (pipeline.getOptions().as(MetricsOptions.class).getMetricsPushPeriod() + 1L) * 1000);
-    assertThat(TestMetricsSink.getCounterValue(), is(6L));
+    assertThat(TestMetricsSink.getCounterValue(COUNTER_NAME), is(6L));
   }
 
   private static class CountingDoFn extends DoFn<Integer, Integer> {
@@ -113,7 +114,7 @@ public class SparkMetricsPusherTest {
     }
   }
 
-  @Category(ValidatesRunner.class)
+  @Category(UsesMetricsPusher.class)
   @Test
   public void testInSBatchMode() throws Exception {
     pipeline.apply(Create.of(1, 2, 3, 4, 5, 6)).apply(ParDo.of(new CountingDoFn()));
@@ -122,6 +123,6 @@ public class SparkMetricsPusherTest {
     // give metrics pusher time to push
     Thread.sleep(
         (pipeline.getOptions().as(MetricsOptions.class).getMetricsPushPeriod() + 1L) * 1000);
-    assertThat(TestMetricsSink.getCounterValue(), is(6L));
+    assertThat(TestMetricsSink.getCounterValue(COUNTER_NAME), is(6L));
   }
 }

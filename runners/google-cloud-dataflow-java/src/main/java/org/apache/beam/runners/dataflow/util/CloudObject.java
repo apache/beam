@@ -17,11 +17,12 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.util.Key;
 import java.util.Map;
+import java.util.Objects;
 import javax.annotation.Nullable;
 
 /**
@@ -181,5 +182,19 @@ public final class CloudObject extends GenericJson implements Cloneable {
   @Override
   public CloudObject clone() {
     return (CloudObject) super.clone();
+  }
+
+  @Override
+  public boolean equals(Object otherObject) {
+    if (!(otherObject instanceof CloudObject)) {
+      return false;
+    }
+    CloudObject other = (CloudObject) otherObject;
+    return Objects.equals(className, other.className) && super.equals(otherObject);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(className, super.hashCode());
   }
 }

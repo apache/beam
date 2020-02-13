@@ -165,8 +165,7 @@ public class WorkProgressUpdaterTest {
     // Set the initial lease expiration to 20s so that the first update occurs at 10s, ie before
     // the periodic checkpoint.
     initialLeaseExpirationMs = clock.currentTimeMillis() + 20 * 1000L;
-    when(progressHelper.reportProgress(any(NativeReader.DynamicSplitResult.class)))
-        .thenReturn(4 * 1000L); // Next update at 14s.
+    when(progressHelper.reportProgress(null)).thenReturn(4 * 1000L); // Next update at 14s.
 
     progressUpdater.startReportingProgress();
     executor.runNextRunnable();
@@ -177,8 +176,7 @@ public class WorkProgressUpdaterTest {
     verify(progressHelper, times(1)).reportProgress(null);
     verify(progressHelper, never()).reportProgress(checkpointPos);
 
-    when(progressHelper.reportProgress(any(NativeReader.DynamicSplitResult.class)))
-        .thenReturn(4 * 1000L); // Next update at 18s.
+    when(progressHelper.reportProgress(null)).thenReturn(4 * 1000L); // Next update at 18s.
 
     executor.runNextRunnable();
 
@@ -188,8 +186,7 @@ public class WorkProgressUpdaterTest {
     verify(progressHelper, times(2)).reportProgress(null);
     verify(progressHelper, never()).reportProgress(checkpointPos);
 
-    when(progressHelper.reportProgress(any(NativeReader.DynamicSplitResult.class)))
-        .thenReturn(4 * 1000L); // Next update at 22s.
+    when(progressHelper.reportProgress(null)).thenReturn(4 * 1000L); // Next update at 22s.
 
     executor.runNextRunnable();
 
@@ -253,8 +250,7 @@ public class WorkProgressUpdaterTest {
     // the periodic checkpoint.
     // Do one update.
     initialLeaseExpirationMs = clock.currentTimeMillis() + 20 * 1000L;
-    when(progressHelper.reportProgress(any(NativeReader.DynamicSplitResult.class)))
-        .thenReturn(4 * 1000L); // Next update at 14s.
+    when(progressHelper.reportProgress(null)).thenReturn(4 * 1000L); // Next update at 14s.
 
     progressUpdater.startReportingProgress();
     executor.runNextRunnable();

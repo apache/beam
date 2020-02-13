@@ -20,10 +20,10 @@ package provision
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"time"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/jsonpb"
@@ -42,10 +42,10 @@ func Info(ctx context.Context, endpoint string) (*pb.ProvisionInfo, error) {
 
 	resp, err := client.GetProvisionInfo(ctx, &pb.GetProvisionInfoRequest{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get manifest: %v", err)
+		return nil, errors.Wrap(err, "failed to get manifest")
 	}
 	if resp.GetInfo() == nil {
-		return nil, fmt.Errorf("empty manifest")
+		return nil, errors.New("empty manifest")
 	}
 	return resp.GetInfo(), nil
 }

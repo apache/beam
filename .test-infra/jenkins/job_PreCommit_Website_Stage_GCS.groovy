@@ -21,7 +21,7 @@ import PrecommitJobBuilder
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Website_Stage_GCS',
-    gradleTask: ':beam-website:stageWebsite',
+    gradleTask: ':website:stageWebsite',
     triggerPathPatterns: ['^website/.*$']
 )
 builder.build {

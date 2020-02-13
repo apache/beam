@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Arrays;
 import java.util.List;
@@ -143,9 +143,9 @@ public class Union<InputT> extends Operator<InputT> {
     @Override
     public <T> Builders.Output<T> of(List<PCollection<T>> pCollections) {
       @SuppressWarnings("unchecked")
-      final Builder<T> casted = (Builder) this;
-      casted.pCollections = pCollections;
-      return casted;
+      final Builder<T> cast = (Builder) this;
+      cast.pCollections = pCollections;
+      return cast;
     }
 
     @Override

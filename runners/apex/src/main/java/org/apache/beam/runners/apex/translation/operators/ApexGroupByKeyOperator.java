@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.apex.translation.operators;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.datatorrent.api.Context.OperatorContext;
 import com.datatorrent.api.DefaultInputPort;
@@ -54,7 +54,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -129,8 +129,8 @@ public class ApexGroupByKeyOperator<K, V>
     this.keyCoder = ((KvCoder<K, V>) input.getCoder()).getKeyCoder();
     this.valueCoder = ((KvCoder<K, V>) input.getCoder()).getValueCoder();
     this.stateInternalsFactory = stateBackend.newStateInternalsFactory(keyCoder);
-    TimerInternals.TimerDataCoder timerCoder =
-        TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
+    TimerInternals.TimerDataCoderV2 timerCoder =
+        TimerInternals.TimerDataCoderV2.of(windowingStrategy.getWindowFn().windowCoder());
     this.timerInternals = new ApexTimerInternals<>(timerCoder);
   }
 

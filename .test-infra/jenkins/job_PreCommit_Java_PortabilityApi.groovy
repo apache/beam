@@ -28,6 +28,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^sdks/java/.*$',
       '^runners/google-cloud-dataflow-java/worker.*$',
       '^examples/java/.*$',
+      '^examples/kotlin/.*$',
       '^release/.*$',
     ]
 )

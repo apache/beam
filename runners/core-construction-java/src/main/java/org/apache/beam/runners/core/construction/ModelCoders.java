@@ -18,24 +18,28 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardCoders;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /** Utilities and constants ot interact with coders that are part of the Beam Model. */
 public class ModelCoders {
   private ModelCoders() {}
 
   public static final String BYTES_CODER_URN = getUrn(StandardCoders.Enum.BYTES);
+  public static final String BOOL_CODER_URN = getUrn(StandardCoders.Enum.BOOL);
   // Where is this required explicitly, instead of implicit within WindowedValue and LengthPrefix
   // coders?
   public static final String INT64_CODER_URN = getUrn(StandardCoders.Enum.VARINT);
+  public static final String STRING_UTF8_CODER_URN = getUrn(StandardCoders.Enum.STRING_UTF8);
+
+  public static final String DOUBLE_CODER_URN = getUrn(StandardCoders.Enum.DOUBLE);
 
   public static final String ITERABLE_CODER_URN = getUrn(StandardCoders.Enum.ITERABLE);
   public static final String TIMER_CODER_URN = getUrn(StandardCoders.Enum.TIMER);
@@ -50,34 +54,53 @@ public class ModelCoders {
       getUrn(StandardCoders.Enum.INTERVAL_WINDOW);
 
   public static final String WINDOWED_VALUE_CODER_URN = getUrn(StandardCoders.Enum.WINDOWED_VALUE);
+  public static final String PARAM_WINDOWED_VALUE_CODER_URN =
+      getUrn(StandardCoders.Enum.PARAM_WINDOWED_VALUE);
+
+  public static final String ROW_CODER_URN = getUrn(StandardCoders.Enum.ROW);
 
   private static final Set<String> MODEL_CODER_URNS =
       ImmutableSet.of(
           BYTES_CODER_URN,
+          BOOL_CODER_URN,
           INT64_CODER_URN,
+          STRING_UTF8_CODER_URN,
           ITERABLE_CODER_URN,
           TIMER_CODER_URN,
           KV_CODER_URN,
           LENGTH_PREFIX_CODER_URN,
           GLOBAL_WINDOW_CODER_URN,
           INTERVAL_WINDOW_CODER_URN,
-          WINDOWED_VALUE_CODER_URN);
+          WINDOWED_VALUE_CODER_URN,
+          DOUBLE_CODER_URN,
+          ROW_CODER_URN,
+          PARAM_WINDOWED_VALUE_CODER_URN);
 
   public static Set<String> urns() {
     return MODEL_CODER_URNS;
   }
 
   public static WindowedValueCoderComponents getWindowedValueCoderComponents(Coder coder) {
-    checkArgument(WINDOWED_VALUE_CODER_URN.equals(coder.getSpec().getSpec().getUrn()));
+    checkArgument(WINDOWED_VALUE_CODER_URN.equals(coder.getSpec().getUrn()));
     return new AutoValue_ModelCoders_WindowedValueCoderComponents(
         coder.getComponentCoderIds(0), coder.getComponentCoderIds(1));
   }
 
   public static Coder windowedValueCoder(String elementCoderId, String windowCoderId) {
     return Coder.newBuilder()
+        .setSpec(FunctionSpec.newBuilder().setUrn(WINDOWED_VALUE_CODER_URN))
+        .addComponentCoderIds(elementCoderId)
+        .addComponentCoderIds(windowCoderId)
+        .build();
+  }
+
+  public static Coder paramWindowedValueCoder(
+      String elementCoderId, String windowCoderId, byte[] payload) {
+    return Coder.newBuilder()
         .setSpec(
-            SdkFunctionSpec.newBuilder()
-                .setSpec(FunctionSpec.newBuilder().setUrn(WINDOWED_VALUE_CODER_URN)))
+            FunctionSpec.newBuilder()
+                .setUrn(PARAM_WINDOWED_VALUE_CODER_URN)
+                .setPayload(ByteString.copyFrom(payload)))
         .addComponentCoderIds(elementCoderId)
         .addComponentCoderIds(windowCoderId)
         .build();
@@ -92,15 +115,14 @@ public class ModelCoders {
   }
 
   public static KvCoderComponents getKvCoderComponents(Coder coder) {
-    checkArgument(KV_CODER_URN.equals(coder.getSpec().getSpec().getUrn()));
+    checkArgument(KV_CODER_URN.equals(coder.getSpec().getUrn()));
     return new AutoValue_ModelCoders_KvCoderComponents(
         coder.getComponentCoderIds(0), coder.getComponentCoderIds(1));
   }
 
   public static Coder kvCoder(String keyCoderId, String valueCoderId) {
     return Coder.newBuilder()
-        .setSpec(
-            SdkFunctionSpec.newBuilder().setSpec(FunctionSpec.newBuilder().setUrn(KV_CODER_URN)))
+        .setSpec(FunctionSpec.newBuilder().setUrn(KV_CODER_URN))
         .addComponentCoderIds(keyCoderId)
         .addComponentCoderIds(valueCoderId)
         .build();

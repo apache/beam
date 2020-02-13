@@ -23,18 +23,14 @@ import org.apache.flink.core.memory.DataOutputView;
 
 /**
  * Wrapper for {@link org.apache.flink.core.memory.DataOutputView}. We need this because Flink
- * writes data using a {@link org.apache.flink.core.memory.DataInputView} while Dataflow {@link
+ * writes data using a {@link org.apache.flink.core.memory.DataInputView} while Beam {@link
  * org.apache.beam.sdk.coders.Coder}s expect an {@link java.io.OutputStream}.
  */
 public class DataOutputViewWrapper extends OutputStream {
 
-  private DataOutputView outputView;
+  private final DataOutputView outputView;
 
   public DataOutputViewWrapper(DataOutputView outputView) {
-    this.outputView = outputView;
-  }
-
-  public void setOutputView(DataOutputView outputView) {
     this.outputView = outputView;
   }
 

@@ -20,13 +20,13 @@ package org.apache.beam.sdk.io.gcp.spanner;
 import java.util.Random;
 
 /** Useful randomness related utilities. */
-public class RandomUtils {
+class RandomUtils {
 
   private static final char[] ALPHANUMERIC = "1234567890abcdefghijklmnopqrstuvwxyz".toCharArray();
 
   private RandomUtils() {}
 
-  public static String randomAlphaNumeric(int length) {
+  static String randomAlphaNumeric(int length) {
     Random random = new Random();
     char[] result = new char[length];
     for (int i = 0; i < length; i++) {

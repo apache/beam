@@ -30,6 +30,7 @@ import (
 // FullValue represents the full runtime value for a data element, incl. the
 // implicit context. The result of a GBK or CoGBK is not a single FullValue.
 // The consumer is responsible for converting the values to the correct type.
+// To represent a nested KV with FullValues, assign a *FullValue to Elm/Elm2.
 type FullValue struct {
 	Elm  interface{} // Element or KV key.
 	Elm2 interface{} // KV value, if not invalid
@@ -95,36 +96,7 @@ func (s *FixedStream) Read() (*FullValue, error) {
 // to drop the universal type and convert Aggregate types.
 func Convert(v interface{}, to reflect.Type) interface{} {
 	from := reflect.TypeOf(v)
-
-	switch {
-	case from == to:
-		return v
-
-	case typex.IsUniversal(from):
-		// We need to drop T to obtain the underlying type of the value.
-		return reflectx.UnderlyingType(reflect.ValueOf(v)).Interface()
-		// TODO(herohde) 1/19/2018: reflect.ValueOf(v).Convert(to).Interface() instead?
-
-	case typex.IsList(from) && typex.IsList(to):
-		// Convert []A to []B.
-
-		value := reflect.ValueOf(v)
-
-		ret := reflect.New(to).Elem()
-		for i := 0; i < value.Len(); i++ {
-			ret = reflect.Append(ret, reflect.ValueOf(Convert(value.Index(i).Interface(), to.Elem())))
-		}
-		return ret.Interface()
-
-	default:
-		// Arguably this should be:
-		//   reflect.ValueOf(v).Convert(to).Interface()
-		// but this isn't desirable as it would add avoidable overhead to
-		// functions where it applies. A user will have better performance
-		// by explicitly doing the type conversion in their code, which
-		// the error will indicate. Slow Magic vs Fast & Explicit.
-		return v
-	}
+	return ConvertFn(from, to)(v)
 }
 
 // ConvertFn returns a function that converts type of the runtime value to the desired one. It is needed
@@ -151,7 +123,35 @@ func ConvertFn(from, to reflect.Type) func(interface{}) interface{} {
 			}
 			return ret.Interface()
 		}
+
+	case typex.IsList(from) && typex.IsUniversal(from.Elem()) && typex.IsUniversal(to):
+		fromE := from.Elem()
+		return func(v interface{}) interface{} {
+			// Convert []typex.T to the underlying type []T.
+
+			value := reflect.ValueOf(v)
+			// We don't know the underlying element type of a nil/empty universal-typed slice.
+			// So the best we could do is to return it as is.
+			if value.Len() == 0 {
+				return v
+			}
+
+			toE := reflectx.UnderlyingType(value.Index(0)).Type()
+			cvtFn := ConvertFn(fromE, toE)
+			ret := reflect.New(reflect.SliceOf(toE)).Elem()
+			for i := 0; i < value.Len(); i++ {
+				ret = reflect.Append(ret, reflect.ValueOf(cvtFn(value.Index(i).Interface())))
+			}
+			return ret.Interface()
+		}
+
 	default:
+		// Arguably this should be:
+		//   reflect.ValueOf(v).Convert(to).Interface()
+		// but this isn't desirable as it would add avoidable overhead to
+		// functions where it applies. A user will have better performance
+		// by explicitly doing the type conversion in their code, which
+		// the error will indicate. Slow Magic vs Fast & Explicit.
 		return identity
 	}
 }

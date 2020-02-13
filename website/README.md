@@ -37,13 +37,13 @@ run website tests.
 
 The following command is used to build and serve the website locally.
 
-    $ ./gradlew :beam-website:serveWebsite
+    $ ./gradlew :website:serveWebsite
 
 Any changes made locally will trigger a rebuild of the website.
 
 Websites tests may be run using this command:
 
-    $ ./gradlew :beam-website:testWebsite
+    $ ./gradlew :website:testWebsite
 
 ## Website push
 

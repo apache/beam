@@ -20,7 +20,7 @@ package org.apache.beam.runners.core.metrics;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 
 /**
  * A Class for registering SimpleExecutionStates with and extracting execution time MonitoringInfos.
@@ -30,6 +30,13 @@ public class SimpleStateRegistry {
 
   public void register(SimpleExecutionState state) {
     this.executionStates.add(state);
+  }
+
+  /** Reset the registered SimpleExecutionStates. */
+  public void reset() {
+    for (SimpleExecutionState state : executionStates) {
+      state.reset();
+    }
   }
 
   /** @return Execution Time MonitoringInfos based on the tracked start or finish function. */

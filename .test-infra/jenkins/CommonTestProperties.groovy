@@ -16,20 +16,53 @@
  * limitations under the License.
  */
 
+
+
 class CommonTestProperties {
+    enum SDK {
+        PYTHON,
+        PYTHON_37,
+        JAVA
+    }
+
     enum Runner {
-        DATAFLOW("DataflowRunner", ":beam-runners-google-cloud-dataflow-java"),
-        SPARK("SparkRunner", ":beam-runners-spark"),
-        FLINK("TestFlinkRunner", ":beam-runners-flink_2.11"),
-        DIRECT("DirectRunner", ":beam-runners-direct-java")
+        DATAFLOW("DataflowRunner"),
+        SPARK("SparkRunner"),
+        SPARK_STRUCTURED_STREAMING("SparkStructuredStreamingRunner"),
+        FLINK("FlinkRunner"),
+        DIRECT("DirectRunner"),
+        PORTABLE("PortableRunner")
+
+        def RUNNER_DEPENDENCY_MAP = [
+                JAVA: [
+                        DATAFLOW: ":runners:google-cloud-dataflow-java",
+                        SPARK: ":runners:spark",
+                        SPARK_STRUCTURED_STREAMING: ":runners:spark",
+                        FLINK: ":runners:flink:1.9",
+                        DIRECT: ":runners:direct-java"
+                ],
+                PYTHON: [
+                        DATAFLOW: "TestDataflowRunner",
+                        DIRECT: "DirectRunner",
+                        PORTABLE: "PortableRunner"
+                ],
+                PYTHON_37: [
+                        DATAFLOW: "TestDataflowRunner",
+                        DIRECT: "DirectRunner",
+                        PORTABLE: "PortableRunner"
+                ]
+        ]
 
         private final String option
-        private final String dependency
 
-        Runner(String option, String dependency) {
+        Runner(String option) {
             this.option = option
-            this.dependency = dependency
         }
+
+        String getDependencyBySDK(SDK sdk) {
+            RUNNER_DEPENDENCY_MAP.get(sdk.toString()).get(this.toString())
+        }
+
     }
 
     enum TriggeringContext {

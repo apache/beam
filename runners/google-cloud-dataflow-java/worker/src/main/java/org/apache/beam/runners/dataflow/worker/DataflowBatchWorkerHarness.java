@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -25,12 +25,13 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
+import org.apache.beam.sdk.fn.JvmInitializers;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,12 +54,16 @@ public class DataflowBatchWorkerHarness {
 
   /** Creates the worker harness and then runs it. */
   public static void main(String[] args) throws Exception {
+    // Call user-defined initialization immediately upon starting, as is guaranteed in
+    // JvmInitializer
+    JvmInitializers.runOnStartup();
     DataflowWorkerHarnessHelper.initializeLogging(DataflowBatchWorkerHarness.class);
     DataflowWorkerHarnessOptions pipelineOptions =
         DataflowWorkerHarnessHelper.initializeGlobalStateAndPipelineOptions(
             DataflowBatchWorkerHarness.class);
     DataflowBatchWorkerHarness batchHarness = new DataflowBatchWorkerHarness(pipelineOptions);
     DataflowWorkerHarnessHelper.configureLogging(pipelineOptions);
+    JvmInitializers.runBeforeProcessing(pipelineOptions);
     batchHarness.run();
   }
 

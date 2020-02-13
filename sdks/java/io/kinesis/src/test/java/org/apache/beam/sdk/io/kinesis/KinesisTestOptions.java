@@ -47,4 +47,16 @@ public interface KinesisTestOptions extends TestPipelineOptions {
   String getAwsAccessKey();
 
   void setAwsAccessKey(String value);
+
+  @Description("Number of shards of stream")
+  @Default.Integer(2)
+  Integer getNumberOfShards();
+
+  void setNumberOfShards(Integer count);
+
+  @Description("Number of records that will be written and read by the test")
+  @Default.Integer(1000)
+  Integer getNumberOfRecords();
+
+  void setNumberOfRecords(Integer count);
 }

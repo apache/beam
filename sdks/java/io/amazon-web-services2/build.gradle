@@ -1,0 +1,56 @@
+import groovy.json.JsonOutput
+
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins { id 'org.apache.beam.module' }
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.aws2')
+
+description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services 2"
+ext.summary = "IO library to read and write Amazon Web Services services from Beam."
+
+dependencies {
+  compile library.java.vendored_guava_26_0_jre
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.aws_java_sdk2_apache_client
+  compile library.java.aws_java_sdk2_auth
+  compile library.java.aws_java_sdk2_cloudwatch
+  compile library.java.aws_java_sdk2_dynamodb
+  compile library.java.aws_java_sdk2_sdk_core
+  compile library.java.aws_java_sdk2_sns
+  compile library.java.aws_java_sdk2_sqs
+  compile library.java.jackson_core
+  compile library.java.jackson_annotations
+  compile library.java.jackson_databind
+  compile library.java.slf4j_api
+
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile library.java.hamcrest_core
+  testCompile library.java.junit
+  testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.14.1'
+  testCompile 'org.testcontainers:testcontainers:1.11.3'
+  testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+}
+
+test {
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+      '--region=us-west-2',
+      '--awsCredentialsProvider={"@type": "StaticCredentialsProvider", "accessKeyId": "key_id_value", "secretAccessKey": "secret_value"}'
+  ])
+}

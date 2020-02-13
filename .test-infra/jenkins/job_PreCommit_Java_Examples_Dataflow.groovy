@@ -28,8 +28,10 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^sdks/java/.*$',
       '^runners/google-cloud-dataflow-java/.*$',
       '^examples/java/.*$',
+      '^examples/kotlin/.*$',
       '^release/.*$',
-    ]
+    ],
+    timeoutMins: 30,
 )
 builder.build {
   publishers {

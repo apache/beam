@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.synthetic;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -32,8 +32,8 @@ import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Random;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashFunction;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashFunction;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.apache.commons.math3.distribution.ConstantRealDistribution;
 import org.apache.commons.math3.distribution.ExponentialDistribution;
 import org.apache.commons.math3.distribution.IntegerDistribution;
@@ -150,7 +150,7 @@ public class SyntheticOptions implements Serializable {
   @JsonProperty public double largeKeySizeBytes = 1000;
 
   /** The seed is used for generating a hash function implementing the 128-bit murmur3 algorithm. */
-  @JsonIgnore public int seed;
+  @JsonIgnore public int seed = 1;
 
   /**
    * The hash function is used to generate seeds that are fed into the random number generators and

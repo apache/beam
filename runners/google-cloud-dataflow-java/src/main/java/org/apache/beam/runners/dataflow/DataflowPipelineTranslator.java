@@ -27,10 +27,10 @@ import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings.isNullOrEmpty;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings.isNullOrEmpty;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -52,6 +52,7 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.SplittableParDo;
@@ -73,24 +74,29 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.AppliedCombineFn;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -99,12 +105,14 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.TextFormat;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -119,10 +127,17 @@ public class DataflowPipelineTranslator {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowPipelineTranslator.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
-  private static byte[] serializeWindowingStrategy(WindowingStrategy<?, ?> windowingStrategy) {
+  private static byte[] serializeWindowingStrategy(
+      WindowingStrategy<?, ?> windowingStrategy, PipelineOptions options) {
     try {
       SdkComponents sdkComponents = SdkComponents.create();
-      sdkComponents.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
+
+      String workerHarnessContainerImageURL =
+          DataflowRunner.getContainerImageForJob(options.as(DataflowPipelineOptions.class));
+      RunnerApi.Environment defaultEnvironmentForDataflow =
+          Environments.createDockerEnvironment(workerHarnessContainerImageURL);
+      sdkComponents.registerEnvironment(defaultEnvironmentForDataflow);
+
       return WindowingStrategyTranslation.toMessageProto(windowingStrategy, sdkComponents)
           .toByteArray();
     } catch (Exception e) {
@@ -162,7 +177,13 @@ public class DataflowPipelineTranslator {
 
     // Capture the sdkComponents for look up during step translations
     SdkComponents sdkComponents = SdkComponents.create();
-    sdkComponents.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
+
+    String workerHarnessContainerImageURL =
+        DataflowRunner.getContainerImageForJob(options.as(DataflowPipelineOptions.class));
+    RunnerApi.Environment defaultEnvironmentForDataflow =
+        Environments.createDockerEnvironment(workerHarnessContainerImageURL);
+    sdkComponents.registerEnvironment(defaultEnvironmentForDataflow);
+
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
 
     LOG.debug("Portable pipeline proto:\n{}", TextFormat.printToString(pipelineProto));
@@ -327,6 +348,8 @@ public class DataflowPipelineTranslator {
         List<String> experiments = options.getExperiments();
         if (experiments == null) {
           experiments = new ArrayList<String>();
+        } else {
+          experiments = new ArrayList<String>(experiments);
         }
         if (!experiments.contains(GcpOptions.STREAMING_ENGINE_EXPERIMENT)) {
           experiments.add(GcpOptions.STREAMING_ENGINE_EXPERIMENT);
@@ -403,10 +426,8 @@ public class DataflowPipelineTranslator {
       if (options.getServiceAccount() != null) {
         environment.setServiceAccountEmail(options.getServiceAccount());
       }
-      // TODO(BEAM-6664): Remove once Dataflow supports --dataflowKmsKey.
       if (options.getDataflowKmsKey() != null) {
-        ExperimentalOptions.addExperiment(
-            options, String.format("service_default_cmek_config=%s", options.getDataflowKmsKey()));
+        environment.setServiceKmsKeyName(options.getDataflowKmsKey());
       }
 
       pipeline.traverseTopologically(this);
@@ -694,8 +715,11 @@ public class DataflowPipelineTranslator {
       String generatedName = String.format("%s.out%d", stepName, outputInfoList.size());
 
       addString(outputInfo, PropertyNames.USER_NAME, generatedName);
-      if (value instanceof PCollection
-          && translator.runner.doesPCollectionRequireIndexedFormat((PCollection<?>) value)) {
+      if ((value instanceof PCollection
+              && translator.runner.doesPCollectionRequireIndexedFormat((PCollection<?>) value))
+          || ((value instanceof PCollectionView)
+              && (Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
+                  ((PCollectionView) value).getViewFn().getMaterialization().getUrn())))) {
         addBoolean(outputInfo, PropertyNames.USE_INDEXED_FORMAT, true);
       }
       if (valueCoder != null) {
@@ -752,7 +776,8 @@ public class DataflowPipelineTranslator {
             WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
             stepContext.addInput(
                 PropertyNames.WINDOWING_STRATEGY,
-                byteArrayToJsonString(serializeWindowingStrategy(windowingStrategy)));
+                byteArrayToJsonString(
+                    serializeWindowingStrategy(windowingStrategy, context.getPipelineOptions())));
             stepContext.addInput(
                 PropertyNames.IS_MERGING_WINDOW_FN,
                 !windowingStrategy.getWindowFn().isNonMerging());
@@ -896,7 +921,8 @@ public class DataflowPipelineTranslator {
             stepContext.addInput(PropertyNames.DISALLOW_COMBINER_LIFTING, !allowCombinerLifting);
             stepContext.addInput(
                 PropertyNames.SERIALIZED_FN,
-                byteArrayToJsonString(serializeWindowingStrategy(windowingStrategy)));
+                byteArrayToJsonString(
+                    serializeWindowingStrategy(windowingStrategy, context.getPipelineOptions())));
             stepContext.addInput(
                 PropertyNames.IS_MERGING_WINDOW_FN,
                 !windowingStrategy.getWindowFn().isNonMerging());
@@ -914,13 +940,21 @@ public class DataflowPipelineTranslator {
           private <InputT, OutputT> void translateMultiHelper(
               ParDo.MultiOutput<InputT, OutputT> transform, TranslationContext context) {
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
+            DoFnSchemaInformation doFnSchemaInformation;
+            doFnSchemaInformation =
+                ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+            Map<String, PCollectionView<?>> sideInputMapping =
+                ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
             Map<TupleTag<?>, Coder<?>> outputCoders =
                 context.getOutputs(transform).entrySet().stream()
                     .collect(
                         Collectors.toMap(
                             Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
             translateInputs(
-                stepContext, context.getInput(transform), transform.getSideInputs(), context);
+                stepContext,
+                context.getInput(transform),
+                transform.getSideInputs().values(),
+                context);
             translateOutputs(context.getOutputs(transform), stepContext);
             String ptransformId =
                 context.getSdkComponents().getPTransformIdOrThrow(context.getCurrentTransform());
@@ -929,11 +963,27 @@ public class DataflowPipelineTranslator {
                 ptransformId,
                 transform.getFn(),
                 context.getInput(transform).getWindowingStrategy(),
-                transform.getSideInputs(),
+                transform.getSideInputs().values(),
                 context.getInput(transform).getCoder(),
                 context,
                 transform.getMainOutputTag(),
-                outputCoders);
+                outputCoders,
+                doFnSchemaInformation,
+                sideInputMapping);
+
+            // TODO: Move this logic into translateFn once the legacy ProcessKeyedElements is
+            // removed.
+            if (context.isFnApi()) {
+              DoFnSignature signature = DoFnSignatures.signatureForDoFn(transform.getFn());
+              if (signature.processElement().isSplittable()) {
+                Coder<?> restrictionCoder =
+                    DoFnInvokers.invokerFor(transform.getFn())
+                        .invokeGetRestrictionCoder(
+                            context.getInput(transform).getPipeline().getCoderRegistry());
+                stepContext.addInput(
+                    PropertyNames.RESTRICTION_ENCODING, translateCoder(restrictionCoder, context));
+              }
+            }
           }
         });
 
@@ -948,6 +998,11 @@ public class DataflowPipelineTranslator {
           private <InputT, OutputT> void translateSingleHelper(
               ParDoSingle<InputT, OutputT> transform, TranslationContext context) {
 
+            DoFnSchemaInformation doFnSchemaInformation;
+            doFnSchemaInformation =
+                ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+            Map<String, PCollectionView<?>> sideInputMapping =
+                ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
             Map<TupleTag<?>, Coder<?>> outputCoders =
                 context.getOutputs(transform).entrySet().stream()
@@ -956,7 +1011,10 @@ public class DataflowPipelineTranslator {
                             Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
 
             translateInputs(
-                stepContext, context.getInput(transform), transform.getSideInputs(), context);
+                stepContext,
+                context.getInput(transform),
+                transform.getSideInputs().values(),
+                context);
             stepContext.addOutput(
                 transform.getMainOutputTag().getId(), context.getOutput(transform));
             String ptransformId =
@@ -966,11 +1024,27 @@ public class DataflowPipelineTranslator {
                 ptransformId,
                 transform.getFn(),
                 context.getInput(transform).getWindowingStrategy(),
-                transform.getSideInputs(),
+                transform.getSideInputs().values(),
                 context.getInput(transform).getCoder(),
                 context,
                 transform.getMainOutputTag(),
-                outputCoders);
+                outputCoders,
+                doFnSchemaInformation,
+                sideInputMapping);
+
+            // TODO: Move this logic into translateFn once the legacy ProcessKeyedElements is
+            // removed.
+            if (context.isFnApi()) {
+              DoFnSignature signature = DoFnSignatures.signatureForDoFn(transform.getFn());
+              if (signature.processElement().isSplittable()) {
+                Coder<?> restrictionCoder =
+                    DoFnInvokers.invokerFor(transform.getFn())
+                        .invokeGetRestrictionCoder(
+                            context.getInput(transform).getPipeline().getCoderRegistry());
+                stepContext.addInput(
+                    PropertyNames.RESTRICTION_ENCODING, translateCoder(restrictionCoder, context));
+              }
+            }
           }
         });
 
@@ -989,7 +1063,8 @@ public class DataflowPipelineTranslator {
             stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
 
             WindowingStrategy<?, ?> strategy = context.getOutput(transform).getWindowingStrategy();
-            byte[] serializedBytes = serializeWindowingStrategy(strategy);
+            byte[] serializedBytes =
+                serializeWindowingStrategy(strategy, context.getPipelineOptions());
             String serializedJson = byteArrayToJsonString(serializedBytes);
             stepContext.addInput(PropertyNames.SERIALIZED_FN, serializedJson);
           }
@@ -1000,8 +1075,68 @@ public class DataflowPipelineTranslator {
 
     registerTransformTranslator(Read.Bounded.class, new ReadTranslator());
 
+    registerTransformTranslator(
+        TestStream.class,
+        new TransformTranslator<TestStream>() {
+          @Override
+          public void translate(TestStream transform, TranslationContext context) {
+            translateTyped(transform, context);
+          }
+
+          private <T> void translateTyped(TestStream<T> transform, TranslationContext context) {
+            try {
+              StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
+              stepContext.addInput(PropertyNames.FORMAT, "test_stream");
+              RunnerApi.TestStreamPayload.Builder payloadBuilder =
+                  RunnerApi.TestStreamPayload.newBuilder();
+              for (TestStream.Event event : transform.getEvents()) {
+                if (event instanceof TestStream.ElementEvent) {
+                  RunnerApi.TestStreamPayload.Event.AddElements.Builder addElementsBuilder =
+                      RunnerApi.TestStreamPayload.Event.AddElements.newBuilder();
+                  Iterable<TimestampedValue<T>> elements =
+                      ((TestStream.ElementEvent) event).getElements();
+                  for (TimestampedValue<T> element : elements) {
+                    addElementsBuilder.addElements(
+                        RunnerApi.TestStreamPayload.TimestampedElement.newBuilder()
+                            .setEncodedElement(
+                                ByteString.copyFrom(
+                                    CoderUtils.encodeToByteArray(
+                                        transform.getValueCoder(), element.getValue())))
+                            .setTimestamp(element.getTimestamp().getMillis() * 1000));
+                  }
+                  payloadBuilder.addEventsBuilder().setElementEvent(addElementsBuilder);
+                } else if (event instanceof TestStream.WatermarkEvent) {
+                  payloadBuilder
+                      .addEventsBuilder()
+                      .setWatermarkEvent(
+                          RunnerApi.TestStreamPayload.Event.AdvanceWatermark.newBuilder()
+                              .setNewWatermark(
+                                  ((TestStream.WatermarkEvent) event).getWatermark().getMillis()
+                                      * 1000));
+                } else if (event instanceof TestStream.ProcessingTimeEvent) {
+                  payloadBuilder
+                      .addEventsBuilder()
+                      .setProcessingTimeEvent(
+                          RunnerApi.TestStreamPayload.Event.AdvanceProcessingTime.newBuilder()
+                              .setAdvanceDuration(
+                                  ((TestStream.ProcessingTimeEvent) event)
+                                          .getProcessingTimeAdvance()
+                                          .getMillis()
+                                      * 1000));
+                }
+              }
+              stepContext.addInput(
+                  PropertyNames.SERIALIZED_TEST_STREAM,
+                  byteArrayToJsonString(payloadBuilder.build().toByteArray()));
+              stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
+          }
+        });
+
     ///////////////////////////////////////////////////////////////////////////
-    // Splittable DoFn translation.
+    // Legacy Splittable DoFn translation.
 
     registerTransformTranslator(
         SplittableParDo.ProcessKeyedElements.class,
@@ -1015,6 +1150,11 @@ public class DataflowPipelineTranslator {
           private <InputT, OutputT, RestrictionT> void translateTyped(
               SplittableParDo.ProcessKeyedElements<InputT, OutputT, RestrictionT> transform,
               TranslationContext context) {
+            DoFnSchemaInformation doFnSchemaInformation;
+            doFnSchemaInformation =
+                ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
+            Map<String, PCollectionView<?>> sideInputMapping =
+                ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
             StepTranslationContext stepContext =
                 context.addStep(transform, "SplittableProcessKeyed");
             Map<TupleTag<?>, Coder<?>> outputCoders =
@@ -1036,7 +1176,9 @@ public class DataflowPipelineTranslator {
                 transform.getElementCoder(),
                 context,
                 transform.getMainOutputTag(),
-                outputCoders);
+                outputCoders,
+                doFnSchemaInformation,
+                sideInputMapping);
 
             stepContext.addInput(
                 PropertyNames.RESTRICTION_CODER,
@@ -1048,7 +1190,7 @@ public class DataflowPipelineTranslator {
   private static void translateInputs(
       StepTranslationContext stepContext,
       PCollection<?> input,
-      List<PCollectionView<?>> sideInputs,
+      Iterable<PCollectionView<?>> sideInputs,
       TranslationContext context) {
     stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
     translateSideInputs(stepContext, sideInputs, context);
@@ -1057,7 +1199,7 @@ public class DataflowPipelineTranslator {
   // Used for ParDo
   private static void translateSideInputs(
       StepTranslationContext stepContext,
-      List<PCollectionView<?>> sideInputs,
+      Iterable<PCollectionView<?>> sideInputs,
       TranslationContext context) {
     Map<String, Object> nonParInputs = new HashMap<>();
 
@@ -1079,7 +1221,9 @@ public class DataflowPipelineTranslator {
       Coder inputCoder,
       TranslationContext context,
       TupleTag<?> mainOutput,
-      Map<TupleTag<?>, Coder<?>> outputCoders) {
+      Map<TupleTag<?>, Coder<?>> outputCoders,
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
 
     if (signature.usesState() || signature.usesTimers()) {
@@ -1099,7 +1243,14 @@ public class DataflowPipelineTranslator {
           byteArrayToJsonString(
               serializeToByteArray(
                   DoFnInfo.forFn(
-                      fn, windowingStrategy, sideInputs, inputCoder, outputCoders, mainOutput))));
+                      fn,
+                      windowingStrategy,
+                      sideInputs,
+                      inputCoder,
+                      outputCoders,
+                      mainOutput,
+                      doFnSchemaInformation,
+                      sideInputMapping))));
     }
 
     // Setting USES_KEYED_STATE will cause an ungrouped shuffle, which works

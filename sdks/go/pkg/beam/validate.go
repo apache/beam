@@ -20,6 +20,7 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // ValidateKVType panics if the type of the PCollection is not KV<A,B>.
@@ -46,15 +47,15 @@ func ValidateNonCompositeType(col PCollection) typex.FullType {
 // function.
 func validate(s Scope, col PCollection, opts []Option) ([]SideInput, map[string]reflect.Type, error) {
 	if !s.IsValid() {
-		return nil, nil, fmt.Errorf("invalid scope")
+		return nil, nil, errors.New("invalid scope")
 	}
 	if !col.IsValid() {
-		return nil, nil, fmt.Errorf("invalid main pcollection")
+		return nil, nil, errors.New("invalid main pcollection")
 	}
 	side, defs := parseOpts(opts)
 	for i, in := range side {
 		if !in.Input.IsValid() {
-			return nil, nil, fmt.Errorf("invalid side pcollection: index %v", i)
+			return nil, nil, errors.Errorf("invalid side pcollection: index %v", i)
 		}
 	}
 	typedefs, err := makeTypedefs(defs)
@@ -68,10 +69,10 @@ func makeTypedefs(list []TypeDefinition) (map[string]reflect.Type, error) {
 	typedefs := make(map[string]reflect.Type)
 	for _, v := range list {
 		if !typex.IsUniversal(v.Var) {
-			return nil, fmt.Errorf("type var %s must be a universal type", v.Var)
+			return nil, errors.Errorf("type var %s must be a universal type", v.Var)
 		}
 		if !typex.IsConcrete(v.T) {
-			return nil, fmt.Errorf("type value %s must be a concrete type", v.T)
+			return nil, errors.Errorf("type value %s must be a concrete type", v.T)
 		}
 		typedefs[v.Var.Name()] = v.T
 	}

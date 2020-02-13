@@ -64,6 +64,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     self.projects_locations_jobs_messages = self.ProjectsLocationsJobsMessagesService(self)
     self.projects_locations_jobs_workItems = self.ProjectsLocationsJobsWorkItemsService(self)
     self.projects_locations_jobs = self.ProjectsLocationsJobsService(self)
+    self.projects_locations_sql = self.ProjectsLocationsSqlService(self)
     self.projects_locations_templates = self.ProjectsLocationsTemplatesService(self)
     self.projects_locations = self.ProjectsLocationsService(self)
     self.projects_templates = self.ProjectsTemplatesService(self)
@@ -143,6 +144,12 @@ class DataflowV1b3(base_api.BaseApiClient):
 
     def List(self, request, global_params=None):
       r"""Request the job status.
+
+To request the status of a job, we recommend using
+`projects.locations.jobs.messages.list` with a [regional endpoint]
+(https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using
+`projects.jobs.messages.list` is not recommended, as you can only request
+the status of jobs that are running in `us-central1`.
 
       Args:
         request: (DataflowProjectsJobsMessagesListRequest) input message
@@ -268,6 +275,12 @@ class DataflowV1b3(base_api.BaseApiClient):
     def Create(self, request, global_params=None):
       r"""Creates a Cloud Dataflow job.
 
+To create a job, we recommend using `projects.locations.jobs.create` with a
+[regional endpoint]
+(https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using
+`projects.jobs.create` is not recommended, as your job will always start
+in `us-central1`.
+
       Args:
         request: (DataflowProjectsJobsCreateRequest) input message
         global_params: (StandardQueryParameters, default: None) global arguments
@@ -293,6 +306,12 @@ class DataflowV1b3(base_api.BaseApiClient):
 
     def Get(self, request, global_params=None):
       r"""Gets the state of the specified Cloud Dataflow job.
+
+To get the state of a job, we recommend using `projects.locations.jobs.get`
+with a [regional endpoint]
+(https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using
+`projects.jobs.get` is not recommended, as you can only get the state of
+jobs that are running in `us-central1`.
 
       Args:
         request: (DataflowProjectsJobsGetRequest) input message
@@ -320,6 +339,12 @@ class DataflowV1b3(base_api.BaseApiClient):
     def GetMetrics(self, request, global_params=None):
       r"""Request the job status.
 
+To request the status of a job, we recommend using
+`projects.locations.jobs.getMetrics` with a [regional endpoint]
+(https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using
+`projects.jobs.getMetrics` is not recommended, as you can only request the
+status of jobs that are running in `us-central1`.
+
       Args:
         request: (DataflowProjectsJobsGetMetricsRequest) input message
         global_params: (StandardQueryParameters, default: None) global arguments
@@ -344,7 +369,14 @@ class DataflowV1b3(base_api.BaseApiClient):
     )
 
     def List(self, request, global_params=None):
-      r"""List the jobs of a project in a given region.
+      r"""List the jobs of a project.
+
+To list the jobs of a project in a region, we recommend using
+`projects.locations.jobs.get` with a [regional endpoint]
+(https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). To
+list the all jobs across all regions, use `projects.jobs.aggregated`. Using
+`projects.jobs.list` is not recommended, as you can only get the list of
+jobs that are running in `us-central1`.
 
       Args:
         request: (DataflowProjectsJobsListRequest) input message
@@ -371,6 +403,12 @@ class DataflowV1b3(base_api.BaseApiClient):
 
     def Update(self, request, global_params=None):
       r"""Updates the state of an existing Cloud Dataflow job.
+
+To update the state of an existing job, we recommend using
+`projects.locations.jobs.update` with a [regional endpoint]
+(https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using
+`projects.jobs.update` is not recommended, as you can only update the state
+of jobs that are running in `us-central1`.
 
       Args:
         request: (DataflowProjectsJobsUpdateRequest) input message
@@ -470,6 +508,12 @@ class DataflowV1b3(base_api.BaseApiClient):
     def List(self, request, global_params=None):
       r"""Request the job status.
 
+To request the status of a job, we recommend using
+`projects.locations.jobs.messages.list` with a [regional endpoint]
+(https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using
+`projects.jobs.messages.list` is not recommended, as you can only request
+the status of jobs that are running in `us-central1`.
+
       Args:
         request: (DataflowProjectsLocationsJobsMessagesListRequest) input message
         global_params: (StandardQueryParameters, default: None) global arguments
@@ -568,6 +612,12 @@ class DataflowV1b3(base_api.BaseApiClient):
     def Create(self, request, global_params=None):
       r"""Creates a Cloud Dataflow job.
 
+To create a job, we recommend using `projects.locations.jobs.create` with a
+[regional endpoint]
+(https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using
+`projects.jobs.create` is not recommended, as your job will always start
+in `us-central1`.
+
       Args:
         request: (DataflowProjectsLocationsJobsCreateRequest) input message
         global_params: (StandardQueryParameters, default: None) global arguments
@@ -593,6 +643,12 @@ class DataflowV1b3(base_api.BaseApiClient):
 
     def Get(self, request, global_params=None):
       r"""Gets the state of the specified Cloud Dataflow job.
+
+To get the state of a job, we recommend using `projects.locations.jobs.get`
+with a [regional endpoint]
+(https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using
+`projects.jobs.get` is not recommended, as you can only get the state of
+jobs that are running in `us-central1`.
 
       Args:
         request: (DataflowProjectsLocationsJobsGetRequest) input message
@@ -620,6 +676,12 @@ class DataflowV1b3(base_api.BaseApiClient):
     def GetMetrics(self, request, global_params=None):
       r"""Request the job status.
 
+To request the status of a job, we recommend using
+`projects.locations.jobs.getMetrics` with a [regional endpoint]
+(https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using
+`projects.jobs.getMetrics` is not recommended, as you can only request the
+status of jobs that are running in `us-central1`.
+
       Args:
         request: (DataflowProjectsLocationsJobsGetMetricsRequest) input message
         global_params: (StandardQueryParameters, default: None) global arguments
@@ -644,7 +706,14 @@ class DataflowV1b3(base_api.BaseApiClient):
     )
 
     def List(self, request, global_params=None):
-      r"""List the jobs of a project in a given region.
+      r"""List the jobs of a project.
+
+To list the jobs of a project in a region, we recommend using
+`projects.locations.jobs.get` with a [regional endpoint]
+(https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). To
+list the all jobs across all regions, use `projects.jobs.aggregated`. Using
+`projects.jobs.list` is not recommended, as you can only get the list of
+jobs that are running in `us-central1`.
 
       Args:
         request: (DataflowProjectsLocationsJobsListRequest) input message
@@ -672,6 +741,12 @@ class DataflowV1b3(base_api.BaseApiClient):
     def Update(self, request, global_params=None):
       r"""Updates the state of an existing Cloud Dataflow job.
 
+To update the state of an existing job, we recommend using
+`projects.locations.jobs.update` with a [regional endpoint]
+(https://cloud.google.com/dataflow/docs/concepts/regional-endpoints). Using
+`projects.jobs.update` is not recommended, as you can only update the state
+of jobs that are running in `us-central1`.
+
       Args:
         request: (DataflowProjectsLocationsJobsUpdateRequest) input message
         global_params: (StandardQueryParameters, default: None) global arguments
@@ -692,6 +767,45 @@ class DataflowV1b3(base_api.BaseApiClient):
         request_field=u'job',
         request_type_name=u'DataflowProjectsLocationsJobsUpdateRequest',
         response_type_name=u'Job',
+        supports_download=False,
+    )
+
+  class ProjectsLocationsSqlService(base_api.BaseApiService):
+    """Service class for the projects_locations_sql resource."""
+
+    _NAME = u'projects_locations_sql'
+
+    def __init__(self, client):
+      super(DataflowV1b3.ProjectsLocationsSqlService, self).__init__(client)
+      self._upload_configs = {
+          }
+
+    def Validate(self, request, global_params=None):
+      r"""Validates a GoogleSQL query for Cloud Dataflow syntax. Will always.
+confirm the given query parses correctly, and if able to look up
+schema information from DataCatalog, will validate that the query
+analyzes properly as well.
+
+      Args:
+        request: (DataflowProjectsLocationsSqlValidateRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (ValidateResponse) The response message.
+      """
+      config = self.GetMethodConfig('Validate')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
+    Validate.method_config = lambda: base_api.ApiMethodInfo(
+        http_method=u'GET',
+        method_id=u'dataflow.projects.locations.sql.validate',
+        ordered_params=[u'projectId', u'location'],
+        path_params=[u'location', u'projectId'],
+        query_params=[u'query'],
+        relative_path=u'v1b3/projects/{projectId}/locations/{location}/sql:validate',
+        request_field='',
+        request_type_name=u'DataflowProjectsLocationsSqlValidateRequest',
+        response_type_name=u'ValidateResponse',
         supports_download=False,
     )
 
@@ -775,7 +889,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         method_id=u'dataflow.projects.locations.templates.launch',
         ordered_params=[u'projectId', u'location'],
         path_params=[u'location', u'projectId'],
-        query_params=[u'gcsPath', u'validateOnly'],
+        query_params=[u'dynamicTemplate_gcsPath', u'dynamicTemplate_stagingLocation', u'gcsPath', u'validateOnly'],
         relative_path=u'v1b3/projects/{projectId}/locations/{location}/templates:launch',
         request_field=u'launchTemplateParameters',
         request_type_name=u'DataflowProjectsLocationsTemplatesLaunchRequest',
@@ -899,7 +1013,7 @@ class DataflowV1b3(base_api.BaseApiClient):
         method_id=u'dataflow.projects.templates.launch',
         ordered_params=[u'projectId'],
         path_params=[u'projectId'],
-        query_params=[u'gcsPath', u'location', u'validateOnly'],
+        query_params=[u'dynamicTemplate_gcsPath', u'dynamicTemplate_stagingLocation', u'gcsPath', u'location', u'validateOnly'],
         relative_path=u'v1b3/projects/{projectId}/templates:launch',
         request_field=u'launchTemplateParameters',
         request_type_name=u'DataflowProjectsTemplatesLaunchRequest',

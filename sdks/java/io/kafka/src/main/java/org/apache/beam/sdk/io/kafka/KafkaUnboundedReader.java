@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -52,10 +54,10 @@ import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Closeables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Closeables;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -86,10 +88,25 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig());
     consumerSpEL.evaluateAssign(consumer, spec.getTopicPartitions());
 
+    SchemaRegistryClient registryClient = null;
+    if (spec.getCSRClientProvider() != null) {
+      registryClient = spec.getCSRClientProvider().getCSRClient();
+    }
+
     try {
-      keyDeserializerInstance = spec.getKeyDeserializer().getDeclaredConstructor().newInstance();
-      valueDeserializerInstance =
-          spec.getValueDeserializer().getDeclaredConstructor().newInstance();
+      if (registryClient != null && spec.getKeyDeserializer().equals(KafkaAvroDeserializer.class)) {
+        keyDeserializerInstance = (Deserializer) new KafkaAvroDeserializer(registryClient);
+      } else {
+        keyDeserializerInstance = spec.getKeyDeserializer().getDeclaredConstructor().newInstance();
+      }
+
+      if (registryClient != null
+          && spec.getValueDeserializer().equals(KafkaAvroDeserializer.class)) {
+        valueDeserializerInstance = (Deserializer) new KafkaAvroDeserializer(registryClient);
+      } else {
+        valueDeserializerInstance =
+            spec.getValueDeserializer().getDeclaredConstructor().newInstance();
+      }
     } catch (InstantiationException
         | IllegalAccessException
         | InvocationTargetException
@@ -208,7 +225,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
                 rawRecord.offset(),
                 consumerSpEL.getRecordTimestamp(rawRecord),
                 consumerSpEL.getRecordTimestampType(rawRecord),
-                ConsumerSpEL.hasHeaders ? rawRecord.headers() : null,
+                ConsumerSpEL.hasHeaders() ? rawRecord.headers() : null,
                 keyDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.key()),
                 valueDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.value()));
 

@@ -26,17 +26,17 @@ import static org.junit.Assert.assertThat;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeData;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
@@ -51,7 +51,6 @@ import org.mockito.MockitoAnnotations;
 public class DirectMetricsTest {
 
   @Mock private CommittedBundle<Object> bundle1;
-  @Mock private CommittedBundle<Object> bundle2;
 
   private static final MetricName NAME1 = MetricName.named("ns1", "name1");
   private static final MetricName NAME2 = MetricName.named("ns1", "name2");
@@ -99,7 +98,7 @@ public class DirectMetricsTest {
             ImmutableList.of(
                 MetricUpdate.create(MetricKey.create("step1", NAME4), GaugeData.create(27L)))));
 
-    MetricQueryResults results = metrics.queryMetrics(MetricsFilter.builder().build());
+    MetricQueryResults results = metrics.allMetrics();
     assertThat(
         results.getCounters(),
         containsInAnyOrder(

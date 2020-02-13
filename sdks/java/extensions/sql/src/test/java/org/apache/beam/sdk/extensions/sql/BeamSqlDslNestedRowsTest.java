@@ -22,7 +22,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
@@ -62,8 +61,7 @@ public class BeamSqlDslNestedRowsTest {
                         .addValues(
                             1, Row.withSchema(nestedSchema).addValues(312, "CC", 313).build())
                         .build())
-                .withSchema(
-                    inputType, SerializableFunctions.identity(), SerializableFunctions.identity()));
+                .withRowSchema(inputType));
 
     PCollection<Row> result =
         input
@@ -106,8 +104,7 @@ public class BeamSqlDslNestedRowsTest {
                         .addValues(
                             1, Row.withSchema(nestedSchema).addValues(312, "CC", 313).build())
                         .build())
-                .withSchema(
-                    inputType, SerializableFunctions.identity(), SerializableFunctions.identity()));
+                .withRowSchema(inputType));
 
     PCollection<Row> result =
         input
@@ -148,8 +145,7 @@ public class BeamSqlDslNestedRowsTest {
                         .addValues(
                             2, Row.withSchema(nestedSchema).addValues(412, "DD", 413).build())
                         .build())
-                .withSchema(
-                    inputType, SerializableFunctions.identity(), SerializableFunctions.identity()));
+                .withRowSchema(inputType));
 
     PCollection<Row> result =
         input
@@ -200,8 +196,7 @@ public class BeamSqlDslNestedRowsTest {
                                 .addValues(412, "DD", 413, Arrays.asList("three", "four"))
                                 .build())
                         .build())
-                .withSchema(
-                    inputType, SerializableFunctions.identity(), SerializableFunctions.identity()));
+                .withRowSchema(inputType));
 
     PCollection<Row> result =
         input
@@ -251,8 +246,7 @@ public class BeamSqlDslNestedRowsTest {
                                 .addValues(412, "DD", 413, Arrays.asList("three", "four"))
                                 .build())
                         .build())
-                .withSchema(
-                    inputType, SerializableFunctions.identity(), SerializableFunctions.identity()));
+                .withRowSchema(inputType));
 
     PCollection<Row> result =
         input

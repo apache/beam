@@ -19,7 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.joda.time.Instant;
 
 /** Some timestamp conversion helpers for working with Windmill. */

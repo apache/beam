@@ -25,7 +25,7 @@ limitations under the License.
 # Contact Us
 
 There are many ways to reach the Beam user and developer communities - use
-whichever one seems best!
+whichever one seems best.
 
 | How to contact us | When to use it |
 | ----------------- | ---------------|
@@ -37,6 +37,8 @@ whichever one seems best!
 | [StackOverflow](http://stackoverflow.com/questions/tagged/apache-beam) | Ask and answer user support questions |
 | [Slack](https://s.apache.org/beam-slack-channel) | Chat with users and developers in the ASF Slack. Note: Please [join the #beam channel](https://s.apache.org/beam-slack-channel) after you [created an account](https://s.apache.org/slack-invite). Please do not ask Beam questions in #general. |
 {:.table}
+
+If you have questions about how to use Apache Beam, we recommend you try out the [user@](https://lists.apache.org/list.html?user@beam.apache.org) mailing list, and [StackOverflow](http://stackoverflow.com/questions/tagged/apache-beam).
 
 [^1]: To subscribe or unsubscribe, a blank email is fine.
 

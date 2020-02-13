@@ -19,6 +19,8 @@
 #
 # For internal use only; no backwards-compatibility guarantees.
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -67,8 +69,8 @@ class AdaptiveThrottler(object):
     all_requests = self._all_requests.sum(now)
     successful_requests = self._successful_requests.sum(now)
     return max(
-        0, (all_requests - self._overload_ratio * successful_requests)
-        / (all_requests + AdaptiveThrottler.MIN_REQUESTS))
+        0, (all_requests - self._overload_ratio * successful_requests) /
+        (all_requests + AdaptiveThrottler.MIN_REQUESTS))
 
   def throttle_request(self, now):
     """Determines whether one RPC attempt should be throttled.

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
@@ -26,8 +26,8 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /** Tracks the current state of a single execution thread. */
 @SuppressFBWarnings(value = "IS2_INCONSISTENT_SYNC", justification = "Intentional for performance.")
@@ -137,6 +137,17 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     this.sampler = sampler;
   }
 
+  /** Reset the execution status. */
+  public void reset() {
+    trackedThread = null;
+    currentState = null;
+    numTransitions = 0;
+    millisSinceLastTransition = 0;
+    transitionsAtLastSample = 0;
+    nextLullReportMs = LULL_REPORT_MS;
+    CURRENT_TRACKERS.entrySet().removeIf(entry -> entry.getValue() == this);
+  }
+
   @VisibleForTesting
   public static ExecutionStateTracker newForTest() {
     return new ExecutionStateTracker(ExecutionStateSampler.newForTest());
@@ -223,27 +234,32 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * Indicates that the execution thread has entered the {@code newState}. Returns a {@link
    * Closeable} that should be called when that state is completed.
    *
-   * <p>This must be the only place where the variable numTransitions is updated, and always called
-   * from the execution thread.
+   * <p>This must be the only place where incTransitions is called, and always called from the
+   * execution thread.
    */
-  @SuppressWarnings("NonAtomicVolatileUpdate")
-  @SuppressFBWarnings(
-      value = "VO_VOLATILE_INCREMENT",
-      justification = "Intentional for performance.")
   public Closeable enterState(ExecutionState newState) {
     // WARNING: This method is called in the hottest path, and must be kept as efficient as
     // possible. Avoid blocking, synchronizing, etc.
     final ExecutionState previous = currentState;
     currentState = newState;
     newState.onActivate(true);
-    numTransitions++;
+    incTransitions();
     return () -> {
       currentState = previous;
-      numTransitions++;
+      incTransitions();
       if (previous != null) {
         previous.onActivate(false);
       }
     };
+  }
+
+  @SuppressWarnings("NonAtomicVolatileUpdate")
+  // Helper method necessary due to https://github.com/spotbugs/spotbugs/issues/724
+  @SuppressFBWarnings(
+      value = "VO_VOLATILE_INCREMENT",
+      justification = "Intentional for performance.")
+  private void incTransitions() {
+    numTransitions++;
   }
 
   /** Return the number of transitions that have been observed by this state tracker. */
@@ -254,6 +270,16 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   /** Return the time since the last transition. */
   public long getMillisSinceLastTransition() {
     return millisSinceLastTransition;
+  }
+
+  /** Return the number of transitions since the last sample. */
+  public long getTransitionsAtLastSample() {
+    return transitionsAtLastSample;
+  }
+
+  /** Return the time of the next lull report. */
+  public long getNextLullReportMs() {
+    return nextLullReportMs;
   }
 
   protected void takeSample(long millisSinceLastSample) {

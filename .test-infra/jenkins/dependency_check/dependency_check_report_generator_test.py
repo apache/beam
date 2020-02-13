@@ -23,7 +23,7 @@ from __future__ import print_function
 import unittest, mock
 from mock import patch, mock_open
 from datetime import datetime
-from dependency_check_report_generator import prioritize_dependencies
+from .dependency_check_report_generator import prioritize_dependencies
 
 
 _PROJECT_ID = 'mock-apache-beam-testing'
@@ -70,7 +70,7 @@ class DependencyCheckReportGeneratorTest(unittest.TestCase):
     Test on empty outdated dependencies.
     Expect: empty report
     """
-    with patch('__builtin__.open', mock_open(read_data=_MOCKED_OWNERS_FILE)):
+    with patch('builtins.open', mock_open(read_data=_MOCKED_OWNERS_FILE)):
       report = prioritize_dependencies([], _SDK_TYPE)
       self.assertEqual(len(report), 0)
 
@@ -95,7 +95,7 @@ class DependencyCheckReportGeneratorTest(unittest.TestCase):
       " - group3:artifact3 [1.0.0 -> 1.1.0]",
       " - group4:artifact4 [1.0.0 -> 1.1.0]"
     ]
-    with patch('__builtin__.open', mock_open(read_data=_MOCKED_OWNERS_FILE)):
+    with patch('builtins.open', mock_open(read_data=_MOCKED_OWNERS_FILE)):
       report = prioritize_dependencies(deps, _SDK_TYPE)
       self.assertEqual(len(report), 3)
       self.assertIn('group1:artifact1', report[0])
@@ -114,7 +114,7 @@ class DependencyCheckReportGeneratorTest(unittest.TestCase):
     Expect: group1:artifact1
     """
     deps = [" - group1:artifact1 [Release1-123 -> Release2-456]"]
-    with patch('__builtin__.open', mock_open(read_data=_MOCKED_OWNERS_FILE)):
+    with patch('builtins.open', mock_open(read_data=_MOCKED_OWNERS_FILE)):
       report = prioritize_dependencies(deps, _SDK_TYPE)
       self.assertEqual(len(report), 1)
       self.assertIn('group1:artifact1', report[0])
@@ -131,7 +131,7 @@ class DependencyCheckReportGeneratorTest(unittest.TestCase):
     Expect: group1:artifact1
     """
     deps = [" - group1:artifact1 [0.rc1.0 -> 0.rc2.0]"]
-    with patch('__builtin__.open', mock_open(read_data=_MOCKED_OWNERS_FILE)):
+    with patch('builtins.open', mock_open(read_data=_MOCKED_OWNERS_FILE)):
       report = prioritize_dependencies(deps, _SDK_TYPE)
       self.assertEqual(len(report), 1)
       self.assertIn('group1:artifact1', report[0])
@@ -150,7 +150,7 @@ class DependencyCheckReportGeneratorTest(unittest.TestCase):
       "- group1:artifact1 (1.0.0, 2.0.0)",
       " - group2:artifact2 [1.0.0 -> 2.0.0]"
     ]
-    with patch('__builtin__.open', mock_open(read_data=_MOCKED_OWNERS_FILE)):
+    with patch('builtins.open', mock_open(read_data=_MOCKED_OWNERS_FILE)):
       report = prioritize_dependencies(deps, _SDK_TYPE)
       self.assertEqual(len(report), 1)
       self.assertIn('group2:artifact2', report[0])

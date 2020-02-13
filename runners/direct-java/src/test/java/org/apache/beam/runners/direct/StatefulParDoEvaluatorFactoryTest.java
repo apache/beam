@@ -21,8 +21,8 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Matchers.anyList;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,7 +42,9 @@ import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.direct.ParDoMultiOverrideFactory.StatefulParDo;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
+import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.runners.local.StructuralKey;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -51,12 +53,17 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -65,10 +72,12 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -95,6 +104,11 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
   private final transient PipelineOptions options = PipelineOptionsFactory.create();
   private final transient StateInternals stateInternals =
       CopyOnAccessInMemoryStateInternals.<Object>withUnderlying(KEY, null);
+  private final transient DirectTimerInternals timerInternals =
+      DirectTimerInternals.create(
+          MockClock.fromInstant(Instant.now()),
+          Mockito.mock(TransformWatermarks.class),
+          TimerUpdate.builder(StructuralKey.of(KEY, StringUtf8Coder.of())));
 
   private static final BundleFactory BUNDLE_FACTORY = ImmutableListBundleFactory.create();
 
@@ -102,10 +116,12 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
   public transient TestPipeline pipeline =
       TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
+  @SuppressWarnings("unchecked")
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
     when((StateInternals) mockStepContext.stateInternals()).thenReturn(stateInternals);
+    when(mockStepContext.timerInternals()).thenReturn(timerInternals);
     when(mockEvaluationContext.createSideInputReader(anyList()))
         .thenReturn(
             SideInputContainer.create(mockEvaluationContext, Collections.emptyList())
@@ -126,23 +142,29 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
             .apply(Window.into(FixedWindows.of(Duration.millis(10))));
 
     TupleTag<Integer> mainOutput = new TupleTag<>();
-    PCollection<Integer> produced =
-        input
-            .apply(
-                new ParDoMultiOverrideFactory.GbkThenStatefulParDo<>(
-                    new DoFn<KV<String, Integer>, Integer>() {
-                      @StateId(stateId)
-                      private final StateSpec<ValueState<String>> spec =
-                          StateSpecs.value(StringUtf8Coder.of());
+    final ParDoMultiOverrideFactory.GbkThenStatefulParDo<String, Integer, Integer>
+        gbkThenStatefulParDo;
+    gbkThenStatefulParDo =
+        new ParDoMultiOverrideFactory.GbkThenStatefulParDo<>(
+            new DoFn<KV<String, Integer>, Integer>() {
+              @StateId(stateId)
+              private final StateSpec<ValueState<String>> spec =
+                  StateSpecs.value(StringUtf8Coder.of());
 
-                      @ProcessElement
-                      public void process(ProcessContext c) {}
-                    },
-                    mainOutput,
-                    TupleTagList.empty(),
-                    Collections.emptyList()))
-            .get(mainOutput)
-            .setCoder(VarIntCoder.of());
+              @ProcessElement
+              public void process(ProcessContext c) {}
+            },
+            mainOutput,
+            TupleTagList.empty(),
+            Collections.emptyList(),
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
+
+    final PCollection<KeyedWorkItem<String, KV<String, Integer>>> grouped =
+        gbkThenStatefulParDo.groupToKeyedWorkItem(input);
+
+    PCollection<Integer> produced =
+        gbkThenStatefulParDo.applyStatefulParDo(grouped).get(mainOutput).setCoder(VarIntCoder.of());
 
     StatefulParDoEvaluatorFactory<String, Integer, Integer> factory =
         new StatefulParDoEvaluatorFactory<>(mockEvaluationContext, options);
@@ -157,7 +179,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
     when(mockEvaluationContext.getExecutionContext(
             eq(producingTransform), Mockito.<StructuralKey>any()))
         .thenReturn(mockExecutionContext);
-    when(mockExecutionContext.getStepContext(anyString())).thenReturn(mockStepContext);
+    when(mockExecutionContext.getStepContext(any())).thenReturn(mockStepContext);
 
     IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(9));
     IntervalWindow secondWindow = new IntervalWindow(new Instant(10), new Instant(19));
@@ -177,15 +199,35 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
     // A single bundle with some elements in the global window; it should register cleanup for the
     // global window state merely by having the evaluator created. The cleanup logic does not
     // depend on the window.
-    CommittedBundle<KV<String, Integer>> inputBundle =
+    CommittedBundle<KeyedWorkItem<String, KV<String, Integer>>> inputBundle =
         BUNDLE_FACTORY
-            .createBundle(input)
+            .createBundle(grouped)
             .add(
                 WindowedValue.of(
-                    KV.of("hello", 1), new Instant(3), firstWindow, PaneInfo.NO_FIRING))
+                    KeyedWorkItems.<String, KV<String, Integer>>elementsWorkItem(
+                        "hello",
+                        Collections.singleton(
+                            WindowedValue.of(
+                                KV.of("hello", 1),
+                                new Instant(3),
+                                firstWindow,
+                                PaneInfo.NO_FIRING))),
+                    new Instant(3),
+                    firstWindow,
+                    PaneInfo.NO_FIRING))
             .add(
                 WindowedValue.of(
-                    KV.of("hello", 2), new Instant(11), secondWindow, PaneInfo.NO_FIRING))
+                    KeyedWorkItems.<String, KV<String, Integer>>elementsWorkItem(
+                        "hello",
+                        Collections.singleton(
+                            WindowedValue.of(
+                                KV.of("hello", 2),
+                                new Instant(11),
+                                secondWindow,
+                                PaneInfo.NO_FIRING))),
+                    new Instant(11),
+                    secondWindow,
+                    PaneInfo.NO_FIRING))
             .commit(Instant.now());
 
     // Merely creating the evaluator should suffice to register the cleanup callback
@@ -248,7 +290,9 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
                     },
                     mainOutput,
                     TupleTagList.empty(),
-                    Collections.singletonList(sideInput)))
+                    Collections.singletonList(sideInput),
+                    DoFnSchemaInformation.create(),
+                    Collections.emptyMap()))
             .get(mainOutput)
             .setCoder(VarIntCoder.of());
 
@@ -266,7 +310,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
     when(mockEvaluationContext.getExecutionContext(
             eq(producingTransform), Mockito.<StructuralKey>any()))
         .thenReturn(mockExecutionContext);
-    when(mockExecutionContext.getStepContext(anyString())).thenReturn(mockStepContext);
+    when(mockExecutionContext.getStepContext(any())).thenReturn(mockStepContext);
     when(mockEvaluationContext.createBundle(Matchers.<PCollection<Integer>>any()))
         .thenReturn(mockUncommittedBundle);
     when(mockStepContext.getTimerUpdate()).thenReturn(TimerUpdate.empty());
@@ -326,5 +370,79 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
       }
     }
     assertThat(pushedBackInts, containsInAnyOrder(1, 13, 15));
+  }
+
+  @Test
+  public void testRequiresTimeSortedInput() {
+    Instant now = Instant.ofEpochMilli(0);
+    PCollection<KV<String, Integer>> input =
+        pipeline.apply(
+            Create.timestamped(
+                TimestampedValue.of(KV.of("", 1), now.plus(2)),
+                TimestampedValue.of(KV.of("", 2), now.plus(1)),
+                TimestampedValue.of(KV.of("", 3), now)));
+    PCollection<String> result = input.apply(ParDo.of(statefulConcat()));
+    PAssert.that(result).containsInAnyOrder("3", "3:2", "3:2:1");
+    pipeline.run();
+  }
+
+  @Test
+  public void testRequiresTimeSortedInputWithLateData() {
+    Instant now = Instant.ofEpochMilli(0);
+    PCollection<KV<String, Integer>> input =
+        pipeline.apply(
+            TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+                .addElements(TimestampedValue.of(KV.of("", 1), now.plus(2)))
+                .addElements(TimestampedValue.of(KV.of("", 2), now.plus(1)))
+                .advanceWatermarkTo(now.plus(1))
+                .addElements(TimestampedValue.of(KV.of("", 3), now))
+                .advanceWatermarkToInfinity());
+    PCollection<String> result = input.apply(ParDo.of(statefulConcat()));
+    PAssert.that(result).containsInAnyOrder("2", "2:1");
+    pipeline.run();
+  }
+
+  @Test
+  public void testRequiresTimeSortedInputWithLateDataAndAllowedLateness() {
+    Instant now = Instant.ofEpochMilli(0);
+    PCollection<KV<String, Integer>> input =
+        pipeline
+            .apply(
+                TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+                    .addElements(TimestampedValue.of(KV.of("", 1), now.plus(2)))
+                    .addElements(TimestampedValue.of(KV.of("", 2), now.plus(1)))
+                    .advanceWatermarkTo(now.plus(1))
+                    .addElements(TimestampedValue.of(KV.of("", 3), now))
+                    .advanceWatermarkToInfinity())
+            .apply(
+                Window.<KV<String, Integer>>into(new GlobalWindows())
+                    .withAllowedLateness(Duration.millis(2)));
+    PCollection<String> result = input.apply(ParDo.of(statefulConcat()));
+    PAssert.that(result).containsInAnyOrder("3", "3:2", "3:2:1");
+    pipeline.run();
+  }
+
+  private static DoFn<KV<String, Integer>, String> statefulConcat() {
+
+    final String stateId = "sum";
+
+    return new DoFn<KV<String, Integer>, String>() {
+
+      @StateId(stateId)
+      final StateSpec<ValueState<String>> stateSpec = StateSpecs.value();
+
+      @ProcessElement
+      @RequiresTimeSortedInput
+      public void processElement(
+          ProcessContext context, @StateId(stateId) ValueState<String> state) {
+        String current = MoreObjects.firstNonNull(state.read(), "");
+        if (!current.isEmpty()) {
+          current += ":";
+        }
+        current += context.element().getValue();
+        context.output(current);
+        state.write(current);
+      }
+    };
   }
 }

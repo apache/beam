@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.Clock;
 import java.io.IOException;
@@ -71,9 +71,9 @@ import org.apache.beam.sdk.util.BucketingFunction;
 import org.apache.beam.sdk.util.MovingFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -727,18 +727,18 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       // Capture the received messages.
       for (PubsubClient.IncomingMessage incomingMessage : receivedMessages) {
         notYetRead.add(incomingMessage);
-        notYetReadBytes += incomingMessage.elementBytes.length;
+        notYetReadBytes += incomingMessage.message().getData().size();
         inFlight.put(
-            incomingMessage.ackId,
+            incomingMessage.ackId(),
             new InFlightState(requestTimeMsSinceEpoch, deadlineMsSinceEpoch));
         numReceived++;
         numReceivedRecently.add(requestTimeMsSinceEpoch, 1L);
         minReceivedTimestampMsSinceEpoch.add(
-            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch);
+            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch());
         maxReceivedTimestampMsSinceEpoch.add(
-            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch);
+            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch());
         minUnreadTimestampMsSinceEpoch.add(
-            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch);
+            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch());
       }
     }
 
@@ -826,9 +826,9 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     }
 
     /**
-     * BLOCKING Return {@literal true} if a Pubsub messaage is available, {@literal false} if none
-     * is available at this time or we are over-subscribed. May BLOCK while extending ACKs or
-     * fetching available messages. Will not block waiting for messages.
+     * BLOCKING Return {@literal true} if a Pubsub message is available, {@literal false} if none is
+     * available at this time or we are over-subscribed. May BLOCK while extending ACKs or fetching
+     * available messages. Will not block waiting for messages.
      */
     @Override
     public boolean advance() throws IOException {
@@ -837,7 +837,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
       if (current != null) {
         // Current is consumed. It can no longer contribute to holding back the watermark.
-        minUnreadTimestampMsSinceEpoch.remove(current.requestTimeMsSinceEpoch);
+        minUnreadTimestampMsSinceEpoch.remove(current.requestTimeMsSinceEpoch());
         current = null;
       }
 
@@ -864,18 +864,18 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         // Try again later.
         return false;
       }
-      notYetReadBytes -= current.elementBytes.length;
+      notYetReadBytes -= current.message().getData().size();
       checkState(notYetReadBytes >= 0);
       long nowMsSinceEpoch = now();
-      numReadBytes.add(nowMsSinceEpoch, current.elementBytes.length);
-      minReadTimestampMsSinceEpoch.add(nowMsSinceEpoch, current.timestampMsSinceEpoch);
-      if (current.timestampMsSinceEpoch < lastWatermarkMsSinceEpoch) {
+      numReadBytes.add(nowMsSinceEpoch, current.message().getData().size());
+      minReadTimestampMsSinceEpoch.add(nowMsSinceEpoch, current.timestampMsSinceEpoch());
+      if (current.timestampMsSinceEpoch() < lastWatermarkMsSinceEpoch) {
         numLateMessages.add(nowMsSinceEpoch, 1L);
       }
 
       // Current message can be considered 'read' and will be persisted by the next
       // checkpoint. So it is now safe to ACK back to Pubsub.
-      safeToAckIds.add(current.ackId);
+      safeToAckIds.add(current.ackId());
       return true;
     }
 
@@ -884,7 +884,10 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       if (current == null) {
         throw new NoSuchElementException();
       }
-      return new PubsubMessage(current.elementBytes, current.attributes);
+      return new PubsubMessage(
+          current.message().getData().toByteArray(),
+          current.message().getAttributesMap(),
+          current.recordId());
     }
 
     @Override
@@ -892,7 +895,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       if (current == null) {
         throw new NoSuchElementException();
       }
-      return new Instant(current.timestampMsSinceEpoch);
+      return new Instant(current.timestampMsSinceEpoch());
     }
 
     @Override
@@ -900,7 +903,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       if (current == null) {
         throw new NoSuchElementException();
       }
-      return current.recordId.getBytes(StandardCharsets.UTF_8);
+      return current.recordId().getBytes(StandardCharsets.UTF_8);
     }
 
     /**
@@ -984,7 +987,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       List<String> snapshotSafeToAckIds = Lists.newArrayList(safeToAckIds);
       List<String> snapshotNotYetReadIds = new ArrayList<>(notYetRead.size());
       for (PubsubClient.IncomingMessage incomingMessage : notYetRead) {
-        snapshotNotYetReadIds.add(incomingMessage.ackId);
+        snapshotNotYetReadIds.add(incomingMessage.ackId());
       }
       if (outer.subscriptionPath == null) {
         // need to include the subscription in case we resume, as it's not stored in the source.
@@ -1083,9 +1086,15 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
     @Override
     public Coder<PubsubMessage> getOutputCoder() {
-      return outer.getNeedsAttributes()
-          ? PubsubMessageWithAttributesCoder.of()
-          : PubsubMessagePayloadOnlyCoder.of();
+      if (outer.getNeedsMessageId()) {
+        return outer.getNeedsAttributes()
+            ? PubsubMessageWithAttributesAndMessageIdCoder.of()
+            : PubsubMessageWithMessageIdCoder.of();
+      } else {
+        return outer.getNeedsAttributes()
+            ? PubsubMessageWithAttributesCoder.of()
+            : PubsubMessagePayloadOnlyCoder.of();
+      }
     }
 
     @Override
@@ -1188,6 +1197,9 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   /** Whether this source should load the attributes of the PubsubMessage, or only the payload. */
   private final boolean needsAttributes;
 
+  /** Whether this source should include the messageId from PubSub. */
+  private final boolean needsMessageId;
+
   @VisibleForTesting
   PubsubUnboundedSource(
       Clock clock,
@@ -1197,7 +1209,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       @Nullable ValueProvider<SubscriptionPath> subscription,
       @Nullable String timestampAttribute,
       @Nullable String idAttribute,
-      boolean needsAttributes) {
+      boolean needsAttributes,
+      boolean needsMessageId) {
     checkArgument(
         (topic == null) != (subscription == null),
         "Exactly one of topic and subscription must be given");
@@ -1209,6 +1222,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     this.timestampAttribute = timestampAttribute;
     this.idAttribute = idAttribute;
     this.needsAttributes = needsAttributes;
+    this.needsMessageId = needsMessageId;
   }
 
   /** Construct an unbounded source to consume from the Pubsub {@code subscription}. */
@@ -1228,7 +1242,52 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         subscription,
         timestampAttribute,
         idAttribute,
-        needsAttributes);
+        needsAttributes,
+        false);
+  }
+
+  /** Construct an unbounded source to consume from the Pubsub {@code subscription}. */
+  public PubsubUnboundedSource(
+      Clock clock,
+      PubsubClientFactory pubsubFactory,
+      @Nullable ValueProvider<ProjectPath> project,
+      @Nullable ValueProvider<TopicPath> topic,
+      @Nullable ValueProvider<SubscriptionPath> subscription,
+      @Nullable String timestampAttribute,
+      @Nullable String idAttribute,
+      boolean needsAttributes) {
+    this(
+        clock,
+        pubsubFactory,
+        project,
+        topic,
+        subscription,
+        timestampAttribute,
+        idAttribute,
+        needsAttributes,
+        false);
+  }
+
+  /** Construct an unbounded source to consume from the Pubsub {@code subscription}. */
+  public PubsubUnboundedSource(
+      PubsubClientFactory pubsubFactory,
+      @Nullable ValueProvider<ProjectPath> project,
+      @Nullable ValueProvider<TopicPath> topic,
+      @Nullable ValueProvider<SubscriptionPath> subscription,
+      @Nullable String timestampAttribute,
+      @Nullable String idAttribute,
+      boolean needsAttributes,
+      boolean needsMessageId) {
+    this(
+        null,
+        pubsubFactory,
+        project,
+        topic,
+        subscription,
+        timestampAttribute,
+        idAttribute,
+        needsAttributes,
+        needsMessageId);
   }
 
   /** Get the project path. */
@@ -1275,6 +1334,10 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
   public boolean getNeedsAttributes() {
     return needsAttributes;
+  }
+
+  public boolean getNeedsMessageId() {
+    return needsMessageId;
   }
 
   @Override

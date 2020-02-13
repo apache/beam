@@ -28,16 +28,16 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsPathValidator;
 import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.InstanceBuilder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 /** Options used to configure Google Cloud Storage. */
 public interface GcsOptions extends ApplicationNameOptions, GcpOptions, PipelineOptions {
@@ -128,6 +128,13 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   Boolean getGcsPerformanceMetrics();
 
   void setGcsPerformanceMetrics(Boolean reportPerformanceMetrics);
+
+  /** If true, uses gRPC as the transport. */
+  @Description("Whether to use gRPC or not, as transport mechanism.")
+  @Default.Boolean(false)
+  Boolean getUseGrpcForGcs();
+
+  void setUseGrpcForGcs(Boolean useGrpc);
 
   /**
    * Returns the default {@link ExecutorService} to use within the Apache Beam SDK. The {@link

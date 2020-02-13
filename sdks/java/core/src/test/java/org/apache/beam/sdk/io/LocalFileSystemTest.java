@@ -34,17 +34,19 @@ import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.MimeTypes;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.FluentIterable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.LineReader;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.LineReader;
 import org.apache.commons.lang3.SystemUtils;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -183,6 +185,47 @@ public class LocalFileSystemTest {
   }
 
   @Test
+  public void testMatchWithGlob() throws Exception {
+    String globPattern = "/A/a=[0-9][0-9][0-9]/*/*";
+    File baseFolder = temporaryFolder.newFolder("A");
+    File folder1 = new File(baseFolder, "a=100");
+    File folder2 = new File(baseFolder, "a=233");
+    File dataFolder1 = new File(folder1, "data1");
+    File dataFolder2 = new File(folder2, "data_dir");
+    File expectedFile1 = new File(dataFolder1, "file1");
+    File expectedFile2 = new File(dataFolder2, "data_file2");
+
+    createEmptyFile(expectedFile1);
+    createEmptyFile(expectedFile2);
+
+    List<String> expected =
+        ImmutableList.of(expectedFile1.getAbsolutePath(), expectedFile2.getAbsolutePath());
+
+    List<MatchResult> matchResults =
+        matchGlobWithPathPrefix(temporaryFolder.getRoot().toPath(), globPattern);
+
+    assertThat(
+        toFilenames(matchResults),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchRelativeWildcardPath() throws Exception {
+    File baseFolder = temporaryFolder.newFolder("A");
+    File expectedFile1 = new File(baseFolder, "file1");
+
+    expectedFile1.createNewFile();
+
+    List<String> expected = ImmutableList.of(expectedFile1.getAbsolutePath());
+
+    System.setProperty("user.dir", temporaryFolder.getRoot().toString());
+    List<MatchResult> matchResults = localFileSystem.match(ImmutableList.of("A/*"));
+    assertThat(
+        toFilenames(matchResults),
+        containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
   public void testMatchExact() throws Exception {
     List<String> expected = ImmutableList.of(temporaryFolder.newFile("a").toString());
     temporaryFolder.newFile("aa");
@@ -194,6 +237,25 @@ public class LocalFileSystemTest {
     assertThat(
         toFilenames(matchResults),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchDirectory() throws Exception {
+    final Path dir = temporaryFolder.newFolder("dir").toPath();
+    final MatchResult matchResult =
+        Iterables.getOnlyElement(localFileSystem.match(Collections.singletonList(dir.toString())));
+    assertThat(
+        matchResult,
+        equalTo(
+            MatchResult.create(
+                MatchResult.Status.OK,
+                ImmutableList.of(
+                    MatchResult.Metadata.builder()
+                        .setResourceId(LocalResourceId.fromPath(dir, true))
+                        .setIsReadSeekEfficient(true)
+                        .setSizeBytes(dir.toFile().length())
+                        .setLastModifiedMillis(dir.toFile().lastModified())
+                        .build()))));
   }
 
   @Test
@@ -400,5 +462,11 @@ public class LocalFileSystemTest {
             })
         .transform(metadata -> ((LocalResourceId) metadata.resourceId()).getPath().toString())
         .toList();
+  }
+
+  private static void createEmptyFile(File file) throws IOException {
+    if (!file.getParentFile().mkdirs() || !file.createNewFile()) {
+      throw new IOException("Failed creating empty file " + file.getAbsolutePath());
+    }
   }
 }

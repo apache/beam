@@ -38,13 +38,12 @@ import org.apache.beam.runners.dataflow.worker.graph.Nodes.ExecutionLocation;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Equivalence;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Graphs;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.ImmutableNetwork;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.NetworkBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Equivalence;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.ImmutableNetwork;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Network;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.NetworkBuilder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -82,9 +81,8 @@ public final class DeduceNodeLocationsFunctionTest {
 
   @Test
   public void testEmptyNetwork() {
-    assertTrue(
-        Graphs.equivalent(
-            createEmptyNetwork(), new DeduceNodeLocationsFunction().apply(createEmptyNetwork())));
+    assertEquals(
+        createEmptyNetwork(), new DeduceNodeLocationsFunction().apply(createEmptyNetwork()));
   }
 
   @Test

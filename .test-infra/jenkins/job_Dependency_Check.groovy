@@ -38,7 +38,7 @@ job('beam_Dependency_Check') {
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':runBeamDependencyCheck')
+      tasks('runBeamDependencyCheck')
       commonJobProperties.setGradleSwitches(delegate)
       switches('-Drevision=release')
     }

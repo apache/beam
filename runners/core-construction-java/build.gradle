@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature()
+applyJavaNature(automaticModuleName: 'org.apache.beam.runners.core.construction')
 
 description = "Apache Beam :: Runners :: Core Construction Java"
 ext.summary = """Beam Runners Core provides utilities to aid runner authors interact with a Pipeline
@@ -33,38 +33,29 @@ test {
 }
 
 dependencies {
-  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
-  shadow project(path: ":beam-model-job-management", configuration: "shadow")
-  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow library.java.vendored_grpc_1_13_1
-  shadow library.java.vendored_guava_20_0
-  shadow library.java.jackson_core
-  shadow library.java.jackson_databind
-  shadow library.java.joda_time
-  shadow library.java.slf4j_api
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.hamcrest_library
-  shadowTest library.java.junit
-  shadowTest library.java.mockito_core
-  shadowTest library.java.jackson_annotations
-  shadowTest library.java.jackson_dataformat_yaml
-  shadowTest project(path: ":beam-model-fn-execution", configuration: "shadow")
+  compile project(path: ":model:pipeline", configuration: "shadow")
+  compile project(path: ":model:job-management", configuration: "shadow")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.vendored_grpc_1_26_0
+  compile library.java.vendored_guava_26_0_jre
+  compile library.java.classgraph
+  compile library.java.jackson_core
+  compile library.java.jackson_databind
+  compile library.java.joda_time
+  compile library.java.slf4j_api
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_library
+  testCompile library.java.junit
+  testCompile library.java.mockito_core
+  testCompile library.java.jackson_annotations
+  testCompile library.java.jackson_dataformat_yaml
+  testCompile project(path: ":model:fn-execution", configuration: "shadow")
+  testCompile project(path: ":sdks:java:core", configuration: "testRuntime")
+  testRuntimeOnly library.java.slf4j_jdk14
 }
 
 task runExpansionService (type: JavaExec) {
-  main = "org.apache.beam.runners.core.construction.ExpansionService"
+  main = "org.apache.beam.runners.core.construction.expansion.ExpansionService"
   classpath = sourceSets.main.runtimeClasspath
   args = [project.findProperty("constructionService.port") ?: "8097"]
-}
-
-task testExpansionService(type: Jar) {
-  dependsOn = [shadowJar, shadowTestJar]
-  manifest {
-    attributes(
-            'Main-Class': 'org.apache.beam.runners.core.construction.TestExpansionService'
-    )
-  }
-  from { configurations.testRuntime.collect { it.isDirectory() ? it : zipTree(it) }}
-  from sourceSets.main.output
-  from sourceSets.test.output
 }

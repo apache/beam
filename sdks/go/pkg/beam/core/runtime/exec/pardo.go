@@ -26,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/errorx"
 )
 
@@ -42,11 +43,16 @@ type ParDo struct {
 	ctx      context.Context
 	inv      *invoker
 
-	side  SideInputReader
+	side  StateReader
 	cache *cacheElm
 
 	status Status
 	err    errorx.GuardedError
+}
+
+// GetPID returns the PTransformID for this ParDo.
+func (n *ParDo) GetPID() string {
+	return n.PID
 }
 
 // cacheElm holds per-window cached information about side input.
@@ -56,13 +62,15 @@ type cacheElm struct {
 	extra     []interface{}
 }
 
+// ID returns the UnitID for this ParDo.
 func (n *ParDo) ID() UnitID {
 	return n.UID
 }
 
+// Up initializes this ParDo and does one-time DoFn setup.
 func (n *ParDo) Up(ctx context.Context) error {
 	if n.status != Initializing {
-		return fmt.Errorf("invalid status for pardo %v: %v, want Initializing", n.UID, n.status)
+		return errors.Errorf("invalid status for pardo %v: %v, want Initializing", n.UID, n.status)
 	}
 	n.status = Up
 	n.inv = newInvoker(n.Fn.ProcessElementFn())
@@ -79,12 +87,13 @@ func (n *ParDo) Up(ctx context.Context) error {
 	return nil
 }
 
+// StartBundle does pre-bundle processing operation for the DoFn.
 func (n *ParDo) StartBundle(ctx context.Context, id string, data DataContext) error {
 	if n.status != Up {
-		return fmt.Errorf("invalid status for pardo %v: %v, want Up", n.UID, n.status)
+		return errors.Errorf("invalid status for pardo %v: %v, want Up", n.UID, n.status)
 	}
 	n.status = Active
-	n.side = data.SideInput
+	n.side = data.State
 	// Allocating contexts all the time is expensive, but we seldom re-write them,
 	// and never accept modified contexts from users, so we will cache them per-bundle
 	// per-unit, to avoid the constant allocation overhead.
@@ -102,9 +111,10 @@ func (n *ParDo) StartBundle(ctx context.Context, id string, data DataContext) er
 	return nil
 }
 
+// ProcessElement processes each parallel element with the DoFn.
 func (n *ParDo) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	if n.status != Active {
-		return fmt.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
+		return errors.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
 	}
 	// If the function observes windows, we must invoke it for each window. The expected fast path
 	// is that either there is a single window or the function doesn't observes windows.
@@ -148,9 +158,12 @@ func mustExplodeWindows(fn *funcx.Fn, elm *FullValue, usesSideInput bool) bool {
 	return explode || usesSideInput
 }
 
+// FinishBundle does post-bundle processing operations for the DoFn.
+// Note: This is not a "FinalizeBundle" operation. Data is not yet durably
+// persisted at this point.
 func (n *ParDo) FinishBundle(ctx context.Context) error {
 	if n.status != Active {
-		return fmt.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
+		return errors.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
 	}
 	n.status = Up
 	n.inv.Reset()
@@ -167,6 +180,7 @@ func (n *ParDo) FinishBundle(ctx context.Context) error {
 	return nil
 }
 
+// Down performs best-effort teardown of DoFn resources. (May not run.)
 func (n *ParDo) Down(ctx context.Context) error {
 	if n.status == Down {
 		return n.err.Error()

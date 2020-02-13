@@ -27,8 +27,8 @@ import java.lang.reflect.ParameterizedType;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 
 /** Utilities for working with Coders. */
 public final class CoderUtils {

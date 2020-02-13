@@ -19,6 +19,7 @@ package org.apache.beam.sdk.runners;
 
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -163,8 +164,8 @@ public class TransformTreeTest {
           }
         });
 
-    assertTrue(visited.equals(EnumSet.allOf(TransformsSeen.class)));
-    assertTrue(left.equals(EnumSet.of(TransformsSeen.SAMPLE)));
+    assertEquals(visited, EnumSet.allOf(TransformsSeen.class));
+    assertEquals(left, EnumSet.of(TransformsSeen.SAMPLE));
   }
 
   @Test(expected = IllegalArgumentException.class)

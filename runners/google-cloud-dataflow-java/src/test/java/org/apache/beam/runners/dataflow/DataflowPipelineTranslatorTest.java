@@ -50,6 +50,8 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
@@ -68,6 +70,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
+import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -84,14 +88,12 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.DoFnInfo;
-import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -99,10 +101,10 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.Assert;
@@ -120,9 +122,9 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
   // A Custom Mockito matcher for an initial Job that checks that all
   // expected fields are set.
-  private static class IsValidCreateRequest extends ArgumentMatcher<Job> {
+  private static class IsValidCreateRequest implements ArgumentMatcher<Job> {
     @Override
-    public boolean matches(Object o) {
+    public boolean matches(Job o) {
       Job job = (Job) o;
       return job.getId() == null
           && job.getProjectId() == null
@@ -730,13 +732,12 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals(SerializableCoder.of(OffsetRange.class), restrictionCoder);
   }
 
-  /** Smoke test to fail fast if translation of a splittable ParDo in streaming breaks. */
+  /** Smoke test to fail fast if translation of a splittable ParDo in FnAPI. */
   @Test
-  public void testStreamingSplittableParDoTranslationFnApi() throws Exception {
+  public void testSplittableParDoTranslationFnApi() throws Exception {
     DataflowPipelineOptions options = buildPipelineOptions();
-    DataflowRunner runner = DataflowRunner.fromOptions(options);
-    options.setStreaming(true);
     options.setExperiments(Arrays.asList("beam_fn_api"));
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
 
     Pipeline pipeline = Pipeline.create(options);
@@ -753,29 +754,29 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     Job job = result.getJob();
 
-    // The job should contain a SplittableParDo.ProcessKeyedElements step, translated as
-    // "SplittableProcessKeyed".
+    // The job should contain a ParDo step, containing a "restriction_encoding".
 
     List<Step> steps = job.getSteps();
-    Step processKeyedStep = null;
+    Step splittableParDo = null;
     for (Step step : steps) {
-      if ("SplittableProcessKeyed".equals(step.getKind())) {
-        assertNull(processKeyedStep);
-        processKeyedStep = step;
+      if ("ParallelDo".equals(step.getKind())
+          && step.getProperties().containsKey(PropertyNames.RESTRICTION_ENCODING)) {
+        assertNull(splittableParDo);
+        splittableParDo = step;
       }
     }
-    assertNotNull(processKeyedStep);
+    assertNotNull(splittableParDo);
 
-    String fn = Structs.getString(processKeyedStep.getProperties(), PropertyNames.SERIALIZED_FN);
+    String fn = Structs.getString(splittableParDo.getProperties(), PropertyNames.SERIALIZED_FN);
 
     Components componentsProto = result.getPipelineProto().getComponents();
     RehydratedComponents components = RehydratedComponents.forComponents(componentsProto);
-    RunnerApi.PTransform spkTransform = componentsProto.getTransformsOrThrow(fn);
+    RunnerApi.PTransform splittableTransform = componentsProto.getTransformsOrThrow(fn);
     assertEquals(
-        PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN, spkTransform.getSpec().getUrn());
-    ParDoPayload payload = ParDoPayload.parseFrom(spkTransform.getSpec().getPayload());
+        PTransformTranslation.PAR_DO_TRANSFORM_URN, splittableTransform.getSpec().getUrn());
+    ParDoPayload payload = ParDoPayload.parseFrom(splittableTransform.getSpec().getPayload());
     assertThat(
-        ParDoTranslation.doFnAndMainOutputTagFromProto(payload.getDoFn()).getDoFn(),
+        ParDoTranslation.doFnWithExecutionInformationFromProto(payload.getDoFn()).getDoFn(),
         instanceOf(TestSplittableFn.class));
     assertThat(
         components.getCoder(payload.getRestrictionCoderId()), instanceOf(SerializableCoder.class));
@@ -787,7 +788,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         CloudObjects.coderFromCloudObject(
             (CloudObject)
                 Structs.getObject(
-                    processKeyedStep.getProperties(), PropertyNames.RESTRICTION_CODER));
+                    splittableParDo.getProperties(), PropertyNames.RESTRICTION_ENCODING));
     assertEquals(SerializableCoder.of(OffsetRange.class), restrictionCoder);
   }
 
@@ -847,6 +848,66 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         Structs.getBoolean(Iterables.getOnlyElement(toIsmRecordOutputs), "use_indexed_format"));
 
     Step collectionToSingletonStep = steps.get(2);
+    assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
+  }
+
+  @Test
+  public void testToSingletonTranslationWithFnApiSideInput() throws Exception {
+    // A "change detector" test that makes sure the translation
+    // of getting a PCollectionView<T> does not change
+    // in bad ways during refactor
+
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setExperiments(Arrays.asList("beam_fn_api"));
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline.apply(Create.of(1)).apply(View.asSingleton());
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    runner.replaceTransforms(pipeline);
+    Job job = translator.translate(pipeline, runner, Collections.emptyList()).getJob();
+    assertAllStepOutputsHaveUniqueIds(job);
+
+    List<Step> steps = job.getSteps();
+    assertEquals(14, steps.size());
+
+    Step collectionToSingletonStep = steps.get(steps.size() - 1);
+    assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
+
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> ctsOutputs =
+        (List<Map<String, Object>>)
+            steps.get(steps.size() - 1).getProperties().get(PropertyNames.OUTPUT_INFO);
+    assertTrue(Structs.getBoolean(Iterables.getOnlyElement(ctsOutputs), "use_indexed_format"));
+  }
+
+  @Test
+  public void testToIterableTranslationWithFnApiSideInput() throws Exception {
+    // A "change detector" test that makes sure the translation
+    // of getting a PCollectionView<Iterable<T>> does not change
+    // in bad ways during refactor
+
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setExperiments(Arrays.asList("beam_fn_api"));
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline.apply(Create.of(1, 2, 3)).apply(View.asIterable());
+
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    runner.replaceTransforms(pipeline);
+    Job job = translator.translate(pipeline, runner, Collections.emptyList()).getJob();
+    assertAllStepOutputsHaveUniqueIds(job);
+
+    List<Step> steps = job.getSteps();
+    assertEquals(10, steps.size());
+
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> ctsOutputs =
+        (List<Map<String, Object>>)
+            steps.get(steps.size() - 1).getProperties().get(PropertyNames.OUTPUT_INFO);
+    assertTrue(Structs.getBoolean(Iterables.getOnlyElement(ctsOutputs), "use_indexed_format"));
+    Step collectionToSingletonStep = steps.get(steps.size() - 1);
     assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
   }
 
@@ -957,6 +1018,34 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals(expectedFn2DisplayData, ImmutableSet.copyOf(fn2displayData));
   }
 
+  /**
+   * Tests that when {@link DataflowPipelineOptions#setWorkerHarnessContainerImage(String)} pipeline
+   * option is set, {@link DataflowRunner} sets that value as the {@link
+   * DockerPayload#getContainerImage()} of the default {@link Environment} used when generating the
+   * model pipeline proto.
+   */
+  @Test
+  public void testSetWorkerHarnessContainerImageInPipelineProto() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    String containerImage = "gcr.io/IMAGE/foo";
+    options.as(DataflowPipelineOptions.class).setWorkerHarnessContainerImage(containerImage);
+
+    JobSpecification specification =
+        DataflowPipelineTranslator.fromOptions(options)
+            .translate(
+                Pipeline.create(options),
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList());
+    RunnerApi.Pipeline pipelineProto = specification.getPipelineProto();
+
+    assertEquals(1, pipelineProto.getComponents().getEnvironmentsCount());
+    Environment defaultEnvironment =
+        Iterables.getOnlyElement(pipelineProto.getComponents().getEnvironmentsMap().values());
+
+    DockerPayload payload = DockerPayload.parseFrom(defaultEnvironment.getPayload());
+    assertEquals(DataflowRunner.getContainerImageForJob(options), payload.getContainerImage());
+  }
+
   private static void assertAllStepOutputsHaveUniqueIds(Job job) throws Exception {
     List<String> outputIds = new ArrayList<>();
     for (Step step : job.getSteps()) {
@@ -975,12 +1064,12 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
   private static class TestSplittableFn extends DoFn<String, Integer> {
     @ProcessElement
-    public void process(ProcessContext c, OffsetRangeTracker tracker) {
+    public void process(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
       // noop
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRange(String element) {
+    public OffsetRange getInitialRange(@Element String element) {
       return null;
     }
   }

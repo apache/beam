@@ -27,7 +27,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // NOTE(herohde) 4/30/2017: The main complication is CoGBK results, which have
@@ -66,8 +66,14 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 	case coder.Bytes:
 		return &bytesEncoder{}
 
+	case coder.Bool:
+		return &boolEncoder{}
+
 	case coder.VarInt:
 		return &varIntEncoder{}
+
+	case coder.Double:
+		return &doubleEncoder{}
 
 	case coder.Custom:
 		return &customEncoder{
@@ -93,8 +99,14 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 	case coder.Bytes:
 		return &bytesDecoder{}
 
+	case coder.Bool:
+		return &boolDecoder{}
+
 	case coder.VarInt:
 		return &varIntDecoder{}
+
+	case coder.Double:
+		return &doubleDecoder{}
 
 	case coder.Custom:
 		return &customDecoder{
@@ -120,11 +132,11 @@ func (*bytesEncoder) Encode(val *FullValue, w io.Writer) error {
 	var data []byte
 	data, ok := val.Elm.([]byte)
 	if !ok {
-		return fmt.Errorf("received unknown value type: want []byte, got %T", val.Elm)
+		return errors.Errorf("received unknown value type: want []byte, got %T", val.Elm)
 	}
 	size := len(data)
 
-	if err := coder.EncodeVarInt((int32)(size), w); err != nil {
+	if err := coder.EncodeVarInt((int64)(size), w); err != nil {
 		return err
 	}
 	_, err := w.Write(data)
@@ -147,25 +159,76 @@ func (*bytesDecoder) Decode(r io.Reader) (*FullValue, error) {
 	return &FullValue{Elm: data}, nil
 }
 
+type boolEncoder struct{}
+
+func (*boolEncoder) Encode(val *FullValue, w io.Writer) error {
+	// Encoding: false = 0, true = 1
+	var err error
+	if val.Elm.(bool) {
+		_, err = ioutilx.WriteUnsafe(w, []byte{1})
+	} else {
+		_, err = ioutilx.WriteUnsafe(w, []byte{0})
+	}
+	if err != nil {
+		return fmt.Errorf("error encoding bool: %v", err)
+	}
+	return nil
+}
+
+type boolDecoder struct{}
+
+func (*boolDecoder) Decode(r io.Reader) (*FullValue, error) {
+	// Encoding: false = 0, true = 1
+	b := make([]byte, 1, 1)
+	if err := ioutilx.ReadNBufUnsafe(r, b); err != nil {
+		if err == io.EOF {
+			return nil, err
+		}
+		return nil, fmt.Errorf("error decoding bool: %v", err)
+	}
+	switch b[0] {
+	case 0:
+		return &FullValue{Elm: false}, nil
+	case 1:
+		return &FullValue{Elm: true}, nil
+	}
+	return nil, fmt.Errorf("error decoding bool: received invalid value %v", b)
+}
+
 type varIntEncoder struct{}
 
 func (*varIntEncoder) Encode(val *FullValue, w io.Writer) error {
 	// Encoding: beam varint
-
-	n := Convert(val.Elm, reflectx.Int32).(int32) // Convert needed?
-	return coder.EncodeVarInt(n, w)
+	return coder.EncodeVarInt(val.Elm.(int64), w)
 }
 
 type varIntDecoder struct{}
 
 func (*varIntDecoder) Decode(r io.Reader) (*FullValue, error) {
 	// Encoding: beam varint
-
 	n, err := coder.DecodeVarInt(r)
 	if err != nil {
 		return nil, err
 	}
 	return &FullValue{Elm: n}, nil
+}
+
+type doubleEncoder struct{}
+
+func (*doubleEncoder) Encode(val *FullValue, w io.Writer) error {
+	// Encoding: beam double (big-endian 64-bit IEEE 754 double)
+	return coder.EncodeDouble(val.Elm.(float64), w)
+}
+
+type doubleDecoder struct{}
+
+func (*doubleDecoder) Decode(r io.Reader) (*FullValue, error) {
+	// Encoding: beam double (big-endian 64-bit IEEE 754 double)
+	f, err := coder.DecodeDouble(r)
+	if err != nil {
+		return nil, err
+	}
+	return &FullValue{Elm: f}, nil
 }
 
 type customEncoder struct {
@@ -184,7 +247,7 @@ func (c *customEncoder) Encode(val *FullValue, w io.Writer) error {
 	// (2) Add length prefix
 
 	size := len(data)
-	if err := coder.EncodeVarInt((int32)(size), w); err != nil {
+	if err := coder.EncodeVarInt((int64)(size), w); err != nil {
 		return err
 	}
 	_, err = w.Write(data)
@@ -232,6 +295,13 @@ type kvDecoder struct {
 	fst, snd ElementDecoder
 }
 
+// Decode returns a *FullValue containing the contents of the decoded KV. If
+// one of the elements of the KV is a nested KV, then the corresponding Elm
+// field in the returned value will be another *FullValue. Otherwise, the
+// Elm will be the decoded type.
+//
+// Example:
+//   KV<int, KV<...>> decodes to *FullValue{Elm: int, Elm2: *FullValue{...}}
 func (c *kvDecoder) Decode(r io.Reader) (*FullValue, error) {
 	key, err := c.fst.Decode(r)
 	if err != nil {
@@ -241,8 +311,20 @@ func (c *kvDecoder) Decode(r io.Reader) (*FullValue, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &FullValue{Elm: key.Elm, Elm2: value.Elm}, nil
+	return &FullValue{Elm: elideSingleElmFV(key), Elm2: elideSingleElmFV(value)}, nil
+}
 
+// elideSingleElmFV elides a FullValue if it has only one element, returning
+// the contents of the first element, but returning the FullValue unchanged
+// if it has two elements.
+//
+// Technically drops window and timestamp info, so only use when those are
+// expected to be empty.
+func elideSingleElmFV(fv *FullValue) interface{} {
+	if fv.Elm2 == nil {
+		return fv.Elm
+	}
+	return fv
 }
 
 // WindowEncoder handles Window serialization to a byte stream. The encoder
@@ -401,6 +483,8 @@ func DecodeWindowedValueHeader(dec WindowDecoder, r io.Reader) ([]typex.Window, 
 func convertIfNeeded(v interface{}) *FullValue {
 	if fv, ok := v.(*FullValue); ok {
 		return fv
+	} else if _, ok := v.(FullValue); ok {
+		panic("Nested FullValues must be nested as pointers.")
 	}
 	return &FullValue{Elm: v}
 }

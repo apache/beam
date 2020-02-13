@@ -41,8 +41,8 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBasedTable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Table;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
 import org.joda.time.Instant;
 
 /** An implementation of {@link StateInternals} for the SparkRunner. */
@@ -223,7 +223,7 @@ class SparkStateInternals<K> implements StateInternals {
 
     private final TimestampCombiner timestampCombiner;
 
-    public SparkWatermarkHoldState(
+    SparkWatermarkHoldState(
         StateNamespace namespace,
         StateTag<WatermarkHoldState> address,
         TimestampCombiner timestampCombiner) {
@@ -297,8 +297,7 @@ class SparkStateInternals<K> implements StateInternals {
 
     @Override
     public void add(InputT input) {
-      AccumT accum = getAccum();
-      combineFn.addInput(accum, input);
+      AccumT accum = combineFn.addInput(getAccum(), input);
       writeValue(accum);
     }
 

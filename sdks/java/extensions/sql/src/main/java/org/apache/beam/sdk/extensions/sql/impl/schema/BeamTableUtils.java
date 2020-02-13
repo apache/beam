@@ -31,7 +31,8 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.util.NlsString;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.NlsString;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
@@ -136,6 +137,10 @@ public final class BeamTableUtils {
         default:
           throw new UnsupportedOperationException(
               String.format("Column type %s is not supported yet!", type));
+      }
+    } else if (type.getTypeName().isPrimitiveType()) {
+      if (TypeName.BYTES.equals(type.getTypeName()) && rawObj instanceof ByteString) {
+        return ((ByteString) rawObj).getBytes();
       }
     }
     return rawObj;

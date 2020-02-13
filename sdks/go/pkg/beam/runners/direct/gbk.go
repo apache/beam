@@ -23,6 +23,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 type group struct {
@@ -65,10 +66,10 @@ func (n *CoGBK) ProcessElement(ctx context.Context, elm *exec.FullValue, _ ...ex
 
 		var buf bytes.Buffer
 		if err := n.enc.Encode(&exec.FullValue{Elm: value.Elm}, &buf); err != nil {
-			return fmt.Errorf("failed to encode key %v for CoGBK: %v", elm, err)
+			return errors.WithContextf(err, "encoding key %v for CoGBK", elm)
 		}
 		if err := n.wEnc.Encode(ws, &buf); err != nil {
-			return fmt.Errorf("failed to encode window %v for CoGBK: %v", w, err)
+			return errors.WithContextf(err, "encoding window %v for CoGBK", w)
 		}
 		key := buf.String()
 

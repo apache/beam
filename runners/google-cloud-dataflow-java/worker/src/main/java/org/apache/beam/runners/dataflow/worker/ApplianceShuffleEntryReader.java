@@ -25,7 +25,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntry;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntryReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShufflePosition;
 import org.apache.beam.sdk.util.common.Reiterator;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 /** An implementation of ShuffleEntryReader that uses ApplianceShuffleReader. */
 public class ApplianceShuffleEntryReader implements ShuffleEntryReader {
@@ -44,9 +44,9 @@ public class ApplianceShuffleEntryReader implements ShuffleEntryReader {
         new ChunkingShuffleBatchReader(executionContext, operationContext, applianceShuffleReader);
 
     if (cache) {
-      // Limit the size of the cache.
-      final int maxBatches = 32;
-      batchReader = new CachingShuffleBatchReader(batchReader, maxBatches);
+      // Limit the size of the cache to ~32 full shuffle batches.
+      final long maxBytes = 128L * 1024 * 1024;
+      batchReader = new CachingShuffleBatchReader(batchReader, maxBytes);
     }
     entryReader = new BatchingShuffleEntryReader(batchReader);
   }

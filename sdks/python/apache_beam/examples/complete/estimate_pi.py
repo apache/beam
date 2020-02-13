@@ -24,6 +24,8 @@ square. A simple area calculation shows that this fraction should be π/4, so
 we multiply our counts ratio by four to estimate π.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -33,14 +35,14 @@ import logging
 import random
 from builtins import object
 from builtins import range
+from typing import Any
+from typing import Iterable
+from typing import Tuple
 
 import apache_beam as beam
 from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.typehints import Any
-from apache_beam.typehints import Iterable
-from apache_beam.typehints import Tuple
 
 
 @beam.typehints.with_output_types(Tuple[int, int, int])
@@ -85,7 +87,6 @@ def combine_results(results):
 
 class JsonCoder(object):
   """A JSON coder used to format the final result."""
-
   def encode(self, x):
     return json.dumps(x)
 
@@ -97,19 +98,19 @@ class EstimatePiTransform(beam.PTransform):
 
   def expand(self, pcoll):
     # A hundred work items of a hundred thousand tries each.
-    return (pcoll
-            | 'Initialize' >> beam.Create(
-                [self.tries_per_work_item] * 100).with_output_types(int)
-            | 'Run trials' >> beam.Map(run_trials)
-            | 'Sum' >> beam.CombineGlobally(combine_results).without_defaults())
+    return (
+        pcoll
+        | 'Initialize' >> beam.Create(
+            [self.tries_per_work_item] * 100).with_output_types(int)
+        | 'Run trials' >> beam.Map(run_trials)
+        | 'Sum' >> beam.CombineGlobally(combine_results).without_defaults())
 
 
 def run(argv=None):
 
   parser = argparse.ArgumentParser()
-  parser.add_argument('--output',
-                      required=True,
-                      help='Output file to write results to.')
+  parser.add_argument(
+      '--output', required=True, help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
@@ -117,9 +118,10 @@ def run(argv=None):
   pipeline_options.view_as(SetupOptions).save_main_session = True
   with beam.Pipeline(options=pipeline_options) as p:
 
-    (p  # pylint: disable=expression-not-assigned
-     | EstimatePiTransform()
-     | WriteToText(known_args.output, coder=JsonCoder()))
+    (  # pylint: disable=expression-not-assigned
+        p
+        | EstimatePiTransform()
+        | WriteToText(known_args.output, coder=JsonCoder()))
 
 
 if __name__ == '__main__':

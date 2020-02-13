@@ -144,7 +144,7 @@ Starting with the next pipeline example, we'll discuss how you can use Beam's fe
 
 The `HourlyTeamScore` pipeline expands on the basic batch analysis principles used in the `UserScore` pipeline and improves upon some of its limitations. `HourlyTeamScore` performs finer-grained analysis, both by using additional features in the Beam SDKs, and taking into account more aspects of the game data. For example, `HourlyTeamScore` can filter out data that isn't part of the relevant analysis period.
 
-Like `UserScore`, `HourlyTeamScore` is best thought of as a job to be run periodically after all the relevant data has been gathered (such as once per day). The pipeline reads a fixed data set from a file, and writes the results to a Google Cloud BigQuery table.
+Like `UserScore`, `HourlyTeamScore` is best thought of as a job to be run periodically after all the relevant data has been gathered (such as once per day). The pipeline reads a fixed data set from a file, and writes the results <span class="language-java">back to a text file</span><span class="language-py">to a Google Cloud BigQuery table</span>.
 
 {:.language-java}
 > **Note:** See [HourlyTeamScore on GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/game/HourlyTeamScore.java) for the complete example pipeline program.

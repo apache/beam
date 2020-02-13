@@ -25,6 +25,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.apache.beam.model.jobmanagement.v1.JobApi;
+import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.sdk.Pipeline;
@@ -35,13 +37,15 @@ import org.apache.spark.SparkException;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Represents a Spark pipeline execution result. */
 public abstract class SparkPipelineResult implements PipelineResult {
 
-  protected final Future pipelineExecution;
-  protected JavaSparkContext javaSparkContext;
-  protected PipelineResult.State state;
+  final Future pipelineExecution;
+  final JavaSparkContext javaSparkContext;
+  PipelineResult.State state;
 
   SparkPipelineResult(final Future<?> pipelineExecution, final JavaSparkContext javaSparkContext) {
     this.pipelineExecution = pipelineExecution;
@@ -83,7 +87,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
 
   @Override
   public PipelineResult.State waitUntilFinish() {
-    return waitUntilFinish(Duration.millis(Long.MAX_VALUE));
+    return waitUntilFinish(Duration.millis(-1));
   }
 
   @Override
@@ -133,8 +137,28 @@ public abstract class SparkPipelineResult implements PipelineResult {
     @Override
     protected State awaitTermination(final Duration duration)
         throws TimeoutException, ExecutionException, InterruptedException {
-      pipelineExecution.get(duration.getMillis(), TimeUnit.MILLISECONDS);
+      if (duration.getMillis() > 0) {
+        pipelineExecution.get(duration.getMillis(), TimeUnit.MILLISECONDS);
+      } else {
+        pipelineExecution.get();
+      }
       return PipelineResult.State.DONE;
+    }
+  }
+
+  static class PortableBatchMode extends BatchMode implements PortablePipelineResult {
+
+    private static final Logger LOG = LoggerFactory.getLogger(BatchMode.class);
+
+    PortableBatchMode(Future<?> pipelineExecution, JavaSparkContext javaSparkContext) {
+      super(pipelineExecution, javaSparkContext);
+    }
+
+    @Override
+    public JobApi.MetricResults portableMetrics() {
+      return JobApi.MetricResults.newBuilder()
+          .addAllAttempted(MetricsAccumulator.getInstance().value().getMonitoringInfos())
+          .build();
     }
   }
 

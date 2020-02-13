@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.apex.translation.operators;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.datatorrent.api.Context.OperatorContext;
 import com.datatorrent.api.DefaultInputPort;
@@ -70,6 +70,7 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -85,8 +86,9 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -114,7 +116,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
   private final WindowingStrategy<?, ?> windowingStrategy;
 
   @Bind(JavaSerializer.class)
-  private final List<PCollectionView<?>> sideInputs;
+  private final Iterable<PCollectionView<?>> sideInputs;
 
   @Bind(JavaSerializer.class)
   private final Coder<WindowedValue<InputT>> windowedInputCoder;
@@ -125,11 +127,18 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
   @Bind(JavaSerializer.class)
   private final Map<TupleTag<?>, Coder<?>> outputCoders;
 
+  @Bind(JavaSerializer.class)
+  private final DoFnSchemaInformation doFnSchemaInformation;
+
+  @Bind(JavaSerializer.class)
+  private final Map<String, PCollectionView<?>> sideInputMapping;
+
   private StateInternalsProxy<?> currentKeyStateInternals;
   private final ApexTimerInternals<Object> currentKeyTimerInternals;
 
   private final StateInternals sideInputStateInternals;
   private final ValueAndCoderKryoSerializable<List<WindowedValue<InputT>>> pushedBack;
+
   private LongMin pushedBackWatermark = new LongMin();
   private long currentInputWatermark = Long.MIN_VALUE;
   private long currentOutputWatermark = currentInputWatermark;
@@ -140,15 +149,18 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
       additionalOutputPortMapping = Maps.newHashMapWithExpectedSize(5);
   private transient DoFnInvoker<InputT, OutputT> doFnInvoker;
 
+  /** Constructor. */
   public ApexParDoOperator(
       ApexPipelineOptions pipelineOptions,
       DoFn<InputT, OutputT> doFn,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       WindowingStrategy<?, ?> windowingStrategy,
-      List<PCollectionView<?>> sideInputs,
+      Iterable<PCollectionView<?>> sideInputs,
       Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping,
       ApexStateBackend stateBackend) {
     this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
     this.doFn = doFn;
@@ -175,9 +187,11 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
     this.inputCoder = inputCoder;
     this.outputCoders = outputCoders;
 
-    TimerInternals.TimerDataCoder timerCoder =
-        TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
+    TimerInternals.TimerDataCoderV2 timerCoder =
+        TimerInternals.TimerDataCoderV2.of(windowingStrategy.getWindowFn().windowCoder());
     this.currentKeyTimerInternals = new ApexTimerInternals<>(timerCoder);
+    this.doFnSchemaInformation = doFnSchemaInformation;
+    this.sideInputMapping = sideInputMapping;
 
     if (doFn instanceof ProcessFn) {
       // we know that it is keyed on byte[]
@@ -210,6 +224,8 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
     this.inputCoder = null;
     this.outputCoders = Collections.emptyMap();
     this.currentKeyTimerInternals = null;
+    this.doFnSchemaInformation = null;
+    this.sideInputMapping = null;
   }
 
   public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>> input =
@@ -251,7 +267,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
             LOG.debug("\nsideInput {} {}\n", sideInputIndex, t.getValue());
           }
 
-          PCollectionView<?> sideInput = sideInputs.get(sideInputIndex);
+          PCollectionView<?> sideInput = Iterables.get(sideInputs, sideInputIndex);
           sideInputHandler.addSideInputValue(sideInput, t.getValue());
 
           List<WindowedValue<InputT>> newPushedBack = new ArrayList<>();
@@ -368,7 +384,12 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
       checkArgument(namespace instanceof WindowNamespace);
       BoundedWindow window = ((WindowNamespace<?>) namespace).getWindow();
       pushbackDoFnRunner.onTimer(
-          timerData.getTimerId(), window, timerData.getTimestamp(), timerData.getDomain());
+          timerData.getTimerId(),
+          timerData.getTimerFamilyId(),
+          window,
+          timerData.getTimestamp(),
+          timerData.getOutputTimestamp(),
+          timerData.getDomain());
     }
     pushbackDoFnRunner.finishBundle();
   }
@@ -399,7 +420,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
             currentInputWatermark);
       }
     }
-    if (sideInputs.isEmpty()) {
+    if (Iterables.isEmpty(sideInputs)) {
       outputWatermark(mark);
       return;
     }
@@ -430,8 +451,9 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
         ApexStreamTuple.Logging.isDebugEnabled(
             pipelineOptions.get().as(ApexPipelineOptions.class), this);
     SideInputReader sideInputReader = NullSideInputReader.of(sideInputs);
-    if (!sideInputs.isEmpty()) {
-      sideInputHandler = new SideInputHandler(sideInputs, sideInputStateInternals);
+    if (!Iterables.isEmpty(sideInputs)) {
+      sideInputHandler =
+          new SideInputHandler(Lists.newArrayList(sideInputs), sideInputStateInternals);
       sideInputReader = sideInputHandler;
     }
 
@@ -466,7 +488,9 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
             stepContext,
             inputCoder,
             outputCoders,
-            windowingStrategy);
+            windowingStrategy,
+            doFnSchemaInformation,
+            sideInputMapping);
 
     doFnInvoker = DoFnInvokers.invokerFor(doFn);
     doFnInvoker.invokeSetup();
@@ -487,11 +511,18 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
 
       doFnRunner =
           DoFnRunners.defaultStatefulDoFnRunner(
-              doFn, doFnRunner, windowingStrategy, cleanupTimer, stateCleaner);
+              doFn,
+              inputCoder,
+              doFnRunner,
+              stepContext,
+              windowingStrategy,
+              cleanupTimer,
+              stateCleaner);
     }
 
     pushbackDoFnRunner =
-        SimplePushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
+        SimplePushbackSideInputDoFnRunner.create(
+            doFnRunner, Lists.newArrayList(sideInputs), sideInputHandler);
 
     if (doFn instanceof ProcessFn) {
 

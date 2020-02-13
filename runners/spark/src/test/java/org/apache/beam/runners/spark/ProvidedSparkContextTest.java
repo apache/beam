@@ -30,8 +30,8 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.junit.Test;
 
@@ -47,11 +47,7 @@ public class ProvidedSparkContextTest {
   private static final String PROVIDED_CONTEXT_EXCEPTION =
       "The provided Spark context was not created or was stopped";
 
-  /**
-   * Provide a context and call pipeline run.
-   *
-   * @throws Exception
-   */
+  /** Provide a context and call pipeline run. */
   @Test
   public void testWithProvidedContext() throws Exception {
     JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");
@@ -61,21 +57,13 @@ public class ProvidedSparkContextTest {
     jsc.stop();
   }
 
-  /**
-   * Provide a context and call pipeline run.
-   *
-   * @throws Exception
-   */
+  /** Provide a context and call pipeline run. */
   @Test
   public void testWithNullContext() throws Exception {
     testWithInvalidContext(null);
   }
 
-  /**
-   * A SparkRunner with a stopped provided Spark context cannot run pipelines.
-   *
-   * @throws Exception
-   */
+  /** A SparkRunner with a stopped provided Spark context cannot run pipelines. */
   @Test
   public void testWithStoppedProvidedContext() throws Exception {
     JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");

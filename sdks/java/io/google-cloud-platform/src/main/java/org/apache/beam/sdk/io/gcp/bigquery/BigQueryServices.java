@@ -32,6 +32,8 @@ import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionReques
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamRequest;
+import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamResponse;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
@@ -53,7 +55,7 @@ public interface BigQueryServices extends Serializable {
   StorageClient getStorageClient(BigQueryOptions bqOptions) throws IOException;
 
   /** An interface for the Cloud BigQuery load service. */
-  interface JobService {
+  public interface JobService {
     /** Start a BigQuery load job. */
     void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
         throws InterruptedException, IOException;
@@ -89,7 +91,7 @@ public interface BigQueryServices extends Serializable {
   }
 
   /** An interface to get, create and delete Cloud BigQuery datasets and tables. */
-  interface DatasetService {
+  public interface DatasetService {
     /**
      * Gets the specified {@link Table} resource by table ID.
      *
@@ -156,12 +158,26 @@ public interface BigQueryServices extends Serializable {
         List<ValueInSingleWindow<T>> failedInserts,
         ErrorContainer<T> errorContainer,
         boolean skipInvalidRows,
-        boolean ignoreUnknownValues)
+        boolean ignoreUnknownValues,
+        boolean ignoreInsertIds)
         throws IOException, InterruptedException;
 
     /** Patch BigQuery {@link Table} description. */
     Table patchTableDescription(TableReference tableReference, @Nullable String tableDescription)
         throws IOException, InterruptedException;
+  }
+
+  /**
+   * Container for reading data from streaming endpoints.
+   *
+   * <p>An implementation does not need to be thread-safe.
+   */
+  interface BigQueryServerStream<T> extends Iterable<T>, Serializable {
+    /**
+     * Cancels the stream, releasing any client- and server-side resources. This method may be
+     * called multiple times and from any thread.
+     */
+    void cancel();
   }
 
   /** An interface representing a client object for making calls to the BigQuery Storage API. */
@@ -171,7 +187,9 @@ public interface BigQueryServices extends Serializable {
     ReadSession createReadSession(CreateReadSessionRequest request);
 
     /** Read rows in the context of a specific read stream. */
-    Iterable<ReadRowsResponse> readRows(ReadRowsRequest request);
+    BigQueryServerStream<ReadRowsResponse> readRows(ReadRowsRequest request);
+
+    SplitReadStreamResponse splitReadStream(SplitReadStreamRequest request);
 
     /**
      * Close the client object.

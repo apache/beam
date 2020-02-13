@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-import version_comparer
+from . import version_comparer
 import unittest
 
 class VersionComparerTest(unittest.TestCase):

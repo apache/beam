@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.hadoop.format;
 
+import java.util.Objects;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 
@@ -64,15 +65,10 @@ public class Employee {
 
     Employee employeePojo = (Employee) o;
 
-    if (empName != null ? !empName.equals(employeePojo.empName) : employeePojo.empName != null) {
+    if (!Objects.equals(empName, employeePojo.empName)) {
       return false;
     }
-    if (empAddress != null
-        ? !empAddress.equals(employeePojo.empAddress)
-        : employeePojo.empAddress != null) {
-      return false;
-    }
-    return true;
+    return Objects.equals(empAddress, employeePojo.empAddress);
   }
 
   @Override

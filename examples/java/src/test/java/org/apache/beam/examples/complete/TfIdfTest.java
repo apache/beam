@@ -22,7 +22,6 @@ import java.util.Arrays;
 import org.apache.beam.sdk.coders.StringDelegateCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.Keys;
@@ -30,7 +29,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -42,7 +40,6 @@ public class TfIdfTest {
 
   /** Test that the example runs. */
   @Test
-  @Category(ValidatesRunner.class)
   public void testTfIdf() throws Exception {
 
     pipeline.getCoderRegistry().registerCoderForClass(URI.class, StringDelegateCoder.of(URI.class));

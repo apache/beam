@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk;
 
+import static org.apache.beam.sdk.testing.FileChecksumMatcher.fileContentsHaveChecksum;
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -28,14 +31,13 @@ import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.FileChecksumMatcher;
-import org.apache.beam.sdk.testing.SerializableMatchers;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.FilePatternMatchingShardedFile;
 import org.apache.beam.sdk.values.KV;
@@ -58,7 +60,8 @@ public class RequiresStableInputIT {
   // SHA-1 hash of string "value"
   private static final String VALUE_CHECKSUM = "f32b67c7e26342af42efabc674d441dca0a281c5";
 
-  private static class PairWithRandomKeyFn extends SimpleFunction<String, KV<String, String>> {
+  /** Assigns a random key to a value. */
+  public static class PairWithRandomKeyFn extends SimpleFunction<String, KV<String, String>> {
     @Override
     public KV<String, String> apply(String value) {
       String key = UUID.randomUUID().toString();
@@ -66,11 +69,15 @@ public class RequiresStableInputIT {
     }
   }
 
-  private static class MakeSideEffectAndThenFailFn extends DoFn<KV<String, String>, String> {
+  /** Simulates side effect by writing input to a file. */
+  public static class MakeSideEffectAndThenFailFn extends DoFn<KV<String, String>, String> {
     private final String outputPrefix;
+    private final SerializableFunction<Void, Void> firstTimeCallback;
 
-    private MakeSideEffectAndThenFailFn(String outputPrefix) {
+    public MakeSideEffectAndThenFailFn(
+        String outputPrefix, SerializableFunction<Void, Void> firstTimeCallback) {
       this.outputPrefix = outputPrefix;
+      this.firstTimeCallback = firstTimeCallback;
     }
 
     @RequiresStableInput
@@ -82,13 +89,11 @@ public class RequiresStableInputIT {
       KV<String, String> kv = c.element();
       writeTextToFileSideEffect(kv.getValue(), outputPrefix + kv.getKey());
       if (firstTime) {
-        throw new Exception(
-            "Deliberate failure: should happen only once for each application of the DoFn"
-                + "within the transform graph.");
+        firstTimeCallback.apply(null);
       }
     }
 
-    private static void writeTextToFileSideEffect(String text, String filename) throws IOException {
+    public static void writeTextToFileSideEffect(String text, String filename) throws IOException {
       ResourceId rid = FileSystems.matchNewResource(filename, false);
       WritableByteChannel chan = FileSystems.create(rid, "text/plain");
       chan.write(ByteBuffer.wrap(text.getBytes(StandardCharsets.UTF_8)));
@@ -133,28 +138,36 @@ public class RequiresStableInputIT {
             .resolve("key-", StandardResolveOptions.RESOLVE_FILE)
             .toString();
 
-    options.setOnSuccessMatcher(
-        SerializableMatchers.allOf(
-            new FileChecksumMatcher(
-                VALUE_CHECKSUM, new FilePatternMatchingShardedFile(singleOutputPrefix + "*")),
-            new FileChecksumMatcher(
-                VALUE_CHECKSUM, new FilePatternMatchingShardedFile(multiOutputPrefix + "*"))));
-
     Pipeline p = Pipeline.create(options);
+
+    SerializableFunction<Void, Void> firstTime =
+        (SerializableFunction<Void, Void>)
+            value -> {
+              throw new RuntimeException(
+                  "Deliberate failure: should happen only once for each application of the DoFn"
+                      + "within the transform graph.");
+            };
 
     PCollection<String> singleton = p.apply("CreatePCollectionOfOneValue", Create.of(VALUE));
     singleton
         .apply("Single-PairWithRandomKey", MapElements.via(new PairWithRandomKeyFn()))
         .apply(
             "Single-MakeSideEffectAndThenFail",
-            ParDo.of(new MakeSideEffectAndThenFailFn(singleOutputPrefix)));
+            ParDo.of(new MakeSideEffectAndThenFailFn(singleOutputPrefix, firstTime)));
     singleton
         .apply("Multi-PairWithRandomKey", MapElements.via(new PairWithRandomKeyFn()))
         .apply(
             "Multi-MakeSideEffectAndThenFail",
-            ParDo.of(new MakeSideEffectAndThenFailFn(multiOutputPrefix))
+            ParDo.of(new MakeSideEffectAndThenFailFn(multiOutputPrefix, firstTime))
                 .withOutputTags(new TupleTag<>(), TupleTagList.empty()));
 
     p.run().waitUntilFinish();
+
+    assertThat(
+        new FilePatternMatchingShardedFile(singleOutputPrefix + "*"),
+        fileContentsHaveChecksum(VALUE_CHECKSUM));
+    assertThat(
+        new FilePatternMatchingShardedFile(multiOutputPrefix + "*"),
+        fileContentsHaveChecksum(VALUE_CHECKSUM));
   }
 }

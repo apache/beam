@@ -39,6 +39,8 @@ and an output prefix on GCS::
   --output gs://YOUR_OUTPUT_PREFIX
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse
@@ -60,7 +62,9 @@ from apache_beam.testing.util import equal_to
 class FilterTextFn(beam.DoFn):
   """A DoFn that filters for a specific key based on a regular expression."""
   def __init__(self, pattern):
-    super(FilterTextFn, self).__init__()
+    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
+    # super(FilterTextFn, self).__init__()
+    beam.DoFn.__init__(self)
     self.pattern = pattern
     # A custom metric can track values in your pipeline as it runs. Those
     # values will be available in the monitoring system of the runner used
@@ -99,31 +103,35 @@ class CountWords(beam.PTransform):
       (word, ones) = word_ones
       return (word, sum(ones))
 
-    return (pcoll
-            | 'split' >> (beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-                          .with_output_types(unicode))
-            | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
-            | 'group' >> beam.GroupByKey()
-            | 'count' >> beam.Map(count_ones))
+    return (
+        pcoll
+        | 'split' >> (
+            beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x)).
+            with_output_types(unicode))
+        | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
+        | 'group' >> beam.GroupByKey()
+        | 'count' >> beam.Map(count_ones))
 
 
-def run(argv=None):
+def run(argv=None, save_main_session=True):
   """Runs the debugging wordcount pipeline."""
 
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input',
-                      dest='input',
-                      default='gs://dataflow-samples/shakespeare/kinglear.txt',
-                      help='Input file to process.')
-  parser.add_argument('--output',
-                      dest='output',
-                      required=True,
-                      help='Output file to write results to.')
+  parser.add_argument(
+      '--input',
+      dest='input',
+      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+      help='Input file to process.')
+  parser.add_argument(
+      '--output',
+      dest='output',
+      required=True,
+      help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
-  pipeline_options.view_as(SetupOptions).save_main_session = True
+  pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
   with beam.Pipeline(options=pipeline_options) as p:
 
     # Read the text file[pattern] into a PCollection, count the occurrences of
@@ -141,8 +149,7 @@ def run(argv=None):
     # completion of the Pipeline implies that the expectations were  met. Learn
     # more at https://cloud.google.com/dataflow/pipelines/testing-your-pipeline
     # on how to best test your pipeline.
-    assert_that(
-        filtered_words, equal_to([('Flourish', 3), ('stomach', 1)]))
+    assert_that(filtered_words, equal_to([('Flourish', 3), ('stomach', 1)]))
 
     # Format the counts into a PCollection of strings and write the output using
     # a "Write" transform that has side effects.
@@ -151,9 +158,10 @@ def run(argv=None):
       (word, count) = word_count
       return '%s: %s' % (word, count)
 
-    output = (filtered_words
-              | 'format' >> beam.Map(format_result)
-              | 'write' >> WriteToText(known_args.output))
+    output = (
+        filtered_words
+        | 'format' >> beam.Map(format_result)
+        | 'write' >> WriteToText(known_args.output))
 
 
 if __name__ == '__main__':

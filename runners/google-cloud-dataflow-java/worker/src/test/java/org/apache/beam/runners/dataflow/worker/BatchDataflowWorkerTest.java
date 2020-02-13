@@ -23,7 +23,6 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -40,10 +39,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
+import org.apache.beam.sdk.extensions.gcp.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Duration;
@@ -56,6 +55,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.hamcrest.MockitoHamcrest;
 
 /** Unit tests for {@link BatchDataflowWorker}. */
 @RunWith(JUnit4.class)
@@ -108,7 +108,7 @@ public class BatchDataflowWorkerTest {
     assertTrue(worker.getAndPerformWork());
     verify(mockWorkUnitClient)
         .reportWorkItemStatus(
-            argThat(
+            MockitoHamcrest.argThat(
                 new TypeSafeMatcher<WorkItemStatus>() {
                   @Override
                   public void describeTo(Description description) {}

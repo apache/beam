@@ -27,6 +27,8 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
  * A test of {@link ElasticsearchIO} on an independent Elasticsearch v5.x instance.
@@ -49,6 +51,7 @@ import org.junit.Test;
  * <p>It is likely that you will need to configure <code>thread_pool.bulk.queue_size: 250</code> (or
  * higher) in the backend Elasticsearch server for this test to run.
  */
+@RunWith(JUnit4.class)
 public class ElasticsearchIOIT {
   private static RestClient restClient;
   private static ElasticsearchPipelineOptions options;
@@ -79,8 +82,8 @@ public class ElasticsearchIOIT {
 
   @AfterClass
   public static void afterClass() throws Exception {
-    ElasticSearchIOTestUtils.deleteIndex(writeConnectionConfiguration, restClient);
-    ElasticSearchIOTestUtils.deleteIndex(updateConnectionConfiguration, restClient);
+    ElasticsearchIOTestUtils.deleteIndex(writeConnectionConfiguration, restClient);
+    ElasticsearchIOTestUtils.deleteIndex(updateConnectionConfiguration, restClient);
     restClient.close();
   }
 
@@ -127,11 +130,11 @@ public class ElasticsearchIOIT {
   /**
    * This test verifies volume partial updates of Elasticsearch. The test dataset index is cloned
    * and then a new field is added to each document using a partial update. The test then asserts
-   * the updates where appied.
+   * the updates were applied.
    */
   @Test
   public void testWritePartialUpdate() throws Exception {
-    ElasticSearchIOTestUtils.copyIndex(
+    ElasticsearchIOTestUtils.copyIndex(
         restClient,
         readConnectionConfiguration.getIndex(),
         updateConnectionConfiguration.getIndex());

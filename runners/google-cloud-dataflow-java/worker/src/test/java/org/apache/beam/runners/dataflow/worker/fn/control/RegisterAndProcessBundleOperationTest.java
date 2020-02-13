@@ -80,10 +80,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow.Coder;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableTable;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableTable;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -174,6 +174,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext)
         .supportsRestart();
   }
@@ -191,15 +192,8 @@ public class RegisterAndProcessBundleOperationTest {
                 requests.add(request);
                 switch (request.getRequestCase()) {
                   case REGISTER:
-                    return CompletableFuture.completedFuture(
-                        responseFor(request)
-                            .setRegister(BeamFnApi.RegisterResponse.getDefaultInstance())
-                            .build());
                   case PROCESS_BUNDLE:
-                    return CompletableFuture.completedFuture(
-                        responseFor(request)
-                            .setProcessBundle(BeamFnApi.ProcessBundleResponse.getDefaultInstance())
-                            .build());
+                    return CompletableFuture.completedFuture(responseFor(request).build());
                   default:
                     // block forever on other requests
                     return new CompletableFuture<>();
@@ -215,6 +209,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext);
 
     // Ensure that the first time we start we send the register and process bundle requests
@@ -231,8 +226,7 @@ public class RegisterAndProcessBundleOperationTest {
         BeamFnApi.InstructionRequest.newBuilder()
             .setInstructionId("778")
             .setProcessBundle(
-                BeamFnApi.ProcessBundleRequest.newBuilder()
-                    .setProcessBundleDescriptorReference("555"))
+                BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("555"))
             .build());
     operation.finish();
 
@@ -243,8 +237,7 @@ public class RegisterAndProcessBundleOperationTest {
         BeamFnApi.InstructionRequest.newBuilder()
             .setInstructionId("779")
             .setProcessBundle(
-                BeamFnApi.ProcessBundleRequest.newBuilder()
-                    .setProcessBundleDescriptorReference("555"))
+                BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("555"))
             .build());
     operation.finish();
   }
@@ -277,9 +270,7 @@ public class RegisterAndProcessBundleOperationTest {
                 return MoreFutures.supplyAsync(
                     () -> {
                       processBundleLatch.await();
-                      return responseFor(request)
-                          .setProcessBundle(BeamFnApi.ProcessBundleResponse.getDefaultInstance())
-                          .build();
+                      return responseFor(request).build();
                     });
               case PROCESS_BUNDLE_PROGRESS:
                 return CompletableFuture.completedFuture(
@@ -320,6 +311,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext);
 
     operation.start();
@@ -423,6 +415,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext);
 
     operation.start();
@@ -457,10 +450,7 @@ public class RegisterAndProcessBundleOperationTest {
                 requests.add(request);
                 switch (request.getRequestCase()) {
                   case REGISTER:
-                    return CompletableFuture.completedFuture(
-                        InstructionResponse.newBuilder()
-                            .setInstructionId(request.getInstructionId())
-                            .build());
+                    return CompletableFuture.completedFuture(responseFor(request).build());
                   case PROCESS_BUNDLE:
                     CompletableFuture<InstructionResponse> responseFuture =
                         new CompletableFuture<>();
@@ -468,12 +458,7 @@ public class RegisterAndProcessBundleOperationTest {
                         () -> {
                           // Purposefully sleep simulating SDK harness doing work
                           Thread.sleep(100);
-                          responseFuture.complete(
-                              InstructionResponse.newBuilder()
-                                  .setInstructionId(request.getInstructionId())
-                                  .setProcessBundle(
-                                      BeamFnApi.ProcessBundleResponse.getDefaultInstance())
-                                  .build());
+                          responseFuture.complete(responseFor(request).build());
                           completeFuture(request, responseFuture);
                           return null;
                         });
@@ -493,6 +478,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext);
 
     operation.start();
@@ -511,8 +497,7 @@ public class RegisterAndProcessBundleOperationTest {
         BeamFnApi.InstructionRequest.newBuilder()
             .setInstructionId("778")
             .setProcessBundle(
-                BeamFnApi.ProcessBundleRequest.newBuilder()
-                    .setProcessBundleDescriptorReference("555"))
+                BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("555"))
             .build());
   }
 
@@ -544,7 +529,7 @@ public class RegisterAndProcessBundleOperationTest {
                                   StateKey.newBuilder()
                                       .setBagUserState(
                                           StateKey.BagUserState.newBuilder()
-                                              .setPtransformId("testPTransformId")
+                                              .setTransformId("testPTransformId")
                                               .setWindow(ByteString.EMPTY)
                                               .setUserStateId("testUserStateId")))
                               .buildPartial();
@@ -589,9 +574,7 @@ public class RegisterAndProcessBundleOperationTest {
                           MoreFutures.get(stateHandler.handle(clear));
                       assertNotNull(clearResponse);
 
-                      return responseFor(request)
-                          .setProcessBundle(BeamFnApi.ProcessBundleResponse.getDefaultInstance())
-                          .build();
+                      return responseFor(request).build();
                     });
               default:
                 // block forever
@@ -613,6 +596,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of("testPTransformId", mockStepContext),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext);
 
     operation.start();
@@ -651,7 +635,7 @@ public class RegisterAndProcessBundleOperationTest {
                           StateKey.newBuilder()
                               .setMultimapSideInput(
                                   StateKey.MultimapSideInput.newBuilder()
-                                      .setPtransformId("testPTransformId")
+                                      .setTransformId("testPTransformId")
                                       .setSideInputId("testSideInputId")
                                       .setWindow(
                                           ByteString.copyFrom(
@@ -682,9 +666,7 @@ public class RegisterAndProcessBundleOperationTest {
                           encodeAndConcat(Arrays.asList("X", "Y", "Z"), StringUtf8Coder.of()),
                           getResponse.getGet().getData());
 
-                      return responseFor(request)
-                          .setProcessBundle(BeamFnApi.ProcessBundleResponse.getDefaultInstance())
-                          .build();
+                      return responseFor(request).build();
                     });
               default:
                 // block forever on other request types
@@ -740,6 +722,7 @@ public class RegisterAndProcessBundleOperationTest {
                     FullWindowedValueCoder.of(
                         KvCoder.of(ByteArrayCoder.of(), StringUtf8Coder.of()),
                         GlobalWindow.Coder.INSTANCE))),
+            ImmutableMap.of(),
             mockContext);
 
     operation.start();
@@ -791,6 +774,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext);
     abortReference.set(operation::abort);
     operation.start();
@@ -838,6 +822,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext);
     abortReference.set(operation::abort);
     operation.start();
@@ -849,15 +834,26 @@ public class RegisterAndProcessBundleOperationTest {
   }
 
   private InstructionResponse.Builder responseFor(BeamFnApi.InstructionRequest request) {
-    return BeamFnApi.InstructionResponse.newBuilder().setInstructionId(request.getInstructionId());
+    BeamFnApi.InstructionResponse.Builder response =
+        BeamFnApi.InstructionResponse.newBuilder().setInstructionId(request.getInstructionId());
+    if (request.hasRegister()) {
+      response.setRegister(BeamFnApi.RegisterResponse.getDefaultInstance());
+    } else if (request.hasProcessBundle()) {
+      response.setProcessBundle(BeamFnApi.ProcessBundleResponse.getDefaultInstance());
+    } else if (request.hasFinalizeBundle()) {
+      response.setFinalizeBundle(BeamFnApi.FinalizeBundleResponse.getDefaultInstance());
+    } else if (request.hasProcessBundleProgress()) {
+      response.setProcessBundleProgress(
+          BeamFnApi.ProcessBundleProgressResponse.getDefaultInstance());
+    } else if (request.hasProcessBundleSplit()) {
+      response.setProcessBundleSplit(BeamFnApi.ProcessBundleSplitResponse.getDefaultInstance());
+    }
+    return response;
   }
 
   private void completeFuture(
       BeamFnApi.InstructionRequest request, CompletableFuture<InstructionResponse> response) {
-    response.complete(
-        BeamFnApi.InstructionResponse.newBuilder()
-            .setInstructionId(request.getInstructionId())
-            .build());
+    response.complete(responseFor(request).build());
   }
 
   @Test
@@ -875,6 +871,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext);
 
     assertEquals(
@@ -897,6 +894,7 @@ public class RegisterAndProcessBundleOperationTest {
             ImmutableMap.of(),
             ImmutableMap.of(),
             ImmutableTable.of(),
+            ImmutableMap.of(),
             mockContext);
 
     operation.getProcessBundleInstructionId(); // this generates and caches bundleId

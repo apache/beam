@@ -17,9 +17,6 @@
  */
 package org.apache.beam.fn.harness.data;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
@@ -35,10 +32,8 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +44,6 @@ import org.slf4j.LoggerFactory;
  */
 public class BeamFnDataGrpcClient implements BeamFnDataClient {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcClient.class);
-  private static final String BEAM_FN_API_DATA_BUFFER_LIMIT = "beam_fn_api_data_buffer_limit=";
 
   private final ConcurrentMap<Endpoints.ApiServiceDescriptor, BeamFnDataGrpcMultiplexer> cache;
   private final Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory;
@@ -78,12 +72,12 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
   public <T> InboundDataClient receive(
       ApiServiceDescriptor apiServiceDescriptor,
       LogicalEndpoint inputLocation,
-      Coder<WindowedValue<T>> coder,
-      FnDataReceiver<WindowedValue<T>> consumer) {
+      Coder<T> coder,
+      FnDataReceiver<T> consumer) {
     LOG.debug(
-        "Registering consumer for instruction {} and target {}",
+        "Registering consumer for instruction {} and transform {}",
         inputLocation.getInstructionId(),
-        inputLocation.getTarget());
+        inputLocation.getTransformId());
 
     BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
     BeamFnDataInboundObserver<T> inboundObserver =
@@ -103,36 +97,18 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
    * <p>The returned closeable consumer is not thread safe.
    */
   @Override
-  public <T> CloseableFnDataReceiver<WindowedValue<T>> send(
+  public <T> CloseableFnDataReceiver<T> send(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       LogicalEndpoint outputLocation,
-      Coder<WindowedValue<T>> coder) {
+      Coder<T> coder) {
     BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
 
     LOG.debug(
-        "Creating output consumer for instruction {} and target {}",
+        "Creating output consumer for instruction {} and transform {}",
         outputLocation.getInstructionId(),
-        outputLocation.getTarget());
-    Optional<Integer> bufferLimit = getBufferLimit(options);
-    if (bufferLimit.isPresent()) {
-      return BeamFnDataBufferingOutboundObserver.forLocationWithBufferLimit(
-          bufferLimit.get(), outputLocation, coder, client.getOutboundObserver());
-    } else {
-      return BeamFnDataBufferingOutboundObserver.forLocation(
-          outputLocation, coder, client.getOutboundObserver());
-    }
-  }
-
-  /** Returns the {@code beam_fn_api_data_buffer_limit=<int>} experiment value if set. */
-  private static Optional<Integer> getBufferLimit(PipelineOptions options) {
-    List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
-    for (String experiment : experiments == null ? Collections.<String>emptyList() : experiments) {
-      if (experiment.startsWith(BEAM_FN_API_DATA_BUFFER_LIMIT)) {
-        return Optional.of(
-            Integer.parseInt(experiment.substring(BEAM_FN_API_DATA_BUFFER_LIMIT.length())));
-      }
-    }
-    return Optional.empty();
+        outputLocation.getTransformId());
+    return BeamFnDataBufferingOutboundObserver.forLocation(
+        options, outputLocation, coder, client.getOutboundObserver());
   }
 
   private BeamFnDataGrpcMultiplexer getClientFor(

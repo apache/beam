@@ -69,6 +69,9 @@ deps:
   mock:
     owners:
 
+  pymongo:
+    owners: yichi
+
   oauth2client:
     owners:
 

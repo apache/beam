@@ -16,10 +16,10 @@
 package gcsproxy
 
 import (
-	"fmt"
 	"io"
 
 	"cloud.google.com/go/storage"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
 	"github.com/golang/protobuf/proto"
@@ -38,20 +38,20 @@ type RetrievalServer struct {
 func ReadProxyManifest(ctx context.Context, object string) (*pb.ProxyManifest, error) {
 	bucket, obj, err := gcsx.ParseObject(object)
 	if err != nil {
-		return nil, fmt.Errorf("invalid manifest object %v: %v", object, err)
+		return nil, errors.Wrapf(err, "invalid manifest object %v", object)
 	}
 
 	cl, err := gcsx.NewClient(ctx, storage.ScopeReadOnly)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create GCS client: %v", err)
+		return nil, errors.Wrap(err, "failed to create GCS client")
 	}
 	content, err := gcsx.ReadObject(ctx, cl, bucket, obj)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read manifest %v: %v", object, err)
+		return nil, errors.Wrapf(err, "failed to read manifest %v", object)
 	}
 	var md pb.ProxyManifest
 	if err := proto.Unmarshal(content, &md); err != nil {
-		return nil, fmt.Errorf("invalid manifest %v: %v", object, err)
+		return nil, errors.Wrapf(err, "invalid manifest %v", object)
 	}
 	return &md, nil
 }
@@ -66,7 +66,7 @@ func NewRetrievalServer(md *pb.ProxyManifest) (*RetrievalServer, error) {
 	blobs := make(map[string]string)
 	for _, l := range md.GetLocation() {
 		if _, _, err := gcsx.ParseObject(l.GetUri()); err != nil {
-			return nil, fmt.Errorf("location %v is not a GCS object: %v", l.GetUri(), err)
+			return nil, errors.Wrapf(err, "location %v is not a GCS object", l.GetUri())
 		}
 		blobs[l.GetName()] = l.GetUri()
 	}
@@ -83,7 +83,7 @@ func (s *RetrievalServer) GetArtifact(req *pb.GetArtifactRequest, stream pb.Arti
 	key := req.GetName()
 	blob, ok := s.blobs[key]
 	if !ok {
-		return fmt.Errorf("artifact %v not found", key)
+		return errors.Errorf("artifact %v not found", key)
 	}
 
 	bucket, object := parseObject(blob)
@@ -91,13 +91,13 @@ func (s *RetrievalServer) GetArtifact(req *pb.GetArtifactRequest, stream pb.Arti
 	ctx := stream.Context()
 	client, err := gcsx.NewClient(ctx, storage.ScopeReadOnly)
 	if err != nil {
-		return fmt.Errorf("Failed to create client for %v: %v", key, err)
+		return errors.Wrapf(err, "Failed to create client for %v", key)
 	}
 
 	// Stream artifact in up to 1MB chunks.
 	r, err := client.Bucket(bucket).Object(object).NewReader(ctx)
 	if err != nil {
-		return fmt.Errorf("Failed to read object for %v: %v", key, err)
+		return errors.Wrapf(err, "Failed to read object for %v", key)
 	}
 	defer r.Close()
 
@@ -106,14 +106,14 @@ func (s *RetrievalServer) GetArtifact(req *pb.GetArtifactRequest, stream pb.Arti
 		n, err := r.Read(data)
 		if n > 0 {
 			if err := stream.Send(&pb.ArtifactChunk{Data: data[:n]}); err != nil {
-				return fmt.Errorf("chunk send failed: %v", err)
+				return errors.Wrap(err, "chunk send failed")
 			}
 		}
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("failed to read from %v: %v", blob, err)
+			return errors.Wrapf(err, "failed to read from %v", blob)
 		}
 	}
 	return nil
@@ -123,24 +123,24 @@ func validate(md *pb.ProxyManifest) error {
 	keys := make(map[string]bool)
 	for _, a := range md.GetManifest().GetArtifact() {
 		if _, seen := keys[a.Name]; seen {
-			return fmt.Errorf("multiple artifact with name %v", a.Name)
+			return errors.Errorf("multiple artifact with name %v", a.Name)
 		}
 		keys[a.Name] = true
 	}
 	for _, l := range md.GetLocation() {
 		fresh, seen := keys[l.Name]
 		if !seen {
-			return fmt.Errorf("no artifact named %v for location %v", l.Name, l.Uri)
+			return errors.Errorf("no artifact named %v for location %v", l.Name, l.Uri)
 		}
 		if !fresh {
-			return fmt.Errorf("multiple locations for %v:%v", l.Name, l.Uri)
+			return errors.Errorf("multiple locations for %v:%v", l.Name, l.Uri)
 		}
 		keys[l.Name] = false
 	}
 
 	for key, fresh := range keys {
 		if fresh {
-			return fmt.Errorf("no location for %v", key)
+			return errors.Errorf("no location for %v", key)
 		}
 	}
 	return nil

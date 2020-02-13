@@ -18,11 +18,14 @@
 package org.apache.beam.runners.core.metrics;
 
 import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.MonitoringInfo;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -34,21 +37,21 @@ public class SimpleStateRegistryTest {
   public void testExecutionTimeUrnsBuildMonitoringInfos() throws Exception {
     String testPTransformId = "pTransformId";
     HashMap<String, String> labelsMetadata = new HashMap<String, String>();
-    labelsMetadata.put(SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, testPTransformId);
+    labelsMetadata.put(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
     SimpleExecutionState startState =
         new SimpleExecutionState(
             ExecutionStateTracker.START_STATE_NAME,
-            SimpleMonitoringInfoBuilder.START_BUNDLE_MSECS_URN,
+            MonitoringInfoConstants.Urns.START_BUNDLE_MSECS,
             labelsMetadata);
     SimpleExecutionState processState =
         new SimpleExecutionState(
             ExecutionStateTracker.PROCESS_STATE_NAME,
-            SimpleMonitoringInfoBuilder.PROCESS_BUNDLE_MSECS_URN,
+            MonitoringInfoConstants.Urns.PROCESS_BUNDLE_MSECS,
             labelsMetadata);
     SimpleExecutionState finishState =
         new SimpleExecutionState(
             ExecutionStateTracker.FINISH_STATE_NAME,
-            SimpleMonitoringInfoBuilder.FINISH_BUNDLE_MSECS_URN,
+            MonitoringInfoConstants.Urns.FINISH_BUNDLE_MSECS,
             labelsMetadata);
 
     SimpleStateRegistry testObject = new SimpleStateRegistry();
@@ -59,26 +62,40 @@ public class SimpleStateRegistryTest {
 
     List<Matcher<MonitoringInfo>> matchers = new ArrayList<Matcher<MonitoringInfo>>();
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrn(SimpleMonitoringInfoBuilder.START_BUNDLE_MSECS_URN);
+    builder.setUrn(MonitoringInfoConstants.Urns.START_BUNDLE_MSECS);
     builder.setInt64Value(0);
-    builder.setPTransformLabel(testPTransformId);
+    builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
     matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
     // Check for execution time metrics for the testPTransformId
     builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrn(SimpleMonitoringInfoBuilder.PROCESS_BUNDLE_MSECS_URN);
+    builder.setUrn(MonitoringInfoConstants.Urns.PROCESS_BUNDLE_MSECS);
     builder.setInt64Value(0);
-    builder.setPTransformLabel(testPTransformId);
+    builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
     matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
     builder = new SimpleMonitoringInfoBuilder();
-    builder.setUrn(SimpleMonitoringInfoBuilder.FINISH_BUNDLE_MSECS_URN);
+    builder.setUrn(MonitoringInfoConstants.Urns.FINISH_BUNDLE_MSECS);
     builder.setInt64Value(0);
-    builder.setPTransformLabel(testPTransformId);
+    builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
     matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
     for (Matcher<MonitoringInfo> matcher : matchers) {
       assertThat(testOutput, Matchers.hasItem(matcher));
     }
+  }
+
+  @Test
+  public void testResetRegistry() {
+    SimpleExecutionState state1 = mock(SimpleExecutionState.class);
+    SimpleExecutionState state2 = mock(SimpleExecutionState.class);
+
+    SimpleStateRegistry testObject = new SimpleStateRegistry();
+    testObject.register(state1);
+    testObject.register(state2);
+
+    testObject.reset();
+    verify(state1, times(1)).reset();
+    verify(state2, times(1)).reset();
   }
 }

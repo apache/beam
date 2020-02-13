@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.planner;
 
-import org.apache.calcite.rel.type.RelDataTypeSystem;
-import org.apache.calcite.rel.type.RelDataTypeSystemImpl;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeSystem;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeSystemImpl;
 
 /** customized data type in Beam. */
 public class BeamRelDataTypeSystem extends RelDataTypeSystemImpl {

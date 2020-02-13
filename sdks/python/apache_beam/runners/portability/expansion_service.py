@@ -17,13 +17,11 @@
 
 """A PipelineExpansion service.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
-import argparse
-import logging
-import sys
-import time
 import traceback
 
 from apache_beam import pipeline as beam_pipeline
@@ -38,12 +36,11 @@ from apache_beam.transforms import ptransform
 
 class ExpansionServiceServicer(
     beam_expansion_api_pb2_grpc.ExpansionServiceServicer):
-
   def __init__(self, options=None):
     self._options = options or beam_pipeline.PipelineOptions(
         environment_type=python_urns.EMBEDDED_PYTHON)
 
-  def Expand(self, request):
+  def Expand(self, request, context):
     try:
       pipeline = beam_pipeline.Pipeline(options=self._options)
 
@@ -57,21 +54,23 @@ class ExpansionServiceServicer(
 
       context = pipeline_context.PipelineContext(
           request.components,
-          default_environment=
-          portable_runner.PortableRunner._create_environment(
-              self._options),
+          default_environment=portable_runner.PortableRunner.
+          _create_environment(self._options),
           namespace=request.namespace)
       producers = {
           pcoll_id: (context.transforms.get_by_id(t_id), pcoll_tag)
-          for t_id, t_proto in request.components.transforms.items()
-          for pcoll_tag, pcoll_id in t_proto.outputs.items()
+          for t_id,
+          t_proto in request.components.transforms.items() for pcoll_tag,
+          pcoll_id in t_proto.outputs.items()
       }
       transform = with_pipeline(
           ptransform.PTransform.from_runner_api(
               request.transform.spec, context))
       inputs = transform._pvaluish_from_dict({
-          tag: with_pipeline(context.pcollections.get_by_id(pcoll_id), pcoll_id)
-          for tag, pcoll_id in request.transform.inputs.items()
+          tag:
+          with_pipeline(context.pcollections.get_by_id(pcoll_id), pcoll_id)
+          for tag,
+          pcoll_id in request.transform.inputs.items()
       })
       if not inputs:
         inputs = pipeline
@@ -98,21 +97,3 @@ class ExpansionServiceServicer(
     except Exception:  # pylint: disable=broad-except
       return beam_expansion_api_pb2.ExpansionResponse(
           error=traceback.format_exc())
-
-
-def main(unused_argv):
-  parser = argparse.ArgumentParser()
-  parser.add_argument('-p', '--port',
-                      type=int,
-                      help='port on which to serve the job api')
-  options = parser.parse_args()
-  expansion_servicer = ExpansionServiceServicer()
-  port = expansion_servicer.start_grpc_server(options.port)
-  while True:
-    logging.info('Listening for expansion requests at %d', port)
-    time.sleep(300)
-
-
-if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
-  main(sys.argv)

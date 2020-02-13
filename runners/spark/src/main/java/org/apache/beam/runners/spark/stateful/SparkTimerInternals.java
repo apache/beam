@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark.stateful;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -32,8 +32,8 @@ import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.joda.time.Instant;
 
 /** An implementation of {@link TimerInternals} for the SparkRunner. */
@@ -100,7 +100,7 @@ public class SparkTimerInternals implements TimerInternals {
         : forStreamFromSources(Lists.newArrayList(watermarks.keySet()), watermarks);
   }
 
-  Collection<TimerData> getTimers() {
+  public Collection<TimerData> getTimers() {
     return timers;
   }
 
@@ -155,22 +155,27 @@ public class SparkTimerInternals implements TimerInternals {
 
   @Override
   public void setTimer(
-      StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
+      StateNamespace namespace,
+      String timerId,
+      String timerFamilyId,
+      Instant target,
+      Instant outputTimestamp,
+      TimeDomain timeDomain) {
     throw new UnsupportedOperationException("Setting a timer by ID not yet supported.");
   }
 
   @Override
-  public void deleteTimer(StateNamespace namespace, String timerId) {
+  public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
     throw new UnsupportedOperationException("Deleting a timer by ID is not yet supported.");
   }
 
   public static Collection<byte[]> serializeTimers(
-      Collection<TimerData> timers, TimerDataCoder timerDataCoder) {
+      Collection<TimerData> timers, TimerDataCoderV2 timerDataCoder) {
     return CoderHelpers.toByteArrays(timers, timerDataCoder);
   }
 
   public static Iterator<TimerData> deserializeTimers(
-      Collection<byte[]> serTimers, TimerDataCoder timerDataCoder) {
+      Collection<byte[]> serTimers, TimerDataCoderV2 timerDataCoder) {
     return CoderHelpers.fromByteArrays(serTimers, timerDataCoder).iterator();
   }
 

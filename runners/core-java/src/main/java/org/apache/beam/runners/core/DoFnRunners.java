@@ -27,6 +27,8 @@ import org.apache.beam.runners.core.StatefulDoFnRunner.StateCleaner;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -57,9 +59,11 @@ public class DoFnRunners {
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
-      @Nullable Coder<InputT> inputCoder,
+      Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
-      WindowingStrategy<?, ?> windowingStrategy) {
+      WindowingStrategy<?, ?> windowingStrategy,
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     return new SimpleDoFnRunner<>(
         options,
         fn,
@@ -70,7 +74,9 @@ public class DoFnRunners {
         stepContext,
         inputCoder,
         outputCoders,
-        windowingStrategy);
+        windowingStrategy,
+        doFnSchemaInformation,
+        sideInputMapping);
   }
 
   /**
@@ -90,16 +96,69 @@ public class DoFnRunners {
    * Returns an implementation of {@link DoFnRunner} that handles late data dropping and garbage
    * collection for stateful {@link DoFn DoFns}.
    *
-   * <p>It registers a timer by TimeInternals, and clean all states by StateInternals.
+   * <p>It registers a timer by TimeInternals, and clean all states by StateInternals. It also
+   * correctly handles {@link DoFn.RequiresTimeSortedInput} if the provided {@link DoFn} requires
+   * this.
    */
   public static <InputT, OutputT, W extends BoundedWindow>
       DoFnRunner<InputT, OutputT> defaultStatefulDoFnRunner(
           DoFn<InputT, OutputT> fn,
+          Coder<InputT> inputCoder,
           DoFnRunner<InputT, OutputT> doFnRunner,
+          StepContext stepContext,
           WindowingStrategy<?, ?> windowingStrategy,
-          CleanupTimer cleanupTimer,
+          CleanupTimer<InputT> cleanupTimer,
           StateCleaner<W> stateCleaner) {
-    return new StatefulDoFnRunner<>(doFnRunner, windowingStrategy, cleanupTimer, stateCleaner);
+
+    return defaultStatefulDoFnRunner(
+        fn,
+        inputCoder,
+        doFnRunner,
+        stepContext,
+        windowingStrategy,
+        cleanupTimer,
+        stateCleaner,
+        false);
+  }
+
+  /**
+   * Returns an implementation of {@link DoFnRunner} that handles late data dropping and garbage
+   * collection for stateful {@link DoFn DoFns}.
+   *
+   * <p>It registers a timer by TimeInternals, and clean all states by StateInternals. If {@code
+   * requiresTimeSortedInputSupported} is {@code true} then it also handles {@link
+   * DoFn.RequiresTimeSortedInput} if the provided {@link DoFn} requires this. If {@code
+   * requiresTimeSortedInputSupported} is {@code false} and the provided {@link DoFn} has {@link
+   * DoFn.RequiresTimeSortedInput} this method will throw {@link UnsupportedOperationException}.
+   */
+  public static <InputT, OutputT, W extends BoundedWindow>
+      DoFnRunner<InputT, OutputT> defaultStatefulDoFnRunner(
+          DoFn<InputT, OutputT> fn,
+          Coder<InputT> inputCoder,
+          DoFnRunner<InputT, OutputT> doFnRunner,
+          StepContext stepContext,
+          WindowingStrategy<?, ?> windowingStrategy,
+          CleanupTimer<InputT> cleanupTimer,
+          StateCleaner<W> stateCleaner,
+          boolean requiresTimeSortedInputSupported) {
+
+    boolean doFnRequiresTimeSortedInput =
+        DoFnSignatures.signatureForDoFn(doFnRunner.getFn())
+            .processElement()
+            .requiresTimeSortedInput();
+
+    if (doFnRequiresTimeSortedInput && !requiresTimeSortedInputSupported) {
+      throw new UnsupportedOperationException(
+          "DoFn.RequiresTimeSortedInput not currently supported by this runner.");
+    }
+    return new StatefulDoFnRunner<>(
+        doFnRunner,
+        inputCoder,
+        stepContext,
+        windowingStrategy,
+        cleanupTimer,
+        stateCleaner,
+        doFnRequiresTimeSortedInput);
   }
 
   public static <InputT, OutputT, RestrictionT>
@@ -114,7 +173,9 @@ public class DoFnRunners {
           StepContext stepContext,
           @Nullable Coder<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> inputCoder,
           Map<TupleTag<?>, Coder<?>> outputCoders,
-          WindowingStrategy<?, ?> windowingStrategy) {
+          WindowingStrategy<?, ?> windowingStrategy,
+          DoFnSchemaInformation doFnSchemaInformation,
+          Map<String, PCollectionView<?>> sideInputMapping) {
     return new ProcessFnRunner<>(
         simpleRunner(
             options,
@@ -126,7 +187,9 @@ public class DoFnRunners {
             stepContext,
             inputCoder,
             outputCoders,
-            windowingStrategy),
+            windowingStrategy,
+            doFnSchemaInformation,
+            sideInputMapping),
         views,
         sideInputReader);
   }

@@ -19,10 +19,11 @@ package databaseio
 
 import (
 	"database/sql"
-	"fmt"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 //rowMapper represents a record mapper
@@ -36,7 +37,7 @@ func newQueryMapper(columns []string, columnTypes []*sql.ColumnType, recordType 
 	} else if recordType.Kind() == reflect.Struct {
 		return newQueryStructMapper(columns, recordType)
 	}
-	return nil, fmt.Errorf("unsupported type %s", recordType)
+	return nil, errors.Errorf("unsupported type %s", recordType)
 }
 
 //newQueryStructMapper creates a new record mapper for supplied struct type

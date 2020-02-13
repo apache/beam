@@ -15,13 +15,14 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import threading
 import unittest
 from builtins import range
 
-from apache_beam.metrics.cells import CellCommitState
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import DistributionData
@@ -43,17 +44,15 @@ class TestCounterCell(unittest.TestCase):
     threads = []
     c = CounterCell()
     for _ in range(TestCounterCell.NUM_THREADS):
-      t = threading.Thread(target=TestCounterCell._modify_counter,
-                           args=(c,))
+      t = threading.Thread(target=TestCounterCell._modify_counter, args=(c, ))
       threads.append(t)
       t.start()
 
     for t in threads:
       t.join()
 
-    total = (self.NUM_ITERATIONS
-             * (self.NUM_ITERATIONS - 1) // 2
-             * self.NUM_THREADS)
+    total = (
+        self.NUM_ITERATIONS * (self.NUM_ITERATIONS - 1) // 2 * self.NUM_THREADS)
     self.assertEqual(c.get_cumulative(), total)
 
   def test_basic_operations(self):
@@ -85,45 +84,40 @@ class TestDistributionCell(unittest.TestCase):
     threads = []
     d = DistributionCell()
     for _ in range(TestDistributionCell.NUM_THREADS):
-      t = threading.Thread(target=TestDistributionCell._modify_distribution,
-                           args=(d,))
+      t = threading.Thread(
+          target=TestDistributionCell._modify_distribution, args=(d, ))
       threads.append(t)
       t.start()
 
     for t in threads:
       t.join()
 
-    total = (self.NUM_ITERATIONS
-             * (self.NUM_ITERATIONS - 1) // 2
-             * self.NUM_THREADS)
+    total = (
+        self.NUM_ITERATIONS * (self.NUM_ITERATIONS - 1) // 2 * self.NUM_THREADS)
 
     count = (self.NUM_ITERATIONS * self.NUM_THREADS)
 
-    self.assertEqual(d.get_cumulative(),
-                     DistributionData(total, count, 0,
-                                      self.NUM_ITERATIONS - 1))
+    self.assertEqual(
+        d.get_cumulative(),
+        DistributionData(total, count, 0, self.NUM_ITERATIONS - 1))
 
   def test_basic_operations(self):
     d = DistributionCell()
     d.update(10)
-    self.assertEqual(d.get_cumulative(),
-                     DistributionData(10, 1, 10, 10))
+    self.assertEqual(d.get_cumulative(), DistributionData(10, 1, 10, 10))
 
     d.update(2)
-    self.assertEqual(d.get_cumulative(),
-                     DistributionData(12, 2, 2, 10))
+    self.assertEqual(d.get_cumulative(), DistributionData(12, 2, 2, 10))
 
     d.update(900)
-    self.assertEqual(d.get_cumulative(),
-                     DistributionData(912, 3, 2, 900))
+    self.assertEqual(d.get_cumulative(), DistributionData(912, 3, 2, 900))
 
   def test_integer_only(self):
     d = DistributionCell()
     d.update(3.1)
     d.update(3.2)
     d.update(3.3)
-    self.assertEqual(d.get_cumulative(),
-                     DistributionData(9, 3, 3, 3))
+    self.assertEqual(d.get_cumulative(), DistributionData(9, 3, 3, 3))
 
 
 class TestGaugeCell(unittest.TestCase):
@@ -151,28 +145,6 @@ class TestGaugeCell(unittest.TestCase):
     # the final result.
     result = g2.combine(g1)
     self.assertEqual(result.data.value, 1)
-
-
-class TestCellCommitState(unittest.TestCase):
-  def test_basic_path(self):
-    ds = CellCommitState()
-    # Starts dirty
-    self.assertTrue(ds.before_commit())
-    ds.after_commit()
-    self.assertFalse(ds.before_commit())
-
-    # Make it dirty again
-    ds.after_modification()
-    self.assertTrue(ds.before_commit())
-    ds.after_commit()
-    self.assertFalse(ds.before_commit())
-
-    # Dirty again
-    ds.after_modification()
-    self.assertTrue(ds.before_commit())
-    ds.after_modification()
-    ds.after_commit()
-    self.assertTrue(ds.before_commit())
 
 
 if __name__ == '__main__':

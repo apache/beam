@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.fasterxml.jackson.core.Base64Variants;
 import com.google.api.client.util.BackOff;
@@ -48,21 +48,21 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsCreateOptions;
+import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
-import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.util.ZipFiles;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Funnels;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hasher;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteSource;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.CountingOutputStream;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.Files;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Funnels;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hasher;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteSource;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingOutputStream;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.Seconds;

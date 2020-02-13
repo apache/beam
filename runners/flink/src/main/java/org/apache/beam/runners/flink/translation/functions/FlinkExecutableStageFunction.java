@@ -18,51 +18,40 @@
 package org.apache.beam.runners.flink.translation.functions;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.function.BiConsumer;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
-import org.apache.beam.runners.core.StateInternals;
-import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.runners.core.StateNamespaces;
-import org.apache.beam.runners.core.StateTag;
-import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.runners.core.construction.Timer;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.core.construction.graph.TimerReference;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
+import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
+import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.runners.fnexecution.state.InMemoryBagUserStateFactory;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
+import org.apache.beam.runners.fnexecution.translation.BatchSideInputHandlerFactory;
+import org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.state.BagState;
-import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
@@ -92,22 +81,24 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
   // Main constructor fields. All must be Serializable because Flink distributes Functions to
   // task managers via java serialization.
 
+  // Pipeline options for initializing the FileSystems
+  private final SerializablePipelineOptions pipelineOptions;
   // The executable stage this function will run.
   private final RunnerApi.ExecutableStagePayload stagePayload;
   // Pipeline options. Used for provisioning api.
   private final JobInfo jobInfo;
   // Map from PCollection id to the union tag used to represent this PCollection in the output.
   private final Map<String, Integer> outputMap;
-  private final FlinkExecutableStageContext.Factory contextFactory;
+  private final FlinkExecutableStageContextFactory contextFactory;
   private final Coder windowCoder;
-  // Unique name for namespacing metrics; currently just takes the input ID
-  private final String stageName;
+  // Unique name for namespacing metrics
+  private final String stepName;
 
   // Worker-local fields. These should only be constructed and consumed on Flink TaskManagers.
   private transient RuntimeContext runtimeContext;
-  private transient FlinkMetricContainer container;
+  private transient FlinkMetricContainer metricContainer;
   private transient StateRequestHandler stateRequestHandler;
-  private transient FlinkExecutableStageContext stageContext;
+  private transient ExecutableStageContext stageContext;
   private transient StageBundleFactory stageBundleFactory;
   private transient BundleProgressHandler progressHandler;
   // Only initialized when the ExecutableStage is stateful
@@ -117,27 +108,30 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
   private transient Object currentTimerKey;
 
   public FlinkExecutableStageFunction(
+      String stepName,
+      PipelineOptions pipelineOptions,
       RunnerApi.ExecutableStagePayload stagePayload,
       JobInfo jobInfo,
       Map<String, Integer> outputMap,
-      FlinkExecutableStageContext.Factory contextFactory,
+      FlinkExecutableStageContextFactory contextFactory,
       Coder windowCoder) {
+    this.stepName = stepName;
+    this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;
     this.outputMap = outputMap;
     this.contextFactory = contextFactory;
     this.windowCoder = windowCoder;
-    this.stageName = stagePayload.getInput();
   }
 
   @Override
-  public void open(Configuration parameters) throws Exception {
+  public void open(Configuration parameters) {
+    FlinkPipelineOptions options = pipelineOptions.get().as(FlinkPipelineOptions.class);
     // Register standard file systems.
-    // TODO Use actual pipeline options.
-    FileSystems.setDefaultPipelineOptions(PipelineOptionsFactory.create());
+    FileSystems.setDefaultPipelineOptions(options);
     executableStage = ExecutableStage.fromPayload(stagePayload);
     runtimeContext = getRuntimeContext();
-    container = new FlinkMetricContainer(getRuntimeContext());
+    metricContainer = new FlinkMetricContainer(runtimeContext);
     // TODO: Wire this into the distributed cache and make it pluggable.
     stageContext = contextFactory.get(jobInfo);
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
@@ -151,12 +145,12 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
         new BundleProgressHandler() {
           @Override
           public void onProgress(ProcessBundleProgressResponse progress) {
-            container.updateMetrics(stageName, progress.getMonitoringInfosList());
+            metricContainer.updateMetrics(stepName, progress.getMonitoringInfosList());
           }
 
           @Override
           public void onCompleted(ProcessBundleResponse response) {
-            container.updateMetrics(stageName, response.getMonitoringInfosList());
+            metricContainer.updateMetrics(stepName, response.getMonitoringInfosList());
           }
         };
   }
@@ -167,7 +161,8 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
       RuntimeContext runtimeContext) {
     final StateRequestHandler sideInputHandler;
     StateRequestHandlers.SideInputHandlerFactory sideInputHandlerFactory =
-        FlinkBatchSideInputHandlerFactory.forStage(executableStage, runtimeContext);
+        BatchSideInputHandlerFactory.forStage(
+            executableStage, runtimeContext::getBroadcastVariable);
     try {
       sideInputHandler =
           StateRequestHandlers.forSideInputHandlerFactory(
@@ -188,7 +183,9 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
 
     EnumMap<StateKey.TypeCase, StateRequestHandler> handlerMap =
         new EnumMap<>(StateKey.TypeCase.class);
+    handlerMap.put(StateKey.TypeCase.ITERABLE_SIDE_INPUT, sideInputHandler);
     handlerMap.put(StateKey.TypeCase.MULTIMAP_SIDE_INPUT, sideInputHandler);
+    handlerMap.put(StateKey.TypeCase.MULTIMAP_KEYS_SIDE_INPUT, sideInputHandler);
     handlerMap.put(StateKey.TypeCase.BAG_USER_STATE, userStateHandler);
 
     return StateRequestHandlers.delegateBasedUponType(handlerMap);
@@ -230,8 +227,6 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
             outputMap,
             new TimerReceiverFactory(
                 stageBundleFactory,
-                executableStage.getTimers(),
-                stageBundleFactory.getProcessBundleDescriptor().getTimerSpecs(),
                 (WindowedValue timerElement, TimerInternals.TimerData timerData) -> {
                   currentTimerKey = ((KV) timerElement.getValue()).getKey();
                   timerInternals.setTimer(timerData);
@@ -254,7 +249,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
     try (RemoteBundle bundle =
         stageBundleFactory.getBundle(receiverFactory, stateRequestHandler, progressHandler)) {
 
-      fireEligibleTimers(
+      PipelineTranslatorUtils.fireEligibleTimers(
           timerInternals,
           (String timerId, WindowedValue timerValue) -> {
             FnDataReceiver<WindowedValue<?>> fnTimerReceiver =
@@ -266,7 +261,8 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
               throw new RuntimeException(
                   String.format(Locale.ENGLISH, "Failed to process timer: %s", timerValue));
             }
-          });
+          },
+          currentTimerKey);
     }
   }
 
@@ -285,50 +281,9 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
     }
   }
 
-  /**
-   * Fires all timers which are ready to be fired. This is done in a loop because timers may itself
-   * schedule timers.
-   */
-  private void fireEligibleTimers(
-      InMemoryTimerInternals timerInternals, BiConsumer<String, WindowedValue> timerConsumer) {
-
-    boolean hasFired;
-    do {
-      hasFired = false;
-      TimerInternals.TimerData timer;
-
-      while ((timer = timerInternals.removeNextEventTimer()) != null) {
-        hasFired = true;
-        fireTimer(timer, timerConsumer);
-      }
-      while ((timer = timerInternals.removeNextProcessingTimer()) != null) {
-        hasFired = true;
-        fireTimer(timer, timerConsumer);
-      }
-      while ((timer = timerInternals.removeNextSynchronizedProcessingTimer()) != null) {
-        hasFired = true;
-        fireTimer(timer, timerConsumer);
-      }
-    } while (hasFired);
-  }
-
-  private void fireTimer(
-      TimerInternals.TimerData timer, BiConsumer<String, WindowedValue> timerConsumer) {
-    StateNamespace namespace = timer.getNamespace();
-    Preconditions.checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
-    BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
-    Instant timestamp = timer.getTimestamp();
-    WindowedValue<KV<Object, Timer>> timerValue =
-        WindowedValue.of(
-            KV.of(currentTimerKey, Timer.of(timestamp, new byte[0])),
-            timestamp,
-            Collections.singleton(window),
-            PaneInfo.NO_FIRING);
-    timerConsumer.accept(timer.getTimerId(), timerValue);
-  }
-
   @Override
   public void close() throws Exception {
+    metricContainer.registerMetricsForPipelineResult();
     // close may be called multiple times when an exception is thrown
     if (stageContext != null) {
       try (AutoCloseable bundleFactoryCloser = stageBundleFactory;
@@ -384,151 +339,6 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
       } else {
         throw new IllegalStateException(
             String.format(Locale.ENGLISH, "Unknown PCollectionId %s", collectionId));
-      }
-    }
-  }
-
-  private static class TimerReceiverFactory implements OutputReceiverFactory {
-
-    private final StageBundleFactory stageBundleFactory;
-    /** Timer PCollection id => TimerReference. */
-    private final HashMap<String, ProcessBundleDescriptors.TimerSpec> timerOutputIdToSpecMap;
-    /** Timer PCollection id => timer name => TimerSpec. */
-    private final Map<String, Map<String, ProcessBundleDescriptors.TimerSpec>> timerSpecMap;
-
-    private final BiConsumer<WindowedValue, TimerInternals.TimerData> timerDataConsumer;
-    private final Coder windowCoder;
-
-    TimerReceiverFactory(
-        StageBundleFactory stageBundleFactory,
-        Collection<TimerReference> timerReferenceCollection,
-        Map<String, Map<String, ProcessBundleDescriptors.TimerSpec>> timerSpecMap,
-        BiConsumer<WindowedValue, TimerInternals.TimerData> timerDataConsumer,
-        Coder windowCoder) {
-      this.stageBundleFactory = stageBundleFactory;
-      this.timerOutputIdToSpecMap = new HashMap<>();
-      // Gather all timers from all transforms by their output pCollectionId which is unique
-      for (Map<String, ProcessBundleDescriptors.TimerSpec> transformTimerMap :
-          stageBundleFactory.getProcessBundleDescriptor().getTimerSpecs().values()) {
-        for (ProcessBundleDescriptors.TimerSpec timerSpec : transformTimerMap.values()) {
-          timerOutputIdToSpecMap.put(timerSpec.outputCollectionId(), timerSpec);
-        }
-      }
-      this.timerSpecMap = timerSpecMap;
-      this.timerDataConsumer = timerDataConsumer;
-      this.windowCoder = windowCoder;
-    }
-
-    @Override
-    public <OutputT> FnDataReceiver<OutputT> create(String pCollectionId) {
-      final ProcessBundleDescriptors.TimerSpec timerSpec =
-          timerOutputIdToSpecMap.get(pCollectionId);
-
-      return receivedElement -> {
-        WindowedValue windowedValue = (WindowedValue) receivedElement;
-        Timer timer =
-            Preconditions.checkNotNull(
-                (Timer) ((KV) windowedValue.getValue()).getValue(),
-                "Received null Timer from SDK harness: %s",
-                receivedElement);
-        LOG.debug("Timer received: {} {}", pCollectionId, timer);
-        for (Object window : windowedValue.getWindows()) {
-          StateNamespace namespace = StateNamespaces.window(windowCoder, (BoundedWindow) window);
-          TimeDomain timeDomain = timerSpec.getTimerSpec().getTimeDomain();
-          String timerId = timerSpec.inputCollectionId();
-          TimerInternals.TimerData timerData =
-              TimerInternals.TimerData.of(timerId, namespace, timer.getTimestamp(), timeDomain);
-          timerDataConsumer.accept(windowedValue, timerData);
-        }
-      };
-    }
-  }
-
-  /**
-   * Holds user state in memory if the ExecutableStage is stateful. Only one key is active at a time
-   * due to the GroupReduceFunction being called once per key. Needs to be reset via {@code
-   * resetForNewKey()} before processing a new key.
-   */
-  private static class InMemoryBagUserStateFactory
-      implements StateRequestHandlers.BagUserStateHandlerFactory {
-
-    private List<InMemorySingleKeyBagState> handlers;
-
-    private InMemoryBagUserStateFactory() {
-      handlers = new ArrayList<>();
-    }
-
-    @Override
-    public <K, V, W extends BoundedWindow>
-        StateRequestHandlers.BagUserStateHandler<K, V, W> forUserState(
-            String pTransformId,
-            String userStateId,
-            Coder<K> keyCoder,
-            Coder<V> valueCoder,
-            Coder<W> windowCoder) {
-
-      InMemorySingleKeyBagState<K, V, W> bagUserStateHandler =
-          new InMemorySingleKeyBagState<>(userStateId, valueCoder, windowCoder);
-      handlers.add(bagUserStateHandler);
-
-      return bagUserStateHandler;
-    }
-
-    /** Prepares previous emitted state handlers for processing a new key. */
-    void resetForNewKey() {
-      for (InMemorySingleKeyBagState stateBags : handlers) {
-        stateBags.reset();
-      }
-    }
-
-    static class InMemorySingleKeyBagState<K, V, W extends BoundedWindow>
-        implements StateRequestHandlers.BagUserStateHandler<K, V, W> {
-
-      private final StateTag<BagState<V>> stateTag;
-      private final Coder<W> windowCoder;
-
-      /* Lazily initialized state internals upon first access */
-      private volatile StateInternals stateInternals;
-
-      InMemorySingleKeyBagState(String userStateId, Coder<V> valueCoder, Coder<W> windowCoder) {
-        this.windowCoder = windowCoder;
-        this.stateTag = StateTags.bag(userStateId, valueCoder);
-      }
-
-      @Override
-      public Iterable<V> get(K key, W window) {
-        initStateInternals(key);
-        StateNamespace namespace = StateNamespaces.window(windowCoder, window);
-        BagState<V> bagState = stateInternals.state(namespace, stateTag);
-        return bagState.read();
-      }
-
-      @Override
-      public void append(K key, W window, Iterator<V> values) {
-        initStateInternals(key);
-        StateNamespace namespace = StateNamespaces.window(windowCoder, window);
-        BagState<V> bagState = stateInternals.state(namespace, stateTag);
-        while (values.hasNext()) {
-          bagState.add(values.next());
-        }
-      }
-
-      @Override
-      public void clear(K key, W window) {
-        initStateInternals(key);
-        StateNamespace namespace = StateNamespaces.window(windowCoder, window);
-        BagState<V> bagState = stateInternals.state(namespace, stateTag);
-        bagState.clear();
-      }
-
-      private void initStateInternals(K key) {
-        if (stateInternals == null) {
-          stateInternals = InMemoryStateInternals.forKey(key);
-        }
-      }
-
-      void reset() {
-        stateInternals = null;
       }
     }
   }

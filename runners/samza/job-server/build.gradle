@@ -30,6 +30,7 @@ repositories {
 }
 
 applyJavaNature(
+    automaticModuleName: 'org.apache.beam.runners.samza.jobserver',
     validateShadowJar: false,
     exportJavadoc: false,
     shadowClosure: {
@@ -38,13 +39,11 @@ applyJavaNature(
 )
 
 dependencies {
-  compile project(path: ":beam-runners-samza", configuration: "shadow")
-  compile group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
-  compile library.java.slf4j_simple
-  shadow library.java.guava
+  compile project(":runners:samza")
+  runtime group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
+  runtime library.java.slf4j_simple
 }
 
 runShadow {
-  jvmArgs = ["-Dorg.slf4j.simpleLogger.defaultLogLevel=INFO"]
   args = []
 }

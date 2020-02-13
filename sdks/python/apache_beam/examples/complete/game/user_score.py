@@ -53,6 +53,8 @@ python user_score.py \
     --temp_location gs://$BUCKET/user_score/temp
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -78,7 +80,9 @@ class ParseGameEventFn(beam.DoFn):
   The human-readable time string is not used here.
   """
   def __init__(self):
-    super(ParseGameEventFn, self).__init__()
+    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
+    # super(ParseGameEventFn, self).__init__()
+    beam.DoFn.__init__(self)
     self.num_parse_errors = Metrics.counter(self.__class__, 'num_parse_errors')
 
   def process(self, elem):
@@ -88,7 +92,7 @@ class ParseGameEventFn(beam.DoFn):
           'user': row[0],
           'team': row[1],
           'score': int(row[2]),
-          'timestamp': int(row[3]) /1000.0,
+          'timestamp': int(row[3]) / 1000.0,
       }
     except:  # pylint: disable=bare-except
       # Log and count parse errors
@@ -103,13 +107,18 @@ class ExtractAndSumScore(beam.PTransform):
   extracted.
   """
   def __init__(self, field):
-    super(ExtractAndSumScore, self).__init__()
+    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
+    # super(ExtractAndSumScore, self).__init__()
+    beam.PTransform.__init__(self)
     self.field = field
 
   def expand(self, pcoll):
-    return (pcoll
-            | beam.Map(lambda elem: (elem[self.field], elem['score']))
-            | beam.CombinePerKey(sum))
+    return (
+        pcoll
+        | beam.Map(lambda elem: (elem[self.field], elem['score']))
+        | beam.CombinePerKey(sum))
+
+
 # [END extract_and_sum_score]
 
 
@@ -123,20 +132,19 @@ class UserScore(beam.PTransform):
 
 
 # [START main]
-def run(argv=None):
+def run(argv=None, save_main_session=True):
   """Main entry point; defines and runs the user_score pipeline."""
   parser = argparse.ArgumentParser()
 
   # The default maps to two large Google Cloud Storage files (each ~12GB)
   # holding two subsequent day's worth (roughly) of data.
-  parser.add_argument('--input',
-                      type=str,
-                      default='gs://apache-beam-samples/game/gaming_data*.csv',
-                      help='Path to the data file(s) containing game data.')
-  parser.add_argument('--output',
-                      type=str,
-                      required=True,
-                      help='Path to the output file(s).')
+  parser.add_argument(
+      '--input',
+      type=str,
+      default='gs://apache-beam-samples/game/gaming_data*.csv',
+      help='Path to the data file(s) containing game data.')
+  parser.add_argument(
+      '--output', type=str, required=True, help='Path to the output file(s).')
 
   args, pipeline_args = parser.parse_known_args(argv)
 
@@ -144,20 +152,23 @@ def run(argv=None):
 
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
-  options.view_as(SetupOptions).save_main_session = True
+  options.view_as(SetupOptions).save_main_session = save_main_session
 
   with beam.Pipeline(options=options) as p:
+
     def format_user_score_sums(user_score):
       (user, score) = user_score
       return 'user: %s, total_score: %s' % (user, score)
 
-    (p  # pylint: disable=expression-not-assigned
-     | 'ReadInputText' >> beam.io.ReadFromText(args.input)
-     | 'UserScore' >> UserScore()
-     | 'FormatUserScoreSums' >> beam.Map(format_user_score_sums)
-     | 'WriteUserScoreSums' >> beam.io.WriteToText(args.output))
-# [END main]
+    (  # pylint: disable=expression-not-assigned
+        p
+        | 'ReadInputText' >> beam.io.ReadFromText(args.input)
+        | 'UserScore' >> UserScore()
+        | 'FormatUserScoreSums' >> beam.Map(format_user_score_sums)
+        | 'WriteUserScoreSums' >> beam.io.WriteToText(args.output))
 
+
+# [END main]
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

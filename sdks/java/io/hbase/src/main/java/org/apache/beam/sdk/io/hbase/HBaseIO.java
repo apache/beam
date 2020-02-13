@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.hbase;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -336,7 +336,10 @@ public class HBaseIO {
         try (Connection connection =
             ConnectionFactory.createConnection(read.serializableConfiguration.get())) {
           estimatedSizeBytes =
-              HBaseUtils.estimateSizeBytes(connection, read.tableId, read.serializableScan.get());
+              HBaseUtils.estimateSizeBytes(
+                  connection,
+                  read.tableId,
+                  HBaseUtils.getByteKeyRange(read.serializableScan.get()));
         }
         LOG.debug(
             "Estimated size {} bytes for table {} and scan {}",
@@ -359,12 +362,16 @@ public class HBaseIO {
 
       try (Connection connection = ConnectionFactory.createConnection(read.getConfiguration())) {
         List<HRegionLocation> regionLocations =
-            HBaseUtils.getRegionLocations(connection, read.tableId, read.serializableScan.get());
+            HBaseUtils.getRegionLocations(
+                connection, read.tableId, HBaseUtils.getByteKeyRange(read.serializableScan.get()));
         LOG.debug("Suggested {} source(s) based on size", numSplits);
         LOG.debug("Suggested {} source(s) based on number of regions", regionLocations.size());
 
         List<ByteKeyRange> ranges =
-            HBaseUtils.getRanges(regionLocations, read.tableId, read.serializableScan.get());
+            HBaseUtils.getRanges(
+                regionLocations,
+                read.tableId,
+                HBaseUtils.getByteKeyRange(read.serializableScan.get()));
         final int numSources = ranges.size();
         LOG.debug("Spliting into {} source(s)", numSources);
         if (numSources > 0) {

@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"golang.org/x/net/context"
 	"strings"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
 // Writer returns a row of data to be inserted into a table.
@@ -44,7 +46,7 @@ func (w *writer) add(row []interface{}) error {
 	w.rowCount++
 	w.totalCount++
 	if len(row) != w.columnCount {
-		return fmt.Errorf("expected %v row values, but had: %v", w.columnCount, len(row))
+		return errors.Errorf("expected %v row values, but had: %v", w.columnCount, len(row))
 	}
 	w.binding = append(w.binding, row...)
 	return nil
@@ -59,7 +61,7 @@ func (w *writer) write(ctx context.Context, db *sql.DB) error {
 	}
 	affected, _ := resultSet.RowsAffected()
 	if int(affected) != w.rowCount {
-		return fmt.Errorf("expected to write: %v, but written: %v", w.rowCount, affected)
+		return errors.Errorf("expected to write: %v, but written: %v", w.rowCount, affected)
 	}
 	w.binding = []interface{}{}
 	w.rowCount = 0
@@ -82,7 +84,7 @@ func (w *writer) writeIfNeeded(ctx context.Context, db *sql.DB) error {
 
 func newWriter(batchSize int, table string, columns []string) (*writer, error) {
 	if len(columns) == 0 {
-		return nil, fmt.Errorf("columns were empty")
+		return nil, errors.New("columns were empty")
 	}
 	values := strings.Repeat("?,", len(columns))
 	return &writer{

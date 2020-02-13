@@ -20,6 +20,8 @@ package org.apache.beam.sdk.values;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.Row.toRow;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 
 import java.math.BigDecimal;
@@ -31,9 +33,9 @@ import java.util.Map;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Assert;
@@ -61,6 +63,8 @@ public class RowTest {
                 Schema.Field.of("f_datetime", FieldType.DATETIME).withNullable(true),
                 Schema.Field.of("f_boolean", FieldType.BOOLEAN).withNullable(true),
                 Schema.Field.of("f_array", FieldType.array(FieldType.DATETIME)).withNullable(true),
+                Schema.Field.of("f_iter", FieldType.iterable(FieldType.DATETIME))
+                    .withNullable(true),
                 Schema.Field.of("f_map", FieldType.map(FieldType.INT32, FieldType.DOUBLE))
                     .withNullable(true))
             .collect(toSchema());
@@ -89,8 +93,10 @@ public class RowTest {
     assertNull(row.getBoolean(9));
     assertNull(row.getBoolean("f_array"));
     assertNull(row.getBoolean(10));
-    assertNull(row.getBoolean("f_map"));
+    assertNull(row.getBoolean("f_iter"));
     assertNull(row.getBoolean(11));
+    assertNull(row.getBoolean("f_map"));
+    assertNull(row.getBoolean(12));
   }
 
   @Test
@@ -142,8 +148,8 @@ public class RowTest {
     assertEquals("str", row.getString(7));
     assertEquals(dateTime, row.getDateTime("f_datetime"));
     assertEquals(dateTime, row.getDateTime(8));
-    assertEquals(false, row.getBoolean("f_boolean"));
-    assertEquals(false, row.getBoolean(9));
+    assertFalse(row.getBoolean("f_boolean"));
+    assertFalse(row.getBoolean(9));
   }
 
   @Test
@@ -173,13 +179,67 @@ public class RowTest {
   }
 
   @Test
-  public void testCreatesArrayWithNullElement() {
-    List<Integer> data = Lists.newArrayList(2, null, 5, null);
+  public void testCreatesIterable() {
+    List<Integer> data = Lists.newArrayList(2, 3, 5, 7);
     Schema type =
-        Stream.of(Schema.Field.of("array", Schema.FieldType.array(Schema.FieldType.INT32, true)))
+        Stream.of(Schema.Field.of("iter", Schema.FieldType.iterable(Schema.FieldType.INT32)))
+            .collect(toSchema());
+    Row row = Row.withSchema(type).addIterable(data).build();
+    assertEquals(data, row.getIterable("iter"));
+  }
+
+  @Test
+  public void testCreatesAndComparesNullArray() {
+    List<Integer> data = null;
+    Schema type =
+        Stream.of(Schema.Field.nullable("array", Schema.FieldType.array(Schema.FieldType.INT32)))
             .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
     assertEquals(data, row.getArray("array"));
+
+    Row otherNonNull = Row.withSchema(type).addValue(ImmutableList.of(1, 2, 3)).build();
+    Row otherNull = Row.withSchema(type).addValue(null).build();
+    assertNotEquals(otherNonNull, row);
+    assertEquals(otherNull, row);
+  }
+
+  @Test
+  public void testCreatesAndComparesNullIterable() {
+    List<Integer> data = null;
+    Schema type =
+        Stream.of(Schema.Field.nullable("iter", Schema.FieldType.iterable(Schema.FieldType.INT32)))
+            .collect(toSchema());
+    Row row = Row.withSchema(type).addIterable(data).build();
+    assertEquals(data, row.getArray("iter"));
+
+    Row otherNonNull = Row.withSchema(type).addValue(ImmutableList.of(1, 2, 3)).build();
+    Row otherNull = Row.withSchema(type).addValue(null).build();
+    assertNotEquals(otherNonNull, row);
+    assertEquals(otherNull, row);
+  }
+
+  @Test
+  public void testCreatesArrayWithNullElement() {
+    List<Integer> data = Lists.newArrayList(2, null, 5, null);
+    Schema type =
+        Stream.of(
+                Schema.Field.of(
+                    "array", Schema.FieldType.array(Schema.FieldType.INT32.withNullable(true))))
+            .collect(toSchema());
+    Row row = Row.withSchema(type).addArray(data).build();
+    assertEquals(data, row.getArray("array"));
+  }
+
+  @Test
+  public void testCreatesIterableWithNullElement() {
+    List<Integer> data = Lists.newArrayList(2, null, 5, null);
+    Schema type =
+        Stream.of(
+                Schema.Field.of(
+                    "iter", Schema.FieldType.iterable(Schema.FieldType.INT32.withNullable(true))))
+            .collect(toSchema());
+    Row row = Row.withSchema(type).addIterable(data).build();
+    assertEquals(data, row.getIterable("iter"));
   }
 
   @Test
@@ -199,6 +259,22 @@ public class RowTest {
   }
 
   @Test
+  public void testCreatesRowIterable() {
+    Schema nestedType = Stream.of(Schema.Field.of("f1_str", FieldType.STRING)).collect(toSchema());
+    List<Row> data =
+        Lists.newArrayList(
+            Row.withSchema(nestedType).addValues("one").build(),
+            Row.withSchema(nestedType).addValues("two").build(),
+            Row.withSchema(nestedType).addValues("three").build());
+
+    Schema type =
+        Stream.of(Schema.Field.of("iter", FieldType.iterable(FieldType.row(nestedType))))
+            .collect(toSchema());
+    Row row = Row.withSchema(type).addIterable(data).build();
+    assertEquals(data, row.getIterable("iter"));
+  }
+
+  @Test
   public void testCreatesArrayArray() {
     List<List<Integer>> data = Lists.<List<Integer>>newArrayList(Lists.newArrayList(1, 2, 3, 4));
     Schema type =
@@ -209,16 +285,46 @@ public class RowTest {
   }
 
   @Test
+  public void testCreatesIterableArray() {
+    List<List<Integer>> data = Lists.<List<Integer>>newArrayList(Lists.newArrayList(1, 2, 3, 4));
+    Schema type =
+        Stream.of(Schema.Field.of("iter", FieldType.iterable(FieldType.array(FieldType.INT32))))
+            .collect(toSchema());
+    Row row = Row.withSchema(type).addIterable(data).build();
+    assertEquals(data, row.getIterable("iter"));
+  }
+
+  @Test
   public void testCreatesArrayArrayWithNullElement() {
     List<List<Integer>> data =
         Lists.<List<Integer>>newArrayList(Lists.newArrayList(1, null, 3, null), null);
     Schema type =
         Stream.of(
                 Schema.Field.of(
-                    "array", FieldType.array(FieldType.array(FieldType.INT32, true), true)))
+                    "array",
+                    FieldType.array(
+                            FieldType.array(FieldType.INT32.withNullable(true)).withNullable(true))
+                        .withNullable(true)))
             .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
     assertEquals(data, row.getArray("array"));
+  }
+
+  @Test
+  public void testCreatesIterableIterableWithNullElement() {
+    List<List<Integer>> data =
+        Lists.<List<Integer>>newArrayList(Lists.newArrayList(1, null, 3, null), null);
+    Schema type =
+        Stream.of(
+                Schema.Field.of(
+                    "iter",
+                    FieldType.iterable(
+                            FieldType.iterable(FieldType.INT32.withNullable(true))
+                                .withNullable(true))
+                        .withNullable(true)))
+            .collect(toSchema());
+    Row row = Row.withSchema(type).addIterable(data).build();
+    assertEquals(data, row.getIterable("iter"));
   }
 
   @Test
@@ -238,6 +344,22 @@ public class RowTest {
   }
 
   @Test
+  public void testCreatesIterableOfMap() {
+    List<Map<Integer, String>> data =
+        ImmutableList.<Map<Integer, String>>builder()
+            .add(ImmutableMap.of(1, "value1"))
+            .add(ImmutableMap.of(2, "value2"))
+            .build();
+    Schema type =
+        Stream.of(
+                Schema.Field.of(
+                    "iter", FieldType.iterable(FieldType.map(FieldType.INT32, FieldType.STRING))))
+            .collect(toSchema());
+    Row row = Row.withSchema(type).addIterable(data).build();
+    assertEquals(data, row.getIterable("iter"));
+  }
+
+  @Test
   public void testCreateMapWithPrimitiveValue() {
     Map<Integer, String> data =
         ImmutableMap.<Integer, String>builder()
@@ -251,6 +373,21 @@ public class RowTest {
             .collect(toSchema());
     Row row = Row.withSchema(type).addValue(data).build();
     assertEquals(data, row.getMap("map"));
+  }
+
+  @Test
+  public void testCreateAndCompareNullMap() {
+    List<Integer> data = null;
+    Schema type =
+        Stream.of(Schema.Field.nullable("map", FieldType.map(FieldType.INT32, FieldType.STRING)))
+            .collect(toSchema());
+    Row row = Row.withSchema(type).addValue(data).build();
+    assertEquals(data, row.getArray("map"));
+
+    Row otherNonNull = Row.withSchema(type).addValue(ImmutableMap.of(1, "value1")).build();
+    Row otherNull = Row.withSchema(type).addValue(null).build();
+    assertNotEquals(otherNonNull, row);
+    assertEquals(otherNull, row);
   }
 
   @Test

@@ -26,9 +26,13 @@ behavior in the service. If you are using any of these packages in your code, be
 aware that some libraries are not forward-compatible and you may need to pin to
 the listed versions that will be in scope during execution.
 
-## Current release
+<p>To see the compile and runtime dependencies for your Beam SDK version, expand
+the relevant section below.</p>
 
-Beam SDK for Java 2.9.0 has the following compile and runtime dependencies.
+<details><summary markdown="span"><b>2.9.0</b></summary>
+
+<p>Beam SDK for Java 2.9.0 has the following compile and runtime dependencies.</p>
+
 <table class="table-bordered table-striped">
   <tr><th>GroupId</th><th>ArtifactId</th><th>Version</th></tr>
   <tr><td>org.apache.activemq</td><td>activemq-amqp</td><td>5.13.1</td></tr>
@@ -131,12 +135,12 @@ Beam SDK for Java 2.9.0 has the following compile and runtime dependencies.
   <tr><td>com.pholser</td><td>junit-quickcheck-core</td><td>0.8</td></tr>
 </table>
 
+</details>
 
-## Previous releases
-
-<details><summary markdown="span">2.8.0</summary>
+<details><summary markdown="span"><b>2.8.0</b></summary>
 
 <p>Beam SDK for Java 2.8.0 has the following compile and runtime dependencies.</p>
+
 <table class="table-bordered table-striped">
   <tr><th>GroupId</th><th>ArtifactId</th><th>Version</th></tr>
   <tr><td>org.apache.activemq</td><td>activemq-amqp</td><td>5.13.1</td></tr>
@@ -244,9 +248,10 @@ Beam SDK for Java 2.9.0 has the following compile and runtime dependencies.
 
 </details>
 
-<details><summary markdown="span">2.7.0</summary>
+<details><summary markdown="span"><b>2.7.0</b></summary>
 
 <p>Beam SDK for Java 2.7.0 has the following compile and runtime dependencies.</p>
+
 <table class="table-bordered table-striped">
   <tr><th>GroupId</th><th>ArtifactId</th><th>Version</th></tr>
   <tr><td>org.apache.activemq</td><td>activemq-amqp</td><td>5.13.1</td></tr>

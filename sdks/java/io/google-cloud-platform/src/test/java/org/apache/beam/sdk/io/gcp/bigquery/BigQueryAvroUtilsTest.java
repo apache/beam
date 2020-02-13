@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
@@ -41,9 +41,9 @@ import org.apache.avro.reflect.Nullable;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -243,8 +243,8 @@ public class BigQueryAvroUtilsTest {
                 Schema.create(Type.NULL),
                 Schema.createRecord(
                     "scion",
-                    "org.apache.beam.sdk.io.gcp.bigquery",
                     "Translated Avro Schema for scion",
+                    "org.apache.beam.sdk.io.gcp.bigquery",
                     false,
                     ImmutableList.of(
                         new Field(
@@ -259,8 +259,8 @@ public class BigQueryAvroUtilsTest {
             Schema.createArray(
                 Schema.createRecord(
                     "associates",
-                    "org.apache.beam.sdk.io.gcp.bigquery",
                     "Translated Avro Schema for associates",
+                    "org.apache.beam.sdk.io.gcp.bigquery",
                     false,
                     ImmutableList.of(
                         new Field(
@@ -269,6 +269,39 @@ public class BigQueryAvroUtilsTest {
                                 Schema.create(Type.NULL), Schema.create(Type.STRING)),
                             null,
                             (Object) null))))));
+  }
+
+  @Test
+  public void testFormatTimestamp() {
+    assertThat(
+        BigQueryAvroUtils.formatTimestamp(1452062291123456L),
+        equalTo("2016-01-06 06:38:11.123456 UTC"));
+  }
+
+  @Test
+  public void testFormatTimestampLeadingZeroesOnMicros() {
+    assertThat(
+        BigQueryAvroUtils.formatTimestamp(1452062291000456L),
+        equalTo("2016-01-06 06:38:11.000456 UTC"));
+  }
+
+  @Test
+  public void testFormatTimestampTrailingZeroesOnMicros() {
+    assertThat(
+        BigQueryAvroUtils.formatTimestamp(1452062291123000L),
+        equalTo("2016-01-06 06:38:11.123000 UTC"));
+  }
+
+  @Test
+  public void testFormatTimestampNegative() {
+    assertThat(BigQueryAvroUtils.formatTimestamp(-1L), equalTo("1969-12-31 23:59:59.999999 UTC"));
+    assertThat(
+        BigQueryAvroUtils.formatTimestamp(-100_000L), equalTo("1969-12-31 23:59:59.900000 UTC"));
+    assertThat(BigQueryAvroUtils.formatTimestamp(-1_000_000L), equalTo("1969-12-31 23:59:59 UTC"));
+    // No leap seconds before 1972. 477 leap years from 1 through 1969.
+    assertThat(
+        BigQueryAvroUtils.formatTimestamp(-(1969L * 365 + 477) * 86400 * 1_000_000),
+        equalTo("0001-01-01 00:00:00 UTC"));
   }
 
   /** Pojo class used as the record type in tests. */

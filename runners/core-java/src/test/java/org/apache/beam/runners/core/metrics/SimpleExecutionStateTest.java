@@ -54,12 +54,15 @@ public class SimpleExecutionStateTest {
     assertEquals(10, testObject.getTotalMillis());
     testObject.takeSample(5);
     assertEquals(15, testObject.getTotalMillis());
+
+    testObject.reset();
+    assertEquals(0, testObject.getTotalMillis());
   }
 
   @Test
   public void testGetLullReturnsARelevantMessageWithStepName() {
     HashMap<String, String> labelsMetadata = new HashMap<String, String>();
-    labelsMetadata.put(SimpleMonitoringInfoBuilder.PTRANSFORM_LABEL, "myPTransform");
+    labelsMetadata.put(MonitoringInfoConstants.Labels.PTRANSFORM, "myPTransform");
     SimpleExecutionState testObject = new SimpleExecutionState("myState", null, labelsMetadata);
     String message = testObject.getLullMessage(new Thread(), Duration.millis(100_000));
     assertThat(message, containsString("myState"));

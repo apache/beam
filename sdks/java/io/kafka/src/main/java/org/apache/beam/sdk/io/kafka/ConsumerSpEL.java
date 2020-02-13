@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Collection;
 import java.util.Map;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
@@ -53,12 +53,12 @@ class ConsumerSpEL {
 
   private boolean hasRecordTimestamp = false;
   private boolean hasOffsetsForTimes = false;
-  static boolean hasHeaders = false;
 
-  static {
+  static boolean hasHeaders() {
+    boolean clientHasHeaders = false;
     try {
       // It is supported by Kafka Client 0.11.0.0 onwards.
-      hasHeaders =
+      clientHasHeaders =
           "org.apache.kafka.common.header.Headers"
               .equals(
                   ConsumerRecord.class
@@ -68,6 +68,7 @@ class ConsumerSpEL {
     } catch (NoSuchMethodException | SecurityException e) {
       LOG.debug("Headers is not available");
     }
+    return clientHasHeaders;
   }
 
   public ConsumerSpEL() {

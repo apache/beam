@@ -17,8 +17,10 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
-import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
+import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
@@ -32,7 +34,10 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -47,11 +52,18 @@ public class StreamingSourceMetricsTest implements Serializable {
   @Test
   @Category(StreamingTest.class)
   public void testUnboundedSourceMetrics() {
-    final long numElements = 1000;
+    final long minElements = 1000;
 
-    pipeline.apply(
-        // Use maxReadTime to force unbounded mode.
-        GenerateSequence.from(0).to(numElements).withMaxReadTime(Duration.standardDays(1)));
+    // Use a GenerateSequence for the UnboundedSequence, but push the watermark to infinity at
+    // minElements to let the test pipeline cleanly shut it down.  Shutdown will occur shortly
+    // afterwards, but at least minElements will be reported in the metrics.
+    PCollection<Long> pc =
+        pipeline.apply(
+            GenerateSequence.from(1)
+                .withRate(minElements / 10, Duration.millis(500L))
+                .withTimestampFn(
+                    t -> t < minElements ? Instant.now() : BoundedWindow.TIMESTAMP_MAX_VALUE));
+    assertThat(pc.isBounded(), is(PCollection.IsBounded.UNBOUNDED));
 
     PipelineResult pipelineResult = pipeline.run();
 
@@ -68,10 +80,11 @@ public class StreamingSourceMetricsTest implements Serializable {
     assertThat(
         metrics.getCounters(),
         hasItem(
-            attemptedMetricsResult(
+            metricsResult(
                 ELEMENTS_READ.getNamespace(),
                 ELEMENTS_READ.getName(),
-                "Read(UnboundedCountingSource)",
-                1000L)));
+                "GenerateSequence/Read(UnboundedCountingSource)",
+                greaterThanOrEqualTo(minElements),
+                false)));
   }
 }

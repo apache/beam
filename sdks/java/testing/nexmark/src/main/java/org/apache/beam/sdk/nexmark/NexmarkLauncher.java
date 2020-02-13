@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.nexmark;
 
 import static org.apache.beam.sdk.nexmark.NexmarkUtils.PubSubMode.COMBINED;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
@@ -27,8 +27,10 @@ import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
@@ -81,7 +83,6 @@ import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery0;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery1;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery2;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery3;
-import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery5;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery7;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
@@ -94,10 +95,12 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.LongDeserializer;
@@ -160,10 +163,14 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   @Nullable private String pubsubSubscription;
 
   @Nullable private PubsubHelper pubsubHelper;
+  private final Map<NexmarkQueryName, NexmarkQuery> queries;
+  private final Map<NexmarkQueryName, NexmarkQueryModel> models;
 
   public NexmarkLauncher(OptionT options, NexmarkConfiguration configuration) {
     this.options = options;
     this.configuration = configuration;
+    queries = createQueries();
+    models = createQueryModels();
   }
 
   /** Is this query running in streaming mode? */
@@ -500,6 +507,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       boolean running = true;
       switch (state) {
         case UNKNOWN:
+        case UNRECOGNIZED:
         case STOPPED:
         case RUNNING:
           // Keep going.
@@ -1193,12 +1201,10 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   private NexmarkQueryModel getNexmarkQueryModel() {
-    Map<NexmarkQueryName, NexmarkQueryModel> models = createQueryModels();
     return models.get(configuration.query);
   }
 
   private NexmarkQuery<?> getNexmarkQuery() {
-    Map<NexmarkQueryName, NexmarkQuery> queries = createQueries();
     return queries.get(configuration.query);
   }
 
@@ -1228,7 +1234,22 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   private Map<NexmarkQueryName, NexmarkQuery> createQueries() {
-    return isSql() ? createSqlQueries() : createJavaQueries();
+    Map<NexmarkQueryName, NexmarkQuery> defaultQueries =
+        isSql() ? createSqlQueries() : createJavaQueries();
+    Set<NexmarkQueryName> skippableQueries = getSkippableQueries();
+    return ImmutableMap.copyOf(
+        Maps.filterKeys(defaultQueries, query -> !skippableQueries.contains(query)));
+  }
+
+  private Set<NexmarkQueryName> getSkippableQueries() {
+    Set<NexmarkQueryName> skipQueries = new LinkedHashSet<>();
+    if (options.getSkipQueries() != null && !options.getSkipQueries().trim().equals("")) {
+      Iterable<String> queries = Splitter.on(',').split(options.getSkipQueries());
+      for (String query : queries) {
+        skipQueries.add(NexmarkQueryName.fromId(query.trim()));
+      }
+    }
+    return skipQueries;
   }
 
   private Map<NexmarkQueryName, NexmarkQuery> createSqlQueries() {
@@ -1241,9 +1262,19 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         .put(
             NexmarkQueryName.LOCAL_ITEM_SUGGESTION,
             new NexmarkQuery(configuration, new SqlQuery3(configuration)))
-        .put(
-            NexmarkQueryName.HOT_ITEMS,
-            new NexmarkQuery(configuration, new SqlQuery5(configuration)))
+
+        // SqlQuery5 is disabled for now, uses non-equi-joins,
+        // never worked right, was giving incorrect results.
+        // Gets rejected after PR/8301, causing failures.
+        //
+        // See:
+        //   https://issues.apache.org/jira/browse/BEAM-7072
+        //   https://github.com/apache/beam/pull/8301
+        //   https://github.com/apache/beam/pull/8422#issuecomment-487676350
+        //
+        //        .put(
+        //            NexmarkQueryName.HOT_ITEMS,
+        //            new NexmarkQuery(configuration, new SqlQuery5(configuration)))
         .put(
             NexmarkQueryName.HIGHEST_BID,
             new NexmarkQuery(configuration, new SqlQuery7(configuration)))

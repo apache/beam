@@ -18,7 +18,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 type ApiServiceDescriptor struct {
 	// (Required) The URL to connect to.
@@ -91,59 +91,11 @@ func (m *ApiServiceDescriptor) GetOauth2ClientCredentialsGrant() *OAuth2ClientCr
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*ApiServiceDescriptor) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _ApiServiceDescriptor_OneofMarshaler, _ApiServiceDescriptor_OneofUnmarshaler, _ApiServiceDescriptor_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*ApiServiceDescriptor) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*ApiServiceDescriptor_Oauth2ClientCredentialsGrant)(nil),
 	}
-}
-
-func _ApiServiceDescriptor_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*ApiServiceDescriptor)
-	// authentication
-	switch x := m.Authentication.(type) {
-	case *ApiServiceDescriptor_Oauth2ClientCredentialsGrant:
-		b.EncodeVarint(3<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Oauth2ClientCredentialsGrant); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("ApiServiceDescriptor.Authentication has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _ApiServiceDescriptor_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*ApiServiceDescriptor)
-	switch tag {
-	case 3: // authentication.oauth2_client_credentials_grant
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(OAuth2ClientCredentialsGrant)
-		err := b.DecodeMessage(msg)
-		m.Authentication = &ApiServiceDescriptor_Oauth2ClientCredentialsGrant{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _ApiServiceDescriptor_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*ApiServiceDescriptor)
-	// authentication
-	switch x := m.Authentication.(type) {
-	case *ApiServiceDescriptor_Oauth2ClientCredentialsGrant:
-		s := proto.Size(x.Oauth2ClientCredentialsGrant)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 type OAuth2ClientCredentialsGrant struct {

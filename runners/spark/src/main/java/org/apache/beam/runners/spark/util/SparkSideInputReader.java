@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark.util;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -35,7 +35,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /** A {@link SideInputReader} for the SparkRunner. */
 public class SparkSideInputReader implements SideInputReader {
@@ -64,27 +64,23 @@ public class SparkSideInputReader implements SideInputReader {
     Iterable<WindowedValue<KV<?, ?>>> availableSideInputs =
         (Iterable<WindowedValue<KV<?, ?>>>) windowedBroadcastHelper.getValue().getValue();
     Iterable<KV<?, ?>> sideInputForWindow =
-        StreamSupport.stream(
-                StreamSupport.stream(availableSideInputs.spliterator(), false)
-                    .filter(
-                        sideInputCandidate -> {
-                          if (sideInputCandidate == null) {
-                            return false;
-                          }
-                          return Iterables.contains(
-                              sideInputCandidate.getWindows(), sideInputWindow);
-                        })
-                    .collect(Collectors.toList())
-                    .spliterator(),
-                false)
+        StreamSupport.stream(availableSideInputs.spliterator(), false)
+            .filter(
+                sideInputCandidate -> {
+                  if (sideInputCandidate == null) {
+                    return false;
+                  }
+                  return Iterables.contains(sideInputCandidate.getWindows(), sideInputWindow);
+                })
+            .collect(Collectors.toList())
+            .stream()
             .map(WindowedValue::getValue)
             .collect(Collectors.toList());
 
     ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
     Coder keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
-    return (T)
-        viewFn.apply(
-            InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) sideInputForWindow));
+    return viewFn.apply(
+        InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) sideInputForWindow));
   }
 
   @Override

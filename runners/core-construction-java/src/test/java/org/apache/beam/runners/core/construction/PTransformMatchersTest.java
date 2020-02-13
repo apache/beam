@@ -66,12 +66,14 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
+import org.apache.beam.sdk.values.PCollectionViews.IterableViewFn;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.Rule;
@@ -163,15 +165,16 @@ public class PTransformMatchersTest implements Serializable {
   private DoFn<KV<String, Integer>, Integer> splittableDoFn =
       new DoFn<KV<String, Integer>, Integer>() {
         @ProcessElement
-        public void processElement(ProcessContext context, SomeTracker tracker) {}
+        public void processElement(
+            ProcessContext context, RestrictionTracker<Void, Void> tracker) {}
 
         @GetInitialRestriction
-        public Void getInitialRestriction(KV<String, Integer> element) {
+        public Void getInitialRestriction(@Element KV<String, Integer> element) {
           return null;
         }
 
         @NewTracker
-        public SomeTracker newTracker(Void restriction) {
+        public SomeTracker newTracker(@Restriction Void restriction) {
           return null;
         }
       };
@@ -404,7 +407,8 @@ public class PTransformMatchersTest implements Serializable {
     PCollectionView<Iterable<Integer>> view = input.apply(View.asIterable());
 
     // Purposely create a subclass to get a different class then what was expected.
-    ViewFn<?, ?> viewFn = new PCollectionViews.IterableViewFn() {};
+    IterableViewFn<Integer> viewFn =
+        new PCollectionViews.IterableViewFn<Integer>(() -> TypeDescriptors.integers()) {};
     CreatePCollectionView<?, ?> createView = CreatePCollectionView.of(view);
 
     PTransformMatcher matcher = PTransformMatchers.createViewWithViewFn(viewFn.getClass());

@@ -45,9 +45,9 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -189,7 +189,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
 
-    static final String DIRECT_TEST_STREAM_URN = "urn:beam:directrunner:transforms:test_stream:v1";
+    static final String DIRECT_TEST_STREAM_URN = "beam:directrunner:transforms:test_stream:v1";
 
     static class DirectTestStream<T> extends PTransform<PBegin, PCollection<T>> {
       private final transient DirectRunner runner;

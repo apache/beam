@@ -18,20 +18,29 @@
 package org.apache.beam.runners.dataflow.worker.status;
 
 import java.io.IOException;
+import java.util.function.BooleanSupplier;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-/** Respond to /healthz with "ok". */
+/** Respond to /healthz with health information. */
 public class HealthzServlet extends BaseStatusServlet {
 
-  public HealthzServlet() {
+  private final BooleanSupplier healthyIndicator;
+
+  public HealthzServlet(BooleanSupplier healthyIndicator) {
     super("healthz");
+    this.healthyIndicator = healthyIndicator;
   }
 
   @Override
   public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
     response.setContentType("text/html;charset=utf-8");
-    response.setStatus(HttpServletResponse.SC_OK);
-    response.getWriter().println("ok");
+    if (healthyIndicator.getAsBoolean()) {
+      response.setStatus(HttpServletResponse.SC_OK);
+      response.getWriter().println("ok");
+    } else {
+      response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+      response.getWriter().println("internal server error");
+    }
   }
 }

@@ -17,14 +17,14 @@
  */
 package org.apache.beam.sdk.fn.data;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
  * An execution-time only {@link PTransform} which represents an SDK harness reading from a {@link
@@ -32,7 +32,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
  */
 @AutoValue
 public abstract class RemoteGrpcPortRead {
-  public static final String URN = "urn:org.apache.beam:source:runner:0.1";
+  public static final String URN = "beam:source:runner:0.1";
   private static final String LOCAL_OUTPUT_ID = "local_output";
 
   public static RemoteGrpcPortRead readFromPort(RemoteGrpcPort port, String outputPCollectionId) {

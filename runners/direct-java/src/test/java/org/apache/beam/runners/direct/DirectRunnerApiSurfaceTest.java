@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.util.ApiSurface.containsOnlyPackages;
 import static org.junit.Assert.assertThat;
 
 import java.util.Set;
-import org.apache.beam.runners.direct.portable.ExecutableGraphBuilder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -29,7 +28,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.ApiSurface;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -65,7 +64,6 @@ public class DirectRunnerApiSurfaceTest {
             .pruningClass(DirectGraphs.class)
             .pruningClass(
                 WatermarkManager.class /* TODO: BEAM-4237 Consider moving to local-java */)
-            .pruningClass(ExecutableGraphBuilder.class)
             .pruningPattern(
                 "org[.]apache[.]beam[.]runners[.]direct[.]portable.*"
                 /* TODO: BEAM-4237 reconsider package layout with the ReferenceRunner */ )

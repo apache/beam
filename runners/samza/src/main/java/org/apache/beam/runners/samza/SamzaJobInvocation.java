@@ -26,7 +26,6 @@ import static org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum.STOPPE
 import static org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum.UNRECOGNIZED;
 import static org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum.UPDATED;
 
-import java.util.function.Consumer;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
@@ -35,7 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Invocation of a Samza job via {@link SamzaRunner}. */
-public class SamzaJobInvocation implements JobInvocation {
+public class SamzaJobInvocation extends JobInvocation {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaJobInvocation.class);
 
   private final SamzaPipelineOptions options;
@@ -43,6 +42,7 @@ public class SamzaJobInvocation implements JobInvocation {
   private volatile SamzaPipelineResult pipelineResult;
 
   public SamzaJobInvocation(RunnerApi.Pipeline pipeline, SamzaPipelineOptions options) {
+    super(null, null, pipeline, null);
     this.originalPipeline = pipeline;
     this.options = options;
   }
@@ -57,14 +57,14 @@ public class SamzaJobInvocation implements JobInvocation {
     options.setRunner(SamzaRunner.class);
     try {
       final SamzaRunner runner = SamzaRunner.fromOptions(options);
-      return runner.runPortablePipeline(fusedPipeline);
+      return (SamzaPortablePipelineResult) runner.runPortablePipeline(fusedPipeline);
     } catch (Exception e) {
       throw new RuntimeException("Failed to invoke samza job", e);
     }
   }
 
   @Override
-  public void start() {
+  public synchronized void start() {
     LOG.info("Starting job invocation {}", getId());
     pipelineResult = invokeSamzaJob();
   }
@@ -75,7 +75,7 @@ public class SamzaJobInvocation implements JobInvocation {
   }
 
   @Override
-  public void cancel() {
+  public synchronized void cancel() {
     try {
       if (pipelineResult != null) {
         LOG.info("Cancelling pipeline {}", getId());
@@ -107,15 +107,5 @@ public class SamzaJobInvocation implements JobInvocation {
       default:
         return UNRECOGNIZED;
     }
-  }
-
-  @Override
-  public void addStateListener(Consumer<JobApi.JobState.Enum> stateStreamObserver) {
-    LOG.info("state listener not yet implemented. Directly use getState() instead");
-  }
-
-  @Override
-  public synchronized void addMessageListener(Consumer<JobApi.JobMessage> messageStreamObserver) {
-    LOG.info("message listener not yet implemented.");
   }
 }

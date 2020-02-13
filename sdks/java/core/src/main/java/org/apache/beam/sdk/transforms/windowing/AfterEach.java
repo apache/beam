@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.joda.time.Instant;
 
 /**
@@ -65,6 +65,11 @@ public class AfterEach extends Trigger {
     // This trigger will fire at least once when the first trigger in the sequence
     // fires at least once.
     return subTriggers.get(0).getWatermarkThatGuaranteesFiring(window);
+  }
+
+  @Override
+  public boolean mayFinish() {
+    return subTriggers.stream().allMatch(trigger -> trigger.mayFinish());
   }
 
   @Override

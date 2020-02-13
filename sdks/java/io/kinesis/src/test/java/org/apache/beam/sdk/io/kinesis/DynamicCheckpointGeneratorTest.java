@@ -18,12 +18,12 @@
 package org.apache.beam.sdk.io.kinesis;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.when;
 
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.amazonaws.services.kinesis.model.Shard;
 import java.util.Set;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -39,15 +39,14 @@ public class DynamicCheckpointGeneratorTest {
 
   @Test
   public void shouldMapAllShardsToCheckpoints() throws Exception {
-    given(shard1.getShardId()).willReturn("shard-01");
-    given(shard2.getShardId()).willReturn("shard-02");
-    given(shard3.getShardId()).willReturn("shard-03");
+    when(shard1.getShardId()).thenReturn("shard-01");
+    when(shard2.getShardId()).thenReturn("shard-02");
+    when(shard3.getShardId()).thenReturn("shard-03");
     Set<Shard> shards = Sets.newHashSet(shard1, shard2, shard3);
     StartingPoint startingPoint = new StartingPoint(InitialPositionInStream.LATEST);
-    given(
-            startingPointShardsFinder.findShardsAtStartingPoint(
-                kinesisClient, "stream", startingPoint))
-        .willReturn(shards);
+    when(startingPointShardsFinder.findShardsAtStartingPoint(
+            kinesisClient, "stream", startingPoint))
+        .thenReturn(shards);
     DynamicCheckpointGenerator underTest =
         new DynamicCheckpointGenerator("stream", startingPoint, startingPointShardsFinder);
 
@@ -58,16 +57,15 @@ public class DynamicCheckpointGeneratorTest {
 
   @Test
   public void shouldMapAllValidShardsToCheckpoints() throws Exception {
-    given(shard1.getShardId()).willReturn("shard-01");
-    given(shard2.getShardId()).willReturn("shard-02");
-    given(shard3.getShardId()).willReturn("shard-03");
+    when(shard1.getShardId()).thenReturn("shard-01");
+    when(shard2.getShardId()).thenReturn("shard-02");
+    when(shard3.getShardId()).thenReturn("shard-03");
     String streamName = "stream";
     Set<Shard> shards = Sets.newHashSet(shard1, shard2);
     StartingPoint startingPoint = new StartingPoint(InitialPositionInStream.LATEST);
-    given(
-            startingPointShardsFinder.findShardsAtStartingPoint(
-                kinesisClient, "stream", startingPoint))
-        .willReturn(shards);
+    when(startingPointShardsFinder.findShardsAtStartingPoint(
+            kinesisClient, "stream", startingPoint))
+        .thenReturn(shards);
 
     DynamicCheckpointGenerator underTest =
         new DynamicCheckpointGenerator(streamName, startingPoint, startingPointShardsFinder);

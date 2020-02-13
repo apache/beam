@@ -27,8 +27,8 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
 /**
@@ -108,8 +108,13 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
 
   @Override
   public void onTimer(
-      String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
-    underlying.onTimer(timerId, window, timestamp, timeDomain);
+      String timerId,
+      String timerFamilyId,
+      BoundedWindow window,
+      Instant timestamp,
+      Instant outputTimestamp,
+      TimeDomain timeDomain) {
+    underlying.onTimer(timerId, timerFamilyId, window, timestamp, outputTimestamp, timeDomain);
   }
 
   @Override
