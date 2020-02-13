@@ -66,9 +66,16 @@ from apache_beam.utils.windowed_value import WindowedValue
 if TYPE_CHECKING:
   from apache_beam.runners.pipeline_context import PipelineContext
 
-__all__ = ['BoundedSource', 'RangeTracker', 'Read', 'RestrictionTracker',
-           'WatermarkEstimator', 'Sink', 'Write', 'Writer']
-
+__all__ = [
+    'BoundedSource',
+    'RangeTracker',
+    'Read',
+    'RestrictionTracker',
+    'WatermarkEstimator',
+    'Sink',
+    'Write',
+    'Writer'
+]
 
 _LOGGER = logging.getLogger(__name__)
 
