@@ -1360,7 +1360,7 @@ public class SpannerIO {
     @Setup
     public void setup() throws Exception {
       // set up non-serializable values here.
-      spannerAccessor = spannerConfig.connectToSpanner();
+      spannerAccessor = SpannerAccessor.create(spannerConfig);
       bundleWriteBackoff =
           FluentBackoff.DEFAULT
               .withMaxCumulativeBackoff(spannerConfig.getMaxCumulativeBackoff().get())
