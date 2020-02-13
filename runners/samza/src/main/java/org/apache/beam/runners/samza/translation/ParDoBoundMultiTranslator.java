@@ -218,7 +218,8 @@ class ParDoBoundMultiTranslator<InT, OutT>
 
     // TODO: support side input
     if (!stagePayload.getSideInputsList().isEmpty()) {
-      throw new UnsupportedOperationException("Side inputs in portable pipelines are not supported in samza");
+      throw new UnsupportedOperationException(
+          "Side inputs in portable pipelines are not supported in samza");
     }
 
     // set side inputs to empty until it's supported
