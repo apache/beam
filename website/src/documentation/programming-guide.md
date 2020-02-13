@@ -3137,7 +3137,7 @@ means that the first time a key is seen for a given window any state reads will 
 garbage collect state when a window is completed.  Merging windows are not currently supported when using state and timers.
 
 
-### 10.1 Types of State {#types-of-state}
+### 10.1 Types of state {#types-of-state}
 Beam provides several types of state:
 
 #### ValueState
@@ -3213,7 +3213,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
   }
 }));
 ```
-### 10.2 Deferred State Reads {#deferred-state-reads}
+### 10.2 Deferred state reads {#deferred-state-reads}
 When a `DoFn` contains multiple state specifications, reading each one in order can be slow. Calling the read() function
 on a state can cause the runner to perform a blocking read. Performing multiple blocking reads in sequence adds latency
 to element processing. The readLater method allows the runner to know that the state will be read in the future, 
@@ -3247,7 +3247,7 @@ Timers can be set to callback at either an event-time or a processing-time times
 TimerId. A given timer for a keycan only be set for a single timestamp. Calling set on a timer overwrites the previous
 firing time for that key's timer.
 
-#### 10.3.1 Event-Time Timers {event-time-timers}
+#### 10.3.1 Event-time timers {#event-time-timers}
 Event-time timers fire when the input watermark for the DoFn passes the time at which the timer is set, meaning that 
 the runner believes that there are no more elements to be processed with timestamps before the timer timestamp. This
 allows for event-time aggregations. 
@@ -3274,7 +3274,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 
 ```
-#### 10.3.2 Processing-Time Timers {processing-time-timers}
+#### 10.3.2 Processing-time timers {#processing-time-timers}
 Processing-time timers fire when the real wall-clock time passes. This is often used to create larger batches of data
 before processing. It can also be used to schedule events that should occur at a specific time. Just like with
 event-time timers, processing-time timers are per key - each key has a separate copy of the timer.
@@ -3300,7 +3300,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 
 ```
 
-#### 10.3.3 Dynamic Timer Tags {#dynamic-timer-tags}
+#### 10.3.3 Dynamic timer tags {#dynamic-timer-tags}
 Beam also supports dynamically setting a timer tag using `TimerMap`. This allows for setting multiple different timers
 in a `ParDo` and allowing for the timer tags to be dynamically chosen - e.g. based on data in the input elements. A
 timer with a specific tag can only be set to a single timestamp, so setting the timer again has the effect of
@@ -3326,7 +3326,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 
 ```
 
-#### 10.3.4 Timer Output Timestamps {#timer-output-timestamps}
+#### 10.3.4 Timer output timestamps {#timer-output-timestamps}
 By default, event-time timers will hold the output watermark of the `ParDo` to the timestamp of the timer. This means
 that if a timer is set to 12pm, any windowed aggregations or event-time timers later in the pipeline graph that finish  
 after 12pm will not expire. The timestamp of the timer is also the default output timestamp for the timer callback. This
@@ -3429,11 +3429,11 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
   }
 }));
 ```
-### 10.4 Garbage Collecting State {#garbage-collecting-state}
+### 10.4 Garbage collecting state {#garbage-collecting-state}
 Per-key state needs to be garbage collected, or eventually the increasing size of state may negatively impact 
 performance. There are two common strategies for garbage collecting state.
 
-##### 10.4.1 Using Windows For Garbage Collection {#using-windows-for-garbage-collection}
+##### 10.4.1 Using windows for garbage collection {#using-windows-for-garbage-collection}
 All state and timers for a key is scoped to the window it is in. This means that depending on the timestamp of the 
 input element the ParDo will see different values for the state depending on the window that element falls into. In
 addition, once the input watermark passes the end of the window, the runner should garbage collect all state for that
@@ -3458,7 +3458,7 @@ perUser.apply(Window.into(CalendarWindows.days(1).withTimeZone(DateTimeZone.forI
 This `ParDo` stores state per day. Once the pipeline is done processing data for a given day, all the state for that
 day is garbage collected.
 
-##### 10.4.1 Using Timers For Garbage Collection {#using-timers-for-garbage-collection}
+##### 10.4.1 Using timers For garbage collection {#using-timers-for-garbage-collection}
 In some cases, it is difficult to find a windowing strategy that models the desired garbage-collection strategy. For 
 example, a common desire is to garbage collect state for a key once no activity has been seen on the key for some time.
 This can be done by updating a timer that garbage collects state. For example
@@ -3501,10 +3501,10 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
  }
 ````
 
-### 10.5 State And Timers Examples {#state-timers-examples}
+### 10.5 State and timers examples {#state-timers-examples}
 Following are some example uses of state and timers
 
-#### 10.5.1. Joining Clicks and Views {#joining-clicks-and-views}
+#### 10.5.1. Joining clicks and views {#joining-clicks-and-views}
 In this example, the pipeline is processing data from an e-commerce site's home page. There are two input streams:
 a stream of views, representing suggested product links displayed to the user on the home page, and a stream of 
 clicks, representing actual user clicks on these links. The goal of the pipeline is to join click events with view
