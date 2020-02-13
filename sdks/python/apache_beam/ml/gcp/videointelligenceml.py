@@ -20,9 +20,10 @@ A connector for sending API requests to the GCP Video Intelligence API.
 """
 from __future__ import absolute_import
 
+from typing import Union
+
 from future.utils import binary_type
 from future.utils import text_type
-from typing import Union
 
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
