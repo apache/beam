@@ -1639,10 +1639,6 @@ public class DoFnSignatures {
       errors.throwIllegalArgument("TimerFamily id must not be empty");
     }
 
-    if (id.isEmpty()) {
-      errors.throwIllegalArgument("TimerFamily id must not be empty");
-    }
-
     if (declarations.containsKey(id)) {
       errors.throwIllegalArgument(
           "Duplicate %s \"%s\", used on both of [%s] and [%s]",

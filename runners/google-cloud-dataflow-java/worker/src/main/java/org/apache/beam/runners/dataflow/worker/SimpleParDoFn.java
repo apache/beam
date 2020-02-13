@@ -355,8 +355,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   }
 
   private void processUserTimer(TimerData timer) throws Exception {
-    if (fnSignature.timerDeclarations().containsKey(timer.getTimerId())
-        || fnSignature.timerFamilyDeclarations().containsKey(timer.getTimerFamilyId())) {
+    if (fnSignature.timerDeclarations().containsKey(timer.getTimerId())) {
       BoundedWindow window = ((WindowNamespace) timer.getNamespace()).getWindow();
       fnRunner.onTimer(
           timer.getTimerId(),

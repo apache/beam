@@ -139,7 +139,6 @@ public class ParDoTranslation {
 
       // https://s.apache.org/beam-portability-timers
       // Add a PCollection and coder for each timer. Also treat them as inputs and outputs.
-      // TODO: What should we do for TimerMap? There is a dynamic set of timers.
       for (String localTimerName : payload.getTimerSpecsMap().keySet()) {
         PCollection<?> timerPCollection =
             PCollection.createPrimitiveOutputInternal(
