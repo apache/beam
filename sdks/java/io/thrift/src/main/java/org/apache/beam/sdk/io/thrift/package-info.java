@@ -17,7 +17,8 @@
  */
 
 /** Transforms for reading and writing to Thrift files. */
-// @Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.thrift;
 
-// import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;

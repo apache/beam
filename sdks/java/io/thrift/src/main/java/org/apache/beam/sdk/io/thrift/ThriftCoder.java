@@ -58,7 +58,7 @@ class ThriftCoder<T> extends CustomCoder<T> {
    * @param clazz {@link TBase} class used to decode into/ encode from.
    * @param protocolFactory factory for {@link TProtocol} to be used to encode/decode.
    * @param <T> element type
-   * @return ThriftCoder initalized with class to be encoded/decoded and {@link TProtocolFactory}
+   * @return ThriftCoder initialize with class to be encoded/decoded and {@link TProtocolFactory}
    *     used to encode/decode.
    */
   static <T> ThriftCoder<T> of(Class<T> clazz, TProtocolFactory protocolFactory) {

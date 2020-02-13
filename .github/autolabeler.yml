@@ -67,6 +67,7 @@ io:  ["sdks/java/io/*"]
 "solr":  ["sdks/java/io/solr/*"]
 "synthetic":  ["sdks/java/io/synthetic/*"]
 "tests":  ["sdks/java/io/file-based-io-tests/*"]
+"thrift": ["sdks/java/io/thrift/*"]
 "tika":  ["sdks/java/io/tika/*"]
 "xml":  ["sdks/java/io/xml/*"]
 
