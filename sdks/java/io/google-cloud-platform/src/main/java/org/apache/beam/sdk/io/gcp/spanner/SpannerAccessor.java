@@ -37,7 +37,7 @@ import org.apache.beam.sdk.util.ReleaseInfo;
 import org.joda.time.Duration;
 
 /** Manages lifecycle of {@link DatabaseClient} and {@link Spanner} instances. */
-public class SpannerAccessor implements AutoCloseable {
+class SpannerAccessor implements AutoCloseable {
   // A common user agent token that indicates that this request was originated from Apache Beam.
   private static final String USER_AGENT_PREFIX = "Apache_Beam_Java";
 
@@ -110,16 +110,15 @@ public class SpannerAccessor implements AutoCloseable {
     return new SpannerAccessor(spanner, databaseClient, databaseAdminClient, batchClient);
   }
 
-  public DatabaseClient getDatabaseClient() {
-
+  DatabaseClient getDatabaseClient() {
     return databaseClient;
   }
 
-  public BatchClient getBatchClient() {
+  BatchClient getBatchClient() {
     return batchClient;
   }
 
-  public DatabaseAdminClient getDatabaseAdminClient() {
+  DatabaseAdminClient getDatabaseAdminClient() {
     return databaseAdminClient;
   }
 

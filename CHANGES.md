@@ -34,6 +34,7 @@
 ### Breaking Changes
 
 * ReadFromPubSub(topic=<topic>) in Python previously created a subscription under the same project as the topic. Now it will create the subscription under the project specified in pipeline_options. If the project is not specified in pipeline_options, then it will create the subscription under the same project as the topic. ([BEAM-3453](https://issues.apache.org/jira/browse/BEAM-3453)).
+* SpannerAccessor in Java is now package-private.
 
 ### Deprecations
 
