@@ -1322,7 +1322,7 @@ def create_dofn_javasdk(
 def create_pair_with_restriction(*args):
   class PairWithRestriction(beam.DoFn):
     def __init__(
-        self, fn, restriction_provider, watermark_estimator_provider=None):
+        self, fn, restriction_provider, watermark_estimator_provider):
       self.restriction_provider = restriction_provider
       self.watermark_estimator_provider = watermark_estimator_provider
 
@@ -1335,15 +1335,9 @@ def create_pair_with_restriction(*args):
       # that can be distributed.)
       initial_restriction = self.restriction_provider.initial_restriction(
           element)
-      if self.watermark_estimator_provider:
-        yield (
-            element,
-            (
-                initial_restriction,
-                self.watermark_estimator_provider.initial_estimator_state(
-                    element, initial_restriction)))
-      else:
-        yield element, initial_restriction
+      initial_estimator_state = self.watermark_estimator_provider.initial_estimator_state(
+          element, initial_restriction)
+      yield (element, (initial_restriction, initial_estimator_state))
 
   return _create_sdf_operation(PairWithRestriction, *args)
 
@@ -1354,27 +1348,17 @@ def create_pair_with_restriction(*args):
 def create_split_and_size_restrictions(*args):
   class SplitAndSizeRestrictions(beam.DoFn):
     def __init__(
-        self, fn, restriction_provider, watermark_estimator_provider=None):
+        self, fn, restriction_provider, watermark_estimator_provider):
       self.restriction_provider = restriction_provider
       self.watermark_estimator_provider = watermark_estimator_provider
 
     def process(self, element_restriction, *args, **kwargs):
-      if self.watermark_estimator_provider:
-        element, (restriction, _) = element_restriction
-        for part, size in self.restriction_provider.split_and_size(
-            element, restriction):
-          yield ((
-              element,
-              (
-                  part,
-                  self.watermark_estimator_provider.initial_estimator_state(
-                      element, part))),
-                 size)
-      else:
-        element, restriction = element_restriction
-        for part, size in self.restriction_provider.split_and_size(
-            element, restriction):
-          yield ((element, part), size)
+      element, (restriction, _) = element_restriction
+      for part, size in self.restriction_provider.split_and_size(
+          element, restriction):
+        estimator_state = self.watermark_estimator_provider.initial_estimator_state(
+            element, part)
+        yield ((element, (part, estimator_state)), size)
 
   return _create_sdf_operation(SplitAndSizeRestrictions, *args)
 
