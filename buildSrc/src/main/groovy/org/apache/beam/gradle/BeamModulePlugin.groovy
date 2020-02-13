@@ -380,7 +380,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_clients_version = "1.30.3"
     def google_cloud_bigdataoss_version = "1.9.16"
     def google_cloud_core_version = "1.92.2"
-    def google_cloud_spanner_version = "1.6.0"
+    def google_cloud_spanner_version = "1.49.1"
     def google_http_clients_version = "1.34.0"
     def grpc_version = "1.25.0"
     def guava_version = "25.1-jre"
