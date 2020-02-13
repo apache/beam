@@ -30,6 +30,7 @@ from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 
+from apache_beam.transforms.core import WatermarkEstimatorProvider
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
@@ -231,3 +232,27 @@ class ThreadsafeWatermarkEstimator(object):
           'object')
     with self._lock:
       self._watermark_estimator.observe_timestamp(timestamp)
+
+
+class NoOpWatermarkEstimatorProvider(WatermarkEstimatorProvider):
+  """A WatermarkEstimatorProvider which creates NoOpWatermarkEstimator for the
+  framework.
+  """
+  def initial_estimator_state(self, element, restriction):
+    return None
+
+  def create_watermark_estimator(self, estimator_state):
+    from apache_beam.io.iobase import WatermarkEstimator
+    class _NoOpWatermarkEstimator(WatermarkEstimator):
+      """A No-op WatermarkEstimator which is provided for the framework if there
+      is no custom one.
+      """
+      def observe_timestamp(self, timestamp):
+        pass
+
+      def current_watermark(self):
+        return None
+
+      def get_estimator_state(self):
+        return None
+    return _NoOpWatermarkEstimator()

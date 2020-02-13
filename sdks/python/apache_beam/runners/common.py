@@ -46,6 +46,7 @@ from apache_beam.coders import TupleCoder
 from apache_beam.internal import util
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.pvalue import TaggedOutput
+from apache_beam.runners.sdf_utils import NoOpWatermarkEstimatorProvider
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
 from apache_beam.runners.sdf_utils import SplitResultPrimary
 from apache_beam.runners.sdf_utils import SplitResultResidual
@@ -213,6 +214,11 @@ class MethodWrapper(object):
         self.watermark_estimator_provider = v.watermark_estimator_provider
         self.watermark_estimator_provider_arg_name = kw
 
+    # Create NoOpWatermarkEstimatorProvider if there is no
+    # WatermarkEstimatorParam provided.
+    if self.watermark_estimator_provider is None:
+      self.watermark_estimator_provider = NoOpWatermarkEstimatorProvider()
+
   def invoke_timer_callback(self, user_state_context, key, window, timestamp):
     # TODO(ccy): support side inputs.
     kwargs = {}
@@ -263,8 +269,7 @@ class DoFnSignature(object):
     watermark_estimator_provider = self.get_watermark_estimator_provider()
     self.create_watermark_estimator_method = (
         MethodWrapper(
-            watermark_estimator_provider, 'create_watermark_estimator')
-        if watermark_estimator_provider else None)
+            watermark_estimator_provider, 'create_watermark_estimator'))
     self.initial_restriction_method = (
         MethodWrapper(restriction_provider, 'initial_restriction')
         if restriction_provider else None)
@@ -328,9 +333,6 @@ class DoFnSignature(object):
     # type: () -> bool
     return self.get_restriction_provider() is not None
 
-  def is_tracking_watermark(self):
-    return self.get_watermark_estimator_provider() is not None
-
   def get_restriction_coder(self):
     """Get coder for a restriction when processing an SDF.
 
@@ -340,14 +342,10 @@ class DoFnSignature(object):
     """
     restriction_coder = None
     if self.is_splittable_dofn():
-      if self.is_tracking_watermark():
-        restriction_coder = TupleCoder([
-            (self.get_restriction_provider().restriction_coder()),
-            (self.get_watermark_estimator_provider().estimator_state_coder())
-        ])
-      else:
-        restriction_coder = (
-            self.get_restriction_provider().restriction_coder())
+      restriction_coder = TupleCoder([
+          (self.get_restriction_provider().restriction_coder()),
+          (self.get_watermark_estimator_provider().estimator_state_coder())
+      ])
     return restriction_coder
 
   def is_stateful_dofn(self):
@@ -688,12 +686,12 @@ class PerWindowInvoker(DoFnInvoker):
       additional_kwargs[restriction_tracker_param] = (
           RestrictionTrackerView(self.threadsafe_restriction_tracker))
 
-      if watermark_estimator is not None:
-        self.threadsafe_watermark_estimator = (
-            ThreadsafeWatermarkEstimator(
-                watermark_estimator, self._synchronized_lock))
-        watermark_param = (
-            self.signature.process_method.watermark_estimator_provider_arg_name)
+      self.threadsafe_watermark_estimator = (
+          ThreadsafeWatermarkEstimator(
+              watermark_estimator, self._synchronized_lock))
+      watermark_param = (
+          self.signature.process_method.watermark_estimator_provider_arg_name)
+      if watermark_param is not None:
         additional_kwargs[watermark_param] = self.threadsafe_watermark_estimator
       try:
         self.current_windowed_value = windowed_value
@@ -968,13 +966,9 @@ class DoFnRunner:
 
   def process_with_sized_restriction(self, windowed_value):
     # type: (WindowedValue) -> Optional[SplitResultResidual]
-    if self.do_fn_invoker.signature.is_tracking_watermark():
-      (element, (restriction, estimator_state)), _ = windowed_value.value
-      watermark_estimator = (
-          self.do_fn_invoker.invoke_create_watermark_estimator(estimator_state))
-    else:
-      (element, restriction), _ = windowed_value.value
-      watermark_estimator = None
+    (element, (restriction, estimator_state)), _ = windowed_value.value
+    watermark_estimator = (
+        self.do_fn_invoker.invoke_create_watermark_estimator(estimator_state))
     return self.do_fn_invoker.invoke_process(
         windowed_value.with_value(element),
         restriction_tracker=self.do_fn_invoker.invoke_create_tracker(
