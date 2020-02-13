@@ -20,13 +20,16 @@ A connector for sending API requests to the GCP Video Intelligence API.
 """
 from __future__ import absolute_import
 
-from cachetools.func import ttl_cache
-from future.utils import binary_type, text_type
+from future.utils import binary_type
+from future.utils import text_type
 from typing import Union
 
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
-from apache_beam.transforms import DoFn, ParDo, PTransform
+from apache_beam.transforms import DoFn
+from apache_beam.transforms import ParDo
+from apache_beam.transforms import PTransform
+from cachetools.func import ttl_cache
 
 try:
   from google.cloud import videointelligence
