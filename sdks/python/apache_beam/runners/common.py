@@ -813,7 +813,8 @@ class PerWindowInvoker(DoFnInvoker):
               self.threadsafe_watermark_estimator.current_watermark())
           estimator_state = (
               self.threadsafe_watermark_estimator.get_estimator_state())
-          residual_value = ((element, (deferred_restriction, estimator_state)), size)
+          residual_value = (
+              (element, (deferred_restriction, estimator_state)), size)
           return SplitResultResidual(
               residual_value=windowed_value.with_value(residual_value),
               current_watermark=current_watermark,

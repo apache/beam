@@ -1335,8 +1335,9 @@ def create_pair_with_restriction(*args):
       # that can be distributed.)
       initial_restriction = self.restriction_provider.initial_restriction(
           element)
-      initial_estimator_state = self.watermark_estimator_provider.initial_estimator_state(
-          element, initial_restriction)
+      initial_estimator_state = (
+          self.watermark_estimator_provider.initial_estimator_state(
+              element, initial_restriction))
       yield (element, (initial_restriction, initial_estimator_state))
 
   return _create_sdf_operation(PairWithRestriction, *args)
@@ -1356,8 +1357,9 @@ def create_split_and_size_restrictions(*args):
       element, (restriction, _) = element_restriction
       for part, size in self.restriction_provider.split_and_size(
           element, restriction):
-        estimator_state = self.watermark_estimator_provider.initial_estimator_state(
-            element, part)
+        estimator_state = (
+            self.watermark_estimator_provider.initial_estimator_state(
+                element, part))
         yield ((element, (part, estimator_state)), size)
 
   return _create_sdf_operation(SplitAndSizeRestrictions, *args)
