@@ -17,7 +17,12 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.kafka')
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.io.kafka',
+  mavenRepositories: [
+    [id: 'io.confluent', url: 'https://packages.confluent.io/maven/']
+  ]
+)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
