@@ -152,6 +152,8 @@ to 50 rows, max_number_cells is set to 500 cells and max_batch_size_bytes is
 set to 1MB (1048576 bytes). These parameter used to reduce the number of
 transactions sent to spanner by grouping the mutation into batches. Setting
 these param values either to smaller value or zero to disable batching.
+Unlike the Java connector, this connector does not create batches of
+transactions sorted by table and primary key.
 
 WriteToSpanner transforms starts with the grouping into batches. The first step
 in this process is to make the make the mutation groups of the WriteMutation
