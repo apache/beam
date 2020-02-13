@@ -650,7 +650,6 @@ class PerWindowInvoker(DoFnInvoker):
                      windowed_value,  # type: WindowedValue
                      restriction_tracker=None,
                      watermark_estimator=None,
-                     output_processor=None,  # type: Optional[OutputProcessor]
                      additional_args=None,
                      additional_kwargs=None
                     ):
