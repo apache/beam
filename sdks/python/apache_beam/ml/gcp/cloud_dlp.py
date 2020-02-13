@@ -16,7 +16,8 @@
 #   * limitations under the License.
 #   */
 
-"""``PTransforms`` that implement Google Cloud Data Loss Prevention functionality.
+"""``PTransforms`` that implement Google Cloud Data Loss Prevention
+    functionality.
 """
 
 from __future__ import absolute_import
@@ -39,7 +40,8 @@ class MaskDetectedDetails(beam.PTransform):
   """Scrubs sensitive information detected in text.
   The ``PTransform`` returns a ``PCollection`` of ``str``
   Example usage::
-    pipeline | MaskDetectedDetails(project='example-gcp-project', deidentification_config={
+    pipeline | MaskDetectedDetails(project='example-gcp-project',
+      deidentification_config={
           'info_type_transformations: {
               'transformations': [{
                   'primitive_transformation': {
@@ -61,15 +63,21 @@ class MaskDetectedDetails(beam.PTransform):
       timeout=None):
     """Initializes a :class:`MaskDetectedDetails` transform.
     Args:
-      project (str): Required. GCP project in which the data processing is to be done
-      deidentification_template_name (str): Either this or `deidentification_config` required. Name of
-        deidentification template to be used on detected sensitive information instances in text.
-      deidentification_config (``Union[dict, google.cloud.dlp_v2.types.DeidentifyConfig]``):
+      project (str): Required. GCP project in which the data processing is
+        to be done
+      deidentification_template_name (str): Either this or
+        `deidentification_config` required. Name of
+        deidentification template to be used on detected sensitive information
+        instances in text.
+      deidentification_config
+        (``Union[dict, google.cloud.dlp_v2.types.DeidentifyConfig]``):
         Configuration for the de-identification of the content item.
-      inspection_template_name (str): This or `inspection_config` required. Name of inspection template to be used
+      inspection_template_name (str): This or `inspection_config` required.
+        Name of inspection template to be used
         to detect sensitive data in text.
-      inspection_config(``Union[dict, google.cloud.dlp_v2.types.InspectConfig]``):
-        Configuration for the inspector used to detect sensitive data in input text.
+      inspection_config
+        (``Union[dict, google.cloud.dlp_v2.types.InspectConfig]``):
+        Configuration for the inspector used to detect sensitive data in text.
       timeout (float): Optional. The amount of time, in seconds, to wait for
         the request to complete.
     """
@@ -79,14 +87,17 @@ class MaskDetectedDetails(beam.PTransform):
     if project is None:
       raise ValueError(
           'GCP project name needs to be specified in "project" property')
-    if deidentification_template_name is not None and deidentification_config is not None:
+    if deidentification_template_name is not None \
+        and deidentification_config is not None:
       raise ValueError(
-          'Both deidentification_template_name and deidentification_config were specified.'
+          'Both deidentification_template_name and '
+          'deidentification_config were specified.'
           ' Please specify only one of these.')
-    elif deidentification_template_name is None and deidentification_config is None:
+    elif deidentification_template_name is None \
+        and deidentification_config is None:
       raise ValueError(
-          'deidentification_template_name or deidentification_config must be specified.'
-      )
+          'deidentification_template_name or '
+          'deidentification_config must be specified.')
     elif deidentification_template_name is not None:
       self.config['deidentify_template_name'] = deidentification_template_name
     else:
@@ -94,7 +105,8 @@ class MaskDetectedDetails(beam.PTransform):
 
     if inspection_template_name is not None and inspection_config is not None:
       raise ValueError(
-          'Both inspection_template_name and inspection_template were specified.'
+          'Both inspection_template_name and '
+          'inspection_template were specified.'
           ' Please specify ony one of these.')
     elif inspection_config is None and inspection_template_name is None:
       raise ValueError(
@@ -113,7 +125,8 @@ class MaskDetectedDetails(beam.PTransform):
 @experimental()
 class InspectForDetails(beam.PTransform):
   """Inspects input text for sensitive information.
-  the ``PTransform`` returns a ``PCollection`` of ``List[google.cloud.dlp_v2.proto.dlp_pb2.Finding]``
+  the ``PTransform`` returns a ``PCollection`` of
+  ``List[google.cloud.dlp_v2.proto.dlp_pb2.Finding]``
   Example usage::
       pipeline | InspectForDetails(project='example-gcp-project',
                 inspection_config={'info_types': [{'name': 'EMAIL_ADDRESS'}]})
@@ -126,11 +139,14 @@ class InspectForDetails(beam.PTransform):
       timeout=None):
     """Initializes a :class:`InspectForDetails` transform.
     Args:
-      inspection_template_name (str): This or `inspection_config` required. Name of inspection template to be used
+      inspection_template_name (str): This or `inspection_config` required.
+        Name of inspection template to be used
         to detect sensitive data in text.
-      inspection_config(``Union[dict, google.cloud.dlp_v2.types.InspectConfig]``):
-        Configuration for the inspector used to detect sensitive data in input text.
-      project (str): Required. Name of GCP project in which the processing will take place.
+      inspection_config
+        (``Union[dict, google.cloud.dlp_v2.types.InspectConfig]``):
+        Configuration for the inspector used to detect sensitive data in text.
+      project (str): Required. Name of GCP project in which the processing
+        will take place.
       timeout (float): Optional. The amount of time, in seconds, to wait for
         the request to complete.
     """
@@ -142,7 +158,8 @@ class InspectForDetails(beam.PTransform):
           'GCP project name needs to be specified in "project" property')
     if inspection_template_name is not None and inspection_config is not None:
       raise ValueError(
-          'Both inspection_template_name and inspection_template were specified.'
+          'Both inspection_template_name and '
+          'inspection_template were specified.'
           ' Please specify ony one of these.')
     elif inspection_config is None and inspection_template_name is None:
       raise ValueError(
