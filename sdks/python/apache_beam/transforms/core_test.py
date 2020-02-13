@@ -28,7 +28,6 @@ from apache_beam.utils.timestamp import Timestamp
 
 
 class WatermarkEstimatorTest(unittest.TestCase):
-
   def test_set_watermark(self):
     watermark_estimator = WatermarkEstimator()
     self.assertEqual(watermark_estimator.current_watermark(), None)

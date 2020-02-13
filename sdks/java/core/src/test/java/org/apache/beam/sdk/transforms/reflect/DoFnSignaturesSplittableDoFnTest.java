@@ -34,8 +34,12 @@ import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.Restriction;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures.FnAnalysisContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.AnonymousMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
@@ -46,6 +50,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -152,7 +157,7 @@ public class DoFnSignaturesSplittableDoFnTest {
           ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {}
 
       @GetInitialRestriction
-      public SomeRestriction getInitialRestriction(Integer element) {
+      public SomeRestriction getInitialRestriction(@Element Integer element) {
         return null;
       }
     }
@@ -180,7 +185,7 @@ public class DoFnSignaturesSplittableDoFnTest {
         ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {}
 
     @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(Integer element) {
+    public SomeRestriction getInitialRestriction(@Element Integer element) {
       return null;
     }
   }
@@ -193,7 +198,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     }
 
     @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(Integer element) {
+    public SomeRestriction getInitialRestriction(@Element Integer element) {
       return null;
     }
   }
@@ -273,7 +278,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
       @GetInitialRestriction
       public SomeRestriction getInitialRestriction(
-          Integer element,
+          @Element Integer element,
           PipelineOptions pipelineOptions,
           BoundedWindow boundedWindow,
           PaneInfo paneInfo,
@@ -283,8 +288,9 @@ public class DoFnSignaturesSplittableDoFnTest {
 
       @SplitRestriction
       public void splitRestriction(
-          Integer element,
-          SomeRestriction restriction,
+          @Element Integer element,
+          @Restriction SomeRestriction restriction,
+          RestrictionTracker<SomeRestriction, Void> restrictionTracker,
           OutputReceiver<SomeRestriction> receiver,
           PipelineOptions pipelineOptions,
           BoundedWindow boundedWindow,
@@ -293,12 +299,25 @@ public class DoFnSignaturesSplittableDoFnTest {
 
       @NewTracker
       public SomeRestrictionTracker newTracker(
-          SomeRestriction restriction,
+          @Element Integer element,
+          @Restriction SomeRestriction restriction,
           PipelineOptions pipelineOptions,
           BoundedWindow boundedWindow,
           PaneInfo paneInfo,
           @Timestamp Instant timestamp) {
         return null;
+      }
+
+      @GetSize
+      public double getSize(
+          @Element Integer element,
+          @Restriction SomeRestriction restriction,
+          RestrictionTracker<SomeRestriction, Void> restrictionTracker,
+          PipelineOptions pipelineOptions,
+          BoundedWindow boundedWindow,
+          PaneInfo paneInfo,
+          @Timestamp Instant timestamp) {
+        return 1.0;
       }
 
       @GetRestrictionCoder
@@ -313,10 +332,24 @@ public class DoFnSignaturesSplittableDoFnTest {
     assertTrue(signature.processElement().hasReturnValue());
     assertEquals(
         SomeRestriction.class, signature.getInitialRestriction().restrictionT().getRawType());
-    assertEquals(SomeRestriction.class, signature.splitRestriction().restrictionT().getRawType());
+    assertEquals(
+        SomeRestriction.class,
+        getParameterOfType(
+                signature.splitRestriction().extraParameters(), RestrictionParameter.class)
+            .restrictionT()
+            .getRawType());
     assertEquals(SomeRestrictionTracker.class, signature.newTracker().trackerT().getRawType());
-    assertEquals(SomeRestriction.class, signature.newTracker().restrictionT().getRawType());
+    assertEquals(
+        SomeRestriction.class,
+        getParameterOfType(signature.newTracker().extraParameters(), RestrictionParameter.class)
+            .restrictionT()
+            .getRawType());
     assertEquals(SomeRestrictionCoder.class, signature.getRestrictionCoder().coderT().getRawType());
+    assertEquals(
+        SomeRestriction.class,
+        getParameterOfType(signature.getSize().extraParameters(), RestrictionParameter.class)
+            .restrictionT()
+            .getRawType());
   }
 
   /**
@@ -332,22 +365,27 @@ public class DoFnSignaturesSplittableDoFnTest {
       }
 
       @GetInitialRestriction
-      public RestrictionT getInitialRestriction(Integer element) {
+      public RestrictionT getInitialRestriction(@Element Integer element) {
         return null;
       }
 
       @SplitRestriction
       public void splitRestriction(
-          Integer element, RestrictionT restriction, OutputReceiver<RestrictionT> receiver) {}
+          @Restriction RestrictionT restriction, OutputReceiver<RestrictionT> receiver) {}
 
       @NewTracker
-      public TrackerT newTracker(RestrictionT restriction) {
+      public TrackerT newTracker(@Restriction RestrictionT restriction) {
         return null;
       }
 
       @GetRestrictionCoder
       public CoderT getRestrictionCoder() {
         return null;
+      }
+
+      @GetSize
+      public double getSize(@Restriction RestrictionT restriction, TrackerT restrictionTracker) {
+        return 1.0;
       }
     }
 
@@ -362,14 +400,23 @@ public class DoFnSignaturesSplittableDoFnTest {
     assertTrue(signature.processElement().hasReturnValue());
     assertEquals(
         SomeRestriction.class, signature.getInitialRestriction().restrictionT().getRawType());
-    assertEquals(SomeRestriction.class, signature.splitRestriction().restrictionT().getRawType());
+    assertEquals(
+        SomeRestriction.class,
+        getParameterOfType(
+                signature.splitRestriction().extraParameters(), RestrictionParameter.class)
+            .restrictionT()
+            .getRawType());
     assertEquals(RestrictionTracker.class, signature.newTracker().trackerT().getRawType());
-    assertEquals(SomeRestriction.class, signature.newTracker().restrictionT().getRawType());
+    assertEquals(
+        SomeRestriction.class,
+        getParameterOfType(signature.newTracker().extraParameters(), RestrictionParameter.class)
+            .restrictionT()
+            .getRawType());
     assertEquals(SomeRestrictionCoder.class, signature.getRestrictionCoder().coderT().getRawType());
   }
 
   @Test
-  public void testSplittableMissingRequiredMethods() throws Exception {
+  public void testSplittableMissingGetInitialRestrictionMethod() throws Exception {
     class BadFn extends DoFn<Integer, String> {
       @ProcessElement
       public void process(
@@ -377,8 +424,44 @@ public class DoFnSignaturesSplittableDoFnTest {
     }
 
     thrown.expectMessage(
-        "Splittable, but does not define the following required methods: "
-            + "[@GetInitialRestriction, @NewTracker]");
+        "Splittable, but does not define the required @GetInitialRestriction method.");
+    DoFnSignatures.getSignature(BadFn.class);
+  }
+
+  @Test
+  public void testGetInitialRestrictionUnsupportedSchemaElementArgument() throws Exception {
+    thrown.expectMessage(
+        "Schema @Element are not supported for @GetInitialRestriction method. Found String, did you mean to use Integer?");
+    DoFnSignatures.analyzeGetInitialRestrictionMethod(
+        errors(),
+        TypeDescriptor.of(FakeDoFn.class),
+        new AnonymousMethod() {
+          SomeRestriction method(@Element String element) {
+            return null;
+          }
+        }.getMethod(),
+        TypeDescriptor.of(Integer.class),
+        TypeDescriptor.of(String.class),
+        FnAnalysisContext.create());
+  }
+
+  @Test
+  public void testSplittableMissingNewTrackerMethod() throws Exception {
+    class OtherRestriction {}
+
+    class BadFn extends DoFn<Integer, String> {
+      @ProcessElement
+      public void process(
+          ProcessContext context, RestrictionTracker<OtherRestriction, Void> tracker) {}
+
+      @GetInitialRestriction
+      public OtherRestriction getInitialRestriction() {
+        return null;
+      }
+    }
+
+    thrown.expectMessage(
+        "Splittable, either @NewTracker method must be defined or OtherRestriction must implement HasDefaultTracker.");
     DoFnSignatures.getSignature(BadFn.class);
   }
 
@@ -396,7 +479,7 @@ public class DoFnSignaturesSplittableDoFnTest {
           ProcessContext c, RestrictionTracker<RestrictionWithDefaultTracker, Void> tracker) {}
 
       @GetInitialRestriction
-      public RestrictionWithDefaultTracker getInitialRestriction(Integer element) {
+      public RestrictionWithDefaultTracker getInitialRestriction(@Element Integer element) {
         return null;
       }
     }
@@ -412,7 +495,7 @@ public class DoFnSignaturesSplittableDoFnTest {
       public void process(ProcessContext c, SomeRestrictionTracker tracker) {}
 
       @GetInitialRestriction
-      public RestrictionWithDefaultTracker getInitialRestriction(Integer element) {
+      public RestrictionWithDefaultTracker getInitialRestriction(@Element Integer element) {
         return null;
       }
     }
@@ -431,10 +514,10 @@ public class DoFnSignaturesSplittableDoFnTest {
           ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {}
 
       @NewTracker
-      public void newTracker(SomeRestriction restriction) {}
+      public void newTracker(@Restriction SomeRestriction restriction) {}
 
       @GetInitialRestriction
-      public SomeRestriction getInitialRestriction(Integer element) {
+      public SomeRestriction getInitialRestriction(@Element Integer element) {
         return null;
       }
     }
@@ -452,19 +535,18 @@ public class DoFnSignaturesSplittableDoFnTest {
           ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {}
 
       @NewTracker
-      public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
+      public SomeRestrictionTracker newTracker(@Restriction SomeRestriction restriction) {
         return null;
       }
 
       @GetInitialRestriction
-      public String getInitialRestriction(Integer element) {
+      public String getInitialRestriction(@Element Integer element) {
         return null;
       }
     }
 
-    thrown.expectMessage(
-        "getInitialRestriction(Integer): Uses restriction type String, but @NewTracker method");
-    thrown.expectMessage("newTracker(SomeRestriction) uses restriction type SomeRestriction");
+    thrown.expectMessage("but must return a subtype of RestrictionTracker<String, ?>");
+    thrown.expectMessage("newTracker(SomeRestriction): Returns SomeRestrictionTracker");
     DoFnSignatures.getSignature(BadFn.class);
   }
 
@@ -476,12 +558,12 @@ public class DoFnSignaturesSplittableDoFnTest {
           ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {}
 
       @NewTracker
-      public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
+      public SomeRestrictionTracker newTracker(@Restriction SomeRestriction restriction) {
         return null;
       }
 
       @GetInitialRestriction
-      public SomeRestriction getInitialRestriction(Integer element) {
+      public SomeRestriction getInitialRestriction(@Element Integer element) {
         return null;
       }
 
@@ -499,40 +581,39 @@ public class DoFnSignaturesSplittableDoFnTest {
   @Test
   public void testSplitRestrictionReturnsWrongType() throws Exception {
     thrown.expectMessage(
-        "Third argument must be DoFn.OutputReceiver<SomeRestriction>, "
-            + "but is DoFn.OutputReceiver<String>");
+        "OutputReceiver should be parameterized by "
+            + "org.apache.beam.sdk.transforms.reflect.DoFnSignaturesSplittableDoFnTest$SomeRestriction");
     DoFnSignatures.analyzeSplitRestrictionMethod(
         errors(),
         TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
           void method(
-              Integer element, SomeRestriction restriction, DoFn.OutputReceiver<String> receiver) {}
+              @Element Integer element,
+              @Restriction SomeRestriction restriction,
+              DoFn.OutputReceiver<String> receiver) {}
         }.getMethod(),
         TypeDescriptor.of(Integer.class),
         TypeDescriptor.of(String.class),
+        TypeDescriptor.of(SomeRestriction.class),
         FnAnalysisContext.create());
   }
 
   @Test
-  public void testSplitRestrictionWrongElementArgument() throws Exception {
-    class BadFn {
-      private List<SomeRestriction> splitRestriction(String element, SomeRestriction restriction) {
-        return null;
-      }
-    }
-
-    thrown.expectMessage("First argument must be the element type Integer");
+  public void testSplitRestrictionUnsupportedSchemaElementArgument() throws Exception {
+    thrown.expectMessage(
+        "Schema @Element are not supported for @SplitRestriction method. Found String, did you mean to use Integer?");
     DoFnSignatures.analyzeSplitRestrictionMethod(
         errors(),
         TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
           void method(
-              String element,
-              SomeRestriction restriction,
+              @Element String element,
+              @Restriction SomeRestriction restriction,
               DoFn.OutputReceiver<SomeRestriction> receiver) {}
         }.getMethod(),
         TypeDescriptor.of(Integer.class),
         TypeDescriptor.of(String.class),
+        TypeDescriptor.of(SomeRestriction.class),
         FnAnalysisContext.create());
   }
 
@@ -544,13 +625,14 @@ public class DoFnSignaturesSplittableDoFnTest {
         TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
           private void method(
-              Integer element,
-              SomeRestriction restriction,
+              @Element Integer element,
+              @Restriction SomeRestriction restriction,
               DoFn.OutputReceiver<SomeRestriction> receiver,
               Object extra) {}
         }.getMethod(),
         TypeDescriptor.of(Integer.class),
         TypeDescriptor.of(String.class),
+        TypeDescriptor.of(SomeRestriction.class),
         FnAnalysisContext.create());
   }
 
@@ -564,28 +646,25 @@ public class DoFnSignaturesSplittableDoFnTest {
           ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {}
 
       @NewTracker
-      public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
+      public SomeRestrictionTracker newTracker(@Restriction SomeRestriction restriction) {
         return null;
       }
 
       @GetInitialRestriction
-      public SomeRestriction getInitialRestriction(Integer element) {
+      public SomeRestriction getInitialRestriction(@Element Integer element) {
         return null;
       }
 
       @DoFn.SplitRestriction
       public void splitRestriction(
-          Integer element,
-          OtherRestriction restriction,
+          @Element Integer element,
+          @Restriction OtherRestriction restriction,
           OutputReceiver<OtherRestriction> receiver) {}
     }
 
+    thrown.expectMessage("@GetInitialRestriction method uses restriction type SomeRestriction");
     thrown.expectMessage(
-        "getInitialRestriction(Integer): Uses restriction type SomeRestriction, "
-            + "but @SplitRestriction method ");
-    thrown.expectMessage(
-        "splitRestriction(Integer, OtherRestriction, OutputReceiver) "
-            + "uses restriction type OtherRestriction");
+        "splitRestriction(Integer, OtherRestriction, OutputReceiver): Uses restriction type OtherRestriction");
     DoFnSignatures.getSignature(BadFn.class);
   }
 
@@ -596,16 +675,15 @@ public class DoFnSignaturesSplittableDoFnTest {
       public void processElement(ProcessContext context) {}
 
       @GetInitialRestriction
-      public SomeRestriction getInitialRestriction(Integer element) {
+      public SomeRestriction getInitialRestriction() {
         return null;
       }
 
       @SplitRestriction
-      public void splitRestriction(
-          Integer element, SomeRestriction restriction, OutputReceiver<SomeRestriction> receiver) {}
+      public void splitRestriction(OutputReceiver<SomeRestriction> receiver) {}
 
       @NewTracker
-      public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
+      public SomeRestrictionTracker newTracker() {
         return null;
       }
 
@@ -613,12 +691,36 @@ public class DoFnSignaturesSplittableDoFnTest {
       public SomeRestrictionCoder getRestrictionCoder() {
         return null;
       }
+
+      @GetSize
+      public double getSize() {
+        return 1.0;
+      }
     }
 
     thrown.expectMessage(
         "Non-splittable, but defines methods: "
-            + "[@GetInitialRestriction, @SplitRestriction, @NewTracker, @GetRestrictionCoder]");
+            + "[@GetInitialRestriction, @SplitRestriction, @NewTracker, @GetRestrictionCoder, @GetSize]");
     DoFnSignatures.getSignature(BadFn.class);
+  }
+
+  @Test
+  public void testNewTrackerUnsupportedSchemaElementArgument() throws Exception {
+    thrown.expectMessage(
+        "Schema @Element are not supported for @NewTracker method. Found String, did you mean to use Integer?");
+    DoFnSignatures.analyzeNewTrackerMethod(
+        errors(),
+        TypeDescriptor.of(FakeDoFn.class),
+        new AnonymousMethod() {
+          SomeRestrictionTracker method(
+              @Element String element, @Restriction SomeRestriction restriction) {
+            return null;
+          }
+        }.getMethod(),
+        TypeDescriptor.of(Integer.class),
+        TypeDescriptor.of(String.class),
+        TypeDescriptor.of(SomeRestriction.class),
+        FnAnalysisContext.create());
   }
 
   @Test
@@ -628,12 +730,14 @@ public class DoFnSignaturesSplittableDoFnTest {
         errors(),
         TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
-          private SomeRestrictionTracker method(SomeRestriction restriction, Object extra) {
+          private SomeRestrictionTracker method(
+              @Restriction SomeRestriction restriction, Object extra) {
             return null;
           }
         }.getMethod(),
         TypeDescriptor.of(Integer.class),
         TypeDescriptor.of(String.class),
+        TypeDescriptor.of(SomeRestriction.class),
         FnAnalysisContext.create());
   }
 
@@ -646,12 +750,52 @@ public class DoFnSignaturesSplittableDoFnTest {
         errors(),
         TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
-          private SomeRestrictionTracker method(String restriction) {
+          private SomeRestrictionTracker method(@Restriction String restriction) {
             return null;
           }
         }.getMethod(),
         TypeDescriptor.of(Integer.class),
         TypeDescriptor.of(String.class),
+        TypeDescriptor.of(String.class),
         FnAnalysisContext.create());
+  }
+
+  @Test
+  public void testGetSizeInvalidReturnType() throws Exception {
+    thrown.expectMessage("Returns void, but must return a double");
+    DoFnSignatures.analyzeGetSizeMethod(
+        errors(),
+        TypeDescriptor.of(FakeDoFn.class),
+        new AnonymousMethod() {
+          void method(@Element Integer element, @Restriction SomeRestriction restriction) {}
+        }.getMethod(),
+        TypeDescriptor.of(Integer.class),
+        TypeDescriptor.of(String.class),
+        TypeDescriptor.of(SomeRestriction.class),
+        FnAnalysisContext.create());
+  }
+
+  @Test
+  public void testGetSizeUnsupportedSchemaElementArgument() throws Exception {
+    thrown.expectMessage(
+        "Schema @Element are not supported for @GetSize method. Found String, did you mean to use Integer?");
+    DoFnSignatures.analyzeGetSizeMethod(
+        errors(),
+        TypeDescriptor.of(FakeDoFn.class),
+        new AnonymousMethod() {
+          double method(@Element String element, @Restriction SomeRestriction restriction) {
+            return 1.0;
+          }
+        }.getMethod(),
+        TypeDescriptor.of(Integer.class),
+        TypeDescriptor.of(String.class),
+        TypeDescriptor.of(SomeRestriction.class),
+        FnAnalysisContext.create());
+  }
+
+  private static <T extends Parameter> T getParameterOfType(
+      List<Parameter> parameters, Class<T> type) {
+    return (T)
+        Iterables.getOnlyElement(Iterables.filter(parameters, input -> type.isInstance(input)));
   }
 }

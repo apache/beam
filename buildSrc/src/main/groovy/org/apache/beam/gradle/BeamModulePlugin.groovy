@@ -31,6 +31,7 @@ import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.file.FileTree
 import org.gradle.api.plugins.quality.Checkstyle
 import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.bundling.Jar
@@ -136,6 +137,11 @@ class BeamModulePlugin implements Plugin<Project> {
      * @see: https://github.com/GoogleCloudPlatform/cloud-opensource-java/blob/master/library-best-practices/JLBP-20.md
      */
     String automaticModuleName = null
+
+    /**
+     * The set of additional maven repositories that should be added into published POM file.
+     */
+    List<Map> mavenRepositories = [];
   }
 
   /** A class defining the set of configurable properties accepted by applyPortabilityNature. */
@@ -363,8 +369,8 @@ class BeamModulePlugin implements Plugin<Project> {
     // Maven artifacts.
     def apex_core_version = "3.7.0"
     def apex_malhar_version = "3.4.0"
-    def aws_java_sdk_version = "1.11.519"
-    def aws_java_sdk2_version = "2.5.71"
+    def aws_java_sdk_version = "1.11.718"
+    def aws_java_sdk2_version = "2.10.61"
     def cassandra_driver_version = "3.8.0"
     def classgraph_version = "4.8.56"
     def gax_version = "1.53.0"
@@ -390,7 +396,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def proto_google_common_protos_version = "1.17.0"
     def protobuf_version = "3.11.1"
     def quickcheck_version = "0.8"
-    def spark_version = "2.4.4"
+    def spark_version = "2.4.5"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -433,7 +439,7 @@ class BeamModulePlugin implements Plugin<Project> {
         classgraph                                  : "io.github.classgraph:classgraph:$classgraph_version",
         commons_codec                               : "commons-codec:commons-codec:1.14",
         commons_compress                            : "org.apache.commons:commons-compress:1.19",
-        commons_csv                                 : "org.apache.commons:commons-csv:1.7",
+        commons_csv                                 : "org.apache.commons:commons-csv:1.8",
         commons_io                                  : "commons-io:commons-io:2.6",
         commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
@@ -1141,6 +1147,17 @@ class BeamModulePlugin implements Plugin<Project> {
 
               pom.withXml {
                 def root = asNode()
+
+                // Add "repositories" section if it was configured
+                if (configuration.mavenRepositories && configuration.mavenRepositories.size() > 0) {
+                  def repositoriesNode = root.appendNode('repositories')
+                  configuration.mavenRepositories.each {
+                    def repositoryNode = repositoriesNode.appendNode('repository')
+                    repositoryNode.appendNode('id', it.get('id'))
+                    repositoryNode.appendNode('url', it.get('url'))
+                  }
+                }
+
                 def dependenciesNode = root.appendNode('dependencies')
                 def generateDependenciesFromConfiguration = { param ->
                   project.configurations."${param.configuration}".allDependencies.each {
@@ -1390,6 +1407,12 @@ class BeamModulePlugin implements Plugin<Project> {
     project.ext.applyDockerNature = {
       project.apply plugin: "com.palantir.docker"
       project.docker { noCache true }
+      project.tasks.create(name: "copyLicenses", type: Copy) {
+        from "${project.rootProject.projectDir}/LICENSE"
+        from "${project.rootProject.projectDir}/NOTICE"
+        into "build/target"
+      }
+      project.tasks.dockerPrepare.dependsOn project.tasks.copyLicenses
     }
 
     /** ***********************************************************************************************/
@@ -1748,9 +1771,6 @@ class BeamModulePlugin implements Plugin<Project> {
           args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           dependsOn setupTask
           dependsOn config.startJobServer
-          // We need flink-job-server-container dependency since Python PortableRunner automatically
-          // brings the flink-job-server-container up when --job_endpoint is not specified.
-          dependsOn ':runners:flink:1.9:job-server-container:docker'
         }
         mainTask.dependsOn pythonTask
         cleanupTask.mustRunAfter pythonTask

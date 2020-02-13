@@ -22,8 +22,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
@@ -31,7 +29,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoade
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 
 /** Translation utilities for metrics classes to/from Fn API. */
-@Experimental(Kind.METRICS)
 public abstract class MetricsTranslation {
 
   private MetricsTranslation() {}

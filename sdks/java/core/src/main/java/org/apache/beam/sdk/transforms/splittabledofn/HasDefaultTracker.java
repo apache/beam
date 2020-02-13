@@ -17,11 +17,15 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+
 /**
  * Interface for restrictions for which a default implementation of {@link
  * org.apache.beam.sdk.transforms.DoFn.NewTracker} is available, depending only on the restriction
  * itself.
  */
+@Experimental(Kind.SPLITTABLE_DO_FN)
 public interface HasDefaultTracker<
     RestrictionT extends HasDefaultTracker<RestrictionT, TrackerT>,
     TrackerT extends RestrictionTracker<RestrictionT, ?>> {

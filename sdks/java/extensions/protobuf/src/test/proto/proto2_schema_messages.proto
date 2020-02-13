@@ -15,16 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws.sns;
 
-import com.amazonaws.services.sns.model.InternalErrorException;
-import com.amazonaws.services.sns.model.PublishRequest;
-import com.amazonaws.services.sns.model.PublishResult;
+/*
+ * Protocol Buffer messages used for testing Proto2 Schema implementation.
+ */
 
-/** Mock class to test a failed publish of a msg. */
-public class AmazonSNSMockErrors extends AmazonSNSMock {
-  @Override
-  public PublishResult publish(PublishRequest publishRequest) {
-    throw new InternalErrorException("Service unavailable");
-  }
+syntax = "proto2";
+
+package proto2_schema_messages;
+
+option java_package = "org.apache.beam.sdk.extensions.protobuf";
+
+message OptionalPrimitive {
+    optional int32 primitive_int32 = 1;
+    optional bool primitive_bool = 2;
+    optional string primitive_string = 3;
+    optional bytes primitive_bytes = 4;
+}
+
+message RequiredPrimitive {
+    required int32 primitive_int32 = 1;
+    required bool primitive_bool = 2;
+    required string primitive_string = 3;
+    required bytes primitive_bytes = 4;
+}
+
+message RequiredNested {
+    required RequiredPrimitive nested = 1;
+}
+
+message OptionalNested {
+    optional OptionalPrimitive nested = 1;
 }

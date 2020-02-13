@@ -56,7 +56,7 @@ class ValidateRunnerXlangTest(unittest.TestCase):
     test_pipeline = TestPipeline()
     test_pipeline.get_pipeline_options().view_as(
         DebugOptions).experiments.append(
-            'jar_packages='+ValidateRunnerXlangTest.expansion_jar)
+            'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
     test_pipeline.not_use_test_runner_api = True
     with test_pipeline as p:
       res = (
@@ -72,7 +72,7 @@ class ValidateRunnerXlangTest(unittest.TestCase):
     test_pipeline = TestPipeline()
     test_pipeline.get_pipeline_options().view_as(
         DebugOptions).experiments.append(
-            'jar_packages='+ValidateRunnerXlangTest.expansion_jar)
+            'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
     test_pipeline.not_use_test_runner_api = True
     with test_pipeline as p:
       main1 = p | 'Main1' >> beam.Create(
@@ -80,8 +80,9 @@ class ValidateRunnerXlangTest(unittest.TestCase):
       main2 = p | 'Main2' >> beam.Create(
           ['x', 'yy', 'zzz'], reshuffle=False).with_output_types(unicode)
       side = p | 'Side' >> beam.Create(['s']).with_output_types(unicode)
-      res = dict(main1=main1, main2=main2, side=side) | beam.ExternalTransform(
-          TEST_MULTI_URN, None, ValidateRunnerXlangTest.expansion_service)
+      res = dict(
+          main1=main1, main2=main2, side=side) | beam.ExternalTransform(
+              TEST_MULTI_URN, None, ValidateRunnerXlangTest.expansion_service)
       assert_that(res['main'], equal_to(['as', 'bbs', 'xs', 'yys', 'zzzs']))
       assert_that(res['side'], equal_to(['ss']), label='CheckSide')
 
@@ -89,25 +90,24 @@ class ValidateRunnerXlangTest(unittest.TestCase):
     test_pipeline = TestPipeline()
     test_pipeline.get_pipeline_options().view_as(
         DebugOptions).experiments.append(
-            'jar_packages='+ValidateRunnerXlangTest.expansion_jar)
+            'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
     test_pipeline.not_use_test_runner_api = True
     with test_pipeline as p:
       res = (
           p
-          | beam.Create(
-              [(0, "1"), (0, "2"), (1, "3")], reshuffle=False
-          ).with_output_types(typing.Tuple[int, unicode])
+          | beam.Create([(0, "1"), (0, "2"),
+                         (1, "3")], reshuffle=False).with_output_types(
+                             typing.Tuple[int, unicode])
           | beam.ExternalTransform(
               TEST_GBK_URN, None, ValidateRunnerXlangTest.expansion_service)
-          | beam.Map(lambda x: "{}:{}".format(x[0], ','.join(sorted(x[1]))))
-      )
+          | beam.Map(lambda x: "{}:{}".format(x[0], ','.join(sorted(x[1])))))
       assert_that(res, equal_to(['0:1,2', '1:3']))
 
   def test_cogroup_by_key(self):
     test_pipeline = TestPipeline()
     test_pipeline.get_pipeline_options().view_as(
         DebugOptions).experiments.append(
-            'jar_packages='+ValidateRunnerXlangTest.expansion_jar)
+            'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
     test_pipeline.not_use_test_runner_api = True
     with test_pipeline as p:
       col1 = p | 'create_col1' >> beam.Create(
@@ -119,31 +119,28 @@ class ValidateRunnerXlangTest(unittest.TestCase):
       res = (
           dict(col1=col1, col2=col2) | beam.ExternalTransform(
               TEST_CGBK_URN, None, ValidateRunnerXlangTest.expansion_service)
-          | beam.Map(lambda x: "{}:{}".format(x[0], ','.join(sorted(x[1]))))
-      )
+          | beam.Map(lambda x: "{}:{}".format(x[0], ','.join(sorted(x[1])))))
       assert_that(res, equal_to(['0:1,2,4', '1:3,5,6']))
 
   def test_combine_globally(self):
     test_pipeline = TestPipeline()
     test_pipeline.get_pipeline_options().view_as(
         DebugOptions).experiments.append(
-            'jar_packages='+ValidateRunnerXlangTest.expansion_jar)
+            'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
     test_pipeline.not_use_test_runner_api = True
     with test_pipeline as p:
       res = (
           p
           | beam.Create([1, 2, 3]).with_output_types(int)
           | beam.ExternalTransform(
-              TEST_COMGL_URN,
-              None,
-              ValidateRunnerXlangTest.expansion_service))
+              TEST_COMGL_URN, None, ValidateRunnerXlangTest.expansion_service))
       assert_that(res, equal_to([6]))
 
   def test_combine_per_key(self):
     test_pipeline = TestPipeline()
     test_pipeline.get_pipeline_options().view_as(
         DebugOptions).experiments.append(
-            'jar_packages='+ValidateRunnerXlangTest.expansion_jar)
+            'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
     test_pipeline.not_use_test_runner_api = True
     with test_pipeline as p:
       res = (
@@ -151,33 +148,30 @@ class ValidateRunnerXlangTest(unittest.TestCase):
           | beam.Create([('a', 1), ('a', 2), ('b', 3)]).with_output_types(
               typing.Tuple[unicode, int])
           | beam.ExternalTransform(
-              TEST_COMPK_URN,
-              None,
-              ValidateRunnerXlangTest.expansion_service))
+              TEST_COMPK_URN, None, ValidateRunnerXlangTest.expansion_service))
       assert_that(res, equal_to([('a', 3), ('b', 3)]))
 
   def test_flatten(self):
     test_pipeline = TestPipeline()
     test_pipeline.get_pipeline_options().view_as(
         DebugOptions).experiments.append(
-            'jar_packages='+ValidateRunnerXlangTest.expansion_jar)
+            'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
     test_pipeline.not_use_test_runner_api = True
     with test_pipeline as p:
       col1 = p | 'col1' >> beam.Create([1, 2, 3]).with_output_types(int)
       col2 = p | 'col2' >> beam.Create([4, 5, 6]).with_output_types(int)
-      res = (
-          (col1, col2)
-          | beam.ExternalTransform(
-              TEST_FLATTEN_URN,
-              None,
-              ValidateRunnerXlangTest.expansion_service))
+      res = ((col1, col2)
+             | beam.ExternalTransform(
+                 TEST_FLATTEN_URN,
+                 None,
+                 ValidateRunnerXlangTest.expansion_service))
       assert_that(res, equal_to([1, 2, 3, 4, 5, 6]))
 
   def test_partition(self):
     test_pipeline = TestPipeline()
     test_pipeline.get_pipeline_options().view_as(
         DebugOptions).experiments.append(
-            'jar_packages='+ValidateRunnerXlangTest.expansion_jar)
+            'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
     test_pipeline.not_use_test_runner_api = True
     with test_pipeline as p:
       res = (

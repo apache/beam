@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Implementation of an Artifact{Staging,Retrieval}Service.
 
 The staging service here can be backed by any beam filesystem.
@@ -112,8 +113,8 @@ class AbstractArtifactService(
     data_hash = hasher.hexdigest()
     if metadata.sha256 and metadata.sha256 != data_hash:
       self._delete(temp_path)
-      raise ValueError('Bad metadata hash: %s vs %s' % (
-          metadata.sha256, data_hash))
+      raise ValueError(
+          'Bad metadata hash: %s vs %s' % (metadata.sha256, data_hash))
     self._rename(temp_path, artifact_path)
     return beam_artifact_api_pb2.PutArtifactResponse()
 
@@ -128,7 +129,8 @@ class AbstractArtifactService(
             beam_artifact_api_pb2.ProxyManifest.Location(
                 name=metadata.name,
                 uri=self._artifact_path(retrieval_token, metadata.name))
-            for metadata in request.manifest.artifact])
+            for metadata in request.manifest.artifact
+        ])
     with self._open(self._manifest_path(retrieval_token), 'w') as fout:
       fout.write(json_format.MessageToJson(proxy_manifest).encode('utf-8'))
     return beam_artifact_api_pb2.CommitManifestResponse(
@@ -167,7 +169,6 @@ class ZipFileArtifactService(AbstractArtifactService):
 
   Writing to zip files requires Python 3.6+.
   """
-
   def __init__(self, path, internal_root, chunk_size=None):
     if sys.version_info < (3, 6):
       raise RuntimeError(
@@ -208,14 +209,14 @@ class ZipFileArtifactService(AbstractArtifactService):
   def PutArtifact(self, request_iterator, context=None):
     # ZipFile only supports one writable channel at a time.
     with self._lock:
-      return super(
-          ZipFileArtifactService, self).PutArtifact(request_iterator, context)
+      return super(ZipFileArtifactService,
+                   self).PutArtifact(request_iterator, context)
 
   def CommitManifest(self, request, context=None):
     # ZipFile only supports one writable channel at a time.
     with self._lock:
-      return super(
-          ZipFileArtifactService, self).CommitManifest(request, context)
+      return super(ZipFileArtifactService,
+                   self).CommitManifest(request, context)
 
   def GetManifest(self, request, context=None):
     # ZipFile appears to not be threadsafe on some platforms.
@@ -225,8 +226,8 @@ class ZipFileArtifactService(AbstractArtifactService):
   def GetArtifact(self, request, context=None):
     # ZipFile appears to not be threadsafe on some platforms.
     with self._lock:
-      for chunk in super(ZipFileArtifactService, self).GetArtifact(
-          request, context):
+      for chunk in super(ZipFileArtifactService, self).GetArtifact(request,
+                                                                   context):
         yield chunk
 
   def close(self):
@@ -234,7 +235,6 @@ class ZipFileArtifactService(AbstractArtifactService):
 
 
 class BeamFilesystemArtifactService(AbstractArtifactService):
-
   def _join(self, *args):
     # type: (*str) -> str
     return filesystems.FileSystems.join(*args)

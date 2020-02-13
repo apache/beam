@@ -19,8 +19,10 @@ package org.apache.beam.sdk.util.common;
 
 import java.util.Observable;
 import java.util.Observer;
+import org.apache.beam.sdk.annotations.Internal;
 
 /** An observer that gets notified when additional bytes are read and/or used. */
+@Internal
 public abstract class ElementByteSizeObserver implements Observer {
   private boolean isLazy = false;
   private long totalSize = 0;

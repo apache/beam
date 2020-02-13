@@ -55,8 +55,8 @@ class _WorkItem(object):
 
 
 class _Worker(threading.Thread):
-  def __init__(self, idle_worker_queue, permitted_thread_age_in_seconds,
-               work_item):
+  def __init__(
+      self, idle_worker_queue, permitted_thread_age_in_seconds, work_item):
     super(_Worker, self).__init__()
     self._idle_worker_queue = idle_worker_queue
     self._permitted_thread_age_in_seconds = permitted_thread_age_in_seconds
@@ -128,7 +128,7 @@ class UnboundedThreadPoolExecutor(_base.Executor):
     self._idle_worker_queue = queue.Queue()
     self._workers = weakref.WeakSet()
     self._shutdown = False
-    self._lock = threading.Lock() # Guards access to _workers and _shutdown
+    self._lock = threading.Lock()  # Guards access to _workers and _shutdown
 
   def submit(self, fn, *args, **kwargs):
     """Attempts to submit the work item.
@@ -147,11 +147,13 @@ class UnboundedThreadPoolExecutor(_base.Executor):
     except queue.Empty:
       with self._lock:
         if self._shutdown:
-          raise RuntimeError('Cannot schedule new tasks after thread pool '
-                             'has been shutdown.')
+          raise RuntimeError(
+              'Cannot schedule new tasks after thread pool '
+              'has been shutdown.')
 
         worker = _Worker(
-            self._idle_worker_queue, self._permitted_thread_age_in_seconds,
+            self._idle_worker_queue,
+            self._permitted_thread_age_in_seconds,
             work_item)
         worker.daemon = True
         worker.start()

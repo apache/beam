@@ -99,9 +99,10 @@ class SubprocessServer(object):
             break
           except (grpc.FutureTimeoutError, grpc._channel._Rendezvous):
             wait_secs *= 1.2
-            logging.log(logging.WARNING if wait_secs > 1 else logging.DEBUG,
-                        'Waiting for grpc channel to be ready at %s.',
-                        endpoint)
+            logging.log(
+                logging.WARNING if wait_secs > 1 else logging.DEBUG,
+                'Waiting for grpc channel to be ready at %s.',
+                endpoint)
         return self._stub_class(channel)
       except:  # pylint: disable=bare-except
         _LOGGER.exception("Error bringing up service")
@@ -138,8 +139,8 @@ class JavaJarServer(SubprocessServer):
 
   @classmethod
   def jar_name(cls, artifact_id, version, classifier=None, appendix=None):
-    return '-'.join(filter(
-        None, [artifact_id, appendix, version, classifier]))  + '.jar'
+    return '-'.join(
+        filter(None, [artifact_id, appendix, version, classifier])) + '.jar'
 
   @classmethod
   def path_to_maven_jar(
@@ -154,7 +155,8 @@ class JavaJarServer(SubprocessServer):
         group_id.replace('.', '/'),
         artifact_id,
         version,
-        cls.jar_name(artifact_id, version, classifier)])
+        cls.jar_name(artifact_id, version, classifier)
+    ])
 
   @classmethod
   def path_to_beam_jar(cls, gradle_target, appendix=None):
@@ -178,9 +180,10 @@ class JavaJarServer(SubprocessServer):
     elif '.dev' in beam_version:
       # TODO: Attempt to use nightly snapshots?
       raise RuntimeError(
-          ('%s not found. '
-           'Please build the server with \n  cd %s; ./gradlew %s') % (
-               local_path, os.path.abspath(project_root), gradle_target))
+          (
+              '%s not found. '
+              'Please build the server with \n  cd %s; ./gradlew %s') %
+          (local_path, os.path.abspath(project_root), gradle_target))
     else:
       return cls.path_to_maven_jar(
           artifact_id, cls.BEAM_GROUP_ID, beam_version, cls.APACHE_REPOSITORY)

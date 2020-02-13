@@ -79,7 +79,9 @@ class ParDoTranslatorBatch<InputT, OutputT>
     // TODO: add support of states and timers
     DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
     boolean stateful =
-        signature.stateDeclarations().size() > 0 || signature.timerDeclarations().size() > 0;
+        signature.stateDeclarations().size() > 0
+            || signature.timerDeclarations().size() > 0
+            || signature.timerFamilyDeclarations().size() > 0;
     checkState(!stateful, "States and timers are not supported for the moment.");
 
     DoFnSchemaInformation doFnSchemaInformation =

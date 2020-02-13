@@ -72,27 +72,28 @@ class PayloadBase(object):
   args = {
       'integer_example': ConfigValue(
           coder_urn=['beam:coder:varint:v1'],
-          payload=VarIntCoder()
-          .get_impl().encode_nested(values['integer_example'])),
+          payload=VarIntCoder().get_impl().encode_nested(
+              values['integer_example'])),
       'boolean': ConfigValue(
           coder_urn=['beam:coder:bool:v1'],
-          payload=BooleanCoder()
-          .get_impl().encode_nested(values['boolean'])),
+          payload=BooleanCoder().get_impl().encode_nested(values['boolean'])),
       'string_example': ConfigValue(
           coder_urn=['beam:coder:string_utf8:v1'],
-          payload=StrUtf8Coder()
-          .get_impl().encode_nested(values['string_example'])),
+          payload=StrUtf8Coder().get_impl().encode_nested(
+              values['string_example'])),
       'list_of_strings': ConfigValue(
-          coder_urn=['beam:coder:iterable:v1',
-                     'beam:coder:string_utf8:v1'],
-          payload=IterableCoder(StrUtf8Coder())
-          .get_impl().encode_nested(values['list_of_strings'])),
+          coder_urn=['beam:coder:iterable:v1', 'beam:coder:string_utf8:v1'],
+          payload=IterableCoder(StrUtf8Coder()).get_impl().encode_nested(
+              values['list_of_strings'])),
       'optional_kv': ConfigValue(
-          coder_urn=['beam:coder:kv:v1',
-                     'beam:coder:string_utf8:v1',
-                     'beam:coder:double:v1'],
-          payload=TupleCoder([StrUtf8Coder(), FloatCoder()])
-          .get_impl().encode_nested(values['optional_kv'])),
+          coder_urn=[
+              'beam:coder:kv:v1',
+              'beam:coder:string_utf8:v1',
+              'beam:coder:double:v1'
+          ],
+          payload=TupleCoder([StrUtf8Coder(),
+                              FloatCoder()]).get_impl().encode_nested(
+                                  values['optional_kv'])),
   }
 
   def get_payload_from_typing_hints(self, values):
@@ -138,7 +139,6 @@ class PayloadBase(object):
 
 
 class ExternalTuplePayloadTest(PayloadBase, unittest.TestCase):
-
   def get_payload_from_typing_hints(self, values):
     TestSchema = typing.NamedTuple(
         'TestSchema',
@@ -149,15 +149,15 @@ class ExternalTuplePayloadTest(PayloadBase, unittest.TestCase):
             ('list_of_strings', typing.List[unicode]),
             ('optional_kv', typing.Optional[typing.Tuple[unicode, float]]),
             ('optional_integer', typing.Optional[int]),
-        ]
-    )
+        ])
 
     builder = NamedTupleBasedPayloadBuilder(TestSchema(**values))
     return builder.build()
 
   def get_payload_from_beam_typehints(self, values):
-    raise unittest.SkipTest("Beam typehints cannot be used with "
-                            "typing.NamedTuple")
+    raise unittest.SkipTest(
+        "Beam typehints cannot be used with "
+        "typing.NamedTuple")
 
 
 class ExternalImplicitPayloadTest(unittest.TestCase):
@@ -180,27 +180,29 @@ class ExternalImplicitPayloadTest(unittest.TestCase):
       args = {
           'integer_example': ConfigValue(
               coder_urn=['beam:coder:varint:v1'],
-              payload=VarIntCoder()
-              .get_impl().encode_nested(values['integer_example'])),
+              payload=VarIntCoder().get_impl().encode_nested(
+                  values['integer_example'])),
           'boolean': ConfigValue(
               coder_urn=['beam:coder:bool:v1'],
-              payload=BooleanCoder()
-              .get_impl().encode_nested(values['boolean'])),
+              payload=BooleanCoder().get_impl().encode_nested(
+                  values['boolean'])),
           'string_example': ConfigValue(
               coder_urn=['beam:coder:bytes:v1'],
-              payload=StrUtf8Coder()
-              .get_impl().encode_nested(values['string_example'])),
+              payload=StrUtf8Coder().get_impl().encode_nested(
+                  values['string_example'])),
           'list_of_strings': ConfigValue(
-              coder_urn=['beam:coder:iterable:v1',
-                         'beam:coder:bytes:v1'],
-              payload=IterableCoder(StrUtf8Coder())
-              .get_impl().encode_nested(values['list_of_strings'])),
+              coder_urn=['beam:coder:iterable:v1', 'beam:coder:bytes:v1'],
+              payload=IterableCoder(StrUtf8Coder()).get_impl().encode_nested(
+                  values['list_of_strings'])),
           'optional_kv': ConfigValue(
-              coder_urn=['beam:coder:kv:v1',
-                         'beam:coder:bytes:v1',
-                         'beam:coder:double:v1'],
-              payload=TupleCoder([StrUtf8Coder(), FloatCoder()])
-              .get_impl().encode_nested(values['optional_kv'])),
+              coder_urn=[
+                  'beam:coder:kv:v1',
+                  'beam:coder:bytes:v1',
+                  'beam:coder:double:v1'
+              ],
+              payload=TupleCoder([StrUtf8Coder(),
+                                  FloatCoder()]).get_impl().encode_nested(
+                                      values['optional_kv'])),
       }
       expected = get_payload(args)
       self.assertEqual(result, expected)
@@ -212,15 +214,15 @@ class ExternalImplicitPayloadTest(unittest.TestCase):
 class ExternalTransformTest(unittest.TestCase):
   def test_pipeline_generation(self):
     pipeline = beam.Pipeline()
-    _ = (pipeline
-         | beam.Create(['a', 'b'])
-         | beam.ExternalTransform(
-             'beam:transforms:xlang:test:prefix',
-             ImplicitSchemaPayloadBuilder({'data': u'0'}),
-             expansion_service.ExpansionServiceServicer()))
+    _ = (
+        pipeline
+        | beam.Create(['a', 'b'])
+        | beam.ExternalTransform(
+            'beam:transforms:xlang:test:prefix',
+            ImplicitSchemaPayloadBuilder({'data': u'0'}),
+            expansion_service.ExpansionServiceServicer()))
 
-    proto, _ = pipeline.to_runner_api(
-        return_context=True)
+    proto, _ = pipeline.to_runner_api(return_context=True)
     pipeline_from_proto = Pipeline.from_runner_api(
         proto, pipeline.runner, pipeline._options)
 
@@ -228,8 +230,8 @@ class ExternalTransformTest(unittest.TestCase):
     self.assertEqual([], pipeline.transforms_stack[0].parts[1].parts)
 
     # new pipeline has the expanded external transform
-    self.assertNotEqual(
-        [], pipeline_from_proto.transforms_stack[0].parts[1].parts)
+    self.assertNotEqual([],
+                        pipeline_from_proto.transforms_stack[0].parts[1].parts)
     self.assertEqual(
         u'ExternalTransform(beam:transforms:xlang:test:prefix)/TestLabel',
         pipeline_from_proto.transforms_stack[0].parts[1].parts[0].full_label)
@@ -240,8 +242,7 @@ class ExternalTransformTest(unittest.TestCase):
           p
           | beam.Create(['a', 'bb'], reshuffle=False)
           | beam.ExternalTransform(
-              'payload', b's',
-              expansion_service.ExpansionServiceServicer()))
+              'payload', b's', expansion_service.ExpansionServiceServicer()))
       assert_that(res, equal_to(['as', 'bbs']))
 
   def test_nested(self):

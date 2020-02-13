@@ -31,7 +31,7 @@ from apache_beam.portability.api.metrics_pb2_urns import MonitoringInfoSpecs
 from apache_beam.portability.api.metrics_pb2_urns import MonitoringInfoTypeUrns
 from apache_beam.portability.api.standard_window_fns_pb2_urns import FixedWindowsPayload
 from apache_beam.portability.api.standard_window_fns_pb2_urns import GlobalWindowsPayload
-from apache_beam.portability.api.standard_window_fns_pb2_urns import SessionsPayload
+from apache_beam.portability.api.standard_window_fns_pb2_urns import SessionWindowsPayload
 from apache_beam.portability.api.standard_window_fns_pb2_urns import SlidingWindowsPayload
 
 primitives = StandardPTransforms.Primitives
@@ -49,7 +49,7 @@ environments = StandardEnvironments.Environments
 global_windows = GlobalWindowsPayload.Enum.PROPERTIES
 fixed_windows = FixedWindowsPayload.Enum.PROPERTIES
 sliding_windows = SlidingWindowsPayload.Enum.PROPERTIES
-session_windows = SessionsPayload.Enum.PROPERTIES
+session_windows = SessionWindowsPayload.Enum.PROPERTIES
 
 monitoring_info_specs = MonitoringInfoSpecs.Enum
 monitoring_info_types = MonitoringInfoTypeUrns.Enum

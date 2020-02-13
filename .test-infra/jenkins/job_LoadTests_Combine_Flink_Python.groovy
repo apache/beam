@@ -28,7 +28,7 @@ String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 def scenarios = { datasetName, sdkHarnessImageTag -> [
         [
                 title          : 'Combine Python Load test: 2GB 10 byte records',
-                test           : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
+                test           : 'apache_beam.testing.load_tests.combine_test',
                 runner         : CommonTestProperties.Runner.PORTABLE,
                 pipelineOptions: [
                         job_name            : 'load-tests-python-flink-batch-combine-1-' + now,
@@ -49,7 +49,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
         ],
         [
                 title          : 'Combine Python Load test: 2GB Fanout 4',
-                test           : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
+                test           : 'apache_beam.testing.load_tests.combine_test',
                 runner         : CommonTestProperties.Runner.PORTABLE,
                 pipelineOptions: [
                         job_name            : 'load-tests-python-flink-batch-combine-4-' + now,
@@ -71,7 +71,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
         ],
         [
                 title          : 'Combine Python Load test: 2GB Fanout 8',
-                test           : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
+                test           : 'apache_beam.testing.load_tests.combine_test',
                 runner         : CommonTestProperties.Runner.PORTABLE,
                 pipelineOptions: [
                         job_name            : 'load-tests-python-flink-batch-combine-5-' + now,

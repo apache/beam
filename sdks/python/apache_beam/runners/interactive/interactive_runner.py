@@ -40,7 +40,6 @@ from apache_beam.runners.interactive.display import pipeline_graph
 # size of PCollection samples cached.
 SAMPLE_SIZE = 8
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -49,14 +48,14 @@ class InteractiveRunner(runners.PipelineRunner):
 
   Allows interactively building and running Beam Python pipelines.
   """
-
-  def __init__(self,
-               underlying_runner=None,
-               cache_dir=None,
-               cache_format='text',
-               render_option=None,
-               skip_display=False,
-               force_compute=True):
+  def __init__(
+      self,
+      underlying_runner=None,
+      cache_dir=None,
+      cache_format='text',
+      render_option=None,
+      skip_display=False,
+      force_compute=True):
     """Constructor of InteractiveRunner.
 
     Args:
@@ -76,12 +75,11 @@ class InteractiveRunner(runners.PipelineRunner):
           available data and run minimum pipeline fragment to only compute data
           not available.
     """
-    self._underlying_runner = (underlying_runner
-                               or direct_runner.DirectRunner())
+    self._underlying_runner = (
+        underlying_runner or direct_runner.DirectRunner())
     if not ie.current_env().cache_manager():
       ie.current_env().set_cache_manager(
-          cache.FileBasedCacheManager(cache_dir,
-                                      cache_format))
+          cache.FileBasedCacheManager(cache_dir, cache_format))
     self._cache_manager = ie.current_env().cache_manager()
     self._render_option = render_option
     self._in_session = False
@@ -162,16 +160,14 @@ class InteractiveRunner(runners.PipelineRunner):
           render_option=self._render_option)
       a_pipeline_graph.display_graph()
 
-    main_job_result = PipelineResult(pipeline_to_execute.run(),
-                                     pipeline_instrument)
+    main_job_result = PipelineResult(
+        pipeline_to_execute.run(), pipeline_instrument)
     # In addition to this pipeline result setting, redundant result setting from
     # outer scopes are also recommended since the user_pipeline might not be
     # available from within this scope.
     if user_pipeline:
       ie.current_env().set_pipeline_result(
-          user_pipeline,
-          main_job_result,
-          is_main_job=True)
+          user_pipeline, main_job_result, is_main_job=True)
     main_job_result.wait_until_finish()
 
     if main_job_result.state is beam.runners.runner.PipelineState.DONE:
@@ -184,7 +180,6 @@ class InteractiveRunner(runners.PipelineRunner):
 
 class PipelineResult(beam.runners.runner.PipelineResult):
   """Provides access to information about a pipeline."""
-
   def __init__(self, underlying_result, pipeline_instrument):
     """Constructor of PipelineResult.
 

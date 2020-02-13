@@ -31,6 +31,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileIO;
@@ -121,7 +122,7 @@ import org.apache.parquet.io.SeekableInputStream;
  * @see <a href="https://beam.apache.org/documentation/io/built-in/parquet/">Beam ParquetIO
  *     documentation</a>
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class ParquetIO {
 
   /**

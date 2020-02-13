@@ -74,8 +74,9 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
     self.fn_status_handler.close()
 
   @timeout(5)
-  @mock.patch('apache_beam.runners.worker.worker_status'
-              '.FnApiWorkerStatusHandler.generate_status_response')
+  @mock.patch(
+      'apache_beam.runners.worker.worker_status'
+      '.FnApiWorkerStatusHandler.generate_status_response')
   def test_generate_error(self, mock_method):
     mock_method.side_effect = RuntimeError('error')
     self.test_status_service.finished.acquire()

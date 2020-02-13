@@ -36,27 +36,27 @@ from apache_beam.transforms.environments import SubprocessSDKEnvironment
 
 
 class RunnerApiTest(unittest.TestCase):
-
   def test_environment_encoding(self):
-    for environment in (
-        DockerEnvironment(),
-        DockerEnvironment(container_image='img'),
-        ProcessEnvironment('run.sh'),
-        ProcessEnvironment('run.sh', os='linux', arch='amd64',
-                           env={'k1': 'v1'}),
-        ExternalEnvironment('localhost:8080'),
-        ExternalEnvironment('localhost:8080', params={'k1': 'v1'}),
-        EmbeddedPythonEnvironment(),
-        EmbeddedPythonGrpcEnvironment(),
-        EmbeddedPythonGrpcEnvironment(
-            state_cache_size=0, data_buffer_time_limit_ms=0),
-        SubprocessSDKEnvironment(command_string=u'foö')):
+    for environment in (DockerEnvironment(),
+                        DockerEnvironment(container_image='img'),
+                        ProcessEnvironment('run.sh'),
+                        ProcessEnvironment('run.sh',
+                                           os='linux',
+                                           arch='amd64',
+                                           env={'k1': 'v1'}),
+                        ExternalEnvironment('localhost:8080'),
+                        ExternalEnvironment('localhost:8080',
+                                            params={'k1': 'v1'}),
+                        EmbeddedPythonEnvironment(),
+                        EmbeddedPythonGrpcEnvironment(),
+                        EmbeddedPythonGrpcEnvironment(
+                            state_cache_size=0, data_buffer_time_limit_ms=0),
+                        SubprocessSDKEnvironment(command_string=u'foö')):
       context = pipeline_context.PipelineContext()
       self.assertEqual(
           environment,
           Environment.from_runner_api(
-              environment.to_runner_api(context), context)
-      )
+              environment.to_runner_api(context), context))
 
 
 if __name__ == '__main__':

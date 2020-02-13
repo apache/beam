@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -55,7 +56,7 @@ import org.joda.time.Instant;
  * AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)} or {@code
  * AfterWatermark.pastEndOfWindow.withLateFirings(OnceTrigger)}.
  */
-@Experimental(Experimental.Kind.TRIGGER)
+@Experimental(Kind.TRIGGER)
 public class AfterWatermark {
 
   private static final String TO_STRING = "AfterWatermark.pastEndOfWindow()";

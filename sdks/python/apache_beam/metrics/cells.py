@@ -38,8 +38,10 @@ from apache_beam.utils import proto_utils
 try:
   import cython
 except ImportError:
+
   class fake_cython:
     compiled = False
+
   globals()['cython'] = fake_cython
 
 __all__ = ['DistributionResult', 'GaugeResult']
@@ -115,13 +117,13 @@ class CounterCell(MetricCell):
   def to_runner_api_user_metric(self, metric_name):
     return beam_fn_api_pb2.Metrics.User(
         metric_name=metric_name.to_runner_api(),
-        counter_data=beam_fn_api_pb2.Metrics.User.CounterData(
-            value=self.value))
+        counter_data=beam_fn_api_pb2.Metrics.User.CounterData(value=self.value))
 
   def to_runner_api_monitoring_info(self, name, transform_id):
     from apache_beam.metrics import monitoring_infos
     return monitoring_infos.int64_user_counter(
-        name.namespace, name.name,
+        name.namespace,
+        name.name,
         metrics_pb2.Metric(
             counter_data=metrics_pb2.CounterData(
                 int64_value=self.get_cumulative())),
@@ -185,7 +187,8 @@ class DistributionCell(MetricCell):
   def to_runner_api_monitoring_info(self, name, transform_id):
     from apache_beam.metrics import monitoring_infos
     return monitoring_infos.int64_user_distribution(
-        name.namespace, name.name,
+        name.namespace,
+        name.name,
         self.get_cumulative().to_runner_api_monitoring_info(),
         ptransform=transform_id)
 
@@ -238,7 +241,8 @@ class GaugeCell(MetricCell):
   def to_runner_api_monitoring_info(self, name, transform_id):
     from apache_beam.metrics import monitoring_infos
     return monitoring_infos.int64_user_gauge(
-        name.namespace, name.name,
+        name.namespace,
+        name.name,
         self.get_cumulative().to_runner_api_monitoring_info(),
         ptransform=transform_id)
 
@@ -264,10 +268,7 @@ class DistributionResult(object):
 
   def __repr__(self):
     return 'DistributionResult(sum={}, count={}, min={}, max={})'.format(
-        self.sum,
-        self.count,
-        self.min,
-        self.max)
+        self.sum, self.count, self.min, self.max)
 
   @property
   def max(self):
@@ -316,8 +317,7 @@ class GaugeResult(object):
 
   def __repr__(self):
     return '<GaugeResult(value={}, timestamp={})>'.format(
-        self.value,
-        self.timestamp)
+        self.value, self.timestamp)
 
   @property
   def value(self):
@@ -354,8 +354,7 @@ class GaugeData(object):
 
   def __repr__(self):
     return '<GaugeData(value={}, timestamp={})>'.format(
-        self.value,
-        self.timestamp)
+        self.value, self.timestamp)
 
   def get_cumulative(self):
     # type: () -> GaugeData
@@ -384,16 +383,13 @@ class GaugeData(object):
   @staticmethod
   def from_runner_api(proto):
     # type: (beam_fn_api_pb2.Metrics.User.GaugeData) -> GaugeData
-    return GaugeData(proto.value,
-                     timestamp=proto_utils.from_Timestamp(proto.timestamp))
+    return GaugeData(
+        proto.value, timestamp=proto_utils.from_Timestamp(proto.timestamp))
 
   def to_runner_api_monitoring_info(self):
     """Returns a Metric with this value for use in a MonitoringInfo."""
     return metrics_pb2.Metric(
-        counter_data=metrics_pb2.CounterData(
-            int64_value=self.value
-        )
-    )
+        counter_data=metrics_pb2.CounterData(int64_value=self.value))
 
 
 class DistributionData(object):
@@ -419,10 +415,9 @@ class DistributionData(object):
       self.max = -self.min - 1
 
   def __eq__(self, other):
-    return (self.sum == other.sum and
-            self.count == other.count and
-            self.min == other.min and
-            self.max == other.max)
+    return (
+        self.sum == other.sum and self.count == other.count and
+        self.min == other.min and self.max == other.max)
 
   def __hash__(self):
     return hash((self.sum, self.count, self.min, self.max))
@@ -433,10 +428,7 @@ class DistributionData(object):
 
   def __repr__(self):
     return 'DistributionData(sum={}, count={}, min={}, max={})'.format(
-        self.sum,
-        self.count,
-        self.min,
-        self.max)
+        self.sum, self.count, self.min, self.max)
 
   def get_cumulative(self):
     # type: () -> DistributionData
@@ -479,7 +471,6 @@ class MetricAggregator(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   Base interface for aggregating metric data during pipeline execution."""
-
   def identity_element(self):
     """Returns the identical element of an Aggregation.
 

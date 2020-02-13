@@ -260,12 +260,12 @@ public class ParDoTranslationTest {
     }
 
     @GetInitialRestriction
-    public Integer restriction(KV<Long, String> elem) {
+    public Integer restriction(@Element KV<Long, String> elem) {
       return 42;
     }
 
     @NewTracker
-    public RestrictionTracker<Integer, ?> newTracker(Integer restriction) {
+    public RestrictionTracker<Integer, ?> newTracker(@Restriction Integer restriction) {
       throw new UnsupportedOperationException("Should never be called; only to test translation");
     }
 

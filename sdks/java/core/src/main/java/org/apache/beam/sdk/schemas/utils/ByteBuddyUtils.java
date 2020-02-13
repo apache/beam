@@ -33,10 +33,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
 import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.ByteBuddy;
@@ -117,11 +119,11 @@ public class ByteBuddyUtils {
 
     private final RandomString randomString;
 
-    private final String targetPackage;
+    @Nullable private final String targetPackage;
 
     public InjectPackageStrategy(Class<?> baseType) {
       randomString = new RandomString();
-      this.targetPackage = baseType.getPackage().getName();
+      this.targetPackage = baseType.getPackage() != null ? baseType.getPackage().getName() : null;
     }
 
     @Override
@@ -129,7 +131,15 @@ public class ByteBuddyUtils {
       String baseName = baseNameResolver.resolve(superClass);
       int lastDot = baseName.lastIndexOf('.');
       String className = baseName.substring(lastDot, baseName.length());
-      return targetPackage + className + "$" + SUFFIX + "$" + randomString.nextString();
+      // If the target class is in a prohibited package (java.*) then leave the original package
+      // alone.
+      String realPackage =
+          overridePackage(targetPackage) ? targetPackage : superClass.getPackage().getName();
+      return realPackage + className + "$" + SUFFIX + "$" + randomString.nextString();
+    }
+
+    private static boolean overridePackage(@Nullable String targetPackage) {
+      return targetPackage != null && !targetPackage.startsWith("java.");
     }
   };
 
@@ -362,6 +372,7 @@ public class ByteBuddyUtils {
     DynamicType.Builder<Function> builder =
         (DynamicType.Builder<Function>)
             BYTE_BUDDY
+                .with(new InjectPackageStrategy((Class) fromType))
                 .subclass(functionGenericType)
                 .method(ElementMatchers.named("apply"))
                 .intercept(
@@ -391,7 +402,9 @@ public class ByteBuddyUtils {
 
     return builder
         .make()
-        .load(ByteBuddyUtils.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+        .load(
+            ReflectHelpers.findClassLoader(((Class) fromType).getClassLoader()),
+            ClassLoadingStrategy.Default.INJECTION)
         .getLoaded();
   }
 

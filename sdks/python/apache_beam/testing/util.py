@@ -52,7 +52,7 @@ __all__ = [
     # open_shards is internal and has no backwards compatibility guarantees.
     'open_shards',
     'TestWindowedValue',
-    ]
+]
 
 
 class BeamAssertException(Exception):
@@ -91,6 +91,7 @@ def contains_in_any_order(iterable):
       return "InAnyOrder(%s)" % self._counter
 
   return InAnyOrder(iterable)
+
 
 class _EqualToPerWindowMatcher(object):
   def __init__(self, expected_window_to_elements):
@@ -141,6 +142,7 @@ class _EqualToPerWindowMatcher(object):
             'Failed assert: unmatched elements {} in window {}'.format(
                 _expected[win], win))
 
+
 def equal_to_per_window(expected_window_to_elements):
   """Matcher used by assert_that to check to assert expected windows.
 
@@ -159,7 +161,6 @@ def equal_to_per_window(expected_window_to_elements):
 # other. However, only permutations of the top level are checked. Therefore
 # [1,2] and [2,1] are considered equal and [[1,2]] and [[2,1]] are not.
 def equal_to(expected, equals_fn=None):
-
   def _equal(actual, equals_fn=equals_fn):
     expected_list = list(expected)
 
@@ -224,8 +225,8 @@ def is_empty():
   def _empty(actual):
     actual = list(actual)
     if actual:
-      raise BeamAssertException(
-          'Failed assert: [] == %r' % actual)
+      raise BeamAssertException('Failed assert: [] == %r' % actual)
+
   return _empty
 
 
@@ -239,11 +240,16 @@ def is_not_empty():
     actual = list(actual)
     if not actual:
       raise BeamAssertException('Failed assert: pcol is empty')
+
   return _not_empty
 
 
-def assert_that(actual, matcher, label='assert_that',
-                reify_windows=False, use_global_window=True):
+def assert_that(
+    actual,
+    matcher,
+    label='assert_that',
+    reify_windows=False,
+    use_global_window=True):
   """A PTransform that checks a PCollection has an expected value.
 
   Note that assert_that should be used only for testing pipelines since the
@@ -263,18 +269,16 @@ def assert_that(actual, matcher, label='assert_that',
   Returns:
     Ignored.
   """
-  assert isinstance(
-      actual,
-      pvalue.PCollection), ('%s is not a supported type for Beam assert'
-                            % type(actual))
+  assert isinstance(actual, pvalue.PCollection), (
+      '%s is not a supported type for Beam assert' % type(actual))
 
   if isinstance(matcher, _EqualToPerWindowMatcher):
     reify_windows = True
     use_global_window = True
 
   class ReifyTimestampWindow(DoFn):
-    def process(self, element, timestamp=DoFn.TimestampParam,
-                window=DoFn.WindowParam):
+    def process(
+        self, element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam):
       # This returns TestWindowedValue instead of
       # beam.utils.windowed_value.WindowedValue because ParDo will extract
       # the timestamp and window out of the latter.
@@ -285,7 +289,6 @@ def assert_that(actual, matcher, label='assert_that',
       yield element, window
 
   class AssertThat(PTransform):
-
     def expand(self, pcoll):
       if reify_windows:
         pcoll = pcoll | ParDo(ReifyTimestampWindow())
