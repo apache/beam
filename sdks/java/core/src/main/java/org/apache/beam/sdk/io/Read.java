@@ -108,7 +108,9 @@ public class Read {
     public final PCollection<T> expand(PBegin input) {
       source.validate();
 
-      if (ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")) {
+      if (ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
+          && !ExperimentalOptions.hasExperiment(
+              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")) {
         // We don't use Create here since Create is defined as a BoundedSource and using it would
         // cause an infinite expansion loop. We can reconsider this if Create is implemented
         // directly as a SplittableDoFn.
