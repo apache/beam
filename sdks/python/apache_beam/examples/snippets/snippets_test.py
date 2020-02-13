@@ -43,7 +43,7 @@ from apache_beam import WindowInto
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
-from apache_beam.coders.coders import ToStringCoder
+from apache_beam.coders.coders import ToBytesCoder
 from apache_beam.examples.snippets import snippets
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
@@ -468,7 +468,7 @@ class SnippetsTest(unittest.TestCase):
       def __init__(self, file_to_write):
         self.file_to_write = file_to_write
         self.file_obj = None
-        self.coder = ToStringCoder()
+        self.coder = ToBytesCoder()
 
       def start_bundle(self):
         assert self.file_to_write

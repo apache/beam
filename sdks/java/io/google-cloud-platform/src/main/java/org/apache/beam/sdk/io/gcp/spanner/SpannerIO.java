@@ -26,6 +26,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Mutation.Op;
@@ -44,6 +45,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -63,6 +65,9 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -72,9 +77,11 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -129,8 +136,7 @@ import org.slf4j.LoggerFactory;
  * <pre>{@code
  * SpannerConfig spannerConfig = ...
  *
- * PCollectionView<Transaction> tx =
- * p.apply(
+ * PCollectionView<Transaction> tx = p.apply(
  *    SpannerIO.createTransaction()
  *        .withSpannerConfig(spannerConfig)
  *        .withTimestampBound(TimestampBound.strong()));
@@ -201,6 +207,37 @@ import org.slf4j.LoggerFactory;
  * <p>Note that each worker will need enough memory to hold {@code GroupingFactor x
  * MaxBatchSizeBytes} Mutations, so if you have a large {@code MaxBatchSize} you may need to reduce
  * {@code GroupingFactor}
+ *
+ * <h3>Monitoring</h3>
+ *
+ * <p>Several counters are provided for monitoring purpooses:
+ *
+ * <ul>
+ *   <li><tt>batchable_mutation_groups</tt><br>
+ *       Counts the mutations that are batched for writing to Spanner.
+ *   <li><tt>unbatchable_mutation_groups</tt><br>
+ *       Counts the mutations that can not be batched and are applied individually - either because
+ *       they are too large to fit into a batch, or they are ranged deletes.
+ *   <li><tt>mutation_group_batches_received, mutation_group_batches_write_success,
+ *       mutation_group_batches_write_failed</tt><br>
+ *       Count the number of batches that are processed. If Failure Mode is set to {@link
+ *       FailureMode#REPORT_FAILURES REPORT_FAILURES}, then failed batches will be split up and the
+ *       individual mutation groups retried separately.
+ *   <li><tt>mutation_groups_received, mutation_groups_write_success,
+ *       mutation_groups_write_fail</tt><br>
+ *       Count the number of individual MutationGroups that are processed.
+ *   <li><tt>spanner_write_success, spanner_write_fail</tt><br>
+ *       The number of writes to Spanner that have occurred.
+ *   <li><tt>spanner_write_retries</tt><br>
+ *       The number of times a write is retried after a failure - either due to a timeout, or when
+ *       batches fail and {@link FailureMode#REPORT_FAILURES REPORT_FAILURES} is set so that
+ *       individual Mutation Groups are retried.
+ *   <li><tt>spanner_write_timeouts</tt><br>
+ *       The number of timeouts that occur when writing to Spanner. Writes that timed out are
+ *       retried after a backoff. Large numbers of timeouts suggest an overloaded Spanner instance.
+ *   <li><tt>spanner_write_total_latency_ms</tt><br>
+ *       The total amount of time spent writing to Spanner, in milliseconds.
+ * </ul>
  *
  * <h3>Database Schema Preparation</h3>
  *
@@ -817,6 +854,28 @@ public class SpannerIO {
       return withHost(ValueProvider.StaticValueProvider.of(host));
     }
 
+    /**
+     * Specifies the deadline for the Commit API call. Default is 15 secs. DEADLINE_EXCEEDED errors
+     * will prompt a backoff/retry until the value of {@link #withMaxCumulativeBackoff(Duration)} is
+     * reached. DEADLINE_EXCEEDED errors are are reported with logging and counters.
+     */
+    public Write withCommitDeadline(Duration commitDeadline) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withCommitDeadline(commitDeadline));
+    }
+
+    /**
+     * Specifies the maximum cumulative backoff time when retrying after DEADLINE_EXCEEDED errors.
+     * Default is 15 mins.
+     *
+     * <p>If the mutations still have not been written after this time, they are treated as a
+     * failure, and handled according to the setting of {@link #withFailureMode(FailureMode)}.
+     */
+    public Write withMaxCumulativeBackoff(Duration maxCumulativeBackoff) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withMaxCumulativeBackoff(maxCumulativeBackoff));
+    }
+
     @VisibleForTesting
     Write withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
       SpannerConfig config = getSpannerConfig();
@@ -1253,19 +1312,43 @@ public class SpannerIO {
     }
   }
 
-  private static class WriteToSpannerFn extends DoFn<Iterable<MutationGroup>, Void> {
+  @VisibleForTesting
+  static class WriteToSpannerFn extends DoFn<Iterable<MutationGroup>, Void> {
 
     private transient SpannerAccessor spannerAccessor;
     private final SpannerConfig spannerConfig;
     private final FailureMode failureMode;
-    private final Counter mutationGroupBatchesCounter =
-        Metrics.counter(WriteGrouped.class, "mutation_group_batches");
-    private final Counter mutationGroupWriteSuccessCounter =
+
+    @VisibleForTesting static Sleeper sleeper = Sleeper.DEFAULT;
+
+    private final Counter mutationGroupBatchesReceived =
+        Metrics.counter(WriteGrouped.class, "mutation_group_batches_received");
+    private final Counter mutationGroupBatchesWriteSuccess =
+        Metrics.counter(WriteGrouped.class, "mutation_group_batches_write_success");
+    private final Counter mutationGroupBatchesWriteFail =
+        Metrics.counter(WriteGrouped.class, "mutation_group_batches_write_fail");
+
+    private final Counter mutationGroupsReceived =
+        Metrics.counter(WriteGrouped.class, "mutation_groups_received");
+    private final Counter mutationGroupsWriteSuccess =
         Metrics.counter(WriteGrouped.class, "mutation_groups_write_success");
-    private final Counter mutationGroupWriteFailCounter =
+    private final Counter mutationGroupsWriteFail =
         Metrics.counter(WriteGrouped.class, "mutation_groups_write_fail");
 
+    private final Counter spannerWriteSuccess =
+        Metrics.counter(WriteGrouped.class, "spanner_write_success");
+    private final Counter spannerWriteFail =
+        Metrics.counter(WriteGrouped.class, "spanner_write_fail");
+    private final Counter spannerWriteTotalLatency =
+        Metrics.counter(WriteGrouped.class, "spanner_write_total_latency_ms");
+    private final Counter spannerWriteTimeouts =
+        Metrics.counter(WriteGrouped.class, "spanner_write_timeouts");
+    private final Counter spannerWriteRetries =
+        Metrics.counter(WriteGrouped.class, "spanner_write_retries");
+
     private final TupleTag<MutationGroup> failedTag;
+
+    private FluentBackoff bundleWriteBackoff;
 
     WriteToSpannerFn(
         SpannerConfig spannerConfig, FailureMode failureMode, TupleTag<MutationGroup> failedTag) {
@@ -1276,7 +1359,12 @@ public class SpannerIO {
 
     @Setup
     public void setup() throws Exception {
+      // set up non-serializable values here.
       spannerAccessor = spannerConfig.connectToSpanner();
+      bundleWriteBackoff =
+          FluentBackoff.DEFAULT
+              .withMaxCumulativeBackoff(spannerConfig.getMaxCumulativeBackoff().get())
+              .withInitialBackoff(spannerConfig.getMaxCumulativeBackoff().get().dividedBy(60));
     }
 
     @Teardown
@@ -1287,33 +1375,88 @@ public class SpannerIO {
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       Iterable<MutationGroup> mutations = c.element();
-      boolean tryIndividual = false;
+
       // Batch upsert rows.
       try {
-        mutationGroupBatchesCounter.inc();
+        mutationGroupBatchesReceived.inc();
+        mutationGroupsReceived.inc(Iterables.size(mutations));
         Iterable<Mutation> batch = Iterables.concat(mutations);
-        spannerAccessor.getDatabaseClient().writeAtLeastOnce(batch);
-        mutationGroupWriteSuccessCounter.inc(Iterables.size(mutations));
+        writeMutations(batch);
+        mutationGroupBatchesWriteSuccess.inc();
+        mutationGroupsWriteSuccess.inc(Iterables.size(mutations));
         return;
       } catch (SpannerException e) {
+        mutationGroupBatchesWriteFail.inc();
         if (failureMode == FailureMode.REPORT_FAILURES) {
-          tryIndividual = true;
+          // fall through and retry individual mutationGroups.
         } else if (failureMode == FailureMode.FAIL_FAST) {
+          mutationGroupsWriteFail.inc(Iterables.size(mutations));
           throw e;
         } else {
           throw new IllegalArgumentException("Unknown failure mode " + failureMode);
         }
       }
-      if (tryIndividual) {
-        for (MutationGroup mg : mutations) {
-          try {
-            spannerAccessor.getDatabaseClient().writeAtLeastOnce(mg);
-            mutationGroupWriteSuccessCounter.inc();
-          } catch (SpannerException e) {
-            mutationGroupWriteFailCounter.inc();
-            LOG.warn("Failed to write the mutation group: " + mg, e);
-            c.output(failedTag, mg);
+
+      // If we are here, writing a batch has failed, retry individual mutations.
+      for (MutationGroup mg : mutations) {
+        try {
+          spannerWriteRetries.inc();
+          writeMutations(mg);
+          mutationGroupsWriteSuccess.inc();
+        } catch (SpannerException e) {
+          mutationGroupsWriteFail.inc();
+          LOG.warn("Failed to write the mutation group: " + mg, e);
+          c.output(failedTag, mg);
+        }
+      }
+    }
+
+    /** Write the Mutations to Spanner, handling DEADLINE_EXCEEDED with backoff/retries. */
+    private void writeMutations(Iterable<Mutation> mutations) throws SpannerException, IOException {
+      BackOff backoff = bundleWriteBackoff.backoff();
+      long mutationsSize = Iterables.size(mutations);
+
+      while (true) {
+        Stopwatch timer = Stopwatch.createStarted();
+        // loop is broken on success, timeout backoff/retry attempts exceeded, or other failure.
+        try {
+          spannerAccessor.getDatabaseClient().writeAtLeastOnce(mutations);
+          spannerWriteSuccess.inc();
+          return;
+        } catch (SpannerException exception) {
+          if (exception.getErrorCode() == ErrorCode.DEADLINE_EXCEEDED) {
+            spannerWriteTimeouts.inc();
+
+            // Potentially backoff/retry after DEADLINE_EXCEEDED.
+            long sleepTimeMsecs = backoff.nextBackOffMillis();
+            if (sleepTimeMsecs == BackOff.STOP) {
+              LOG.error(
+                  "DEADLINE_EXCEEDED writing batch of {} mutations to Cloud Spanner. "
+                      + "Aborting after too many retries.",
+                  mutationsSize);
+              spannerWriteFail.inc();
+              throw exception;
+            }
+            LOG.info(
+                "DEADLINE_EXCEEDED writing batch of {} mutations to Cloud Spanner, "
+                    + "retrying after backoff of {}ms\n"
+                    + "({})",
+                mutationsSize,
+                sleepTimeMsecs,
+                exception.getMessage());
+            spannerWriteRetries.inc();
+            try {
+              sleeper.sleep(sleepTimeMsecs);
+            } catch (InterruptedException e) {
+              // ignore.
+            }
+          } else {
+            // Some other failure: pass up the stack.
+            spannerWriteFail.inc();
+            throw exception;
           }
+        } finally {
+          spannerWriteTotalLatency.inc(timer.elapsed(TimeUnit.MILLISECONDS));
         }
       }
     }

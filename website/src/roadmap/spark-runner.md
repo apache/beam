@@ -20,7 +20,10 @@ limitations under the License.
 
 # Apache Spark Runner Roadmap
 
-This roadmap is in progress. In the meantime, here are available resources:
+## Spark 3
 
- - [Runner documentation]({{site.baseurl}}/documentation/runners/spark)
- - JIRA: [runner-spark](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20runner-spark)
+Support for Spark 3 in Beam's Spark runner is ongoing. For info on the various
+tasks please refer to the JIRA ticket.
+
+- JIRA: [BEAM-7093](https://issues.apache.org/jira/browse/BEAM-7093)
+- Contact: [Ismaël Mejía](mailto:iemejia@apache.org)
