@@ -68,26 +68,27 @@ fi
 
 function runLinkageCheck () {
   COMMIT=$1
-  local BRANCH_NAME=$(git symbolic-ref --short HEAD)
+  BRANCH=$2
   # An empty invocation so that the subsequent checkJavaLinkage does not
   # contain garbage
-  echo "`date`:" "Installing artifacts of ${BRANCH_NAME}(${COMMIT}) to Maven local repository."
+  echo "`date`:" "Installing artifacts of ${BRANCH}(${COMMIT}) to Maven local repository."
   ./gradlew -Ppublishing -PjavaLinkageArtifactIds=beam-sdks-java-core :checkJavaLinkage > /dev/null 2>&1
   for ARTIFACT in $ARTIFACTS; do
-    echo "`date`:" "Running linkage check for ${ARTIFACT} in ${BRANCH_NAME}"
+    echo "`date`:" "Running linkage check for ${ARTIFACT} in ${BRANCH}"
     # Removing time taken to have clean diff
     ./gradlew -Ppublishing -PjavaLinkageArtifactIds=$ARTIFACT :checkJavaLinkage |grep -v 'BUILD SUCCESSFUL in' | grep -v 'dependency paths' > ${OUTPUT_DIR}/${COMMIT}-${ARTIFACT}
     echo "`date`:" "Done: ${OUTPUT_DIR}/${COMMIT}-${ARTIFACT}"
   done
 }
 
+BRANCH_NAME=`git rev-parse --abbrev-ref HEAD`
 BRANCH_COMMIT=`git rev-parse --short=8 HEAD`
-runLinkageCheck $BRANCH_COMMIT
+runLinkageCheck $BRANCH_COMMIT $BRANCH_NAME
 
-git checkout master
-git pull
-MASTER_COMMIT=`git rev-parse --short=8 HEAD`
-runLinkageCheck $MASTER_COMMIT
+git fetch
+MASTER_COMMIT=`git rev-parse --short=8 origin/master`
+git -c advice.detachedHead=false checkout $MASTER_COMMIT
+runLinkageCheck $MASTER_COMMIT master
 
 # Restore original branch
 git checkout $BRANCH_NAME
