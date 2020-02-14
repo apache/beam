@@ -64,8 +64,7 @@ class ExpansionServiceServicer(
           pcoll_id in t_proto.outputs.items()
       }
       transform = with_pipeline(
-          ptransform.PTransform.from_runner_api(
-              request.transform.spec, context))
+          ptransform.PTransform.from_runner_api(request.transform, context))
       inputs = transform._pvaluish_from_dict({
           tag:
           with_pipeline(context.pcollections.get_by_id(pcoll_id), pcoll_id)

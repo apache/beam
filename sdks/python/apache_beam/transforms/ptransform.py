@@ -669,23 +669,25 @@ class PTransform(WithTypeHints, HasDisplayData):
 
   @classmethod
   def from_runner_api(cls,
-                      proto,  # type: Optional[beam_runner_api_pb2.FunctionSpec]
+                      proto,  # type: Optional[beam_runner_api_pb2.PTransform]
                       context  # type: PipelineContext
                      ):
     # type: (...) -> Optional[PTransform]
-    if proto is None or not proto.urn:
+    if proto is None or proto.spec is None or not proto.spec.urn:
       return None
-    parameter_type, constructor = cls._known_urns[proto.urn]
+    parameter_type, constructor = cls._known_urns[proto.spec.urn]
 
     try:
       return constructor(
-          proto_utils.parse_Bytes(proto.payload, parameter_type), context)
+          proto,
+          proto_utils.parse_Bytes(proto.spec.payload, parameter_type),
+          context)
     except Exception:
       if context.allow_proto_holders:
         # For external transforms we cannot build a Python ParDo object so
         # we build a holder transform instead.
         from apache_beam.transforms.core import RunnerAPIPTransformHolder
-        return RunnerAPIPTransformHolder(proto, context)
+        return RunnerAPIPTransformHolder(proto.spec, context)
       raise
 
   def to_runner_api_parameter(
@@ -707,14 +709,14 @@ class PTransform(WithTypeHints, HasDisplayData):
 
 
 @PTransform.register_urn(python_urns.GENERIC_COMPOSITE_TRANSFORM, None)
-def _create_transform(payload, unused_context):
+def _create_transform(unused_ptransform, payload, unused_context):
   empty_transform = PTransform()
   empty_transform._fn_api_payload = payload
   return empty_transform
 
 
 @PTransform.register_urn(python_urns.PICKLED_TRANSFORM, None)
-def _unpickle_transform(pickled_bytes, unused_context):
+def _unpickle_transform(unused_ptransform, pickled_bytes, unused_context):
   return pickler.loads(pickled_bytes)
 
 

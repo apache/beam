@@ -1339,7 +1339,7 @@ class ParDo(PTransformWithSideInputs):
   @staticmethod
   @PTransform.register_urn(
       common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
-  def from_runner_api_parameter(pardo_payload, context):
+  def from_runner_api_parameter(unused_ptransform, pardo_payload, context):
     assert pardo_payload.do_fn.urn == python_urns.PICKLED_DOFN_INFO
     fn, args, kwargs, si_tags_and_types, windowing = pickler.loads(
         pardo_payload.do_fn.payload)
@@ -1932,7 +1932,7 @@ class CombinePerKey(PTransformWithSideInputs):
   @PTransform.register_urn(
       common_urns.composites.COMBINE_PER_KEY.urn,
       beam_runner_api_pb2.CombinePayload)
-  def from_runner_api_parameter(combine_payload, context):
+  def from_runner_api_parameter(unused_ptransform, combine_payload, context):
     return CombinePerKey(
         CombineFn.from_runner_api(combine_payload.combine_fn, context))
 
@@ -1975,7 +1975,7 @@ class CombineValues(PTransformWithSideInputs):
   @PTransform.register_urn(
       common_urns.combine_components.COMBINE_GROUPED_VALUES.urn,
       beam_runner_api_pb2.CombinePayload)
-  def from_runner_api_parameter(combine_payload, context):
+  def from_runner_api_parameter(unused_ptransform, combine_payload, context):
     return CombineValues(
         CombineFn.from_runner_api(combine_payload.combine_fn, context))
 
@@ -2203,7 +2203,8 @@ class GroupByKey(PTransform):
 
   @staticmethod
   @PTransform.register_urn(common_urns.primitives.GROUP_BY_KEY.urn, None)
-  def from_runner_api_parameter(unused_payload, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_payload, unused_context):
     return GroupByKey()
 
   def runner_api_requires_keyed_input(self):
@@ -2494,7 +2495,7 @@ class WindowInto(ParDo):
         self.windowing.to_runner_api(context))
 
   @staticmethod
-  def from_runner_api_parameter(proto, context):
+  def from_runner_api_parameter(unused_ptransform, proto, context):
     windowing = Windowing.from_runner_api(proto, context)
     return WindowInto(
         windowing.windowfn,
@@ -2568,7 +2569,8 @@ class Flatten(PTransform):
     return common_urns.primitives.FLATTEN.urn, None
 
   @staticmethod
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return Flatten()
 
 
@@ -2681,5 +2683,6 @@ class Impulse(PTransform):
 
   @staticmethod
   @PTransform.register_urn(common_urns.primitives.IMPULSE.urn, None)
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return Impulse()
