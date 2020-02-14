@@ -407,8 +407,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * choose to defer fetching state until read() is called. Annotating a state argument with this
    * parameter provides a hint to the runner that the state is always fetched. This may cause the
    * runner to prefetch all the state before calling the processElement or processTimer method,
-   * improving performance. This is a performance-only hint - it does not change semantics.
-   * See the following code for an example:
+   * improving performance. This is a performance-only hint - it does not change semantics. See the
+   * following code for an example:
    *
    * <pre><code>{@literal new DoFn<KV<Key, Foo>, Baz>()} {
    *
@@ -426,13 +426,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * }
    * </code></pre>
    *
-   * <p>State is subject to the following validity conditions:
-   *
-   * <ul>
-   *   <li>Each state ID must be declared at most once.
-   *   <li>Any state referenced in a parameter must be declared with the same state type.
-   *   <li>State declarations must be final.
-   * </ul>
+   * <p>This can only be used on state objects that implement {@link
+   * org.apache.beam.sdk.state.ReadableState}.
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
