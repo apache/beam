@@ -106,7 +106,7 @@ __all__ = [
     'Impulse',
     'RestrictionProvider',
     'WatermarkEstimatorProvider',
-    ]
+]
 
 # Type variables
 T = typing.TypeVar('T')
@@ -425,7 +425,6 @@ class WatermarkEstimatorProvider(object):
   the SDF author should pass a DoFn.WatermarkEstimatorParam with a default value
   of one WatermarkEstimatorProvider instance.
   """
-
   def initial_estimator_state(self, element, restriction):
     """Returns the initial state of the WatermarkEstimator with given element
     and restriction.
@@ -523,11 +522,11 @@ class _BundleFinalizerParam(_DoFnParam):
 
 class _WatermarkEstimatorParam(_DoFnParam):
   """WatermarkEstomator DoFn parameter."""
-
   def __init__(self, watermark_estimator_provider):
     if not isinstance(watermark_estimator_provider, WatermarkEstimatorProvider):
-      raise ValueError('DoFn._WatermarkEstimatorParam expected'
-                       'WatermarkEstimatorProvider object.')
+      raise ValueError(
+          'DoFn._WatermarkEstimatorParam expected'
+          'WatermarkEstimatorProvider object.')
     self.watermark_estimator_provider = watermark_estimator_provider
     self.param_id = 'WatermarkEstimatorProvider'
 
@@ -1297,7 +1296,8 @@ class ParDo(PTransformWithSideInputs):
     is_splittable = DoFnSignature(self.fn).is_splittable_dofn()
     restriction_coder = DoFnSignature(self.fn).get_restriction_coder()
     if restriction_coder:
-      restriction_coder_id = context.coders.get_id(restriction_coder)  # type: typing.Optional[str]
+      restriction_coder_id = context.coders.get_id(
+          restriction_coder)  # type: typing.Optional[str]
     else:
       restriction_coder_id = None
     return (

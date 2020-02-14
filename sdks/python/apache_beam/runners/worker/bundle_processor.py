@@ -1321,8 +1321,7 @@ def create_dofn_javasdk(
     beam_runner_api_pb2.ParDoPayload)
 def create_pair_with_restriction(*args):
   class PairWithRestriction(beam.DoFn):
-    def __init__(
-        self, fn, restriction_provider, watermark_estimator_provider):
+    def __init__(self, fn, restriction_provider, watermark_estimator_provider):
       self.restriction_provider = restriction_provider
       self.watermark_estimator_provider = watermark_estimator_provider
 
@@ -1348,8 +1347,7 @@ def create_pair_with_restriction(*args):
     beam_runner_api_pb2.ParDoPayload)
 def create_split_and_size_restrictions(*args):
   class SplitAndSizeRestrictions(beam.DoFn):
-    def __init__(
-        self, fn, restriction_provider, watermark_estimator_provider):
+    def __init__(self, fn, restriction_provider, watermark_estimator_provider):
       self.restriction_provider = restriction_provider
       self.watermark_estimator_provider = watermark_estimator_provider
 
