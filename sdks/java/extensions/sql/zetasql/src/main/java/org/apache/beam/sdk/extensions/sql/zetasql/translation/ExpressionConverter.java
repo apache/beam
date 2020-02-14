@@ -30,6 +30,7 @@ import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.safeMicro
 import static org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLCastFunctionImpl.ZETASQL_CAST_OP;
 
 import com.google.common.base.Ascii;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -945,26 +946,18 @@ public class ExpressionConverter {
 
   private RexNode convertResolvedParameter(ResolvedParameter parameter) {
     Value value;
-    String identifier;
     switch (queryParams.getKind()) {
       case NAMED:
         value = ((Map<String, Value>) queryParams.named()).get(parameter.getName());
-        identifier = parameter.getName();
         break;
       case POSITIONAL:
         // parameter is 1-indexed, while parameter list is 0-indexed.
         value = ((List<Value>) queryParams.positional()).get((int) parameter.getPosition() - 1);
-        identifier = Long.toString(parameter.getPosition());
         break;
       default:
         throw new IllegalArgumentException("Found unexpected parameter " + parameter);
     }
-    if (!parameter.getType().equals(value.getType())) {
-      throw new SqlConversionException(
-          String.format(
-              "Expected resolved parameter %s to have type %s, but it has type %s",
-              identifier, value.getType(), parameter.getType()));
-    }
+    Preconditions.checkState(parameter.getType().equals(value.getType()));
     return convertValueToRexNode(value.getType(), value);
   }
 
