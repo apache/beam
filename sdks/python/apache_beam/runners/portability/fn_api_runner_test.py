@@ -1619,6 +1619,9 @@ class FnApiRunnerSplitTestWithMultiWorkers(FnApiRunnerSplitTest):
   def test_split_half(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
+  def test_split_half_sdf(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
 
 class FnApiBasedLullLoggingTest(unittest.TestCase):
   def create_pipeline(self):
