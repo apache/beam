@@ -17,12 +17,9 @@
  */
 package org.apache.beam.runners.samza.translation;
 
-import static org.apache.samza.config.JobConfig.JOB_CONTAINER_THREAD_POOL_SIZE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.util.Map;
 import org.apache.beam.runners.samza.SamzaExecutionEnvironment;
@@ -215,30 +212,5 @@ public class ConfigGeneratorTest {
     final Config config2 = configBuilder.build();
     assertEquals(
         "TestStoreConfig-1-testState-changelog", config2.get("stores.testState.changelog"));
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testBundleEnabledInMultiThreadedModeThrowsException() {
-    SamzaPipelineOptions mockOptions = mock(SamzaPipelineOptions.class);
-    Map<String, String> config = ImmutableMap.of(JOB_CONTAINER_THREAD_POOL_SIZE, "10");
-
-    when(mockOptions.getMaxBundleSize()).thenReturn(2L);
-    ConfigBuilder.validateBundleAndThreadPoolConfiguration(mockOptions, config);
-  }
-
-  @Test
-  public void testBundleEnabledInSingleThreadedMode() {
-    SamzaPipelineOptions mockOptions = mock(SamzaPipelineOptions.class);
-    when(mockOptions.getMaxBundleSize()).thenReturn(2L);
-
-    try {
-      ConfigBuilder.validateBundleAndThreadPoolConfiguration(
-          mockOptions, ImmutableMap.of(JOB_CONTAINER_THREAD_POOL_SIZE, "1"));
-
-      // In the absence of configuration make sure it is treated as single threaded mode.
-      ConfigBuilder.validateBundleAndThreadPoolConfiguration(mockOptions, ImmutableMap.of());
-    } catch (Exception e) {
-      throw new AssertionError("Bundle size > 1 should be supported in single threaded mode");
-    }
   }
 }

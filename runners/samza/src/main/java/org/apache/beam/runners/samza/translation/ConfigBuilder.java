@@ -18,7 +18,6 @@
 package org.apache.beam.runners.samza.translation;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.samza.config.JobConfig.JOB_CONTAINER_THREAD_POOL_SIZE;
 import static org.apache.samza.config.JobConfig.JOB_ID;
 import static org.apache.samza.config.JobConfig.JOB_NAME;
 import static org.apache.samza.config.TaskConfig.COMMIT_MS;
@@ -283,34 +282,6 @@ public class ConfigBuilder {
       default:
         // do nothing
         break;
-    }
-
-    validateBundleAndThreadPoolConfiguration(options, config);
-  }
-
-  /**
-   * Ensure applications with max bundle size &gt; 1 does not configure
-   * <i>job.container.thread.pool.size</i> to &gt; 1.
-   */
-  @VisibleForTesting
-  static void validateBundleAndThreadPoolConfiguration(
-      SamzaPipelineOptions options, Map<String, String> config) {
-    try {
-      if (options.getMaxBundleSize() > 1) {
-        final int threadPoolSize =
-            Integer.parseInt(config.getOrDefault(JOB_CONTAINER_THREAD_POOL_SIZE, "0"));
-        checkArgument(
-            threadPoolSize <= 1,
-            JOB_CONTAINER_THREAD_POOL_SIZE
-                + " cannot be configured to"
-                + " greater than 1 for max bundle size: "
-                + options.getMaxBundleSize());
-      }
-    } catch (NumberFormatException ex) {
-      LOG.warn(
-          "Invalid value {} for config {}",
-          config.get(JOB_CONTAINER_THREAD_POOL_SIZE),
-          JOB_CONTAINER_THREAD_POOL_SIZE);
     }
   }
 
