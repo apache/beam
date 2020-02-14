@@ -51,6 +51,7 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsSideInput
 from apache_beam.runners.common import DoFnSignature
 from apache_beam.runners.dataflow.internal import names
@@ -383,21 +384,21 @@ class DataflowRunner(PipelineRunner):
   def _check_for_unsupported_fnapi_features(self, pipeline_proto):
     components = pipeline_proto.components
     for windowing_strategy in components.windowing_strategies.values():
-      if windowing_strategy.window_fn.urn not in (
-          common_urns.global_windows.urn,
-          common_urns.fixed_windows.urn,
-          common_urns.sliding_windows.urn,
-          common_urns.session_windows.urn):
+      if (windowing_strategy.merge_status ==
+          beam_runner_api_pb2.MergeStatus.NEEDS_MERGE and
+          windowing_strategy.window_fn.urn not in (
+              common_urns.session_windows.urn, )):
         raise RuntimeError(
-            'Unsupported windowing strategy: %s' %
+            'Unsupported merging windowing strategy: %s' %
             windowing_strategy.window_fn.urn)
       elif components.coders[
           windowing_strategy.window_coder_id].spec.urn not in (
               common_urns.coders.GLOBAL_WINDOW.urn,
               common_urns.coders.INTERVAL_WINDOW.urn):
         raise RuntimeError(
-            'Unsupported window coder: %s' %
-            components.coders[windowing_strategy.window_coder_id].spec.urn)
+            'Unsupported window coder %s for window fn %s' % (
+                components.coders[windowing_strategy.window_coder_id].spec.urn,
+                windowing_strategy.window_fn.urn))
 
   def run_pipeline(self, pipeline, options):
     """Remotely executes entire pipeline or parts reachable from node."""
