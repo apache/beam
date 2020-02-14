@@ -1868,7 +1868,8 @@ class WorkerHandlerManager(object):
     if environment.urn == python_urns.EMBEDDED_PYTHON:
       pass  # no need for a gRPC server
     elif self._grpc_server is None:
-      self._grpc_server = GrpcServer(self._state, self._job_provision_info, self)
+      self._grpc_server = GrpcServer(
+          self._state, self._job_provision_info, self)
 
     worker_handler_list = self._cached_handlers[environment_id]
     if len(worker_handler_list) < num_workers:

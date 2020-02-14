@@ -143,7 +143,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     ImmutableList.Builder<String> argsBuilder =
         ImmutableList.<String>builder()
             .add(String.format("--id=%s", workerId))
-            .add(String.format("--provision_endpoint=%s", provisionEndpoint))
+            .add(String.format("--provision_endpoint=%s", provisionEndpoint));
     if (semiPersistDir != null) {
       argsBuilder.add(String.format("--semi_persist_dir=%s", semiPersistDir));
     }
