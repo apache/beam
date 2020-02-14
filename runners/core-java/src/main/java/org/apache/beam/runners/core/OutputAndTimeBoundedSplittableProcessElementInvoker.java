@@ -215,7 +215,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               }
 
               @Override
-              public State state(String stateId) {
+              public State state(String stateId, boolean alwaysFetched) {
                 throw new UnsupportedOperationException(
                     "Access to state not supported in Splittable DoFn");
               }

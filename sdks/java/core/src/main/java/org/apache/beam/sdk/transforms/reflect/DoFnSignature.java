@@ -526,8 +526,8 @@ public abstract class DoFnSignature {
     }
 
     /** Returns a {@link StateParameter} referring to the given {@link StateDeclaration}. */
-    public static StateParameter stateParameter(StateDeclaration decl) {
-      return new AutoValue_DoFnSignature_Parameter_StateParameter(decl);
+    public static StateParameter stateParameter(StateDeclaration decl, boolean alwaysFetched) {
+      return new AutoValue_DoFnSignature_Parameter_StateParameter(decl, alwaysFetched);
     }
 
     public static TimerParameter timerParameter(TimerDeclaration decl) {
@@ -756,6 +756,8 @@ public abstract class DoFnSignature {
       StateParameter() {}
 
       public abstract StateDeclaration referent();
+
+      public abstract boolean alwaysFetched();
     }
 
     /**

@@ -45,6 +45,7 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.SetState;
+import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -1258,7 +1259,14 @@ public class DoFnSignatures {
           id,
           stateDecl.field().getDeclaringClass().getName());
 
-      return Parameter.stateParameter(stateDecl);
+      boolean alwaysFetched = getStateAlwaysFetched(param.getAnnotations());
+      if (alwaysFetched) {
+        paramErrors.checkArgument(
+            ReadableState.class.isAssignableFrom(rawType),
+            "@AlwaysFetched can only be used on ReadableStates. It cannot be used on %s",
+            format(stateDecl.stateType()));
+      }
+      return Parameter.stateParameter(stateDecl, alwaysFetched);
     } else {
       paramErrors.throwIllegalArgument("%s is not a valid context parameter.", format(paramT));
       // Unreachable
@@ -1282,6 +1290,11 @@ public class DoFnSignatures {
   private static String getStateId(List<Annotation> annotations) {
     DoFn.StateId stateId = findFirstOfType(annotations, DoFn.StateId.class);
     return stateId != null ? stateId.value() : null;
+  }
+
+  private static boolean getStateAlwaysFetched(List<Annotation> annotations) {
+    DoFn.AlwaysFetched alwaysFetched = findFirstOfType(annotations, DoFn.AlwaysFetched.class);
+    return alwaysFetched != null;
   }
 
   @Nullable
