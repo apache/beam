@@ -39,6 +39,7 @@ from typing import FrozenSet
 from typing import Hashable
 from typing import Iterator
 from typing import List
+from typing import MutableMapping
 from typing import Optional
 from typing import Tuple
 from typing import Union
@@ -67,6 +68,7 @@ from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
+  from apache_beam.coders import coders
   from apache_beam.runners.worker.bundle_processor import ExecutionContext
   from apache_beam.runners.worker.statesampler import StateSampler
 
@@ -250,6 +252,7 @@ class Operation(object):
     # Legacy workers cannot call setup() until after setting additional state
     # on the operation.
     self.setup_done = False
+    self.step_name = None  # type: Optional[str]
 
   def setup(self):
     # type: () -> None
@@ -551,6 +554,7 @@ class DoOperation(Operation):
     self.tagged_receivers = None  # type: Optional[_TaggedReceivers]
     # A mapping of timer tags to the input "PCollections" they come in on.
     self.timer_inputs = timer_inputs or {}
+    self.input_info = None  # type: Optional[Tuple[str, str, coders.WindowedValueCoder, MutableMapping[str, str]]]
 
   def _read_side_inputs(self, tags_and_types):
     # type: (...) -> Iterator[apache_sideinputs.SideInputMap]
