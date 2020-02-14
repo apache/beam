@@ -101,7 +101,7 @@ result = pipeline.run()
 result.wait_until_finish()
 "
 
-if [[ "$RUNNER" -eq "FlinkRunner" ]]; then
+if [[ "$RUNNER" = "FlinkRunner" ]]; then
   INPUT_JAR_ARG="flink_job_server_jar"
 else
   INPUT_JAR_ARG="spark_job_server_jar"
