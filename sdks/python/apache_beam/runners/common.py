@@ -334,18 +334,14 @@ class DoFnSignature(object):
     return self.get_restriction_provider() is not None
 
   def get_restriction_coder(self):
-    """Get coder for a restriction when processing an SDF.
-
-    If the SDF uses an WatermarkEstimatorProvider, the restriction coder is a
-    tuple coder of (restriction_coder, estimator_state_coder). Otherwise,
-    returns the SDFs restriction_coder.
-    """
-    restriction_coder = None
+    """Get coder for a restriction when processing an SDF. """
     if self.is_splittable_dofn():
       restriction_coder = TupleCoder([
           (self.get_restriction_provider().restriction_coder()),
           (self.get_watermark_estimator_provider().estimator_state_coder())
       ])
+    else:
+      restriction_coder = None
     return restriction_coder
 
   def is_stateful_dofn(self):
@@ -807,23 +803,16 @@ class PerWindowInvoker(DoFnInvoker):
         element = windowed_value.value
         size = self.signature.get_restriction_provider().restriction_size(
             element, deferred_restriction)
-        if self.threadsafe_watermark_estimator:
-          current_watermark = (
-              self.threadsafe_watermark_estimator.current_watermark())
-          estimator_state = (
-              self.threadsafe_watermark_estimator.get_estimator_state())
-          residual_value = (
-              (element, (deferred_restriction, estimator_state)), size)
-          return SplitResultResidual(
-              residual_value=windowed_value.with_value(residual_value),
-              current_watermark=current_watermark,
-              deferred_timestamp=deferred_timestamp)
-        else:
-          residual_value = ((element, deferred_restriction), size)
-          return SplitResultResidual(
-              residual_value=windowed_value.with_value(residual_value),
-              current_watermark=None,
-              deferred_timestamp=deferred_timestamp)
+        current_watermark = (
+            self.threadsafe_watermark_estimator.current_watermark())
+        estimator_state = (
+            self.threadsafe_watermark_estimator.get_estimator_state())
+        residual_value = ((element, (deferred_restriction, estimator_state)),
+                          size)
+        return SplitResultResidual(
+            residual_value=windowed_value.with_value(residual_value),
+            current_watermark=current_watermark,
+            deferred_timestamp=deferred_timestamp)
         return None
 
   def try_split(self, fraction):
@@ -840,8 +829,7 @@ class PerWindowInvoker(DoFnInvoker):
         current_watermark = (
             self.threadsafe_watermark_estimator.current_watermark_with_lock())
         estimator_state = (
-            self.threadsafe_watermark_estimator.get_estimator_state_with_lock(
-            ))
+            self.threadsafe_watermark_estimator.get_estimator_state_with_lock())
       if split:
         primary, residual = split
         element = self.current_windowed_value.value
