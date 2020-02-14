@@ -20,9 +20,10 @@
 
 from __future__ import absolute_import
 
-import apache_beam as beam
 import importlib
 import unittest
+
+import apache_beam as beam
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
@@ -82,12 +83,10 @@ class InteractiveBeamTest(unittest.TestCase):
     # pylint: disable=range-builtin-not-iterating
     pcoll = p | 'Create' >> beam.Create(range(10))
     # The pcoll is not watched since watch(locals()) is not explicitly called.
-    self.assertFalse(
-        pcoll in _get_watched_pcollections_with_variable_names())
+    self.assertFalse(pcoll in _get_watched_pcollections_with_variable_names())
     # The call of show watches pcoll.
     ib.show(pcoll)
-    self.assertTrue(
-        pcoll in _get_watched_pcollections_with_variable_names())
+    self.assertTrue(pcoll in _get_watched_pcollections_with_variable_names())
 
   def test_show_mark_pcolls_computed_when_done(self):
     p = beam.Pipeline(ir.InteractiveRunner())

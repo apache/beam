@@ -131,8 +131,7 @@ class PCollectionVisualizationTest(unittest.TestCase):
     self.assertTrue(ie.current_env().is_terminated(self._p))
 
   @patch('pandas.DataFrame.head')
-  def test_display_plain_text_when_kernel_has_no_frontend(self,
-                                                          _mocked_head):
+  def test_display_plain_text_when_kernel_has_no_frontend(self, _mocked_head):
     # Resets the notebook check to False.
     ie.current_env()._is_in_notebook = False
     self.assertIsNone(pv.visualize(self._pcoll))

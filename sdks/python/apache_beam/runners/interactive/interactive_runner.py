@@ -48,15 +48,15 @@ class InteractiveRunner(runners.PipelineRunner):
 
   Allows interactively building and running Beam Python pipelines.
   """
-
-  def __init__(self,
-               underlying_runner=None,
-               cache_dir=None,
-               cache_format='text',
-               render_option=None,
-               skip_display=False,
-               force_compute=True,
-               blocking=True):
+  def __init__(
+      self,
+      underlying_runner=None,
+      cache_dir=None,
+      cache_format='text',
+      render_option=None,
+      skip_display=False,
+      force_compute=True,
+      blocking=True):
     """Constructor of InteractiveRunner.
 
     Args:

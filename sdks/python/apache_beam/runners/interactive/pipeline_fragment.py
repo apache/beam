@@ -100,10 +100,7 @@ class PipelineFragment(object):
         self._runner_pipeline.runner,
         self._options)
 
-  def run(self,
-          display_pipeline_graph=False,
-          use_cache=True,
-          blocking=False):
+  def run(self, display_pipeline_graph=False, use_cache=True, blocking=False):
     """Shorthand to run the pipeline fragment."""
     try:
       preserved_skip_display = self._runner_pipeline.runner._skip_display

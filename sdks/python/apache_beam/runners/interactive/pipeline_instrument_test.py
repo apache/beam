@@ -101,14 +101,16 @@ class PipelineInstrumentTest(unittest.TestCase):
     ib.watch(locals())
 
     pipeline_instrument = instr.build_pipeline_instrument(p)
-    self.assertEqual(pipeline_instrument.cache_key(init_pcoll),
-                     'init_pcoll_' + str(
-                         id(init_pcoll)) + '_' + str(id(init_pcoll.producer)))
-    self.assertEqual(pipeline_instrument.cache_key(squares),
-                     'squares_' + str(
-                         id(squares)) + '_' + str(id(squares.producer)))
-    self.assertEqual(pipeline_instrument.cache_key(cubes),
-                     'cubes_' + str(id(cubes)) + '_' + str(id(cubes.producer)))
+    self.assertEqual(
+        pipeline_instrument.cache_key(init_pcoll),
+        'init_pcoll_' + str(id(init_pcoll)) + '_' +
+        str(id(init_pcoll.producer)))
+    self.assertEqual(
+        pipeline_instrument.cache_key(squares),
+        'squares_' + str(id(squares)) + '_' + str(id(squares.producer)))
+    self.assertEqual(
+        pipeline_instrument.cache_key(cubes),
+        'cubes_' + str(id(cubes)) + '_' + str(id(cubes.producer)))
 
   def test_cacheables(self):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
@@ -119,29 +121,31 @@ class PipelineInstrumentTest(unittest.TestCase):
     ib.watch(locals())
 
     pipeline_instrument = instr.build_pipeline_instrument(p)
-    self.assertEqual(pipeline_instrument.cacheables, {
-        pipeline_instrument._cacheable_key(init_pcoll): {
-            'var': 'init_pcoll',
-            'version': str(id(init_pcoll)),
-            'pcoll_id': 'ref_PCollection_PCollection_10',
-            'producer_version': str(id(init_pcoll.producer)),
-            'pcoll': init_pcoll
-        },
-        pipeline_instrument._cacheable_key(squares): {
-            'var': 'squares',
-            'version': str(id(squares)),
-            'pcoll_id': 'ref_PCollection_PCollection_11',
-            'producer_version': str(id(squares.producer)),
-            'pcoll': squares
-        },
-        pipeline_instrument._cacheable_key(cubes): {
-            'var': 'cubes',
-            'version': str(id(cubes)),
-            'pcoll_id': 'ref_PCollection_PCollection_12',
-            'producer_version': str(id(cubes.producer)),
-            'pcoll': cubes
-        }
-    })
+    self.assertEqual(
+        pipeline_instrument.cacheables,
+        {
+            pipeline_instrument._cacheable_key(init_pcoll): {
+                'var': 'init_pcoll',
+                'version': str(id(init_pcoll)),
+                'pcoll_id': 'ref_PCollection_PCollection_10',
+                'producer_version': str(id(init_pcoll.producer)),
+                'pcoll': init_pcoll
+            },
+            pipeline_instrument._cacheable_key(squares): {
+                'var': 'squares',
+                'version': str(id(squares)),
+                'pcoll_id': 'ref_PCollection_PCollection_11',
+                'producer_version': str(id(squares.producer)),
+                'pcoll': squares
+            },
+            pipeline_instrument._cacheable_key(cubes): {
+                'var': 'cubes',
+                'version': str(id(cubes)),
+                'pcoll_id': 'ref_PCollection_PCollection_12',
+                'producer_version': str(id(cubes.producer)),
+                'pcoll': cubes
+            }
+        })
 
   def test_has_unbounded_source(self):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
