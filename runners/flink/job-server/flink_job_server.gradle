@@ -154,6 +154,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp'
       } else {
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       }
       //SplitableDoFnTests
