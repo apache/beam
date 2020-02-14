@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
+import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -41,8 +42,8 @@ import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.protocol.TProtocolFactory;
 import org.apache.thrift.protocol.TSimpleJSONProtocol;
+import org.apache.thrift.transport.AutoExpandingBufferReadTransport;
 import org.apache.thrift.transport.TIOStreamTransport;
-import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -176,19 +177,21 @@ public class ThriftIO {
       public void processElement(@Element FileIO.ReadableFile file, OutputReceiver<T> out) {
         try {
           InputStream inputStream = Channels.newInputStream(file.open());
-          TIOStreamTransport streamTransport = new TIOStreamTransport(inputStream);
-          TProtocol protocol = tProtocol.getProtocol(streamTransport);
-          while (true) {
+          TIOStreamTransport streamTransport =
+              new TIOStreamTransport(new BufferedInputStream(inputStream));
+          AutoExpandingBufferReadTransport readTransport =
+              new AutoExpandingBufferReadTransport(262_144_000);
+          readTransport.fill(streamTransport, inputStream.available());
+          TProtocol protocol = tProtocol.getProtocol(readTransport);
+          while (protocol.getTransport().getBytesRemainingInBuffer() > 0) {
             TBase<?, ?> tb = (TBase<?, ?>) tBaseType.getDeclaredConstructor().newInstance();
             tb.read(protocol);
             out.output((T) tb);
           }
         } catch (Exception ioe) {
-          if (ioe.getClass() != TTransportException.class) {
-            String filename = file.getMetadata().resourceId().toString();
-            LOG.error(String.format("Error in reading file: %1$s%n%2$s", filename, ioe));
-            throw new RuntimeException(ioe);
-          }
+          String filename = file.getMetadata().resourceId().toString();
+          LOG.error(String.format("Error in reading file: %1$s%n%2$s", filename, ioe));
+          throw new RuntimeException(ioe);
         }
       }
     }

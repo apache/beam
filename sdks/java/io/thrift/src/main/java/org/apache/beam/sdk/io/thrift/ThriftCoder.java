@@ -24,7 +24,6 @@ import java.io.OutputStream;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.thrift.TBase;
-import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.protocol.TProtocolFactory;
 import org.apache.thrift.transport.TIOStreamTransport;
@@ -39,16 +38,10 @@ class ThriftCoder<T> extends CustomCoder<T> {
 
   private final Class<T> type;
   private final TProtocolFactory protocolFactory;
-  private final TBase<?, ?> tBase;
 
   protected ThriftCoder(Class<T> type, TProtocolFactory protocolFactory) {
     this.type = type;
     this.protocolFactory = protocolFactory;
-    try {
-      this.tBase = (TBase<?, ?>) type.getDeclaredConstructor().newInstance();
-    } catch (Exception e) {
-      throw new RuntimeException("Could not create instance of " + this.type.toString());
-    }
   }
 
   /**
@@ -79,8 +72,9 @@ class ThriftCoder<T> extends CustomCoder<T> {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     TProtocol protocol = protocolFactory.getProtocol(new TIOStreamTransport(baos));
     try {
+      TBase<?, ?> tBase = (TBase<?, ?>) value;
       tBase.write(protocol);
-    } catch (TException te) {
+    } catch (Exception te) {
       throw new CoderException("Could not write value. Error: " + te.getMessage());
     }
     outStream.write(baos.toByteArray());
@@ -93,7 +87,7 @@ class ThriftCoder<T> extends CustomCoder<T> {
    * @param inStream stream of input values to be decoded
    * @throws IOException if reading from the {@code InputStream} fails for some reason
    * @throws CoderException if the value could not be decoded for some reason
-   * @returns {@link TBase}
+   * @return {@link TBase} decoded object
    */
   @Override
   public T decode(InputStream inStream) throws CoderException, IOException {

@@ -43,6 +43,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import test_thrift.TestThriftStruct;
 
 /** Tests for {@link ThriftIO}. */
 @RunWith(JUnit4.class)
@@ -109,7 +110,9 @@ public class ThriftIOTest implements Serializable {
   public void testReadWriteBinaryProtocol() {
 
     mainPipeline
-        .apply(Create.of(testThriftStructs).withCoder(ThriftCoder.of()))
+        .apply(
+            Create.of(testThriftStructs)
+                .withCoder(ThriftCoder.of(TestThriftStruct.class, tBinaryProtoFactory)))
         .apply(
             FileIO.<TestThriftStruct>write()
                 .via(ThriftIO.sink(tBinaryProtoFactory))
@@ -143,7 +146,9 @@ public class ThriftIOTest implements Serializable {
   public void testReadWriteJsonProtocol() {
 
     mainPipeline
-        .apply(Create.of(testThriftStructs).withCoder(ThriftCoder.of()))
+        .apply(
+            Create.of(testThriftStructs)
+                .withCoder(ThriftCoder.of(TestThriftStruct.class, tJsonProtocolFactory)))
         .apply(
             FileIO.<TestThriftStruct>write()
                 .via(ThriftIO.sink(tJsonProtocolFactory))
@@ -177,7 +182,9 @@ public class ThriftIOTest implements Serializable {
   public void testReadWriteCompactProtocol() {
 
     mainPipeline
-        .apply(Create.of(testThriftStructs).withCoder(ThriftCoder.of()))
+        .apply(
+            Create.of(testThriftStructs)
+                .withCoder(ThriftCoder.of(TestThriftStruct.class, tCompactProtocolFactory)))
         .apply(
             FileIO.<TestThriftStruct>write()
                 .via(ThriftIO.sink(tCompactProtocolFactory))
@@ -202,6 +209,22 @@ public class ThriftIOTest implements Serializable {
 
     // Execute read pipeline
     readPipeline.run().waitUntilFinish();
+  }
+
+  /** Tests {@link ThriftCoder} to ensure that values are being encoded/decoded correctly. */
+  @Test
+  public void testThriftCoder() {
+
+    PCollection<TestThriftStruct> encodedStructs =
+        mainPipeline.apply(
+            Create.of(testThriftStructs)
+                .withCoder(ThriftCoder.of(TestThriftStruct.class, tBinaryProtoFactory)));
+
+    // Assert
+    PAssert.that(encodedStructs).containsInAnyOrder(testThriftStructs);
+
+    // Execute pipeline
+    mainPipeline.run().waitUntilFinish();
   }
 
   private List<TestThriftStruct> generateTestObjects(long count) {

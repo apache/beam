@@ -25,10 +25,6 @@ applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.thrift')
 description = "Apache Beam :: SDKs :: Java :: IO :: Thrift"
 ext.summary = "IO to read and write Thrift encoded data files"
 
-repositories {
-    mavenCentral()
-}
-
 dependencies {
     compile library.java.vendored_guava_26_0_jre
     compile library.java.slf4j_api
@@ -44,16 +40,18 @@ dependencies {
     testRuntimeOnly project(":runners:direct-java")
 }
 
-sourceSets {
-    test {
-        java.srcDirs += "$buildDir/generated-sources/thrift/test_thrift"
-    }
+compileThrift {
+    createGenFolder false
+    sourceDir "$projectDir/src/test/resources/thrift"
+    generator 'java'
 }
 
-test {
-    compileThrift {
-        createGenFolder false
-        sourceDir "$projectDir/src/test/resources/thrift"
-        generator 'java'
-    }
+task copyThrift(type: Copy) {
+    dependsOn(compileThrift)
+    from file("$buildDir/generated-sources/thrift/test_thrift/TestThriftStruct.java")
+    into file("$projectDir/src/test/java/org/apache/beam/sdk/io/thrift/TestThriftStruct.java")
+}
+
+compileTestJava {
+    doFirst { copyThrift }
 }
