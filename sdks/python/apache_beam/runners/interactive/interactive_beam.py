@@ -104,8 +104,7 @@ def show(*pcolls):
   is being executed. If used within an ipython shell, there will be no dynamic
   plotting but a static plotting in the end of pipeline fragment execution.
 
-  The PCollections given must belong to the same pipeline and be watched by
-  Interactive Beam (PCollections defined in __main__ are automatically watched).
+  The PCollections given must belong to the same pipeline.
 
     For example::
 
@@ -149,7 +148,7 @@ def show(*pcolls):
   # arbitrary variables.
   watched_pcollections = set()
   for watching in ie.current_env().watching():
-    for key, val in watching:
+    for _, val in watching:
       if hasattr(val, '__class__') and isinstance(val, beam.pvalue.PCollection):
         watched_pcollections.add(val)
   for pcoll in pcolls:

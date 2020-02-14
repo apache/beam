@@ -88,10 +88,6 @@ class InteractiveBeamTest(unittest.TestCase):
     ib.show(pcoll)
     self.assertTrue(
         pcoll in _get_watched_pcollections_with_variable_names())
-    # The name of pcoll is made up by show.
-    self.assertEqual(
-        'PCollection_Create/Map_decode_.None_',
-        _get_watched_pcollections_with_variable_names()[pcoll])
 
   def test_show_mark_pcolls_computed_when_done(self):
     p = beam.Pipeline(ir.InteractiveRunner())
