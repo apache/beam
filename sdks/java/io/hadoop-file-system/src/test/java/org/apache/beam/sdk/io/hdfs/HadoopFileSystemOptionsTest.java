@@ -239,43 +239,6 @@ public class HadoopFileSystemOptionsTest {
     assertThat(configurationList.get(1 - hadoopConfIndex).get("propertyD"), Matchers.equalTo("D"));
   }
 
-  @Test
-  public void testDefaultSetYarnConfDirAndHadoopConfDirMultiPathNotSameConfiguration()
-      throws IOException {
-    File hadoopConfDir = tmpFolder.newFolder("hadoop");
-    File yarnConfDir = tmpFolder.newFolder("yarn");
-    File otherConfDir = tmpFolder.newFolder("_other_");
-
-    Files.write(
-        createPropertyData("A"), new File(hadoopConfDir, "core-site.xml"), StandardCharsets.UTF_8);
-    Files.write(
-        createPropertyData("B"), new File(hadoopConfDir, "hdfs-site.xml"), StandardCharsets.UTF_8);
-    Files.write(
-        createPropertyData("C"), new File(yarnConfDir, "core-site.xml"), StandardCharsets.UTF_8);
-    Files.write(
-        createPropertyData("D"), new File(yarnConfDir, "hdfs-site.xml"), StandardCharsets.UTF_8);
-    HadoopFileSystemOptions.ConfigurationLocator configurationLocator =
-        spy(new HadoopFileSystemOptions.ConfigurationLocator());
-
-    String multiPathHadoop =
-        hadoopConfDir.getAbsolutePath().concat(":").concat(otherConfDir.getAbsolutePath());
-    String multiPathYarn =
-        yarnConfDir.getAbsolutePath().concat(":").concat(otherConfDir.getAbsolutePath());
-    Map<String, String> environment = Maps.newHashMap();
-    environment.put("HADOOP_CONF_DIR", multiPathHadoop);
-    environment.put("YARN_CONF_DIR", multiPathYarn);
-    when(configurationLocator.getEnvironment()).thenReturn(environment);
-
-    List<Configuration> configurationList =
-        configurationLocator.create(PipelineOptionsFactory.create());
-    assertEquals(2, configurationList.size());
-    int hadoopConfIndex = configurationList.get(0).get("propertyA") != null ? 0 : 1;
-    assertThat(configurationList.get(hadoopConfIndex).get("propertyA"), Matchers.equalTo("A"));
-    assertThat(configurationList.get(hadoopConfIndex).get("propertyB"), Matchers.equalTo("B"));
-    assertThat(configurationList.get(1 - hadoopConfIndex).get("propertyC"), Matchers.equalTo("C"));
-    assertThat(configurationList.get(1 - hadoopConfIndex).get("propertyD"), Matchers.equalTo("D"));
-  }
-
   private static String createPropertyData(String property) {
     return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
         + "<?xml-stylesheet type=\"text/xsl\" href=\"configuration.xsl\"?>\n"
