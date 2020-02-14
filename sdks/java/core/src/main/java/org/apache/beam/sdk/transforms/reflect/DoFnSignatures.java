@@ -42,12 +42,17 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -2027,5 +2032,50 @@ public class DoFnSignatures {
               target.getClass().getName(),
               timerFamilyDeclaration.field().getName()));
     }
+  }
+
+  public static boolean isSplittable(DoFn<?, ?> doFn) {
+    return signatureForDoFn(doFn).processElement().isSplittable();
+  }
+
+  public static boolean isStateful(DoFn<?, ?> doFn) {
+    return usesState(doFn) || usesTimers(doFn);
+  }
+
+  public static boolean usesMapState(DoFn<?, ?> doFn) {
+    return usesGivenStateClass(doFn, MapState.class);
+  }
+
+  public static boolean usesSetState(DoFn<?, ?> doFn) {
+    return usesGivenStateClass(doFn, SetState.class);
+  }
+
+  public static boolean usesValueState(DoFn<?, ?> doFn) {
+    return usesGivenStateClass(doFn, ValueState.class) || requiresTimeSortedInput(doFn);
+  }
+
+  public static boolean usesBagState(DoFn<?, ?> doFn) {
+    return usesGivenStateClass(doFn, BagState.class) || requiresTimeSortedInput(doFn);
+  }
+
+  public static boolean usesWatermarkHold(DoFn<?, ?> doFn) {
+    return usesGivenStateClass(doFn, WatermarkHoldState.class) || requiresTimeSortedInput(doFn);
+  }
+
+  public static boolean usesTimers(DoFn<?, ?> doFn) {
+    return signatureForDoFn(doFn).usesTimers() || requiresTimeSortedInput(doFn);
+  }
+
+  public static boolean usesState(DoFn<?, ?> doFn) {
+    return signatureForDoFn(doFn).usesState() || requiresTimeSortedInput(doFn);
+  }
+
+  public static boolean requiresTimeSortedInput(DoFn<?, ?> doFn) {
+    return signatureForDoFn(doFn).processElement().requiresTimeSortedInput();
+  }
+
+  private static boolean usesGivenStateClass(DoFn<?, ?> doFn, Class<? extends State> stateClass) {
+    return signatureForDoFn(doFn).stateDeclarations().values().stream()
+        .anyMatch(d -> d.stateType().isSubtypeOf(TypeDescriptor.of(stateClass)));
   }
 }
