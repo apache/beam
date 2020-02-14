@@ -47,7 +47,8 @@ class Repositories {
       }
 
       // Release staging repository
-      maven { url "https://oss.sonatype.org/content/repositories/staging/" }
+      // LI specific hack to get the builds working. For some reason, we are not able to resolve staging links
+      maven { url "https://oss.sonatype.org/content/repositories/releases/" }
 
       // Apache nightly snapshots
       maven { url "https://repository.apache.org/snapshots" }
