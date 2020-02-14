@@ -3237,6 +3237,19 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testNamedParameterQuery() {
+    String sql = "SELECT @ColA AS ColA";
+    ImmutableMap<String, Value> params = ImmutableMap.of("ColA", Value.createInt64Value(5));
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    final Schema schema = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(5L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testConcatNamedParameterQuery() {
     String sql = "SELECT CONCAT(@p0, @p1) AS ColA";
     ImmutableMap<String, Value> params =
