@@ -49,8 +49,8 @@ class InMemoryReader(object):
         timestamp=Timestamp.of(event_time).micros)
     record = TestStreamFileRecord(
         recorded_event=TestStreamPayload.Event(
-        element_event=TestStreamPayload.Event.AddElements(
-            elements=[element_payload])))
+            element_event=TestStreamPayload.Event.AddElements(
+                elements=[element_payload])))
     self._records.append(record)
 
   def advance_watermark(self, watermark):

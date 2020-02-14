@@ -21,7 +21,6 @@ from __future__ import absolute_import
 
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.utils import timestamp
-from apache_beam.utils.timestamp import Timestamp
 
 
 class StreamingCache(object):
@@ -87,9 +86,7 @@ class StreamingCache(object):
 
     def _merge_sort(self, previous_events, new_events):
       return sorted(
-          previous_events + new_events,
-          key=lambda x: x[2],
-          reverse=True)
+          previous_events + new_events, key=lambda x: x[2], reverse=True)
 
     def _min_timestamp_of(self, events):
       return events[-1][2] if events else timestamp.MAX_TIMESTAMP
