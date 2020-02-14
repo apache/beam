@@ -85,8 +85,7 @@ class ThreadsafeRestrictionTrackerTest(unittest.TestCase):
 class RestrictionTrackerViewTest(unittest.TestCase):
   def test_initialization(self):
     with self.assertRaises(ValueError):
-      RestrictionTrackerView(
-          OffsetRestrictionTracker(OffsetRange(0, 10)))
+      RestrictionTrackerView(OffsetRestrictionTracker(OffsetRange(0, 10)))
 
   def test_api_expose(self):
     threadsafe_tracker = ThreadsafeRestrictionTracker(

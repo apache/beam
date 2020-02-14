@@ -45,8 +45,7 @@ SplitResultPrimary = NamedTuple(
 
 SplitResultResidual = NamedTuple(
     'SplitResultResidual',
-    [('residual_value', WindowedValue),
-     ('current_watermark', Timestamp),
+    [('residual_value', WindowedValue), ('current_watermark', Timestamp),
      ('deferred_timestamp', Duration)])
 
 
@@ -143,8 +142,7 @@ class ThreadsafeRestrictionTracker(object):
       # If an absolute timestamp is provided, calculate the delta between
       # the absoluted time and the time deferred_status() is called.
       elif isinstance(self._deferred_timestamp, Timestamp):
-        self._deferred_timestamp = (
-            self._deferred_timestamp - Timestamp.now())
+        self._deferred_timestamp = (self._deferred_timestamp - Timestamp.now())
       # If a Duration is provided, the deferred time should be:
       # provided duration - the spent time since the defer_remainder() is
       # called.
@@ -243,6 +241,7 @@ class NoOpWatermarkEstimatorProvider(WatermarkEstimatorProvider):
 
   def create_watermark_estimator(self, estimator_state):
     from apache_beam.io.iobase import WatermarkEstimator
+
     class _NoOpWatermarkEstimator(WatermarkEstimator):
       """A No-op WatermarkEstimator which is provided for the framework if there
       is no custom one.
@@ -255,4 +254,5 @@ class NoOpWatermarkEstimatorProvider(WatermarkEstimatorProvider):
 
       def get_estimator_state(self):
         return None
+
     return _NoOpWatermarkEstimator()

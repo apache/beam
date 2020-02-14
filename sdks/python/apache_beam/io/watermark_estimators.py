@@ -42,8 +42,9 @@ class MonotonicWatermarkEstimator(WatermarkEstimator):
       self._watermark = timestamp
     else:
       if timestamp < self._watermark:
-        raise ValueError('A MonotonicWatermarkEstimator expects output '
-                         'timestamp to be increasing monotonically.')
+        raise ValueError(
+            'A MonotonicWatermarkEstimator expects output '
+            'timestamp to be increasing monotonically.')
       self._watermark = timestamp
 
   def current_watermark(self):
@@ -94,8 +95,10 @@ class ManualWatermarkEstimator(WatermarkEstimator):
     if not isinstance(timestamp, Timestamp):
       raise ValueError('set_watermark expects a Timestamp as input')
     if self._watermark and self._watermark > timestamp:
-      raise ValueError('Watermark must be monotonically increasing.'
-                       'Provided watermark %s is less than '
-                       'current watermark %s',
-                       timestamp, self._watermark)
+      raise ValueError(
+          'Watermark must be monotonically increasing.'
+          'Provided watermark %s is less than '
+          'current watermark %s',
+          timestamp,
+          self._watermark)
     self._watermark = timestamp
