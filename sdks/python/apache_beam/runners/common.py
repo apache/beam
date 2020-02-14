@@ -808,7 +808,7 @@ class PerWindowInvoker(DoFnInvoker):
             residual_value=windowed_value.with_value(residual_value),
             current_watermark=current_watermark,
             deferred_timestamp=deferred_timestamp)
-        return None
+    return None
 
   def try_split(self, fraction):
     # type: (...) -> Optional[Tuple[SplitResultPrimary, SplitResultResidual]]
