@@ -23,6 +23,7 @@ can use."""
 from __future__ import absolute_import
 
 from apache_beam.io.iobase import WatermarkEstimator
+from apache_beam.transforms.core import WatermarkEstimatorProvider
 from apache_beam.utils.timestamp import Timestamp
 
 
@@ -41,6 +42,8 @@ class MonotonicWatermarkEstimator(WatermarkEstimator):
     if self._watermark is None:
       self._watermark = timestamp
     else:
+      # TODO(BEAM-9312): Consider making it configurable to deal with late
+      # timestamp.
       if timestamp < self._watermark:
         raise ValueError(
             'A MonotonicWatermarkEstimator expects output '
@@ -53,15 +56,27 @@ class MonotonicWatermarkEstimator(WatermarkEstimator):
   def get_estimator_state(self):
     return self._watermark
 
+  @staticmethod
+  def default_provider():
+    """Provide a default WatermarkEstimatorProvider for
+    MonotonicWatermarkEstimator.
+    """
+    class DefaultMonotonicWatermarkEstimator(WatermarkEstimatorProvider):
+      def initial_estimator_state(self, element, restriction):
+        return None
+
+      def create_watermark_estimator(self, estimator_state):
+        return MonotonicWatermarkEstimator(estimator_state)
+
+    return DefaultMonotonicWatermarkEstimator()
+
+
 
 class WalltimeWatermarkEstimator(WatermarkEstimator):
   """A WatermarkEstimator which uses processing time as the estimated watermark.
   """
   def __init__(self, timestamp=None):
-    if timestamp:
-      self._timestamp = timestamp
-    else:
-      self._timestamp = Timestamp.now()
+    self._timestamp = timestamp or Timestamp.now()
 
   def observe_timestamp(self, timestamp):
     pass
@@ -72,6 +87,20 @@ class WalltimeWatermarkEstimator(WatermarkEstimator):
 
   def get_estimator_state(self):
     return self._timestamp
+
+  @staticmethod
+  def default_provider():
+    """Provide a default WatermarkEstimatorProvider for
+    WalltimeWatermarkEstimator.
+    """
+    class DefaultWalltimeWatermarkEstimator(WatermarkEstimatorProvider):
+      def initial_estimator_state(self, element, restriction):
+        return None
+
+      def create_watermark_estimator(self, estimator_state):
+        return WalltimeWatermarkEstimator(estimator_state)
+
+    return DefaultWalltimeWatermarkEstimator()
 
 
 class ManualWatermarkEstimator(WatermarkEstimator):
@@ -102,3 +131,17 @@ class ManualWatermarkEstimator(WatermarkEstimator):
           timestamp,
           self._watermark)
     self._watermark = timestamp
+
+  @staticmethod
+  def default_provider():
+    """Provide a default WatermarkEstimatorProvider for
+    WalltimeWatermarkEstimator.
+    """
+    class DefaultManualWatermarkEstimatorProvider(WatermarkEstimatorProvider):
+      def initial_estimator_state(self, element, restriction):
+        return None
+
+      def create_watermark_estimator(self, estimator_state):
+        return ManualWatermarkEstimator(estimator_state)
+
+    return DefaultManualWatermarkEstimatorProvider()

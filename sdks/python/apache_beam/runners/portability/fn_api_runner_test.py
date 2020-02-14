@@ -486,14 +486,6 @@ class FnApiRunnerTest(unittest.TestCase):
         _ = (p | beam.Create(data) | beam.ParDo(ExpandingStringsDoFn()))
 
   def test_sdf_with_watermark_tracking(self):
-    class ManualWatermarkEstimatorProvider(
-        beam.transforms.core.WatermarkEstimatorProvider):
-      def initial_estimator_state(self, element, restriction):
-        return None
-
-      def create_watermark_estimator(self, estimator_state):
-        return ManualWatermarkEstimator(estimator_state)
-
     class ExpandingStringsDoFn(beam.DoFn):
       def process(
           self,
@@ -501,7 +493,7 @@ class FnApiRunnerTest(unittest.TestCase):
           restriction_tracker=beam.DoFn.RestrictionParam(
               ExpandStringsProvider()),
           watermark_estimator=beam.DoFn.WatermarkEstimatorParam(
-              ManualWatermarkEstimatorProvider())):
+              ManualWatermarkEstimator.default_provider())):
         cur = restriction_tracker.current_restriction().start
         while restriction_tracker.try_claim(cur):
           watermark_estimator.set_watermark(timestamp.Timestamp(cur))
