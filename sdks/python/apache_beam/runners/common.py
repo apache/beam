@@ -25,7 +25,6 @@ For internal use only; no backwards-compatibility guarantees.
 
 from __future__ import absolute_import
 
-import threading
 import traceback
 from builtins import next
 from builtins import object
@@ -560,9 +559,6 @@ class PerWindowInvoker(DoFnInvoker):
     self.is_splittable = signature.is_splittable_dofn()
     self.threadsafe_restriction_tracker = None
     self.threadsafe_watermark_estimator = None
-    # The lock which guarantee synchronization for both
-    # ThreadsafeRestrictionTracker and ThreadsafeWatermarkEstimator.
-    self._synchronized_lock = threading.Lock()
     self.current_windowed_value = None  # type: Optional[WindowedValue]
     self.bundle_finalizer_param = bundle_finalizer_param
     self.is_key_param_required = False
@@ -677,13 +673,13 @@ class PerWindowInvoker(DoFnInvoker):
             'A RestrictionTracker %r was provided but DoFn does not have a '
             'RestrictionTrackerParam defined' % restriction_tracker)
       self.threadsafe_restriction_tracker = ThreadsafeRestrictionTracker(
-          restriction_tracker, self._synchronized_lock)
+          restriction_tracker)
       additional_kwargs[restriction_tracker_param] = (
           RestrictionTrackerView(self.threadsafe_restriction_tracker))
 
       self.threadsafe_watermark_estimator = (
           ThreadsafeWatermarkEstimator(
-              watermark_estimator, self._synchronized_lock))
+              watermark_estimator))
       watermark_param = (
           self.signature.process_method.watermark_estimator_provider_arg_name)
       if watermark_param is not None:
@@ -821,15 +817,11 @@ class PerWindowInvoker(DoFnInvoker):
       # Temporary workaround for [BEAM-7473]: get current_watermark before
       # split, in case watermark gets advanced before getting split results.
       # In worst case, current_watermark is always stale, which is ok.
-      current_watermark = None
-      # Make sure that the RestrictionTracker and WatermarkEstimator are locked
-      # together.
-      with self._synchronized_lock:
-        split = self.threadsafe_restriction_tracker.try_split(fraction)
-        current_watermark = (
-            self.threadsafe_watermark_estimator.current_watermark_with_lock())
-        estimator_state = (
-            self.threadsafe_watermark_estimator.get_estimator_state_with_lock())
+      split = self.threadsafe_restriction_tracker.try_split(fraction)
+      current_watermark = (
+          self.threadsafe_watermark_estimator.current_watermark())
+      estimator_state = (
+          self.threadsafe_watermark_estimator.get_estimator_state())
       if split:
         primary, residual = split
         element = self.current_windowed_value.value

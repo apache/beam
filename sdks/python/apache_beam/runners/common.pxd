@@ -94,7 +94,6 @@ cdef class PerWindowInvoker(DoFnInvoker):
   cdef bint is_splittable
   cdef object threadsafe_restriction_tracker
   cdef object threadsafe_watermark_estimator
-  cdef object _synchronized_lock
   cdef WindowedValue current_windowed_value
   cdef bint is_key_param_required
 

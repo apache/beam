@@ -23,6 +23,7 @@ from __future__ import absolute_import
 from __future__ import division
 
 import logging
+import threading
 from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
@@ -55,7 +56,7 @@ class ThreadsafeRestrictionTracker(object):
   This wrapper guarantees synchronization of modifying restrictions across
   multi-thread.
   """
-  def __init__(self, restriction_tracker, lock):
+  def __init__(self, restriction_tracker):
     # type: (RestrictionTracker) -> None
     from apache_beam.io.iobase import RestrictionTracker
     if not isinstance(restriction_tracker, RestrictionTracker):
@@ -65,7 +66,7 @@ class ThreadsafeRestrictionTracker(object):
     self._restriction_tracker = restriction_tracker
     # Records an absolute timestamp when defer_remainder is called.
     self._timestamp = None
-    self._lock = lock
+    self._lock = threading.RLock()
     self._deferred_residual = None
     self._deferred_timestamp = None
 
@@ -116,12 +117,8 @@ class ThreadsafeRestrictionTracker(object):
       return self._restriction_tracker.current_progress()
 
   def try_split(self, fraction_of_remainder):
-    # The caller should hold the lock before entering this function.
-    if not self._lock.locked():
-      raise RuntimeError(
-          'Expected lock to be held to guarantee thread-safe '
-          'access.')
-    return self._restriction_tracker.try_split(fraction_of_remainder)
+    with self._lock:
+      return self._restriction_tracker.try_split(fraction_of_remainder)
 
   def deferred_status(self):
     # type: () -> Optional[Tuple[Any, Timestamp]]
@@ -182,12 +179,12 @@ class ThreadsafeWatermarkEstimator(object):
   """A threadsafe wrapper which wraps a WatermarkEstimator with locking
   mechanism to guarantee multi-thread safety.
   """
-  def __init__(self, watermark_estimator, lock):
+  def __init__(self, watermark_estimator):
     from apache_beam.io.iobase import WatermarkEstimator
     if not isinstance(watermark_estimator, WatermarkEstimator):
       raise ValueError('Initializing Threadsafe requires a WatermarkEstimator')
     self._watermark_estimator = watermark_estimator
-    self._lock = lock
+    self._lock = threading.Lock()
 
   def __getattr__(self, attr):
     if hasattr(self._watermark_estimator, attr):
@@ -199,17 +196,9 @@ class ThreadsafeWatermarkEstimator(object):
       return method_wrapper
     raise AttributeError(attr)
 
-  def get_estimator_state_with_lock(self):
-    # The caller should hold the lock before entering this function.
-    if not self._lock.locked():
-      raise RuntimeError(
-          'Expected lock to be held to guarantee thread-safe '
-          'access.')
-    return self._watermark_estimator.get_estimator_state()
-
   def get_estimator_state(self):
     with self._lock:
-      return self.get_estimator_state_with_lock()
+      return self._watermark_estimator.get_estimator_state()
 
   def current_watermark_with_lock(self):
     # The caller should hold the lock before entering this function.
