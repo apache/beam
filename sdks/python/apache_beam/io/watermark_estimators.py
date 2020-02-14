@@ -120,6 +120,8 @@ class ManualWatermarkEstimator(WatermarkEstimator):
     return self._watermark
 
   def set_watermark(self, timestamp):
+    # Please call set_watermark after calling restriction_tracker.try_claim() to
+    # prevent advancing watermark early.
     # TODO(BEAM-7473): It's possible that getting a slightly stale watermark
     # when performing split.
     if not isinstance(timestamp, Timestamp):

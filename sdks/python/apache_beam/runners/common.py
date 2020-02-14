@@ -681,6 +681,8 @@ class PerWindowInvoker(DoFnInvoker):
           ThreadsafeWatermarkEstimator(watermark_estimator))
       watermark_param = (
           self.signature.process_method.watermark_estimator_provider_arg_name)
+      # When the watermark_estimator is a NoOpWatermarkEstimator, the system
+      # will not add watermark_param into the DoFn param list.
       if watermark_param is not None:
         additional_kwargs[watermark_param] = self.threadsafe_watermark_estimator
       try:
