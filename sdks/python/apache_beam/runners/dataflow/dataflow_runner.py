@@ -342,7 +342,7 @@ class DataflowRunner(PipelineRunner):
                     transform_node.full_label + '/MapToVoidKey%s' % ix,
                     (side_input.pvalue, ))
                 new_side_input.pvalue.producer = map_to_void_key
-                map_to_void_key.add_output(new_side_input.pvalue)
+                map_to_void_key.add_output(new_side_input.pvalue, None)
                 parent.add_part(map_to_void_key)
             elif access_pattern == common_urns.side_inputs.MULTIMAP.urn:
               # Ensure the input coder is a KV coder and patch up the

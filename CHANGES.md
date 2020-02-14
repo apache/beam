@@ -36,6 +36,7 @@
 
 * ReadFromPubSub(topic=<topic>) in Python previously created a subscription under the same project as the topic. Now it will create the subscription under the project specified in pipeline_options. If the project is not specified in pipeline_options, then it will create the subscription under the same project as the topic. ([BEAM-3453](https://issues.apache.org/jira/browse/BEAM-3453)).
 * SpannerAccessor in Java is now package-private to reduce API surface. `SpannerConfig.connectToSpanner` has been moved to `SpannerAccessor.create`. ([BEAM-9310](https://issues.apache.org/jira/browse/BEAM-9310)).
+* PCollections will now have their tags correctly propagated through the Pipeline. Users may expect the old implementation which gave PCollection output ids a monotonically increasing id. To go back to the old implementation, use the "force_generated_pcollection_output_ids" experiment. The default is the new implementation (force_generated_pcollection_output_ids=False).
 
 ### Deprecations
 
@@ -45,10 +46,12 @@
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * Fixed exception when running in IPython notebook (Python) ([BEAM-X9277](https://issues.apache.org/jira/browse/BEAM-9277)).
+* Fixed 1833 (Python) ([BEAM-1833](https://issues.apache.org/jira/browse/BEAM-1833))
 
 ### Known Issues
 
 * ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* ([BEAM-9322](https://issues.apache.org/jira/browse/BEAM-9322)).
 
 # [2.19.0] - 2020-01-31
 
