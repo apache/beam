@@ -153,6 +153,20 @@ public final class BundleManagerTest {
   }
 
   @Test
+  public void testTryFinishBundleWhenNoBundleInProgress() {
+    OpEmitter<String> mockEmitter = mock(OpEmitter.class);
+    when(mockFutureCollector.finish())
+        .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
+
+    bundleManager.tryFinishBundle(mockEmitter);
+
+    verify(mockEmitter, times(1)).emitFuture(anyObject());
+    assertTrue(
+        "tryFinishBundle() should not add futures when no bundle in progress",
+        bundleManager.getCurrentBundleResultFutures().isEmpty());
+  }
+
+  @Test
   public void testProcessWatermarkWhenNoBundleInProgress() {
     Instant now = Instant.now();
     OpEmitter<String> mockEmitter = mock(OpEmitter.class);

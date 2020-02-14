@@ -193,7 +193,7 @@ public class BundleManager<OutT> {
                     return res;
                   });
       currentBundleResultFutures.clear();
-    } else {
+    } else if (isBundleStarted.get()) {
       currentBundleResultFutures.add(outputFuture);
     }
 
@@ -204,6 +204,11 @@ public class BundleManager<OutT> {
   @VisibleForTesting
   long getCurrentBundleElementCount() {
     return currentBundleElementCount.longValue();
+  }
+
+  @VisibleForTesting
+  List<CompletionStage<Collection<WindowedValue<OutT>>>> getCurrentBundleResultFutures() {
+    return currentBundleResultFutures;
   }
 
   @VisibleForTesting
