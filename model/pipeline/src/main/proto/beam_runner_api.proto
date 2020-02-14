@@ -100,6 +100,13 @@ message Pipeline {
   // (Optional) Static display data for the pipeline. If there is none,
   // it may be omitted.
   repeated DisplayData display_data = 3;
+
+  // (Optional) A set of requirements that the runner MUST understand and be
+  // able to faithfully provide in order to execute this pipeline.  These
+  // may indicate that a runner must inspect new fields on a component or
+  // provide additional guarantees when processing specific transforms.
+  // A runner should reject any pipelines with unknown requirements.
+  repeated string requirements = 4;
 }
 
 // Transforms are the operations in your pipeline, and provide a generic
@@ -452,7 +459,7 @@ message ParDoPayload {
 
   // (Optional) A mapping of local timer family names to timer specifications.
   map<string, TimerFamilySpec> timer_family_specs = 9;
-  
+
   // Whether this stage requires time sorted input
   bool requires_time_sorted_input = 10;
 }
@@ -1164,6 +1171,13 @@ message Environment {
   // (Optional) Static display data for the environment. If there is none,
   // it may be omitted.
   repeated DisplayData display_data = 4;
+
+  // (Optional) A set of capabilities this environment supports.  This is
+  // typically a list of common URNs designating coders, transforms, etc. that
+  // this environment understands (and a runner MAY to use) despite not
+  // appearing in the pipeline proto.  This may also be used to indicate
+  // support of optional protocols not tied to a concrete component.
+  repeated string capabilities = 5;
 
   reserved 1;
 }
