@@ -41,7 +41,6 @@ else:
   from apache_beam.ml.gcp.cloud_dlp import _InspectFn
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
