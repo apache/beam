@@ -27,9 +27,9 @@ import logging
 from google.cloud import dlp_v2
 
 from apache_beam.options.pipeline_options import GoogleCloudOptions
-from apache_beam.transforms import PTransform
-from apache_beam.transforms import ParDo
 from apache_beam.transforms import DoFn
+from apache_beam.transforms import ParDo
+from apache_beam.transforms import PTransform
 from apache_beam.utils.annotations import experimental
 
 __all__ = ['MaskDetectedDetails', 'InspectForDetails']
@@ -123,6 +123,13 @@ class MaskDetectedDetails(PTransform):
 
 @experimental()
 class InspectForDetails(PTransform):
+  """Inspects input text for sensitive information.
+  the ``PTransform`` returns a ``PCollection`` of
+  ``List[google.cloud.dlp_v2.proto.dlp_pb2.Finding]``
+  Example usage::
+      pipeline | InspectForDetails(project='example-gcp-project',
+                inspection_config={'info_types': [{'name': 'EMAIL_ADDRESS'}]})
+  """
   def __init__(
       self,
       inspection_template_name=None,
@@ -151,14 +158,6 @@ class InspectForDetails(PTransform):
       self.config['inspect_template_name'] = inspection_template_name
     if inspection_config is not None:
       self.config['inspect_config'] = inspection_config
-
-  """Inspects input text for sensitive information.
-  the ``PTransform`` returns a ``PCollection`` of
-  ``List[google.cloud.dlp_v2.proto.dlp_pb2.Finding]``
-  Example usage::
-      pipeline | InspectForDetails(project='example-gcp-project',
-                inspection_config={'info_types': [{'name': 'EMAIL_ADDRESS'}]})
-  """
 
   def expand(self, pcoll):
     self.project = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
