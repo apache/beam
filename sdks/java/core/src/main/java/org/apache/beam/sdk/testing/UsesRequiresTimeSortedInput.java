@@ -24,4 +24,4 @@ import org.apache.beam.sdk.transforms.ParDo;
  * Category tag for validation tests which utilize{@link DoFn.RequiresTimeSortedInput} in stateful
  * {@link ParDo}.
  */
-public @interface UsesRequiresTimeSortedInput {}
+public interface UsesRequiresTimeSortedInput extends UsesTimersInParDo {}
