@@ -28,6 +28,7 @@ import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
@@ -87,7 +88,15 @@ public interface HadoopFileSystemOptions extends PipelineOptions {
         }
       }
 
+      Set<String> explodedConfDirs = Sets.newHashSet();
       for (String confDir : confDirs) {
+        Iterable<String> paths = Splitter.on(':').split(confDir);
+        for (String p : paths) {
+          explodedConfDirs.add(p);
+        }
+      }
+
+      for (String confDir : explodedConfDirs) {
         if (new File(confDir).exists()) {
           Configuration conf = new Configuration(false);
           boolean confLoaded = false;
