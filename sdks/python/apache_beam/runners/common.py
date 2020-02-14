@@ -678,8 +678,7 @@ class PerWindowInvoker(DoFnInvoker):
           RestrictionTrackerView(self.threadsafe_restriction_tracker))
 
       self.threadsafe_watermark_estimator = (
-          ThreadsafeWatermarkEstimator(
-              watermark_estimator))
+          ThreadsafeWatermarkEstimator(watermark_estimator))
       watermark_param = (
           self.signature.process_method.watermark_estimator_provider_arg_name)
       if watermark_param is not None:

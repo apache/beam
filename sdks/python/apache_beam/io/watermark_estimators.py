@@ -71,7 +71,6 @@ class MonotonicWatermarkEstimator(WatermarkEstimator):
     return DefaultMonotonicWatermarkEstimator()
 
 
-
 class WalltimeWatermarkEstimator(WatermarkEstimator):
   """A WatermarkEstimator which uses processing time as the estimated watermark.
   """

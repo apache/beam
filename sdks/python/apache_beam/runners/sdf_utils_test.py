@@ -118,23 +118,20 @@ class ThreadsafeWatermarkEstimatorTest(unittest.TestCase):
       ThreadsafeWatermarkEstimator(None)
 
   def test_get_estimator_state(self):
-    estimator = ThreadsafeWatermarkEstimator(
-        ManualWatermarkEstimator(None))
+    estimator = ThreadsafeWatermarkEstimator(ManualWatermarkEstimator(None))
     self.assertIsNone(estimator.get_estimator_state())
     estimator.set_watermark(timestamp.Timestamp(10))
     self.assertEqual(estimator.get_estimator_state(), timestamp.Timestamp(10))
 
   def test_track_timestamp(self):
-    estimator = ThreadsafeWatermarkEstimator(
-        ManualWatermarkEstimator(None))
+    estimator = ThreadsafeWatermarkEstimator(ManualWatermarkEstimator(None))
     estimator.observe_timestamp(timestamp.Timestamp(10))
     self.assertIsNone(estimator.current_watermark())
     estimator.set_watermark(timestamp.Timestamp(20))
     self.assertEqual(estimator.current_watermark(), timestamp.Timestamp(20))
 
   def test_non_exsited_attr(self):
-    estimator = ThreadsafeWatermarkEstimator(
-        ManualWatermarkEstimator(None))
+    estimator = ThreadsafeWatermarkEstimator(ManualWatermarkEstimator(None))
     with self.assertRaises(AttributeError):
       estimator.non_existed_call()
 
