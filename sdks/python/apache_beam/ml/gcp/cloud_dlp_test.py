@@ -26,15 +26,25 @@ import mock
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
-from apache_beam.ml.gcp.cloud_dlp import InspectForDetails
-from apache_beam.ml.gcp.cloud_dlp import MaskDetectedDetails
-from apache_beam.ml.gcp.cloud_dlp import _DeidentifyFn
-from apache_beam.ml.gcp.cloud_dlp import _InspectFn
+# Protect against environments with google-cloud-dlp unavailable.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.cloud import dlp_v2
+except ImportError:
+  dlp_v2 = None
+else:
+  from apache_beam.ml.gcp.cloud_dlp import InspectForDetails
+  from apache_beam.ml.gcp.cloud_dlp import MaskDetectedDetails
+  from apache_beam.ml.gcp.cloud_dlp import _DeidentifyFn
+  from apache_beam.ml.gcp.cloud_dlp import _InspectFn
+# pylint: enable=wrong-import-order, wrong-import-position
+
 from apache_beam.testing.test_pipeline import TestPipeline
 
 _LOGGER = logging.getLogger(__name__)
 
 
+@unittest.skipIf(dlp_v2 is None, 'GCP dependencies are not installed')
 class TestDeidentifyText(unittest.TestCase):
   def test_exception_raised_when_no_config_is_provided(self):
     with self.assertRaises(ValueError):
@@ -43,6 +53,7 @@ class TestDeidentifyText(unittest.TestCase):
         p | MaskDetectedDetails()
 
 
+@unittest.skipIf(dlp_v2 is None, 'GCP dependencies are not installed')
 class TestDeidentifyFn(unittest.TestCase):
   def test_deidentify_called(self):
     class ClientMock(object):
@@ -82,6 +93,7 @@ class TestDeidentifyFn(unittest.TestCase):
     self.assertEqual(called.result, 2)
 
 
+@unittest.skipIf(dlp_v2 is None, 'GCP dependencies are not installed')
 class TestInspectText(unittest.TestCase):
   def test_exception_raised_then_no_config_provided(self):
     with self.assertRaises(ValueError):
@@ -90,6 +102,7 @@ class TestInspectText(unittest.TestCase):
         p | InspectForDetails()
 
 
+@unittest.skipIf(dlp_v2 is None, 'GCP dependencies are not installed')
 class TestDeidentifyFn(unittest.TestCase):
   def test_inspect_called(self):
     class ClientMock(object):
