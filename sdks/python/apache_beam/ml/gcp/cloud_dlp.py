@@ -71,12 +71,16 @@ class MaskDetectedDetails(PTransform):
       deidentification_config
         (``Union[dict, google.cloud.dlp_v2.types.DeidentifyConfig]``):
         Configuration for the de-identification of the content item.
+        If both template name and config are supplied,
+        config is more important.
       inspection_template_name (str): This or `inspection_config` required.
         Name of inspection template to be used
         to detect sensitive data in text.
       inspection_config
         (``Union[dict, google.cloud.dlp_v2.types.InspectConfig]``):
         Configuration for the inspector used to detect sensitive data in text.
+        If both template name and config are supplied,
+        config takes precedence.
       timeout (float): Optional. The amount of time, in seconds, to wait for
         the request to complete.
     """
@@ -99,17 +103,12 @@ class MaskDetectedDetails(PTransform):
     else:
       self.config['deidentify_config'] = deidentification_config
 
-    if inspection_template_name is not None and inspection_config is not None:
-      raise ValueError(
-          'Both inspection_template_name and '
-          'inspection_template were specified.'
-          ' Please specify ony one of these.')
-    elif inspection_config is None and inspection_template_name is None:
+    if inspection_config is None and inspection_template_name is None:
       raise ValueError(
           'inspection_template_name or inspection_config must be specified')
-    elif inspection_template_name is not None:
+    if inspection_template_name is not None:
       self.config['inspect_template_name'] = inspection_template_name
-    elif inspection_config is not None:
+    if inspection_config is not None:
       self.config['inspect_config'] = inspection_config
 
   def expand(self, pcoll):
@@ -137,23 +136,20 @@ class InspectForDetails(PTransform):
       inspection_config
         (``Union[dict, google.cloud.dlp_v2.types.InspectConfig]``):
         Configuration for the inspector used to detect sensitive data in text.
+        If both template name and config are supplied,
+        config takes precedence.
       timeout (float): Optional. The amount of time, in seconds, to wait for
         the request to complete.
     """
     self.timeout = timeout
     self.config = {}
     self.project = None
-    if inspection_template_name is not None and inspection_config is not None:
-      raise ValueError(
-          'Both inspection_template_name and '
-          'inspection_template were specified.'
-          ' Please specify ony one of these.')
-    elif inspection_config is None and inspection_template_name is None:
+    if inspection_config is None and inspection_template_name is None:
       raise ValueError(
           'inspection_template_name or inspection_config must be specified')
-    elif inspection_template_name is not None:
+    if inspection_template_name is not None:
       self.config['inspect_template_name'] = inspection_template_name
-    elif inspection_config is not None:
+    if inspection_config is not None:
       self.config['inspect_config'] = inspection_config
 
   """Inspects input text for sensitive information.

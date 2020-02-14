@@ -36,22 +36,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class TestDeidentifyText(unittest.TestCase):
-  def test_exception_raised_when_both_template_and_config_are_provided(self):
-    deidentify_config = {
-        "info_type_transformations": {
-            "transformations": [{
-                "primitive_transformation": {
-                    "character_mask_config": {
-                        "masking_character": '#'
-                    }
-                }
-            }]
-        }
-    }
-    with self.assertRaises(ValueError):
-      with TestPipeline() as p:
-        # pylint: disable=expression-not-assigned
-        p | MaskDetectedDetails('template-name-1', deidentify_config)
 
   def test_exception_raised_when_no_config_is_provided(self):
     with self.assertRaises(ValueError):
@@ -100,12 +84,6 @@ class TestDeidentifyFn(unittest.TestCase):
 
 
 class TestInspectText(unittest.TestCase):
-  def test_exception_raised_when_both_template_and_config_are_provided(self):
-    inspect_config = {"info_types": [{"name": "EMAIL_ADDRESS"}]}
-    with self.assertRaises(ValueError):
-      with TestPipeline() as p:
-        # pylint: disable=expression-not-assigned
-        p | InspectForDetails('template-name-1', inspect_config)
 
   def test_exception_raised_then_no_config_provided(self):
     with self.assertRaises(ValueError):
