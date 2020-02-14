@@ -85,6 +85,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.SchemaFrom
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.TableFunctionDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.CleanupOperation;
 import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.ContextContainer;
+import org.apache.beam.sdk.io.gcp.bigquery.RowWriterFactory.OutputType;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -1645,6 +1646,7 @@ public class BigQueryIO {
         .setSkipInvalidRows(false)
         .setIgnoreUnknownValues(false)
         .setIgnoreInsertIds(false)
+        .setUseAvroLogicalTypes(false)
         .setMaxFilesPerPartition(BatchLoads.DEFAULT_MAX_FILES_PER_PARTITION)
         .setMaxBytesPerPartition(BatchLoads.DEFAULT_MAX_BYTES_PER_PARTITION)
         .setOptimizeWrites(false)
@@ -1715,6 +1717,8 @@ public class BigQueryIO {
 
     @Nullable
     abstract SerializableFunction<TableSchema, org.apache.avro.Schema> getAvroSchemaFactory();
+
+    abstract boolean getUseAvroLogicalTypes();
 
     @Nullable
     abstract DynamicDestinations<T, ?> getDynamicDestinations();
@@ -1802,6 +1806,8 @@ public class BigQueryIO {
 
       abstract Builder<T> setAvroSchemaFactory(
           SerializableFunction<TableSchema, org.apache.avro.Schema> avroSchemaFactory);
+
+      abstract Builder<T> setUseAvroLogicalTypes(Boolean useAvroLogicalTypes);
 
       abstract Builder<T> setDynamicDestinations(DynamicDestinations<T, ?> dynamicDestinations);
 
@@ -2250,6 +2256,14 @@ public class BigQueryIO {
     }
 
     /**
+     * Enables interpreting logical types into their corresponding types (ie. TIMESTAMP), instead of
+     * only using their raw types (ie. LONG).
+     */
+    public Write<T> useAvroLogicalTypes() {
+      return toBuilder().setUseAvroLogicalTypes(true).build();
+    }
+
+    /**
      * Setting this option to true disables insertId based data deduplication offered by BigQuery.
      * For more information, please see
      * https://cloud.google.com/bigquery/streaming-data-into-bigquery#disabling_best_effort_de-duplication.
@@ -2636,6 +2650,12 @@ public class BigQueryIO {
             getFailedInsertRetryPolicy() == null,
             "Record-insert retry policies are not supported when using BigQuery load jobs.");
 
+        if (getUseAvroLogicalTypes()) {
+          checkArgument(
+              rowWriterFactory.getOutputType() == OutputType.AvroGenericRecord,
+              "useAvroLogicalTypes can only be set with Avro output.");
+        }
+
         BatchLoads<DestinationT, ElementT> batchLoads =
             new BatchLoads<>(
                 getWriteDisposition(),
@@ -2649,7 +2669,8 @@ public class BigQueryIO {
                 elementCoder,
                 rowWriterFactory,
                 getKmsKey(),
-                getClustering() != null);
+                getClustering() != null,
+                getUseAvroLogicalTypes());
         batchLoads.setTestServices(getBigQueryServices());
         if (getSchemaUpdateOptions() != null) {
           batchLoads.setSchemaUpdateOptions(getSchemaUpdateOptions());
