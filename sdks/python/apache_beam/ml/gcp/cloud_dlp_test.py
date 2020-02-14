@@ -36,7 +36,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class TestDeidentifyText(unittest.TestCase):
-
   def test_exception_raised_when_no_config_is_provided(self):
     with self.assertRaises(ValueError):
       with TestPipeline() as p:
@@ -84,7 +83,6 @@ class TestDeidentifyFn(unittest.TestCase):
 
 
 class TestInspectText(unittest.TestCase):
-
   def test_exception_raised_then_no_config_provided(self):
     with self.assertRaises(ValueError):
       with TestPipeline() as p:
