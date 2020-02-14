@@ -1642,7 +1642,8 @@ class BeamModulePlugin implements Plugin<Project> {
       def beamTestPipelineOptions = [
         "--runner=org.apache.beam.runners.portability.testing.TestPortableRunner",
         "--jobServerDriver=${config.jobServerDriver}",
-        "--environmentCacheMillis=10000"
+        "--environmentCacheMillis=10000",
+        "--experiments=beam_fn_api",
       ]
       beamTestPipelineOptions.addAll(config.pipelineOpts)
       if (config.environment == PortableValidatesRunnerConfiguration.Environment.EMBEDDED) {
