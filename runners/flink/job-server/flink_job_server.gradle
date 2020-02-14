@@ -213,7 +213,7 @@ def addTestJavaJarCreator(String pyVersion) {
         executable "sh"
         def options = [
                 "--runner FlinkRunner",
-                "--flink_job_server_jar ${shadowJar.archivePath}",
+                "--job_server_jar ${shadowJar.archivePath}",
                 "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
                 "--python_root_dir ${project.rootDir}/sdks/python",
                 "--python_version ${pyVersion}",

@@ -23,13 +23,8 @@ while [[ $# -gt 0 ]]
 do
 key="$1"
 case $key in
-    --flink_job_server_jar)
-        FLINK_JOB_SERVER_JAR="$2"
-        shift # past argument
-        shift # past value
-        ;;
-    --spark_job_server_jar)
-        SPARK_JOB_SERVER_JAR="$2"
+    --job_server_jar)
+        JOB_SERVER_JAR="$2"
         shift # past argument
         shift # past value
         ;;
@@ -108,17 +103,15 @@ result.wait_until_finish()
 
 if [[ "$RUNNER" -eq "FlinkRunner" ]]; then
   INPUT_JAR_ARG="flink_job_server_jar"
-  INPUT_JAR_VAL="$FLINK_JOB_SERVER_JAR"
 else
   INPUT_JAR_ARG="spark_job_server_jar"
-  INPUT_JAR_VAL="$SPARK_JOB_SERVER_JAR"
 fi
 
 # Create the jar
 OUTPUT_JAR=flink-test-$(date +%Y%m%d-%H%M%S).jar
 (python -c "$PIPELINE_PY" \
   --runner "$RUNNER" \
-  --"$INPUT_JAR_ARG" "$INPUT_JAR_VAL" \
+  --"$INPUT_JAR_ARG" "$JOB_SERVER_JAR" \
   --output_executable_path $OUTPUT_JAR \
   --parallelism 1 \
   --sdk_worker_parallelism 1 \
