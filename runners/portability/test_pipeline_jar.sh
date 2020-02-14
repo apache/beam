@@ -28,6 +28,16 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --spark_job_server_jar)
+        SPARK_JOB_SERVER_JAR="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --runner)
+        RUNNER="$2"
+        shift # past argument
+        shift # past value
+        ;;
     --env_dir)
         ENV_DIR="$2"
         shift # past argument
@@ -96,11 +106,19 @@ result = pipeline.run()
 result.wait_until_finish()
 "
 
+if [[ "$RUNNER" -eq "FlinkRunner" ]]; then
+  INPUT_JAR_ARG="flink_job_server_jar"
+  INPUT_JAR_VAL="$FLINK_JOB_SERVER_JAR"
+else
+  INPUT_JAR_ARG="spark_job_server_jar"
+  INPUT_JAR_VAL="$SPARK_JOB_SERVER_JAR"
+fi
+
 # Create the jar
 OUTPUT_JAR=flink-test-$(date +%Y%m%d-%H%M%S).jar
 (python -c "$PIPELINE_PY" \
-  --runner FlinkRunner \
-  --flink_job_server_jar $FLINK_JOB_SERVER_JAR \
+  --runner "$RUNNER" \
+  --"$INPUT_JAR_ARG" "$INPUT_JAR_VAL" \
   --output_executable_path $OUTPUT_JAR \
   --parallelism 1 \
   --sdk_worker_parallelism 1 \
