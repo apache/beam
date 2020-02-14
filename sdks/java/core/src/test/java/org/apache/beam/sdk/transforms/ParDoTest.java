@@ -101,6 +101,7 @@ import org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp;
 import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.testing.UsesTimerMap;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
+import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
@@ -4613,7 +4614,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTimerMap.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesUnboundedPCollections.class,
+      UsesTimersInParDo.class,
+      UsesTimerMap.class
+    })
     public void testTimerFamilyEventTimeUnbounded() throws Exception {
       runTestTimerFamilyEventTime(true);
     }
@@ -4663,7 +4669,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTimerMap.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesUnboundedPCollections.class,
+      UsesTimersInParDo.class,
+      UsesTimerMap.class
+    })
     public void testTimerWithMultipleTimerFamilyUnbounded() throws Exception {
       runTestTimerWithMultipleTimerFamily(true);
     }
@@ -4720,7 +4731,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTimerMap.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesUnboundedPCollections.class,
+      UsesTimersInParDo.class,
+      UsesTimerMap.class
+    })
     public void testTimerFamilyAndTimerUnbounded() throws Exception {
       runTestTimerFamilyAndTimer(true);
     }
