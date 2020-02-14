@@ -26,8 +26,10 @@ import logging
 
 from google.cloud import dlp_v2
 
-import apache_beam as beam
-from apache_beam.utils import retry
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.transforms import PTransform
+from apache_beam.transforms import ParDo
+from apache_beam.transforms import DoFn
 from apache_beam.utils.annotations import experimental
 
 __all__ = ['MaskDetectedDetails', 'InspectForDetails']
@@ -36,7 +38,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @experimental()
-class MaskDetectedDetails(beam.PTransform):
+class MaskDetectedDetails(PTransform):
   """Scrubs sensitive information detected in text.
   The ``PTransform`` returns a ``PCollection`` of ``str``
   Example usage::
@@ -55,7 +57,6 @@ class MaskDetectedDetails(beam.PTransform):
   """
   def __init__(
       self,
-      project=None,
       deidentification_template_name=None,
       deidentification_config=None,
       inspection_template_name=None,
@@ -63,8 +64,6 @@ class MaskDetectedDetails(beam.PTransform):
       timeout=None):
     """Initializes a :class:`MaskDetectedDetails` transform.
     Args:
-      project (str): Required. GCP project in which the data processing is
-        to be done
       deidentification_template_name (str): Either this or
         `deidentification_config` required. Name of
         deidentification template to be used on detected sensitive information
@@ -82,11 +81,8 @@ class MaskDetectedDetails(beam.PTransform):
         the request to complete.
     """
     self.config = {}
-    self.project = project
+    self.project = None
     self.timeout = timeout
-    if project is None:
-      raise ValueError(
-          'GCP project name needs to be specified in "project" property')
     if deidentification_template_name is not None \
         and deidentification_config is not None:
       raise ValueError(
@@ -117,25 +113,21 @@ class MaskDetectedDetails(beam.PTransform):
       self.config['inspect_config'] = inspection_config
 
   def expand(self, pcoll):
+    self.project = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
+    if self.project is None:
+      raise ValueError(
+          'GCP project name needs to be specified in "project" pipeline option')
     return (
         pcoll
-        | beam.ParDo(_DeidentifyFn(self.config, self.timeout, self.project)))
+        | ParDo(_DeidentifyFn(self.config, self.timeout, self.project)))
 
 
 @experimental()
-class InspectForDetails(beam.PTransform):
-  """Inspects input text for sensitive information.
-  the ``PTransform`` returns a ``PCollection`` of
-  ``List[google.cloud.dlp_v2.proto.dlp_pb2.Finding]``
-  Example usage::
-      pipeline | InspectForDetails(project='example-gcp-project',
-                inspection_config={'info_types': [{'name': 'EMAIL_ADDRESS'}]})
-  """
+class InspectForDetails(PTransform):
   def __init__(
       self,
       inspection_template_name=None,
       inspection_config=None,
-      project=None,
       timeout=None):
     """Initializes a :class:`InspectForDetails` transform.
     Args:
@@ -145,17 +137,12 @@ class InspectForDetails(beam.PTransform):
       inspection_config
         (``Union[dict, google.cloud.dlp_v2.types.InspectConfig]``):
         Configuration for the inspector used to detect sensitive data in text.
-      project (str): Required. Name of GCP project in which the processing
-        will take place.
       timeout (float): Optional. The amount of time, in seconds, to wait for
         the request to complete.
     """
-    self.project = project
     self.timeout = timeout
     self.config = {}
-    if project is None:
-      raise ValueError(
-          'GCP project name needs to be specified in "project" property')
+    self.project = None
     if inspection_template_name is not None and inspection_config is not None:
       raise ValueError(
           'Both inspection_template_name and '
@@ -169,56 +156,64 @@ class InspectForDetails(beam.PTransform):
     elif inspection_config is not None:
       self.config['inspect_config'] = inspection_config
 
+  """Inspects input text for sensitive information.
+  the ``PTransform`` returns a ``PCollection`` of
+  ``List[google.cloud.dlp_v2.proto.dlp_pb2.Finding]``
+  Example usage::
+      pipeline | InspectForDetails(project='example-gcp-project',
+                inspection_config={'info_types': [{'name': 'EMAIL_ADDRESS'}]})
+  """
+
   def expand(self, pcoll):
-    return pcoll | beam.ParDo(
-        _InspectFn(self.config, self.timeout, self.project))
+    self.project = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
+    if self.project is None:
+      raise ValueError(
+          'GCP project name needs to be specified in "project" pipeline option')
+    return pcoll | ParDo(_InspectFn(self.config, self.timeout, self.project))
 
 
-class _DeidentifyFn(beam.DoFn):
+class _DeidentifyFn(DoFn):
   def __init__(self, config=None, timeout=None, project=None, client=None):
     self.config = config
     self.timeout = timeout
     self.client = client
     self.project = project
+    self.params = {}
 
-  def start_bundle(self):
+  def setup(self):
     if self.client is None:
       self.client = dlp_v2.DlpServiceClient()
-
-  def process(self, element, **kwargs):
-    params = {
+    self.params = {
         'timeout': self.timeout,
-        'retry': retry.with_exponential_backoff(
-            retry_filter=retry.
-            retry_on_server_errors_timeout_or_quota_issues_filter),
         'parent': self.client.project_path(self.project)
     }
-    params.update(self.config)
-    operation = self.client.deidentify_content(
-        item={"value": element}, **params)
+    self.params.update(self.config)
 
+  def process(self, element, **kwargs):
+    operation = self.client.deidentify_content(
+        item={"value": element}, **self.params)
     yield operation.item.value
 
 
-class _InspectFn(beam.DoFn):
+class _InspectFn(DoFn):
   def __init__(self, config=None, timeout=None, project=None):
     self.config = config
     self.timeout = timeout
     self.client = None
     self.project = project
+    self.params = {}
 
   def setup(self):
-    self.client = dlp_v2.DlpServiceClient()
-
-  def process(self, element, **kwargs):
-    kwargs = {
+    if self.client is None:
+      self.client = dlp_v2.DlpServiceClient()
+    self.params = {
         'timeout': self.timeout,
-        'retry': retry.with_exponential_backoff(
-            retry_filter=retry.
-            retry_on_server_errors_timeout_or_quota_issues_filter),
         "parent": self.client.project_path(self.project)
     }
-    kwargs.update(self.config)
-    operation = self.client.inspect_content(item={"value": element}, **kwargs)
+    self.params.update(self.config)
+
+  def process(self, element, **kwargs):
+    operation = self.client.inspect_content(
+        item={"value": element}, **self.params)
     hits = [x for x in operation.result.findings]
     yield hits

@@ -92,7 +92,7 @@ class TestDeidentifyFn(unittest.TestCase):
       (
           p
           | beam.Create(['mary.sue@example.com', 'john.doe@example.com'])
-          | beam.ParDo(_DeidentifyFn(config=deidentify_config, project='test')))
+          | beam.ParDo(_DeidentifyFn(config=deidentify_config)))
       result = p.run()
       result.wait_until_finish()
     called = result.metrics().query()['counters'][0]
@@ -135,7 +135,7 @@ class TestDeidentifyFn(unittest.TestCase):
       (
           p
           | beam.Create(['mary.sue@example.com', 'john.doe@example.com'])
-          | beam.ParDo(_InspectFn(config=inspect_config, project='test')))
+          | beam.ParDo(_InspectFn(config=inspect_config)))
       result = p.run()
       result.wait_until_finish()
     called = result.metrics().query()['counters'][0]
