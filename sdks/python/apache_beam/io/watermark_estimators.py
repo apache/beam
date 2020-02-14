@@ -121,6 +121,8 @@ class ManualWatermarkEstimator(WatermarkEstimator):
     return self._watermark
 
   def set_watermark(self, timestamp):
+    # TODO(BEAM-7473): It's possible that getting a slightly stale watermark
+    # when performing split.
     if not isinstance(timestamp, Timestamp):
       raise ValueError('set_watermark expects a Timestamp as input')
     if self._watermark and self._watermark > timestamp:
