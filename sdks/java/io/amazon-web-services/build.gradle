@@ -24,6 +24,12 @@ applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.aws')
 description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services"
 ext.summary = "IO library to read and write Amazon Web Services services from Beam."
 
+repositories {
+  maven {
+    url "http://redshift-maven-repository.s3-website-us-east-1.amazonaws.com/release"
+  }
+}
+
 dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
@@ -52,6 +58,8 @@ dependencies {
   testCompile 'org.testcontainers:localstack:1.11.2'
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile 'com.amazonaws:aws-java-sdk-redshift:1.11.681'
+  testRuntimeOnly 'com.amazon.redshift:redshift-jdbc42-no-awssdk:1.2.10.1009'
 }
 
 test {

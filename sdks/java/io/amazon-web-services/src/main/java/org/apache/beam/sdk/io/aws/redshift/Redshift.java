@@ -201,6 +201,8 @@ public class Redshift {
 
     abstract String getS3TempLocationPrefix();
 
+    abstract String getOptions();
+
     abstract RedshiftMarshaller<T> getRedshiftMarshaller();
 
     abstract Coder<T> getCoder();
@@ -228,6 +230,8 @@ public class Redshift {
 
       /** Sets the S3 URI prefix for intermediate files. */
       public abstract Builder<T> setS3TempLocationPrefix(String value);
+
+      public abstract Builder<T> setOptions();
 
       /** Sets the {@link RedshiftMarshaller}. */
       public abstract Builder<T> setRedshiftMarshaller(RedshiftMarshaller<T> value);
@@ -272,8 +276,7 @@ public class Redshift {
                       Copy.builder()
                           .setDataSourceConfiguration(getDataSourceConfiguration())
                           .setDestinationTableSpec(getDestinationTableSpec())
-                          .setSourceCompression(getCompression())
-                          .setDelimiter('|')
+                          .setOptions(getOptions())
                           .build()))
               .apply(View.asSingleton());
 

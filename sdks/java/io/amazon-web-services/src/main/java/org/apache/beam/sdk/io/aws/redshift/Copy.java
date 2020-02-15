@@ -26,11 +26,9 @@ import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
-import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.aws.options.AwsOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
  * Implements the Redshift SQL COPY command as a {@link DoFn}. Copies the contents of files
@@ -43,14 +41,14 @@ public abstract class Copy extends DoFn<String, Void> implements Serializable {
 
   abstract Redshift.DataSourceConfiguration getDataSourceConfiguration();
 
-  abstract char getDelimiter();
-
-  abstract Compression getSourceCompression();
-
   abstract String getDestinationTableSpec();
 
+  abstract String getIAMRole();
+
+  abstract String getOptions();
+
   public static Builder builder() {
-    return new AutoValue_Copy.Builder().setSourceCompression(Compression.UNCOMPRESSED);
+    return new AutoValue_Copy.Builder();
   }
 
   /** Builder for {@link Copy}. */
@@ -60,17 +58,12 @@ public abstract class Copy extends DoFn<String, Void> implements Serializable {
     /** Sets the data source configuration. */
     public abstract Builder setDataSourceConfiguration(Redshift.DataSourceConfiguration value);
 
-    /** Sets the delimiter used in the source CSV files. */
-    public abstract Builder setDelimiter(char value);
-
-    /**
-     * Sets the compression used when writing the destination files; {@link
-     * Compression#UNCOMPRESSED} by default.
-     */
-    public abstract Builder setSourceCompression(Compression value);
-
     /** Sets the destination table name, and optional column list. */
     public abstract Builder setDestinationTableSpec(String value);
+
+    public abstract Builder setIAMRole(String iamRole);
+
+    public abstract Builder setOptions(String options);
 
     abstract Copy autoBuild();
 
@@ -78,13 +71,10 @@ public abstract class Copy extends DoFn<String, Void> implements Serializable {
     public Copy build() {
       Copy copy = autoBuild();
 
-      checkArgument(!Character.isISOControl(copy.getDelimiter()), "delimiter");
       checkArgument(
           !Strings.isNullOrEmpty(copy.getDestinationTableSpec()), "destination table spec");
       checkArgument(
-          ImmutableList.of(Compression.UNCOMPRESSED, Compression.BZIP2, Compression.GZIP)
-              .contains(copy.getSourceCompression()),
-          "compression");
+          !Strings.isNullOrEmpty(copy.getOptions()),"at least delimiter is specified");
 
       return copy;
     }
@@ -103,14 +93,10 @@ public abstract class Copy extends DoFn<String, Void> implements Serializable {
   }
 
   private static final String COPY_STATEMENT_FORMAT =
-      "COPY %s FROM '%s' "
-          + "CREDENTIALS 'aws_access_key_id=%s;aws_secret_access_key=%s' "
-          + "DELIMITER AS '%s' "
-          + "%s " // compression
-          + "NULL AS 'NULL' "
-          + "BLANKSASNULL "
-          + "IGNOREBLANKLINES " // Beam adds a newline to the end of the file.
-          + "ESCAPE ";
+      "COPY %s FROM " //table
+          + "'%s' " //s3 prefix
+          + "%s " //credentials
+          + "%s "; //options e.g. delimiter
 
   @ProcessElement
   public void copy(ProcessContext context) throws IOException {
@@ -121,12 +107,8 @@ public abstract class Copy extends DoFn<String, Void> implements Serializable {
             COPY_STATEMENT_FORMAT,
             getDestinationTableSpec(),
             sourcePathPrefix,
-            awsCredentials.getAWSAccessKeyId(),
-            awsCredentials.getAWSSecretKey(),
-            getDelimiter(),
-            getSourceCompression() == Compression.UNCOMPRESSED
-                ? ""
-                : getSourceCompression().name());
+            this.getCredentials(),
+            getOptions());
 
     try (Connection connection = getDataSourceConfiguration().buildDataSource().getConnection();
         Statement statement = connection.createStatement()) {
@@ -136,5 +118,16 @@ public abstract class Copy extends DoFn<String, Void> implements Serializable {
     }
 
     context.output(null);
+  }
+
+  private String getCredentials() {
+    if (!Strings.isNullOrEmpty(getIAMRole())) {
+      return String.format("iam_role '%s'" , getIAMRole());
+    } else {
+      return String.format(
+          "CREDENTIALS 'aws_access_key_id=%s;aws_secret_access_key=%s'",
+          awsCredentials.getAWSAccessKeyId(),
+          awsCredentials.getAWSSecretKey());
+    }
   }
 }

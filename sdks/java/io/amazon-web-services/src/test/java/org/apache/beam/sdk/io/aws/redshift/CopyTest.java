@@ -17,69 +17,116 @@
  */
 package org.apache.beam.sdk.io.aws.redshift;
 
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.Statement;
 import javax.sql.DataSource;
-import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.aws.options.AwsOptions;
 import org.apache.beam.sdk.io.aws.redshift.Redshift.DataSourceConfiguration;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mockito;
 
 /** Tests {@link Copy}. */
 @RunWith(JUnit4.class)
 public class CopyTest {
 
+  private String dbName = "test-db1";
+  private String userName = "xxx";
+  private String password = "xxx";
+  private String endpoint = "test-cluster1.xxx.us-west-2.redshift.amazonaws.com";
+  private int port = 5439;
+
+  @Rule
+  public TestPipeline testPipeline = TestPipeline.create();
+
   @Test
-  public void testCopy() throws Exception {
-    DataSource mockDataSource = Mockito.mock(DataSource.class);
-    Connection mockConnection = Mockito.mock(Connection.class);
-    Statement mockStatement = Mockito.mock(Statement.class);
-
-    when(mockDataSource.getConnection()).thenReturn(mockConnection);
-    when(mockConnection.createStatement()).thenReturn(mockStatement);
-
-    AWSCredentialsProvider awsCredentialsProvider =
-        new AWSStaticCredentialsProvider(new BasicAWSCredentials("id", "secret"));
-
+  public void testCopy() {
     DataSourceConfiguration dataSourceConfiguration =
-        DataSourceConfiguration.create(mockDataSource);
+        Redshift.DataSourceConfiguration.create(endpoint, port, dbName, userName, password);
 
     Copy copyFn =
         Copy.builder()
             .setDataSourceConfiguration(dataSourceConfiguration)
-            .setDelimiter('^')
-            .setSourceCompression(Compression.BZIP2)
-            .setDestinationTableSpec("test_table")
+            .setDestinationTableSpec("public.part")
+            .setIAMRole("arn:aws:iam::xxx:role/xxx-custom-redshift-role")
+            .setOptions("csv null as '\\000'")
             .build();
 
-    TestPipeline testPipeline = TestPipeline.create();
-    testPipeline.getOptions().as(AwsOptions.class).setAwsRegion("us-east-1");
-    testPipeline.apply(Create.of("s3://bucket/path/prefix-")).apply(ParDo.of(copyFn));
+    testPipeline.getOptions().as(AwsOptions.class).setAwsRegion("us-west-2");
+    testPipeline.apply(Create.of("s3://xxx/sample/part-csv.tbl")).apply(ParDo.of(copyFn));
     testPipeline.run();
+  }
 
-    String sql =
-        "COPY test_table FROM 's3://bucket/path/prefix-' "
-            + "CREDENTIALS 'aws_access_key_id=id;aws_secret_access_key=secret' "
-            + "DELIMITER AS '^' "
-            + "BZIP2 "
-            + "NULL AS 'NULL' "
-            + "BLANKSASNULL "
-            + "IGNOREBLANKLINES "
-            + "ESCAPE ";
+  private void createTable() {
+    /* Sample data:
+      15,dark sky,MFGR#3,MFGR#47,MFGR#3438,indigo,"LARGE ANODIZED BRASS",45,LG CASE
+      22,floral beige,MFGR#4,MFGR#44,MFGR#4421,medium,"PROMO, POLISHED BRASS",19,LG DRUM
+      23,bisque slate,MFGR#4,MFGR#41,MFGR#4137,firebrick,"MEDIUM ""BURNISHED"" TIN",42,JUMBO JAR
+    */
 
-    verify(mockStatement.execute(sql), times(1));
+    Connection conn = null;
+    Statement stmt = null;
+    try {
+
+      System.out.println("Connecting to database.....");
+
+      DataSource dataSource = Redshift.DataSourceConfiguration.create(endpoint, port, dbName, userName, password).buildDataSource();
+      conn = dataSource.getConnection();
+
+      stmt = conn.createStatement();
+      String sql;
+      sql =
+          "CREATE TABLE public.part \n" +
+          "(\n" +
+          "  p_partkey     INTEGER NOT NULL,\n" +
+          "  p_name        VARCHAR(22) NOT NULL,\n" +
+          "  p_mfgr        VARCHAR(6),\n" +
+          "  p_category    VARCHAR(7) NOT NULL,\n" +
+          "  p_brand1      VARCHAR(9) NOT NULL,\n" +
+          "  p_color       VARCHAR(11) NOT NULL,\n" +
+          "  p_type        VARCHAR(25) NOT NULL,\n" +
+          "  p_size        INTEGER NOT NULL,\n" +
+          "  p_container   VARCHAR(10) NOT NULL\n" +
+          ");";
+
+      String sql5 = "Select * from public.part limit 100";
+
+      ResultSet rs = stmt.executeQuery(sql5);
+      //Get the data from the result set.
+      while (rs.next()) {
+        //Retrieve two columns.
+        String catalog = rs.getString("p_type");
+        String name = rs.getString("p_name");
+
+        //Display values.
+        System.out.print("Catalog: " + catalog);
+        System.out.println(", Name: " + name);
+      }
+      rs.close();
+      stmt.close();
+      conn.close();
+    } catch (Exception ex) {
+      //For convenience, handle all errors here.
+      System.out.println("Error: " + ex.getMessage());
+    } finally {
+      //Finally block to close resources.
+      try {
+        if (stmt != null)
+          stmt.close();
+      } catch (Exception ex) {
+      }// nothing we can do
+      try {
+        if (conn != null)
+          conn.close();
+      } catch (Exception ex) {
+        System.out.println(ex.getMessage());
+      }
+    }
+    System.out.println("Finished connectivity test.");
   }
 }
