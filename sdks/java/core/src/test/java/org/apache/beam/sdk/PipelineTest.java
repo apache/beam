@@ -225,7 +225,7 @@ public class PipelineTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testMultipleApply() {
-    PTransform<PCollection<? extends String>, PCollection<String>> myTransform = addSuffix("+");
+    MapElements<String, String> myTransform = addSuffix("+");
 
     PCollection<String> input = pipeline.apply(Create.of(ImmutableList.of("a", "b")));
 
@@ -239,8 +239,7 @@ public class PipelineTest {
     pipeline.run();
   }
 
-  private static PTransform<PCollection<? extends String>, PCollection<String>> addSuffix(
-      final String suffix) {
+  private static MapElements<String, String> addSuffix(final String suffix) {
     return MapElements.via(
         new SimpleFunction<String, String>() {
           @Override
