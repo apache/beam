@@ -28,6 +28,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.lang.reflect.Field;
@@ -837,6 +838,43 @@ public class DoFnSignaturesTest {
   }
 
   @Test
+  public void testStateParameterAlwaysFetched() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("ReadableStates");
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<KV<String, Integer>, Long>() {
+              @StateId("my-id")
+              private final StateSpec<MapState<Integer, Integer>> myfield =
+                  StateSpecs.map(VarIntCoder.of(), VarIntCoder.of());
+
+              @ProcessElement
+              public void myProcessElement(
+                  ProcessContext context,
+                  @AlwaysFetched @StateId("my-id") MapState<Integer, Integer> one) {}
+            }.getClass());
+    StateParameter stateParameter = (StateParameter) sig.processElement().extraParameters().get(1);
+    assertTrue(stateParameter.alwaysFetched());
+  }
+
+  @Test
+  public void testStateParameterAlwaysFetchNonReadableState() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("ReadableStates");
+    DoFnSignatures.getSignature(
+        new DoFn<KV<String, Integer>, Long>() {
+          @StateId("my-id")
+          private final StateSpec<MapState<Integer, Integer>> myfield =
+              StateSpecs.map(VarIntCoder.of(), VarIntCoder.of());
+
+          @ProcessElement
+          public void myProcessElement(
+              ProcessContext context,
+              @AlwaysFetched @StateId("my-id") MapState<Integer, Integer> one) {}
+        }.getClass());
+  }
+
+  @Test
   public void testStateParameterDuplicate() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("duplicate");
@@ -987,7 +1025,7 @@ public class DoFnSignaturesTest {
     DoFnSignature.StateDeclaration decl =
         sig.stateDeclarations().get(DoFnOverridingAbstractStateUse.STATE_ID);
     StateParameter stateParam = (StateParameter) sig.processElement().extraParameters().get(1);
-
+    assertFalse(stateParam.alwaysFetched());
     assertThat(
         decl.field(),
         equalTo(DoFnDeclaringStateAndAbstractUse.class.getDeclaredField("myStateSpec")));
