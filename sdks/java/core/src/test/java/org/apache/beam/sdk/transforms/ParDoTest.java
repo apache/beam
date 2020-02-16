@@ -1716,7 +1716,8 @@ public class ParDoTest implements Serializable {
 
             @ProcessElement
             public void processElement(
-                @StateId(stateId) ValueState<Integer> state, OutputReceiver<Integer> r) {
+                @AlwaysFetched @StateId(stateId) ValueState<Integer> state,
+                OutputReceiver<Integer> r) {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
               r.output(currentValue);
               state.write(currentValue + 1);

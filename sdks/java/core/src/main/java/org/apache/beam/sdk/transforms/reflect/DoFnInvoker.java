@@ -184,7 +184,7 @@ public interface DoFnInvoker<InputT, OutputT> {
     RestrictionTracker<?, ?> restrictionTracker();
 
     /** Returns the state cell for the given {@link StateId}. */
-    State state(String stateId);
+    State state(String stateId, boolean alwaysFetched);
 
     /** Returns the timer for the given {@link TimerId}. */
     Timer timer(String timerId);
@@ -313,7 +313,7 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public State state(String stateId) {
+    public State state(String stateId, boolean alwaysFetched) {
       throw new UnsupportedOperationException(
           String.format("State unsupported in %s", getErrorContext()));
     }
@@ -436,8 +436,8 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public State state(String stateId) {
-      return delegate.state(stateId);
+    public State state(String stateId, boolean alwaysFetch) {
+      return delegate.state(stateId, alwaysFetch);
     }
 
     @Override
