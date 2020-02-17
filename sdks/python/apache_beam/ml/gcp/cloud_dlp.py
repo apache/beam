@@ -57,6 +57,7 @@ class MaskDetectedDetails(PTransform):
   """
   def __init__(
       self,
+      project=None,
       deidentification_template_name=None,
       deidentification_config=None,
       inspection_template_name=None,
@@ -64,6 +65,7 @@ class MaskDetectedDetails(PTransform):
       timeout=None):
     """Initializes a :class:`MaskDetectedDetails` transform.
     Args:
+      project: Optional. GCP project name in which inspection will be performed
       deidentification_template_name (str): Either this or
         `deidentification_config` required. Name of
         deidentification template to be used on detected sensitive information
@@ -85,7 +87,7 @@ class MaskDetectedDetails(PTransform):
         the request to complete.
     """
     self.config = {}
-    self.project = None
+    self.project = project
     self.timeout = timeout
     if deidentification_template_name is not None \
         and deidentification_config is not None:
@@ -112,7 +114,8 @@ class MaskDetectedDetails(PTransform):
       self.config['inspect_config'] = inspection_config
 
   def expand(self, pcoll):
-    self.project = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
+    if self.project is None:
+      self.project = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
     if self.project is None:
       raise ValueError(
           'GCP project name needs to be specified in "project" pipeline option')
@@ -132,11 +135,13 @@ class InspectForDetails(PTransform):
   """
   def __init__(
       self,
+      project=None,
       inspection_template_name=None,
       inspection_config=None,
       timeout=None):
     """Initializes a :class:`InspectForDetails` transform.
     Args:
+      project: Optional. GCP project name in which inspection will be performed
       inspection_template_name (str): This or `inspection_config` required.
         Name of inspection template to be used
         to detect sensitive data in text.
@@ -150,7 +155,7 @@ class InspectForDetails(PTransform):
     """
     self.timeout = timeout
     self.config = {}
-    self.project = None
+    self.project = project
     if inspection_config is None and inspection_template_name is None:
       raise ValueError(
           'inspection_template_name or inspection_config must be specified')
@@ -160,7 +165,8 @@ class InspectForDetails(PTransform):
       self.config['inspect_config'] = inspection_config
 
   def expand(self, pcoll):
-    self.project = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
+    if self.project is None:
+      self.project = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
     if self.project is None:
       raise ValueError(
           'GCP project name needs to be specified in "project" pipeline option')
