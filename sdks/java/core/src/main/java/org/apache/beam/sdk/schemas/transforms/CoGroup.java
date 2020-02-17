@@ -548,7 +548,7 @@ public class CoGroup {
       List<Object> fields = Lists.newArrayListWithCapacity(getIterables().size() + 1);
       fields.add(getKey());
       fields.addAll(getIterables());
-      o.output(Row.withSchema(outputSchema).attachValues(fields).build());
+      o.output(Row.withSchema(outputSchema).attachValues(fields));
     }
 
     static void verifyExpandedArgs(JoinInformation joinInformation, JoinArguments joinArgs) {
@@ -633,8 +633,7 @@ public class CoGroup {
         // Bottom of recursive call, so output the row we've accumulated.
         Row row =
             Row.withSchema(getOutputSchema())
-                .attachValues(Lists.newArrayList(accumulatedRows))
-                .build();
+                .attachValues(Lists.newArrayList(accumulatedRows));
         o.output(row);
       } else {
         crossProduct(tagIndex + 1, accumulatedRows, iterables, o);

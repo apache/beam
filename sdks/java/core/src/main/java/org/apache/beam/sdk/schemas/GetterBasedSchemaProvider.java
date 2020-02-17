@@ -56,7 +56,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
 
     @Override
     public Row apply(T input) {
-      return Row.withSchema(schema).withFieldValueGetters(getterFactory, input).build();
+      return Row.withSchema(schema).withFieldValueGetters(getterFactory, input);
     }
 
     private GetterBasedSchemaProvider getOuter() {

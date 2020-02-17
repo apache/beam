@@ -18,11 +18,13 @@
 package org.apache.beam.sdk.values;
 
 import static org.apache.beam.sdk.values.SchemaVerification.verifyRowValues;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -30,30 +32,61 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Factory;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.joda.time.DateTime;
+import org.joda.time.Instant;
 import org.joda.time.ReadableDateTime;
 import org.joda.time.ReadableInstant;
+import org.joda.time.base.AbstractInstant;
 
 /**
  * {@link Row} is an immutable tuple-like schema to represent one element in a {@link PCollection}.
  * The fields are described with a {@link Schema}.
  *
- * <p>{@link Schema} contains the names for each field and the coder for the whole record,
- * {see @link Schema#getRowCoder()}.
+ * <p>{@link Schema} contains the names and types for each field.
+ *
+ * <p>There are several ways to build a new Row object. To build a row from scratch using a schema
+ * object, {@link Row#withSchema} can be used. Schema fields can be specified by name, and nested
+ * fields can be specified using the field selection syntax. For example:
+ *
+ * <pre>{@code
+ * Row row = Row.withSchema(schema)
+ *              .withFieldValue("userId", "user1)
+ *              .withFieldValue("location.city", "seattle")
+ *              .withFieldValue("location.state", "wa")
+ *              .build();
+ * }</pre>
+ *
+ * <p>The {@link Row#fromRow} builder can be used to base a row off of another row. The builder can
+ * be used to specify values for specific fields, and all the remaining values will be taken from
+ * the original row. For example, the following produces a row identical to the above row except for
+ * the location.city field.
+ *
+ * <pre>{@code
+ * Row modifiedRow =
+ *     Row.fromRow(row)
+ *        .withFieldValue("location.city", "tacoma")
+ *        .build();
+ * }</pre>
  */
 @Experimental(Kind.SCHEMAS)
 public abstract class Row implements Serializable {
@@ -72,6 +105,7 @@ public abstract class Row implements Serializable {
 
   /** Return the size of data fields. */
   public abstract int getFieldCount();
+
   /** Return the list of data values. */
   public abstract List<Object> getValues();
 
@@ -585,36 +619,150 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Creates a record builder with specified {@link #getSchema()}. {@link Builder#build()} will
-   * throw an {@link IllegalArgumentException} if number of fields in {@link #getSchema()} does not
-   * match the number of fields specified.
+   * Creates a row builder with specified {@link #getSchema()}. {@link Builder#build()} will throw
+   * an {@link IllegalArgumentException} if number of fields in {@link #getSchema()} does not match
+   * the number of fields specified. If any of the arguments don't match the expected types for the
+   * schema fields, {@link Builder#build()} will throw a {@link ClassCastException}.
    */
   public static Builder withSchema(Schema schema) {
     return new Builder(schema);
   }
 
-  /** Builder for {@link Row}. */
-  public static class Builder {
-    private List<Object> values = Lists.newArrayList();
-    private boolean attached = false;
-    @Nullable private Factory<List<FieldValueGetter>> fieldValueGetterFactory;
-    @Nullable private Object getterTarget;
-    private Schema schema;
+  /**
+   * Creates a row builder based on the specified row. Field values in the new row can be explicitly
+   * set using {@link FieldValueBuilder#withFieldValue}. Any values not so overridden will be the
+   * same as the values in the original row.
+   */
+  public static FieldValueBuilder fromRow(Row row) {
+    return new FieldValueBuilder(row.getSchema(), row, false);
+  }
 
-    Builder(Schema schema) {
+  /** Builder for {@link Row} that bases a row on another row. */
+  public static class FieldValueBuilder {
+    private final Schema schema;
+    private final @Nullable Row sourceRow;
+    private final Map<FieldAccessDescriptor, FieldOverride> fieldValues = Maps.newHashMap();
+    private final boolean onlyOverrides;
+
+    private FieldValueBuilder(Schema schema, @Nullable Row sourceRow, boolean onlyOverrides) {
       this.schema = schema;
-    }
-
-    public int nextFieldId() {
-      if (fieldValueGetterFactory != null) {
-        throw new RuntimeException("Not supported");
-      }
-      return values.size();
+      this.sourceRow = sourceRow;
+      this.onlyOverrides = onlyOverrides;
     }
 
     public Schema getSchema() {
       return schema;
     }
+
+    /**
+     * Set a field value using the field name. Nested values can be set using the field selection
+     * syntax.
+     */
+    public FieldValueBuilder withFieldValue(String fieldName, Object value) {
+      return withFieldValue(FieldAccessDescriptor.withFieldNames(fieldName), value);
+    }
+
+    /** Set a field value using the field id. */
+    public FieldValueBuilder withFieldValue(Integer fieldId, Object value) {
+      return withFieldValue(FieldAccessDescriptor.withFieldIds(fieldId), value);
+    }
+
+    /** Set a field value using a FieldAccessDescriptor. */
+    public FieldValueBuilder withFieldValue(
+        FieldAccessDescriptor fieldAccessDescriptor, Object value) {
+      FieldAccessDescriptor fieldAccess = fieldAccessDescriptor.resolve(getSchema());
+      checkArgument(fieldAccess.referencesSingleField(), "");
+      fieldValues.put(fieldAccess, new FieldOverride(value));
+      return this;
+    }
+
+    /**
+     * Sets field values using the field names. Nested values can be set using the field selection
+     * syntax.
+     */
+    public FieldValueBuilder withFieldValues(Map<String, Object> values) {
+      fieldValues.putAll(
+          values.entrySet().stream()
+              .collect(
+                  Collectors.toMap(
+                      e -> FieldAccessDescriptor.withFieldNames(e.getKey()),
+                      e -> new FieldOverride(e.getValue()))));
+      return this;
+    }
+
+    /**
+     * Sets field values using the FieldAccessDescriptors. Nested values can be set using the field
+     * selection syntax.
+     */
+    public FieldValueBuilder withFieldAccessDescriptors(Map<FieldAccessDescriptor, Object> values) {
+      fieldValues.putAll(
+          values.entrySet().stream()
+              .collect(Collectors.toMap(e -> e.getKey(), e -> new FieldOverride(e.getValue()))));
+      return this;
+    }
+
+    public Row build() {
+      Row row =
+          (Row)
+              new RowFieldMatcher()
+                  .match(
+                      new CapturingRowCases(getSchema(), this.fieldValues, onlyOverrides),
+                      FieldType.row(getSchema()),
+                      FieldAccessDescriptor.create(),
+                      sourceRow);
+      return row;
+    }
+  }
+
+  /** Builder for {@link Row}. */
+  public static class Builder {
+    private List<Object> values = Lists.newArrayList();
+    private final Schema schema;
+
+    Builder(Schema schema) {
+      this.schema = schema;
+    }
+
+    /** Return the schema for the row being built. */
+    public Schema getSchema() {
+      return schema;
+    }
+
+    /**
+     * Set a field value using the field name. Nested values can be set using the field selection
+     * syntax.
+     */
+    public FieldValueBuilder withFieldValue(String fieldName, Object value) {
+      checkState(values.isEmpty());
+      return new FieldValueBuilder(schema, null, true).withFieldValue(fieldName, value);
+    }
+
+    /** Set a field value using the field id. */
+    public FieldValueBuilder withFieldValue(Integer fieldId, Object value) {
+      checkState(values.isEmpty());
+      return new FieldValueBuilder(schema, null, true).withFieldValue(fieldId, value);
+    }
+
+    /** Set a field value using a FieldAccessDescriptor. */
+    public FieldValueBuilder withFieldValue(
+        FieldAccessDescriptor fieldAccessDescriptor, Object value) {
+      checkState(values.isEmpty());
+      return new FieldValueBuilder(schema, null, true).withFieldValue(fieldAccessDescriptor, value);
+    }
+    /**
+     * Sets field values using the field names. Nested values can be set using the field selection
+     * syntax.
+     */
+    public FieldValueBuilder withFieldValues(Map<String, Object> values) {
+      checkState(values.isEmpty());
+      return new FieldValueBuilder(schema, null, true).withFieldValues(values);
+    }
+
+    // The following methods allow appending a list of values to the Builder object. The values must
+    // be in the same
+    // order as the fields in the row. These methods cannot be used in conjunction with
+    // withFieldValue or
+    // withFieldValues.
 
     public Builder addValue(@Nullable Object values) {
       this.values.add(values);
@@ -645,40 +793,63 @@ public abstract class Row implements Serializable {
       return this;
     }
 
-    // Values are attached. No verification is done, and no conversions are done. LogicalType
-    // values must be specified as the base type.
-    public Builder attachValues(List<Object> values) {
-      this.attached = true;
-      this.values = values;
-      return this;
+    // Values are attached. No verification is done, and no conversions are done. LogicalType values
+    // must be specified as the base type. This method should be used with great care, as no
+    // validation is done. If
+    // incorrect values are passed in, it could result in strange errors later in the pipeline. This
+    // method is largely
+    // used internal to Beam.
+    @Internal
+    public Row attachValues(List<Object> attachedValues) {
+      checkState(this.values.isEmpty());
+      return new RowWithStorage(schema, attachedValues);
     }
 
-    public Builder attachValues(Object... values) {
-      return attachValues(Arrays.asList(values));
+    public int nextFieldId() {
+      return values.size();
     }
 
-    public Builder withFieldValueGetters(
+    @Internal
+    public Row withFieldValueGetters(
         Factory<List<FieldValueGetter>> fieldValueGetterFactory, Object getterTarget) {
-      this.fieldValueGetterFactory = fieldValueGetterFactory;
-      this.getterTarget = getterTarget;
-      return this;
+      checkState(getterTarget != null, "getters require withGetterTarget.");
+      return new RowWithGetters(schema, fieldValueGetterFactory, getterTarget);
     }
 
     public Row build() {
       checkNotNull(schema);
-      if (!this.values.isEmpty() && fieldValueGetterFactory != null) {
-        throw new IllegalArgumentException("Cannot specify both values and getters.");
+
+      if (!values.isEmpty() && values.size() != schema.getFieldCount()) {
+        throw new IllegalArgumentException(
+            "Row expected "
+                + schema.getFieldCount()
+                + " fields. initialized with "
+                + values.size()
+                + " fields.");
       }
-      if (!this.values.isEmpty()) {
-        List<Object> storageValues = attached ? this.values : verifyRowValues(schema, this.values);
-        checkState(getterTarget == null, "withGetterTarget requires getters.");
-        return new RowWithStorage(schema, storageValues);
-      } else if (fieldValueGetterFactory != null) {
-        checkState(getterTarget != null, "getters require withGetterTarget.");
-        return new RowWithGetters(schema, fieldValueGetterFactory, getterTarget);
+
+      Map<FieldAccessDescriptor, FieldOverride> fieldValues =
+          Maps.newHashMapWithExpectedSize(this.values.size());
+      for (int i = 0; i < this.values.size(); ++i) {
+        FieldAccessDescriptor fieldAccessDescriptor =
+            FieldAccessDescriptor.withFieldIds(i).resolve(schema);
+        fieldValues.putIfAbsent(fieldAccessDescriptor, new FieldOverride(this.values.get(i)));
+      }
+
+      Row row;
+      if (!fieldValues.isEmpty()) {
+        row =
+            (Row)
+                new RowFieldMatcher()
+                    .match(
+                        new CapturingRowCases(schema, fieldValues, true),
+                        FieldType.row(schema),
+                        FieldAccessDescriptor.create(),
+                        null);
       } else {
-        return new RowWithStorage(schema, Collections.emptyList());
+        row = new RowWithStorage(schema, Collections.emptyList());
       }
+      return row;
     }
   }
 
@@ -699,5 +870,459 @@ public abstract class Row implements Serializable {
     return Row.withSchema(schema)
         .addValues(Collections.nCopies(schema.getFieldCount(), null))
         .build();
+  }
+
+  // Subclasses of this interface implement process methods for each schema type. Each process
+  // method is invoked as
+  // a RowFieldMatcher walks down the schema tree. The FieldAccessDescriptor passed into each method
+  // identifies the
+  // current element of the schema being processed.
+  private interface RowCases {
+    Row processRow(
+        FieldAccessDescriptor fieldAccessDescriptor,
+        Schema schema,
+        Row value,
+        RowFieldMatcher matcher);
+
+    Collection<Object> processArray(
+        FieldAccessDescriptor fieldAccessDescriptor,
+        FieldType collectionElementType,
+        Collection<Object> values,
+        RowFieldMatcher matcher);
+
+    Iterable<Object> processIterable(
+        FieldAccessDescriptor fieldAccessDescriptor,
+        FieldType collectionElementType,
+        Iterable<Object> values,
+        RowFieldMatcher matcher);
+
+    Map<Object, Object> processMap(
+        FieldAccessDescriptor fieldAccessDescriptor,
+        FieldType keyType,
+        FieldType valueType,
+        Map<Object, Object> valueMap,
+        RowFieldMatcher matcher);
+
+    Object processLogicalType(
+        FieldAccessDescriptor fieldAccessDescriptor,
+        LogicalType logicalType,
+        Object baseType,
+        RowFieldMatcher matcher);
+
+    Instant processDateTime(
+        FieldAccessDescriptor fieldAccessDescriptor,
+        AbstractInstant instant,
+        RowFieldMatcher matcher);
+
+    Byte processByte(
+        FieldAccessDescriptor fieldAccessDescriptor, Byte value, RowFieldMatcher matcher);
+
+    Short processInt16(
+        FieldAccessDescriptor fieldAccessDescriptor, Short value, RowFieldMatcher matcher);
+
+    Integer processInt32(
+        FieldAccessDescriptor fieldAccessDescriptor, Integer value, RowFieldMatcher matcher);
+
+    Long processInt64(
+        FieldAccessDescriptor fieldAccessDescriptor, Long value, RowFieldMatcher matcher);
+
+    BigDecimal processDecimal(
+        FieldAccessDescriptor fieldAccessDescriptor, BigDecimal value, RowFieldMatcher matcher);
+
+    Float processFloat(
+        FieldAccessDescriptor fieldAccessDescriptor, Float value, RowFieldMatcher matcher);
+
+    Double processDouble(
+        FieldAccessDescriptor fieldAccessDescriptor, Double value, RowFieldMatcher matcher);
+
+    String processString(
+        FieldAccessDescriptor fieldAccessDescriptor, String value, RowFieldMatcher matcher);
+
+    Boolean processBoolean(
+        FieldAccessDescriptor fieldAccessDescriptor, Boolean value, RowFieldMatcher matcher);
+
+    byte[] processBytes(
+        FieldAccessDescriptor fieldAccessDescriptor, byte[] value, RowFieldMatcher matcher);
+  }
+
+  // Given a Row field, delegates processing to the correct process method on the RowCases
+  // parameter.
+  private static class RowFieldMatcher {
+    public Object match(
+        RowCases cases,
+        FieldType fieldType,
+        FieldAccessDescriptor fieldAccessDescriptor,
+        Object value) {
+      Object processedValue = null;
+      switch (fieldType.getTypeName()) {
+        case ARRAY:
+          processedValue =
+              cases.processArray(
+                  fieldAccessDescriptor,
+                  fieldType.getCollectionElementType(),
+                  (Collection<Object>) value,
+                  this);
+          break;
+        case ITERABLE:
+          processedValue =
+              cases.processIterable(
+                  fieldAccessDescriptor,
+                  fieldType.getCollectionElementType(),
+                  (Iterable<Object>) value,
+                  this);
+          break;
+        case MAP:
+          processedValue =
+              cases.processMap(
+                  fieldAccessDescriptor,
+                  fieldType.getMapKeyType(),
+                  fieldType.getMapValueType(),
+                  (Map<Object, Object>) value,
+                  this);
+          break;
+        case ROW:
+          processedValue =
+              cases.processRow(fieldAccessDescriptor, fieldType.getRowSchema(), (Row) value, this);
+          break;
+        case LOGICAL_TYPE:
+          LogicalType logicalType = fieldType.getLogicalType();
+          processedValue =
+              cases.processLogicalType(fieldAccessDescriptor, logicalType, value, this);
+          break;
+        case DATETIME:
+          processedValue =
+              cases.processDateTime(fieldAccessDescriptor, (AbstractInstant) value, this);
+          break;
+        case BYTE:
+          processedValue = cases.processByte(fieldAccessDescriptor, (Byte) value, this);
+          break;
+        case BYTES:
+          processedValue = cases.processBytes(fieldAccessDescriptor, (byte[]) value, this);
+          break;
+        case INT16:
+          processedValue = cases.processInt16(fieldAccessDescriptor, (Short) value, this);
+          break;
+        case INT32:
+          processedValue = cases.processInt32(fieldAccessDescriptor, (Integer) value, this);
+          break;
+        case INT64:
+          processedValue = cases.processInt64(fieldAccessDescriptor, (Long) value, this);
+          break;
+        case DECIMAL:
+          processedValue = cases.processDecimal(fieldAccessDescriptor, (BigDecimal) value, this);
+          break;
+        case FLOAT:
+          processedValue = cases.processFloat(fieldAccessDescriptor, (Float) value, this);
+          break;
+        case DOUBLE:
+          processedValue = cases.processDouble(fieldAccessDescriptor, (Double) value, this);
+          break;
+        case STRING:
+          processedValue = cases.processString(fieldAccessDescriptor, (String) value, this);
+          break;
+        case BOOLEAN:
+          processedValue = cases.processBoolean(fieldAccessDescriptor, (Boolean) value, this);
+          break;
+        default:
+          // Shouldn't actually get here, but we need this case to satisfy linters.
+          throw new IllegalArgumentException(
+              String.format(
+                  "Not a primitive type for field name %s: %s", fieldAccessDescriptor, fieldType));
+      }
+      if (processedValue == null) {
+        if (!fieldType.getNullable()) {
+          throw new IllegalArgumentException(
+              String.format("%s is not nullable in  field %s", fieldType, fieldAccessDescriptor));
+        }
+      }
+      return processedValue;
+    }
+  }
+
+  static class FieldOverride {
+    FieldOverride(Object overrideValue) {
+      this.overrideValue = Optional.ofNullable(overrideValue);
+      alreadyUsed = false;
+    }
+
+    void setAlreadyUsed() {
+      this.alreadyUsed = true;
+    }
+
+    boolean getAlreadyUsed() {
+      return alreadyUsed;
+    }
+
+    <T> Optional<T> getOverrideValue() {
+      return (Optional<T>) overrideValue;
+    }
+
+    final Optional<Object> overrideValue;
+    boolean alreadyUsed;
+  }
+  // This implementation of RowCases captures a Row into a new Row. It also has the effect of
+  // validating all the
+  // field parameters.
+  // A Map of field values can also be passed in, and those field values will be used to override
+  // the values in the
+  // passed-in row.
+  private static class CapturingRowCases implements RowCases {
+    private final Schema topSchema;
+    private final Map<FieldAccessDescriptor, FieldOverride> fieldValueOverrides;
+    private final boolean onlyOverrides;
+
+    private CapturingRowCases(
+        Schema topSchema,
+        Map<FieldAccessDescriptor, FieldOverride> fieldValueOverrides,
+        boolean onlyOverrides) {
+      this.topSchema = topSchema;
+      this.fieldValueOverrides = fieldValueOverrides;
+      this.onlyOverrides = onlyOverrides;
+    }
+
+    private @Nullable FieldOverride override(FieldAccessDescriptor fieldAccessDescriptor) {
+      return fieldValueOverrides.get(fieldAccessDescriptor);
+    }
+
+    private <T> Optional<T> overrideOrReturn(FieldAccessDescriptor fieldAccessDescriptor, T value) {
+      FieldOverride fieldOverride = override(fieldAccessDescriptor);
+      // null return means the item isn't in the map.
+      if (fieldOverride == null) {
+        //  return onlyOverrides ? null : Optional.of(value);
+        return Optional.ofNullable(value);
+      } else {
+        return fieldOverride.getOverrideValue();
+      }
+    }
+
+    @Override
+    public Row processRow(
+        FieldAccessDescriptor fieldAccessDescriptor,
+        Schema schema,
+        Row value,
+        RowFieldMatcher matcher) {
+      Optional<Row> retValue = Optional.empty();
+      FieldOverride override = override(fieldAccessDescriptor);
+      if (override == null) {
+        // Not in map.
+        if (value != null || onlyOverrides) {
+          List<Object> values = Lists.newArrayListWithCapacity(schema.getFieldCount());
+          for (int i = 0; i < schema.getFieldCount(); ++i) {
+            FieldAccessDescriptor nestedDescriptor =
+                FieldAccessDescriptor.withFieldIds(fieldAccessDescriptor, i).resolve(topSchema);
+            Object fieldValue = onlyOverrides ? null : value.getValue(i);
+            values.add(
+                matcher.match(this, schema.getField(i).getType(), nestedDescriptor, fieldValue));
+          }
+          retValue = Optional.of(new RowWithStorage(schema, values));
+        }
+      } else {
+        retValue = override.getOverrideValue();
+      }
+      return retValue.orElse(null);
+    }
+
+    @Override
+    public Collection<Object> processArray(
+        FieldAccessDescriptor fieldAccessDescriptor,
+        FieldType collectionElementType,
+        Collection<Object> values,
+        RowFieldMatcher matcher) {
+      Optional<Collection<Object>> retValue = Optional.empty();
+      FieldOverride override = override(fieldAccessDescriptor);
+      if (override == null) {
+        // Not in map of overrides.
+        if (onlyOverrides) {
+          retValue = Optional.of(Collections.emptyList());
+        } else if (values != null) {
+          retValue = Optional.of(captureIterable(fieldAccessDescriptor, collectionElementType, values, true, matcher));
+        }
+      } else {
+        retValue = override.getOverrideValue()
+                .map(o -> captureIterable(fieldAccessDescriptor, collectionElementType, (Iterable<Object>)o, false, matcher));
+      }
+      return retValue.orElse(null);
+    }
+
+    private Collection<Object> captureIterable(FieldAccessDescriptor fieldAccessDescriptor,
+                                               FieldType collectionElementType, Iterable<Object> values,
+                                               boolean recurseNestedRows,
+                                               RowFieldMatcher matcher) {
+      List<Object> captured = Lists.newArrayListWithCapacity(Iterables.size(values));
+      for (Object listValue : values) {
+        boolean recurse = !collectionElementType.getTypeName().isCompositeType() || recurseNestedRows;
+        Object capturedElement =  recurse ?
+                matcher.match(this, collectionElementType, fieldAccessDescriptor, listValue)
+                : listValue;
+        captured.add(capturedElement);
+      }
+      return captured;
+    }
+
+    @Override
+    public Iterable<Object> processIterable(
+        FieldAccessDescriptor fieldAccessDescriptor,
+        FieldType collectionElementType,
+        Iterable<Object> values,
+        RowFieldMatcher matcher) {
+      Optional<Iterable<Object>> retValue = Optional.empty();
+      FieldOverride override = override(fieldAccessDescriptor);
+      if (override == null) {
+        if (onlyOverrides) {
+          retValue = Optional.of(Collections.emptyList());
+        } else if (values != null) {
+          List<Object> capturedValues = Lists.newArrayListWithCapacity(Iterables.size(values));
+          for (Object listValue : values) {
+            Object capturedElement =
+                matcher.match(this, collectionElementType, fieldAccessDescriptor, listValue);
+            capturedValues.add(capturedElement);
+          }
+          retValue = Optional.of(captureIterable(fieldAccessDescriptor, collectionElementType,
+                  values, true, matcher));
+        }
+      } else {
+        retValue = override.getOverrideValue()
+                .map(o -> captureIterable(fieldAccessDescriptor, collectionElementType, (Iterable<Object>) o, false, matcher));
+
+      }
+      return retValue.orElse(null);
+    }
+
+    @Override
+    public Map<Object, Object> processMap(
+        FieldAccessDescriptor fieldAccessDescriptor,
+        FieldType keyType,
+        FieldType valueType,
+        Map<Object, Object> valueMap,
+        RowFieldMatcher matcher) {
+      Optional<Map<Object, Object>> retValue = Optional.empty();
+      FieldOverride override = override(fieldAccessDescriptor);
+      if (override == null) {
+        if (onlyOverrides) {
+          retValue = Optional.of(Collections.emptyMap());
+        } else if (valueMap != null) {
+          retValue = Optional.of(Maps.newHashMapWithExpectedSize(valueMap.size()));
+          for (Entry<Object, Object> kv : valueMap.entrySet()) {
+            retValue
+                .get()
+                .put(
+                    matcher.match(this, keyType, fieldAccessDescriptor, kv.getKey()),
+                    matcher.match(this, valueType, fieldAccessDescriptor, kv.getValue()));
+          }
+        }
+      } else {
+        retValue = override.getOverrideValue();
+      }
+      return retValue.orElse(null);
+    }
+
+    @Override
+    public Object processLogicalType(
+        FieldAccessDescriptor fieldAccessDescriptor,
+        LogicalType logicalType,
+        Object value,
+        RowFieldMatcher matcher) {
+      Optional<Object> retValue = Optional.empty();
+      FieldOverride override = override(fieldAccessDescriptor);
+      if (override == null) {
+        if (onlyOverrides || value != null) {
+          // If not an override, then this is coming from an already-built row, so no need to
+          // convert to base type.
+          retValue =
+              Optional.of(
+                  matcher.match(this, logicalType.getBaseType(), fieldAccessDescriptor, value));
+        }
+      } else {
+        // This is the override case. We assume the override is given as the logical type, not the
+        // base type.
+        retValue =
+            override
+                .getOverrideValue()
+                .map(
+                    o ->
+                        !logicalType.getBaseType().getTypeName().isCompositeType()
+                            ? matcher.match(
+                                this,
+                                logicalType.getBaseType(),
+                                fieldAccessDescriptor,
+                                logicalType.toBaseType(o))
+                            : logicalType.toBaseType(o));
+      }
+      return retValue.orElse(null);
+    }
+
+    @Override
+    public Instant processDateTime(
+        FieldAccessDescriptor fieldAccessDescriptor,
+        AbstractInstant value,
+        RowFieldMatcher matcher) {
+      Optional<AbstractInstant> retValue = Optional.empty();
+      if (onlyOverrides || value != null) {
+        Instant instantValue = (value != null) ? value.toInstant() : null;
+        retValue = overrideOrReturn(fieldAccessDescriptor, instantValue);
+      }
+      return retValue.map(AbstractInstant::toInstant).orElse(null);
+    }
+
+    @Override
+    public Byte processByte(
+        FieldAccessDescriptor fieldAccessDescriptor, Byte value, RowFieldMatcher matcher) {
+      return overrideOrReturn(fieldAccessDescriptor, value).orElse(null);
+    }
+
+    @Override
+    public Short processInt16(
+        FieldAccessDescriptor fieldAccessDescriptor, Short value, RowFieldMatcher matcher) {
+      return overrideOrReturn(fieldAccessDescriptor, value).orElse(null);
+    }
+
+    @Override
+    public Integer processInt32(
+        FieldAccessDescriptor fieldAccessDescriptor, Integer value, RowFieldMatcher matcher) {
+      return overrideOrReturn(fieldAccessDescriptor, value).orElse(null);
+    }
+
+    @Override
+    public Long processInt64(
+        FieldAccessDescriptor fieldAccessDescriptor, Long value, RowFieldMatcher matcher) {
+      return overrideOrReturn(fieldAccessDescriptor, value).orElse(null);
+    }
+
+    @Override
+    public BigDecimal processDecimal(
+        FieldAccessDescriptor fieldAccessDescriptor, BigDecimal value, RowFieldMatcher matcher) {
+      return overrideOrReturn(fieldAccessDescriptor, value).orElse(null);
+    }
+
+    @Override
+    public Float processFloat(
+        FieldAccessDescriptor fieldAccessDescriptor, Float value, RowFieldMatcher matcher) {
+      return overrideOrReturn(fieldAccessDescriptor, value).orElse(null);
+    }
+
+    @Override
+    public Double processDouble(
+        FieldAccessDescriptor fieldAccessDescriptor, Double value, RowFieldMatcher matcher) {
+      return overrideOrReturn(fieldAccessDescriptor, value).orElse(null);
+    }
+
+    @Override
+    public String processString(
+        FieldAccessDescriptor fieldAccessDescriptor, String value, RowFieldMatcher matcher) {
+      return overrideOrReturn(fieldAccessDescriptor, value).orElse(null);
+    }
+
+    @Override
+    public Boolean processBoolean(
+        FieldAccessDescriptor fieldAccessDescriptor, Boolean value, RowFieldMatcher matcher) {
+      return overrideOrReturn(fieldAccessDescriptor, value).orElse(null);
+    }
+
+    @Override
+    public byte[] processBytes(
+        FieldAccessDescriptor fieldAccessDescriptor, byte[] value, RowFieldMatcher matcher) {
+      Object retValue = overrideOrReturn(fieldAccessDescriptor, value).orElse(null);
+      return (retValue instanceof ByteBuffer) ? ((ByteBuffer) retValue).array() : (byte[]) retValue;
+    }
   }
 }
