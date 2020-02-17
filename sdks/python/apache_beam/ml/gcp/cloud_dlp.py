@@ -144,7 +144,7 @@ class InspectForDetails(PTransform):
       inspection_config=None,
       timeout=None):
     """Initializes a :class:`InspectForDetails` transform.
-    
+
     Args:
       project: Optional. GCP project name in which inspection will be performed
       inspection_template_name (str): This or `inspection_config` required.
