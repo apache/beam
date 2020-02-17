@@ -62,10 +62,14 @@ def commonConfig = { dataflowWorkerJar, workerHarnessContainerImage = '', additi
      }
  }
 
+task runLegacyWorkerPreCommitTest(type: Test) {
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+    with commonConfig(dataflowWorkerJar)
+}
+
 task preCommitLegacyWorker(type: Test) {
-  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
-  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
-  with commonConfig(dataflowWorkerJar)
+    dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+    dependsOn runLegacyWorkerPreCommitTest
 }
 
 task verifyFnApiWorker(type: Test) {

@@ -35,8 +35,7 @@ dependencies {
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 
-task windmillPreCommit(type: Test) {
-  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+task runWindmillTest(type: Test) {
   def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
 
   // Set workerHarnessContainerImage to empty to make Dataflow pick up the non-versioned container
@@ -57,8 +56,12 @@ task windmillPreCommit(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
 }
 
-task appliancePreCommit(type: Test) {
+task windmillPreCommit(type: Test) {
   dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+  dependsOn runWindmillTest
+}
+
+task runApplianceTest(type: Test) {
   def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
 
   // Set workerHarnessContainerImage to empty to make Dataflow pick up the non-versioned container
@@ -81,8 +84,12 @@ task appliancePreCommit(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
 }
 
+task appliancePreCommit(type: Test) {
+  dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+  dependsOn runApplianceTest
+}
+
 task preCommit(type: Test) {
   dependsOn appliancePreCommit
   dependsOn windmillPreCommit
 }
-
