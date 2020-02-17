@@ -157,6 +157,11 @@ task javaPreCommitPortabilityApi() {
   dependsOn ":runners:google-cloud-dataflow-java:examples:verifyPortabilityApi"
 }
 
+task javaPreCommitPortabilityApiJava11() {
+  dependsOn ":runners:google-cloud-dataflow-java:worker:build"
+  dependsOn ":runners:google-cloud-dataflow-java:examples:verifyPortabilityApiJava11"
+}
+
 task javaPostCommit() {
   dependsOn ":runners:google-cloud-dataflow-java:postCommit"
   dependsOn ":sdks:java:extensions:google-cloud-platform-core:postCommit"

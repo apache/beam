@@ -97,6 +97,42 @@ task verifyPortabilityApi() {
   dependsOn verifyFnApiWorker
 }
 
+def passedDockerImageName = project.findProperty('passedDockerImageName')
+def java8Home = project.findProperty('java8Home')
+def java11Home = project.findProperty('java11Home')
+
+task runFnApiTest(type: Test) {
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+    with commonConfig(dataflowWorkerJar, passedDockerImageName, ["--experiments=${fnapiExperiments}"])
+    useJUnit {
+        excludeCategories 'org.apache.beam.sdk.testing.StreamingIT'
+    }
+}
+
+task verifyFnApiWorkerJava11(type: Test) {
+    dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+    dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerContainer"
+    doLast {
+        exec {
+            workingDir "${rootProject.projectDir}"
+            commandLine "./gradlew", "${project.path}:runFnApiTest", "-Pjava8Home=${java8Home}", "-PcompileWithJava8", "-PpassedDockerImageName=${dockerImageName}", "-x shadowJar", "-x shadowTestJar", "-x jar", "-x testJar", "-x classes", "-x testClasses", "-PdisableSpotlessCheck=true", "-Dorg.gradle.java.home=${java11Home}"
+        }
+    }
+}
+
+if (project.hasProperty('compileWithJava8')) {
+    tasks.withType(AbstractCompile) {
+        options.with {
+            fork = true
+            forkOptions.javaHome = java8Home
+        }
+    }
+}
+
+task verifyPortabilityApiJava11() {
+    dependsOn verifyFnApiWorkerJava11
+}
+
 afterEvaluate {
   // Ensure all tasks which use published docker images run before they are cleaned up
   tasks.each { t ->
