@@ -42,10 +42,8 @@ task run(type: Exec, dependsOn: installGcpTest) {
         loadTestArgs +=" --sdk_location=${files(configurations.distTarBall.files).singleFile}"
     }
 
-    environment "LOAD_TEST_ENABLED", 'true'
     setWorkingDir "${project.rootDir}/sdks/python"
-
-    commandLine 'sh', '-c', "${project.ext.envdir}/bin/python setup.py nosetests --test-pipeline-options=\"${parseOptions(loadTestArgs)}\" --tests ${mainClass} --ignore-files \'.*py3\\d?\\.py\$\'"
+    commandLine 'sh', '-c', "${project.ext.envdir}/bin/python -m ${mainClass} --test-pipeline-options=\"${parseOptions(loadTestArgs)}\" --ignore-files \'.*py3\\d?\\.py\$\'"
     ignoreExitValue true
 
     doLast {

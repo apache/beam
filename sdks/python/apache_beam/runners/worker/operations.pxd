@@ -17,6 +17,7 @@
 
 cimport cython
 
+from apache_beam.runners.common cimport DoFnRunner
 from apache_beam.runners.common cimport Receiver
 from apache_beam.runners.worker cimport opcounters
 from apache_beam.utils.windowed_value cimport WindowedValue
@@ -88,8 +89,7 @@ cdef class ImpulseReadOperation(Operation):
 
 
 cdef class DoOperation(Operation):
-  cdef object dofn_runner
-  cdef Receiver dofn_receiver
+  cdef DoFnRunner dofn_runner
   cdef object tagged_receivers
   cdef object side_input_maps
   cdef object user_state_context

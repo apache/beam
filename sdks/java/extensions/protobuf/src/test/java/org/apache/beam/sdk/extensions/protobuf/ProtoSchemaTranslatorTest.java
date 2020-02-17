@@ -34,6 +34,20 @@ public class ProtoSchemaTranslatorTest {
   }
 
   @Test
+  public void testOptionalPrimitiveSchema() {
+    assertEquals(
+        TestProtoSchemas.OPTIONAL_PRIMITIVE_SCHEMA,
+        ProtoSchemaTranslator.getSchema(Proto2SchemaMessages.OptionalPrimitive.class));
+  }
+
+  @Test
+  public void testRequiredPrimitiveSchema() {
+    assertEquals(
+        TestProtoSchemas.REQUIRED_PRIMITIVE_SCHEMA,
+        ProtoSchemaTranslator.getSchema(Proto2SchemaMessages.RequiredPrimitive.class));
+  }
+
+  @Test
   public void testRepeatedSchema() {
     assertEquals(
         TestProtoSchemas.REPEATED_SCHEMA,
@@ -73,5 +87,19 @@ public class ProtoSchemaTranslatorTest {
     assertEquals(
         TestProtoSchemas.WKT_MESSAGE_SCHEMA,
         ProtoSchemaTranslator.getSchema(Proto3SchemaMessages.WktMessage.class));
+  }
+
+  @Test
+  public void testOptionalNestedSchema() {
+    assertEquals(
+        TestProtoSchemas.OPTIONAL_NESTED_SCHEMA,
+        ProtoSchemaTranslator.getSchema(Proto2SchemaMessages.OptionalNested.class));
+  }
+
+  @Test
+  public void testRequiredNestedSchema() {
+    assertEquals(
+        TestProtoSchemas.REQUIRED_NESTED_SCHEMA,
+        ProtoSchemaTranslator.getSchema(Proto2SchemaMessages.RequiredNested.class));
   }
 }

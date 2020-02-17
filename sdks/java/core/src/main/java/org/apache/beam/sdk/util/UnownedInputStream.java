@@ -21,12 +21,14 @@ import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /**
  * A {@link OutputStream} wrapper which protects against the user attempting to modify the
  * underlying stream by closing it or using mark.
  */
+@Internal
 public class UnownedInputStream extends FilterInputStream {
   public UnownedInputStream(InputStream delegate) {
     super(delegate);

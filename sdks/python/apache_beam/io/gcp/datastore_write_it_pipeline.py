@@ -58,7 +58,6 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 # pylint: enable=ungrouped-imports
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -74,7 +73,6 @@ def new_pipeline_with_job_name(pipeline_options, job_name, suffix):
 
 class EntityWrapper(object):
   """Create a Cloud Datastore entity from the given string."""
-
   def __init__(self, kind, namespace, ancestor):
     self._kind = kind
     self._namespace = namespace
@@ -87,8 +85,12 @@ class EntityWrapper(object):
       entity.key.partition_id.namespace_id = self._namespace
 
     # All entities created will have the same ancestor
-    datastore_helper.add_key_path(entity.key, self._kind, self._ancestor,
-                                  self._kind, hashlib.sha1(content).hexdigest())
+    datastore_helper.add_key_path(
+        entity.key,
+        self._kind,
+        self._ancestor,
+        self._kind,
+        hashlib.sha1(content).hexdigest())
 
     datastore_helper.add_properties(entity, {'content': str(content)})
     return entity
@@ -115,19 +117,19 @@ def run(argv=None):
 
   parser = argparse.ArgumentParser()
 
-  parser.add_argument('--kind',
-                      dest='kind',
-                      default='writereadtest',
-                      help='Datastore Kind')
-  parser.add_argument('--num_entities',
-                      dest='num_entities',
-                      type=int,
-                      required=True,
-                      help='Number of entities to write')
-  parser.add_argument('--limit',
-                      dest='limit',
-                      type=int,
-                      help='Limit of number of entities to write')
+  parser.add_argument(
+      '--kind', dest='kind', default='writereadtest', help='Datastore Kind')
+  parser.add_argument(
+      '--num_entities',
+      dest='num_entities',
+      type=int,
+      required=True,
+      help='Number of entities to write')
+  parser.add_argument(
+      '--limit',
+      dest='limit',
+      type=int,
+      help='Limit of number of entities to write')
 
   known_args, pipeline_args = parser.parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
@@ -146,25 +148,28 @@ def run(argv=None):
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-write')
 
   # pylint: disable=expression-not-assigned
-  (p
-   | 'Input' >> beam.Create(list(range(known_args.num_entities)))
-   | 'To String' >> beam.Map(str)
-   | 'To Entity' >> beam.Map(EntityWrapper(kind, None, ancestor).make_entity)
-   | 'Write to Datastore' >> WriteToDatastore(project))
+  (
+      p
+      | 'Input' >> beam.Create(list(range(known_args.num_entities)))
+      | 'To String' >> beam.Map(str)
+      |
+      'To Entity' >> beam.Map(EntityWrapper(kind, None, ancestor).make_entity)
+      | 'Write to Datastore' >> WriteToDatastore(project))
 
   p.run()
 
   # Optional Pipeline 2: If a read limit was provided, read it and confirm
   # that the expected entities were read.
   if known_args.limit is not None:
-    _LOGGER.info('Querying a limited set of %s entities and verifying count.',
-                 known_args.limit)
+    _LOGGER.info(
+        'Querying a limited set of %s entities and verifying count.',
+        known_args.limit)
     p = new_pipeline_with_job_name(pipeline_options, job_name, '-verify-limit')
     query_with_limit = query_pb2.Query()
     query_with_limit.CopyFrom(query)
     query_with_limit.limit.value = known_args.limit
-    entities = p | 'read from datastore' >> ReadFromDatastore(project,
-                                                              query_with_limit)
+    entities = p | 'read from datastore' >> ReadFromDatastore(
+        project, query_with_limit)
     assert_that(
         entities | beam.combiners.Count.Globally(),
         equal_to([known_args.limit]))
@@ -177,8 +182,7 @@ def run(argv=None):
   entities = p | 'read from datastore' >> ReadFromDatastore(project, query)
 
   assert_that(
-      entities | beam.combiners.Count.Globally(),
-      equal_to([num_entities]))
+      entities | beam.combiners.Count.Globally(), equal_to([num_entities]))
 
   p.run()
 
@@ -187,9 +191,10 @@ def run(argv=None):
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-delete')
   entities = p | 'read from datastore' >> ReadFromDatastore(project, query)
   # pylint: disable=expression-not-assigned
-  (entities
-   | 'To Keys' >> beam.Map(lambda entity: entity.key)
-   | 'Delete keys' >> DeleteFromDatastore(project))
+  (
+      entities
+      | 'To Keys' >> beam.Map(lambda entity: entity.key)
+      | 'Delete keys' >> DeleteFromDatastore(project))
 
   p.run()
 
@@ -198,9 +203,7 @@ def run(argv=None):
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-verify-deleted')
   entities = p | 'read from datastore' >> ReadFromDatastore(project, query)
 
-  assert_that(
-      entities | beam.combiners.Count.Globally(),
-      equal_to([0]))
+  assert_that(entities | beam.combiners.Count.Globally(), equal_to([0]))
 
   p.run()
 

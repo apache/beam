@@ -32,6 +32,7 @@ import traceback
 import unittest
 
 import grpc
+import pytest
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import DebugOptions
@@ -55,6 +56,9 @@ from apache_beam.transforms import userstate
 _LOGGER = logging.getLogger(__name__)
 
 
+# Disable timeout since this test implements its own.
+# TODO(BEAM-9011): Consider using pytest-timeout's mechanism instead.
+@pytest.mark.timeout(0)
 class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
   TIMEOUT_SECS = 60
@@ -64,6 +68,7 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
   def setUp(self):
     if platform.system() != 'Windows':
+
       def handler(signum, frame):
         msg = 'Timed out after %s seconds.' % self.TIMEOUT_SECS
         print('=' * 20, msg, '=' * 20)
@@ -75,6 +80,7 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
           print('# Thread:', th or thread_id)
           traceback.print_stack(stack)
         raise BaseException(msg)
+
       signal.signal(signal.SIGALRM, handler)
       signal.alarm(self.TIMEOUT_SECS)
 
@@ -178,9 +184,8 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
       return 'unknown_test'
 
     # Set the job name for better debugging.
-    options = PipelineOptions.from_dictionary({
-        'job_name': get_pipeline_name() + '_' + str(time.time())
-    })
+    options = PipelineOptions.from_dictionary(
+        {'job_name': get_pipeline_name() + '_' + str(time.time())})
     options.view_as(PortableOptions).job_endpoint = self._get_job_endpoint()
     # Override the default environment type for testing.
     options.view_as(PortableOptions).environment_type = (
@@ -219,8 +224,7 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
           yield i
 
     class AddIndex(beam.DoFn):
-      def process(self, kv,
-                  index=beam.DoFn.StateParam(index_state_spec)):
+      def process(self, kv, index=beam.DoFn.StateParam(index_state_spec)):
         k, v = kv
         index.add(1)
         yield k, v, index.read()
@@ -229,18 +233,18 @@ class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
                 for i in range(0, n)]
 
     with self.create_pipeline() as p:
-      assert_that(p
-                  | beam.Impulse()
-                  | beam.ParDo(Input())
-                  | beam.ParDo(AddIndex()),
-                  equal_to(expected))
+      assert_that(
+          p
+          | beam.Impulse()
+          | beam.ParDo(Input())
+          | beam.ParDo(AddIndex()),
+          equal_to(expected))
 
   # Inherits all other tests from fn_api_runner_test.FnApiRunnerTest
 
 
 @unittest.skip("BEAM-7248")
 class PortableRunnerOptimized(PortableRunnerTest):
-
   def create_options(self):
     options = super(PortableRunnerOptimized, self).create_options()
     options.view_as(DebugOptions).add_experiment('pre_optimize=all')
@@ -251,7 +255,6 @@ class PortableRunnerOptimized(PortableRunnerTest):
 
 
 class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
-
   @classmethod
   def setUpClass(cls):
     cls._worker_address, cls._worker_server = (
@@ -290,8 +293,10 @@ class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
   def _subprocess_command(cls, job_port, _):
     return [
         sys.executable,
-        '-m', 'apache_beam.runners.portability.local_job_service_main',
-        '-p', str(job_port),
+        '-m',
+        'apache_beam.runners.portability.local_job_service_main',
+        '-p',
+        str(job_port),
     ]
 
 
@@ -316,50 +321,62 @@ class PortableRunnerInternalTest(unittest.TestCase):
   def test__create_docker_environment(self):
     docker_image = 'py-docker'
     self.assertEqual(
-        PortableRunner._create_environment(PipelineOptions.from_dictionary({
-            'environment_type': 'DOCKER',
-            'environment_config': docker_image,
-        })), environments.DockerEnvironment(container_image=docker_image))
+        PortableRunner._create_environment(
+            PipelineOptions.from_dictionary({
+                'environment_type': 'DOCKER',
+                'environment_config': docker_image,
+            })),
+        environments.DockerEnvironment(container_image=docker_image))
 
   def test__create_process_environment(self):
     self.assertEqual(
-        PortableRunner._create_environment(PipelineOptions.from_dictionary({
-            'environment_type': "PROCESS",
-            'environment_config': '{"os": "linux", "arch": "amd64", '
-                                  '"command": "run.sh", '
-                                  '"env":{"k1": "v1"} }',
-        })), environments.ProcessEnvironment('run.sh', os='linux', arch='amd64',
-                                             env={'k1': 'v1'}))
+        PortableRunner._create_environment(
+            PipelineOptions.from_dictionary({
+                'environment_type': "PROCESS",
+                'environment_config': '{"os": "linux", "arch": "amd64", '
+                '"command": "run.sh", '
+                '"env":{"k1": "v1"} }',
+            })),
+        environments.ProcessEnvironment(
+            'run.sh', os='linux', arch='amd64', env={'k1': 'v1'}))
     self.assertEqual(
-        PortableRunner._create_environment(PipelineOptions.from_dictionary({
-            'environment_type': 'PROCESS',
-            'environment_config': '{"command": "run.sh"}',
-        })), environments.ProcessEnvironment('run.sh'))
+        PortableRunner._create_environment(
+            PipelineOptions.from_dictionary({
+                'environment_type': 'PROCESS',
+                'environment_config': '{"command": "run.sh"}',
+            })),
+        environments.ProcessEnvironment('run.sh'))
 
   def test__create_external_environment(self):
     self.assertEqual(
-        PortableRunner._create_environment(PipelineOptions.from_dictionary({
-            'environment_type': "EXTERNAL",
-            'environment_config': 'localhost:50000',
-        })), environments.ExternalEnvironment('localhost:50000'))
+        PortableRunner._create_environment(
+            PipelineOptions.from_dictionary({
+                'environment_type': "EXTERNAL",
+                'environment_config': 'localhost:50000',
+            })),
+        environments.ExternalEnvironment('localhost:50000'))
     raw_config = ' {"url":"localhost:50000", "params":{"k1":"v1"}} '
     for env_config in (raw_config, raw_config.lstrip(), raw_config.strip()):
       self.assertEqual(
-          PortableRunner._create_environment(PipelineOptions.from_dictionary({
-              'environment_type': "EXTERNAL",
-              'environment_config': env_config,
-          })), environments.ExternalEnvironment('localhost:50000',
-                                                params={"k1":"v1"}))
+          PortableRunner._create_environment(
+              PipelineOptions.from_dictionary({
+                  'environment_type': "EXTERNAL",
+                  'environment_config': env_config,
+              })),
+          environments.ExternalEnvironment(
+              'localhost:50000', params={"k1": "v1"}))
     with self.assertRaises(ValueError):
-      PortableRunner._create_environment(PipelineOptions.from_dictionary({
-          'environment_type': "EXTERNAL",
-          'environment_config': '{invalid}',
-      }))
+      PortableRunner._create_environment(
+          PipelineOptions.from_dictionary({
+              'environment_type': "EXTERNAL",
+              'environment_config': '{invalid}',
+          }))
     with self.assertRaises(ValueError) as ctx:
-      PortableRunner._create_environment(PipelineOptions.from_dictionary({
-          'environment_type': "EXTERNAL",
-          'environment_config': '{"params":{"k1":"v1"}}',
-      }))
+      PortableRunner._create_environment(
+          PipelineOptions.from_dictionary({
+              'environment_type': "EXTERNAL",
+              'environment_config': '{"params":{"k1":"v1"}}',
+          }))
     self.assertIn(
         'External environment endpoint must be set.', ctx.exception.args)
 
@@ -367,15 +384,16 @@ class PortableRunnerInternalTest(unittest.TestCase):
 def hasDockerImage():
   image = environments.DockerEnvironment.default_docker_image()
   try:
-    check_image = subprocess.check_output("docker images -q %s" % image,
-                                          shell=True)
+    check_image = subprocess.check_output(
+        "docker images -q %s" % image, shell=True)
     return check_image != ''
   except Exception:
     return False
 
 
-@unittest.skipIf(not hasDockerImage(), "docker not installed or "
-                                       "no docker image")
+@unittest.skipIf(
+    not hasDockerImage(), "docker not installed or "
+    "no docker image")
 class PortableRunnerTestWithLocalDocker(PortableRunnerTest):
   def create_options(self):
     options = super(PortableRunnerTestWithLocalDocker, self).create_options()

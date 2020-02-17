@@ -29,14 +29,22 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateType;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
 import org.joda.time.Instant;
 
-/** Utility methods for ZetaSQL related operations. */
+/**
+ * Utility methods for ZetaSQL related operations.
+ *
+ * <p>Unsupported ZetaSQL types: INT32, UINT32, UINT64, FLOAT, ENUM, PROTO, GEOGRAPHY
+ * TODO[BEAM-8630]: support ZetaSQL types: DATE, TIME, DATETIME
+ */
 @Internal
 public final class ZetaSqlUtils {
 
@@ -44,8 +52,28 @@ public final class ZetaSqlUtils {
 
   private ZetaSqlUtils() {}
 
-  // Unsupported ZetaSQL types: INT32, UINT32, UINT64, FLOAT, ENUM, PROTO, GEOGRAPHY
-  // TODO[BEAM-8630]: support ZetaSQL types: DATE, TIME, DATETIME
+  public static SqlTypeName zetaSqlTypeToCalciteType(TypeKind zetaSqlType) {
+    switch (zetaSqlType) {
+      case TYPE_INT64:
+        return SqlTypeName.BIGINT;
+      case TYPE_NUMERIC:
+        return SqlTypeName.DECIMAL;
+      case TYPE_DOUBLE:
+        return SqlTypeName.DOUBLE;
+      case TYPE_STRING:
+        return SqlTypeName.VARCHAR;
+      case TYPE_TIMESTAMP:
+        return SqlTypeName.TIMESTAMP;
+      case TYPE_BOOL:
+        return SqlTypeName.BOOLEAN;
+      case TYPE_BYTES:
+        return SqlTypeName.VARBINARY;
+        // TODO[BEAM-9179] Add conversion code for ARRAY and ROW types
+      default:
+        throw new IllegalArgumentException("Unsupported ZetaSQL type: " + zetaSqlType.name());
+    }
+  }
+
   public static Type beamFieldTypeToZetaSqlType(FieldType fieldType) {
     switch (fieldType.getTypeName()) {
       case INT64:
@@ -68,8 +96,18 @@ public final class ZetaSqlUtils {
         return createZetaSqlArrayTypeFromBeamElementFieldType(fieldType.getCollectionElementType());
       case ROW:
         return createZetaSqlStructTypeFromBeamSchema(fieldType.getRowSchema());
+      case LOGICAL_TYPE:
+        switch (fieldType.getLogicalType().getIdentifier()) {
+          case DateType.IDENTIFIER:
+            return TypeFactory.createSimpleType(TypeKind.TYPE_DATE);
+          case TimeType.IDENTIFIER:
+            return TypeFactory.createSimpleType(TypeKind.TYPE_TIME);
+          default:
+            throw new IllegalArgumentException(
+                "Unsupported Beam logical type: " + fieldType.getLogicalType().getIdentifier());
+        }
       default:
-        throw new IllegalArgumentException(
+        throw new UnsupportedOperationException(
             "Unsupported Beam fieldType: " + fieldType.getTypeName());
     }
   }
@@ -79,7 +117,7 @@ public final class ZetaSqlUtils {
     return TypeFactory.createArrayType(beamFieldTypeToZetaSqlType(elementFieldType));
   }
 
-  private static StructType createZetaSqlStructTypeFromBeamSchema(Schema schema) {
+  public static StructType createZetaSqlStructTypeFromBeamSchema(Schema schema) {
     return TypeFactory.createStructType(
         schema.getFields().stream()
             .map(ZetaSqlUtils::beamFieldToZetaSqlStructField)
@@ -116,7 +154,7 @@ public final class ZetaSqlUtils {
       case ROW:
         return beamRowToZetaSqlStructValue((Row) object, fieldType.getRowSchema());
       default:
-        throw new IllegalArgumentException(
+        throw new UnsupportedOperationException(
             "Unsupported Beam fieldType: " + fieldType.getTypeName());
     }
   }
@@ -139,7 +177,7 @@ public final class ZetaSqlUtils {
         createZetaSqlArrayTypeFromBeamElementFieldType(elementType), values);
   }
 
-  private static Value beamRowToZetaSqlStructValue(Row row, Schema schema) {
+  public static Value beamRowToZetaSqlStructValue(Row row, Schema schema) {
     List<Value> values = new ArrayList<>(row.getFieldCount());
 
     for (int i = 0; i < row.getFieldCount(); i++) {
@@ -177,7 +215,7 @@ public final class ZetaSqlUtils {
       case ROW:
         return zetaSqlStructValueToBeamRow(value, fieldType.getRowSchema());
       default:
-        throw new IllegalArgumentException(
+        throw new UnsupportedOperationException(
             "Unsupported Beam fieldType: " + fieldType.getTypeName());
     }
   }

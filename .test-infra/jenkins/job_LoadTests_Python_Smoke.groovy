@@ -24,7 +24,7 @@ def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 def smokeTestConfigurations = { datasetName -> [
         [
                 title          : 'GroupByKey Python load test Direct',
-                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test',
                 runner         : CommonTestProperties.Runner.DIRECT,
                 pipelineOptions: [
                         publish_to_big_query: true,
@@ -39,7 +39,7 @@ def smokeTestConfigurations = { datasetName -> [
         ],
         [
                 title          : 'GroupByKey Python load test Dataflow',
-                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         job_name            : 'load-tests-python-dataflow-batch-gbk-smoke-' + now,

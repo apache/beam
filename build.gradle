@@ -219,6 +219,10 @@ task pythonLintPreCommit() {
   dependsOn ":sdks:python:test-suites:tox:py37:lint"
 }
 
+task pythonFormatterPreCommit() {
+  dependsOn 'sdks:python:test-suites:tox:py37:formatter'
+}
+
 task python2PostCommit() {
   dependsOn ":sdks:python:test-suites:portable:py2:crossLanguageTests"
   dependsOn ":sdks:python:test-suites:dataflow:py2:postCommitIT"

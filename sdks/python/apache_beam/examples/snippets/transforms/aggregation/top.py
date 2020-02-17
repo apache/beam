@@ -29,8 +29,7 @@ def top_largest(test=None):
         pipeline
         | 'Create numbers' >> beam.Create([3, 4, 1, 2])
         | 'Largest N values' >> beam.combiners.Top.Largest(2)
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END top_largest]
     if test:
       test(largest_elements)
@@ -52,8 +51,7 @@ def top_largest_per_key(test=None):
             ('🍅', 3),
         ])
         | 'Largest N values per key' >> beam.combiners.Top.LargestPerKey(2)
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END top_largest_per_key]
     if test:
       test(largest_elements_per_key)
@@ -68,8 +66,7 @@ def top_smallest(test=None):
         pipeline
         | 'Create numbers' >> beam.Create([3, 4, 1, 2])
         | 'Smallest N values' >> beam.combiners.Top.Smallest(2)
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END top_smallest]
     if test:
       test(smallest_elements)
@@ -91,8 +88,7 @@ def top_smallest_per_key(test=None):
             ('🍅', 3),
         ])
         | 'Smallest N values per key' >> beam.combiners.Top.SmallestPerKey(2)
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END top_smallest_per_key]
     if test:
       test(smallest_elements_per_key)

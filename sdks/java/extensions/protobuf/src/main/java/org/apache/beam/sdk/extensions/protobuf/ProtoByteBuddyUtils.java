@@ -46,8 +46,6 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.DurationNanos;
-import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.TimestampNanos;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
@@ -244,7 +242,7 @@ public class ProtoByteBuddyUtils {
         return new Compound(
             readValue,
             MethodInvocation.invoke(
-                new ForLoadedType(TimestampNanos.class)
+                new ForLoadedType(ProtoSchemaLogicalTypes.TimestampConvert.class)
                     .getDeclaredMethods()
                     .filter(ElementMatchers.named("toRow"))
                     .getOnly()));
@@ -252,7 +250,7 @@ public class ProtoByteBuddyUtils {
         return new Compound(
             readValue,
             MethodInvocation.invoke(
-                new ForLoadedType(DurationNanos.class)
+                new ForLoadedType(ProtoSchemaLogicalTypes.DurationConvert.class)
                     .getDeclaredMethods()
                     .filter(ElementMatchers.named("toRow"))
                     .getOnly()));
@@ -324,7 +322,7 @@ public class ProtoByteBuddyUtils {
         return new Compound(
             readValue,
             MethodInvocation.invoke(
-                new ForLoadedType(TimestampNanos.class)
+                new ForLoadedType(ProtoSchemaLogicalTypes.TimestampConvert.class)
                     .getDeclaredMethods()
                     .filter(ElementMatchers.named("toTimestamp"))
                     .getOnly()));
@@ -332,7 +330,7 @@ public class ProtoByteBuddyUtils {
         return new Compound(
             readValue,
             MethodInvocation.invoke(
-                new ForLoadedType(DurationNanos.class)
+                new ForLoadedType(ProtoSchemaLogicalTypes.DurationConvert.class)
                     .getDeclaredMethods()
                     .filter(ElementMatchers.named("toDuration"))
                     .getOnly()));

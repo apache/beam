@@ -62,7 +62,6 @@ _LOGGER = logging.getLogger(__name__)
 _DEFAULT_SIZE_FLUSH_THRESHOLD = 10 << 20  # 10MB
 _DEFAULT_TIME_FLUSH_THRESHOLD_MS = 0  # disable time-based flush by default
 
-
 if TYPE_CHECKING:
   import apache_beam.coders.slow_stream
   OutputStream = apache_beam.coders.slow_stream.OutputStream
@@ -72,7 +71,6 @@ else:
 
 class ClosableOutputStream(OutputStream):
   """A Outputstream for use with CoderImpls that has a close() method."""
-
   def __init__(self, close_callback=None):
     super(ClosableOutputStream, self).__init__()
     self._close_callback = close_callback
@@ -82,9 +80,7 @@ class ClosableOutputStream(OutputStream):
       self._close_callback(self.get())
 
   @staticmethod
-  def create(close_callback,
-             flush_callback,
-             data_buffer_time_limit_ms):
+  def create(close_callback, flush_callback, data_buffer_time_limit_ms):
     if data_buffer_time_limit_ms > 0:
       return TimeBasedBufferingClosableOutputStream(
           close_callback,
@@ -120,14 +116,14 @@ class SizeBasedBufferingClosableOutputStream(ClosableOutputStream):
 class TimeBasedBufferingClosableOutputStream(
     SizeBasedBufferingClosableOutputStream):
   """A buffering OutputStream with both time-based and size-based."""
-
-  def __init__(self,
-               close_callback=None,
-               flush_callback=None,
-               size_flush_threshold=_DEFAULT_SIZE_FLUSH_THRESHOLD,
-               time_flush_threshold_ms=_DEFAULT_TIME_FLUSH_THRESHOLD_MS):
-    super(TimeBasedBufferingClosableOutputStream, self).__init__(
-        close_callback, flush_callback, size_flush_threshold)
+  def __init__(
+      self,
+      close_callback=None,
+      flush_callback=None,
+      size_flush_threshold=_DEFAULT_SIZE_FLUSH_THRESHOLD,
+      time_flush_threshold_ms=_DEFAULT_TIME_FLUSH_THRESHOLD_MS):
+    super(TimeBasedBufferingClosableOutputStream,
+          self).__init__(close_callback, flush_callback, size_flush_threshold)
     assert time_flush_threshold_ms > 0
     self._time_flush_threshold_ms = time_flush_threshold_ms
     self._flush_lock = threading.Lock()
@@ -161,12 +157,7 @@ class TimeBasedBufferingClosableOutputStream(
 
 class PeriodicThread(threading.Thread):
   """Call a function periodically with the specified number of seconds"""
-
-  def __init__(self,
-               interval,
-               function,
-               args=None,
-               kwargs=None):
+  def __init__(self, interval, function, args=None, kwargs=None):
     threading.Thread.__init__(self)
     self._interval = interval
     self._function = function
@@ -204,7 +195,6 @@ class DataChannel(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
 
     data_channel.close()
   """
-
   @abc.abstractmethod
   def input_elements(self,
                      instruction_id,  # type: str
@@ -212,6 +202,7 @@ class DataChannel(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
                      abort_callback=None  # type: Optional[Callable[[], bool]]
                     ):
     # type: (...) -> Iterator[beam_fn_api_pb2.Elements.Data]
+
     """Returns an iterable of all Element.Data bundles for instruction_id.
 
     This iterable terminates only once the full set of data has been recieved
@@ -226,11 +217,13 @@ class DataChannel(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
     raise NotImplementedError(type(self))
 
   @abc.abstractmethod
-  def output_stream(self,
-                    instruction_id,  # type: str
-                    transform_id  # type: str
-                   ):
+  def output_stream(
+      self,
+      instruction_id,  # type: str
+      transform_id  # type: str
+  ):
     # type: (...) -> ClosableOutputStream
+
     """Returns an output stream writing elements to transform_id.
 
     Args:
@@ -242,6 +235,7 @@ class DataChannel(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
   @abc.abstractmethod
   def close(self):
     # type: () -> None
+
     """Closes this channel, indicating that all data has been written.
 
     Data can continue to be read.
@@ -258,7 +252,6 @@ class InMemoryDataChannel(DataChannel):
   This channel is two-sided.  What is written to one side is read by the other.
   The inverse() method returns the other side of a instance.
   """
-
   def __init__(self, inverse=None, data_buffer_time_limit_ms=0):
     # type: (Optional[InMemoryDataChannel], Optional[int]) -> None
     self._inputs = []  # type: List[beam_fn_api_pb2.Elements.Data]
@@ -293,6 +286,7 @@ class InMemoryDataChannel(DataChannel):
               instruction_id=instruction_id,
               transform_id=transform_id,
               data=data))
+
     return ClosableOutputStream.create(
         add_to_inverse_output,
         add_to_inverse_output,
@@ -310,8 +304,11 @@ class _GrpcDataChannel(DataChannel):
   def __init__(self, data_buffer_time_limit_ms=0):
     # type: (Optional[int]) -> None
     self._data_buffer_time_limit_ms = data_buffer_time_limit_ms
-    self._to_send = queue.Queue()  # type: queue.Queue[beam_fn_api_pb2.Elements.Data]
-    self._received = collections.defaultdict(lambda: queue.Queue(maxsize=5))  # type: DefaultDict[str, queue.Queue[beam_fn_api_pb2.Elements.Data]]
+    self._to_send = queue.Queue(
+    )  # type: queue.Queue[beam_fn_api_pb2.Elements.Data]
+    self._received = collections.defaultdict(
+        lambda: queue.Queue(maxsize=5)
+    )  # type: DefaultDict[str, queue.Queue[beam_fn_api_pb2.Elements.Data]]
     self._receive_lock = threading.Lock()
     self._reads_finished = threading.Event()
     self._closed = False
@@ -340,6 +337,7 @@ class _GrpcDataChannel(DataChannel):
                      abort_callback=None  # type: Optional[Callable[[], bool]]
                     ):
     # type: (...) -> Iterator[beam_fn_api_pb2.Elements.Data]
+
     """
     Generator to retrieve elements for an instruction_id
     input_elements should be called only once for an instruction_id
@@ -396,9 +394,7 @@ class _GrpcDataChannel(DataChannel):
               data=b''))
 
     return ClosableOutputStream.create(
-        close_callback,
-        add_to_send_queue,
-        self._data_buffer_time_limit_ms)
+        close_callback, add_to_send_queue, self._data_buffer_time_limit_ms)
 
   def _write_outputs(self):
     # type: () -> Iterator[beam_fn_api_pb2.Elements]
@@ -455,13 +451,14 @@ class GrpcClientDataChannel(_GrpcDataChannel):
 
 class BeamFnDataServicer(beam_fn_api_pb2_grpc.BeamFnDataServicer):
   """Implementation of BeamFnDataServicer for any number of clients"""
-
-  def __init__(self,
-               data_buffer_time_limit_ms=0  # type: Optional[int]
-               ):
+  def __init__(
+      self,
+      data_buffer_time_limit_ms=0  # type: Optional[int]
+  ):
     self._lock = threading.Lock()
     self._connections_by_worker_id = collections.defaultdict(
-        lambda: _GrpcDataChannel(data_buffer_time_limit_ms))  # type: DefaultDict[str, _GrpcDataChannel]
+        lambda: _GrpcDataChannel(data_buffer_time_limit_ms)
+    )  # type: DefaultDict[str, _GrpcDataChannel]
 
   def get_conn_by_worker_id(self, worker_id):
     # type: (str) -> _GrpcDataChannel
@@ -480,18 +477,20 @@ class BeamFnDataServicer(beam_fn_api_pb2_grpc.BeamFnDataServicer):
       yield elements
 
 
-class DataChannelFactory(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
+class DataChannelFactory(with_metaclass(abc.ABCMeta,
+                                        object)):  # type: ignore[misc]
   """An abstract factory for creating ``DataChannel``."""
-
   @abc.abstractmethod
   def create_data_channel(self, remote_grpc_port):
     # type: (beam_fn_api_pb2.RemoteGrpcPort) -> GrpcClientDataChannel
+
     """Returns a ``DataChannel`` from the given RemoteGrpcPort."""
     raise NotImplementedError(type(self))
 
   @abc.abstractmethod
   def close(self):
     # type: () -> None
+
     """Close all channels that this factory owns."""
     raise NotImplementedError(type(self))
 
@@ -555,7 +554,6 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
 
 class InMemoryDataChannelFactory(DataChannelFactory):
   """A singleton factory for ``InMemoryDataChannel``."""
-
   def __init__(self, in_memory_data_channel):
     # type: (GrpcClientDataChannel) -> None
     self._in_memory_data_channel = in_memory_data_channel

@@ -15,12 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas;
 
-import java.util.List;
+import PrecommitJobBuilder
 
-/** Factory for vending type information for all fields of a class. */
-public interface FieldValueTypeInformationFactory extends Factory<List<FieldValueTypeInformation>> {
-  @Override
-  List<FieldValueTypeInformation> create(Class<?> targetClass, Schema schema);
-}
+PrecommitJobBuilder builder = new PrecommitJobBuilder(
+    scope: this,
+    nameBase: 'PythonFormatter',
+    gradleTask: ':pythonFormatterPreCommit',
+    triggerPathPatterns: [
+      '^sdks/python/apache_beam/.*$',
+    ]
+)
+builder.build()

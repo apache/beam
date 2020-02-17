@@ -39,7 +39,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '7',
     'dataflow.fnapi_environment_major_version' : '7',
-    'dataflow.container_version' : 'beam-master-20200123'
+    'dataflow.container_version' : 'beam-master-20200213'
   ]
 }
 
@@ -120,7 +120,7 @@ def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${da
 def dockerImageContainer = "${dockerImageRoot}/java"
 def dockerTag = new Date().format('yyyyMMddHHmmss')
 // If -PuseExecutableStage is set, the use_executable_stage_bundle_execution wil be enabled.
-def fnapiExperiments = project.findProperty('useExecutableStage') ? 'beam_fn_api,use_executable_stage_bundle_execution' : "beam_fn_api"
+def fnapiExperiments = project.hasProperty('useExecutableStage') ? 'beam_fn_api,beam_fn_api_use_deprecated_read,use_executable_stage_bundle_execution' : "beam_fn_api,beam_fn_api_use_deprecated_read"
 ext.dockerImageName = "${dockerImageContainer}:${dockerTag}"
 
 def fnApiPipelineOptions = [
@@ -179,33 +179,6 @@ task validatesRunnerLegacyWorkerTest(type: Test) {
       excludeCategories it
     }
   }
-}
-
-task validatesRunnerLegacyWorkerJava11Test(type: Test) {
-    group = "Verification"
-    dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
-    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-            "--runner=TestDataflowRunner",
-            "--project=${dataflowProject}",
-            "--tempRoot=${dataflowValidatesTempRoot}",
-            "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-            "--workerHarnessContainerImage=",
-    ])
-    
-    systemProperty "java.specification.version", "11"
-
-    // Increase test parallelism up to the number of Gradle workers. By default this is equal
-    // to the number of CPU cores, but can be increased by setting --max-workers=N.
-    maxParallelForks Integer.MAX_VALUE
-    classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
-          files(project(project.path).sourceSets.test.output.classesDirs)
-    useJUnit {
-        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-        commonExcludeCategories.each {
-            excludeCategories it
-        }
-    }
 }
 
 // Push docker images to a container registry for use within tests.
@@ -317,12 +290,6 @@ task validatesRunner {
   group = "Verification"
   description "Validates Dataflow runner"
   dependsOn validatesRunnerLegacyWorkerTest
-}
-
-task validatesJava11Runner {
-    group = 'Verification'
-    description 'Verifies Dataflow runner with Java 11 container harness'
-    dependsOn validatesRunnerLegacyWorkerJava11Test
 }
 
 task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {

@@ -143,7 +143,6 @@ dependencies {
   compile library.java.jackson_annotations
   compile library.java.slf4j_api
   compile library.java.joda_time
-  compile library.java.commons_compress
   compile library.java.args4j
   compile "org.apache.flink:flink-clients_2.11:$flink_version"
   compile "org.apache.flink:flink-core:$flink_version"
@@ -199,16 +198,17 @@ def createValidatesRunnerTask(Map m) {
     maxParallelForks 2
     useJUnit {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
       excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
       excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
       excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
       if (config.streaming) {
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'  // BEAM-8598
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
       } else {
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       }

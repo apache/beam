@@ -68,10 +68,8 @@ class LineSource(iobase.BoundedSource):
     bundle_start = 0
     while bundle_start < size:
       bundle_stop = min(bundle_start + LineSource.TEST_BUNDLE_SIZE, size)
-      yield iobase.SourceBundle(bundle_stop - bundle_start,
-                                self,
-                                bundle_start,
-                                bundle_stop)
+      yield iobase.SourceBundle(
+          bundle_stop - bundle_start, self, bundle_start, bundle_stop)
       bundle_start = bundle_stop
 
   def get_range_tracker(self, start_position, stop_position):
@@ -94,7 +92,6 @@ class LineSource(iobase.BoundedSource):
 
 
 class SourcesTest(unittest.TestCase):
-
   @classmethod
   def setUpClass(cls):
     # Method has been renamed in Python 3
@@ -114,8 +111,9 @@ class SourcesTest(unittest.TestCase):
     result = [line for line in source.read(range_tracker)]
 
     self.assertCountEqual([b'aaaa', b'bbbb', b'cccc', b'dddd'], result)
-    self.assertTrue(range_tracker.last_attempted_record_start
-                    >= range_tracker.stop_position())
+    self.assertTrue(
+        range_tracker.last_attempted_record_start >=
+        range_tracker.stop_position())
 
   def test_source_estimated_size(self):
     file_name = self._create_temp_file(b'aaaa\n')
@@ -128,7 +126,6 @@ class SourcesTest(unittest.TestCase):
     with TestPipeline() as pipeline:
       pcoll = pipeline | beam.io.Read(LineSource(file_name))
       assert_that(pcoll, equal_to([b'aaaa', b'bbbb', b'cccc', b'dddd']))
-
 
 
 if __name__ == '__main__':

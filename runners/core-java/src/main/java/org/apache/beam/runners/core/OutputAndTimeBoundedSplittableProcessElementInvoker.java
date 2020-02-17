@@ -118,6 +118,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               }
 
               @Override
+              public Object restriction() {
+                return tracker.currentRestriction();
+              }
+
+              @Override
               public InputT element(DoFn<InputT, OutputT> doFn) {
                 return processContext.element();
               }
@@ -210,7 +215,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               }
 
               @Override
-              public State state(String stateId) {
+              public State state(String stateId, boolean alwaysFetched) {
                 throw new UnsupportedOperationException(
                     "Access to state not supported in Splittable DoFn");
               }

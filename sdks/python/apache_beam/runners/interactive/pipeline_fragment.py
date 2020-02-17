@@ -31,7 +31,6 @@ class PipelineFragment(object):
   A pipeline fragment is built from the original pipeline definition to include
   only PTransforms that are necessary to produce the given PCollections.
   """
-
   def __init__(self, pcolls, options=None):
     """Constructor of PipelineFragment.
 
@@ -78,9 +77,10 @@ class PipelineFragment(object):
     # PCollections/AppliedPTransforms from the copied runner pipeline and
     # PCollections/AppliedPTransforms from the user pipeline.
     # (Dict[PCollection, PCollection])
-    (self._runner_pcolls_to_user_pcolls,
-     # (Dict[AppliedPTransform, AppliedPTransform])
-     self._runner_transforms_to_user_transforms
+    (
+        self._runner_pcolls_to_user_pcolls,
+        # (Dict[AppliedPTransform, AppliedPTransform])
+        self._runner_transforms_to_user_transforms
     ) = self._build_correlation_between_pipelines(
         self._runner_pcoll_to_id,
         self._id_to_target_pcoll,
@@ -91,8 +91,7 @@ class PipelineFragment(object):
      self._necessary_pcollections) = self._mark_necessary_transforms_and_pcolls(
          self._runner_pcolls_to_user_pcolls)
     self._runner_pipeline = self._prune_runner_pipeline_to_fragment(
-        self._runner_pipeline,
-        self._necessary_transforms)
+        self._runner_pipeline, self._necessary_transforms)
 
   def deduce_fragment(self):
     """Deduce the pipeline fragment as an apache_beam.Pipeline instance."""
@@ -130,7 +129,6 @@ class PipelineFragment(object):
     label_to_user_transform = {}
 
     class UserTransformVisitor(PipelineVisitor):
-
       def enter_composite_transform(self, transform_node):
         self.visit_transform(transform_node)
 
@@ -142,15 +140,12 @@ class PipelineFragment(object):
     self._runner_pipeline.visit(v)
     return label_to_user_transform
 
-  def _build_correlation_between_pipelines(self,
-                                           runner_pcoll_to_id,
-                                           id_to_target_pcoll,
-                                           label_to_user_transform):
+  def _build_correlation_between_pipelines(
+      self, runner_pcoll_to_id, id_to_target_pcoll, label_to_user_transform):
     runner_pcolls_to_user_pcolls = {}
     runner_transforms_to_user_transforms = {}
 
     class CorrelationVisitor(PipelineVisitor):
-
       def enter_composite_transform(self, transform_node):
         self.visit_transform(transform_node)
 
@@ -164,8 +159,7 @@ class PipelineFragment(object):
       def _process_pcoll(self, pcoll):
         pcoll_id = runner_pcoll_to_id.get(str(pcoll), '')
         if pcoll_id in id_to_target_pcoll:
-          runner_pcolls_to_user_pcolls[pcoll] = (
-              id_to_target_pcoll[pcoll_id])
+          runner_pcolls_to_user_pcolls[pcoll] = (id_to_target_pcoll[pcoll_id])
 
       def _process_transform(self, transform_node):
         if transform_node.full_label in label_to_user_transform:
@@ -176,8 +170,7 @@ class PipelineFragment(object):
     self._runner_pipeline.visit(v)
     return runner_pcolls_to_user_pcolls, runner_transforms_to_user_transforms
 
-  def _mark_necessary_transforms_and_pcolls(self,
-                                            runner_pcolls_to_user_pcolls):
+  def _mark_necessary_transforms_and_pcolls(self, runner_pcolls_to_user_pcolls):
     necessary_transforms = set()
     all_inputs = set()
     updated_all_inputs = set(runner_pcolls_to_user_pcolls.keys())
@@ -195,19 +188,15 @@ class PipelineFragment(object):
           updated_all_inputs.update(producer.inputs)
           # pylint: disable=map-builtin-not-iterating
           side_input_pvalues = set(
-              map(lambda side_input: side_input.pvalue,
-                  producer.side_inputs))
+              map(lambda side_input: side_input.pvalue, producer.side_inputs))
           updated_all_inputs.update(side_input_pvalues)
           # Go to its parent AppliedPTransform.
           producer = producer.parent
     return necessary_transforms, all_inputs
 
-  def _prune_runner_pipeline_to_fragment(self,
-                                         runner_pipeline,
-                                         necessary_transforms):
-
+  def _prune_runner_pipeline_to_fragment(
+      self, runner_pipeline, necessary_transforms):
     class PruneVisitor(PipelineVisitor):
-
       def enter_composite_transform(self, transform_node):
         pruned_parts = list(transform_node.parts)
         for part in transform_node.parts:

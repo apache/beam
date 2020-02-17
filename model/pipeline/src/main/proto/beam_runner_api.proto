@@ -37,15 +37,21 @@ import "google/protobuf/timestamp.proto";
 message BeamConstants {
   enum Constants {
     // All timestamps in milliseconds since Jan 1, 1970.
+
+    // All timestamps of elements or window boundaries must be within
+    // the interval [MIN_TIMESTAMP_MILLIS, MAX_TIMESTAMP_MILLIS].
+    // The smallest representable timestamp of an element or a window boundary.
     MIN_TIMESTAMP_MILLIS = 0 [(beam_constant) = "-9223372036854775"];
+    // The largest representable timestamp of an element or a window boundary.
     MAX_TIMESTAMP_MILLIS = 1 [(beam_constant) =  "9223372036854775"];
+
     // The maximum timestamp for the global window.
-    // Triggers use maxTimestamp to set timers' timestamp. Timers fires when
+    // Triggers use max timestamp to set timers' timestamp. Timers fire when
     // the watermark passes their timestamps. So, the timestamp needs to be
     // smaller than the MAX_TIMESTAMP_MILLIS.
     // One standard day is subtracted from MAX_TIMESTAMP_MILLIS to make sure
-    // the maxTimestamp is smaller than MAX_TIMESTAMP_MILLIS even after rounding up
-    // to seconds or minutes. See also GlobalWindow in the Java SDK.
+    // the max timestamp is smaller than MAX_TIMESTAMP_MILLIS even after rounding up
+    // to seconds or minutes.
     GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS = 2 [(beam_constant) = "9223371950454775"];
   }
 }
@@ -70,33 +76,49 @@ message Components {
 }
 
 // A Pipeline is a hierarchical graph of PTransforms, linked
-// by PCollections.
+// by PCollections. A typical graph may look like:
 //
-// This is represented by a number of by-reference maps to nodes,
-// PCollections, SDK environments, UDF, etc., for
+//   Impulse -> PCollection -> ParDo -> PCollection -> GroupByKey -> ...
+//                                   \> PCollection -> ParDo      -> ...
+//                                                  \> ParDo      -> ...
+//   Impulse -> PCollection -> ParDo -> PCollection -> ...
+//
+// This is represented by a number of by-reference maps to transforms,
+// PCollections, SDK environments, coders, etc., for
 // supporting compact reuse and arbitrary graph structure.
-//
-// All of the keys in the maps here are arbitrary strings that are only
-// required to be internally consistent within this proto message.
 message Pipeline {
 
   // (Required) The coders, UDFs, graph nodes, etc, that make up
   // this pipeline.
   Components components = 1;
 
-  // (Required) The ids of all PTransforms that are not contained within another PTransform.
-  // These must be in shallow topological order, so that traversing them recursively
-  // in this order yields a recursively topological traversal.
+  // (Required) The ids of all PTransforms that are not contained within another
+  // PTransform. These must be in shallow topological order, so that traversing
+  // them recursively in this order yields a recursively topological traversal.
   repeated string root_transform_ids = 2;
 
   // (Optional) Static display data for the pipeline. If there is none,
   // it may be omitted.
-  DisplayData display_data = 3;
+  repeated DisplayData display_data = 3;
 }
 
-// An applied PTransform! This does not contain the graph data, but only the
-// fields specific to a graph node that is a Runner API transform
-// between PCollections.
+// Transforms are the operations in your pipeline, and provide a generic
+// processing framework. You provide processing logic in the form of a function
+// object (colloquially referred to as “user code”), and your user code is
+// applied to each element of an input PCollection (or more than one
+// PCollection). Depending on the pipeline runner and back-end that you choose,
+// many different workers across a cluster may execute instances of your user
+// code in parallel. The user code running on each worker generates the output
+// elements that are ultimately added to the final output PCollection that the
+// transform produces.
+//
+// The Beam SDKs contain a number of different transforms that you can apply to
+// your pipeline’s PCollections. These include general-purpose core transforms,
+// such as ParDo or Combine. There are also pre-written composite transforms
+// included in the SDKs, which combine one or more of the core transforms in a
+// useful processing pattern, such as counting or combining elements in a
+// collection. You can also define your own more complex composite transforms to
+// fit your pipeline’s exact use case.
 message PTransform {
 
   // (Required) A unique name for the application node.
@@ -117,16 +139,9 @@ message PTransform {
   //
   // For primitive transform in the Runner API, this is required, and the
   // payloads are well-defined messages. When the URN indicates ParDo it
-  // is a ParDoPayload, and so on.
-  //
-  // TODO: document the standardized URNs and payloads
-  // TODO: separate standardized payloads into a separate proto file
-  //
-  // For some special composite transforms, the payload is also officially
-  // defined:
-  //
-  //  - when the URN is "beam:transforms:combine" it is a CombinePayload
-  //
+  // is a ParDoPayload, and so on. For some special composite transforms,
+  // the payload is also officially defined. See StandardPTransforms for
+  // details.
   FunctionSpec spec = 1;
 
   // (Optional) if this node is a composite, a list of the ids of
@@ -145,7 +160,6 @@ message PTransform {
   //
   // All inputs are recorded here so that the topological ordering of
   // the graph is consistent whether or not the payload is understood.
-  //
   map<string, string> inputs = 3;
 
   // (Required) A map from local names of outputs (unique only within this map,
@@ -157,13 +171,11 @@ message PTransform {
   //
   //  - for a ParDo transform, these are tags on PCollections, which will be
   //    embedded in the DoFn.
-  //
   map<string, string> outputs = 4;
 
   // (Optional) Static display data for this PTransform application. If
-  // there is none, or it is not relevant (such as use by the Fn API)
-  // then it may be omitted.
-  DisplayData display_data = 6;
+  // there is none, it may be omitted.
+  repeated DisplayData display_data = 6;
 
   // (Optional) Environment where the current PTransform should be executed in.
   // Runner that executes the pipeline may choose to override this if needed. If
@@ -172,28 +184,71 @@ message PTransform {
 }
 
 message StandardPTransforms {
+  // Primitive transforms may not specify composite sub-transforms.
   enum Primitives {
-    // Represents Beam's parallel do operation.
-    // Payload: ParDoPayload.
-    // TODO(BEAM-3595): Change this to beam:transform:pardo:v1.
+    // ParDo is a Beam transform for generic parallel processing. The ParDo
+    // processing paradigm is similar to the “Map” phase of a
+    // Map/Shuffle/Reduce-style algorithm: a ParDo transform considers each
+    // element in the input PCollection, performs some processing function
+    // (your user code) on that element, and emits zero, one, or multiple
+    // elements to an output PCollection.
+    //
+    // See https://beam.apache.org/documentation/programming-guide/#pardo
+    // for additional details.
+    //
+    // Payload: ParDoPayload
     PAR_DO = 0 [(beam_urn) = "beam:transform:pardo:v1"];
 
-    // Represents Beam's flatten operation.
-    // Payload: None.
+    // Flatten is a Beam transform for PCollection objects that store the same
+    // data type. Flatten merges multiple PCollection objects into a single
+    // logical PCollection.
+    //
+    // See https://beam.apache.org/documentation/programming-guide/#flatten
+    // for additional details.
+    //
+    // Payload: None
     FLATTEN = 1 [(beam_urn) = "beam:transform:flatten:v1"];
 
-    // Represents Beam's group-by-key operation.
+    // GroupByKey is a Beam transform for processing collections of key/value
+    // pairs. It’s a parallel reduction operation, analogous to the Shuffle
+    // phase of a Map/Shuffle/Reduce-style algorithm. The input to GroupByKey is
+    // a collection of key/value pairs that represents a multimap, where the
+    // collection contains multiple pairs that have the same key, but different
+    // values. Given such a collection, you use GroupByKey to collect all of the
+    // values associated with each unique key.
+    //
+    // See https://beam.apache.org/documentation/programming-guide/#groupbykey
+    // for additional details.
+    //
     // Payload: None
     GROUP_BY_KEY = 2 [(beam_urn) = "beam:transform:group_by_key:v1"];
 
-    // Represents the operation generating a single empty element.
+    // A transform which produces a single empty byte array at the minimum
+    // timestamp in the GlobalWindow.
+    //
+    // Payload: None
     IMPULSE = 3 [(beam_urn) = "beam:transform:impulse:v1"];
 
-    // Represents the Window.into() operation.
-    // Payload: WindowIntoPayload.
+    // Windowing subdivides a PCollection according to the timestamps of its
+    // individual elements. Transforms that aggregate multiple elements, such as
+    // GroupByKey and Combine, work implicitly on a per-window basis — they
+    // process each PCollection as a succession of multiple, finite windows,
+    // though the entire collection itself may be of unbounded size.
+    //
+    // See https://beam.apache.org/documentation/programming-guide/#windowing
+    // for additional details.
+    //
+    // Payload: WindowIntoPayload
     ASSIGN_WINDOWS = 4 [(beam_urn) = "beam:transform:window_into:v1"];
 
-    // Represents the TestStream.
+    // A testing input that generates an unbounded {@link PCollection} of
+    // elements, advancing the watermark and processing time as elements are
+    // emitted. After all of the specified elements are emitted, ceases to
+    // produce output.
+    //
+    // See https://beam.apache.org/blog/2016/10/20/test-stream.html
+    // for additional details.
+    //
     // Payload: TestStreamPayload
     TEST_STREAM = 5 [(beam_urn) = "beam:transform:teststream:v1"];
 
@@ -207,7 +262,7 @@ message StandardPTransforms {
     // nonce is used by a runner to associate each input with its output.
     // The nonce is represented as an opaque set of bytes.
     //
-    // Payload: WindowMappingFn from SideInputSpec.
+    // Payload: SideInput#window_mapping_fn FunctionSpec
     MAP_WINDOWS = 6 [(beam_urn) = "beam:transform:map_windows:v1"];
 
     // Used to merge windows during a GroupByKey.
@@ -224,7 +279,7 @@ message StandardPTransforms {
     // to associate each input with its output. The nonce is represented as an
     // opaque set of bytes.
     //
-    // Payload: WindowFn from WindowingStrategy.
+    // Payload: WindowingStrategy#window_fn FunctionSpec
     MERGE_WINDOWS = 7 [(beam_urn) = "beam:transform:merge_windows:v1"];
   }
   enum DeprecatedPrimitives {
@@ -360,10 +415,9 @@ message PCollection {
   // (Required) The id of the windowing strategy for this PCollection.
   string windowing_strategy_id = 4;
 
-  // (Optional) Static display data for this PTransform application. If
-  // there is none, or it is not relevant (such as use by the Fn API)
-  // then it may be omitted.
-  DisplayData display_data = 5;
+  // (Optional) Static display data for the PCollection. If there is none,
+  // it may be omitted.
+  repeated DisplayData display_data = 5;
 }
 
 // The payload for the primitive ParDo transform.
@@ -398,6 +452,9 @@ message ParDoPayload {
 
   // (Optional) A mapping of local timer family names to timer specifications.
   map<string, TimerFamilySpec> timer_family_specs = 9;
+  
+  // Whether this stage requires time sorted input
+  bool requires_time_sorted_input = 10;
 }
 
 // Parameters that a UDF might require.
@@ -570,7 +627,14 @@ service TestStreamService {
   // A TestStream will request for events using this RPC.
   rpc Events(EventsRequest) returns (stream TestStreamPayload.Event) {}
 }
-message EventsRequest {}
+
+message EventsRequest {
+  // The set of PCollections to read from. These are the PTransform outputs
+  // local names. These are a subset of the TestStream's outputs. This allows
+  // Interactive Beam to cache many PCollections from a pipeline then replay a
+  // subset of them.
+  repeated string output_ids = 1;
+}
 
 // The payload for the special-but-not-primitive WriteFiles transform.
 message WriteFilesPayload {
@@ -1097,6 +1161,10 @@ message Environment {
   // the URN does not require any arguments, this may be omitted.
   bytes payload = 3;
 
+  // (Optional) Static display data for the environment. If there is none,
+  // it may be omitted.
+  repeated DisplayData display_data = 4;
+
   reserved 1;
 }
 
@@ -1176,7 +1244,7 @@ extend google.protobuf.EnumValueOptions {
 //
 // 1. The runner understands the URN. For example, it might be
 //    a well-known URN like "beam:transform:Top" or
-//    "beam:windowfn:FixedWindows" with
+//    "beam:window_fn:FixedWindows" with
 //    an agreed-upon payload (e.g. a number or duration,
 //    respectively).
 // 2. The runner does not understand the URN. It might be an
@@ -1199,58 +1267,58 @@ message FunctionSpec {
   bytes payload = 3;
 }
 
-// TODO: transfer javadoc here
+// A set of well known URNs describing display data.
+//
+// All descriptions must contain how the value should be classified and how it
+// is encoded. Note that some types are logical types which convey contextual
+// information about the pipeline in addition to an encoding while others only
+// specify the encoding itself.
+message StandardDisplayData {
+  enum DisplayData {
+    // A string label and value. Has a payload containing an encoded
+    // LabelledStringPayload.
+    LABELLED_STRING = 0 [(beam_urn) = "beam:display_data:labelled_string:v1"];
+
+    // Some samples that are being considered to become standard display data
+    // types follow:
+
+    // A path/location of a resource that this transform accesses. Encoded as
+    // the well known google.protobuf.StringValue type.
+    // INPUT_PATH = 1 [(beam_urn) = "beam:display_data:input_path:v1"];
+
+    // A timestamp encoded as the well known protobuf type
+    // google.protobuf.timestamp. Note that the value may be outside of the
+    // RFC3339 limit imposed.
+    // TIMESTAMP = 2 [(beam_urn) = "beam:display_data:timestamp:v1"];
+
+    // A duration encoded as the well known protobuf type
+    // google.protobuf.duration. Note that the value may be outside of the
+    // RFC3339 limit imposed.
+    // DURATION = 3 [(beam_urn) = "beam:display_data:duration:v1"];
+  }
+}
+
+message LabelledStringPayload {
+  // (Required) A human readable label for the value.
+  string label = 1;
+
+  // (Required) A value which will be displayed to the user. The urn describes
+  // how the value can be interpreted and/or categorized.
+  string value = 2;
+}
+
+// Static display data associated with a pipeline component. Display data is
+// useful for pipeline runners IOs and diagnostic dashboards to display details
+// about annotated components.
 message DisplayData {
+  // A key used to describe the type of display data. See StandardDisplayData
+  // for the set of well known urns describing how the payload is meant to be
+  // interpreted.
+  string urn = 1;
 
-  // (Required) The list of display data.
-  repeated Item items = 1;
-
-  // A complete identifier for a DisplayData.Item
-  message Identifier {
-
-    // (Required) The transform originating this display data.
-    string transform_id = 1;
-
-    // (Optional) The URN indicating the type of the originating transform,
-    // if there is one.
-    string transform_urn = 2;
-
-    string key = 3;
-  }
-
-  // A single item of display data.
-  message Item {
-    // (Required)
-    Identifier id = 1;
-
-    // (Required)
-    Type.Enum type = 2;
-
-    // (Required)
-    google.protobuf.Any value = 3;
-
-    // (Optional)
-    google.protobuf.Any short_value = 4;
-
-    // (Optional)
-    string label = 5;
-
-    // (Optional)
-    string link_url = 6;
-  }
-
-  message Type {
-    enum Enum {
-      UNSPECIFIED = 0;
-      STRING = 1;
-      INTEGER = 2;
-      FLOAT = 3;
-      BOOLEAN = 4;
-      TIMESTAMP = 5;
-      DURATION = 6;
-      JAVA_CLASS = 7;
-    }
-  }
+  // (Optional) The data specifying any parameters to the URN. If
+  // the URN does not require any arguments, this may be omitted.
+  bytes payload = 2;
 }
 
 

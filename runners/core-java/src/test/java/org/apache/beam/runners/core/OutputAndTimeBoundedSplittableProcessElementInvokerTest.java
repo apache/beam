@@ -85,7 +85,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRestriction(Void element) {
+    public OffsetRange getInitialRestriction(@Element Void element) {
       throw new UnsupportedOperationException("Should not be called in this test");
     }
   }
@@ -195,7 +195,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
           }
 
           @GetInitialRestriction
-          public OffsetRange getInitialRestriction(Void element) {
+          public OffsetRange getInitialRestriction(@Element Void element) {
             throw new UnsupportedOperationException("Should not be called in this test");
           }
         };
@@ -214,7 +214,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
           }
 
           @GetInitialRestriction
-          public OffsetRange getInitialRestriction(Void element) {
+          public OffsetRange getInitialRestriction(@Element Void element) {
             throw new UnsupportedOperationException("Should not be called in this test");
           }
         };

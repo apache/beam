@@ -38,8 +38,8 @@ class DirectRuntimeState(userstate.RuntimeState):
     if isinstance(state_spec, userstate.BagStateSpec):
       return BagRuntimeState(state_spec, state_tag, current_value_accessor)
     elif isinstance(state_spec, userstate.CombiningValueStateSpec):
-      return CombiningValueRuntimeState(state_spec, state_tag,
-                                        current_value_accessor)
+      return CombiningValueRuntimeState(
+          state_spec, state_tag, current_value_accessor)
     elif isinstance(state_spec, userstate.SetStateSpec):
       return SetRuntimeState(state_spec, state_tag, current_value_accessor)
     else:
@@ -58,8 +58,8 @@ UNREAD_VALUE = object()
 
 class BagRuntimeState(DirectRuntimeState, userstate.BagRuntimeState):
   def __init__(self, state_spec, state_tag, current_value_accessor):
-    super(BagRuntimeState, self).__init__(
-        state_spec, state_tag, current_value_accessor)
+    super(BagRuntimeState,
+          self).__init__(state_spec, state_tag, current_value_accessor)
     self._cached_value = UNREAD_VALUE
     self._cleared = False
     self._new_values = []
@@ -84,15 +84,16 @@ class BagRuntimeState(DirectRuntimeState, userstate.BagRuntimeState):
 
 class SetRuntimeState(DirectRuntimeState, userstate.SetRuntimeState):
   def __init__(self, state_spec, state_tag, current_value_accessor):
-    super(SetRuntimeState, self).__init__(
-        state_spec, state_tag, current_value_accessor)
+    super(SetRuntimeState,
+          self).__init__(state_spec, state_tag, current_value_accessor)
     self._current_accumulator = UNREAD_VALUE
     self._modified = False
 
   def _read_initial_value(self):
     if self._current_accumulator is UNREAD_VALUE:
       self._current_accumulator = {
-          self._decode(a) for a in self._current_value_accessor()
+          self._decode(a)
+          for a in self._current_value_accessor()
       }
 
   def read(self):
@@ -112,13 +113,12 @@ class SetRuntimeState(DirectRuntimeState, userstate.SetRuntimeState):
     return self._modified
 
 
-class CombiningValueRuntimeState(
-    DirectRuntimeState, userstate.CombiningValueRuntimeState):
+class CombiningValueRuntimeState(DirectRuntimeState,
+                                 userstate.CombiningValueRuntimeState):
   """Combining value state interface object passed to user code."""
-
   def __init__(self, state_spec, state_tag, current_value_accessor):
-    super(CombiningValueRuntimeState, self).__init__(
-        state_spec, state_tag, current_value_accessor)
+    super(CombiningValueRuntimeState,
+          self).__init__(state_spec, state_tag, current_value_accessor)
     self._current_accumulator = UNREAD_VALUE
     self._modified = False
     self._combine_fn = state_spec.combine_fn
@@ -154,7 +154,6 @@ class DirectUserStateContext(userstate.UserStateContext):
   The DirectUserStateContext buffers up updates that are to be committed
   by the TransformEvaluator after running a DoFn.
   """
-
   def __init__(self, step_context, dofn, key_coder):
     self.step_context = step_context
     self.dofn = dofn
@@ -201,8 +200,9 @@ class DirectUserStateContext(userstate.UserStateContext):
   def _get_underlying_state(self, state_spec, key, window):
     state_tag = self.state_tags[state_spec]
     encoded_key = self.key_coder.encode(key)
-    return (self.step_context.get_keyed_state(encoded_key)
-            .get_state(window, state_tag))
+    return (
+        self.step_context.get_keyed_state(encoded_key).get_state(
+            window, state_tag))
 
   def commit(self):
     # Commit state modifications.
@@ -219,7 +219,8 @@ class DirectUserStateContext(userstate.UserStateContext):
         if runtime_state._modified:
           state.clear_state(window, state_tag)
           state.add_state(
-              window, state_tag,
+              window,
+              state_tag,
               state_spec.coder.encode(runtime_state._current_accumulator))
       elif isinstance(state_spec, userstate.SetStateSpec):
         if runtime_state.is_modified():
@@ -240,5 +241,8 @@ class DirectUserStateContext(userstate.UserStateContext):
       if runtime_timer._new_timestamp is not None:
         # TODO(ccy): add corresponding watermark holds after the DirectRunner
         # allows for keyed watermark holds.
-        state.set_timer(window, timer_name, timer_spec.time_domain,
-                        runtime_timer._new_timestamp)
+        state.set_timer(
+            window,
+            timer_name,
+            timer_spec.time_domain,
+            runtime_timer._new_timestamp)

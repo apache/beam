@@ -26,7 +26,7 @@ PICKLED_DOFN_INFO = "beam:dofn:pickled_python_info:v1"
 PICKLED_SOURCE = "beam:source:pickled_python:v1"
 PICKLED_TRANSFORM = "beam:transform:pickled_python:v1"
 PICKLED_WINDOW_MAPPING_FN = "beam:window_mapping_fn:pickled_python:v1"
-PICKLED_WINDOWFN = "beam:windowfn:pickled_python:v1"
+PICKLED_WINDOWFN = "beam:window_fn:pickled_python:v1"
 PICKLED_VIEWFN = "beam:view_fn:pickled_python_data:v1"
 
 IMPULSE_READ_TRANSFORM = "beam:transform:read_from_impulse_python:v1"

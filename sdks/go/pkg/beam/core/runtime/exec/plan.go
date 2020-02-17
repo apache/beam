@@ -21,12 +21,9 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
-	"github.com/golang/protobuf/ptypes"
 )
 
 // Plan represents the bundle execution plan. It will generally be constructed
@@ -173,86 +170,12 @@ func (p *Plan) String() string {
 	return fmt.Sprintf("Plan[%v]:\n%v", p.ID(), strings.Join(units, "\n"))
 }
 
-func getTransform(transforms map[string]*fnpb.Metrics_PTransform, l metrics.Labels) *fnpb.Metrics_PTransform {
-	if pb, ok := transforms[l.Transform()]; ok {
-		return pb
-	}
-	pb := &fnpb.Metrics_PTransform{}
-	transforms[l.Transform()] = pb
-	return pb
-}
-
-func toName(l metrics.Labels) *fnpb.Metrics_User_MetricName {
-	return &fnpb.Metrics_User_MetricName{
-		Name:      l.Name(),
-		Namespace: l.Namespace(),
-	}
-}
-
-// Metrics returns a snapshot of input progress of the plan, and associated metrics.
-func (p *Plan) Metrics() *fnpb.Metrics {
-	transforms := make(map[string]*fnpb.Metrics_PTransform)
-
+// Progress returns a snapshot of input progress of the plan, and associated metrics.
+func (p *Plan) Progress() (ProgressReportSnapshot, bool) {
 	if p.source != nil {
-		snapshot := p.source.Progress()
-
-		transforms[snapshot.ID] = &fnpb.Metrics_PTransform{
-			ProcessedElements: &fnpb.Metrics_PTransform_ProcessedElements{
-				Measured: &fnpb.Metrics_PTransform_Measured{
-					OutputElementCounts: map[string]int64{
-						snapshot.Name: snapshot.Count,
-					},
-				},
-			},
-		}
+		return p.source.Progress(), true
 	}
-
-	metrics.Extractor{
-		SumInt64: func(l metrics.Labels, v int64) {
-			pb := getTransform(transforms, l)
-			pb.User = append(pb.User, &fnpb.Metrics_User{
-				MetricName: toName(l),
-				Data: &fnpb.Metrics_User_CounterData_{
-					CounterData: &fnpb.Metrics_User_CounterData{
-						Value: v,
-					},
-				},
-			})
-		},
-		DistributionInt64: func(l metrics.Labels, count, sum, min, max int64) {
-			pb := getTransform(transforms, l)
-			pb.User = append(pb.User, &fnpb.Metrics_User{
-				MetricName: toName(l),
-				Data: &fnpb.Metrics_User_DistributionData_{
-					DistributionData: &fnpb.Metrics_User_DistributionData{
-						Count: count,
-						Sum:   sum,
-						Min:   min,
-						Max:   max,
-					},
-				},
-			})
-		},
-		GaugeInt64: func(l metrics.Labels, v int64, t time.Time) {
-			ts, err := ptypes.TimestampProto(t)
-			if err != nil {
-				panic(err)
-			}
-			pb := getTransform(transforms, l)
-			pb.User = append(pb.User, &fnpb.Metrics_User{
-				MetricName: toName(l),
-				Data: &fnpb.Metrics_User_GaugeData_{
-					GaugeData: &fnpb.Metrics_User_GaugeData{
-						Value:     v,
-						Timestamp: ts,
-					},
-				},
-			})
-		},
-	}.ExtractFrom(p.Store)
-	return &fnpb.Metrics{
-		Ptransforms: transforms,
-	}
+	return ProgressReportSnapshot{}, false
 }
 
 // SplitPoints captures the split requested by the Runner.
