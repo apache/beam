@@ -19,35 +19,20 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
-import com.google.cloud.spanner.BatchClient;
-import com.google.cloud.spanner.DatabaseAdminClient;
-import com.google.cloud.spanner.DatabaseClient;
-import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
-import com.google.cloud.spanner.spi.v1.SpannerInterceptorProvider;
-import io.grpc.CallOptions;
-import io.grpc.Channel;
-import io.grpc.ClientCall;
-import io.grpc.ClientInterceptor;
-import io.grpc.MethodDescriptor;
 import java.io.Serializable;
-import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 
 /** Configuration for a Cloud Spanner client. */
 @AutoValue
 public abstract class SpannerConfig implements Serializable {
-  // A common user agent token that indicates that this request was originated from Apache Beam.
-  private static final String USER_AGENT_PREFIX = "Apache_Beam_Java";
   // A default host name for batch traffic.
   private static final String DEFAULT_HOST = "https://batch-spanner.googleapis.com/";
   // Deadline for Commit API call.
@@ -182,70 +167,5 @@ public abstract class SpannerConfig implements Serializable {
   @VisibleForTesting
   SpannerConfig withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
     return toBuilder().setServiceFactory(serviceFactory).build();
-  }
-
-  public SpannerAccessor connectToSpanner() {
-    SpannerOptions.Builder builder = SpannerOptions.newBuilder();
-
-    if (getCommitDeadline() != null && getCommitDeadline().get().getMillis() > 0) {
-
-      // In Spanner API version 1.21 or above, we can set the deadline / total Timeout on an API
-      // call using the following code:
-      //
-      // UnaryCallSettings.Builder commitSettings =
-      // builder.getSpannerStubSettingsBuilder().commitSettings();
-      // RetrySettings.Builder commitRetrySettings = commitSettings.getRetrySettings().toBuilder()
-      // commitSettings.setRetrySettings(
-      //     commitRetrySettings.setTotalTimeout(
-      //         Duration.ofMillis(getCommitDeadlineMillis().get()))
-      //     .build());
-      //
-      // However, at time of this commit, the Spanner API is at only at v1.6.0, where the only
-      // method to set a deadline is with GRPC Interceptors, so we have to use that...
-      SpannerInterceptorProvider interceptorProvider =
-          SpannerInterceptorProvider.createDefault()
-              .with(new CommitDeadlineSettingInterceptor(getCommitDeadline().get()));
-      builder.setInterceptorProvider(interceptorProvider);
-    }
-
-    if (getProjectId() != null) {
-      builder.setProjectId(getProjectId().get());
-    }
-    if (getServiceFactory() != null) {
-      builder.setServiceFactory(this.getServiceFactory());
-    }
-    if (getHost() != null) {
-      builder.setHost(getHost().get());
-    }
-    String userAgentString = USER_AGENT_PREFIX + "/" + ReleaseInfo.getReleaseInfo().getVersion();
-    builder.setHeaderProvider(FixedHeaderProvider.create("user-agent", userAgentString));
-    SpannerOptions options = builder.build();
-    Spanner spanner = options.getService();
-    DatabaseClient databaseClient =
-        spanner.getDatabaseClient(
-            DatabaseId.of(options.getProjectId(), getInstanceId().get(), getDatabaseId().get()));
-    BatchClient batchClient =
-        spanner.getBatchClient(
-            DatabaseId.of(options.getProjectId(), getInstanceId().get(), getDatabaseId().get()));
-    DatabaseAdminClient databaseAdminClient = spanner.getDatabaseAdminClient();
-    return new SpannerAccessor(spanner, databaseClient, databaseAdminClient, batchClient);
-  }
-
-  private static class CommitDeadlineSettingInterceptor implements ClientInterceptor {
-    private final long commitDeadlineMilliseconds;
-
-    private CommitDeadlineSettingInterceptor(Duration commitDeadline) {
-      this.commitDeadlineMilliseconds = commitDeadline.getMillis();
-    }
-
-    @Override
-    public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
-        MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
-      if (method.getFullMethodName().equals("google.spanner.v1.Spanner/Commit")) {
-        callOptions =
-            callOptions.withDeadlineAfter(commitDeadlineMilliseconds, TimeUnit.MILLISECONDS);
-      }
-      return next.newCall(method, callOptions);
-    }
   }
 }

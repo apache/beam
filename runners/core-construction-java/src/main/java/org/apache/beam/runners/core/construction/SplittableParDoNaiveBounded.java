@@ -402,7 +402,7 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
-      public State state(String stateId) {
+      public State state(String stateId, boolean alwaysFetched) {
         throw new UnsupportedOperationException();
       }
 

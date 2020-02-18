@@ -62,9 +62,9 @@ public class ReflectUtils {
     }
   }
 
-  private static final Map<Class, List<Method>> DECLARED_METHODS = Maps.newHashMap();
-  private static final Map<Class, Method> ANNOTATED_CONSTRUCTORS = Maps.newHashMap();
-  private static final Map<Class, List<Field>> DECLARED_FIELDS = Maps.newHashMap();
+  private static final Map<Class, List<Method>> DECLARED_METHODS = Maps.newConcurrentMap();
+  private static final Map<Class, Method> ANNOTATED_CONSTRUCTORS = Maps.newConcurrentMap();
+  private static final Map<Class, List<Field>> DECLARED_FIELDS = Maps.newConcurrentMap();
 
   /**
    * Returns the list of non private/protected, non-static methods in the class, caching the

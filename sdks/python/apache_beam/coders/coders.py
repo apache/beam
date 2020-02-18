@@ -423,7 +423,7 @@ class StrUtf8Coder(Coder):
 Coder.register_structured_urn(common_urns.coders.STRING_UTF8.urn, StrUtf8Coder)
 
 
-class ToStringCoder(Coder):
+class ToBytesCoder(Coder):
   """A default string coder used if no sink coder is specified."""
 
   if sys.version_info.major == 2:
@@ -440,10 +440,14 @@ class ToStringCoder(Coder):
       return value if isinstance(value, bytes) else str(value).encode('utf-8')
 
   def decode(self, _):
-    raise NotImplementedError('ToStringCoder cannot be used for decoding.')
+    raise NotImplementedError('ToBytesCoder cannot be used for decoding.')
 
   def is_deterministic(self):
     return True
+
+
+# alias to the old class name for a courtesy to users who reference it
+ToStringCoder = ToBytesCoder
 
 
 class FastCoder(Coder):

@@ -398,6 +398,43 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     String value();
   }
 
+  /////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * Annotation for declaring that a state parameter is always fetched.
+   *
+   * <p>A DoFn might not fetch a state value on every element, and for that reason runners may
+   * choose to defer fetching state until read() is called. Annotating a state argument with this
+   * parameter provides a hint to the runner that the state is always fetched. This may cause the
+   * runner to prefetch all the state before calling the processElement or processTimer method,
+   * improving performance. This is a performance-only hint - it does not change semantics. See the
+   * following code for an example:
+   *
+   * <pre><code>{@literal new DoFn<KV<Key, Foo>, Baz>()} {
+   *
+   *  {@literal @StateId("my-state-id")}
+   *  {@literal private final StateSpec<ValueState<MyState>>} myStateSpec =
+   *       StateSpecs.value(new MyStateCoder());
+   *
+   *  {@literal @ProcessElement}
+   *   public void processElement(
+   *       {@literal @Element InputT element},
+   *      {@literal @AlwaysFetched @StateId("my-state-id") ValueState<MyState> myState}) {
+   *     myState.read();
+   *     myState.write(...);
+   *   }
+   * }
+   * </code></pre>
+   *
+   * <p>This can only be used on state objects that implement {@link
+   * org.apache.beam.sdk.state.ReadableState}.
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.FIELD, ElementType.PARAMETER})
+  @Experimental(Kind.STATE)
+  public @interface AlwaysFetched {}
+
   /**
    * Annotation for declaring and dereferencing timers.
    *

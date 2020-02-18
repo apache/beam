@@ -30,6 +30,7 @@ import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -374,7 +375,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public State state(String stateId) {
+    public State state(String stateId, boolean alwaysFetched) {
       throw new UnsupportedOperationException(
           "Cannot access state outside of @ProcessElement and @OnTimer methods.");
     }
@@ -511,7 +512,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public State state(String stateId) {
+    public State state(String stateId, boolean alwaysFetched) {
       throw new UnsupportedOperationException(
           "Cannot access state outside of @ProcessElement and @OnTimer methods.");
     }
@@ -745,13 +746,19 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public State state(String stateId) {
+    public State state(String stateId, boolean alwaysFetched) {
       try {
         StateSpec<?> spec =
             (StateSpec<?>) signature.stateDeclarations().get(stateId).field().get(fn);
-        return stepContext
-            .stateInternals()
-            .state(getNamespace(), StateTags.tagForSpec(stateId, (StateSpec) spec));
+        State state =
+            stepContext
+                .stateInternals()
+                .state(getNamespace(), StateTags.tagForSpec(stateId, (StateSpec) spec));
+        if (alwaysFetched) {
+          return (State) ((ReadableState) state).readLater();
+        } else {
+          return state;
+        }
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
@@ -937,13 +944,19 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public State state(String stateId) {
+    public State state(String stateId, boolean alwaysFetched) {
       try {
         StateSpec<?> spec =
             (StateSpec<?>) signature.stateDeclarations().get(stateId).field().get(fn);
-        return stepContext
-            .stateInternals()
-            .state(getNamespace(), StateTags.tagForSpec(stateId, (StateSpec) spec));
+        State state =
+            stepContext
+                .stateInternals()
+                .state(getNamespace(), StateTags.tagForSpec(stateId, (StateSpec) spec));
+        if (alwaysFetched) {
+          return (State) ((ReadableState) state).readLater();
+        } else {
+          return state;
+        }
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
