@@ -26,6 +26,7 @@ from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileH
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
+from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 
 # Nose automatically detects tests if they match a regex. Here, it mistakens
@@ -42,19 +43,28 @@ class InMemoryReader(object):
     self._records = []
     self._coder = coders.FastPrimitivesCoder()
 
-  def add_element(self, element, event_time, processing_time):
+  def add_element(self, element, event_time):
     element_payload = TestStreamPayload.TimestampedElement(
         encoded_element=self._coder.encode(element),
         timestamp=Timestamp.of(event_time).micros)
     record = TestStreamFileRecord(
-        element=element_payload,
-        processing_time=Timestamp.of(processing_time).to_proto())
+        recorded_event=TestStreamPayload.Event(
+            element_event=TestStreamPayload.Event.AddElements(
+                elements=[element_payload])))
     self._records.append(record)
 
-  def advance_watermark(self, watermark, processing_time):
+  def advance_watermark(self, watermark):
     record = TestStreamFileRecord(
-        watermark=Timestamp.of(watermark).to_proto(),
-        processing_time=Timestamp.of(processing_time).to_proto())
+        recorded_event=TestStreamPayload.Event(
+            watermark_event=TestStreamPayload.Event.AdvanceWatermark(
+                new_watermark=Timestamp.of(watermark).micros)))
+    self._records.append(record)
+
+  def advance_processing_time(self, processing_time_delta):
+    record = TestStreamFileRecord(
+        recorded_event=TestStreamPayload.Event(
+            processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
+                advance_duration=Duration.of(processing_time_delta).micros)))
     self._records.append(record)
 
   def header(self):
@@ -80,9 +90,11 @@ class StreamingCacheTest(unittest.TestCase):
     """Tests that we expect to see all the correctly emitted TestStreamPayloads.
     """
     in_memory_reader = InMemoryReader()
-    in_memory_reader.add_element(element=0, event_time=0, processing_time=0)
-    in_memory_reader.add_element(element=1, event_time=1, processing_time=1)
-    in_memory_reader.add_element(element=2, event_time=2, processing_time=2)
+    in_memory_reader.add_element(element=0, event_time=0)
+    in_memory_reader.advance_processing_time(1)
+    in_memory_reader.add_element(element=1, event_time=1)
+    in_memory_reader.advance_processing_time(1)
+    in_memory_reader.add_element(element=2, event_time=2)
     cache = StreamingCache([in_memory_reader])
     reader = cache.reader()
     coder = coders.FastPrimitivesCoder()
@@ -120,18 +132,24 @@ class StreamingCacheTest(unittest.TestCase):
     """Tests that the service advances the clock with multiple outputs."""
 
     letters = InMemoryReader('letters')
-    letters.advance_watermark(0, 1)
-    letters.add_element(element='a', event_time=0, processing_time=1)
-    letters.advance_watermark(10, 11)
-    letters.add_element(element='b', event_time=10, processing_time=11)
+    letters.advance_processing_time(1)
+    letters.advance_watermark(0)
+    letters.add_element(element='a', event_time=0)
+    letters.advance_processing_time(10)
+    letters.advance_watermark(10)
+    letters.add_element(element='b', event_time=10)
 
     numbers = InMemoryReader('numbers')
-    numbers.add_element(element=1, event_time=0, processing_time=2)
-    numbers.add_element(element=2, event_time=0, processing_time=3)
-    numbers.add_element(element=2, event_time=0, processing_time=4)
+    numbers.advance_processing_time(2)
+    numbers.add_element(element=1, event_time=0)
+    numbers.advance_processing_time(1)
+    numbers.add_element(element=2, event_time=0)
+    numbers.advance_processing_time(1)
+    numbers.add_element(element=2, event_time=0)
 
     late = InMemoryReader('late')
-    late.add_element(element='late', event_time=0, processing_time=101)
+    late.advance_processing_time(101)
+    late.add_element(element='late', event_time=0)
 
     cache = StreamingCache([letters, numbers, late])
     reader = cache.reader()

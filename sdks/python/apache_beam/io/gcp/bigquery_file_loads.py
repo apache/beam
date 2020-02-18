@@ -292,8 +292,10 @@ class TriggerCopyJobs(beam.DoFn):
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     self.test_client = test_client
+    self._observed_tables = set()
 
   def start_bundle(self):
+    self._observed_tables = set()
     self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
 
   def process(self, element, job_name_prefix=None):
@@ -328,13 +330,32 @@ class TriggerCopyJobs(beam.DoFn):
         "Triggering copy job from %s to %s",
         copy_from_reference,
         copy_to_reference)
+    if copy_to_reference.tableId not in self._observed_tables:
+      # When the write_disposition for a job is WRITE_TRUNCATE,
+      # multiple copy jobs to the same destination can stump on
+      # each other, truncate data, and write to the BQ table over and
+      # over.
+      # Thus, the first copy job runs with the user's write_disposition,
+      # but afterwards, all jobs must always WRITE_APPEND to the table.
+      # If they do not, subsequent copy jobs will clear out data appended
+      # by previous jobs.
+      write_disposition = self.write_disposition
+      wait_for_job = True
+      self._observed_tables.add(copy_to_reference.tableId)
+    else:
+      wait_for_job = False
+      write_disposition = 'WRITE_APPEND'
+
     job_reference = self.bq_wrapper._insert_copy_job(
         copy_to_reference.projectId,
         copy_job_name,
         copy_from_reference,
         copy_to_reference,
         create_disposition=self.create_disposition,
-        write_disposition=self.write_disposition)
+        write_disposition=write_disposition)
+
+    if wait_for_job:
+      self.bq_wrapper.wait_for_bq_job(job_reference, sleep_duration_sec=10)
 
     yield (destination, job_reference)
 
@@ -420,7 +441,11 @@ class TriggerLoadJobs(beam.DoFn):
     _LOGGER.debug(
         'Load job has %s files. Job name is %s.', len(files), job_name)
 
+    create_disposition = self.create_disposition
     if self.temporary_tables:
+      # If we are using temporary tables, then we must always create the
+      # temporary tables, so we replace the create_disposition.
+      create_disposition = 'CREATE_IF_NEEDED'
       # For temporary tables, we create a new table with the name with JobId.
       table_reference.tableId = job_name
       yield pvalue.TaggedOutput(TriggerLoadJobs.TEMP_TABLES, table_reference)
@@ -438,7 +463,7 @@ class TriggerLoadJobs(beam.DoFn):
         job_name,
         schema=schema,
         write_disposition=self.write_disposition,
-        create_disposition=self.create_disposition,
+        create_disposition=create_disposition,
         additional_load_parameters=additional_parameters)
     yield (destination, job_reference)
 

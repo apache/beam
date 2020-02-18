@@ -1224,10 +1224,10 @@ public class DataflowPipelineTranslator {
       Map<TupleTag<?>, Coder<?>> outputCoders,
       DoFnSchemaInformation doFnSchemaInformation,
       Map<String, PCollectionView<?>> sideInputMapping) {
-    DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
 
-    if (signature.usesState() || signature.usesTimers()) {
-      DataflowRunner.verifyStateSupported(fn);
+    boolean isStateful = DoFnSignatures.isStateful(fn);
+    if (isStateful) {
+      DataflowRunner.verifyDoFnSupported(fn, context.getPipelineOptions().isStreaming());
       DataflowRunner.verifyStateSupportForWindowingStrategy(windowingStrategy);
     }
 
@@ -1255,8 +1255,7 @@ public class DataflowPipelineTranslator {
 
     // Setting USES_KEYED_STATE will cause an ungrouped shuffle, which works
     // in streaming but does not work in batch
-    if (context.getPipelineOptions().isStreaming()
-        && (signature.usesState() || signature.usesTimers())) {
+    if (context.getPipelineOptions().isStreaming() && isStateful) {
       stepContext.addInput(PropertyNames.USES_KEYED_STATE, "true");
     }
   }
