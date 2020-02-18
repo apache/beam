@@ -127,6 +127,9 @@ public final class BeamTableUtils {
         case INT16:
           return Short.valueOf(raw);
         case INT32:
+          if (raw.equals("")) {
+            return null;
+          }
           return Integer.valueOf(raw);
         case INT64:
           return Long.valueOf(raw);

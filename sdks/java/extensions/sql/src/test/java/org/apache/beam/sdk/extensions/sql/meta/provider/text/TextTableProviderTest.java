@@ -23,7 +23,11 @@ import static org.junit.Assert.assertThat;
 import java.io.File;
 import java.nio.file.Files;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv.BeamSqlEnvBuilder;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
+import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -186,6 +190,40 @@ public class TextTableProviderTest {
         .containsInAnyOrder(
             Row.withSchema(SINGLE_STRING_CSV_SCHEMA).addValues("hello").build(),
             Row.withSchema(SINGLE_STRING_CSV_SCHEMA).addValues("goodbye").build());
+    pipeline.run();
+  }
+
+  @Test public void testBenchmark() throws Exception {
+    SchemaJSONLoader.parseTableSchema("store_return");
+
+    InMemoryMetaStore inMemoryMetaStore = new InMemoryMetaStore();
+    inMemoryMetaStore.registerProvider(new TextTableProvider());
+    BeamSqlEnv env =
+        BeamSqlEnv
+            .builder(inMemoryMetaStore)
+            .setPipelineOptions(pipeline.getOptions())
+            .build();
+    env.executeDdl(
+        String.format(
+            "CREATE EXTERNAL TABLE catalog_page (%s) TYPE text LOCATION '%s' "
+                + "TBLPROPERTIES '{\"format\":\"csv\", \"csvformat\": \"InformixUnload\"}'",
+            "cp_catalog_page_sk int,\n"
+                + "cp_catalog_page_id varchar, \n"
+                + "cp_start_date_sk int, \n"
+                + "cp_end_date_sk int, \n"
+                + "cp_department varchar, \n"
+                + "cp_catalog_number int, \n"
+                + "cp_catalog_page_number int, \n"
+                + "cp_description varchar, \n"
+                + "cp_type varchar,\n"
+                + "cp_empty varchar",
+            "/usr/local/google/home/ruwang/test_data/catalog_page.dat"
+        ));
+
+    Table table = inMemoryMetaStore.getTables().get("catalog_page");
+    System.out.println(table);
+
+    PCollection<Row> rows = BeamSqlRelUtils.toPCollection(pipeline, env.parseQuery("SELECT * FROM catalog_page LIMIT 10"));
     pipeline.run();
   }
 
