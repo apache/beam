@@ -27,10 +27,7 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
-import org.apache.beam.sdk.util.LzoCompressorInputStream;
-import org.apache.beam.sdk.util.LzoCompressorOutputStream;
-import org.apache.beam.sdk.util.LzopCompressorInputStream;
-import org.apache.beam.sdk.util.LzopCompressorOutputStream;
+import org.apache.beam.sdk.util.LzoCompression;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
@@ -159,32 +156,48 @@ public enum Compression {
   /**
    * LZO compression using LZO Codec. .lzo_deflate extension is specified for the files which just
    * use the LZO algorithm without headers.
+   *
+   * <p>The Beam Java SDK does not pull in the required libraries for LZO compression by default, so
+   * it is the user's responsibility to declare an explicit dependency on {@code
+   * airlift/aircompressor} and {@code presto-hadoop-apache2}. Attempts to read or write
+   * .lzo_deflate files without {@code airlift/aircompressor} and {@code presto-hadoop-apache2}
+   * loaded will result in {@code NoClassDefFoundError} at runtime.
    */
   LZO(".lzo_deflate", ".lzo_deflate") {
     @Override
     public ReadableByteChannel readDecompressed(ReadableByteChannel channel) throws IOException {
-      return Channels.newChannel(new LzoCompressorInputStream(Channels.newInputStream(channel)));
+      return Channels.newChannel(
+          LzoCompression.createLzoInputStream(Channels.newInputStream(channel)));
     }
 
     @Override
     public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
-      return Channels.newChannel(new LzoCompressorOutputStream(Channels.newOutputStream(channel)));
+      return Channels.newChannel(
+          LzoCompression.createLzoOutputStream(Channels.newOutputStream(channel)));
     }
   },
 
   /**
    * LZOP compression using LZOP Codec. .lzo extension is specified for the files with magic bytes
    * and headers.
+   *
+   * <p>The Beam Java SDK does not pull in the required libraries for LZOP compression by default,
+   * so it is the user's responsibility to declare an explicit dependency on {@code
+   * airlift/aircompressor} and {@code presto-hadoop-apache2}. Attempts to read or write .lzo files
+   * without {@code airlift/aircompressor} and {@code presto-hadoop-apache2} loaded will result in
+   * {@code NoClassDefFoundError} at runtime.
    */
   LZOP(".lzo", ".lzo") {
     @Override
     public ReadableByteChannel readDecompressed(ReadableByteChannel channel) throws IOException {
-      return Channels.newChannel(new LzopCompressorInputStream(Channels.newInputStream(channel)));
+      return Channels.newChannel(
+          LzoCompression.createLzopInputStream(Channels.newInputStream(channel)));
     }
 
     @Override
     public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
-      return Channels.newChannel(new LzopCompressorOutputStream(Channels.newOutputStream(channel)));
+      return Channels.newChannel(
+          LzoCompression.createLzopOutputStream(Channels.newOutputStream(channel)));
     }
   },
 
