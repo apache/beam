@@ -533,8 +533,7 @@ class ReshuffleTest(unittest.TestCase):
         after_reshuffle, equal_to(expected_data), label='after reshuffle')
     pipeline.run()
 
-  # TODO(BEAM-9003): Does not work in streaming mode on Dataflow.
-  @attr('ValidatesRunner', 'sickbay-streaming')
+  @attr('ValidatesRunner')
   def test_reshuffle_preserves_timestamps(self):
     with TestPipeline() as pipeline:
 
