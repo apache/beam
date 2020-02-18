@@ -41,7 +41,10 @@ import argparse
 import json
 import logging
 import math
+import random
+import struct
 import time
+from past.builtins import xrange
 
 import apache_beam as beam
 from apache_beam.io import WriteToText
@@ -415,19 +418,24 @@ class SyntheticSource(iobase.BoundedSource):
       tracker = range_trackers.UnsplittableRangeTracker(tracker)
     return tracker
 
+  @staticmethod
+  def random_bytes(length):
+    """Return random bytes."""
+    return b''.join(
+        (struct.pack('B', random.getrandbits(8)) for _ in xrange(length)))
+
   def _gen_kv_pair(self, index):
-    r = np.random.RandomState(index)
-    rand = r.random_sample()
+    random.seed(index)
+    rand = random.random()
 
     # Determines whether to generate hot key or not.
     if rand < self._hot_key_fraction:
       # Generate hot key.
       # An integer is randomly selected from the range [0, numHotKeys-1]
       # with equal probability.
-      r_hot = np.random.RandomState(index % self._num_hot_keys)
-      return r_hot.bytes(self._key_size), r.bytes(self._value_size)
-    else:
-      return r.bytes(self._key_size), r.bytes(self._value_size)
+      random.seed(index % self._num_hot_keys)
+    return self.random_bytes(self._key_size), self.random_bytes(
+      self._value_size)
 
   def read(self, range_tracker):
     index = range_tracker.start_position()
