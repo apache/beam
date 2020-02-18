@@ -1807,7 +1807,7 @@ public class BigQueryIO {
       abstract Builder<T> setAvroSchemaFactory(
           SerializableFunction<TableSchema, org.apache.avro.Schema> avroSchemaFactory);
 
-      abstract Builder<T> setUseAvroLogicalTypes(Boolean useAvroLogicalTypes);
+      abstract Builder<T> setUseAvroLogicalTypes(boolean useAvroLogicalTypes);
 
       abstract Builder<T> setDynamicDestinations(DynamicDestinations<T, ?> dynamicDestinations);
 
