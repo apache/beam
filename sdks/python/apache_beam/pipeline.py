@@ -295,7 +295,7 @@ class Pipeline(object):
           elif len(inputs) == 1:
             input_node = inputs[0]
           elif len(inputs) == 0:
-            input_node = pvalue.PBegin(self)
+            input_node = pvalue.PBegin(self.pipeline)
 
           # We have to add the new AppliedTransform to the stack before expand()
           # and pop it out later to make sure that parts get added correctly.
@@ -309,12 +309,22 @@ class Pipeline(object):
           self.pipeline._remove_labels_recursively(original_transform_node)
 
           new_output = replacement_transform.expand(input_node)
+          assert isinstance(
+              new_output, (dict, pvalue.PValue, pvalue.DoOutputsTuple))
 
           if isinstance(new_output, pvalue.PValue):
             new_output.element_type = None
             self.pipeline._infer_result_type(
                 replacement_transform, inputs, new_output)
-          replacement_transform_node.add_output(new_output)
+
+          if isinstance(new_output, dict):
+            for new_tag, new_pcoll in new_output.items():
+              replacement_transform_node.add_output(new_pcoll, new_tag)
+          elif isinstance(new_output, pvalue.DoOutputsTuple):
+            replacement_transform_node.add_output(
+                new_output, new_output._main_tag)
+          else:
+            replacement_transform_node.add_output(new_output, new_output.tag)
 
           # Recording updated outputs. This cannot be done in the same visitor
           # since if we dynamically update output type here, we'll run into
@@ -325,7 +335,8 @@ class Pipeline(object):
           if isinstance(new_output, pvalue.PValue):
             if not new_output.producer:
               new_output.producer = replacement_transform_node
-            output_map[original_transform_node.outputs[None]] = new_output
+            output_map[original_transform_node.outputs[new_output.tag]] = \
+                new_output
           elif isinstance(new_output, (pvalue.DoOutputsTuple, tuple)):
             for pcoll in new_output:
               if not pcoll.producer:
@@ -603,7 +614,30 @@ class Pipeline(object):
       self._infer_result_type(transform, inputs, result)
 
       assert isinstance(result.producer.inputs, tuple)
-      current.add_output(result)
+      # The DoOutputsTuple adds the PCollection to the outputs when accessed
+      # except for the main tag. Add the main tag here.
+      if isinstance(result, pvalue.DoOutputsTuple):
+        current.add_output(result, result._main_tag)
+        continue
+
+      # TODO(BEAM-9322): Find the best auto-generated tags for nested
+      # PCollections.
+      # If the user wants the old implementation of always generated
+      # PCollection output ids, then set the tag to None first, then count up
+      # from 1.
+      if self._options.view_as(DebugOptions).lookup_experiment(
+          'force_generated_pcollection_output_ids', default=False):
+        tag = len(current.outputs) if None in current.outputs else None
+        current.add_output(result, tag)
+        continue
+
+      # Otherwise default to the new implementation which only auto-generates
+      # tags for multiple PCollections with an unset tag.
+      if result.tag is None and None in current.outputs:
+        tag = len(current.outputs)
+      else:
+        tag = result.tag
+      current.add_output(result, tag)
 
     if (type_options is not None and
         type_options.type_check_strictness == 'ALL_REQUIRED' and
@@ -887,20 +921,14 @@ class AppliedPTransform(object):
 
   def add_output(self,
                  output,  # type: Union[pvalue.DoOutputsTuple, pvalue.PValue]
-                 tag=None  # type: Union[str, int, None]
+                 tag  # type: Union[str, int, None]
                 ):
     # type: (...) -> None
     if isinstance(output, pvalue.DoOutputsTuple):
-      self.add_output(output[output._main_tag])
+      self.add_output(output[tag], tag)
     elif isinstance(output, pvalue.PValue):
-      # TODO(BEAM-1833): Require tags when calling this method.
-      if tag is None and None in self.outputs:
-        tag = len(self.outputs)
       assert tag not in self.outputs
       self.outputs[tag] = output
-    elif isinstance(output, dict):
-      for output_tag, out in output.items():
-        self.add_output(out, tag=output_tag)
     else:
       raise TypeError("Unexpected output type: %s" % output)
 
