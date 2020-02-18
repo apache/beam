@@ -38,9 +38,12 @@ from __future__ import absolute_import
 from __future__ import division
 
 import argparse
+import itertools
 import json
 import logging
 import math
+import random
+import struct
 import time
 
 import apache_beam as beam
@@ -415,25 +418,33 @@ class SyntheticSource(iobase.BoundedSource):
       tracker = range_trackers.UnsplittableRangeTracker(tracker)
     return tracker
 
-  def _gen_kv_pair(self, index):
-    r = np.random.RandomState(index)
-    rand = r.random_sample()
+  @staticmethod
+  def random_bytes(length, generator):
+    """Return random bytes."""
+    n = length // 8 + 1
+    return struct.pack(
+        '{}Q'.format(n),
+        *map(generator.getrandbits, itertools.repeat(64, n)))[:length]
+
+  def _gen_kv_pair(self, generator, index):
+    generator.seed(index)
+    rand = generator.random()
 
     # Determines whether to generate hot key or not.
     if rand < self._hot_key_fraction:
       # Generate hot key.
       # An integer is randomly selected from the range [0, numHotKeys-1]
       # with equal probability.
-      r_hot = np.random.RandomState(index % self._num_hot_keys)
-      return r_hot.bytes(self._key_size), r.bytes(self._value_size)
-    else:
-      return r.bytes(self._key_size), r.bytes(self._value_size)
+      generator.seed(index % self._num_hot_keys)
+    bytes_ = self.random_bytes(self.element_size, generator)
+    return bytes_[:self._key_size], bytes_[self._key_size:]
 
   def read(self, range_tracker):
     index = range_tracker.start_position()
+    generator = random.Random()
     while range_tracker.try_claim(index):
       time.sleep(self._sleep_per_input_record_sec)
-      yield self._gen_kv_pair(index)
+      yield self._gen_kv_pair(generator, index)
       index += 1
 
   def default_output_coder(self):
