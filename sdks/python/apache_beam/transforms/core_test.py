@@ -17,6 +17,8 @@
 
 """Unit tests for core module."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import unittest
@@ -26,7 +28,6 @@ from apache_beam.utils.timestamp import Timestamp
 
 
 class WatermarkEstimatorTest(unittest.TestCase):
-
   def test_set_watermark(self):
     watermark_estimator = WatermarkEstimator()
     self.assertEqual(watermark_estimator.current_watermark(), None)

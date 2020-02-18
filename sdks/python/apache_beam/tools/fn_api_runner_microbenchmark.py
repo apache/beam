@@ -54,11 +54,14 @@ Per-element  0.005474923321695039
 R^2          0.95189
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
 import argparse
+import logging
 import random
 from builtins import range
 
@@ -82,10 +85,11 @@ class BagInStateOutputAfterTimer(beam.DoFn):
   SET_STATE = SetStateSpec('buffer', VarIntCoder())
   EMIT_TIMER = TimerSpec('emit_timer', TimeDomain.WATERMARK)
 
-  def process(self,
-              element,
-              set_state=beam.DoFn.StateParam(SET_STATE),
-              emit_timer=beam.DoFn.TimerParam(EMIT_TIMER)):
+  def process(
+      self,
+      element,
+      set_state=beam.DoFn.StateParam(SET_STATE),
+      emit_timer=beam.DoFn.TimerParam(EMIT_TIMER)):
     _, values = element
     for v in values:
       set_state.add(v)
@@ -97,21 +101,20 @@ class BagInStateOutputAfterTimer(beam.DoFn):
     return [(random.randint(0, 1000), v) for v in values]
 
 
-def _build_serial_stages(pipeline,
-                         num_serial_stages,
-                         num_elements,
-                         stage_count):
-  pc = (pipeline |
-        ('start_stage%s' % stage_count) >> beam.Create([
-            (random.randint(0, 1000), i) for i in range(num_elements)])
-        | ('gbk_start_stage%s' % stage_count) >> beam.GroupByKey())
+def _build_serial_stages(
+    pipeline, num_serial_stages, num_elements, stage_count):
+  pc = (
+      pipeline | ('start_stage%s' % stage_count) >> beam.Create(
+          [(random.randint(0, 1000), i) for i in range(num_elements)])
+      | ('gbk_start_stage%s' % stage_count) >> beam.GroupByKey())
 
   for i in range(num_serial_stages):
-    pc = (pc
-          | ('stage%s_map%s' % (stage_count, i)) >> beam.ParDo(
-              BagInStateOutputAfterTimer()).with_output_types(
-                  typehints.KV[int, int])
-          | ('stage%s_gbk%s' % (stage_count, i)) >> beam.GroupByKey())
+    pc = (
+        pc
+        | ('stage%s_map%s' % (stage_count, i)) >> beam.ParDo(
+            BagInStateOutputAfterTimer()).with_output_types(
+                typehints.KV[int, int])
+        | ('stage%s_gbk%s' % (stage_count, i)) >> beam.GroupByKey())
 
   return pc
 
@@ -128,11 +131,13 @@ def run_single_pipeline(size):
 def run_benchmark(starting_point, num_runs, num_elements_step, verbose):
   suite = [
       utils.LinearRegressionBenchmarkConfig(
-          run_single_pipeline, starting_point, num_elements_step, num_runs)]
+          run_single_pipeline, starting_point, num_elements_step, num_runs)
+  ]
   utils.run_benchmarks(suite, verbose=verbose)
 
 
 if __name__ == '__main__':
+  logging.basicConfig()
   utils.check_compiled('apache_beam.runners.common')
 
   parser = argparse.ArgumentParser()
@@ -142,7 +147,8 @@ if __name__ == '__main__':
   parser.add_argument('--verbose', default=True, type=bool)
   options = parser.parse_args()
 
-  run_benchmark(options.starting_point,
-                options.num_runs,
-                options.increment,
-                options.verbose)
+  run_benchmark(
+      options.starting_point,
+      options.num_runs,
+      options.increment,
+      options.verbose)

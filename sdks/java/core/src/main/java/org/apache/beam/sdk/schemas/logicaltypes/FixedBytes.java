@@ -20,10 +20,13 @@ package org.apache.beam.sdk.schemas.logicaltypes;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Arrays;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 
 /** A LogicalType representing a fixed-size byte array. */
+@Experimental(Kind.SCHEMAS)
 public class FixedBytes implements LogicalType<byte[], byte[]> {
   public static final String IDENTIFIER = "FixedBytes";
   private final int byteArraySize;

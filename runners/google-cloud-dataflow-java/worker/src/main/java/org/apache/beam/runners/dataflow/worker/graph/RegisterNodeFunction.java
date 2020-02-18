@@ -43,9 +43,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterRequest;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
-import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
 import org.apache.beam.runners.core.SideInputReader;
-import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -80,8 +78,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -102,15 +100,15 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
   private static final String JAVA_SOURCE_URN = "beam:source:java:0.1";
 
   public static final String COMBINE_PER_KEY_URN =
-      BeamUrns.getUrn(StandardPTransforms.Composites.COMBINE_PER_KEY);
+      PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN;
   public static final String COMBINE_PRECOMBINE_URN =
-      BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_PER_KEY_PRECOMBINE);
+      PTransformTranslation.COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN;
   public static final String COMBINE_MERGE_URN =
-      BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_PER_KEY_MERGE_ACCUMULATORS);
+      PTransformTranslation.COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN;
   public static final String COMBINE_EXTRACT_URN =
-      BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_PER_KEY_EXTRACT_OUTPUTS);
+      PTransformTranslation.COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN;
   public static final String COMBINE_GROUPED_VALUES_URN =
-      BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_GROUPED_VALUES);
+      PTransformTranslation.COMBINE_GROUPED_VALUES_TRANSFORM_URN;
 
   private static final String SERIALIZED_SOURCE = "serialized_source";
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -218,6 +216,8 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
     ImmutableMap.Builder<String, Iterable<PCollectionView<?>>> ptransformIdToPCollectionViews =
         ImmutableMap.builder();
     ImmutableMap.Builder<String, NameContext> pcollectionIdToNameContexts = ImmutableMap.builder();
+    ImmutableMap.Builder<InstructionOutputNode, String> instructionOutputNodeToCoderIdBuilder =
+        ImmutableMap.builder();
 
     // For each instruction output node:
     // 1. Generate new Coder and register it with SDKComponents and ProcessBundleDescriptor.
@@ -227,6 +227,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
       InstructionOutput instructionOutput = node.getInstructionOutput();
 
       String coderId = "generatedCoder" + idGenerator.getId();
+      instructionOutputNodeToCoderIdBuilder.put(node, coderId);
       try (ByteString.Output output = ByteString.newOutput()) {
         try {
           Coder<?> javaCoder =
@@ -276,6 +277,8 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
               instructionOutput.getName()));
     }
     processBundleDescriptor.putAllCoders(sdkComponents.toComponents().getCodersMap());
+    Map<InstructionOutputNode, String> instructionOutputNodeToCoderIdMap =
+        instructionOutputNodeToCoderIdBuilder.build();
 
     for (ParallelInstructionNode node :
         Iterables.filter(input.nodes(), ParallelInstructionNode.class)) {
@@ -410,22 +413,33 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
       Set<Node> predecessors = input.predecessors(node);
       Set<Node> successors = input.successors(node);
       if (predecessors.isEmpty() && !successors.isEmpty()) {
+        Node instructionOutputNode = Iterables.getOnlyElement(successors);
         pTransform.putOutputs(
             "generatedOutput" + idGenerator.getId(),
-            nodesToPCollections.get(Iterables.getOnlyElement(successors)));
+            nodesToPCollections.get(instructionOutputNode));
         pTransform.setSpec(
             RunnerApi.FunctionSpec.newBuilder()
                 .setUrn(DATA_INPUT_URN)
-                .setPayload(node.getRemoteGrpcPort().toByteString())
+                .setPayload(
+                    node.getRemoteGrpcPort()
+                        .toBuilder()
+                        .setCoderId(instructionOutputNodeToCoderIdMap.get(instructionOutputNode))
+                        .build()
+                        .toByteString())
                 .build());
       } else if (!predecessors.isEmpty() && successors.isEmpty()) {
+        Node instructionOutputNode = Iterables.getOnlyElement(predecessors);
         pTransform.putInputs(
-            "generatedInput" + idGenerator.getId(),
-            nodesToPCollections.get(Iterables.getOnlyElement(predecessors)));
+            "generatedInput" + idGenerator.getId(), nodesToPCollections.get(instructionOutputNode));
         pTransform.setSpec(
             RunnerApi.FunctionSpec.newBuilder()
                 .setUrn(DATA_OUTPUT_URN)
-                .setPayload(node.getRemoteGrpcPort().toByteString())
+                .setPayload(
+                    node.getRemoteGrpcPort()
+                        .toBuilder()
+                        .setCoderId(instructionOutputNodeToCoderIdMap.get(instructionOutputNode))
+                        .build()
+                        .toByteString())
                 .build());
       } else {
         throw new IllegalStateException(

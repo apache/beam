@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -59,7 +60,7 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
  *
  * @param <T> The type of records to be read from the source.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
   /**
    * Creates a {@code BlockBasedSource} based on a file name or pattern. Subclasses must call this
@@ -111,7 +112,7 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
   protected abstract BlockBasedReader<T> createSingleFileReader(PipelineOptions options);
 
   /** A {@code Block} represents a block of records that can be read. */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
+  @Experimental(Kind.SOURCE_SINK)
   protected abstract static class Block<T> {
     /** Returns the current record. */
     public abstract T getCurrentRecord();
@@ -135,7 +136,7 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
    * subrange of a file, the blocks that will be read by this reader are those such that the first
    * byte of the block is within the range {@code [start, end)}.
    */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
+  @Experimental(Kind.SOURCE_SINK)
   protected abstract static class BlockBasedReader<T> extends FileBasedReader<T> {
     private boolean atSplitPoint;
 

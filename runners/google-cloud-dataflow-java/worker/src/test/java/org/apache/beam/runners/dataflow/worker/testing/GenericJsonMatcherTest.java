@@ -53,7 +53,9 @@ public class GenericJsonMatcherTest {
       assertThat(actual, is(jsonOf(expected)));
     } catch (AssertionError ex) {
       assertEquals(
-          "\nExpected: is {\"foo\":\"expected\"}\n     but: was <{foo=actual}>", ex.getMessage());
+          "\nExpected: is {\"foo\":\"expected\"}\n"
+              + "     but: was <GenericData{classInfo=[], {foo=actual}}>",
+          ex.getMessage());
 
       // pass
       return;

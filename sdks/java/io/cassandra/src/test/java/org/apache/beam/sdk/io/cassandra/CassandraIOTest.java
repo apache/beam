@@ -484,10 +484,20 @@ public class CassandraIOTest implements Serializable {
     CassandraIO.CassandraSource<Scientist> initialSource =
         new CassandraIO.CassandraSource<>(read, Collections.singletonList(splitQuery));
     int desiredBundleSizeBytes = 2048;
+    long estimatedSize = initialSource.getEstimatedSizeBytes(options);
     List<BoundedSource<Scientist>> splits = initialSource.split(desiredBundleSizeBytes, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
     float expectedNumSplitsloat =
         (float) initialSource.getEstimatedSizeBytes(options) / desiredBundleSizeBytes;
+    long sum = 0;
+
+    for (BoundedSource<Scientist> subSource : splits) {
+      sum += subSource.getEstimatedSizeBytes(options);
+    }
+
+    // due to division and cast estimateSize != sum but will be close. Exact equals checked below
+    assertEquals((long) (estimatedSize / splits.size()) * splits.size(), sum);
+
     int expectedNumSplits = (int) Math.ceil(expectedNumSplitsloat);
     assertEquals("Wrong number of splits", expectedNumSplits, splits.size());
     int emptySplits = 0;

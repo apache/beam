@@ -39,6 +39,7 @@ import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -184,7 +185,7 @@ import org.slf4j.LoggerFactory;
  * Consider using <a href="https://en.wikipedia.org/wiki/Merge_(SQL)">MERGE ("upsert")
  * statements</a> supported by your database instead.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class JdbcIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(JdbcIO.class);
@@ -202,7 +203,7 @@ public class JdbcIO {
   }
 
   /** Read Beam {@link Row}s from a JDBC data source. */
-  @Experimental(Experimental.Kind.SCHEMAS)
+  @Experimental(Kind.SCHEMAS)
   public static ReadRows readRows() {
     return new AutoValue_JdbcIO_ReadRows.Builder()
         .setFetchSize(DEFAULT_FETCH_SIZE)
@@ -446,7 +447,7 @@ public class JdbcIO {
 
   /** Implementation of {@link #readRows()}. */
   @AutoValue
-  @Experimental(Experimental.Kind.SCHEMAS)
+  @Experimental(Kind.SCHEMAS)
   public abstract static class ReadRows extends PTransform<PBegin, PCollection<Row>> {
     @Nullable
     abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
@@ -1442,7 +1443,7 @@ public class JdbcIO {
 
     @Override
     public DataSource apply(Void input) {
-      return instances.computeIfAbsent(config, (config) -> config.buildDatasource());
+      return instances.computeIfAbsent(config, DataSourceConfiguration::buildDatasource);
     }
 
     @Override

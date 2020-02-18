@@ -23,6 +23,7 @@ import static org.apache.hive.hcatalog.common.HCatUtil.makePathASafeFileName;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.CommandNeedRetryException;
@@ -37,6 +38,7 @@ import org.apache.hadoop.hive.ql.session.SessionState;
  *
  * <p>Used only for testing.
  */
+@Internal
 public final class EmbeddedMetastoreService implements AutoCloseable {
   private final Driver driver;
   private final HiveConf hiveConf;

@@ -17,6 +17,8 @@
 
 """A word-counting workflow."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse
@@ -36,7 +38,6 @@ from apache_beam.options.pipeline_options import SetupOptions
 
 class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""
-
   def __init__(self):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
     # super(WordExtractingDoFn, self).__init__()
@@ -72,14 +73,16 @@ class WordExtractingDoFn(beam.DoFn):
 def run(argv=None, save_main_session=True):
   """Main entry point; defines and runs the wordcount pipeline."""
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input',
-                      dest='input',
-                      default='gs://dataflow-samples/shakespeare/kinglear.txt',
-                      help='Input file to process.')
-  parser.add_argument('--output',
-                      dest='output',
-                      required=True,
-                      help='Output file to write results to.')
+  parser.add_argument(
+      '--input',
+      dest='input',
+      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+      help='Input file to process.')
+  parser.add_argument(
+      '--output',
+      dest='output',
+      required=True,
+      help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   # We use the save_main_session option because one or more DoFn's in this
@@ -96,12 +99,13 @@ def run(argv=None, save_main_session=True):
     (word, ones) = word_ones
     return (word, sum(ones))
 
-  counts = (lines
-            | 'split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(unicode))
-            | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
-            | 'group' >> beam.GroupByKey()
-            | 'count' >> beam.Map(count_ones))
+  counts = (
+      lines
+      | 'split' >>
+      (beam.ParDo(WordExtractingDoFn()).with_output_types(unicode))
+      | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
+      | 'group' >> beam.GroupByKey()
+      | 'count' >> beam.Map(count_ones))
 
   # Format the counts into a PCollection of strings.
   def format_result(word_count):
@@ -118,8 +122,8 @@ def run(argv=None, save_main_session=True):
   result.wait_until_finish()
 
   # Do not query metrics when creating a template which doesn't run
-  if (not hasattr(result, 'has_job')    # direct runner
-      or result.has_job):               # not just a template creation
+  if (not hasattr(result, 'has_job')  # direct runner
+      or result.has_job):  # not just a template creation
     empty_lines_filter = MetricsFilter().with_name('empty_lines')
     query_result = result.metrics().query(empty_lines_filter)
     if query_result['counters']:

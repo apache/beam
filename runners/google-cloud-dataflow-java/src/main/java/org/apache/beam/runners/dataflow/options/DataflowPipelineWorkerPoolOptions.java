@@ -22,6 +22,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowRunnerInfo;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
@@ -47,7 +48,7 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions {
   void setNumWorkers(int value);
 
   /** Type of autoscaling algorithm to use. */
-  @Experimental(Experimental.Kind.AUTOSCALING)
+  @Experimental(Kind.AUTOSCALING)
   enum AutoscalingAlgorithmType {
     /** Use numWorkers machines. Do not autoscale the worker pool. */
     NONE("AUTOSCALING_ALGORITHM_NONE"),
@@ -86,7 +87,7 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions {
           + "BASIC (deprecated): autoscale the worker pool size up to maxNumWorkers until the job "
           + "completes. "
           + "THROUGHPUT_BASED: autoscale the workerpool based on throughput (up to maxNumWorkers).")
-  @Experimental(Experimental.Kind.AUTOSCALING)
+  @Experimental(Kind.AUTOSCALING)
   AutoscalingAlgorithmType getAutoscalingAlgorithm();
 
   void setAutoscalingAlgorithm(AutoscalingAlgorithmType value);

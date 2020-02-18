@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -29,8 +31,7 @@ def mean_globally(test=None):
         pipeline
         | 'Create numbers' >> beam.Create([3, 4, 1, 2])
         | 'Get mean value' >> beam.combiners.Mean.Globally()
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END mean_globally]
     if test:
       test(mean_element)
@@ -52,8 +53,7 @@ def mean_per_key(test=None):
             ('🍅', 3),
         ])
         | 'Get mean value per key' >> beam.combiners.Mean.PerKey()
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END mean_per_key]
     if test:
       test(elements_with_mean_value_per_key)

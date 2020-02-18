@@ -15,11 +15,12 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.utils import timestamp
-from apache_beam.utils.timestamp import Timestamp
 
 
 class StreamingCache(object):
@@ -48,15 +49,14 @@ class StreamingCache(object):
       # The file headers that are metadata for that particular PCollection.
       # The header allows for metadata about an entire stream, so that the data
       # isn't copied per record.
-      self._headers = {r.header().tag : r.header() for r in readers}
-      self._readers = {r.header().tag : r.read() for r in readers}
-
-      # The watermarks per tag. Useful for introspection in the stream.
-      self._watermarks = {tag: timestamp.MIN_TIMESTAMP for tag in self._headers}
+      self._headers = {r.header().tag: r.header() for r in readers}
+      self._readers = {r.header().tag: r.read() for r in readers}
 
       # The most recently read timestamp per tag.
-      self._stream_times = {tag: timestamp.MIN_TIMESTAMP
-                            for tag in self._headers}
+      self._stream_times = {
+          tag: timestamp.Timestamp(seconds=0)
+          for tag in self._headers
+      }
 
     def _test_stream_events_before_target(self, target_timestamp):
       """Reads the next iteration of elements from each stream.
@@ -75,22 +75,21 @@ class StreamingCache(object):
         if self._stream_times[tag] >= target_timestamp:
           continue
         try:
-          record = next(r)
-          records.append((tag, record))
-          self._stream_times[tag] = Timestamp.from_proto(record.processing_time)
+          record = next(r).recorded_event
+          if record.HasField('processing_time_event'):
+            self._stream_times[tag] += timestamp.Duration(
+                micros=record.processing_time_event.advance_duration)
+          records.append((tag, record, self._stream_times[tag]))
         except StopIteration:
           pass
       return records
 
     def _merge_sort(self, previous_events, new_events):
-      return sorted(previous_events + new_events,
-                    key=lambda x: Timestamp.from_proto(
-                        x[1].processing_time),
-                    reverse=True)
+      return sorted(
+          previous_events + new_events, key=lambda x: x[2], reverse=True)
 
     def _min_timestamp_of(self, events):
-      return (Timestamp.from_proto(events[-1][1].processing_time)
-              if events else timestamp.MAX_TIMESTAMP)
+      return events[-1][2] if events else timestamp.MAX_TIMESTAMP
 
     def _event_stream_caught_up_to_target(self, events, target_timestamp):
       empty_events = not events
@@ -102,7 +101,7 @@ class StreamingCache(object):
       """
 
       # The largest timestamp read from the different streams.
-      target_timestamp = timestamp.Timestamp.of(0)
+      target_timestamp = timestamp.MAX_TIMESTAMP
 
       # The events from last iteration that are past the target timestamp.
       unsent_events = []
@@ -125,19 +124,20 @@ class StreamingCache(object):
         # Loop through the elements with the correct timestamp.
         while not self._event_stream_caught_up_to_target(events_to_send,
                                                          target_timestamp):
-          tag, r = events_to_send.pop()
 
           # First advance the clock to match the time of the stream. This has
           # a side-effect of also advancing this cache's clock.
-          curr_timestamp = Timestamp.from_proto(r.processing_time)
+          tag, r, curr_timestamp = events_to_send.pop()
           if curr_timestamp > self._monotonic_clock:
             yield self._advance_processing_time(curr_timestamp)
 
           # Then, send either a new element or watermark.
-          if r.HasField('element'):
-            yield self._add_element(r.element, tag)
-          elif r.HasField('watermark'):
-            yield self._advance_watermark(r.watermark, tag)
+          if r.HasField('element_event'):
+            r.element_event.tag = tag
+            yield r
+          elif r.HasField('watermark_event'):
+            r.watermark_event.tag = tag
+            yield r
         unsent_events = events_to_send
         target_timestamp = self._min_timestamp_of(unsent_events)
 
@@ -156,15 +156,6 @@ class StreamingCache(object):
           processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
               advance_duration=advancy_by))
       self._monotonic_clock = new_timestamp
-      return e
-
-    def _advance_watermark(self, watermark, tag):
-      """Advances the watermark for tag and returns AdvanceWatermark event.
-      """
-      self._watermarks[tag] = Timestamp.from_proto(watermark)
-      e = TestStreamPayload.Event(
-          watermark_event=TestStreamPayload.Event.AdvanceWatermark(
-              new_watermark=self._watermarks[tag].micros, tag=tag))
       return e
 
   def reader(self):

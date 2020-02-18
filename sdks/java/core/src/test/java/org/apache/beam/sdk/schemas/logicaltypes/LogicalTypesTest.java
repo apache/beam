@@ -19,6 +19,8 @@ package org.apache.beam.sdk.schemas.logicaltypes;
 
 import static org.junit.Assert.assertEquals;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -70,5 +72,29 @@ public class LogicalTypesTest {
     union = intOneOf.getLogicalTypeValue(0, OneOfType.Value.class);
     assertEquals("int32", union.getCaseType().toString());
     assertEquals(42, (int) union.getValue());
+  }
+
+  @Test
+  public void testNanosInstant() {
+    Schema rowSchema = new NanosInstant().getBaseType().getRowSchema();
+    Instant now = Instant.now();
+    Row nowAsRow = Row.withSchema(rowSchema).addValues(now.getEpochSecond(), now.getNano()).build();
+
+    Schema schema = Schema.builder().addLogicalTypeField("now", new NanosInstant()).build();
+    Row row = Row.withSchema(schema).addValues(now).build();
+    assertEquals(now, row.getLogicalTypeValue(0, NanosInstant.class));
+    assertEquals(nowAsRow, row.getValue(0));
+  }
+
+  @Test
+  public void testNanosDuration() {
+    Schema rowSchema = new NanosInstant().getBaseType().getRowSchema();
+    Duration duration = Duration.ofSeconds(123, 42);
+    Row durationAsRow = Row.withSchema(rowSchema).addValues(123L, 42).build();
+
+    Schema schema = Schema.builder().addLogicalTypeField("duration", new NanosDuration()).build();
+    Row row = Row.withSchema(schema).addValues(duration).build();
+    assertEquals(duration, row.getLogicalTypeValue(0, NanosDuration.class));
+    assertEquals(durationAsRow, row.getValue(0));
   }
 }

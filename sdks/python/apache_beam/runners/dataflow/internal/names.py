@@ -20,6 +20,8 @@
 # All constants are for internal use only; no backwards-compatibility
 # guarantees.
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 # Standard file names used for staging files.
@@ -38,10 +40,10 @@ SERIALIZED_SOURCE_KEY = 'serialized_source'
 
 # Update this version to the next version whenever there is a change that will
 # require changes to legacy Dataflow worker execution environment.
-BEAM_CONTAINER_VERSION = 'beam-master-20191220'
+BEAM_CONTAINER_VERSION = 'beam-master-20200213'
 # Update this version to the next version whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
-BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20191220'
+BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20200213'
 
 # TODO(BEAM-5939): Remove these shared names once Dataflow worker is updated.
 PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
@@ -121,6 +123,7 @@ class PropertyNames(object):
   USE_INDEXED_FORMAT = 'use_indexed_format'
   USER_FN = 'user_fn'
   USER_NAME = 'user_name'
+  USES_KEYED_STATE = 'uses_keyed_state'
   VALIDATE_SINK = 'validate_sink'
   VALIDATE_SOURCE = 'validate_source'
   VALUE = 'value'

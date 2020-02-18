@@ -92,6 +92,32 @@ public class HadoopFileSystemOptionsTest {
   }
 
   @Test
+  public void testDefaultJustSetHadoopConfDirMultiPathConfiguration() throws IOException {
+    File hadoopConfDir = tmpFolder.newFolder("hadoop");
+    File otherConfDir = tmpFolder.newFolder("_other_");
+
+    Files.write(
+        createPropertyData("A"), new File(hadoopConfDir, "core-site.xml"), StandardCharsets.UTF_8);
+    Files.write(
+        createPropertyData("B"), new File(hadoopConfDir, "hdfs-site.xml"), StandardCharsets.UTF_8);
+
+    HadoopFileSystemOptions.ConfigurationLocator configurationLocator =
+        spy(new HadoopFileSystemOptions.ConfigurationLocator());
+
+    String multiPath =
+        hadoopConfDir.getAbsolutePath().concat(":").concat(otherConfDir.getAbsolutePath());
+    Map<String, String> environment = Maps.newHashMap();
+    environment.put("HADOOP_CONF_DIR", multiPath);
+    when(configurationLocator.getEnvironment()).thenReturn(environment);
+
+    List<Configuration> configurationList =
+        configurationLocator.create(PipelineOptionsFactory.create());
+    assertEquals(1, configurationList.size());
+    assertThat(configurationList.get(0).get("propertyA"), Matchers.equalTo("A"));
+    assertThat(configurationList.get(0).get("propertyB"), Matchers.equalTo("B"));
+  }
+
+  @Test
   public void testDefaultJustSetYarnConfDirConfiguration() throws IOException {
     Files.write(
         createPropertyData("A"), tmpFolder.newFile("core-site.xml"), StandardCharsets.UTF_8);
@@ -101,6 +127,32 @@ public class HadoopFileSystemOptionsTest {
         spy(new HadoopFileSystemOptions.ConfigurationLocator());
     Map<String, String> environment = Maps.newHashMap();
     environment.put("YARN_CONF_DIR", tmpFolder.getRoot().getAbsolutePath());
+    when(configurationLocator.getEnvironment()).thenReturn(environment);
+
+    List<Configuration> configurationList =
+        configurationLocator.create(PipelineOptionsFactory.create());
+    assertEquals(1, configurationList.size());
+    assertThat(configurationList.get(0).get("propertyA"), Matchers.equalTo("A"));
+    assertThat(configurationList.get(0).get("propertyB"), Matchers.equalTo("B"));
+  }
+
+  @Test
+  public void testDefaultJustSetYarnConfDirMultiPathConfiguration() throws IOException {
+    File hadoopConfDir = tmpFolder.newFolder("hadoop");
+    File otherConfDir = tmpFolder.newFolder("_other_");
+
+    Files.write(
+        createPropertyData("A"), new File(hadoopConfDir, "core-site.xml"), StandardCharsets.UTF_8);
+    Files.write(
+        createPropertyData("B"), new File(hadoopConfDir, "hdfs-site.xml"), StandardCharsets.UTF_8);
+
+    HadoopFileSystemOptions.ConfigurationLocator configurationLocator =
+        spy(new HadoopFileSystemOptions.ConfigurationLocator());
+
+    String multiPath =
+        hadoopConfDir.getAbsolutePath().concat(":").concat(otherConfDir.getAbsolutePath());
+    Map<String, String> environment = Maps.newHashMap();
+    environment.put("YARN_CONF_DIR", multiPath);
     when(configurationLocator.getEnvironment()).thenReturn(environment);
 
     List<Configuration> configurationList =
@@ -121,6 +173,34 @@ public class HadoopFileSystemOptionsTest {
     Map<String, String> environment = Maps.newHashMap();
     environment.put("YARN_CONF_DIR", tmpFolder.getRoot().getAbsolutePath());
     environment.put("HADOOP_CONF_DIR", tmpFolder.getRoot().getAbsolutePath());
+    when(configurationLocator.getEnvironment()).thenReturn(environment);
+
+    List<Configuration> configurationList =
+        configurationLocator.create(PipelineOptionsFactory.create());
+    assertEquals(1, configurationList.size());
+    assertThat(configurationList.get(0).get("propertyA"), Matchers.equalTo("A"));
+    assertThat(configurationList.get(0).get("propertyB"), Matchers.equalTo("B"));
+  }
+
+  @Test
+  public void testDefaultSetYarnConfDirAndHadoopConfDirMultiPathAndSameConfiguration()
+      throws IOException {
+    File hadoopConfDir = tmpFolder.newFolder("hadoop");
+    File otherConfDir = tmpFolder.newFolder("_other_");
+
+    Files.write(
+        createPropertyData("A"), new File(hadoopConfDir, "core-site.xml"), StandardCharsets.UTF_8);
+    Files.write(
+        createPropertyData("B"), new File(hadoopConfDir, "hdfs-site.xml"), StandardCharsets.UTF_8);
+
+    HadoopFileSystemOptions.ConfigurationLocator configurationLocator =
+        spy(new HadoopFileSystemOptions.ConfigurationLocator());
+
+    String multiPath =
+        hadoopConfDir.getAbsolutePath().concat(":").concat(otherConfDir.getAbsolutePath());
+    Map<String, String> environment = Maps.newHashMap();
+    environment.put("YARN_CONF_DIR", multiPath);
+    environment.put("HADOOP_CONF_DIR", multiPath);
     when(configurationLocator.getEnvironment()).thenReturn(environment);
 
     List<Configuration> configurationList =

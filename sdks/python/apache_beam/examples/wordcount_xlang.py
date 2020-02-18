@@ -17,6 +17,8 @@
 
 """A cross-language word-counting workflow."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse
@@ -25,6 +27,7 @@ import re
 import subprocess
 
 import grpc
+from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
@@ -40,7 +43,6 @@ EXPANSION_SERVICE_ADDR = 'localhost:%s' % EXPANSION_SERVICE_PORT
 
 class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""
-
   def process(self, element):
     """Returns an iterator over the words of this element.
 
@@ -53,24 +55,19 @@ class WordExtractingDoFn(beam.DoFn):
       The processed element.
     """
     text_line = element.strip()
-    # Using bytes type to match input and output coders between Python
-    # and Java SDKs. Any element type can be used for crossing the language
-    # boundary if a matching coder implementation exists in both SDKs.
-    # TODO(BEAM-6587): Use strings once they're understood by the
-    # Java SDK.
-    words = [bytes(x) for x in re.findall(r'[\w\']+', text_line)]
-    return words
+    return re.findall(r'[\w\']+', text_line)
 
 
-def run(p, input_file, output_file):
+def build_pipeline(p, input_file, output_file):
   # Read the text file[pattern] into a PCollection.
   lines = p | 'read' >> ReadFromText(input_file)
 
-  counts = (lines
-            | 'split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(bytes))
-            | 'count' >> beam.ExternalTransform(
-                'beam:transforms:xlang:count', None, EXPANSION_SERVICE_ADDR))
+  counts = (
+      lines
+      | 'split' >>
+      (beam.ParDo(WordExtractingDoFn()).with_output_types(unicode))
+      | 'count' >> beam.ExternalTransform(
+          'beam:transforms:xlang:count', None, EXPANSION_SERVICE_ADDR))
 
   # Format the counts into a PCollection of strings.
   def format_result(word_count):
@@ -83,26 +80,26 @@ def run(p, input_file, output_file):
   # pylint: disable=expression-not-assigned
   output | 'write' >> WriteToText(output_file)
 
-  result = p.run()
-  result.wait_until_finish()
-
 
 def main():
   logging.getLogger().setLevel(logging.INFO)
 
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input',
-                      dest='input',
-                      default='gs://dataflow-samples/shakespeare/kinglear.txt',
-                      help='Input file to process.')
-  parser.add_argument('--output',
-                      dest='output',
-                      required=True,
-                      help='Output file to write results to.')
-  parser.add_argument('--expansion_service_jar',
-                      dest='expansion_service_jar',
-                      required=True,
-                      help='Jar file for expansion service')
+  parser.add_argument(
+      '--input',
+      dest='input',
+      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+      help='Input file to process.')
+  parser.add_argument(
+      '--output',
+      dest='output',
+      required=True,
+      help='Output file to write results to.')
+  parser.add_argument(
+      '--expansion_service_jar',
+      dest='expansion_service_jar',
+      required=True,
+      help='Jar file for expansion service')
 
   known_args, pipeline_args = parser.parse_known_args()
 
@@ -115,19 +112,22 @@ def main():
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options.view_as(SetupOptions).save_main_session = True
 
-  p = beam.Pipeline(options=pipeline_options)
-  # Preemptively start due to BEAM-6666.
-  p.runner.create_job_service(pipeline_options)
-
   try:
     server = subprocess.Popen([
-        'java', '-jar', known_args.expansion_service_jar,
-        EXPANSION_SERVICE_PORT])
+        'java',
+        '-jar',
+        known_args.expansion_service_jar,
+        EXPANSION_SERVICE_PORT
+    ])
 
     with grpc.insecure_channel(EXPANSION_SERVICE_ADDR) as channel:
       grpc.channel_ready_future(channel).result()
 
-    run(p, known_args.input, known_args.output)
+    with beam.Pipeline(options=pipeline_options) as p:
+      # Preemptively start due to BEAM-6666.
+      p.runner.create_job_service(pipeline_options)
+
+      build_pipeline(p, known_args.input, known_args.output)
 
   finally:
     server.kill()

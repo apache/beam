@@ -27,6 +27,8 @@ The pipelines behave in the steps below.
   5. Query the written Entities, verify no results.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse
@@ -66,7 +68,6 @@ class EntityWrapper(object):
 
   Namespace and project are taken from the parent key.
   """
-
   def __init__(self, kind, parent_key):
     self._kind = kind
     self._parent_key = parent_key
@@ -85,19 +86,19 @@ def run(argv=None):
 
   parser = argparse.ArgumentParser()
 
-  parser.add_argument('--kind',
-                      dest='kind',
-                      default='writereadtest',
-                      help='Datastore Kind')
-  parser.add_argument('--num_entities',
-                      dest='num_entities',
-                      type=int,
-                      required=True,
-                      help='Number of entities to write')
-  parser.add_argument('--limit',
-                      dest='limit',
-                      type=int,
-                      help='Limit of number of entities to write')
+  parser.add_argument(
+      '--kind', dest='kind', default='writereadtest', help='Datastore Kind')
+  parser.add_argument(
+      '--num_entities',
+      dest='num_entities',
+      type=int,
+      required=True,
+      help='Number of entities to write')
+  parser.add_argument(
+      '--limit',
+      dest='limit',
+      type=int,
+      help='Limit of number of entities to write')
 
   known_args, pipeline_args = parser.parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
@@ -112,19 +113,21 @@ def run(argv=None):
   ancestor_key = Key([kind, str(uuid.uuid4())], project=project)
   _LOGGER.info('Writing %s entities to %s', num_entities, project)
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-write')
-  _ = (p
-       | 'Input' >> beam.Create(list(range(num_entities)))
-       | 'To String' >> beam.Map(str)
-       | 'To Entity' >> beam.Map(EntityWrapper(kind, ancestor_key).make_entity)
-       | 'Write to Datastore' >> WriteToDatastore(project))
+  _ = (
+      p
+      | 'Input' >> beam.Create(list(range(num_entities)))
+      | 'To String' >> beam.Map(str)
+      | 'To Entity' >> beam.Map(EntityWrapper(kind, ancestor_key).make_entity)
+      | 'Write to Datastore' >> WriteToDatastore(project))
   p.run()
 
   query = Query(kind=kind, project=project, ancestor=ancestor_key)
   # Optional Pipeline 2: If a read limit was provided, read it and confirm
   # that the expected entities were read.
   if known_args.limit is not None:
-    _LOGGER.info('Querying a limited set of %s entities and verifying count.',
-                 known_args.limit)
+    _LOGGER.info(
+        'Querying a limited set of %s entities and verifying count.',
+        known_args.limit)
     p = new_pipeline_with_job_name(pipeline_options, job_name, '-verify-limit')
     query.limit = known_args.limit
     entities = p | 'read from datastore' >> ReadFromDatastore(query)
@@ -141,8 +144,7 @@ def run(argv=None):
   entities = p | 'read from datastore' >> ReadFromDatastore(query)
 
   assert_that(
-      entities | beam.combiners.Count.Globally(),
-      equal_to([num_entities]))
+      entities | beam.combiners.Count.Globally(), equal_to([num_entities]))
 
   p.run()
 
@@ -150,9 +152,10 @@ def run(argv=None):
   _LOGGER.info('Deleting entities.')
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-delete')
   entities = p | 'read from datastore' >> ReadFromDatastore(query)
-  _ = (entities
-       | 'To Keys' >> beam.Map(lambda entity: entity.key)
-       | 'delete entities' >> DeleteFromDatastore(project))
+  _ = (
+      entities
+      | 'To Keys' >> beam.Map(lambda entity: entity.key)
+      | 'delete entities' >> DeleteFromDatastore(project))
 
   p.run()
 
@@ -161,9 +164,7 @@ def run(argv=None):
   p = new_pipeline_with_job_name(pipeline_options, job_name, '-verify-deleted')
   entities = p | 'read from datastore' >> ReadFromDatastore(query)
 
-  assert_that(
-      entities | beam.combiners.Count.Globally(),
-      equal_to([0]))
+  assert_that(entities | beam.combiners.Count.Globally(), equal_to([0]))
 
   p.run()
 

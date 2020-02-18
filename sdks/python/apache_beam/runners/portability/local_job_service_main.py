@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse
@@ -31,9 +33,8 @@ def run(argv):
   if argv[0] == __file__:
     argv = argv[1:]
   parser = argparse.ArgumentParser()
-  parser.add_argument('-p', '--port',
-                      type=int,
-                      help='port on which to serve the job api')
+  parser.add_argument(
+      '-p', '--port', type=int, help='port on which to serve the job api')
   parser.add_argument('--staging_dir')
   options = parser.parse_args(argv)
   job_servicer = local_job_service.LocalJobServicer(options.staging_dir)
@@ -47,4 +48,5 @@ def run(argv):
 
 
 if __name__ == '__main__':
+  logging.basicConfig()
   run(sys.argv)

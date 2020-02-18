@@ -62,8 +62,8 @@ import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Assert;
 import org.junit.Before;
@@ -72,6 +72,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -358,6 +359,33 @@ public class DefaultJobBundleFactoryTest {
       bundleFactory.forStage(getExecutableStage(environment));
     }
     verify(remoteEnvironment).close();
+  }
+
+  @Test
+  public void closesFnServices() throws Exception {
+    InOrder inOrder =
+        Mockito.inOrder(
+            loggingServer,
+            controlServer,
+            dataServer,
+            stateServer,
+            retrievalServer,
+            provisioningServer,
+            remoteEnvironment);
+
+    try (DefaultJobBundleFactory bundleFactory =
+        createDefaultJobBundleFactory(envFactoryProviderMap)) {
+      bundleFactory.forStage(getExecutableStage(environment));
+    }
+
+    // Close logging service first to avoid spaming the logs
+    inOrder.verify(loggingServer).close();
+    inOrder.verify(controlServer).close();
+    inOrder.verify(dataServer).close();
+    inOrder.verify(stateServer).close();
+    inOrder.verify(retrievalServer).close();
+    inOrder.verify(provisioningServer).close();
+    inOrder.verify(remoteEnvironment).close();
   }
 
   @Test

@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -71,7 +73,6 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     inline calls rather than GRPC (for speed) or launch completely separate
     subprocesses for the runner and worker(s).
     """
-
   def __init__(self, staging_dir=None):
     super(LocalJobServicer, self).__init__()
     self._cleanup_staging_dir = staging_dir is None
@@ -98,12 +99,11 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
               manifest=beam_artifact_api_pb2.Manifest()))
     provision_info = fn_api_runner.ExtendedProvisionInfo(
         beam_provision_api_pb2.ProvisionInfo(
-            job_id=preparation_id,
-            job_name=job_name,
             pipeline_options=options,
             retrieval_token=self._artifact_service.retrieval_token(
                 preparation_id)),
-        self._staging_dir)
+        self._staging_dir,
+        job_name=job_name)
     return BeamJob(
         preparation_id,
         pipeline,
@@ -172,12 +172,11 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
 class SubprocessSdkWorker(object):
   """Manages a SDK worker implemented as a subprocess communicating over grpc.
     """
-
-  def __init__(self,
-               worker_command_line,  # type: bytes
-               control_address,
-               worker_id=None
-              ):
+  def __init__(
+      self,
+      worker_command_line,  # type: bytes
+      control_address,
+      worker_id=None):
     self._worker_command_line = worker_command_line
     self._control_address = control_address
     self._worker_id = worker_id
@@ -198,17 +197,13 @@ class SubprocessSdkWorker(object):
     env_dict = dict(
         os.environ,
         CONTROL_API_SERVICE_DESCRIPTOR=control_descriptor,
-        LOGGING_API_SERVICE_DESCRIPTOR=logging_descriptor
-    )
+        LOGGING_API_SERVICE_DESCRIPTOR=logging_descriptor)
     # only add worker_id when it is set.
     if self._worker_id:
       env_dict['WORKER_ID'] = self._worker_id
 
     with fn_api_runner.SUBPROCESS_LOCK:
-      p = subprocess.Popen(
-          self._worker_command_line,
-          shell=True,
-          env=env_dict)
+      p = subprocess.Popen(self._worker_command_line, shell=True, env=env_dict)
     try:
       p.wait()
       if p.returncode:
@@ -233,8 +228,8 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
                provision_info,  # type: fn_api_runner.ExtendedProvisionInfo
                artifact_staging_endpoint  # type: Optional[endpoints_pb2.ApiServiceDescriptor]
               ):
-    super(BeamJob, self).__init__(
-        job_id, provision_info.provision_info.job_name, pipeline, options)
+    super(BeamJob,
+          self).__init__(job_id, provision_info.job_name, pipeline, options)
     self._provision_info = provision_info
     self._artifact_staging_endpoint = artifact_staging_endpoint
     self._state_queues = []  # type: List[queue.Queue]
@@ -311,7 +306,6 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
-
   def Logging(self, log_bundles, context=None):
     for log_bundle in log_bundles:
       for log_entry in log_bundle.log_entries:
@@ -358,8 +352,8 @@ class JobLogHandler(logging.Handler):
     if self._logged_thread is threading.current_thread():
       msg = beam_job_api_pb2.JobMessage(
           message_id=self._next_id(),
-          time=time.strftime('%Y-%m-%d %H:%M:%S.',
-                             time.localtime(record.created)),
+          time=time.strftime(
+              '%Y-%m-%d %H:%M:%S.', time.localtime(record.created)),
           importance=self.LOG_LEVEL_MAP[record.levelno],
           message_text=self.format(record))
 

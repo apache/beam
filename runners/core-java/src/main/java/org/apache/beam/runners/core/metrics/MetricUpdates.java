@@ -20,13 +20,10 @@ package org.apache.beam.runners.core.metrics;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.Collections;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /** Representation of multiple metric updates. */
-@Experimental(Kind.METRICS)
 @AutoValue
 public abstract class MetricUpdates {
 

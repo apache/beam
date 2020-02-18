@@ -159,7 +159,7 @@ public class StringFunctions {
       char c = sqlPattern.charAt(i);
       if (c == escapeChar) {
         if (i == (sqlPattern.length() - 1)) {
-          throw new RuntimeException("LIKE pattern ends with a backslash");
+          throw new IllegalArgumentException("LIKE pattern ends with a backslash");
         }
         char nextChar = sqlPattern.charAt(++i);
         if (JAVA_REGEX_SPECIALS.indexOf(nextChar) >= 0) {

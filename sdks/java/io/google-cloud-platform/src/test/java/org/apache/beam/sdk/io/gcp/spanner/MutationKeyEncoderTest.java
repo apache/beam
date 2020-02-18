@@ -25,9 +25,9 @@ import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.UnsignedBytes;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -471,6 +471,54 @@ public class MutationKeyEncoderTest {
     verifyEncodedOrdering(schema, sortedMutations);
   }
 
+  @Test
+  public void unknownTableOrdering() throws Exception {
+    SpannerSchema.Builder builder = SpannerSchema.builder();
+
+    builder.addColumn("test1", "key", "INT64");
+    builder.addKeyPart("test1", "key", false);
+
+    SpannerSchema schema = builder.build();
+
+    // Verify that the encoded keys are ordered by table name and column values (as text).
+    List<Mutation> sortedMutations =
+        Arrays.asList(
+            Mutation.newInsertOrUpdateBuilder("test2")
+                .set("key")
+                .to("a")
+                .set("keydesc")
+                .to("a")
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test2")
+                .set("key")
+                .to("a")
+                .set("keydesc")
+                .to("b")
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test3")
+                .set("key")
+                .to("b")
+                // leave keydesc value unspecified --> maxvalue descending.
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test4")
+                .set("key")
+                .to("b")
+                .set("keydesc")
+                .to("a")
+                .build(),
+            Mutation.newInsertOrUpdateBuilder("test4")
+                // leave 'key' value unspecified -> maxvalue
+                .set("keydesc")
+                .to("a")
+                .build());
+
+    verifyEncodedOrdering(schema, sortedMutations);
+    Assert.assertEquals(3, MutationKeyEncoder.getUnknownTablesWarningsMap().size());
+    Assert.assertEquals(2, MutationKeyEncoder.getUnknownTablesWarningsMap().get("test2").get());
+    Assert.assertEquals(1, MutationKeyEncoder.getUnknownTablesWarningsMap().get("test3").get());
+    Assert.assertEquals(2, MutationKeyEncoder.getUnknownTablesWarningsMap().get("test4").get());
+  }
+
   private void verifyEncodedOrdering(SpannerSchema schema, List<Mutation> expectedMutations) {
     MutationKeyEncoder encoder = new MutationKeyEncoder(schema);
 
@@ -485,10 +533,11 @@ public class MutationKeyEncoderTest {
             expectedMutations.get(2),
             expectedMutations.get(0));
 
-    // use a Map to re-sort them by the encoded key order,
-    // This allows the original values to be reported on error,
-    Map<byte[], Mutation> mutationsByEncoding =
-        new TreeMap<>(UnsignedBytes.lexicographicalComparator());
+    // Use a map to sort the list by encoded table/key, then by Mutation contents to give a defined
+    // order when the same key is given, or if it is an unknown table.
+    TreeMultimap<byte[], Mutation> mutationsByEncoding =
+        TreeMultimap.create(
+            UnsignedBytes.lexicographicalComparator(), Comparator.comparing(Mutation::toString));
     for (Mutation m : unsortedMutations) {
       mutationsByEncoding.put(encoder.encodeTableNameAndKey(m), m);
     }

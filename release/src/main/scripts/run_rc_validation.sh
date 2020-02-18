@@ -25,7 +25,7 @@
 #   1. Please set all variables in script.config before running this script.
 #   2. Please babysit this script until first pipeline starts.
 
-
+cd $(dirname $0)
 . script.config
 
 
@@ -253,7 +253,7 @@ if [[ ("$java_mobile_game_direct" = true || "$java_mobile_game_dataflow" = true)
   echo "Will create Pubsub topic: ${MOBILE_GAME_PUBSUB_TOPIC}"
 
   echo "-----------------Creating BigQuery Dataset-----------------"
-  bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+  bq mk --project_id=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
 
   echo "-----------------Creating Pubsub Topic-----------------"
   gcloud pubsub topics create --project=${USER_GCP_PROJECT} ${MOBILE_GAME_PUBSUB_TOPIC}
@@ -422,7 +422,7 @@ if [[ ("$python_leaderboard_direct" = true \
     echo "----------------Starting Leaderboard with DirectRunner-----------------------"
     if [[ "$python_leaderboard_direct" = true ]]; then
       LEADERBOARD_DIRECT_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
-      bq mk --project=${USER_GCP_PROJECT} ${LEADERBOARD_DIRECT_DATASET}
+      bq mk --project_id=${USER_GCP_PROJECT} ${LEADERBOARD_DIRECT_DATASET}
       echo "export LEADERBOARD_DIRECT_DATASET=${LEADERBOARD_DIRECT_DATASET}" >> ~/.bashrc
 
       echo "This is a streaming job. This task will be launched in a separate terminal."
@@ -457,7 +457,7 @@ if [[ ("$python_leaderboard_direct" = true \
     echo "----------------Starting Leaderboard with DataflowRunner---------------------"
     if [[ "$python_leaderboard_dataflow" = true ]]; then
       LEADERBOARD_DF_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
-      bq mk --project=${USER_GCP_PROJECT} ${LEADERBOARD_DF_DATASET}
+      bq mk --project_id=${USER_GCP_PROJECT} ${LEADERBOARD_DF_DATASET}
       echo "export LEADERBOARD_DF_DATASET=${LEADERBOARD_DF_DATASET}" >> ~/.bashrc
 
       echo "This is a streaming job. This task will be launched in a separate terminal."
@@ -494,7 +494,7 @@ if [[ ("$python_leaderboard_direct" = true \
     echo "------------------Starting GameStats with DirectRunner-----------------------"
     if [[ "$python_gamestats_direct" = true ]]; then
       GAMESTATS_DIRECT_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
-      bq mk --project=${USER_GCP_PROJECT} ${GAMESTATS_DIRECT_DATASET}
+      bq mk --project_id=${USER_GCP_PROJECT} ${GAMESTATS_DIRECT_DATASET}
       echo "export GAMESTATS_DIRECT_DATASET=${GAMESTATS_DIRECT_DATASET}" >> ~/.bashrc
 
       echo "This is a streaming job. This task will be launched in a separate terminal."
@@ -530,7 +530,7 @@ if [[ ("$python_leaderboard_direct" = true \
     echo "-------------------Starting GameStats with DataflowRunner--------------------"
     if [[ "$python_gamestats_dataflow" = true ]]; then
       GAMESTATS_DF_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
-      bq mk --project=${USER_GCP_PROJECT} ${GAMESTATS_DF_DATASET}
+      bq mk --project_id=${USER_GCP_PROJECT} ${GAMESTATS_DF_DATASET}
       echo "export GAMESTATS_DF_DATASET=${GAMESTATS_DF_DATASET}" >> ~/.bashrc
 
       echo "This is a streaming job. This task will be launched in a separate terminal."

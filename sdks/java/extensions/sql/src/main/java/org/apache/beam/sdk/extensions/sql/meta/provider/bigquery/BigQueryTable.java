@@ -85,17 +85,14 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
       if (validMethods.contains(selectedMethod)) {
         method = Method.valueOf(selectedMethod);
       } else {
-        InvalidPropertyException e =
-            new InvalidPropertyException(
-                "Invalid method "
-                    + "'"
-                    + selectedMethod
-                    + "'. "
-                    + "Supported methods are: "
-                    + validMethods.toString()
-                    + ".");
-
-        throw e;
+        throw new InvalidPropertyException(
+            "Invalid method "
+                + "'"
+                + selectedMethod
+                + "'. "
+                + "Supported methods are: "
+                + validMethods.toString()
+                + ".");
       }
     } else {
       method = Method.DEFAULT;

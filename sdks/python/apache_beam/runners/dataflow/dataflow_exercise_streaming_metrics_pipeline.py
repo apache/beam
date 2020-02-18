@@ -17,6 +17,8 @@
 
 """A word-counting workflow."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse
@@ -36,10 +38,9 @@ _LOGGER = logging.getLogger(__name__)
 
 class StreamingUserMetricsDoFn(beam.DoFn):
   """Generates user metrics and outputs same element."""
-
   def __init__(self):
-    self.double_message_counter = Metrics.counter(self.__class__,
-                                                  'double_msg_counter_name')
+    self.double_message_counter = Metrics.counter(
+        self.__class__, 'double_msg_counter_name')
     self.msg_len_dist_metric = Metrics.distribution(
         self.__class__, 'msg_len_dist_metric_name')
 
@@ -68,18 +69,22 @@ def run(argv=None):
 
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      '--output_topic', required=True,
-      help=('Output PubSub topic of the form '
-            '"projects/<PROJECT>/topic/<TOPIC>".'))
+      '--output_topic',
+      required=True,
+      help=(
+          'Output PubSub topic of the form '
+          '"projects/<PROJECT>/topic/<TOPIC>".'))
   group = parser.add_mutually_exclusive_group(required=True)
   group.add_argument(
       '--input_topic',
-      help=('Input PubSub topic of the form '
-            '"projects/<PROJECT>/topics/<TOPIC>".'))
+      help=(
+          'Input PubSub topic of the form '
+          '"projects/<PROJECT>/topics/<TOPIC>".'))
   group.add_argument(
       '--input_subscription',
-      help=('Input PubSub subscription of the form '
-            '"projects/<PROJECT>/subscriptions/<SUBSCRIPTION>."'))
+      help=(
+          'Input PubSub subscription of the form '
+          '"projects/<PROJECT>/subscriptions/<SUBSCRIPTION>."'))
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   pipeline_options = PipelineOptions(pipeline_args)
@@ -87,10 +92,11 @@ def run(argv=None):
   pipeline_options.view_as(StandardOptions).streaming = True
   pipeline = beam.Pipeline(options=pipeline_options)
 
-  _ = (pipeline
-       | beam.io.ReadFromPubSub(subscription=known_args.input_subscription)
-       | 'generate_metrics' >> (beam.ParDo(StreamingUserMetricsDoFn()))
-       | 'dump_to_pub' >> beam.io.WriteToPubSub(known_args.output_topic))
+  _ = (
+      pipeline
+      | beam.io.ReadFromPubSub(subscription=known_args.input_subscription)
+      | 'generate_metrics' >> (beam.ParDo(StreamingUserMetricsDoFn()))
+      | 'dump_to_pub' >> beam.io.WriteToPubSub(known_args.output_topic))
 
   result = pipeline.run()
   result.wait_until_finish()

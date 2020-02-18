@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
+import org.apache.beam.runners.flink.translation.utils.Workarounds;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
@@ -89,9 +90,10 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     return new FlinkRunner(flinkOptions);
   }
 
-  private FlinkRunner(FlinkPipelineOptions options) {
+  protected FlinkRunner(FlinkPipelineOptions options) {
     this.options = options;
     this.ptransformViewsWithNonDeterministicKeyCoders = new HashSet<>();
+    Workarounds.restoreOriginalStdOutAndStdErrIfApplicable();
   }
 
   @Override

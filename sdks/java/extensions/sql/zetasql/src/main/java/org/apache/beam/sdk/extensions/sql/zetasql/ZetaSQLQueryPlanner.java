@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import com.google.zetasql.Value;
-import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner.NonCumulativeCostImpl;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
@@ -42,6 +42,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelRoot;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.JoinCommuteRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperatorTable;
@@ -65,24 +66,24 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
   }
 
   public ZetaSQLQueryPlanner(JdbcConnection jdbcConnection, RuleSet[] ruleSets) {
-    // TODO[BEAM-8630]: uncomment the next lines once we have fully migrated to BeamZetaSqlCalcRel
-    // plannerImpl =
-    //     new ZetaSQLPlannerImpl(defaultConfig(jdbcConnection, replaceBeamCalcRule(ruleSets)));
-    plannerImpl = new ZetaSQLPlannerImpl(defaultConfig(jdbcConnection, ruleSets));
+    plannerImpl =
+        new ZetaSQLPlannerImpl(defaultConfig(jdbcConnection, modifyRuleSetsForZetaSql(ruleSets)));
   }
 
   public static RuleSet[] getZetaSqlRuleSets() {
-    // TODO[BEAM-8630]: uncomment the next line once we have fully migrated to BeamZetaSqlCalcRel
-    // return replaceBeamCalcRule(BeamRuleSets.getRuleSets());
-    return BeamRuleSets.getRuleSets();
+    return modifyRuleSetsForZetaSql(BeamRuleSets.getRuleSets());
   }
 
-  private static RuleSet[] replaceBeamCalcRule(RuleSet[] ruleSets) {
+  private static RuleSet[] modifyRuleSetsForZetaSql(RuleSet[] ruleSets) {
     RuleSet[] ret = new RuleSet[ruleSets.length];
     for (int i = 0; i < ruleSets.length; i++) {
       ImmutableList.Builder<RelOptRule> bd = ImmutableList.builder();
       for (RelOptRule rule : ruleSets[i]) {
-        if (rule instanceof BeamCalcRule) {
+        // TODO[BEAM-9075]: Fix join re-ordering for ZetaSQL planner. Currently join re-ordering
+        //  requires the JoinCommuteRule, which doesn't work without struct flattening.
+        if (rule instanceof JoinCommuteRule) {
+          continue;
+        } else if (rule instanceof BeamCalcRule) {
           bd.add(BeamZetaSqlCalcRule.INSTANCE);
         } else {
           bd.add(rule);
@@ -93,11 +94,25 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     return ret;
   }
 
+  public BeamRelNode convertToBeamRel(String sqlStatement) {
+    return convertToBeamRel(sqlStatement, QueryParameters.ofNone());
+  }
+
+  public BeamRelNode convertToBeamRel(String sqlStatement, Map<String, Value> queryParams)
+      throws ParseException, SqlConversionException {
+    return convertToBeamRel(sqlStatement, QueryParameters.ofNamed(queryParams));
+  }
+
+  public BeamRelNode convertToBeamRel(String sqlStatement, List<Value> queryParams)
+      throws ParseException, SqlConversionException {
+    return convertToBeamRel(sqlStatement, QueryParameters.ofPositional(queryParams));
+  }
+
   @Override
-  public BeamRelNode convertToBeamRel(String sqlStatement)
+  public BeamRelNode convertToBeamRel(String sqlStatement, QueryParameters queryParameters)
       throws ParseException, SqlConversionException {
     try {
-      return parseQuery(sqlStatement);
+      return convertToBeamRelInternal(sqlStatement, queryParameters);
     } catch (RelConversionException e) {
       throw new SqlConversionException(e.getCause());
     }
@@ -111,20 +126,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
             this.getClass().getCanonicalName()));
   }
 
-  public BeamRelNode convertToBeamRel(String sqlStatement, Map<String, Value> queryParams)
-      throws ParseException, SqlConversionException {
-    try {
-      return parseQuery(sqlStatement, queryParams);
-    } catch (RelConversionException e) {
-      throw new SqlConversionException(e.getCause());
-    }
-  }
-
-  public BeamRelNode parseQuery(String sql) throws RelConversionException {
-    return parseQuery(sql, Collections.emptyMap());
-  }
-
-  public BeamRelNode parseQuery(String sql, Map<String, Value> queryParams)
+  private BeamRelNode convertToBeamRelInternal(String sql, QueryParameters queryParams)
       throws RelConversionException {
     RelRoot root = plannerImpl.rel(sql, queryParams);
     RelTraitSet desiredTraits =
@@ -145,8 +147,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     RelMetadataQuery.THREAD_PROVIDERS.set(
         JaninoRelMetadataProvider.of(root.rel.getCluster().getMetadataProvider()));
     root.rel.getCluster().invalidateMetadataQuery();
-    BeamRelNode beamRelNode = (BeamRelNode) plannerImpl.transform(0, desiredTraits, root.rel);
-    return beamRelNode;
+    return (BeamRelNode) plannerImpl.transform(0, desiredTraits, root.rel);
   }
 
   private FrameworkConfig defaultConfig(JdbcConnection connection, RuleSet[] ruleSets) {

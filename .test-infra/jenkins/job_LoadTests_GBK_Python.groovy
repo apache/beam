@@ -24,7 +24,7 @@ def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 def loadTestConfigurations = { datasetName -> [
         [
                 title          : 'GroupByKey Python Load test: 2GB of 10B records',
-                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-gbk-1-' + now,
@@ -44,7 +44,7 @@ def loadTestConfigurations = { datasetName -> [
         ],
         [
                 title          : 'GroupByKey Python Load test: 2GB of 100B records',
-                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-gbk-2-' + now,
@@ -64,7 +64,7 @@ def loadTestConfigurations = { datasetName -> [
         ],
         [
                 title          : 'GroupByKey Python Load test: 2GB of 100kB records',
-                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-gbk-3-' + now,
@@ -73,9 +73,9 @@ def loadTestConfigurations = { datasetName -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_gbk_3',
-                        input_options        : '\'{"num_records": 2000,' +
-                                '"key_size": 100000,' +
-                                '"value_size": 900000}\'',
+                        input_options        : '\'{"num_records": 20000,' +
+                                '"key_size": 10000,' +
+                                '"value_size": 90000}\'',
                         iterations           : 1,
                         fanout               : 1,
                         num_workers          : 5,
@@ -84,7 +84,7 @@ def loadTestConfigurations = { datasetName -> [
         ],
         [
                 title          : 'GroupByKey Python Load test: fanout 4 times with 2GB 10-byte records total',
-                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-gbk-4-' + now,
@@ -104,7 +104,7 @@ def loadTestConfigurations = { datasetName -> [
         ],
         [
                 title          : 'GroupByKey Python Load test: fanout 8 times with 2GB 10-byte records total',
-                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-gbk-5-' + now,

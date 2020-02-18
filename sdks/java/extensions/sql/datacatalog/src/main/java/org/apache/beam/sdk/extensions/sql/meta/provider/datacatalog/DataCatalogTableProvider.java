@@ -37,6 +37,7 @@ import org.apache.beam.sdk.extensions.sql.impl.TableName;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.FullNameTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.InvalidTableException;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubJsonTableProvider;
@@ -135,8 +136,10 @@ public class DataCatalogTableProvider extends FullNameTableProvider {
           dataCatalog.lookupEntry(
               LookupEntryRequest.newBuilder().setSqlResource(tableName).build()));
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().equals(Status.INVALID_ARGUMENT)) {
-        return null;
+      if (e.getStatus().getCode().equals(Status.Code.INVALID_ARGUMENT)
+          || e.getStatus().getCode().equals(Status.Code.PERMISSION_DENIED)
+          || e.getStatus().getCode().equals(Status.Code.NOT_FOUND)) {
+        throw new InvalidTableException("Could not resolve table in Data Catalog: " + tableName, e);
       }
       throw new RuntimeException(e);
     }

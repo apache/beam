@@ -38,6 +38,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
@@ -77,6 +79,7 @@ public class TestBigQuery implements TestRule {
    *
    * <p>Loads GCP configuration from {@link TestPipelineOptions}.
    */
+  @Experimental(Kind.SCHEMAS)
   public static TestBigQuery create(Schema tableSchema) {
     return new TestBigQuery(
         TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class), tableSchema);
@@ -197,6 +200,7 @@ public class TestBigQuery implements TestRule {
     return table.getTableReference();
   }
 
+  @Experimental(Kind.SCHEMAS)
   public TableDataInsertAllResponse insertRows(Schema rowSchema, Row... rows) throws IOException {
     List<Rows> bqRows =
         Arrays.stream(rows)
@@ -219,11 +223,13 @@ public class TestBigQuery implements TestRule {
    * <p>Current implementation only supports flat {@link Row Rows} and target {@link Schema Schemas}
    * with {@link FieldType#STRING} fields only.
    */
+  @Experimental(Kind.SCHEMAS)
   public List<Row> getFlatJsonRows(Schema rowSchema) {
     Bigquery bq = newBigQueryClient(pipelineOptions);
     return bqRowsToBeamRows(getSchema(bq), getTableRows(bq), rowSchema);
   }
 
+  @Experimental(Kind.SCHEMAS)
   public RowsAssertion assertThatAllRows(Schema rowSchema) {
     return new RowsAssertion(rowSchema);
   }
@@ -330,6 +336,7 @@ public class TestBigQuery implements TestRule {
   }
 
   /** Interface for creating a polling eventual assertion. */
+  @Experimental(Kind.SCHEMAS)
   public class RowsAssertion {
     private final Schema rowSchema;
 
