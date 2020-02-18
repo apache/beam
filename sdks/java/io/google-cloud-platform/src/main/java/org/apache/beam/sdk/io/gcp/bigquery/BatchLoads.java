@@ -136,6 +136,7 @@ class BatchLoads<DestinationT, ElementT>
   private final Coder<ElementT> elementCoder;
   private final RowWriterFactory<ElementT, DestinationT> rowWriterFactory;
   private String kmsKey;
+  private boolean clusteringEnabled;
 
   // The maximum number of times to retry failed load or copy jobs.
   private int maxRetryJobs = DEFAULT_MAX_RETRY_JOBS;
@@ -151,7 +152,8 @@ class BatchLoads<DestinationT, ElementT>
       boolean ignoreUnknownValues,
       Coder<ElementT> elementCoder,
       RowWriterFactory<ElementT, DestinationT> rowWriterFactory,
-      @Nullable String kmsKey) {
+      @Nullable String kmsKey,
+      boolean clusteringEnabled) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
@@ -170,6 +172,7 @@ class BatchLoads<DestinationT, ElementT>
     this.elementCoder = elementCoder;
     this.kmsKey = kmsKey;
     this.rowWriterFactory = rowWriterFactory;
+    this.clusteringEnabled = clusteringEnabled;
     schemaUpdateOptions = Collections.emptySet();
   }
 
@@ -319,6 +322,9 @@ class BatchLoads<DestinationT, ElementT>
                     .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
     PCollection<KV<TableDestination, String>> tempTables =
         writeTempTables(partitions.get(multiPartitionsTag), loadJobIdPrefixView);
+
+    Coder<TableDestination> tableDestinationCoder =
+        clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
     tempTables
         // Now that the load job has happened, we want the rename to happen immediately.
         .apply(
@@ -326,8 +332,7 @@ class BatchLoads<DestinationT, ElementT>
                 .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1))))
         .apply(WithKeys.of((Void) null))
         .setCoder(
-            KvCoder.of(
-                VoidCoder.of(), KvCoder.of(TableDestinationCoderV2.of(), StringUtf8Coder.of())))
+            KvCoder.of(VoidCoder.of(), KvCoder.of(tableDestinationCoder, StringUtf8Coder.of())))
         .apply(GroupByKey.create())
         .apply(Values.create())
         .apply(
@@ -391,9 +396,11 @@ class BatchLoads<DestinationT, ElementT>
     PCollection<KV<TableDestination, String>> tempTables =
         writeTempTables(partitions.get(multiPartitionsTag), loadJobIdPrefixView);
 
+    Coder<TableDestination> tableDestinationCoder =
+        clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
     tempTables
         .apply("ReifyRenameInput", new ReifyAsIterable<>())
-        .setCoder(IterableCoder.of(KvCoder.of(TableDestinationCoderV2.of(), StringUtf8Coder.of())))
+        .setCoder(IterableCoder.of(KvCoder.of(tableDestinationCoder, StringUtf8Coder.of())))
         .apply(
             "WriteRenameUntriggered",
             ParDo.of(

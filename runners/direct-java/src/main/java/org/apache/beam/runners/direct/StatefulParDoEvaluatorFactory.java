@@ -358,6 +358,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
   private static StateTag<WatermarkHoldState> setTimerTag(TimerData timerData) {
     return StateTags.makeSystemTagInternal(
         StateTags.watermarkStateInternal(
-            "timer-" + timerData.getTimerId(), TimestampCombiner.EARLIEST));
+            "timer-" + timerData.getTimerId() + "+" + timerData.getTimerFamilyId(),
+            TimestampCombiner.EARLIEST));
   }
 }

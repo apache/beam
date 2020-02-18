@@ -36,7 +36,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.util.Timestamps;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.Timestamps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.FutureCallback;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListenableFuture;
@@ -53,12 +53,13 @@ public class JobInvocation {
   private final PortablePipelineRunner pipelineRunner;
   private final JobInfo jobInfo;
   private final ListeningExecutorService executorService;
-  private List<Consumer<JobStateEvent>> stateObservers;
-  private List<Consumer<JobMessage>> messageObservers;
+  private final List<JobStateEvent> stateHistory;
+  private final List<JobMessage> messageHistory;
+  private final List<Consumer<JobStateEvent>> stateObservers;
+  private final List<Consumer<JobMessage>> messageObservers;
   private JobApi.MetricResults metrics;
   private PortablePipelineResult resultHandle;
   @Nullable private ListenableFuture<PortablePipelineResult> invocationFuture;
-  private List<JobStateEvent> stateHistory;
 
   public JobInvocation(
       JobInfo jobInfo,
@@ -73,6 +74,7 @@ public class JobInvocation {
     this.messageObservers = new ArrayList<>();
     this.invocationFuture = null;
     this.stateHistory = new ArrayList<>();
+    this.messageHistory = new ArrayList<>();
     this.metrics = JobApi.MetricResults.newBuilder().build();
     this.setState(JobState.Enum.STOPPED);
   }
@@ -217,6 +219,9 @@ public class JobInvocation {
 
   /** Listen for job messages with a {@link Consumer}. */
   public synchronized void addMessageListener(Consumer<JobMessage> messageStreamObserver) {
+    for (JobMessage msg : messageHistory) {
+      messageStreamObserver.accept(msg);
+    }
     messageObservers.add(messageStreamObserver);
   }
 
@@ -243,6 +248,7 @@ public class JobInvocation {
   }
 
   private synchronized void sendMessage(JobMessage message) {
+    messageHistory.add(message);
     for (Consumer<JobMessage> observer : messageObservers) {
       observer.accept(message);
     }

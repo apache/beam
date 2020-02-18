@@ -38,6 +38,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -117,7 +118,7 @@ import org.joda.time.Instant;
  *   .apply(RabbitMqIO.write().withUri("amqp://user:password@localhost:5672").withQueue("QUEUE"));
  * }</pre>
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class RabbitMqIO {
   public static Read read() {
     return new AutoValue_RabbitMqIO_Read.Builder()

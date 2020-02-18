@@ -55,7 +55,7 @@ func addDoFn(t *testing.T, g *graph.Graph, fn interface{}, scope *graph.Scope, i
 	if err != nil {
 		t.Fatal(err)
 	}
-	e, err := graph.NewParDo(g, scope, dofn, inputs, nil)
+	e, err := graph.NewParDo(g, scope, dofn, inputs, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,4 +159,6 @@ func TestMarshal(t *testing.T) {
 			}
 		})
 	}
+
+	// TODO(BEAM-3301): Add SDF test once we can make SDFs.
 }

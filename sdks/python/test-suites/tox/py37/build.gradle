@@ -35,6 +35,9 @@ lint.dependsOn lintPy37
 toxTask "mypyPy37", "py37-mypy"
 lint.dependsOn mypyPy37
 
+toxTask "formatter", "py3-yapf-check"
+check.dependsOn formatter
+
 // TODO(BEAM-3713): Migrate to -pytest env variant.
 toxTask "testPython37", "py37"
 test.dependsOn testPython37

@@ -18,9 +18,11 @@
 package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.ParDoTranslation.translateTimerFamilySpec;
 import static org.apache.beam.runners.core.construction.ParDoTranslation.translateTimerSpec;
 import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getStateSpecOrThrow;
+import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerFamilySpecOrThrow;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerSpecOrThrow;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
@@ -242,8 +244,27 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
             }
 
             @Override
+            public Map<String, RunnerApi.TimerFamilySpec> translateTimerFamilySpecs(
+                SdkComponents newComponents) {
+              Map<String, RunnerApi.TimerFamilySpec> timerFamilySpecs = new HashMap<>();
+              for (Map.Entry<String, DoFnSignature.TimerFamilyDeclaration> timerFamily :
+                  signature.timerFamilyDeclarations().entrySet()) {
+                RunnerApi.TimerFamilySpec spec =
+                    translateTimerFamilySpec(
+                        getTimerFamilySpecOrThrow(timerFamily.getValue(), doFn), newComponents);
+                timerFamilySpecs.put(timerFamily.getKey(), spec);
+              }
+              return timerFamilySpecs;
+            }
+
+            @Override
             public boolean isSplittable() {
               return signature.processElement().isSplittable();
+            }
+
+            @Override
+            public boolean isRequiresTimeSortedInput() {
+              return signature.processElement().requiresTimeSortedInput();
             }
 
             @Override

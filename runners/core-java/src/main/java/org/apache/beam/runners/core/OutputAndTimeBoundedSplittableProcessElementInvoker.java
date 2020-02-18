@@ -30,6 +30,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
@@ -117,6 +118,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               }
 
               @Override
+              public Object restriction() {
+                return tracker.currentRestriction();
+              }
+
+              @Override
               public InputT element(DoFn<InputT, OutputT> doFn) {
                 return processContext.element();
               }
@@ -134,6 +140,12 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               @Override
               public Instant timestamp(DoFn<InputT, OutputT> doFn) {
                 return processContext.timestamp();
+              }
+
+              @Override
+              public String timerId(DoFn<InputT, OutputT> doFn) {
+                throw new UnsupportedOperationException(
+                    "Cannot access timerId as parameter outside of @OnTimer method.");
               }
 
               @Override
@@ -203,7 +215,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               }
 
               @Override
-              public State state(String stateId) {
+              public State state(String stateId, boolean alwaysFetched) {
                 throw new UnsupportedOperationException(
                     "Access to state not supported in Splittable DoFn");
               }
@@ -212,6 +224,12 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               public Timer timer(String timerId) {
                 throw new UnsupportedOperationException(
                     "Access to timers not supported in Splittable DoFn");
+              }
+
+              @Override
+              public TimerMap timerFamily(String tagId) {
+                throw new UnsupportedOperationException(
+                    "Access to timerFamily not supported in Splittable DoFn");
               }
             });
     processContext.cancelScheduledCheckpoint();

@@ -17,6 +17,8 @@
 
 """Test for the game_stats example."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -56,8 +58,8 @@ class GameStatsTest(unittest.TestCase):
           self.create_data(p)
           | beam.Map(lambda elem: (elem['user'], elem['score']))
           | game_stats.CalculateSpammyUsers())
-      assert_that(result, equal_to([
-          ('robot1_team1', 9000), ('robot2_team2', 9001)]))
+      assert_that(
+          result, equal_to([('robot1_team1', 9000), ('robot2_team2', 9001)]))
 
   def test_game_stats_sessions(self):
     session_gap = 5 * 60

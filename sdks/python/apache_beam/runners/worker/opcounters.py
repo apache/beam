@@ -20,6 +20,8 @@
 
 """Counters collect the progress of the Worker for reporting to the service."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -50,7 +52,6 @@ class TransformIOCounter(object):
 
   Some examples of IO can be side inputs, shuffle, or streaming state.
   """
-
   def __init__(self, counter_factory, state_sampler):
     """Create a new IO read counter.
 
@@ -97,7 +98,6 @@ class TransformIOCounter(object):
 
 class NoOpTransformIOCounter(TransformIOCounter):
   """All operations for IO tracking are no-ops."""
-
   def __init__(self):
     super(NoOpTransformIOCounter, self).__init__(None, None)
 
@@ -160,9 +160,7 @@ class SideInputReadCounter(TransformIOCounter):
   def _update_counters_for_requesting_step(self, step_name):
     side_input_id = counters.side_input_id(step_name, self.input_index)
     self.scoped_state = self._state_sampler.scoped_state(
-        self.declaring_step,
-        'read-sideinput',
-        io_target=side_input_id)
+        self.declaring_step, 'read-sideinput', io_target=side_input_id)
     self.bytes_read_counter = self._counter_factory.get_counter(
         CounterName(
             'read-sideinput-byte-count',
@@ -173,7 +171,6 @@ class SideInputReadCounter(TransformIOCounter):
 
 class SumAccumulator(object):
   """Accumulator for collecting byte counts."""
-
   def __init__(self):
     self._value = 0
 
@@ -186,13 +183,12 @@ class SumAccumulator(object):
 
 class OperationCounters(object):
   """The set of basic counters to attach to an Operation."""
-
-  def __init__(self,
-               counter_factory,
-               step_name,  # type: str
-               coder,
-               output_index
-              ):
+  def __init__(
+      self,
+      counter_factory,
+      step_name,  # type: str
+      coder,
+      output_index):
     self._counter_factory = counter_factory
     self.element_counter = counter_factory.get_counter(
         '%s-out%s-ElementCount' % (step_name, output_index), Counter.SUM)
@@ -207,6 +203,7 @@ class OperationCounters(object):
 
   def update_from(self, windowed_value):
     # type: (windowed_value.WindowedValue) -> None
+
     """Add one value to this counter."""
     if self._should_sample():
       self.do_sample(windowed_value)
@@ -223,6 +220,7 @@ class OperationCounters(object):
         accumulator.update(size)
       else:
         accumulator.update(inner_coder_impl.estimate_size(value))
+
     return _observable_callback_inner
 
   def do_sample(self, windowed_value):
@@ -315,9 +313,9 @@ class OperationCounters(object):
     self._sample_counter = 0
 
   def __str__(self):
-    return '<%s [%s]>' % (self.__class__.__name__,
-                          ', '.join([str(x) for x in self.__iter__()]))
+    return '<%s [%s]>' % (
+        self.__class__.__name__, ', '.join([str(x) for x in self.__iter__()]))
 
   def __repr__(self):
-    return '<%s %s at %s>' % (self.__class__.__name__,
-                              [x for x in self.__iter__()], hex(id(self)))
+    return '<%s %s at %s>' % (
+        self.__class__.__name__, [x for x in self.__iter__()], hex(id(self)))

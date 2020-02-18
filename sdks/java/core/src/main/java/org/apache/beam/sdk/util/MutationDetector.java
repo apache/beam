@@ -17,12 +17,15 @@
  */
 package org.apache.beam.sdk.util;
 
+import org.apache.beam.sdk.annotations.Internal;
+
 /**
  * An object for detecting illegal mutations.
  *
  * <p>The {@link AutoCloseable} aspect of this interface allows use in a try-with-resources style,
  * where the implementing class may choose to perform a final mutation check upon {@link #close()}.
  */
+@Internal
 public interface MutationDetector extends AutoCloseable {
   /** @throws IllegalMutationException if illegal mutations are detected. */
   void verifyUnmodified() throws IllegalMutationException;

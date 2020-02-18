@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -48,7 +50,6 @@ class CacheManager(object):
   'full' or 'sample') and a cache_label which is a hash of the PCollection
   derivation.
   """
-
   def exists(self, *labels):
     """Returns if the PCollection cache exists."""
     raise NotImplementedError
@@ -161,8 +162,9 @@ class FileBasedCacheManager(CacheManager):
     self._saved_pcoders[self._path(*labels)] = pcoder
 
   def load_pcoder(self, *labels):
-    return (self._default_pcoder if self._default_pcoder is not None else
-            self._saved_pcoders[self._path(*labels)])
+    return (
+        self._default_pcoder if self._default_pcoder is not None else
+        self._saved_pcoders[self._path(*labels)])
 
   def read(self, *labels):
     if not self.exists(*labels):
@@ -200,7 +202,6 @@ class FileBasedCacheManager(CacheManager):
 
   class _CacheVersion(object):
     """This class keeps track of the timestamp and the corresponding version."""
-
     def __init__(self):
       self.current_version = -1
       self.current_timestamp = 0
@@ -247,8 +248,7 @@ class WriteCache(beam.PTransform):
     # cached PCollection. _cache_manager.sink(...) call below
     # should be using this saved pcoder.
     self._cache_manager.save_pcoder(
-        coders.registry.get_coder(pcoll.element_type),
-        prefix, self._label)
+        coders.registry.get_coder(pcoll.element_type), prefix, self._label)
 
     if self._sample:
       pcoll |= 'Sample' >> (
@@ -261,11 +261,12 @@ class WriteCache(beam.PTransform):
 
 class SafeFastPrimitivesCoder(coders.Coder):
   """This class add an quote/unquote step to escape special characters."""
+
   # pylint: disable=deprecated-urllib-function
 
   def encode(self, value):
-    return quote(coders.coders.FastPrimitivesCoder().encode(value)).encode(
-        'utf-8')
+    return quote(
+        coders.coders.FastPrimitivesCoder().encode(value)).encode('utf-8')
 
   def decode(self, value):
     return coders.coders.FastPrimitivesCoder().decode(unquote_to_bytes(value))

@@ -40,7 +40,7 @@ def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 def dockerImageName = project(':runners:google-cloud-dataflow-java').ext.dockerImageName
 // If -PuseExecutableStage is set, the use_executable_stage_bundle_execution wil be enabled.
-def fnapiExperiments = project.hasProperty('useExecutableStage') ? 'beam_fn_api,use_executable_stage_bundle_execution' : "beam_fn_api"
+def fnapiExperiments = project.hasProperty('useExecutableStage') ? 'beam_fn_api,beam_fn_api_use_deprecated_read,use_executable_stage_bundle_execution' : "beam_fn_api,beam_fn_api_use_deprecated_read"
 
 def commonConfig = { dataflowWorkerJar, workerHarnessContainerImage = '', additionalOptions = [] ->
    // return the preevaluated configuration closure
@@ -56,7 +56,7 @@ def commonConfig = { dataflowWorkerJar, workerHarnessContainerImage = '', additi
                "--tempRoot=${gcsTempRoot}",
                "--runner=TestDataflowRunner",
                "--dataflowWorkerJar=${dataflowWorkerJar}",
-               workerHarnessContainerImage.isEmpty() ?'':"--workerHarnessContainerImage=${workerHarnessContainerImage}"
+               "--workerHarnessContainerImage=${workerHarnessContainerImage}"
                ] + additionalOptions
        systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
      }

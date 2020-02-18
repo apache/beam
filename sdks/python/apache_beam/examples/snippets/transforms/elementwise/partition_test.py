@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -39,18 +41,15 @@ perennial: {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}
 [END partitions]'''.splitlines()[1:-1]
 
   annuals = [
-      line.split(':', 1)[1].strip()
-      for line in expected
+      line.split(':', 1)[1].strip() for line in expected
       if line.split(':', 1)[0] == 'annual'
   ]
   biennials = [
-      line.split(':', 1)[1].strip()
-      for line in expected
+      line.split(':', 1)[1].strip() for line in expected
       if line.split(':', 1)[0] == 'biennial'
   ]
   perennials = [
-      line.split(':', 1)[1].strip()
-      for line in expected
+      line.split(':', 1)[1].strip() for line in expected
       if line.split(':', 1)[0] == 'perennial'
   ]
 
@@ -69,13 +68,11 @@ train: {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}
 [END train_test]'''.splitlines()[1:-1]
 
   train_dataset = [
-      line.split(':', 1)[1].strip()
-      for line in expected
+      line.split(':', 1)[1].strip() for line in expected
       if line.split(':', 1)[0] == 'train'
   ]
   test_dataset = [
-      line.split(':', 1)[1].strip()
-      for line in expected
+      line.split(':', 1)[1].strip() for line in expected
       if line.split(':', 1)[0] == 'test'
   ]
 

@@ -88,8 +88,13 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
       // For aggregate calls, their input ref follow after GROUP BY input ref.
       int columnRefoff = groupFieldsListSize;
       for (ResolvedComputedColumn computedColumn : zetaNode.getAggregateList()) {
-        aggregateCalls.add(convertAggCall(computedColumn, columnRefoff));
-        columnRefoff++;
+        AggregateCall aggCall = convertAggCall(computedColumn, columnRefoff);
+        aggregateCalls.add(aggCall);
+        if (!aggCall.getArgList().isEmpty()) {
+          // Only increment column reference offset when aggregates use them (BEAM-8042).
+          // Ex: COUNT(*) does not have arguments, while COUNT(`field`) does.
+          columnRefoff++;
+        }
       }
     }
 
@@ -152,7 +157,7 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
         fieldNames.add(getTrait().resolveAlias(resolvedComputedColumn.getColumn()));
       } else if (aggregateFunctionCall.getArgumentList() != null
           && aggregateFunctionCall.getArgumentList().size() > 1) {
-        throw new RuntimeException(
+        throw new IllegalArgumentException(
             aggregateFunctionCall.getFunction().getName() + " has more than one argument.");
       }
     }
@@ -173,13 +178,13 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
           .getType()
           .getKind()
           .equals(TypeKind.TYPE_INT64)) {
-        throw new RuntimeException(AVG_ILLEGAL_LONG_INPUT_TYPE);
+        throw new UnsupportedOperationException(AVG_ILLEGAL_LONG_INPUT_TYPE);
       }
     }
 
     // Reject aggregation DISTINCT
     if (aggregateFunctionCall.getDistinct()) {
-      throw new RuntimeException(
+      throw new UnsupportedOperationException(
           "Does not support "
               + aggregateFunctionCall.getFunction().getSqlName()
               + " DISTINCT. 'SELECT DISTINCT' syntax could be used to deduplicate before"
@@ -191,7 +196,7 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
             SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
                 aggregateFunctionCall.getFunction().getName());
     if (sqlAggFunction == null) {
-      throw new RuntimeException(
+      throw new UnsupportedOperationException(
           "Does not support ZetaSQL aggregate function: "
               + aggregateFunctionCall.getFunction().getName());
     }
@@ -206,7 +211,7 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
           || expr.nodeKind() == RESOLVED_GET_STRUCT_FIELD) {
         argList.add(columnRefOff);
       } else {
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             "Aggregate function only accepts Column Reference or CAST(Column Reference) as its"
                 + " input.");
       }

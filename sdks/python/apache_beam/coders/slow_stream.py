@@ -19,6 +19,8 @@
 
 For internal use only; no backwards-compatibility guarantees.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import struct
@@ -32,7 +34,6 @@ class OutputStream(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   A pure Python implementation of stream.OutputStream."""
-
   def __init__(self):
     self.data = []  # type: List[bytes]
     self.byte_count = 0
@@ -94,7 +95,6 @@ class ByteCountingOutputStream(OutputStream):
   """For internal use only; no backwards-compatibility guarantees.
 
   A pure Python implementation of stream.ByteCountingOutputStream."""
-
   def __init__(self):
     # Note that we don't actually use any of the data initialized by our super.
     super(ByteCountingOutputStream, self).__init__()
@@ -124,7 +124,6 @@ class InputStream(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   A pure Python implementation of stream.InputStream."""
-
   def __init__(self, data):
     # type: (bytes) -> None
     self.data = data
@@ -149,7 +148,7 @@ class InputStream(object):
   def read(self, size):
     # type: (int) -> bytes
     self.pos += size
-    return self.data[self.pos - size : self.pos]
+    return self.data[self.pos - size:self.pos]
 
   def read_all(self, nested):
     # type: (bool) -> bytes

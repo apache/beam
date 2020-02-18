@@ -17,34 +17,39 @@
  */
 package org.apache.beam.runners.fnexecution.jobsubmission;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.Is.isA;
 import static org.hamcrest.core.IsNull.notNullValue;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
+import java.util.function.Consumer;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.StatusException;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusException;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link InMemoryJobService}. */
 @RunWith(JUnit4.class)
 public class InMemoryJobServiceTest {
+
   private static final String TEST_JOB_NAME = "test-job";
   private static final String TEST_JOB_ID = "test-job-id";
   private static final String TEST_RETRIEVAL_TOKEN = "test-staging-token";
@@ -56,6 +61,8 @@ public class InMemoryJobServiceTest {
           .setJobName(TEST_JOB_NAME)
           .setPipelineOptions(TEST_OPTIONS)
           .build();
+
+  private final int maxInvocationHistory = 3;
 
   Endpoints.ApiServiceDescriptor stagingServiceDescriptor;
   @Mock JobInvoker invoker;
@@ -186,7 +193,79 @@ public class InMemoryJobServiceTest {
     verify(invocation, times(1)).start();
   }
 
+  @Test
+  public void testInvocationCleanup() {
+    final int maxInvocationHistory = 3;
+    service =
+        InMemoryJobService.create(
+            stagingServiceDescriptor, session -> "token", null, invoker, maxInvocationHistory);
+
+    assertThat(getNumberOfInvocations(), is(0));
+
+    Job job1 = runJob();
+    assertThat(getNumberOfInvocations(), is(1));
+    Job job2 = runJob();
+    assertThat(getNumberOfInvocations(), is(2));
+    Job job3 = runJob();
+    assertThat(getNumberOfInvocations(), is(maxInvocationHistory));
+
+    // All running invocations must be available and never be discarded
+    // even if they exceed the max history size
+    Job job4 = runJob();
+    assertThat(getNumberOfInvocations(), is(maxInvocationHistory + 1));
+
+    // We need to have more than maxInvocationHistory completed jobs for the cleanup to trigger
+    job1.finish();
+    assertThat(getNumberOfInvocations(), is(maxInvocationHistory + 1));
+    job2.finish();
+    assertThat(getNumberOfInvocations(), is(maxInvocationHistory + 1));
+    job3.finish();
+    assertThat(getNumberOfInvocations(), is(maxInvocationHistory + 1));
+
+    // The fourth finished job exceeds maxInvocationHistory and triggers the cleanup
+    job4.finish();
+    assertThat(getNumberOfInvocations(), is(maxInvocationHistory));
+
+    // Run a new job after the cleanup
+    Job job5 = runJob();
+    assertThat(getNumberOfInvocations(), is(maxInvocationHistory + 1));
+    job5.finish();
+    assertThat(getNumberOfInvocations(), is(maxInvocationHistory));
+  }
+
+  private Job runJob() {
+    when(invocation.getId()).thenReturn(UUID.randomUUID().toString());
+    prepareAndRunJob();
+    // Retrieve the state listener for this invocation
+    ArgumentCaptor<Consumer<JobApi.JobStateEvent>> stateListener =
+        ArgumentCaptor.forClass(Consumer.class);
+    verify(invocation, atLeastOnce()).addStateListener(stateListener.capture());
+    return new Job(stateListener.getValue());
+  }
+
+  private int getNumberOfInvocations() {
+    RecordingObserver<JobApi.GetJobsResponse> recorder = new RecordingObserver<>();
+    final JobApi.GetJobsRequest getJobsRequest = JobApi.GetJobsRequest.newBuilder().build();
+    service.getJobs(getJobsRequest, recorder);
+    return recorder.getValue().getJobInfoCount();
+  }
+
+  private static class Job {
+    private Consumer<JobApi.JobStateEvent> stateListener;
+
+    private Job(Consumer<JobApi.JobStateEvent> stateListener) {
+      this.stateListener = stateListener;
+    }
+
+    void finish() {
+      JobApi.JobStateEvent terminalEvent =
+          JobApi.JobStateEvent.newBuilder().setState(JobApi.JobState.Enum.DONE).build();
+      stateListener.accept(terminalEvent);
+    }
+  }
+
   private static class RecordingObserver<T> implements StreamObserver<T> {
+
     ArrayList<T> values = new ArrayList<>();
     Throwable error = null;
     boolean isCompleted = false;
@@ -204,6 +283,11 @@ public class InMemoryJobServiceTest {
     @Override
     public void onCompleted() {
       isCompleted = true;
+    }
+
+    T getValue() {
+      assert values.size() == 1;
+      return values.get(0);
     }
 
     boolean isSuccessful() {

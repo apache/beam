@@ -122,9 +122,14 @@ public class InMemoryTimerInternals implements TimerInternals {
     WindowTracing.trace("{}.setTimer: {}", getClass().getSimpleName(), timerData);
 
     @Nullable
-    TimerData existing = existingTimers.get(timerData.getNamespace(), timerData.getTimerId());
+    TimerData existing =
+        existingTimers.get(
+            timerData.getNamespace(), timerData.getTimerId() + '+' + timerData.getTimerFamilyId());
     if (existing == null) {
-      existingTimers.put(timerData.getNamespace(), timerData.getTimerId(), timerData);
+      existingTimers.put(
+          timerData.getNamespace(),
+          timerData.getTimerId() + '+' + timerData.getTimerFamilyId(),
+          timerData);
       timersForDomain(timerData.getDomain()).add(timerData);
     } else {
       checkArgument(
@@ -138,7 +143,10 @@ public class InMemoryTimerInternals implements TimerInternals {
         NavigableSet<TimerData> timers = timersForDomain(timerData.getDomain());
         timers.remove(existing);
         timers.add(timerData);
-        existingTimers.put(timerData.getNamespace(), timerData.getTimerId(), timerData);
+        existingTimers.put(
+            timerData.getNamespace(),
+            timerData.getTimerId() + '+' + timerData.getTimerFamilyId(),
+            timerData);
       }
     }
   }
@@ -151,8 +159,8 @@ public class InMemoryTimerInternals implements TimerInternals {
   /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
   @Deprecated
   @Override
-  public void deleteTimer(StateNamespace namespace, String timerId) {
-    TimerData existing = existingTimers.get(namespace, timerId);
+  public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
+    TimerData existing = existingTimers.get(namespace, timerId + '+' + timerFamilyId);
     if (existing != null) {
       deleteTimer(existing);
     }
@@ -163,7 +171,8 @@ public class InMemoryTimerInternals implements TimerInternals {
   @Override
   public void deleteTimer(TimerData timer) {
     WindowTracing.trace("{}.deleteTimer: {}", getClass().getSimpleName(), timer);
-    existingTimers.remove(timer.getNamespace(), timer.getTimerId());
+    existingTimers.remove(
+        timer.getNamespace(), timer.getTimerId() + '+' + timer.getTimerFamilyId());
     timersForDomain(timer.getDomain()).remove(timer);
   }
 
@@ -321,7 +330,8 @@ public class InMemoryTimerInternals implements TimerInternals {
 
     if (!timers.isEmpty() && currentTime.isAfter(timers.first().getTimestamp())) {
       TimerData timer = timers.pollFirst();
-      existingTimers.remove(timer.getNamespace(), timer.getTimerId());
+      existingTimers.remove(
+          timer.getNamespace(), timer.getTimerId() + '+' + timer.getTimerFamilyId());
       return timer;
     } else {
       return null;

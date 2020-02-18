@@ -17,6 +17,8 @@
 
 """Test for the user_score example."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -44,9 +46,10 @@ class UserScoreTest(unittest.TestCase):
     with TestPipeline() as p:
       result = (
           p | beam.Create(UserScoreTest.SAMPLE_DATA) | user_score.UserScore())
-      assert_that(result, equal_to([
-          ('user1_team1', 50), ('user2_team2', 2), ('user3_team3', 8),
-          ('user4_team3', 5)]))
+      assert_that(
+          result,
+          equal_to([('user1_team1', 50), ('user2_team2', 2), ('user3_team3', 8),
+                    ('user4_team3', 5)]))
 
 
 if __name__ == '__main__':

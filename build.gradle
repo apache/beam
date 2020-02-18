@@ -219,6 +219,10 @@ task pythonLintPreCommit() {
   dependsOn ":sdks:python:test-suites:tox:py37:lint"
 }
 
+task pythonFormatterPreCommit() {
+  dependsOn 'sdks:python:test-suites:tox:py37:formatter'
+}
+
 task python2PostCommit() {
   dependsOn ":sdks:python:test-suites:portable:py2:crossLanguageTests"
   dependsOn ":sdks:python:test-suites:dataflow:py2:postCommitIT"
@@ -303,7 +307,7 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
 
   configurations { linkageCheckerJava }
   dependencies {
-    linkageCheckerJava "com.google.cloud.tools:dependencies:1.0.1"
+    linkageCheckerJava "com.google.cloud.tools:dependencies:1.1.3"
   }
 
   // We need to evaluate all the projects first so that we can find depend on all the
@@ -318,7 +322,14 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
     dependsOn project.getTasksByName('publishMavenJavaPublicationToMavenLocal', true /* recursively */)
     classpath = project.configurations.linkageCheckerJava
     main = 'com.google.cloud.tools.opensource.classpath.LinkageCheckerMain'
-    args '-a', project.javaLinkageArtifactIds.split(',').collect({"${project.ext.mavenGroupId}:${it}:${project.version}"}).join(',')
+    args '-a', project.javaLinkageArtifactIds.split(',').collect({
+      if (it.contains(':')) {
+        "${project.ext.mavenGroupId}:${it}"
+      } else {
+        // specify the version if not provided
+        "${project.ext.mavenGroupId}:${it}:${project.version}"
+      }
+    }).join(',')
     doLast {
       println "NOTE: This task published artifacts into your local Maven repository. You may want to remove them manually."
     }

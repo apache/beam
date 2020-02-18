@@ -17,6 +17,8 @@
 
 """Unit tests for the PValue and PCollection classes."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import unittest
@@ -31,7 +33,6 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 
 class PValueTest(unittest.TestCase):
-
   def test_pvalue_expected_arguments(self):
     pipeline = TestPipeline()
     value = PValue(pipeline)
@@ -46,7 +47,6 @@ class PValueTest(unittest.TestCase):
 
 
 class TaggedValueTest(unittest.TestCase):
-
   def test_passed_tuple_as_tag(self):
     with self.assertRaisesRegex(
         TypeError,

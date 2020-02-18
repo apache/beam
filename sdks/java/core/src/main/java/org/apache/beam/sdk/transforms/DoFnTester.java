@@ -33,6 +33,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
@@ -267,6 +268,12 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
+            public String timerId(DoFn<InputT, OutputT> doFn) {
+              throw new UnsupportedOperationException(
+                  "Cannot access timerId as parameter outside of @OnTimer method.");
+            }
+
+            @Override
             public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
               throw new UnsupportedOperationException(
                   "Not expected to access TimeDomain from @ProcessElement");
@@ -293,19 +300,30 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
+            public Object restriction() {
+              throw new UnsupportedOperationException(
+                  "Not expected to access Restriction from a regular DoFn in DoFnTester");
+            }
+
+            @Override
             public RestrictionTracker<?, ?> restrictionTracker() {
               throw new UnsupportedOperationException(
                   "Not expected to access RestrictionTracker from a regular DoFn in DoFnTester");
             }
 
             @Override
-            public org.apache.beam.sdk.state.State state(String stateId) {
+            public org.apache.beam.sdk.state.State state(String stateId, boolean alwaysFetched) {
               throw new UnsupportedOperationException("DoFnTester doesn't support state yet");
             }
 
             @Override
             public Timer timer(String timerId) {
               throw new UnsupportedOperationException("DoFnTester doesn't support timers yet");
+            }
+
+            @Override
+            public TimerMap timerFamily(String tagId) {
+              throw new UnsupportedOperationException("DoFnTester doesn't support timerFamily yet");
             }
           });
     } catch (UserCodeException e) {
@@ -684,6 +702,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             @Override
             @Nullable
             public Void dispatch(DoFnSignature.Parameter.PaneInfoParameter p) {
+              return null;
+            }
+
+            @Override
+            public Void dispatch(DoFnSignature.Parameter.TimerIdParameter p) {
               return null;
             }
 
