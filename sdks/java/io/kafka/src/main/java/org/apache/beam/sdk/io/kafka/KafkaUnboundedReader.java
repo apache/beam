@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -86,10 +88,25 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig());
     consumerSpEL.evaluateAssign(consumer, spec.getTopicPartitions());
 
+    SchemaRegistryClient registryClient = null;
+    if (spec.getCSRClientProvider() != null) {
+      registryClient = spec.getCSRClientProvider().getCSRClient();
+    }
+
     try {
-      keyDeserializerInstance = spec.getKeyDeserializer().getDeclaredConstructor().newInstance();
-      valueDeserializerInstance =
-          spec.getValueDeserializer().getDeclaredConstructor().newInstance();
+      if (registryClient != null && spec.getKeyDeserializer().equals(KafkaAvroDeserializer.class)) {
+        keyDeserializerInstance = (Deserializer) new KafkaAvroDeserializer(registryClient);
+      } else {
+        keyDeserializerInstance = spec.getKeyDeserializer().getDeclaredConstructor().newInstance();
+      }
+
+      if (registryClient != null
+          && spec.getValueDeserializer().equals(KafkaAvroDeserializer.class)) {
+        valueDeserializerInstance = (Deserializer) new KafkaAvroDeserializer(registryClient);
+      } else {
+        valueDeserializerInstance =
+            spec.getValueDeserializer().getDeclaredConstructor().newInstance();
+      }
     } catch (InstantiationException
         | IllegalAccessException
         | InvocationTargetException

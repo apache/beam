@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -27,11 +29,10 @@ def count_globally(test=None):
   with beam.Pipeline() as pipeline:
     total_elements = (
         pipeline
-        | 'Create plants' >> beam.Create([
-            '🍓', '🥕', '🥕', '🥕', '🍆', '🍆', '🍅', '🍅', '🍅', '🌽'])
+        | 'Create plants' >> beam.Create(
+            ['🍓', '🥕', '🥕', '🥕', '🍆', '🍆', '🍅', '🍅', '🍅', '🌽'])
         | 'Count all elements' >> beam.combiners.Count.Globally()
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END count_globally]
     if test:
       test(total_elements)
@@ -57,8 +58,7 @@ def count_per_key(test=None):
             ('summer', '🌽'),
         ])
         | 'Count elements per key' >> beam.combiners.Count.PerKey()
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END count_per_key]
     if test:
       test(total_elements_per_keys)
@@ -71,11 +71,10 @@ def count_per_element(test=None):
   with beam.Pipeline() as pipeline:
     total_unique_elements = (
         pipeline
-        | 'Create produce' >> beam.Create([
-            '🍓', '🥕', '🥕', '🥕', '🍆', '🍆', '🍅', '🍅', '🍅', '🌽'])
+        | 'Create produce' >> beam.Create(
+            ['🍓', '🥕', '🥕', '🥕', '🍆', '🍆', '🍅', '🍅', '🍅', '🌽'])
         | 'Count unique elements' >> beam.combiners.Count.PerElement()
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END count_per_element]
     if test:
       test(total_unique_elements)

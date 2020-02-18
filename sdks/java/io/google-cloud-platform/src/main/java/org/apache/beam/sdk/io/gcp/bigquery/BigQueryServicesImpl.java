@@ -76,6 +76,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
@@ -1018,7 +1019,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
   }
 
-  @Experimental(Experimental.Kind.SOURCE_SINK)
+  @Experimental(Kind.SOURCE_SINK)
   static class StorageClientImpl implements StorageClient {
 
     private static final HeaderProvider USER_AGENT_HEADER_PROVIDER =

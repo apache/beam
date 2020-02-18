@@ -26,7 +26,7 @@ class LogElements(beam.PTransform):
             self.prefix = prefix
 
         def process(self, element, **kwargs):
-            print self.prefix + str(element)
+            print(self.prefix + str(element))
             yield element
 
     def __init__(self, label=None, prefix=''):

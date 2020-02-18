@@ -53,6 +53,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.SerializationUtils;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.StateNamespace;
@@ -94,15 +96,13 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
-import org.apache.commons.lang3.SerializationUtils;
-import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -813,8 +813,7 @@ public class ExecutableStageDoFnOperatorTest {
     ExecutableStageDoFnOperator<Integer, Integer> operator =
         new ExecutableStageDoFnOperator<>(
             "transform",
-            null,
-            null,
+            WindowedValue.getValueOnlyCoder(VarIntCoder.of()),
             Collections.emptyMap(),
             mainOutput,
             ImmutableList.of(additionalOutput),
@@ -860,7 +859,7 @@ public class ExecutableStageDoFnOperatorTest {
       DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory,
       WindowingStrategy windowingStrategy,
       @Nullable Coder keyCoder,
-      @Nullable Coder windowedInputCoder) {
+      Coder windowedInputCoder) {
 
     FlinkExecutableStageContextFactory contextFactory =
         Mockito.mock(FlinkExecutableStageContextFactory.class);
@@ -877,7 +876,6 @@ public class ExecutableStageDoFnOperatorTest {
         new ExecutableStageDoFnOperator<>(
             "transform",
             windowedInputCoder,
-            null,
             Collections.emptyMap(),
             mainOutput,
             additionalOutputs,

@@ -17,6 +17,8 @@
 
 """For internal use only; no backwards-compatibility guarantees."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -107,6 +109,7 @@ def parse_Bytes(serialized_bytes, msg_class):
 
 def pack_Struct(**kwargs):
   # type: (...) -> struct_pb2.Struct
+
   """Returns a struct containing the values indicated by kwargs.
   """
   msg = struct_pb2.Struct()

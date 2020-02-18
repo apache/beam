@@ -18,7 +18,7 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.expansion.service')
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.testing.expansion')
 
 description = "Apache Beam :: SDKs :: Java :: Test Expansion Service"
 ext.summary = """Testing Expansion Service used for executing cross-language transform tests."""
@@ -31,7 +31,7 @@ dependencies {
 }
 
 task runTestExpansionService (type: JavaExec) {
-  main = "org.apache.beam.sdk.expansion.TestExpansionService"
+  main = "org.apache.beam.sdk.testing.expansion.TestExpansionService"
   classpath = sourceSets.test.runtimeClasspath
   args = [project.findProperty("constructionService.port") ?: "8097"]
 }
@@ -43,7 +43,7 @@ task buildTestExpansionServiceJar(type: ShadowJar) {
   mergeServiceFiles()
   manifest {
     attributes(
-            'Main-Class': 'org.apache.beam.sdk.expansion.TestExpansionService'
+            'Main-Class': 'org.apache.beam.sdk.testing.expansion.TestExpansionService'
     )
   }
   from { project.configurations.testRuntime.collect { it.isDirectory() ? it : zipTree(it) }}

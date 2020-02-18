@@ -17,6 +17,8 @@ package beam
 
 import (
 	"fmt"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -44,7 +46,16 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 	for _, s := range side {
 		in = append(in, s.Input.n)
 	}
-	edge, err := graph.NewParDo(s.real, s.scope, fn, in, typedefs)
+
+	var rc *coder.Coder
+	if fn.IsSplittable() {
+		rc, err = inferCoder(typex.New(*fn.RestrictionT()))
+		if err != nil {
+			return nil, addParDoCtx(err, s)
+		}
+	}
+
+	edge, err := graph.NewParDo(s.real, s.scope, fn, in, rc, typedefs)
 	if err != nil {
 		return nil, addParDoCtx(err, s)
 	}

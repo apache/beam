@@ -209,7 +209,6 @@ public class BeamFnDataWriteRunnerTest {
             TRANSFORM_ID,
             RemoteGrpcPortWrite.writeToPort("myWrite", PORT_SPEC).toPTransform(),
             bundleId::get,
-            WIRE_CODER_SPEC,
             COMPONENTS.getCodersMap(),
             mockBeamFnDataClient);
 

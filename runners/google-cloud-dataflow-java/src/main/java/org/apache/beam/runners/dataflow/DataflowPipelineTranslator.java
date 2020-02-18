@@ -108,8 +108,8 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -1224,10 +1224,10 @@ public class DataflowPipelineTranslator {
       Map<TupleTag<?>, Coder<?>> outputCoders,
       DoFnSchemaInformation doFnSchemaInformation,
       Map<String, PCollectionView<?>> sideInputMapping) {
-    DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
 
-    if (signature.usesState() || signature.usesTimers()) {
-      DataflowRunner.verifyStateSupported(fn);
+    boolean isStateful = DoFnSignatures.isStateful(fn);
+    if (isStateful) {
+      DataflowRunner.verifyDoFnSupported(fn, context.getPipelineOptions().isStreaming());
       DataflowRunner.verifyStateSupportForWindowingStrategy(windowingStrategy);
     }
 
@@ -1255,8 +1255,7 @@ public class DataflowPipelineTranslator {
 
     // Setting USES_KEYED_STATE will cause an ungrouped shuffle, which works
     // in streaming but does not work in batch
-    if (context.getPipelineOptions().isStreaming()
-        && (signature.usesState() || signature.usesTimers())) {
+    if (context.getPipelineOptions().isStreaming() && isStateful) {
       stepContext.addInput(PropertyNames.USES_KEYED_STATE, "true");
     }
   }

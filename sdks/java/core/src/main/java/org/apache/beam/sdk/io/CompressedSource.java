@@ -28,6 +28,7 @@ import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -60,7 +61,7 @@ import org.joda.time.Instant;
  *
  * @param <T> The type to read from the compressed file.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class CompressedSource<T> extends FileBasedSource<T> {
   /**
    * Factory interface for creating channels that decompress the content of an underlying channel.

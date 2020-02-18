@@ -17,6 +17,8 @@
 
 # This module is experimental. No backwards-compatibility guarantees.
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from builtins import object
@@ -27,16 +29,16 @@ from apache_beam.utils import counters
 
 
 class StateSampler(object):
-
   def __init__(self, sampling_period_ms):
-    self._state_stack = [ScopedState(self,
-                                     counters.CounterName('unknown'),
-                                     None)]
+    self._state_stack = [
+        ScopedState(self, counters.CounterName('unknown'), None)
+    ]
     self.state_transition_count = 0
     self.time_since_transition = 0
 
   def current_state(self):
     # type: () -> ScopedState
+
     """Returns the current execution state.
 
     This operation is not thread safe, and should only be called from the
@@ -78,8 +80,7 @@ class StateSampler(object):
 
   def reset(self):
     # type: () -> None
-    for state in self._states_by_name.values():
-      state.nsecs = 0
+    pass
 
 
 class ScopedState(object):

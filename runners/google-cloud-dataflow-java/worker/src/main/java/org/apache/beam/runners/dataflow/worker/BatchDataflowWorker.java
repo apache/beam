@@ -21,7 +21,7 @@ import com.google.api.services.dataflow.model.MapTask;
 import com.google.api.services.dataflow.model.WorkItem;
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.List;
+import java.util.Collection;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
@@ -46,6 +46,7 @@ import org.apache.beam.runners.dataflow.worker.graph.Nodes.RemoteGrpcPortNode;
 import org.apache.beam.runners.dataflow.worker.graph.RegisterNodeFunction;
 import org.apache.beam.runners.dataflow.worker.graph.ReplacePgbkWithPrecombineFunction;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture;
+import org.apache.beam.runners.dataflow.worker.status.DebugCapture.Capturable;
 import org.apache.beam.runners.dataflow.worker.status.WorkerStatusPages;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.sdk.fn.IdGenerator;
@@ -265,7 +266,7 @@ public class BatchDataflowWorker implements Closeable {
   }
 
   private static DebugCapture.Manager initializeAndStartDebugCaptureManager(
-      DataflowWorkerHarnessOptions options, List<DebugCapture.Capturable> debugCapturePages) {
+      DataflowWorkerHarnessOptions options, Collection<Capturable> debugCapturePages) {
     DebugCapture.Manager result = new DebugCapture.Manager(options, debugCapturePages);
     result.start();
     return result;

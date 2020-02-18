@@ -21,7 +21,6 @@ import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.annotations.Experimental;
 
 /** Result of a portable {@link PortablePipelineRunner#run(RunnerApi.Pipeline, JobInfo)}. */
 public interface PortablePipelineResult extends PipelineResult {
@@ -31,6 +30,5 @@ public interface PortablePipelineResult extends PipelineResult {
    *
    * @throws UnsupportedOperationException if the runner doesn't support retrieving metrics.
    */
-  @Experimental(Experimental.Kind.METRICS)
   JobApi.MetricResults portableMetrics() throws UnsupportedOperationException;
 }

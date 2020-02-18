@@ -55,6 +55,7 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
@@ -129,7 +130,7 @@ import org.apache.commons.compress.utils.IOUtils;
  * @param <T> The type of records to be read from the source.
  */
 // CHECKSTYLE.ON: JavadocStyle
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class AvroSource<T> extends BlockBasedSource<T> {
   // Default minimum bundle size (chosen as two default-size Avro blocks to attempt to
   // ensure that every source has at least one block of records).
@@ -512,7 +513,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    *
    * @param <T> The type of records stored in the block.
    */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
+  @Experimental(Kind.SOURCE_SINK)
   static class AvroBlock<T> extends Block<T> {
     private final Mode<T> mode;
 
@@ -615,7 +616,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    *
    * @param <T> The type of records contained in the block.
    */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
+  @Experimental(Kind.SOURCE_SINK)
   public static class AvroReader<T> extends BlockBasedReader<T> {
     // Initialized in startReading.
     @Nullable private AvroMetadata metadata;

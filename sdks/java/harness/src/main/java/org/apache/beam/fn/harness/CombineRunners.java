@@ -31,8 +31,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
-import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
-import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -59,13 +58,13 @@ public class CombineRunners {
     @Override
     public Map<String, PTransformRunnerFactory> getPTransformRunnerFactories() {
       return ImmutableMap.of(
-          BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_PER_KEY_PRECOMBINE),
+          PTransformTranslation.COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN,
           new PrecombineFactory(),
-          BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_PER_KEY_MERGE_ACCUMULATORS),
+          PTransformTranslation.COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN,
           MapFnRunners.forValueMapFnFactory(CombineRunners::createMergeAccumulatorsMapFunction),
-          BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_PER_KEY_EXTRACT_OUTPUTS),
+          PTransformTranslation.COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN,
           MapFnRunners.forValueMapFnFactory(CombineRunners::createExtractOutputsMapFunction),
-          BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_GROUPED_VALUES),
+          PTransformTranslation.COMBINE_GROUPED_VALUES_TRANSFORM_URN,
           MapFnRunners.forValueMapFnFactory(CombineRunners::createCombineGroupedValuesMapFunction));
     }
   }

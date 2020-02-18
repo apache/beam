@@ -23,6 +23,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Factory;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.Schema;
@@ -42,6 +44,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
  * For example, the user's type may be a POJO, in which case the provided getters will simple read
  * the appropriate fields from the POJO.
  */
+@Experimental(Kind.SCHEMAS)
 public class RowWithGetters extends Row {
   private final Factory<List<FieldValueGetter>> fieldValueGetterFactory;
   private final Object getterTarget;

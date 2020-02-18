@@ -21,6 +21,8 @@ Beam Datastore types.
 This module is experimental, no backwards compatibility guarantees.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import copy
@@ -35,14 +37,24 @@ __all__ = ['Query', 'Key', 'Entity']
 
 
 class Query(object):
-  def __init__(self, kind=None, project=None, namespace=None, ancestor=None,
-               filters=(), projection=(), order=(), distinct_on=(), limit=None):
+  def __init__(
+      self,
+      kind=None,
+      project=None,
+      namespace=None,
+      ancestor=None,
+      filters=(),
+      projection=(),
+      order=(),
+      distinct_on=(),
+      limit=None):
     """Represents a Datastore query.
 
     Args:
       kind: (str) The kind to query.
       project: (str) Required. Project associated with query.
-      namespace: (str) (Optional) Namespace to restrict results to.
+      namespace: (str, ValueProvider(str)) (Optional) Namespace to restrict
+        results to.
       ancestor: (:class:`~apache_beam.io.gcp.datastore.v1new.types.Key`)
         (Optional) key of the ancestor to which this query's results are
         restricted.
@@ -81,12 +93,20 @@ class Query(object):
     if self.ancestor is not None:
       ancestor_client_key = self.ancestor.to_client_key()
 
+    # Resolve ValueProvider arguments.
     self.filters = self._set_runtime_filters()
+    if isinstance(self.namespace, ValueProvider):
+      self.namespace = self.namespace.get()
 
     return query.Query(
-        client, kind=self.kind, project=self.project, namespace=self.namespace,
-        ancestor=ancestor_client_key, filters=self.filters,
-        projection=self.projection, order=self.order,
+        client,
+        kind=self.kind,
+        project=self.project,
+        namespace=self.namespace,
+        ancestor=ancestor_client_key,
+        filters=self.filters,
+        projection=self.projection,
+        order=self.order,
         distinct_on=self.distinct_on)
 
   def _set_runtime_filters(self):
@@ -98,9 +118,9 @@ class Query(object):
     """
     runtime_filters = []
     if not all(len(filter_tuple) == 3 for filter_tuple in self.filters):
-      raise TypeError('%s: filters must be a sequence of tuple with length=3'
-                      ' got %r instead'
-                      % (self.__class__.__name__, self.filters))
+      raise TypeError(
+          '%s: filters must be a sequence of tuple with length=3'
+          ' got %r instead' % (self.__class__.__name__, self.filters))
 
     for filter_type, filter_operator, filter_value in self.filters:
       if isinstance(filter_type, ValueProvider):
@@ -117,11 +137,18 @@ class Query(object):
     return copy.copy(self)
 
   def __repr__(self):
-    return ('<Query(kind=%s, project=%s, namespace=%s, ancestor=%s, filters=%s,'
-            'projection=%s, order=%s, distinct_on=%s, limit=%s)>' % (
-                self.kind, self.project, self.namespace, self.ancestor,
-                self.filters, self.projection, self.order, self.distinct_on,
-                self.limit))
+    return (
+        '<Query(kind=%s, project=%s, namespace=%s, ancestor=%s, filters=%s,'
+        'projection=%s, order=%s, distinct_on=%s, limit=%s)>' % (
+            self.kind,
+            self.project,
+            self.namespace,
+            self.ancestor,
+            self.filters,
+            self.projection,
+            self.order,
+            self.distinct_on,
+            self.limit))
 
 
 class Key(object):
@@ -153,8 +180,10 @@ class Key(object):
 
   @staticmethod
   def from_client_key(client_key):
-    return Key(client_key.flat_path, project=client_key.project,
-               namespace=client_key.namespace)
+    return Key(
+        client_key.flat_path,
+        project=client_key.project,
+        namespace=client_key.namespace)
 
   def to_client_key(self):
     """
@@ -164,8 +193,11 @@ class Key(object):
     parent = self.parent
     if parent is not None:
       parent = parent.to_client_key()
-    return key.Key(*self.path_elements, parent=parent, namespace=self.namespace,
-                   project=self.project)
+    return key.Key(
+        *self.path_elements,
+        parent=parent,
+        namespace=self.namespace,
+        project=self.project)
 
   def __eq__(self, other):
     if not isinstance(other, Key):
@@ -183,8 +215,11 @@ class Key(object):
 
   def __repr__(self):
     return '<%s(%s, parent=%s, project=%s, namespace=%s)>' % (
-        self.__class__.__name__, str(self.path_elements), str(self.parent),
-        self.project, self.namespace)
+        self.__class__.__name__,
+        str(self.path_elements),
+        str(self.parent),
+        self.project,
+        self.namespace)
 
 
 class Entity(object):
@@ -231,8 +266,9 @@ class Entity(object):
     Returns a :class:`google.cloud.datastore.entity.Entity` instance that
     represents this entity.
     """
-    res = entity.Entity(key=self.key.to_client_key(),
-                        exclude_from_indexes=tuple(self.exclude_from_indexes))
+    res = entity.Entity(
+        key=self.key.to_client_key(),
+        exclude_from_indexes=tuple(self.exclude_from_indexes))
     for name, value in self.properties.items():
       if isinstance(value, Key):
         if not value.project:
@@ -248,13 +284,16 @@ class Entity(object):
   def __eq__(self, other):
     if not isinstance(other, Entity):
       return False
-    return (self.key == other.key and
-            self.exclude_from_indexes == other.exclude_from_indexes and
-            self.properties == other.properties)
+    return (
+        self.key == other.key and
+        self.exclude_from_indexes == other.exclude_from_indexes and
+        self.properties == other.properties)
 
   __hash__ = None  # type: ignore[assignment]
 
   def __repr__(self):
     return "<%s(key=%s, exclude_from_indexes=%s) properties=%s>" % (
-        self.__class__.__name__, str(self.key),
-        str(self.exclude_from_indexes), str(self.properties))
+        self.__class__.__name__,
+        str(self.key),
+        str(self.exclude_from_indexes),
+        str(self.properties))

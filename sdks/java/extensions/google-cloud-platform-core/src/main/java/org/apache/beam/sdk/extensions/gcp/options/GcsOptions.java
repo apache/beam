@@ -129,6 +129,13 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
 
   void setGcsPerformanceMetrics(Boolean reportPerformanceMetrics);
 
+  /** If true, uses gRPC as the transport. */
+  @Description("Whether to use gRPC or not, as transport mechanism.")
+  @Default.Boolean(false)
+  Boolean getUseGrpcForGcs();
+
+  void setUseGrpcForGcs(Boolean useGrpc);
+
   /**
    * Returns the default {@link ExecutorService} to use within the Apache Beam SDK. The {@link
    * ExecutorService} is compatible with AppEngine.

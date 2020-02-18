@@ -29,8 +29,12 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDat
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.FunctionParameter;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.ScalarFunction;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlFunction;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlSyntax;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.FamilyOperandTypeChecker;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.InferTypes;
@@ -55,6 +59,19 @@ public class SqlOperators {
   public static final RelDataType TIMESTAMP = createSqlType(SqlTypeName.TIMESTAMP, false);
   public static final RelDataType BIGINT = createSqlType(SqlTypeName.BIGINT, false);
 
+  public static final SqlOperator TIMESTAMP_ADD_FN =
+      createSimpleSqlFunction("timestamp_add", SqlTypeName.TIMESTAMP);
+
+  public static SqlFunction createSimpleSqlFunction(String name, SqlTypeName returnType) {
+    return new SqlFunction(
+        name,
+        SqlKind.OTHER_FUNCTION,
+        x -> createTypeFactory().createSqlType(returnType),
+        null, // operandTypeInference
+        null, // operandTypeChecker
+        SqlFunctionCategory.USER_DEFINED_FUNCTION);
+  }
+
   public static SqlUserDefinedFunction createUdfOperator(
       String name,
       Class<?> methodClass,
@@ -74,6 +91,11 @@ public class SqlOperators {
   // SqlUserDefinedFunction will be able to pass through Calcite codegen and get proper function
   // called.
   public static SqlUserDefinedFunction createUdfOperator(String name, Method method) {
+    return createUdfOperator(name, method, SqlSyntax.FUNCTION);
+  }
+
+  public static SqlUserDefinedFunction createUdfOperator(
+      String name, Method method, final SqlSyntax syntax) {
     Function function = ScalarFunctionImpl.create(method);
     final RelDataTypeFactory typeFactory = createTypeFactory();
 
@@ -96,7 +118,12 @@ public class SqlOperators {
         InferTypes.explicit(argTypes),
         typeChecker,
         paramTypes,
-        function);
+        function) {
+      @Override
+      public SqlSyntax getSyntax() {
+        return syntax;
+      }
+    };
   }
 
   private static RelDataType createSqlType(SqlTypeName typeName, boolean withNullability) {
@@ -171,7 +198,8 @@ public class SqlOperators {
   public static final SqlOperator ENDS_WITH =
       createUdfOperator("ENDS_WITH", BeamBuiltinMethods.ENDS_WITH_METHOD);
 
-  public static final SqlOperator LIKE = createUdfOperator("LIKE", BeamBuiltinMethods.LIKE_METHOD);
+  public static final SqlOperator LIKE =
+      createUdfOperator("LIKE", BeamBuiltinMethods.LIKE_METHOD, SqlSyntax.BINARY);
 
   public static final SqlOperator VALIDATE_TIMESTAMP =
       createUdfOperator(

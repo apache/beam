@@ -25,7 +25,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
-import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -37,7 +37,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** A fake implementation of BigQuery's query service.. */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Internal
 public class FakeBigQueryServices implements BigQueryServices {
   private JobService jobService;
   private DatasetService datasetService;

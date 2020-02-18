@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.nio.channels.Channels;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileIO.ReadableFile;
@@ -88,7 +89,7 @@ import org.xml.sax.ContentHandler;
  *    .apply(TikaIO.parseFiles());
  * }</pre>
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class TikaIO {
   /** Parses files matching a given filepattern. */
   public static Parse parse() {

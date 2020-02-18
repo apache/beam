@@ -30,7 +30,8 @@ dependencies {
   compile project(":sdks:java:fn-execution")
   compile project(":runners:core-construction-java")
   compile project(path: ":vendor:sdks-java-extensions-protobuf", configuration: "shadow")
-  compile library.java.vendored_grpc_1_21_0
+  compile library.java.vendored_grpc_1_26_0
+  compile library.java.commons_compress
   compile library.java.slf4j_api
   compile library.java.args4j
   testCompile project(":sdks:java:harness")

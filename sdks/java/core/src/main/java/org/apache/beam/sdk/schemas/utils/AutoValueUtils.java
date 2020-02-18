@@ -32,6 +32,8 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
@@ -64,6 +66,7 @@ import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.matcher.ElementMatc
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
 /** Utilities for managing AutoValue schemas. */
+@Experimental(Kind.SCHEMAS)
 public class AutoValueUtils {
   public static Class getBaseAutoValueClass(Class<?> clazz) {
     int lastDot = clazz.getName().lastIndexOf('.');

@@ -77,8 +77,8 @@ import org.apache.beam.sdk.util.DoFnWithExecutionInformation;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Message;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Message;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
@@ -360,7 +360,7 @@ public class ProcessBundleHandlerTest {
                     .setWindowCoderId("window-strategy-coder")
                     .setWindowFn(
                         RunnerApi.FunctionSpec.newBuilder()
-                            .setUrn("beam:windowfn:global_windows:v0.1"))
+                            .setUrn("beam:window_fn:global_windows:v1"))
                     .setOutputTime(RunnerApi.OutputTime.Enum.END_OF_WINDOW)
                     .setAccumulationMode(RunnerApi.AccumulationMode.Enum.ACCUMULATING)
                     .setTrigger(

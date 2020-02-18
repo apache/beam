@@ -165,7 +165,7 @@ public class SparkTimerInternals implements TimerInternals {
   }
 
   @Override
-  public void deleteTimer(StateNamespace namespace, String timerId) {
+  public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
     throw new UnsupportedOperationException("Deleting a timer by ID is not yet supported.");
   }
 
