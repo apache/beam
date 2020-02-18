@@ -69,7 +69,6 @@ cdef class DoFnInvoker(object):
 
   cpdef invoke_process(self, WindowedValue windowed_value,
                        restriction_tracker=*,
-                       OutputProcessor output_processor=*,
                        additional_args=*, additional_kwargs=*)
   cpdef invoke_start_bundle(self)
   cpdef invoke_finish_bundle(self)
@@ -100,7 +99,7 @@ cdef class PerWindowInvoker(DoFnInvoker):
   cdef bint is_key_param_required
 
 
-cdef class DoFnRunner(Receiver):
+cdef class DoFnRunner:
   cdef DoFnContext context
   cdef object step_name
   cdef list side_inputs

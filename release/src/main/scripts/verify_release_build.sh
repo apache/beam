@@ -46,7 +46,6 @@ JOB_TRIGGER_PHRASES=(
   # To run all PostCommit jobs
   "Run Go PostCommit"
   "Run Java PostCommit"
-  "Run Java PostCommit"
   "Run Java PortabilityApi PostCommit"
   "Run Java Flink PortableValidatesRunner Batch"
   "Run Java Flink PortableValidatesRunner Streaming"
@@ -59,8 +58,10 @@ JOB_TRIGGER_PHRASES=(
   "Run Spark ValidatesRunner"
   "Run Python Dataflow ValidatesContainer"
   "Run Python Dataflow ValidatesRunner"
-  "Run Python Flink ValidatesRunner"
-  "Run Python PostCommit"
+  "Run Python 3.5 Flink ValidatesRunner"
+  # Python versions match those in run_rc_validation.sh.
+  "Run Python 2 PostCommit"
+  "Run Python 3.5 PostCommit"
   "Run SQL PostCommit"
   "Run Go PreCommit"
   "Run Java PreCommit"
@@ -152,7 +153,7 @@ echo "After PR created, you need to comment phrases listed in description in the
 
 if [[ ! -z `which hub` ]]; then
   git checkout -b ${WORKING_BRANCH} origin/${RELEASE_BRANCH} --quiet
-  touch empty_file.txt
+  touch empty_file.json
   git add .
   git commit -m "Add empty file in order to create a test PR" --quiet
   git push -f ${GITHUB_USERNAME} --quiet

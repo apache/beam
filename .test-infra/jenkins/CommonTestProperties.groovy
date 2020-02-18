@@ -28,7 +28,8 @@ class CommonTestProperties {
     enum Runner {
         DATAFLOW("DataflowRunner"),
         SPARK("SparkRunner"),
-        FLINK("TestFlinkRunner"),
+        SPARK_STRUCTURED_STREAMING("SparkStructuredStreamingRunner"),
+        FLINK("FlinkRunner"),
         DIRECT("DirectRunner"),
         PORTABLE("PortableRunner")
 
@@ -36,6 +37,7 @@ class CommonTestProperties {
                 JAVA: [
                         DATAFLOW: ":runners:google-cloud-dataflow-java",
                         SPARK: ":runners:spark",
+                        SPARK_STRUCTURED_STREAMING: ":runners:spark",
                         FLINK: ":runners:flink:1.9",
                         DIRECT: ":runners:direct-java"
                 ],

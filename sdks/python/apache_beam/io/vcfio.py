@@ -20,6 +20,8 @@
 The 4.2 spec is available at https://samtools.github.io/hts-specs/VCFv4.2.pdf.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -44,13 +46,17 @@ from apache_beam.transforms import PTransform
 if sys.version_info[0] < 3:
   import vcf
 else:
-  warnings.warn("VCF IO will support Python 3 after migration to Nucleus, "
-                "see: BEAM-5628.")
+  warnings.warn(
+      "VCF IO will support Python 3 after migration to Nucleus, "
+      "see: BEAM-5628.")
 
-
-__all__ = ['ReadFromVcf', 'Variant', 'VariantCall', 'VariantInfo',
-           'MalformedVcfRecord']
-
+__all__ = [
+    'ReadFromVcf',
+    'Variant',
+    'VariantCall',
+    'VariantInfo',
+    'MalformedVcfRecord'
+]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -73,7 +79,7 @@ END_INFO_KEY = 'END'  # The info key that explicitly specifies end of a record.
 GENOTYPE_FORMAT_KEY = 'GT'  # The genotype format key in a call.
 PHASESET_FORMAT_KEY = 'PS'  # The phaseset format key.
 DEFAULT_PHASESET_VALUE = '*'  # Default phaseset value if call is phased, but
-                              # no 'PS' is present.
+# no 'PS' is present.
 MISSING_GENOTYPE_VALUE = -1  # Genotype to use when '.' is used in GT field.
 
 
@@ -84,17 +90,18 @@ class Variant(object):
   """
   __hash__ = None  # type: ignore[assignment]
 
-  def __init__(self,
-               reference_name=None,
-               start=None,
-               end=None,
-               reference_bases=None,
-               alternate_bases=None,
-               names=None,
-               quality=None,
-               filters=None,
-               info=None,
-               calls=None):
+  def __init__(
+      self,
+      reference_name=None,
+      start=None,
+      end=None,
+      reference_bases=None,
+      alternate_bases=None,
+      names=None,
+      quality=None,
+      filters=None,
+      info=None,
+      calls=None):
     """Initialize the :class:`Variant` object.
 
     Args:
@@ -131,25 +138,27 @@ class Variant(object):
     self.calls = calls or []
 
   def __eq__(self, other):
-    return (isinstance(other, Variant) and
-            vars(self) == vars(other))
+    return isinstance(other, Variant) and vars(self) == vars(other)
 
   def __ne__(self, other):
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
   def __repr__(self):
-    return ', '.join(
-        [str(s) for s in [self.reference_name,
-                          self.start,
-                          self.end,
-                          self.reference_bases,
-                          self.alternate_bases,
-                          self.names,
-                          self.quality,
-                          self.filters,
-                          self.info,
-                          self.calls]])
+    return ', '.join([
+        str(s) for s in [
+            self.reference_name,
+            self.start,
+            self.end,
+            self.reference_bases,
+            self.alternate_bases,
+            self.names,
+            self.quality,
+            self.filters,
+            self.info,
+            self.calls
+        ]
+    ])
 
   def __lt__(self, other):
     if not isinstance(other, Variant):
@@ -178,9 +187,6 @@ class Variant(object):
       return NotImplemented
 
     return self < other or self == other
-
-  def __ne__(self, other):
-    return not self == other
 
   def __gt__(self, other):
     if not isinstance(other, Variant):
@@ -229,8 +235,8 @@ class VariantCall(object):
     self.info = info or {}
 
   def __eq__(self, other):
-    return ((self.name, self.genotype, self.phaseset, self.info) ==
-            (other.name, other.genotype, other.phaseset, other.info))
+    return ((self.name, self.genotype, self.phaseset, self.info) == (
+        other.name, other.genotype, other.phaseset, other.info))
 
   def __ne__(self, other):
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
@@ -252,15 +258,15 @@ class _VcfSource(filebasedsource.FileBasedSource):
 
   DEFAULT_VCF_READ_BUFFER_SIZE = 65536  # 64kB
 
-  def __init__(self,
-               file_pattern,
-               compression_type=CompressionTypes.AUTO,
-               buffer_size=DEFAULT_VCF_READ_BUFFER_SIZE,
-               validate=True,
-               allow_malformed_records=False):
-    super(_VcfSource, self).__init__(file_pattern,
-                                     compression_type=compression_type,
-                                     validate=validate)
+  def __init__(
+      self,
+      file_pattern,
+      compression_type=CompressionTypes.AUTO,
+      buffer_size=DEFAULT_VCF_READ_BUFFER_SIZE,
+      validate=True,
+      allow_malformed_records=False):
+    super(_VcfSource, self).__init__(
+        file_pattern, compression_type=compression_type, validate=validate)
 
     self._header_lines_per_file = {}
     self._compression_type = compression_type
@@ -283,14 +289,14 @@ class _VcfSource(filebasedsource.FileBasedSource):
 
   class _VcfRecordIterator(object):
     """An Iterator for processing a single VCF file."""
-
-    def __init__(self,
-                 file_name,
-                 range_tracker,
-                 file_pattern,
-                 compression_type,
-                 allow_malformed_records,
-                 **kwargs):
+    def __init__(
+        self,
+        file_name,
+        range_tracker,
+        file_pattern,
+        compression_type,
+        allow_malformed_records,
+        **kwargs):
       self._header_lines = []
       self._last_record = None
       self._file_name = file_name
@@ -307,17 +313,17 @@ class _VcfSource(filebasedsource.FileBasedSource):
                                 self._store_header_lines),
           **kwargs)
 
-      self._text_lines = text_source.read_records(self._file_name,
-                                                  range_tracker)
+      self._text_lines = text_source.read_records(
+          self._file_name, range_tracker)
       try:
         self._vcf_reader = vcf.Reader(fsock=self._create_generator())
       except SyntaxError:
         # Throw the exception inside the generator to ensure file is properly
         # closed (it's opened inside TextSource.read_records).
         self._text_lines.throw(
-            ValueError('An exception was raised when reading header from VCF '
-                       'file %s: %s' % (self._file_name,
-                                        traceback.format_exc())))
+            ValueError(
+                'An exception was raised when reading header from VCF '
+                'file %s: %s' % (self._file_name, traceback.format_exc())))
 
     def _store_header_lines(self, header_lines):
       self._header_lines = header_lines
@@ -345,24 +351,25 @@ class _VcfSource(filebasedsource.FileBasedSource):
     def __next__(self):
       try:
         record = next(self._vcf_reader)
-        return self._convert_to_variant_record(record, self._vcf_reader.infos,
-                                               self._vcf_reader.formats)
+        return self._convert_to_variant_record(
+            record, self._vcf_reader.infos, self._vcf_reader.formats)
       except (LookupError, ValueError):
         if self._allow_malformed_records:
           _LOGGER.warning(
               'An exception was raised when reading record from VCF file '
               '%s. Invalid record was %s: %s',
-              self._file_name, self._last_record, traceback.format_exc())
+              self._file_name,
+              self._last_record,
+              traceback.format_exc())
           return MalformedVcfRecord(self._file_name, self._last_record)
 
         # Throw the exception inside the generator to ensure file is properly
         # closed (it's opened inside TextSource.read_records).
         self._text_lines.throw(
-            ValueError('An exception was raised when reading record from VCF '
-                       'file %s. Invalid record was %s: %s' % (
-                           self._file_name,
-                           self._last_record,
-                           traceback.format_exc())))
+            ValueError(
+                'An exception was raised when reading record from VCF '
+                'file %s. Invalid record was %s: %s' %
+                (self._file_name, self._last_record, traceback.format_exc())))
 
     def _convert_to_variant_record(self, record, infos, formats):
       """Converts the PyVCF record to a :class:`Variant` object.
@@ -386,8 +393,8 @@ class _VcfSource(filebasedsource.FileBasedSource):
           record.REF if record.REF != MISSING_FIELD_VALUE else None)
       # ALT fields are classes in PyVCF (e.g. Substitution), so need convert
       # them to their string representations.
-      variant.alternate_bases.extend(
-          [str(r) for r in record.ALT if r] if record.ALT else [])
+      variant.alternate_bases.extend([str(r) for r in record.ALT
+                                      if r] if record.ALT else [])
       variant.names.extend(record.ID.split(';') if record.ID else [])
       variant.quality = record.QUAL
       # PyVCF uses None for '.' and an empty list for 'PASS'.
@@ -411,14 +418,15 @@ class _VcfSource(filebasedsource.FileBasedSource):
           if allele is None:
             allele = MISSING_GENOTYPE_VALUE
           call.genotype.append(int(allele))
-        phaseset_from_format = (getattr(sample.data, PHASESET_FORMAT_KEY)
-                                if PHASESET_FORMAT_KEY in sample.data._fields
-                                else None)
+        phaseset_from_format = (
+            getattr(sample.data, PHASESET_FORMAT_KEY)
+            if PHASESET_FORMAT_KEY in sample.data._fields else None)
         # Note: Call is considered phased if it contains the 'PS' key regardless
         # of whether it uses '|'.
         if phaseset_from_format or sample.phased:
-          call.phaseset = (str(phaseset_from_format) if phaseset_from_format
-                           else DEFAULT_PHASESET_VALUE)
+          call.phaseset = (
+              str(phaseset_from_format)
+              if phaseset_from_format else DEFAULT_PHASESET_VALUE)
         for field in sample.data._fields:
           # Genotype and phaseset (if present) are already included.
           if field in (GENOTYPE_FORMAT_KEY, PHASESET_FORMAT_KEY):
@@ -427,8 +435,7 @@ class _VcfSource(filebasedsource.FileBasedSource):
           # Convert single values to a list for cases where the number of fields
           # is unknown. This is to ensure consistent types across all records.
           # Note: this is already done for INFO fields in PyVCF.
-          if (field in formats and
-              formats[field].num is None and
+          if (field in formats and formats[field].num is None and
               isinstance(data, (int, float, long, str, unicode, bool))):
             data = [data]
           call.info[field] = data
@@ -470,7 +477,6 @@ class ReadFromVcf(PTransform):
   the content. However, the output will be a PCollection of
   :class:`Variant` (or :class:`MalformedVcfRecord` for failed reads) objects.
   """
-
   def __init__(
       self,
       file_pattern=None,

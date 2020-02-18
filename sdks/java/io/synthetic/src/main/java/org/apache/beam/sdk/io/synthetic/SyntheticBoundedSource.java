@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -50,7 +51,7 @@ import org.slf4j.LoggerFactory;
  * enables repeatable execution for debugging. The SyntheticBoundedInput configurable parameters are
  * defined in {@link SyntheticSourceOptions}.*
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class SyntheticBoundedSource extends OffsetBasedSource<KV<byte[], byte[]>> {
 
   private static final long serialVersionUID = 0;

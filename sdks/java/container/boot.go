@@ -141,9 +141,6 @@ func main() {
 // ensure there is memory for non-heap use and other overhead, while also not
 // underutilizing the machine.
 func heapSizeLimit(info *fnpb.ProvisionInfo) uint64 {
-	if provided := info.GetResourceLimits().GetMemory().GetSize(); provided > 0 {
-		return (provided * 80) / 100
-	}
 	if size, err := syscallx.PhysicalMemorySize(); err == nil {
 		return (size * 70) / 100
 	}

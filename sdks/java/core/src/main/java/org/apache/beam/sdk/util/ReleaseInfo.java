@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Properties;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,7 @@ import org.slf4j.LoggerFactory;
  * <p>Properties will always include a name and version.
  */
 @AutoValue
+@Internal
 public abstract class ReleaseInfo implements Serializable {
   private static final String PROPERTIES_PATH = "/org/apache/beam/sdk/sdk.properties";
 
@@ -49,9 +51,14 @@ public abstract class ReleaseInfo implements Serializable {
     return getProperties().get("name");
   }
 
-  /** Provides the SDK version. */
+  /** Provides the BEAM version. ie: 2.18.0-SNAPSHOT */
   public String getVersion() {
     return getProperties().get("version");
+  }
+
+  /** Provides the SDK version. ie: 2.18.0 or 2.18.0.dev */
+  public String getSdkVersion() {
+    return getProperties().get("sdk_version");
   }
 
   /////////////////////////////////////////////////////////////////////////
@@ -78,6 +85,9 @@ public abstract class ReleaseInfo implements Serializable {
       }
       if (!properties.containsKey("version")) {
         properties.setProperty("version", DEFAULT_VERSION);
+      }
+      if (!properties.containsKey("sdk_version")) {
+        properties.setProperty("sdk_version", DEFAULT_VERSION);
       }
       INSTANCE = new AutoValue_ReleaseInfo(ImmutableMap.copyOf((Map) properties));
     }

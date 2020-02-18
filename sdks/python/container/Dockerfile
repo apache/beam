@@ -60,4 +60,7 @@ RUN pip freeze --all
 
 ADD target/launcher/linux_amd64/boot /opt/apache/beam/
 
+COPY target/LICENSE /opt/apache/beam/
+COPY target/NOTICE /opt/apache/beam/
+
 ENTRYPOINT ["/opt/apache/beam/boot"]

@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -48,7 +50,6 @@ except ImportError:
 
 @unittest.skipIf(pa is None, "PyArrow is not installed.")
 class TestParquetIT(unittest.TestCase):
-
   @classmethod
   def setUpClass(cls):
     # Method has been renamed in Python 3
@@ -66,79 +67,61 @@ class TestParquetIT(unittest.TestCase):
     file_prefix = "parquet_it_test"
     init_size = 10
     data_size = 20000
-    p = TestPipeline(is_integration_test=True)
-    pcol = self._generate_data(
-        p, file_prefix, init_size, data_size)
-    self._verify_data(pcol, init_size, data_size)
-    result = p.run()
-    result.wait_until_finish()
+    with TestPipeline(is_integration_test=True) as p:
+      pcol = self._generate_data(p, file_prefix, init_size, data_size)
+      self._verify_data(pcol, init_size, data_size)
 
   @staticmethod
   def _sum_verifier(init_size, data_size, x):
     expected = sum(range(data_size)) * init_size
     if x != expected:
       raise BeamAssertException(
-          "incorrect sum: expected(%d) actual(%d)" % (expected, x)
-      )
+          "incorrect sum: expected(%d) actual(%d)" % (expected, x))
     return []
 
   @staticmethod
   def _count_verifier(init_size, data_size, x):
     name, count = x[0].decode('utf-8'), x[1]
     counter = Counter(
-        [string.ascii_uppercase[x%26] for x in range(0, data_size*4, 4)]
-    )
+        [string.ascii_uppercase[x % 26] for x in range(0, data_size * 4, 4)])
     expected_count = counter[name[0]] * init_size
     if count != expected_count:
       raise BeamAssertException(
-          "incorrect count(%s): expected(%d) actual(%d)" % (
-              name, expected_count, count
-          )
-      )
+          "incorrect count(%s): expected(%d) actual(%d)" %
+          (name, expected_count, count))
     return []
 
   def _verify_data(self, pcol, init_size, data_size):
     read = pcol | 'read' >> ReadAllFromParquet()
-    v1 = (read
-          | 'get_number' >> Map(lambda x: x['number'])
-          | 'sum_globally' >> CombineGlobally(sum)
-          | 'validate_number' >> FlatMap(
-              lambda x: TestParquetIT._sum_verifier(init_size, data_size, x)
-          )
-         )
-    v2 = (read
-          | 'make_pair' >> Map(lambda x: (x['name'], x['number']))
-          | 'count_per_key' >> Count.PerKey()
-          | 'validate_name' >> FlatMap(
-              lambda x: TestParquetIT._count_verifier(init_size, data_size, x)
-          )
-         )
+    v1 = (
+        read
+        | 'get_number' >> Map(lambda x: x['number'])
+        | 'sum_globally' >> CombineGlobally(sum)
+        | 'validate_number' >>
+        FlatMap(lambda x: TestParquetIT._sum_verifier(init_size, data_size, x)))
+    v2 = (
+        read
+        | 'make_pair' >> Map(lambda x: (x['name'], x['number']))
+        | 'count_per_key' >> Count.PerKey()
+        | 'validate_name' >> FlatMap(
+            lambda x: TestParquetIT._count_verifier(init_size, data_size, x)))
     _ = ((v1, v2, pcol)
          | 'flatten' >> Flatten()
          | 'reshuffle' >> Reshuffle()
-         | 'cleanup' >> Map(lambda x: FileSystems.delete([x]))
-        )
+         | 'cleanup' >> Map(lambda x: FileSystems.delete([x])))
 
-  def _generate_data(
-      self, p, output_prefix, init_size, data_size):
+  def _generate_data(self, p, output_prefix, init_size, data_size):
     init_data = [x for x in range(init_size)]
 
-    lines = (p
-             | 'create' >> Create(init_data)
-             | 'produce' >> ParDo(ProducerFn(data_size))
-            )
+    lines = (
+        p
+        | 'create' >> Create(init_data)
+        | 'produce' >> ParDo(ProducerFn(data_size)))
 
-    schema = pa.schema([
-        ('name', pa.binary()),
-        ('number', pa.int64())
-    ])
+    schema = pa.schema([('name', pa.binary()), ('number', pa.int64())])
 
     files = lines | 'write' >> WriteToParquet(
-        output_prefix,
-        schema,
-        codec='snappy',
-        file_name_suffix='.parquet'
-    )
+        output_prefix, schema, codec='snappy', file_name_suffix='.parquet')
 
     return files
 

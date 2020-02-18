@@ -17,6 +17,8 @@
 
 """ConsumerTrackingPipelineVisitor, a PipelineVisitor object."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from typing import TYPE_CHECKING
@@ -40,9 +42,9 @@ class ConsumerTrackingPipelineVisitor(PipelineVisitor):
   is used to schedule consuming PTransforms to consume input after the upstream
   transform has produced and committed output.
   """
-
   def __init__(self):
-    self.value_to_consumers = {}  # type: Dict[pvalue.PValue, List[AppliedPTransform]]
+    self.value_to_consumers = {
+    }  # type: Dict[pvalue.PValue, List[AppliedPTransform]]
     self.root_transforms = set()  # type: Set[AppliedPTransform]
     self.views = []  # type: List[pvalue.AsSideInput]
     self.step_names = {}  # type: Dict[AppliedPTransform, str]

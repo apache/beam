@@ -24,7 +24,6 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 )
 
 // Plan represents the bundle execution plan. It will generally be constructed
@@ -37,6 +36,7 @@ type Plan struct {
 	parDoIDs []string
 
 	status Status
+	Store  *metrics.Store
 
 	// TODO: there can be more than 1 DataSource in a bundle.
 	source *DataSource
@@ -97,6 +97,7 @@ func (p *Plan) SourcePTransformID() string {
 // be reused for further bundles. Does not panic. Blocking.
 func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) error {
 	ctx = metrics.SetBundleID(ctx, p.id)
+	p.Store = metrics.GetStore(ctx)
 	if p.status == Initializing {
 		for _, u := range p.units {
 			if err := callNoPanic(ctx, u.Up); err != nil {
@@ -169,32 +170,12 @@ func (p *Plan) String() string {
 	return fmt.Sprintf("Plan[%v]:\n%v", p.ID(), strings.Join(units, "\n"))
 }
 
-// Metrics returns a snapshot of input progress of the plan, and associated metrics.
-func (p *Plan) Metrics() *fnpb.Metrics {
-	transforms := make(map[string]*fnpb.Metrics_PTransform)
-
+// Progress returns a snapshot of input progress of the plan, and associated metrics.
+func (p *Plan) Progress() (ProgressReportSnapshot, bool) {
 	if p.source != nil {
-		snapshot := p.source.Progress()
-
-		transforms[snapshot.ID] = &fnpb.Metrics_PTransform{
-			ProcessedElements: &fnpb.Metrics_PTransform_ProcessedElements{
-				Measured: &fnpb.Metrics_PTransform_Measured{
-					OutputElementCounts: map[string]int64{
-						snapshot.Name: snapshot.Count,
-					},
-				},
-			},
-		}
+		return p.source.Progress(), true
 	}
-
-	for _, pt := range p.parDoIDs {
-		transforms[pt] = &fnpb.Metrics_PTransform{
-			User: metrics.ToProto(p.id, pt),
-		}
-	}
-	return &fnpb.Metrics{
-		Ptransforms: transforms,
-	}
+	return ProgressReportSnapshot{}, false
 }
 
 // SplitPoints captures the split requested by the Runner.

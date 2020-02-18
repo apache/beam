@@ -17,6 +17,8 @@
 
 """End-to-end test for the streaming wordcount example."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -40,11 +42,10 @@ INPUT_SUB = 'wc_subscription_input'
 OUTPUT_SUB = 'wc_subscription_output'
 
 DEFAULT_INPUT_NUMBERS = 500
-WAIT_UNTIL_FINISH_DURATION = 6 * 60 * 1000   # in milliseconds
+WAIT_UNTIL_FINISH_DURATION = 6 * 60 * 1000  # in milliseconds
 
 
 class StreamingWordCountIT(unittest.TestCase):
-
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.project = self.test_pipeline.get_option('project')
@@ -74,10 +75,10 @@ class StreamingWordCountIT(unittest.TestCase):
       self.pub_client.publish(self.input_topic.name, str(n).encode('utf-8'))
 
   def tearDown(self):
-    test_utils.cleanup_subscriptions(self.sub_client,
-                                     [self.input_sub, self.output_sub])
-    test_utils.cleanup_topics(self.pub_client,
-                              [self.input_topic, self.output_topic])
+    test_utils.cleanup_subscriptions(
+        self.sub_client, [self.input_sub, self.output_sub])
+    test_utils.cleanup_topics(
+        self.pub_client, [self.input_topic, self.output_topic])
 
   @attr('IT')
   def test_streaming_wordcount_it(self):
@@ -87,15 +88,14 @@ class StreamingWordCountIT(unittest.TestCase):
 
     # Set extra options to the pipeline for test purpose
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
-    pubsub_msg_verifier = PubSubMessageMatcher(self.project,
-                                               self.output_sub.name,
-                                               expected_msg,
-                                               timeout=400)
-    extra_opts = {'input_subscription': self.input_sub.name,
-                  'output_topic': self.output_topic.name,
-                  'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION,
-                  'on_success_matcher': all_of(state_verifier,
-                                               pubsub_msg_verifier)}
+    pubsub_msg_verifier = PubSubMessageMatcher(
+        self.project, self.output_sub.name, expected_msg, timeout=400)
+    extra_opts = {
+        'input_subscription': self.input_sub.name,
+        'output_topic': self.output_topic.name,
+        'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION,
+        'on_success_matcher': all_of(state_verifier, pubsub_msg_verifier)
+    }
 
     # Generate input data and inject to PubSub.
     self._inject_numbers(self.input_topic, DEFAULT_INPUT_NUMBERS)

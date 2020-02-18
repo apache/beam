@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters.Kind;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
@@ -60,6 +61,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelConver
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.ValidationException;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.BuiltInMethod;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -133,10 +135,16 @@ public class CalciteQueryPlanner implements QueryPlanner {
     return parsed;
   }
 
-  /** It parses and validate the input query, then convert into a {@link BeamRelNode} tree. */
+  /**
+   * It parses and validate the input query, then convert into a {@link BeamRelNode} tree. Note that
+   * query parameters are not yet supported.
+   */
   @Override
-  public BeamRelNode convertToBeamRel(String sqlStatement)
+  public BeamRelNode convertToBeamRel(String sqlStatement, QueryParameters queryParameters)
       throws ParseException, SqlConversionException {
+    Preconditions.checkArgument(
+        queryParameters.getKind() == Kind.NONE,
+        "Beam SQL Calcite dialect does not yet support query parameters.");
     BeamRelNode beamRelNode;
     try {
       SqlNode parsed = planner.parse(sqlStatement);

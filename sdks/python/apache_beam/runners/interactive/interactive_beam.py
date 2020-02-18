@@ -28,6 +28,9 @@ about how hidden states in the interactive session are managed.
 Note: If you want backward-compatibility, only invoke interfaces provided by
 this module in your notebook or application code.
 """
+
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from apache_beam.runners.interactive import interactive_environment as ie
@@ -62,10 +65,9 @@ def watch(watchable):
 
       class Foo(object)
         def run_pipeline(self):
-          p = beam.Pipeline()
-          init_pcoll = p |  'Init Create' >> beam.Create(range(10))
-          watch(locals())
-          p.run()
+          with beam.Pipeline() as p:
+            init_pcoll = p |  'Init Create' >> beam.Create(range(10))
+            watch(locals())
           return init_pcoll
       init_pcoll = Foo().run_pipeline()
 

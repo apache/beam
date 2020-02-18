@@ -36,6 +36,8 @@ import java.util.function.Function;
 import java.util.stream.IntStream;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -217,6 +219,7 @@ public class BigQueryUtils {
    * @param nestedFields Nested fields for the given type (eg. RECORD type)
    * @return Corresponding Beam {@link FieldType}
    */
+  @Experimental(Kind.SCHEMAS)
   private static FieldType fromTableFieldSchemaType(
       String typeName, List<TableFieldSchema> nestedFields) {
     switch (typeName) {
@@ -316,16 +319,19 @@ public class BigQueryUtils {
   }
 
   /** Convert a Beam {@link Schema} to a BigQuery {@link TableSchema}. */
+  @Experimental(Kind.SCHEMAS)
   public static TableSchema toTableSchema(Schema schema) {
     return new TableSchema().setFields(toTableFieldSchema(schema));
   }
 
   /** Convert a BigQuery {@link TableSchema} to a Beam {@link Schema}. */
+  @Experimental(Kind.SCHEMAS)
   public static Schema fromTableSchema(TableSchema tableSchema) {
     return fromTableFieldSchema(tableSchema.getFields());
   }
 
   /** Convert a list of BigQuery {@link TableFieldSchema} to Avro {@link org.apache.avro.Schema}. */
+  @Experimental(Kind.SCHEMAS)
   public static org.apache.avro.Schema toGenericAvroSchema(
       String schemaName, List<TableFieldSchema> fieldSchemas) {
     return BigQueryAvroUtils.toGenericAvroSchema(schemaName, fieldSchemas);
@@ -373,6 +379,7 @@ public class BigQueryUtils {
     }
   }
 
+  @Experimental(Kind.SCHEMAS)
   public static Row toBeamRow(GenericRecord record, Schema schema, ConversionOptions options) {
     List<Object> valuesInOrder =
         schema.getFields().stream()
@@ -458,6 +465,7 @@ public class BigQueryUtils {
    *
    * <p>Only supports basic types and arrays. Doesn't support date types or structs.
    */
+  @Experimental(Kind.SCHEMAS)
   public static Row toBeamRow(Schema rowSchema, TableRow jsonBqRow) {
     // TODO deprecate toBeamRow(Schema, TableSchema, TableRow) function in favour of this function.
     // This function attempts to convert TableRows without  having access to the
@@ -488,6 +496,7 @@ public class BigQueryUtils {
    *
    * <p>Only supports basic types and arrays. Doesn't support date types.
    */
+  @Experimental(Kind.SCHEMAS)
   public static Row toBeamRow(Schema rowSchema, TableSchema bqSchema, TableRow jsonBqRow) {
     List<TableFieldSchema> bqFields = bqSchema.getFields();
 
