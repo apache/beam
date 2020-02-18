@@ -552,7 +552,7 @@ class ReshuffleTest(unittest.TestCase):
                   'name': 'bar', 'timestamp': 33
               },
               {
-                  'name': 'bar', 'timestamp': MAX_TIMESTAMP
+                  'name': 'bar', 'timestamp': 0
               },
           ])
           | beam.Map(
@@ -587,7 +587,7 @@ class ReshuffleTest(unittest.TestCase):
           'MIN_TIMESTAMP - foo',
           'Timestamp(0) - foo',
           'Timestamp(33) - bar',
-          'MAX_TIMESTAMP - bar'
+          'Timestamp(0) - bar'
       ]
 
       # Can't compare formatted_before_reshuffle and formatted_after_reshuffle
