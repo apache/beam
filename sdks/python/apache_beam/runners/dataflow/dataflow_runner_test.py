@@ -454,6 +454,17 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertIn('enable_windmill_service', experiments_for_job)
     self.assertIn('some_other_experiment', experiments_for_job)
 
+  def test_upload_graph_experiment(self):
+    remote_runner = DataflowRunner()
+    self.default_properties.append('--experiment=upload_graph')
+
+    with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:
+      p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
+
+    experiments_for_job = (
+        remote_runner.job.options.view_as(DebugOptions).experiments)
+    self.assertIn('upload_graph', experiments_for_job)
+
   def test_dataflow_worker_jar_flag_non_fnapi_noop(self):
     remote_runner = DataflowRunner()
     self.default_properties.append('--experiment=some_other_experiment')

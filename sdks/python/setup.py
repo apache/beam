@@ -207,6 +207,7 @@ GCP_REQUIREMENTS = [
     'google-cloud-bigquery>=1.6.0,<1.18.0',
     'google-cloud-core>=0.28.1,<2',
     'google-cloud-bigtable>=0.31.1,<1.1.0',
+    'google-cloud-dlp >=0.12.0,<=0.13.0',
     # [BEAM-4543] googledatastore is not supported in Python 3.
     'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4; python_version < "3.0"',
     'google-cloud-spanner>=1.13.0,<1.14.0',
