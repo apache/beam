@@ -31,7 +31,7 @@
 ### New Features / Improvements
 
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* New AnnotateVideo PTransform that integrates GCP Video Intelligence functionality ([BEAM-9146](https://issues.apache.org/jira/browse/BEAM-9146))
+* New AnnotateVideo & AnnotateVideoWithContext PTransform's that integrates GCP Video Intelligence functionality ([BEAM-9146](https://issues.apache.org/jira/browse/BEAM-9146))
 
 ### Breaking Changes
 
