@@ -22,8 +22,8 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.include
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -59,8 +59,7 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.LzoCompressorOutputStream;
-import org.apache.beam.sdk.util.LzopCompressorOutputStream;
+import org.apache.beam.sdk.util.LzoCompression;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultiset;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -71,6 +70,7 @@ import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
+import org.apache.hadoop.io.compress.CompressionOutputStream;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -82,8 +82,8 @@ import org.junit.runners.JUnit4;
 /** Tests for CompressedSource. */
 @RunWith(JUnit4.class)
 public class CompressedSourceTest {
-	
-  private final double DELTA = 1e-6;  
+
+  private final double DELTA = 1e-6;
 
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
@@ -295,7 +295,7 @@ public class CompressedSourceTest {
 
   private static byte[] compressLzo(byte[] input) throws IOException {
     ByteArrayOutputStream res = new ByteArrayOutputStream();
-    try (LzoCompressorOutputStream lzoStream = new LzoCompressorOutputStream(res)) {
+    try (CompressionOutputStream lzoStream = LzoCompression.createLzoOutputStream(res)) {
       lzoStream.write(input);
     }
     return res.toByteArray();
@@ -303,7 +303,7 @@ public class CompressedSourceTest {
 
   private static byte[] compressLzop(byte[] input) throws IOException {
     ByteArrayOutputStream res = new ByteArrayOutputStream();
-    try (LzopCompressorOutputStream lzopStream = new LzopCompressorOutputStream(res)) {
+    try (CompressionOutputStream lzopStream = LzoCompression.createLzopOutputStream(res)) {
       lzopStream.write(input);
     }
     return res.toByteArray();
@@ -367,7 +367,7 @@ public class CompressedSourceTest {
   /**
    * Using Lzop Codec Test a concatenation of lzop files is not correctly decompressed.
    *
-   * The current behaviour of LZOP codec returns the contents of the first file only
+   * <p>The current behaviour of LZOP codec returns the contents of the first file only
    */
   @Test
   public void testFalseReadConcatenatedLzop() throws IOException {
@@ -386,7 +386,6 @@ public class CompressedSourceTest {
     List<Byte> actual = SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create());
     assertNotEquals(Bytes.asList(expected), actual);
   }
-
 
   /**
    * Test a bzip2 file containing multiple streams is correctly decompressed.
@@ -453,11 +452,11 @@ public class CompressedSourceTest {
   }
 
   /**
-   * Test a lzop file containing multiple streams.The current behavior is it only reads the contents
-   * of the first file.
+   * Test a lzop file containing multiple streams is not correctly decompressed. The current
+   * behavior is it only reads the contents of the first file.
    */
   @Test
-  public void testReadMultiStreamLzop() throws IOException {
+  public void testFalseReadMultiStreamLzop() throws IOException {
     CompressionMode mode = CompressionMode.LZOP;
     byte[] input1 = generateInput(5, 587973);
     byte[] input2 = generateInput(5, 387374);
@@ -867,9 +866,9 @@ public class CompressedSourceTest {
       case DEFLATE:
         return new DeflateCompressorOutputStream(stream);
       case LZO:
-        return new LzoCompressorOutputStream(stream);
+        return LzoCompression.createLzoOutputStream(stream);
       case LZOP:
-        return new LzopCompressorOutputStream(stream);
+        return LzoCompression.createLzopOutputStream(stream);
       default:
         throw new RuntimeException("Unexpected compression mode");
     }
@@ -1085,7 +1084,7 @@ public class CompressedSourceTest {
       }
       assertFalse(reader.advance());
 
-      // after reading empty source
+      // after reading source
       assertEquals(1.0, reader.getFractionConsumed(), DELTA);
       assertEquals(1, reader.getSplitPointsConsumed());
       assertEquals(0, reader.getSplitPointsRemaining());
@@ -1147,7 +1146,7 @@ public class CompressedSourceTest {
       }
       assertFalse(reader.advance());
 
-      // after reading empty source
+      // after reading source
       assertEquals(1.0, reader.getFractionConsumed(), DELTA);
       assertEquals(1, reader.getSplitPointsConsumed());
       assertEquals(0, reader.getSplitPointsRemaining());
@@ -1211,7 +1210,7 @@ public class CompressedSourceTest {
       }
       assertFalse(reader.advance());
 
-      // after reading empty source
+      // after reading source
       assertEquals(1.0, reader.getFractionConsumed(), DELTA);
       assertEquals(1, reader.getSplitPointsConsumed());
       assertEquals(0, reader.getSplitPointsRemaining());
