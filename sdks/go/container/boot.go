@@ -123,7 +123,7 @@ func main() {
 		"--options=" + options,
 	}
 	if info.GetStatusEndpoint() != nil {
-		args = append(args, "--status_endpoint=" + info.GetStatusEndpoint().GetUrl())
+		args = append(args, "--status_endpoint="+info.GetStatusEndpoint().GetUrl())
 	}
 
 	log.Fatalf("User program exited: %v", execx.Execute(prog, args...))
