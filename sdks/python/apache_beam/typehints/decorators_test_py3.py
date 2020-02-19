@@ -27,10 +27,12 @@ import unittest
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
 
+from apache_beam import Map
 from apache_beam.typehints import Any
 from apache_beam.typehints import Dict
 from apache_beam.typehints import List
 from apache_beam.typehints import Tuple
+from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import TypeVariable
 from apache_beam.typehints import decorators
 
@@ -152,6 +154,24 @@ class IOTypeHintsTest(unittest.TestCase):
       decorators.getcallargs_forhints(fn, foo=List[int])
     with self.assertRaisesRegex(decorators.TypeCheckError, "missing.*'foo'"):
       decorators.getcallargs_forhints(fn, 5)
+
+
+class DecoratorsTest(unittest.TestCase):
+  def test_no_annotations(self):
+    def fn(a: int) -> int:
+      return a
+
+    _ = [1, 2, 3] | Map(fn)  # Doesn't raise - correct types.
+
+    with self.assertRaisesRegex(TypeCheckError,
+                                r'requires .*int.* but got .*str'):
+      _ = ['a', 'b', 'c'] | Map(fn)
+
+    @decorators.no_annotations
+    def fn2(a: int) -> int:
+      return a
+
+    _ = ['a', 'b', 'c'] | Map(fn2)  # Doesn't raise - no input type hints.
 
 
 if __name__ == '__main__':
