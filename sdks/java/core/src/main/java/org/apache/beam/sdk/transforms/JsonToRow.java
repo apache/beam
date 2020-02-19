@@ -71,12 +71,11 @@ import org.apache.beam.sdk.values.Row;
 @Experimental(Kind.SCHEMAS)
 public class JsonToRow {
 
-  public static PTransform<PCollection<? extends String>, PCollection<Row>> withSchema(
-      Schema rowSchema) {
+  public static PTransform<PCollection<String>, PCollection<Row>> withSchema(Schema rowSchema) {
     return JsonToRowFn.forSchema(rowSchema);
   }
 
-  static class JsonToRowFn extends PTransform<PCollection<? extends String>, PCollection<Row>> {
+  static class JsonToRowFn extends PTransform<PCollection<String>, PCollection<Row>> {
     private transient volatile @Nullable ObjectMapper objectMapper;
     private Schema schema;
 
@@ -89,7 +88,7 @@ public class JsonToRow {
     }
 
     @Override
-    public PCollection<Row> expand(PCollection<? extends String> jsonStrings) {
+    public PCollection<Row> expand(PCollection<String> jsonStrings) {
       return jsonStrings
           .apply(
               ParDo.of(
