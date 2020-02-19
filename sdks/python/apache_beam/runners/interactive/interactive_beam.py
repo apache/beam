@@ -85,7 +85,6 @@ class Options(interactive_options.InteractiveOptions):
       interactive_beam.evict_captured_data()
       # The next PCollection evaluation will capture fresh data from sources,
       # and the data captured will be replayed until another eviction.
-      interactive_beam.collect(some_pcoll)
     """
     self.capture_control._capture_duration = value
 
