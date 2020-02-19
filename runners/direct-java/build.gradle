@@ -110,6 +110,7 @@ task needsRunnerTests(type: Test) {
     // MetricsPusher isn't implemented in direct runner
     excludeCategories "org.apache.beam.sdk.testing.UsesMetricsPusher"
     excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
 }
 
@@ -134,6 +135,7 @@ task validatesRunner(type: Test) {
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
 }
 

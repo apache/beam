@@ -85,6 +85,7 @@ task validatesRunnerStreaming(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
     excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
 }
 

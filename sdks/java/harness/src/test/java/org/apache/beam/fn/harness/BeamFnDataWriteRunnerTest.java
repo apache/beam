@@ -149,7 +149,8 @@ public class BeamFnDataWriteRunnerTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
-            null /* splitListener */);
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     assertThat(teardownFunctions, empty());
 

@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
+import org.apache.beam.fn.harness.control.FinalizeBundleHandler;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.control.RegisterHandler;
 import org.apache.beam.fn.harness.data.BeamFnDataGrpcClient;
@@ -190,10 +191,20 @@ public class FnHarness {
           new BeamFnStateGrpcClientCache(
               idGenerator, channelFactory::forDescriptor, outboundObserverFactory);
 
+      FinalizeBundleHandler finalizeBundleHandler =
+          new FinalizeBundleHandler(options.as(GcsOptions.class).getExecutorService());
+
       ProcessBundleHandler processBundleHandler =
           new ProcessBundleHandler(
-              options, fnApiRegistry::getById, beamFnDataMultiplexer, beamFnStateGrpcClientCache);
+              options,
+              fnApiRegistry::getById,
+              beamFnDataMultiplexer,
+              beamFnStateGrpcClientCache,
+              finalizeBundleHandler);
       handlers.put(BeamFnApi.InstructionRequest.RequestCase.REGISTER, fnApiRegistry::register);
+      handlers.put(
+          BeamFnApi.InstructionRequest.RequestCase.FINALIZE_BUNDLE,
+          finalizeBundleHandler::finalizeBundle);
       // TODO(BEAM-6597): Collect MonitoringInfos in ProcessBundleProgressResponses.
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE,

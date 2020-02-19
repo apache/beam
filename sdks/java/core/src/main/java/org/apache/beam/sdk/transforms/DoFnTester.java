@@ -31,15 +31,20 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
+import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.BaseArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -325,6 +330,12 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             public TimerMap timerFamily(String tagId) {
               throw new UnsupportedOperationException("DoFnTester doesn't support timerFamily yet");
             }
+
+            @Override
+            public BundleFinalizer bundleFinalizer() {
+              throw new UnsupportedOperationException(
+                  "DoFnTester doesn't support bundleFinalizer yet");
+            }
           });
     } catch (UserCodeException e) {
       unwrapUserCodeException(e);
@@ -459,38 +470,48 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return mainOutputTag;
   }
 
-  private class TestStartBundleContext extends DoFn<InputT, OutputT>.StartBundleContext {
-
-    private TestStartBundleContext() {
-      fn.super();
+  private class TestStartBundleContext extends BaseArgumentProvider<InputT, OutputT> {
+    @Override
+    public StartBundleContext startBundleContext(DoFn doFn) {
+      return fn.new StartBundleContext() {
+        @Override
+        public PipelineOptions getPipelineOptions() {
+          return options;
+        }
+      };
     }
 
     @Override
-    public PipelineOptions getPipelineOptions() {
-      return options;
+    public String getErrorContext() {
+      return "DoFnTester/StartBundle";
     }
   }
 
-  private class TestFinishBundleContext extends DoFn<InputT, OutputT>.FinishBundleContext {
+  private class TestFinishBundleContext extends BaseArgumentProvider<InputT, OutputT> {
+    @Override
+    public FinishBundleContext finishBundleContext(DoFn doFn) {
+      return fn.new FinishBundleContext() {
+        @Override
+        public PipelineOptions getPipelineOptions() {
+          return options;
+        }
 
-    private TestFinishBundleContext() {
-      fn.super();
+        @Override
+        public void output(OutputT output, Instant timestamp, BoundedWindow window) {
+          output(mainOutputTag, output, timestamp, window);
+        }
+
+        @Override
+        public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
+          getMutableOutput(tag)
+              .add(ValueInSingleWindow.of(output, timestamp, window, PaneInfo.NO_FIRING));
+        }
+      };
     }
 
     @Override
-    public PipelineOptions getPipelineOptions() {
-      return options;
-    }
-
-    @Override
-    public void output(OutputT output, Instant timestamp, BoundedWindow window) {
-      output(mainOutputTag, output, timestamp, window);
-    }
-
-    @Override
-    public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
-      getMutableOutput(tag)
-          .add(ValueInSingleWindow.of(output, timestamp, window, PaneInfo.NO_FIRING));
+    public String getErrorContext() {
+      return "DoFnTester/FinishBundle";
     }
   }
 

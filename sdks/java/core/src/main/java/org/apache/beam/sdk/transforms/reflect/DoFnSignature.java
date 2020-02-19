@@ -271,6 +271,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((TimerFamilyParameter) this);
       } else if (this instanceof TimerIdParameter) {
         return cases.dispatch((TimerIdParameter) this);
+      } else if (this instanceof BundleFinalizerParameter) {
+        return cases.dispatch((BundleFinalizerParameter) this);
       } else {
         throw new IllegalStateException(
             String.format(
@@ -320,6 +322,8 @@ public abstract class DoFnSignature {
       ResultT dispatch(TimerFamilyParameter p);
 
       ResultT dispatch(TimerIdParameter p);
+
+      ResultT dispatch(BundleFinalizerParameter p);
 
       /** A base class for a visitor with a default method for cases it is not interested in. */
       abstract class WithDefault<ResultT> implements Cases<ResultT> {
@@ -402,6 +406,11 @@ public abstract class DoFnSignature {
         }
 
         @Override
+        public ResultT dispatch(BundleFinalizerParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
         public ResultT dispatch(StateParameter p) {
           return dispatchDefault(p);
         }
@@ -449,10 +458,27 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_TaggedOutputReceiverParameter();
     private static final PipelineOptionsParameter PIPELINE_OPTIONS_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_PipelineOptionsParameter();
+    private static final BundleFinalizerParameter BUNDLE_FINALIZER_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_BundleFinalizerParameter();
 
     /** Returns a {@link ProcessContextParameter}. */
     public static ProcessContextParameter processContext() {
       return PROCESS_CONTEXT_PARAMETER;
+    }
+
+    /** Returns a {@link StartBundleContextParameter}. */
+    public static StartBundleContextParameter startBundleContext() {
+      return START_BUNDLE_CONTEXT_PARAMETER;
+    }
+
+    /** Returns a {@link FinishBundleContextParameter}. */
+    public static FinishBundleContextParameter finishBundleContext() {
+      return FINISH_BUNDLE_CONTEXT_PARAMETER;
+    }
+
+    /** Returns a {@link BundleFinalizerParameter}. */
+    public static BundleFinalizerParameter bundleFinalizer() {
+      return BUNDLE_FINALIZER_PARAMETER;
     }
 
     public static ElementParameter elementParameter(TypeDescriptor<?> elementT) {
@@ -572,6 +598,16 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class ProcessContextParameter extends Parameter {
       ProcessContextParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.BundleFinalizer}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class BundleFinalizerParameter extends Parameter {
+      BundleFinalizerParameter() {}
     }
 
     /**
@@ -1041,13 +1077,23 @@ public abstract class DoFnSignature {
 
   /** Describes a {@link DoFn.StartBundle} or {@link DoFn.FinishBundle} method. */
   @AutoValue
-  public abstract static class BundleMethod implements DoFnMethod {
+  public abstract static class BundleMethod implements MethodWithExtraParameters {
     /** The annotated method itself. */
     @Override
     public abstract Method targetMethod();
 
-    static BundleMethod create(Method targetMethod) {
-      return new AutoValue_DoFnSignature_BundleMethod(targetMethod);
+    /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
+    public abstract List<Parameter> extraParameters();
+
+    /** The type of window expected by this method, if any. */
+    @Override
+    @Nullable
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
+    static BundleMethod create(Method targetMethod, List<Parameter> extraParameters) {
+      /* start bundle/finish bundle currently do not get invoked on a per window basis and can't accept a BoundedWindow parameter */
+      return new AutoValue_DoFnSignature_BundleMethod(targetMethod, extraParameters, null);
     }
   }
 

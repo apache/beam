@@ -21,6 +21,7 @@ import com.google.auto.value.AutoValue;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -36,6 +37,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
+import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistration;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
@@ -63,18 +65,21 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Message;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.SetMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -121,6 +126,7 @@ public class ProcessBundleHandler {
   private final Function<String, Message> fnApiRegistry;
   private final BeamFnDataClient beamFnDataClient;
   private final BeamFnStateGrpcClientCache beamFnStateGrpcClientCache;
+  private final FinalizeBundleHandler finalizeBundleHandler;
   private final Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap;
   private final PTransformRunnerFactory defaultPTransformRunnerFactory;
   @VisibleForTesting final BundleProcessorCache bundleProcessorCache;
@@ -129,12 +135,14 @@ public class ProcessBundleHandler {
       PipelineOptions options,
       Function<String, Message> fnApiRegistry,
       BeamFnDataClient beamFnDataClient,
-      BeamFnStateGrpcClientCache beamFnStateGrpcClientCache) {
+      BeamFnStateGrpcClientCache beamFnStateGrpcClientCache,
+      FinalizeBundleHandler finalizeBundleHandler) {
     this(
         options,
         fnApiRegistry,
         beamFnDataClient,
         beamFnStateGrpcClientCache,
+        finalizeBundleHandler,
         REGISTERED_RUNNER_FACTORIES,
         new BundleProcessorCache());
   }
@@ -145,12 +153,14 @@ public class ProcessBundleHandler {
       Function<String, Message> fnApiRegistry,
       BeamFnDataClient beamFnDataClient,
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache,
+      FinalizeBundleHandler finalizeBundleHandler,
       Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap,
       BundleProcessorCache bundleProcessorCache) {
     this.options = options;
     this.fnApiRegistry = fnApiRegistry;
     this.beamFnDataClient = beamFnDataClient;
     this.beamFnStateGrpcClientCache = beamFnStateGrpcClientCache;
+    this.finalizeBundleHandler = finalizeBundleHandler;
     this.urnToPTransformRunnerFactoryMap = urnToPTransformRunnerFactoryMap;
     this.defaultPTransformRunnerFactory =
         new UnknownPTransformRunnerFactory(urnToPTransformRunnerFactoryMap.keySet());
@@ -170,7 +180,8 @@ public class ProcessBundleHandler {
       PTransformFunctionRegistry startFunctionRegistry,
       PTransformFunctionRegistry finishFunctionRegistry,
       Consumer<ThrowingRunnable> addTearDownFunction,
-      BundleSplitListener splitListener)
+      BundleSplitListener splitListener,
+      BundleFinalizer bundleFinalizer)
       throws IOException {
 
     // Recursively ensure that all consumers of the output PCollection have been created.
@@ -192,7 +203,8 @@ public class ProcessBundleHandler {
             startFunctionRegistry,
             finishFunctionRegistry,
             addTearDownFunction,
-            splitListener);
+            splitListener,
+            bundleFinalizer);
       }
     }
 
@@ -225,7 +237,8 @@ public class ProcessBundleHandler {
               startFunctionRegistry,
               finishFunctionRegistry,
               addTearDownFunction,
-              splitListener);
+              splitListener,
+              bundleFinalizer);
       processedPTransformIds.add(pTransformId);
     }
   }
@@ -298,6 +311,14 @@ public class ProcessBundleHandler {
       for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
         response.addMonitoringInfos(mi);
       }
+
+      if (!bundleProcessor.getBundleFinalizationCallbackRegistrations().isEmpty()) {
+        finalizeBundleHandler.registerCallbacks(
+            bundleProcessor.getInstructionId(),
+            ImmutableList.copyOf(bundleProcessor.getBundleFinalizationCallbackRegistrations()));
+        response.setRequiresFinalization(true);
+      }
+
       bundleProcessorCache.release(
           request.getProcessBundle().getProcessBundleDescriptorId(), bundleProcessor);
     }
@@ -382,6 +403,16 @@ public class ProcessBundleHandler {
           }
         };
 
+    Collection<CallbackRegistration> bundleFinalizationCallbackRegistrations = new ArrayList<>();
+    BundleFinalizer bundleFinalizer =
+        new BundleFinalizer() {
+          @Override
+          public void afterBundleCommit(Instant callbackExpiry, Callback callback) {
+            bundleFinalizationCallbackRegistrations.add(
+                CallbackRegistration.create(callbackExpiry, callback));
+          }
+        };
+
     BundleProcessor bundleProcessor =
         BundleProcessor.create(
             startFunctionRegistry,
@@ -392,7 +423,8 @@ public class ProcessBundleHandler {
             metricsContainerRegistry,
             stateTracker,
             beamFnStateClient,
-            queueingClient);
+            queueingClient,
+            bundleFinalizationCallbackRegistrations);
 
     // Create a BeamFnStateClient
     for (Map.Entry<String, RunnerApi.PTransform> entry :
@@ -420,7 +452,8 @@ public class ProcessBundleHandler {
           startFunctionRegistry,
           finishFunctionRegistry,
           tearDownFunctions::add,
-          splitListener);
+          splitListener,
+          bundleFinalizer);
     }
     return bundleProcessor;
   }
@@ -517,7 +550,8 @@ public class ProcessBundleHandler {
         MetricsContainerStepMap metricsContainerRegistry,
         ExecutionStateTracker stateTracker,
         HandleStateCallsForBundle beamFnStateClient,
-        QueueingBeamFnDataClient queueingClient) {
+        QueueingBeamFnDataClient queueingClient,
+        Collection<CallbackRegistration> bundleFinalizationCallbackRegistrations) {
       return new AutoValue_ProcessBundleHandler_BundleProcessor(
           startFunctionRegistry,
           finishFunctionRegistry,
@@ -527,7 +561,8 @@ public class ProcessBundleHandler {
           metricsContainerRegistry,
           stateTracker,
           beamFnStateClient,
-          queueingClient);
+          queueingClient,
+          bundleFinalizationCallbackRegistrations);
     }
 
     private String instructionId;
@@ -550,6 +585,8 @@ public class ProcessBundleHandler {
 
     abstract QueueingBeamFnDataClient getQueueingClient();
 
+    abstract Collection<CallbackRegistration> getBundleFinalizationCallbackRegistrations();
+
     String getInstructionId() {
       return this.instructionId;
     }
@@ -566,6 +603,7 @@ public class ProcessBundleHandler {
       getMetricsContainerRegistry().reset();
       getStateTracker().reset();
       ExecutionStateSampler.instance().reset();
+      getBundleFinalizationCallbackRegistrations().clear();
     }
   }
 
@@ -659,7 +697,8 @@ public class ProcessBundleHandler {
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
         Consumer<ThrowingRunnable> tearDownFunctions,
-        BundleSplitListener splitListener) {
+        BundleSplitListener splitListener,
+        BundleFinalizer bundleFinalizer) {
       String message =
           String.format(
               "No factory registered for %s, known factories %s",
