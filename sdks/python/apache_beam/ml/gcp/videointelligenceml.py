@@ -15,9 +15,8 @@
 # limitations under the License.
 #
 
-"""
-A connector for sending API requests to the GCP Video Intelligence API.
-"""
+"""A connector for sending API requests to the GCP Video Intelligence API."""
+
 from __future__ import absolute_import
 
 from typing import Optional
@@ -68,38 +67,38 @@ class AnnotateVideo(PTransform):
       timeout=120,
       context_side_input=None):
     """
-      Args:
-        features: (List[``videointelligence_v1.enums.Feature``]) Required.
-          the Video Intelligence API features to detect
-        location_id: (str) Optional.
-          Cloud region where annotation should take place.
-          If no region is specified, a region will be determined
-          based on video file location.
-        metadata: (Sequence[Tuple[str, str]]) Optional.
-          Additional metadata that is provided to the method.
-        timeout: (int) Optional.
-          The time in seconds to wait for the response from the
-          Video Intelligence API
-        context_side_input: (beam.pvalue.AsDict) Optional.
-          An ``AsDict`` of a PCollection to be passed to the
-          _VideoAnnotateFn as the video context mapping containing additional
-          video context and/or feature-specific parameters.
-          Example usage:
-              video_contexts =
-              [
-                ('gs://cloud-samples-data/video/cat.mp4',
-                Union[dict, ``videointelligence_v1.types.VideoContext``]),
+    Args:
+      features: (List[``videointelligence_v1.enums.Feature``]) Required.
+        The Video Intelligence API features to detect
+      location_id: (str) Optional.
+        Cloud region where annotation should take place.
+        If no region is specified, a region will be determined
+        based on video file location.
+      metadata: (Sequence[Tuple[str, str]]) Optional.
+        Additional metadata that is provided to the method.
+      timeout: (int) Optional.
+        The time in seconds to wait for the response from the
+        Video Intelligence API
+      context_side_input: (beam.pvalue.AsDict) Optional.
+        An ``AsDict`` of a PCollection to be passed to the
+        _VideoAnnotateFn as the video context mapping containing additional
+        video context and/or feature-specific parameters.
+        Example usage::
 
-                ('gs://some-other-video/sample.mp4',
-                Union[dict, ``videointelligence_v1.types.VideoContext``]),
-              ]
-              context_side_input =
-              (
-                p
-                | "Video contexts" >> beam.Create(video_contexts)
-              )
-              videointelligenceml.AnnotateVideo(features,
-                context_side_input=beam.pvalue.AsDict(context_side_input)))
+          video_contexts =
+            [('gs://cloud-samples-data/video/cat.mp4', Union[dict,
+            ``videointelligence_v1.types.VideoContext``]),
+            ('gs://some-other-video/sample.mp4', Union[dict,
+            ``videointelligence_v1.types.VideoContext``]),]
+
+          context_side_input =
+            (
+              p
+              | "Video contexts" >> beam.Create(video_contexts)
+            )
+
+          videointelligenceml.AnnotateVideo(features,
+            context_side_input=beam.pvalue.AsDict(context_side_input)))
     """
     super(AnnotateVideo, self).__init__()
     self.features = features
@@ -122,10 +121,10 @@ class AnnotateVideo(PTransform):
     Union[text_type, binary_type],
     Optional[videointelligence.types.VideoContext])
 class _VideoAnnotateFn(DoFn):
-  """ A DoFn that sends each input element to the GCP Video Intelligence API
-      service and outputs an element with the return result of the API
-      (``google.cloud.videointelligence_v1.types.AnnotateVideoResponse``).
-   """
+  """A DoFn that sends each input element to the GCP Video Intelligence API
+  service and outputs an element with the return result of the API
+  (``google.cloud.videointelligence_v1.types.AnnotateVideoResponse``).
+  """
   def __init__(self, features, location_id, metadata, timeout):
     super(_VideoAnnotateFn, self).__init__()
     self._client = None
@@ -212,11 +211,11 @@ class AnnotateVideoWithContext(AnnotateVideo):
     Tuple[Union[text_type, binary_type],
           Optional[videointelligence.types.VideoContext]])
 class _VideoAnnotateFnWithContext(_VideoAnnotateFn):
-  """ A DoFn that unpacks each input tuple to element, video_context variables
-      and sends these to the GCP Video Intelligence API service and outputs
-      an element with the return result of the API
-      (``google.cloud.videointelligence_v1.types.AnnotateVideoResponse``).
-   """
+  """A DoFn that unpacks each input tuple to element, video_context variables
+  and sends these to the GCP Video Intelligence API service and outputs
+  an element with the return result of the API
+  (``google.cloud.videointelligence_v1.types.AnnotateVideoResponse``).
+  """
   def __init__(self, features, location_id, metadata, timeout):
     super(_VideoAnnotateFnWithContext, self).__init__(
         features=features,
