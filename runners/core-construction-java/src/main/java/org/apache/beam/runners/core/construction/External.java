@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
@@ -30,6 +31,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -139,6 +141,7 @@ public class External {
     @Nullable private transient RunnerApi.Components expandedComponents;
     @Nullable private transient RunnerApi.PTransform expandedTransform;
     @Nullable private transient Map<PCollection, String> externalPCollectionIdMap;
+    @Nullable private transient Map<Coder, String> externalCoderIdMap;
 
     ExpandableTransform(
         String urn,
@@ -207,6 +210,7 @@ public class External {
 
       RehydratedComponents rehydratedComponents =
           RehydratedComponents.forComponents(expandedComponents).withPipeline(p);
+
       ImmutableMap.Builder<TupleTag<?>, PCollection> outputMapBuilder = ImmutableMap.builder();
       expandedTransform
           .getOutputsMap()
@@ -221,6 +225,20 @@ public class External {
                 }
               });
       externalPCollectionIdMap = externalPCollectionIdMapBuilder.build();
+
+      Map<Coder, String> externalCoderIdMapBuilder = new HashMap<>();
+      expandedComponents
+          .getPcollectionsMap()
+          .forEach(
+              (pcolId, pCol) -> {
+                try {
+                  Coder coder = rehydratedComponents.getCoder(pCol.getCoderId());
+                  externalCoderIdMapBuilder.putIfAbsent(coder, pCol.getCoderId());
+                } catch (IOException e) {
+                  throw new RuntimeException("cannot rehydrate Coder.");
+                }
+              });
+      externalCoderIdMap = ImmutableMap.copyOf(externalCoderIdMapBuilder);
 
       return toOutputCollection(outputMapBuilder.build());
     }
@@ -245,6 +263,10 @@ public class External {
 
     Map<PCollection, String> getExternalPCollectionIdMap() {
       return externalPCollectionIdMap;
+    }
+
+    Map<Coder, String> getExternalCoderIdMap() {
+      return externalCoderIdMap;
     }
 
     String getUrn() {
