@@ -107,8 +107,7 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
         | 'read' >> root_read
         | ParDo(SplitNumbersFn()).with_outputs('tag_negative', main='positive'))
     positive, negative = result
-    negative_pvalue = AsList(negative)
-    _process_numbers(positive, negative_pvalue)
+    _process_numbers(positive, AsList(negative))
 
     self.pipeline.visit(self.visitor)
 
