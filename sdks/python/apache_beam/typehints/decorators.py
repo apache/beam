@@ -244,18 +244,22 @@ class IOTypeHints(NamedTuple(
   traceback_limit = 5
 
   @classmethod
-  def _make_traceback(cls, bases):
-    # type: (List[IOTypeHints]) -> List[str]
-    # Omit this method and the IOTypeHints method that called it.
-    num_frames_skip = 2
-    tb = traceback.format_stack(limit=cls.traceback_limit +
-                                num_frames_skip)[:-num_frames_skip]
-    # tb is a list of strings in the form of 'File ...\n[code]\n'. Split into
-    # single lines and flatten.
-    tb_lines = list(
-        itertools.chain.from_iterable(s.strip().split('\n') for s in tb))
+  def _make_origin(cls, bases, tb=True, msg=()):
+    # type: (List[IOTypeHints], bool, List[str]) -> List[str]
+    if msg:
+      res = msg
+    else:
+      res = []
+    if tb:
+      # Omit this method and the IOTypeHints method that called it.
+      num_frames_skip = 2
+      tb = traceback.format_stack(limit=cls.traceback_limit +
+                                  num_frames_skip)[:-num_frames_skip]
+      # tb is a list of strings in the form of 'File ...\n[code]\n'. Split into
+      # single lines and flatten.
+      res += list(
+          itertools.chain.from_iterable(s.strip().split('\n') for s in tb))
 
-    res = tb_lines
     bases = [base for base in bases if base.origin]
     if bases:
       res += ['', 'based on:']
@@ -319,20 +323,25 @@ class IOTypeHints(NamedTuple(
     else:
       output_args.append(typehints.Any)
 
+    msg = ['from_callable(%s)' % fn.__name__, '  signature: %s' % signature]
+    if hasattr(fn, '__code__'):
+      msg.append(
+          '  File "%s", line %d' %
+          (fn.__code__.co_filename, fn.__code__.co_firstlineno))
     return IOTypeHints(
         input_types=(tuple(input_args), input_kwargs),
         output_types=(tuple(output_args), {}),
-        origin=cls._make_traceback([]))
+        origin=cls._make_origin([], tb=False, msg=msg))
 
   def with_input_types(self, *args, **kwargs):
     # type: (...) -> IOTypeHints
     return self._replace(
-        input_types=(args, kwargs), origin=self._make_traceback([self]))
+        input_types=(args, kwargs), origin=self._make_origin([self]))
 
   def with_output_types(self, *args, **kwargs):
     # type: (...) -> IOTypeHints
     return self._replace(
-        output_types=(args, kwargs), origin=self._make_traceback([self]))
+        output_types=(args, kwargs), origin=self._make_origin([self]))
 
   def simple_output_type(self, context):
     if self._has_output_types():
@@ -388,12 +397,14 @@ class IOTypeHints(NamedTuple(
     yielded_type = typehints.get_yielded_type(output_type)
     return self._replace(
         output_types=((yielded_type, ), {}),
-        origin=self._make_traceback([self]))
+        origin=self._make_origin([self], tb=False, msg=['strip_iterable()']))
 
   def with_defaults(self, hints):
     # type: (Optional[IOTypeHints]) -> IOTypeHints
     if not hints:
       return self
+    if not self:
+      return hints
     if self._has_input_types():
       input_types = self.input_types
     else:
@@ -403,7 +414,9 @@ class IOTypeHints(NamedTuple(
     else:
       output_types = hints.output_types
     res = IOTypeHints(
-        input_types, output_types, self._make_traceback([hints, self]))
+        input_types,
+        output_types,
+        self._make_origin([hints, self], tb=False, msg=['with_defaults()']))
     if res == self:
       return self  # Don't needlessly increase origin traceback length.
     else:

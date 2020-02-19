@@ -431,7 +431,7 @@ class PTransform(WithTypeHints, HasDisplayData):
         at_context = ' %s %s' % (input_or_output, context) if context else ''
         raise TypeCheckError(
             '%s type hint violation at %s%s: expected %s, got %s\n'
-            'Full type hints: %s' % (
+            'Full type hint:\n%s' % (
                 input_or_output.title(),
                 self.label,
                 at_context,
@@ -855,7 +855,7 @@ class PTransformWithSideInputs(PTransform):
                                             hint):
           raise TypeCheckError(
               'Type hint violation for \'%s\': requires %s but got %s for %s\n'
-              'Full type hint: %s' %
+              'Full type hint:\n%s' %
               (self.label, hint, bindings[arg], arg, type_hints.debug_str()))
 
   def _process_argspec_fn(self):
