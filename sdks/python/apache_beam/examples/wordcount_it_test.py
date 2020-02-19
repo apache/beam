@@ -25,6 +25,7 @@ import logging
 import time
 import unittest
 
+import pytest
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
@@ -50,6 +51,7 @@ class WordCountIT(unittest.TestCase):
     self._run_wordcount_it(wordcount.run)
 
   @attr('IT', 'ValidatesContainer')
+  @pytest.mark.timeout(0)
   def test_wordcount_fnapi_it(self):
     self._run_wordcount_it(wordcount.run, experiment='beam_fn_api')
 
