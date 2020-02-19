@@ -533,8 +533,7 @@ class ReshuffleTest(unittest.TestCase):
         after_reshuffle, equal_to(expected_data), label='after reshuffle')
     pipeline.run()
 
-  # TODO(BEAM-9003): Does not work in streaming mode on Dataflow.
-  @attr('ValidatesRunner', 'sickbay-streaming')
+  @attr('ValidatesRunner')
   def test_reshuffle_preserves_timestamps(self):
     with TestPipeline() as pipeline:
 
@@ -552,7 +551,7 @@ class ReshuffleTest(unittest.TestCase):
                   'name': 'bar', 'timestamp': 33
               },
               {
-                  'name': 'bar', 'timestamp': MAX_TIMESTAMP
+                  'name': 'bar', 'timestamp': 0
               },
           ])
           | beam.Map(
@@ -587,7 +586,7 @@ class ReshuffleTest(unittest.TestCase):
           'MIN_TIMESTAMP - foo',
           'Timestamp(0) - foo',
           'Timestamp(33) - bar',
-          'MAX_TIMESTAMP - bar'
+          'Timestamp(0) - bar'
       ]
 
       # Can't compare formatted_before_reshuffle and formatted_after_reshuffle
