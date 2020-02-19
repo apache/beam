@@ -416,7 +416,7 @@ class IOTypeHints(NamedTuple(
     res = IOTypeHints(
         input_types,
         output_types,
-        self._make_origin([hints, self], tb=False, msg=['with_defaults()']))
+        self._make_origin([self, hints], tb=False, msg=['with_defaults()']))
     if res == self:
       return self  # Don't needlessly increase origin traceback length.
     else:
