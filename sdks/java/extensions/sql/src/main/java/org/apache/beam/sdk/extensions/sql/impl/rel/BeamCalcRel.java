@@ -41,6 +41,7 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeWithLocalTzType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimestampWithLocalTzType;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -362,6 +363,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
             .put(TimestampWithLocalTzType.IDENTIFIER, "getDateTime")
             .put(CharType.IDENTIFIER, "getString")
             .put(FixedBytes.IDENTIFIER, "getBytes")
+            .put(EnumerationType.IDENTIFIER, "getInt32")
             .build();
 
     private final Expression input;
@@ -384,10 +386,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       }
 
       final Expression expression = list.append(list.newName("current"), input);
-      if (storageType == Object.class) {
-        return Expressions.convert_(
-            Expressions.call(expression, "getValue", Expressions.constant(index)), Object.class);
-      }
+      //LinkedIn: no need to check storage type here.
       FieldType fromType = schema.getField(index).getType();
       String getter;
       if (fromType.getTypeName().isLogicalType()) {
@@ -422,6 +421,16 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
           return nullOr(
               value,
               Expressions.new_(ByteString.class, Types.castIfNecessary(byte[].class, value)));
+        } else if (logicalId.equals(EnumerationType.IDENTIFIER)) {
+          EnumerationType enumerationType = (EnumerationType) type.getLogicalType();
+          value =
+              nullOr(
+                  value,
+                  Expressions.call(
+                      Expressions.constant(enumerationType.getValues()),
+                      "get",
+                      Types.castIfNecessary(int.class, value)));
+          return value;
         } else if (!logicalId.equals(CharType.IDENTIFIER)) {
           throw new UnsupportedOperationException(
               "Unknown LogicalType " + type.getLogicalType().getIdentifier());
