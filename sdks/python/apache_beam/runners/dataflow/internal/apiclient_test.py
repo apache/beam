@@ -787,7 +787,7 @@ class UtilTest(unittest.TestCase):
 
     assert encoding == version_to_encoding[sys.version_info[0]]
 
-  @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
+  @unittest.skip("Enable once BEAM-1080 is fixed.")
   def test_graph_is_uploaded(self):
     pipeline_options = PipelineOptions([
         '--project',
