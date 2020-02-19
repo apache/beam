@@ -50,6 +50,7 @@ class ConsumerTrackingPipelineVisitor(PipelineVisitor):
     self.step_names = {}  # type: Dict[AppliedPTransform, str]
 
     self._num_transforms = 0
+    self._side_input_views = {}
 
   def visit_transform(self, applied_ptransform):
     # type: (AppliedPTransform) -> None
@@ -65,5 +66,10 @@ class ConsumerTrackingPipelineVisitor(PipelineVisitor):
       self.root_transforms.add(applied_ptransform)
     self.step_names[applied_ptransform] = 's%d' % (self._num_transforms)
     self._num_transforms += 1
+
     for side_input in applied_ptransform.side_inputs:
-      self.views.append(side_input)
+      if side_input not in self._side_input_views:
+        self._side_input_views[side_input] = side_input
+    self.views = [
+        side_input for side_input in self._side_input_views
+    ]
