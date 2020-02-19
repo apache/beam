@@ -44,6 +44,7 @@ import math
 import random
 import struct
 import time
+from collections import defaultdict
 
 import apache_beam as beam
 from apache_beam.io import WriteToText
@@ -315,6 +316,7 @@ class SyntheticSource(iobase.BoundedSource):
     def maybe_parse_byte_size(s):
       return parse_byte_size(s) if isinstance(s, str) else int(s)
 
+    self._generators = defaultdict(random.Random)
     self._num_records = input_spec['numRecords']
     self._key_size = maybe_parse_byte_size(input_spec.get('keySizeBytes', 1))
     self._hot_key_fraction = input_spec.get('hotKeyFraction', 0)
@@ -418,29 +420,32 @@ class SyntheticSource(iobase.BoundedSource):
     return tracker
 
   @staticmethod
-  def random_bytes(length):
+  def random_bytes(length, generator):
     """Return random bytes."""
     return b''.join(
-        (struct.pack('B', random.getrandbits(8)) for _ in range(length)))
+        (struct.pack('B', generator.getrandbits(8)) for _ in range(length)))
 
-  def _gen_kv_pair(self, index):
-    random.seed(index)
-    rand = random.random()
+  def _gen_kv_pair(self, generator, index):
+    generator.seed(index)
+    rand = generator.random()
 
     # Determines whether to generate hot key or not.
     if rand < self._hot_key_fraction:
       # Generate hot key.
       # An integer is randomly selected from the range [0, numHotKeys-1]
       # with equal probability.
-      random.seed(index % self._num_hot_keys)
-    return self.random_bytes(self._key_size), self.random_bytes(
-      self._value_size)
+      generator.seed(index % self._num_hot_keys)
+    return self.random_bytes(self._key_size, generator), self.random_bytes(
+      self._value_size, generator)
 
   def read(self, range_tracker):
     index = range_tracker.start_position()
+    # Get an instance of pseudo-random number generator
+    generator = self._generators[(
+        range_tracker.start_position(), range_tracker.stop_position())]
     while range_tracker.try_claim(index):
       time.sleep(self._sleep_per_input_record_sec)
-      yield self._gen_kv_pair(index)
+      yield self._gen_kv_pair(generator, index)
       index += 1
 
   def default_output_coder(self):
