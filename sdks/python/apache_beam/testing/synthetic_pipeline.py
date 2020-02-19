@@ -44,7 +44,6 @@ import math
 import random
 import struct
 import time
-from past.builtins import xrange
 
 import apache_beam as beam
 from apache_beam.io import WriteToText
@@ -422,7 +421,7 @@ class SyntheticSource(iobase.BoundedSource):
   def random_bytes(length):
     """Return random bytes."""
     return b''.join(
-        (struct.pack('B', random.getrandbits(8)) for _ in xrange(length)))
+        (struct.pack('B', random.getrandbits(8)) for _ in range(length)))
 
   def _gen_kv_pair(self, index):
     random.seed(index)
