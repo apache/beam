@@ -140,7 +140,7 @@ class MetricsTest(unittest.TestCase):
       """A custom dummy DoFn using yield."""
       def __init__(self):
         self.user_counter_elements = metrics.Metrics.counter(
-          self.__class__, 'metrics_user_counter_element')
+            self.__class__, 'metrics_user_counter_element')
 
       def process(self, element):
         self.user_counter_elements.inc()
@@ -149,19 +149,18 @@ class MetricsTest(unittest.TestCase):
     pipeline = TestPipeline()
     nums = pipeline | 'Input' >> beam.Create([1, 2, 3, 4])
     results = nums | 'ApplyPardo' >> beam.ParDo(SomeDoFn())
+    assert_that(results, equal_to([1, 2, 3, 4]))
 
     res = pipeline.run()
     res.wait_until_finish()
     metric_results = (
-      res.metrics().query(MetricsFilter()
-        .with_name('metrics_user_counter_element')))
+        res.metrics().query(
+            MetricsFilter().with_name('metrics_user_counter_element')))
     outputs_counter = metric_results['counters'][0]
-    assert_that(results, equal_to([1, 2, 3, 4]))
 
-    self.assertEqual(outputs_counter.key.metric.name,
-					 'metrics_user_counter_element')
+    self.assertEqual(
+        outputs_counter.key.metric.name, 'metrics_user_counter_element')
     self.assertEqual(outputs_counter.committed, 4)
-    self.assertEqual(outputs_counter.attempted, 4)
 
   def test_create_counter_distribution(self):
     sampler = statesampler.StateSampler('', counters.CounterFactory())
