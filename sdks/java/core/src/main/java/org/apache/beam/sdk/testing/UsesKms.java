@@ -17,10 +17,13 @@
  */
 package org.apache.beam.sdk.testing;
 
+import org.apache.beam.sdk.annotations.Internal;
+
 /**
  * Category tag for validation tests which utilize --tempRoot from {@link TestPipelineOptions} and
  * and expect a default KMS key enable for the bucket specified.
  *
  * <p>Currently only applicable to GCP-based tests.
  */
+@Internal
 public interface UsesKms {}
