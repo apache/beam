@@ -16,6 +16,7 @@
 package graphx
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
@@ -57,7 +58,43 @@ const (
 	URNDoFn     = "beam:go:transform:dofn:v1"
 
 	URNIterableSideInputKey = "beam:go:transform:iterablesideinputkey:v1"
+
+	URNLegacyProgressReporting = "beam:protocol:progress_reporting:v0"
+	URNMultiCore               = "beam:protocol:multi_core_bundle_processing:v1"
 )
+
+func goCapabilities() []string {
+	capabilities := []string{
+		URNLegacyProgressReporting,
+		URNMultiCore,
+	}
+	return append(capabilities, knownStandardCoders()...)
+}
+
+func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig func(context.Context) string) pb.Environment {
+	var environment pb.Environment
+	switch urn {
+	case "beam:env:process:v1":
+		// TODO Support process based SDK Harness.
+		panic(fmt.Sprintf("Unsupported environment %v", urn))
+	case "beam:env:docker:v1":
+		fallthrough
+	default:
+		config := extractEnvironmentConfig(ctx)
+		payload := &pb.DockerPayload{ContainerImage: config}
+		serializedPayload, err := proto.Marshal(payload)
+		if err != nil {
+			panic(fmt.Sprintf(
+				"Failed to serialize Environment payload %v for config %v: %v", payload, config, err))
+		}
+		environment = pb.Environment{
+			Urn:          urn,
+			Payload:      serializedPayload,
+			Capabilities: goCapabilities(),
+		}
+	}
+	return environment
+}
 
 // TODO(herohde) 11/6/2017: move some of the configuration into the graph during construction.
 
