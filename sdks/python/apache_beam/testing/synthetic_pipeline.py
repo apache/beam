@@ -44,6 +44,7 @@ import math
 import random
 import struct
 import time
+from builtins import range
 from collections import defaultdict
 
 import apache_beam as beam
