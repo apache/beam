@@ -127,6 +127,7 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
                        [
                            beam_job_api_pb2.JobState.STOPPED,
                            beam_job_api_pb2.JobState.RUNNING,
+                           beam_job_api_pb2.JobState.RUNNING,
                            beam_job_api_pb2.JobState.DONE
                        ])
 

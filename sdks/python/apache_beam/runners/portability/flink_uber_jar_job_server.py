@@ -202,8 +202,10 @@ class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
       sleep_secs = 1.0
       while True:
         current_state, timestamp = self._get_state()
-        if timestamp is not None:
-          # non-None indicates that the state has changed
+        if timestamp is None:
+          # state has not changed since last checked: use previous timestamp
+          yield super(FlinkBeamJob, self).get_state()
+        else:
           yield current_state, timestamp
         sleep_secs = min(60, sleep_secs * 1.2)
         time.sleep(sleep_secs)
