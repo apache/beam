@@ -633,6 +633,14 @@ class HadoopFileSystemOptions(PipelineOptions):
         '--hdfs_port', default=None, help=('Port of the HDFS namenode.'))
     parser.add_argument(
         '--hdfs_user', default=None, help=('HDFS username to use.'))
+    parser.add_argument(
+        '--hdfs_full_urls',
+        default=False,
+        action='store_true',
+        help=(
+            'If set, URLs will be parsed as "hdfs://server/path/...", instead '
+            'of "hdfs://path/...". The "server" part will be unused (use '
+            '--hdfs_host and --hdfs_port).'))
 
   def validate(self, validator):
     errors = []

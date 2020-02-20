@@ -318,7 +318,7 @@ class UtilTest(unittest.TestCase):
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0')
-  def test_harness_override_present_in_released_sdks(self):
+  def test_harness_override_default_in_released_sdks(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp', '--streaming'])
     override = ''.join([
@@ -331,6 +331,30 @@ class UtilTest(unittest.TestCase):
                                 '2.0.0', #any environment version
                                 FAKE_PIPELINE_URL)
     self.assertIn(override, env.proto.experiments)
+
+  @mock.patch(
+      'apache_beam.runners.dataflow.internal.apiclient.'
+      'beam_version.__version__',
+      '2.2.0')
+  def test_harness_override_custom_in_released_sdks(self):
+    pipeline_options = PipelineOptions([
+        '--temp_location',
+        'gs://any-location/temp',
+        '--streaming',
+        '--experiments=runner_harness_container_image=fake_image'
+    ])
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
+    self.assertEqual(
+        1,
+        len([
+            x for x in env.proto.experiments
+            if x.startswith('runner_harness_container_image=')
+        ]))
+    self.assertIn(
+        'runner_harness_container_image=fake_image', env.proto.experiments)
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
@@ -762,6 +786,33 @@ class UtilTest(unittest.TestCase):
     version_to_encoding = {3: 'utf8', 2: None}
 
     assert encoding == version_to_encoding[sys.version_info[0]]
+
+  @unittest.skip("Enable once BEAM-1080 is fixed.")
+  def test_graph_is_uploaded(self):
+    pipeline_options = PipelineOptions([
+        '--project',
+        'test_project',
+        '--job_name',
+        'test_job_name',
+        '--temp_location',
+        'gs://test-location/temp',
+        '--experiments',
+        'beam_fn_api',
+        '--experiments',
+        'upload_graph'
+    ])
+    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    client = apiclient.DataflowApplicationClient(pipeline_options)
+    with mock.patch.object(client, 'stage_file', side_effect=None):
+      with mock.patch.object(client, 'create_job_description',
+                             side_effect=None):
+        with mock.patch.object(client,
+                               'submit_job_description',
+                               side_effect=None):
+          client.create_job(job)
+          client.stage_file.assert_called_once_with(
+              mock.ANY, "dataflow_graph.json", mock.ANY)
+          client.create_job_description.assert_called_once()
 
 
 if __name__ == '__main__':

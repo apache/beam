@@ -58,6 +58,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -1067,7 +1068,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     }
 
     @Override
-    public State state(String stateId) {
+    public State state(String stateId, boolean alwaysFetched) {
       StateDeclaration stateDeclaration = context.doFnSignature.stateDeclarations().get(stateId);
       checkNotNull(stateDeclaration, "No state declaration found for %s", stateId);
       StateSpec<?> spec;
@@ -1076,7 +1077,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
-      return spec.bind(stateId, stateAccessor);
+      State state = spec.bind(stateId, stateAccessor);
+      if (alwaysFetched) {
+        return (State) ((ReadableState) state).readLater();
+      } else {
+        return state;
+      }
     }
 
     @Override
@@ -1258,7 +1264,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     }
 
     @Override
-    public State state(String stateId) {
+    public State state(String stateId, boolean alwaysFetched) {
       StateDeclaration stateDeclaration = context.doFnSignature.stateDeclarations().get(stateId);
       checkNotNull(stateDeclaration, "No state declaration found for %s", stateId);
       StateSpec<?> spec;
@@ -1267,7 +1273,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
-      return spec.bind(stateId, stateAccessor);
+      State state = spec.bind(stateId, stateAccessor);
+      if (alwaysFetched) {
+        return (State) ((ReadableState) state).readLater();
+      } else {
+        return state;
+      }
     }
 
     @Override

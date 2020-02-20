@@ -118,14 +118,19 @@ task validatesRunnerStreamingTests {
 
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
+  def testOpts = basicTestOpts + ["--attr=ValidatesRunner,!sickbay-streaming"]
+  def argMap = ["test_opts": testOpts,
+                "streaming": "true",
+                "worker_jar": dataflowWorkerJar,
+                "sdk_location": files(configurations.distTarBall.files).singleFile,
+                "suite": "validatesRunnerStreamingTests-df"]
+  if (project.hasProperty('useRunnerV2'))
+    argMap.put("runner_v2", "true")
+    // KMS is not supported for streaming engine.
+    argMap.put("kms_key_name", "")
+
   doLast {
     // TODO(BEAM-3544,BEAM-5025): Disable tests with 'sickbay-streaming' tag.
-    def testOpts = basicTestOpts + ["--attr=ValidatesRunner,!sickbay-streaming"]
-    def argMap = ["test_opts": testOpts,
-                  "streaming": "true",
-                  "worker_jar": dataflowWorkerJar,
-                  "sdk_location": files(configurations.distTarBall.files).singleFile,
-                  "suite": "validatesRunnerStreamingTests-df"]
     def cmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'

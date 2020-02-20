@@ -154,6 +154,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp'
       } else {
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       }
       //SplitableDoFnTests
@@ -212,13 +213,14 @@ def addTestJavaJarCreator(String pyVersion) {
       exec {
         executable "sh"
         def options = [
-                "--flink_job_server_jar ${shadowJar.archivePath}",
+                "--runner FlinkRunner",
+                "--job_server_jar ${shadowJar.archivePath}",
                 "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
                 "--python_root_dir ${project.rootDir}/sdks/python",
                 "--python_version ${pyVersion}",
                 "--python_container_image apachebeam/python${pyVersion}_sdk:${project.sdk_version}",
         ]
-        args "-c", "../../job-server/test_pipeline_jar.sh ${options.join(' ')}"
+        args "-c", "../../../portability/test_pipeline_jar.sh ${options.join(' ')}"
       }
     }
   }

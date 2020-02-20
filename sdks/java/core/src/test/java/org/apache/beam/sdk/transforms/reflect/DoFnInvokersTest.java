@@ -239,7 +239,7 @@ public class DoFnInvokersTest {
   public void testDoFnWithState() throws Exception {
     ValueState<Integer> mockState = mock(ValueState.class);
     final String stateId = "my-state-id-here";
-    when(mockArgumentProvider.state(stateId)).thenReturn(mockState);
+    when(mockArgumentProvider.state(stateId, false)).thenReturn(mockState);
 
     class MockFn extends DoFn<String, String> {
       @StateId(stateId)

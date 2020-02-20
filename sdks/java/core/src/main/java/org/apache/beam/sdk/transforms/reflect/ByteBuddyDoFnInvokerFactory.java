@@ -856,8 +856,10 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
           public StackManipulation dispatch(StateParameter p) {
             return new StackManipulation.Compound(
                 new TextConstant(p.referent().id()),
+                IntegerConstant.forValue(p.alwaysFetched()),
                 MethodInvocation.invoke(
-                    getExtraContextFactoryMethodDescription(STATE_PARAMETER_METHOD, String.class)),
+                    getExtraContextFactoryMethodDescription(
+                        STATE_PARAMETER_METHOD, String.class, boolean.class)),
                 TypeCasting.to(
                     new TypeDescription.ForLoadedType(p.referent().stateType().getRawType())));
           }

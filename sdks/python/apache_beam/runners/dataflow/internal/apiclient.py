@@ -184,12 +184,15 @@ class Environment(object):
     ])
     # TODO: Use enumerated type instead of strings for job types.
     if job_type.startswith('FNAPI_'):
+      self.debug_options = self.debug_options or DebugOptions()
       self.debug_options.experiments = self.debug_options.experiments or []
+      if not self.debug_options.lookup_experiment(
+          'runner_harness_container_image'):
+        runner_harness_override = (get_runner_harness_container_image())
+        if runner_harness_override:
+          self.debug_options.add_experiment(
+              'runner_harness_container_image=' + runner_harness_override)
       debug_options_experiments = self.debug_options.experiments
-      runner_harness_override = (get_runner_harness_container_image())
-      if runner_harness_override:
-        debug_options_experiments.append(
-            'runner_harness_container_image=' + runner_harness_override)
       # Add use_multiple_sdk_containers flag if it's not already present. Do not
       # add the flag if 'no_use_multiple_sdk_containers' is present.
       # TODO: Cleanup use_multiple_sdk_containers once we deprecate Python SDK
@@ -555,6 +558,16 @@ class DataflowApplicationClient(object):
       file_name = os.path.basename(job_location)
       self.stage_file(
           gcs_or_local_path, file_name, io.BytesIO(job.json().encode('utf-8')))
+
+    if job.options.view_as(DebugOptions).lookup_experiment('upload_graph'):
+      self.stage_file(
+          job.options.view_as(GoogleCloudOptions).staging_location,
+          "dataflow_graph.json",
+          io.BytesIO(job.json().encode('utf-8')))
+      del job.proto.steps[:]
+      job.proto.stepsLocation = FileSystems.join(
+          job.options.view_as(GoogleCloudOptions).staging_location,
+          "dataflow_graph.json")
 
     if not template_location:
       return self.submit_job_description(job)
