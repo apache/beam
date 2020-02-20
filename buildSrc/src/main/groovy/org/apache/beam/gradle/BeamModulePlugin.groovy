@@ -1724,7 +1724,8 @@ class BeamModulePlugin implements Plugin<Project> {
       def beamJavaTestPipelineOptions = [
         "--runner=PortableRunner",
         "--jobEndpoint=${config.jobEndpoint}",
-        "--environmentCacheMillis=10000"
+        "--environmentCacheMillis=10000",
+        "--experiments=beam_fn_api",
       ]
       beamJavaTestPipelineOptions.addAll(config.pipelineOpts)
       ['Java': javaPort, 'Python': pythonPort].each { sdk, port ->
