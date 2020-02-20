@@ -352,6 +352,19 @@ class DoFnSignature(object):
     _, all_timer_specs = userstate.get_dofn_specs(self.do_fn)
     return bool(all_timer_specs)
 
+  def has_bundle_finalization(self):
+    for sig in (self.start_bundle_method,
+                self.process_method,
+                self.finish_bundle_method):
+      for d in sig.defaults:
+        try:
+          if d == DoFn.BundleFinalizerParam:
+            return True
+        except Exception:  # pylint: disable=broad-except
+          # Default value might be incomparable.
+          pass
+    return False
+
 
 class DoFnInvoker(object):
   """An abstraction that can be used to execute DoFn methods.
