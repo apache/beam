@@ -160,7 +160,7 @@ public enum Compression {
    * <p>The Beam Java SDK does not pull in the required libraries for LZO compression by default, so
    * it is the user's responsibility to declare an explicit dependency on {@code
    * io.airlift:aircompressor} and {@code com.facebook.presto.hadoop:hadoop-apache2}. Attempts to read or write
-   * .lzo_deflate files without {@code airlift/aircompressor} and {@code presto-hadoop-apache2}
+   * {@code .lzo_deflate} files without {@code io.airlift:aircompressor} and {@code com.facebook.presto.hadoop:hadoop-apache2}
    * loaded will result in {@code NoClassDefFoundError} at runtime.
    */
   LZO(".lzo_deflate", ".lzo_deflate") {
