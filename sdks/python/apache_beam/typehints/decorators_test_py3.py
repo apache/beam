@@ -155,6 +155,19 @@ class IOTypeHintsTest(unittest.TestCase):
     with self.assertRaisesRegex(decorators.TypeCheckError, "missing.*'foo'"):
       decorators.getcallargs_forhints(fn, 5)
 
+  def test_origin(self):
+    def annotated(e: str) -> str:
+      return e
+
+    t = Map(annotated)
+    th = t.get_type_hints()
+    th = th.with_input_types(str)
+    self.assertRegex(th.debug_str(), r'with_input_types')
+    th = th.with_output_types(str)
+    self.assertRegex(
+        th.debug_str(),
+        r'(?s)with_output_types.*with_input_types.*Map.annotated')
+
 
 class DecoratorsTest(unittest.TestCase):
   def test_no_annotations(self):
