@@ -161,17 +161,13 @@ class DecoratorsTest(unittest.TestCase):
     def fn(a: int) -> int:
       return a
 
-    _ = [1, 2, 3] | Map(fn)  # Doesn't raise - correct types.
-
     with self.assertRaisesRegex(TypeCheckError,
                                 r'requires .*int.* but got .*str'):
       _ = ['a', 'b', 'c'] | Map(fn)
 
-    @decorators.no_annotations
-    def fn2(a: int) -> int:
-      return a
-
-    _ = ['a', 'b', 'c'] | Map(fn2)  # Doesn't raise - no input type hints.
+    # Same pipeline doesn't raise without annotations on fn.
+    fn = decorators.no_annotations(fn)
+    _ = ['a', 'b', 'c'] | Map(fn)
 
 
 if __name__ == '__main__':
