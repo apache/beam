@@ -50,7 +50,6 @@ from apache_beam.runners.interactive.caching import streaming_cache
 from apache_beam.runners.runner import PipelineState
 
 _LOGGER = logging.getLogger(__name__)
-_LOGGER.setLevel(logging.INFO)
 
 
 class BackgroundCachingJob(object):
@@ -261,11 +260,12 @@ def is_source_to_cache_changed(
   # change by default.
   if is_changed and update_cached_source_signature:
     if ie.current_env().options.enable_capture_replay:
+      # TODO(BEAM-8335): display rather than logging when is_in_notebook.
       if not recorded_signature:
         _LOGGER.info(
             'Interactive Beam has detected you have unbounded sources '
             'in your pipeline. In order to have a deterministic replay '
-            'of your pipeline: {}'.format(
+            'of your pipeline, data from sources will be captured. {}'.format(
                 ie.current_env().options.capture_control))
       else:
         _LOGGER.info(

@@ -33,7 +33,6 @@ from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_environment as ie
 
 _LOGGER = logging.getLogger(__name__)
-_LOGGER.setLevel(logging.INFO)
 
 
 class CaptureControl(object):
@@ -69,6 +68,7 @@ def evict_captured_data():
   Interactive Beam. In future PCollection evaluation/visualization and pipeline
   runs, Interactive Beam will capture fresh data."""
   if ie.current_env().options.enable_capture_replay:
+    # TODO(BEAM-8335): display rather than logging when is_in_notebook.
     _LOGGER.info(
         'You have requested Interactive Beam to evict all captured '
         'data that could be deterministically replayed among multiple '
