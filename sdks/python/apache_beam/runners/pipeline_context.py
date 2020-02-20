@@ -28,6 +28,7 @@ from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
+from typing import Iterable
 from typing import Mapping
 from typing import Optional
 from typing import Union
@@ -143,7 +144,8 @@ class PipelineContext(object):
                iterable_state_read=None,  # type: Optional[IterableStateReader]
                iterable_state_write=None,  # type: Optional[IterableStateWriter]
                namespace='ref',
-               allow_proto_holders=False
+               allow_proto_holders=False,
+               requirements=(),  # type: Iterable[str]
               ):
     if isinstance(proto, beam_fn_api_pb2.ProcessBundleDescriptor):
       proto = beam_runner_api_pb2.Components(
@@ -187,6 +189,13 @@ class PipelineContext(object):
     self.iterable_state_read = iterable_state_read
     self.iterable_state_write = iterable_state_write
     self.allow_proto_holders = allow_proto_holders
+    self._requirements = set(requirements)
+
+  def add_requirement(self, requirement):
+    self._requirements.add(requirement)
+
+  def requirements(self):
+    return frozenset(self._requirements)
 
   # If fake coders are requested, return a pickled version of the element type
   # rather than an actual coder. The element type is required for some runners,

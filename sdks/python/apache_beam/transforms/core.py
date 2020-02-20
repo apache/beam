@@ -1292,14 +1292,22 @@ class ParDo(PTransformWithSideInputs):
         "expected instance of ParDo, but got %s" % self.__class__
     picked_pardo_fn_data = pickler.dumps(self._pardo_fn_data())
     state_specs, timer_specs = userstate.get_dofn_specs(self.fn)
+    if state_specs or timer_specs:
+      context.add_requirement(
+          common_urns.requirements.REQUIRES_STATEFUL_PROCESSING.urn)
     from apache_beam.runners.common import DoFnSignature
-    is_splittable = DoFnSignature(self.fn).is_splittable_dofn()
-    restriction_coder = DoFnSignature(self.fn).get_restriction_coder()
-    if restriction_coder:
+    sig = DoFnSignature(self.fn)
+    is_splittable = sig.is_splittable_dofn()
+    if is_splittable:
+      restriction_coder = sig.get_restriction_coder()
       restriction_coder_id = context.coders.get_id(
           restriction_coder)  # type: typing.Optional[str]
     else:
       restriction_coder_id = None
+    has_bundle_finalization = sig.has_bundle_finalization()
+    if has_bundle_finalization:
+      context.add_requirement(
+          common_urns.requirements.REQUIRES_BUNDLE_FINALIZATION.urn)
     return (
         common_urns.primitives.PAR_DO.urn,
         beam_runner_api_pb2.ParDoPayload(
@@ -1307,6 +1315,7 @@ class ParDo(PTransformWithSideInputs):
                 urn=python_urns.PICKLED_DOFN_INFO,
                 payload=picked_pardo_fn_data),
             splittable=is_splittable,
+            requests_finalization=has_bundle_finalization,
             restriction_coder_id=restriction_coder_id,
             state_specs={
                 spec.name: spec.to_runner_api(context)
