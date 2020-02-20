@@ -44,7 +44,6 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ConnectivityState;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannelBuilder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.After;
 import org.junit.Before;
@@ -85,10 +84,8 @@ public class ValidateRunnerXlangTest implements Serializable {
 
   @Before
   public void setUp() {
-    testPipeline
-        .getOptions()
-        .as(ExperimentalOptions.class)
-        .setExperiments(ImmutableList.of("jar_packages=" + expansionJar));
+    ExperimentalOptions.addExperiment(
+        testPipeline.getOptions().as(ExperimentalOptions.class), "jar_packages=" + expansionJar);
     waitForReady();
   }
 
