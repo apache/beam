@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -36,7 +37,12 @@ type Plan struct {
 	parDoIDs []string
 
 	status Status
-	Store  *metrics.Store
+
+	// While the store is threadsafe, the reference to it
+	// is not, so we need to protect the store field to be
+	// able to asynchronously provide tentative metrics.
+	storeMu sync.Mutex
+	store   *metrics.Store
 
 	// TODO: there can be more than 1 DataSource in a bundle.
 	source *DataSource
@@ -97,7 +103,9 @@ func (p *Plan) SourcePTransformID() string {
 // be reused for further bundles. Does not panic. Blocking.
 func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) error {
 	ctx = metrics.SetBundleID(ctx, p.id)
-	p.Store = metrics.GetStore(ctx)
+	p.storeMu.Lock()
+	p.store = metrics.GetStore(ctx)
+	p.storeMu.Unlock()
 	if p.status == Initializing {
 		for _, u := range p.units {
 			if err := callNoPanic(ctx, u.Up); err != nil {
@@ -176,6 +184,13 @@ func (p *Plan) Progress() (ProgressReportSnapshot, bool) {
 		return p.source.Progress(), true
 	}
 	return ProgressReportSnapshot{}, false
+}
+
+// Store returns the metric store for the last use of this plan.
+func (p *Plan) Store() *metrics.Store {
+	p.storeMu.Lock()
+	defer p.storeMu.Unlock()
+	return p.store
 }
 
 // SplitPoints captures the split requested by the Runner.
