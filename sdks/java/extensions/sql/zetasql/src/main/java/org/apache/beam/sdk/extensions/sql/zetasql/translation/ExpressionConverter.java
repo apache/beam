@@ -37,11 +37,13 @@ import com.google.common.collect.ImmutableSet;
 import com.google.zetasql.ArrayType;
 import com.google.zetasql.EnumType;
 import com.google.zetasql.StructType;
+import com.google.zetasql.TableValuedFunction;
 import com.google.zetasql.Type;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
 import com.google.zetasql.functions.ZetaSQLDateTime.DateTimestampPart;
 import com.google.zetasql.resolvedast.ResolvedColumn;
+import com.google.zetasql.resolvedast.ResolvedNodes;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedAggregateScan;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCast;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedColumnRef;
@@ -67,20 +69,24 @@ import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperatorRewriter;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperators;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable;
+import org.apache.beam.sdk.extensions.sql.zetasql.SqlWindowTableFunction;
 import org.apache.beam.sdk.extensions.sql.zetasql.TypeUtils;
 import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlUtils;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIntervalQualifier;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlRowOperator;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
@@ -325,6 +331,10 @@ public class ExpressionConverter {
     return ret;
   }
 
+  public RexNode convertRelNodeToRexRangeRef(RelNode rel) {
+    return rexBuilder().makeRangeReference(rel);
+  }
+
   /** Create a RexNode for a corresponding resolved expression. */
   public RexNode convertRexNodeFromResolvedExpr(ResolvedExpr expr) {
     RexNode ret;
@@ -549,6 +559,60 @@ public class ExpressionConverter {
     }
 
     return ret;
+  }
+
+  public RexCall convertTableValuedFunction(
+      RelNode input,
+      TableValuedFunction tvf,
+      List<ResolvedNodes.ResolvedTVFArgument> argumentList,
+      List<ResolvedColumn> inputTableColumns) {
+    switch (tvf.getName()) {
+      case "TUMBLE":
+        // TUMBLE tvf's second argument is descriptor.
+        ResolvedColumn wmCol =
+            extractWatermarkColumnFromDescriptor(argumentList.get(1).getDescriptorArg());
+        if (wmCol.getType().getKind() != TYPE_TIMESTAMP) {
+          throw new IllegalArgumentException(
+              "Watermarked column should be TIMESTAMP type: "
+                  + extractWatermarkColumnNameFromDescriptor(
+                      argumentList.get(1).getDescriptorArg()));
+        }
+        return (RexCall)
+            rexBuilder()
+                .makeCall(
+                    new SqlWindowTableFunction(SqlKind.TUMBLE.name()),
+                    convertRelNodeToRexRangeRef(input),
+                    convertWatermarkedResolvedColumnToRexInputRef(wmCol, inputTableColumns),
+                    convertIntervalToRexIntervalLiteral(
+                        (ResolvedLiteral) argumentList.get(2).getExpr()));
+      default:
+        throw new UnsupportedOperationException(
+            "Does not support table-valued function: " + tvf.getName());
+    }
+  }
+
+  private RexInputRef convertWatermarkedResolvedColumnToRexInputRef(
+      ResolvedColumn wmCol, List<ResolvedColumn> inputTableColumns) {
+    for (int i = 0; i < inputTableColumns.size(); i++) {
+      if (inputTableColumns.get(i).equals(wmCol)) {
+        return rexBuilder()
+            .makeInputRef(TypeUtils.toRelDataType(rexBuilder(), wmCol.getType(), false), i);
+      }
+    }
+
+    // ZetaSQL parser guarantees that wmCol can be found from inputTableColumns.
+    // so it shouldn't reach here.
+    throw new IllegalArgumentException();
+  }
+
+  private ResolvedColumn extractWatermarkColumnFromDescriptor(
+      ResolvedNodes.ResolvedDescriptor descriptor) {
+    return descriptor.getDescriptorColumnList().get(0);
+  }
+
+  private String extractWatermarkColumnNameFromDescriptor(
+      ResolvedNodes.ResolvedDescriptor descriptor) {
+    return descriptor.getDescriptorColumnNameList().get(0);
   }
 
   private RexNode convertValueToRexNode(Type type, Value value) {
