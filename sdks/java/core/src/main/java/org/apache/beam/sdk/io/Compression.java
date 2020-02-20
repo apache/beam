@@ -154,7 +154,7 @@ public enum Compression {
   },
 
   /**
-   * LZO compression using LZO Codec. .lzo_deflate extension is specified for the files which just
+   * LZO compression using LZO codec. {@code .lzo_deflate} extension is specified for files which
    * use the LZO algorithm without headers.
    *
    * <p>The Beam Java SDK does not pull in the required libraries for LZO compression by default, so
