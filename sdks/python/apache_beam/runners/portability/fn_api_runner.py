@@ -309,20 +309,17 @@ class _ListBuffer():
     else:
       if not self._grouped_output:
         output_stream_list = [create_OutputStream() for _ in range(n)]
-        self._grouped_output = [output_stream.get() for output_stream
-                                in output_stream_list]
         idx = 0
         for input in self._inputs:
           input_stream = create_InputStream(input)
           while input_stream.size() > 0:
             decoded_value = self._coder_impl.decode_from_stream(
                 input_stream, True)
-            self._coder_impl.encode_to_stream(decoded_value,
-                                        output_stream_list[idx],
-                                        True)
+            self._coder_impl.encode_to_stream(
+                decoded_value, output_stream_list[idx], True)
             idx = (idx + 1) % n
-        for ix, output_stream in enumerate(output_stream_list):
-          self._grouped_output[ix] = [output_stream.get()]
+        self._grouped_output = [[output_stream.get()]
+                                for output_stream in output_stream_list]
       return self._grouped_output
 
   def __iter__(self):
@@ -727,8 +724,8 @@ class FnApiRunner(runner.PipelineRunner):
         worker_handler.state.checkpoint()
         testing_bundle_manager = ParallelBundleManager(
             worker_handler_list,
-            lambda pcoll_id, transform_id: _ListBuffer(
-                coder_impl=get_input_coder_callable),
+            lambda pcoll_id,
+            transform_id: _ListBuffer(coder_impl=get_input_coder_callable),
             get_input_coder_callable,
             process_bundle_descriptor,
             self._progress_frequency,
@@ -752,9 +749,8 @@ class FnApiRunner(runner.PipelineRunner):
     for transform_id, timer_writes in stage.timer_pcollections:
 
       # Queue any set timers as new inputs.
-      coder = context.coders[
-        pipeline_components.pcollections[timer_writes].coder_id]
-      windowed_timer_coder_impl = coder.get_impl()
+      windowed_timer_coder_impl = context.coders[
+          pipeline_components.pcollections[timer_writes].coder_id].get_impl()
       written_timers = get_buffer_callable(
           create_buffer_id(timer_writes, kind='timers'), transform_id)
       if not written_timers.cleared:
@@ -774,7 +770,8 @@ class FnApiRunner(runner.PipelineRunner):
         for windowed_key_timer in timers_by_key_and_window.values():
           windowed_timer_coder_impl.encode_to_stream(
               windowed_key_timer, out, True)
-        deferred_inputs[transform_id] = _ListBuffer(coder_impl=coder.get_impl())
+        deferred_inputs[transform_id] = _ListBuffer(
+            coder_impl=windowed_timer_coder_impl)
         deferred_inputs[transform_id].append(out.get())
         written_timers.clear()
 
@@ -795,9 +792,8 @@ class FnApiRunner(runner.PipelineRunner):
             delayed_application.application.transform_id,
             delayed_application.application.input_id)
         if name not in deferred_inputs:
-          coder_impl = get_input_coder_impl_callable(
-              delayed_application.application.transform_id)
-          deferred_inputs[name] = _ListBuffer(coder_impl=coder_impl)
+          deferred_inputs[name] = _ListBuffer(
+              coder_impl=get_input_coder_impl_callable(name))
         deferred_inputs[name].append(delayed_application.application.element)
       for channel_split in split.channel_splits:
         coder_impl = get_input_coder_impl_callable(channel_split.transform_id)
@@ -852,8 +848,8 @@ class FnApiRunner(runner.PipelineRunner):
         pcoll_id = transform.spec.payload
         if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
           target = transform.unique_name, only_element(transform.outputs)
-          coder_id = pipeline_components.pcollections[
-            only_element(transform.outputs.values())].coder_id
+          coder_id = pipeline_components.pcollections[only_element(
+              transform.outputs.values())].coder_id
           if coder_id in stage.context.coders[safe_coders[coder_id]]:
             coder = stage.context.coders[safe_coders[coder_id]]
           else:
@@ -999,9 +995,9 @@ class FnApiRunner(runner.PipelineRunner):
 
     def get_input_coder_impl(transform_id):
       coder_id = beam_fn_api_pb2.RemoteGrpcPort.FromString(
-          process_bundle_descriptor.transforms[transform_id].spec.payload).\
-        coder_id
-      assert coder_id is not None and coder_id != ''
+          process_bundle_descriptor.transforms[transform_id].spec.payload
+      ).coder_id
+      assert coder_id
       if coder_id in safe_coders:
         return context.coders[safe_coders[coder_id]].get_impl()
       else:
@@ -1042,24 +1038,23 @@ class FnApiRunner(runner.PipelineRunner):
     last_result = result
     last_sent = data_input
 
+    # We cannot split deferred_input until we include residual_roots to
+    # merged results. Without residual_roots, pipeline stops earlier and we
+    # may miss some data.
+    bundle_manager._num_workers = 1
     while True:
       deferred_inputs = {}
 
       self._collect_written_timers_and_add_to_deferred_inputs(
           context, pipeline_components, stage, get_buffer, deferred_inputs)
-
       # Queue any process-initiated delayed bundle applications.
       for delayed_application in last_result.process_bundle.residual_roots:
         name = input_for(
             delayed_application.application.transform_id,
             delayed_application.application.input_id)
         if name not in deferred_inputs:
-          input_pcoll = process_bundle_descriptor.transforms[
-            delayed_application.application.transform_id].inputs[
-              delayed_application.application.input_id]
-          coder = context.coders[safe_coders[
-            pipeline_components.pcollections[input_pcoll].coder_id]]
-          deferred_inputs[name] = _ListBuffer(coder_impl=coder.get_impl())
+          deferred_inputs[name] = _ListBuffer(
+              coder_impl=get_input_coder_impl(name))
         deferred_inputs[name].append(delayed_application.application.element)
       # Queue any runner-initiated delayed bundle applications.
       self._add_residuals_and_channel_splits_to_deferred_inputs(
@@ -1069,18 +1064,9 @@ class FnApiRunner(runner.PipelineRunner):
         # The worker will be waiting on these inputs as well.
         for other_input in data_input:
           if other_input not in deferred_inputs:
-            outputs = process_bundle_descriptor.transforms[
-              other_input].outputs.values()
-            coder_id = process_bundle_descriptor.pcollections[
-              only_element(outputs)].coder_id
-            coder = context.coders[coder_id]
             deferred_inputs[other_input] = _ListBuffer(
-                coder_impl=coder.get_impl())
+                coder_impl=get_input_coder_impl(other_input))
         # TODO(robertwb): merge results
-        # We cannot split deferred_input until we include residual_roots to
-        # merged results. Without residual_roots, pipeline stops earlier and we
-        # may miss some data.
-        bundle_manager._num_workers = 1
         # TODO(BEAM-8486): this should be changed to _registered
         bundle_manager._skip_registration = True  # type: ignore[attr-defined]
         last_result, splits = bundle_manager.process_bundle(
@@ -1105,7 +1091,7 @@ class FnApiRunner(runner.PipelineRunner):
                          pcoll_buffers,  # type: DefaultDict[bytes, PartitionableBuffer]
                          context,
                          safe_coders
-  ):
+                         ):
     # type: (...) -> Tuple[Dict[str, PartitionableBuffer], DataSideInput, DataOutput]
 
     """Returns maps of transform names to PCollection identifiers.
@@ -1134,10 +1120,10 @@ class FnApiRunner(runner.PipelineRunner):
                                 bundle_processor.DATA_OUTPUT_URN):
         pcoll_id = transform.spec.payload
         if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
-          coder_id = pipeline_components.pcollections[
-            only_element(transform.outputs.values())].coder_id
+          coder_id = pipeline_components.pcollections[only_element(
+              transform.outputs.values())].coder_id
           if coder_id in safe_coders:
-              coder = context.coders[safe_coders[coder_id]]
+            coder = context.coders[safe_coders[coder_id]]
           else:
             coder = context.coders[coder_id]
           if pcoll_id == fn_api_runner_transforms.IMPULSE_BUFFER:
@@ -2096,7 +2082,6 @@ class BundleManager(object):
     # type: (...) -> List[beam_fn_api_pb2.ProcessBundleSplitResponse]
     split_results = []  # type: List[beam_fn_api_pb2.ProcessBundleSplitResponse]
     read_transform_id, buffer_data = only_element(inputs.items())
-
     byte_stream = b''.join(buffer_data)
     num_elements = len(
         list(
@@ -2202,8 +2187,9 @@ class BundleManager(object):
           (result_future.is_done() and result_future.get().error)):
         if output.transform_id in expected_outputs:
           with BundleManager._lock:
-            self._get_buffer(expected_outputs[output.transform_id], output.transform_id).append(
-                output.data)
+            self._get_buffer(
+                expected_outputs[output.transform_id],
+                output.transform_id).append(output.data)
 
       _LOGGER.debug('Wait for the bundle %s to finish.' % process_bundle_id)
       result = result_future.get()  # type: beam_fn_api_pb2.InstructionResponse
