@@ -161,7 +161,7 @@ public enum Compression {
    * it is the user's responsibility to declare an explicit dependency on {@code
    * io.airlift:aircompressor} and {@code com.facebook.presto.hadoop:hadoop-apache2}. Attempts to read or write
    * {@code .lzo_deflate} files without {@code io.airlift:aircompressor} and {@code com.facebook.presto.hadoop:hadoop-apache2}
-   * loaded will result in {@code NoClassDefFoundError} at runtime.
+   * loaded will result in a {@code NoClassDefFoundError} at runtime.
    */
   LZO(".lzo_deflate", ".lzo_deflate") {
     @Override
