@@ -518,19 +518,33 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.default_properties.append('--experiment=beam_fn_api')
     self.default_properties.append('--experiment=use_runner_v2')
 
-    with self.assertRaisesRegex(RuntimeError, 'Unsupported'):
+    with self.assertRaisesRegex(RuntimeError, 'Unsupported merging'):
       with Pipeline(remote_runner,
                     options=PipelineOptions(self.default_properties)) as p:
         # pylint: disable=expression-not-assigned
-        p | beam.Create([]) | beam.WindowInto(CustomWindowFn())
+        p | beam.Create([]) | beam.WindowInto(CustomMergingWindowFn())
+
+    with self.assertRaisesRegex(RuntimeError, 'Unsupported window coder'):
+      with Pipeline(remote_runner,
+                    options=PipelineOptions(self.default_properties)) as p:
+        # pylint: disable=expression-not-assigned
+        p | beam.Create([]) | beam.WindowInto(CustomWindowTypeWindowFn())
 
 
-class CustomWindowFn(window.WindowFn):
+class CustomMergingWindowFn(window.WindowFn):
   def assign(self, assign_context):
     return []
 
   def merge(self, merge_context):
     pass
+
+  def get_window_coder(self):
+    return coders.IntervalWindowCoder()
+
+
+class CustomWindowTypeWindowFn(window.NonMergingWindowFn):
+  def assign(self, assign_context):
+    return []
 
   def get_window_coder(self):
     return coders.BytesCoder()

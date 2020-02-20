@@ -136,8 +136,8 @@ else:
 
 REQUIRED_PACKAGES = [
     # Apache Avro does not follow semantic versioning, so we should not auto
-    # upgrade on minor versions. However, due to an issue on Dataflow we need
-    # to still include the previous version (1.8.x).
+    # upgrade on minor versions. Due to AVRO-2429, Dataflow still
+    # requires Avro 1.8.x.
     'avro>=1.8.1,<1.10.0; python_version < "3.0"',
     # Avro 1.9.2 for python3 was broken. The issue was fixed in version 1.9.2.1
     'avro-python3>=1.8.1,!=1.9.2,<1.10.0; python_version >= "3.0"',
@@ -212,6 +212,8 @@ GCP_REQUIREMENTS = [
     'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4; python_version < "3.0"',
     'google-cloud-spanner>=1.13.0,<1.14.0',
     'grpcio-gcp>=0.2.2,<1',
+    # GCP Packages required by ML functionality
+    'google-cloud-videointelligence>=1.8.0<=1.12.1',
 ]
 
 INTERACTIVE_BEAM = [

@@ -74,7 +74,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 	// TODO(lostluck) 2020/01/24: What's the right way to expose the
 	// metrics store for the direct runner?
-	metrics.DumpToLogFromStore(ctx, plan.Store)
+	metrics.DumpToLogFromStore(ctx, plan.Store())
 	return nil
 }
 

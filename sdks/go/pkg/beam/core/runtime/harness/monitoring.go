@@ -26,6 +26,10 @@ import (
 )
 
 func monitoring(p *exec.Plan) (*fnpb.Metrics, []*ppb.MonitoringInfo) {
+	store := p.Store()
+	if store == nil {
+		return nil, nil
+	}
 	// Get the legacy style metrics.
 	transforms := make(map[string]*fnpb.Metrics_PTransform)
 	metrics.Extractor{
@@ -70,7 +74,7 @@ func monitoring(p *exec.Plan) (*fnpb.Metrics, []*ppb.MonitoringInfo) {
 				},
 			})
 		},
-	}.ExtractFrom(p.Store)
+	}.ExtractFrom(store)
 
 	// Get the MonitoringInfo versions.
 	var monitoringInfo []*ppb.MonitoringInfo
@@ -107,7 +111,7 @@ func monitoring(p *exec.Plan) (*fnpb.Metrics, []*ppb.MonitoringInfo) {
 					Timestamp: ts,
 				})
 		},
-	}.ExtractFrom(p.Store)
+	}.ExtractFrom(store)
 
 	// Get the execution monitoring information from the bundle plan.
 	if snapshot, ok := p.Progress(); ok {
