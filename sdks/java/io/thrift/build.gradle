@@ -18,7 +18,7 @@
 
 plugins {
     id 'org.apache.beam.module'
-    id "org.jruyi.thrift" version "0.4.1"
+    // id "org.jruyi.thrift" version "0.4.1"
 }
 applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.thrift')
 
@@ -39,7 +39,8 @@ dependencies {
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(":runners:direct-java")
 }
-
+/*
+Removed due to lack of Thrift on Jenkins workers.
 compileThrift {
     createGenFolder false
     sourceDir "$projectDir/src/test/resources/thrift"
@@ -55,3 +56,4 @@ task copyThrift(type: Copy) {
 compileTestJava {
     doFirst { copyThrift }
 }
+*/
