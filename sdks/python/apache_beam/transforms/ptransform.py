@@ -430,14 +430,14 @@ class PTransform(WithTypeHints, HasDisplayData):
       if hint and not typehints.is_consistent_with(pvalue_.element_type, hint):
         at_context = ' %s %s' % (input_or_output, context) if context else ''
         raise TypeCheckError(
-            '%s type hint violation at %s%s: expected %s, got %s\n'
-            'Full type hint:\n%s' % (
-                input_or_output.title(),
-                self.label,
-                at_context,
-                hint,
-                pvalue_.element_type,
-                type_hints.debug_str()))
+            '{type} type hint violation at {label}{context}: expected {hint}, '
+            'got {actual_type}\nFull type hint:\n{debug_str}'.format(
+                type=input_or_output.title(),
+                label=self.label,
+                context=at_context,
+                hint=hint,
+                actual_type=pvalue_.element_type,
+                debug_str=type_hints.debug_str()))
 
   def _infer_output_coder(self, input_type=None, input_coder=None):
     # type: (...) -> Optional[coders.Coder]
@@ -854,9 +854,13 @@ class PTransformWithSideInputs(PTransform):
         if not typehints.is_consistent_with(bindings.get(arg, typehints.Any),
                                             hint):
           raise TypeCheckError(
-              'Type hint violation for \'%s\': requires %s but got %s for %s\n'
-              'Full type hint:\n%s' %
-              (self.label, hint, bindings[arg], arg, type_hints.debug_str()))
+              'Type hint violation for \'{label}\': requires {hint} but got '
+              '{actual_type} for {arg}\nFull type hint:\n{debug_str}'.format(
+                  label=self.label,
+                  hint=hint,
+                  actual_type=bindings[arg],
+                  arg=arg,
+                  debug_str=type_hints.debug_str()))
 
   def _process_argspec_fn(self):
     """Returns an argspec of the function actually consuming the data.
