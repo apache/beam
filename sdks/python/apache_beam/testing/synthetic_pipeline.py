@@ -45,7 +45,6 @@ import random
 import struct
 import time
 from builtins import range
-from collections import defaultdict
 
 import apache_beam as beam
 from apache_beam.io import WriteToText
@@ -317,7 +316,6 @@ class SyntheticSource(iobase.BoundedSource):
     def maybe_parse_byte_size(s):
       return parse_byte_size(s) if isinstance(s, str) else int(s)
 
-    self._generators = defaultdict(random.Random)
     self._num_records = input_spec['numRecords']
     self._key_size = maybe_parse_byte_size(input_spec.get('keySizeBytes', 1))
     self._hot_key_fraction = input_spec.get('hotKeyFraction', 0)
@@ -441,9 +439,7 @@ class SyntheticSource(iobase.BoundedSource):
 
   def read(self, range_tracker):
     index = range_tracker.start_position()
-    # Get an instance of pseudo-random number generator
-    generator = self._generators[(
-        range_tracker.start_position(), range_tracker.stop_position())]
+    generator = random.Random()
     while range_tracker.try_claim(index):
       time.sleep(self._sleep_per_input_record_sec)
       yield self._gen_kv_pair(generator, index)
