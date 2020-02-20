@@ -1203,9 +1203,6 @@ message ArtifactUrlPayload {
 message EmbeddedFilePayload {
   // raw data bytes for an embedded artifact
   bytes data = 1;
-
-  // A name of the embedded file.
-  string name = 2;
 }
 
 message PyPIPayload {
