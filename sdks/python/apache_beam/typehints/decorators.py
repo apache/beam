@@ -118,6 +118,7 @@ except ImportError:
   funcsigs = None
 
 __all__ = [
+    'no_annotations',
     'with_input_types',
     'with_output_types',
     'WithTypeHints',
@@ -221,6 +222,13 @@ def get_signature(func):
   return signature
 
 
+def no_annotations(fn):
+  """Decorator that prevents Beam from using type hint annotations on a
+  callable."""
+  setattr(fn, '_beam_no_annotations', True)
+  return fn
+
+
 class IOTypeHints(NamedTuple(
     'IOTypeHints',
     [('input_types', Optional[Tuple[Tuple[Any, ...], Dict[str, Any]]]),
@@ -274,7 +282,7 @@ class IOTypeHints(NamedTuple(
     Returns:
       A new IOTypeHints or None if no annotations found.
     """
-    if not _enable_from_callable:
+    if not _enable_from_callable or getattr(fn, '_beam_no_annotations', False):
       return None
     signature = get_signature(fn)
     if (all(param.annotation == param.empty
