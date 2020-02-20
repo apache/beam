@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog;
 
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
-import com.google.cloud.datacatalog.ColumnSchema;
+import com.google.cloud.datacatalog.v1beta1.ColumnSchema;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -52,7 +52,7 @@ class SchemaUtils {
           .build();
 
   /** Convert DataCatalog schema to Beam schema. */
-  static Schema fromDataCatalog(com.google.cloud.datacatalog.Schema dcSchema) {
+  static Schema fromDataCatalog(com.google.cloud.datacatalog.v1beta1.Schema dcSchema) {
     return fromColumnsList(dcSchema.getColumnsList());
   }
 
