@@ -92,6 +92,12 @@ class Options(interactive_options.InteractiveOptions):
 
 
 # Users can set options to guide how Interactive Beam works.
+# Examples:
+# from datetime import timedelta
+# from apache_beam.runners.interactive import interactive_beam as ib
+# ib.options.enable_capture_replay = False/True
+# ib.options.capture_duration = timedelta(seconds=60)
+# ib.options.capturable_sources.add(SourceClass)
 options = Options()
 
 

@@ -55,9 +55,10 @@ _LOGGER.setLevel(logging.INFO)
 
 class BackgroundCachingJob(object):
   """A simple abstraction that controls necessary components of a timed and
-  [disk] space limited background caching job.
+  space limited background caching job.
 
-  A background caching job successfully terminates in 2 conditions:
+  A background caching job successfully complete source data capture in 2
+  conditions:
 
     #. The job is finite and runs into DONE state;
     #. The job is infinite but hits an interactive_beam.options configured limit
@@ -70,8 +71,9 @@ class BackgroundCachingJob(object):
     self._pipeline_result = pipeline_result
     self._timer = threading.Timer(
         ie.current_env().options.capture_duration.total_seconds(), self._cancel)
+    self._timer.daemon = True
     self._condition_checker = threading.Thread(
-        target=self._background_caching_job_condition_checker)
+        target=self._background_caching_job_condition_checker, daemon=True)
     if start_limit_checkers:
       self._timer.start()
       self._condition_checker.start()

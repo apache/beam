@@ -43,7 +43,7 @@ class CaptureControl(object):
     self._enable_capture_replay = True
     self._capturable_sources = {
         ReadFromPubSub,
-    }  # yapf: disable
+    }
     self._capture_duration = timedelta(seconds=5)
     self._capture_size = 1e9
 
