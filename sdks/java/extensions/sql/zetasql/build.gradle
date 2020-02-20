@@ -20,12 +20,18 @@ plugins {
   id 'org.apache.beam.module'
 }
 
+repositories {
+  maven {
+    url "https://oss.sonatype.org/content/repositories/comgooglezetasql-1011"
+  }
+}
+
 applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.sql.zetasql')
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL :: ZetaSQL"
 ext.summary = "ZetaSQL to Calcite translator"
 
-def zetasql_version = "2020.01.1"
+def zetasql_version = "2020.02.1"
 
 dependencies {
   compile project(":sdks:java:core")
