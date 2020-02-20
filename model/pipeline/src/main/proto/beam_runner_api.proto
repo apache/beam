@@ -1209,6 +1209,30 @@ message ExternalPayload {
   map<string, string> params = 2;  // Arbitrary extra parameters to pass
 }
 
+// These URNs are used to indicate capabilities of environments that cannot
+// simply be expressed as a component (such as a Coder or PTransform) that this
+// environment understands.
+message StandardProtocols {
+  enum Enum {
+    // Indicates suport for progress reporting via the legacy Metrics proto.
+    LEGACY_PROGRESS_REPORTING = 0 [(beam_urn) = "beam:protocol:progress_reporting:v0"];
+
+    // Indicates suport for progress reporting via the new MonitoringInfo proto.
+    PROGRESS_REPORTING = 1 [(beam_urn) = "beam:protocol:progress_reporting:v1"];
+
+    // Indicates suport for worker status protocol defined at
+    // https://s.apache.org/beam-fn-api-harness-status.
+    WORKER_STATUS = 2 [(beam_urn) = "beam:protocol:worker_status:v1"];
+
+    // Indicates this SDK can take advantage of multiple cores when processing
+    // concurrent process bundle requests. (Note that all SDKs must process
+    // an unbounded number of concurrent process bundle requests; this capability
+    // simply indicates this SDK can actually parallelize the work across multiple
+    // cores.
+    MULTI_CORE_BUNDLE_PROCESSING = 3 [(beam_urn) = "beam:protocol:multi_core_bundle_processing:v1"];
+  }
+}
+
 extend google.protobuf.EnumValueOptions {
   // An extension to be used for specifying the standard URN of various
   // pipeline entities, e.g. transforms, functions, coders etc.
