@@ -178,7 +178,7 @@ public enum Compression {
   },
 
   /**
-   * LZOP compression using LZOP Codec. .lzo extension is specified for the files with magic bytes
+   * LZOP compression using LZOP codec. {@code .lzo} extension is specified for files with magic bytes
    * and headers.
    *
    * <p>The Beam Java SDK does not pull in the required libraries for LZOP compression by default,
