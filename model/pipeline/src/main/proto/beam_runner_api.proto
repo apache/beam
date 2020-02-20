@@ -1318,6 +1318,31 @@ message StandardProtocols {
   }
 }
 
+// These URNs are used to indicate requirements of a pipeline that cannot
+// simply be expressed as a component (such as a Coder or PTransform) that the
+// runner must understand. In many cases, this indicates a particular field
+// of a transform must be inspected and respected (which allows new fields
+// to be added in a forwards-compatible way).
+message StandardRequirements {
+  enum Enum {
+    // This requirement indicates the state_spec and time_spec fields of ParDo
+    // transform payloads must be inspected.
+    REQUIRES_STATEFUL_PROCESSING = 0 [(beam_urn) = "beam:requirement:pardo:stateful:v1"];
+
+    // This requirement indicates the requests_finalization field of ParDo
+    // transform payloads must be inspected.
+    REQUIRES_PARDO_FINALIZATION = 1 [(beam_urn) = "beam:requirement:pardo:finalization:v1"];
+
+    // This requirement indicates the requires_stable_input field of ParDo
+    // transform payloads must be inspected.
+    REQUIRES_STABLE_INPUT = 2 [(beam_urn) = "beam:requirement:pardo:stable_input:v1"];
+
+    // This requirement indicates the requires_time_sorted_input field of ParDo
+    // transform payloads must be inspected.
+    REQUIRES_TIME_SORTED_INPUT = 3 [(beam_urn) = "beam:requirement:pardo:time_sorted_input:v1"];
+  }
+}
+
 extend google.protobuf.EnumValueOptions {
   // An extension to be used for specifying the standard URN of various
   // pipeline entities, e.g. transforms, functions, coders etc.
