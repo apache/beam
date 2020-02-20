@@ -20,12 +20,6 @@ plugins {
   id 'org.apache.beam.module'
 }
 
-repositories {
-  maven {
-    url "https://oss.sonatype.org/content/repositories/comgooglezetasql-1011"
-  }
-}
-
 applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.sql.zetasql')
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL :: ZetaSQL"
