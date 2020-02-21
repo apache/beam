@@ -717,6 +717,12 @@ for ver in "${FLINK_VER[@]}"; do
 done
 ```
 
+* Build Spark job server image and push to DockerHub.
+
+```
+./gradlew ":runners:spark:job-server:container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
+```
+
 Clean up images from local
 
 ```
@@ -728,6 +734,7 @@ docker rmi -f apachebeam/go_sdk:${RELEASE}_rc{RC_NUM}
 for ver in "${FLINK_VER[@]}"; do
    docker rmi -f "apachebeam/flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
 done
+docker rmi -f "apachebeam/spark_job_server:${RELEASE}_rc${RC_NUM}"
 
 ```
 
