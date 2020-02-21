@@ -54,7 +54,7 @@ task copyDockerfileDependencies(type: Copy) {
 }
 
 docker {
-  name containerImageName(name: 'spark-job-server',
+  name containerImageName(name: 'spark_job_server',
                           root: project.rootProject.hasProperty(["docker-repository-root"]) ?
                                   project.rootProject["docker-repository-root"] : "apachebeam")
   files "./build/"
