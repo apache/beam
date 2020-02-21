@@ -46,6 +46,7 @@ from tenacity import stop_after_attempt
 
 import apache_beam as beam
 from apache_beam.io import restriction_trackers
+from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.metricbase import MetricName
@@ -61,7 +62,6 @@ from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.tools import utils
-from apache_beam.transforms import core
 from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
@@ -493,12 +493,13 @@ class FnApiRunnerTest(unittest.TestCase):
           restriction_tracker=beam.DoFn.RestrictionParam(
               ExpandStringsProvider()),
           watermark_estimator=beam.DoFn.WatermarkEstimatorParam(
-              core.WatermarkEstimator())):
+              ManualWatermarkEstimator.default_provider())):
         cur = restriction_tracker.current_restriction().start
-        start = cur
         while restriction_tracker.try_claim(cur):
-          watermark_estimator.set_watermark(timestamp.Timestamp(micros=cur))
-          assert watermark_estimator.current_watermark().micros == start
+          watermark_estimator.set_watermark(timestamp.Timestamp(cur))
+          assert (
+              watermark_estimator.current_watermark() == timestamp.Timestamp(
+                  cur))
           yield element[cur]
           if cur % 2 == 1:
             restriction_tracker.defer_remainder(timestamp.Duration(micros=5))

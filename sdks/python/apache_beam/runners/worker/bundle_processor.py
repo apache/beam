@@ -1321,8 +1321,9 @@ def create_dofn_javasdk(
     beam_runner_api_pb2.ParDoPayload)
 def create_pair_with_restriction(*args):
   class PairWithRestriction(beam.DoFn):
-    def __init__(self, fn, restriction_provider):
+    def __init__(self, fn, restriction_provider, watermark_estimator_provider):
       self.restriction_provider = restriction_provider
+      self.watermark_estimator_provider = watermark_estimator_provider
 
     # An unused window is requested to force explosion of multi-window
     # WindowedValues.
@@ -1331,7 +1332,12 @@ def create_pair_with_restriction(*args):
       # TODO(SDF): Do we want to allow mutation of the element?
       # (E.g. it could be nice to shift bulky description to the portion
       # that can be distributed.)
-      yield element, self.restriction_provider.initial_restriction(element)
+      initial_restriction = self.restriction_provider.initial_restriction(
+          element)
+      initial_estimator_state = (
+          self.watermark_estimator_provider.initial_estimator_state(
+              element, initial_restriction))
+      yield (element, (initial_restriction, initial_estimator_state))
 
   return _create_sdf_operation(PairWithRestriction, *args)
 
@@ -1341,14 +1347,18 @@ def create_pair_with_restriction(*args):
     beam_runner_api_pb2.ParDoPayload)
 def create_split_and_size_restrictions(*args):
   class SplitAndSizeRestrictions(beam.DoFn):
-    def __init__(self, fn, restriction_provider):
+    def __init__(self, fn, restriction_provider, watermark_estimator_provider):
       self.restriction_provider = restriction_provider
+      self.watermark_estimator_provider = watermark_estimator_provider
 
     def process(self, element_restriction, *args, **kwargs):
-      element, restriction = element_restriction
+      element, (restriction, _) = element_restriction
       for part, size in self.restriction_provider.split_and_size(
           element, restriction):
-        yield ((element, part), size)
+        estimator_state = (
+            self.watermark_estimator_provider.initial_estimator_state(
+                element, part))
+        yield ((element, (part, estimator_state)), size)
 
   return _create_sdf_operation(SplitAndSizeRestrictions, *args)
 
@@ -1381,8 +1391,11 @@ def _create_sdf_operation(
   dofn_data = pickler.loads(parameter.do_fn.payload)
   dofn = dofn_data[0]
   restriction_provider = common.DoFnSignature(dofn).get_restriction_provider()
-  serialized_fn = pickler.dumps((proxy_dofn(dofn, restriction_provider), ) +
-                                dofn_data[1:])
+  watermark_estiamtor_provider = (
+      common.DoFnSignature(dofn).get_watermark_estimator_provider())
+  serialized_fn = pickler.dumps(
+      (proxy_dofn(dofn, restriction_provider, watermark_estiamtor_provider), ) +
+      dofn_data[1:])
   return _create_pardo_operation(
       factory,
       transform_id,
