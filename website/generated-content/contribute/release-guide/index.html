@@ -1087,7 +1087,7 @@ Make sure they have blocker JIRAs attached and are OK to get into the release by
       <li>Run gradle publish to push java artifacts into Maven staging repo.</li>
       <li>Stage source release into dist.apache.org dev <a href="https://dist.apache.org/repos/dist/dev/beam/">repo</a>.</li>
       <li>Stage,sign and hash python binaries into dist.apache.ord dev repo python dir</li>
-      <li>Stage SDK docker images to <a href="https://hub.docker.com/u/apachebeam">https://hub.docker.com/u/apachebeam</a>.</li>
+      <li>Stage SDK docker images to <a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;type=image">docker hub Apache organization</a>.</li>
       <li>Create a PR to update beam and beam-site, changes includes:
         <ul>
           <li>Copy python doc into beam-site</li>
@@ -1224,7 +1224,7 @@ svn commit
 
 PYTHON_VER=("python2.7" "python3.5" "python3.6" "python3.7")
 for ver in "${PYTHON_VER[@]}"; do
-   docker push apachebeam/${ver}_sdk:${RELEASE}_rc{RC_NUM} &amp;
+   docker push apache/beam_${ver}_sdk:${RELEASE}_rc{RC_NUM} &amp;
 done
 </code></pre></div></div>
 
@@ -1262,20 +1262,20 @@ done
 <p>Clean up images from local</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>for ver in "${PYTHON_VER[@]}"; do
-   docker rmi -f apachebeam/${ver}_sdk:${RELEASE}_rc{RC_NUM}
+   docker rmi -f apache/beam_${ver}_sdk:${RELEASE}_rc{RC_NUM}
 done
-docker rmi -f apachebeam/java_sdk:${RELEASE}_rc{RC_NUM}
-docker rmi -f apachebeam/go_sdk:${RELEASE}_rc{RC_NUM}
+docker rmi -f apache/beam_java_sdk:${RELEASE}_rc{RC_NUM}
+docker rmi -f apache/beam_go_sdk:${RELEASE}_rc{RC_NUM}
 for ver in "${FLINK_VER[@]}"; do
-   docker rmi -f "apachebeam/flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
+   docker rmi -f "apache/beam_flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
 done
-docker rmi -f "apachebeam/spark_job_server:${RELEASE}_rc${RC_NUM}"
+docker rmi -f "apache/beam_spark_job_server:${RELEASE}_rc${RC_NUM}"
 
 </code></pre></div></div>
 
 <p>How to find images:</p>
 <ol>
-  <li>Visit <a href="https://hub.docker.com/u/apachebeam">https://hub.docker.com/u/apachebeam</a></li>
+  <li>Visit <a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;type=image">https://hub.docker.com/u/apache</a></li>
   <li>Visit each repository and navigate to <em>tags</em> tab.</li>
   <li>Verify images are pushed with tags: ${RELEASE}_rc{RC_NUM}</li>
 </ol>
@@ -1446,7 +1446,7 @@ all major features and bug fixes, and all known issues.</p>
   <li>Maven artifacts deployed to the staging repository of <a href="https://repository.apache.org/content/repositories/">repository.apache.org</a></li>
   <li>Source distribution deployed to the dev repository of <a href="https://dist.apache.org/repos/dist/dev/beam/">dist.apache.org</a></li>
   <li>Website pull request proposed to list the <a href="/get-started/downloads/">release</a>, publish the <a href="https://beam.apache.org/releases/javadoc/">Java API reference manual</a>, and publish the <a href="https://beam.apache.org/releases/pydoc/">Python API reference manual</a>.</li>
-  <li>Docker images are published to <a href="https://hub.docker.com/u/apachebeam">DockerHub</a> with tags: {RELEASE}_rc{RC_NUM}.</li>
+  <li>Docker images are published to <a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;type=image">DockerHub</a> with tags: {RELEASE}_rc{RC_NUM}.</li>
 </ol>
 
 <p>You can (optionally) also do additional verification by:</p>
@@ -1458,7 +1458,7 @@ all major features and bug fixes, and all known issues.</p>
   <li>Run all jenkins suites and include links to passing tests in the voting email. (Select “Run with parameters”)</li>
   <li>Pull docker images to make sure they are pullable.
     <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker pull {image_name}
-docker pull apachebeam/python3.5_sdk:2.16.0_rc1
+docker pull apache/beam_python3.5_sdk:2.16.0_rc1
 </code></pre></div>    </div>
   </li>
 </ol>
@@ -1506,7 +1506,7 @@ Release Manager
 [7] https://github.com/apache/beam-site/pull/...
 [8] https://github.com/apache/beam/pull/...
 [9] https://docs.google.com/spreadsheets/d/1qk-N5vjXvbcEk68GjbkSZTR8AGqyNUM-oLFo_ZXBpJw/edit#gid=...
-[10] https://hub.docker.com/u/apachebeam
+[10] https://hub.docker.com/search?q=apache%2Fbeam&amp;type=image
 </code></pre></div></div>
 
 <p>If there are any issues found in the release candidate, reply on the vote thread to cancel the vote. There’s no need to wait 72 hours. Proceed to the <code class="highlighter-rouge">Fix Issues</code> step below and address the problem. However, some issues don’t require cancellation. For example, if an issue is found in the website pull request, just correct it on the spot and the vote can continue as-is.</p>

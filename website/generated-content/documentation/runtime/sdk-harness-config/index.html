@@ -517,7 +517,7 @@ on each worker machine.</li>
       </li>
       <li><code class="highlighter-rouge">EXTERNAL</code>: User code will be dispatched to an external service. For example, one can start
 an external service for Python workers by running
-<code class="highlighter-rouge">docker run -p=50000:50000 apachebeam/python3.6_sdk --worker_pool</code>.
+<code class="highlighter-rouge">docker run -p=50000:50000 apache/beam_python3.6_sdk --worker_pool</code>.
         <ul>
           <li><code class="highlighter-rouge">environment_config</code>: Address for the external service, e.g. <code class="highlighter-rouge">localhost:50000</code>.</li>
           <li>To access a Dockerized worker pool service from a Mac or Windows client, set the
