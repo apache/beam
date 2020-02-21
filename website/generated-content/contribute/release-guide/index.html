@@ -1252,6 +1252,13 @@ for ver in "${FLINK_VER[@]}"; do
 done
 </code></pre></div></div>
 
+<ul>
+  <li>Build Spark job server image and push to DockerHub.</li>
+</ul>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew ":runners:spark:job-server:container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
+</code></pre></div></div>
+
 <p>Clean up images from local</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>for ver in "${PYTHON_VER[@]}"; do
@@ -1262,6 +1269,7 @@ docker rmi -f apachebeam/go_sdk:${RELEASE}_rc{RC_NUM}
 for ver in "${FLINK_VER[@]}"; do
    docker rmi -f "apachebeam/flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
 done
+docker rmi -f "apachebeam/spark_job_server:${RELEASE}_rc${RC_NUM}"
 
 </code></pre></div></div>
 
