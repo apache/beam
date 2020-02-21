@@ -109,8 +109,7 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
 
   def test_newtype(self):
     self.assertEqual(
-        typehints.Any,
-        convert_to_beam_type(typing.NewType('Number', int)))
+        typehints.Any, convert_to_beam_type(typing.NewType('Number', int)))
 
   def test_convert_nested_to_beam_type(self):
     self.assertEqual(typehints.List[typing.Any], typehints.List[typehints.Any])

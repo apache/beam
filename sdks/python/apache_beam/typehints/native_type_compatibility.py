@@ -163,7 +163,7 @@ def is_Any(typ):
   return typ is typing.Any
 
 
-def is_NewType(typ):
+def is_new_type(typ):
   return hasattr(typ, '__supertype__')
 
 
@@ -208,7 +208,7 @@ def convert_to_beam_type(typ):
 
   type_map = [
       # TODO(BEAM-9355): Currently unsupported.
-      _TypeMapEntry(match=is_NewType, arity=0, beam_type=typehints.Any),
+      _TypeMapEntry(match=is_new_type, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(match=is_Any, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(
           match=_match_issubclass(typing.Dict),
