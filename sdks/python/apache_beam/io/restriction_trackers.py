@@ -123,7 +123,8 @@ class OffsetRestrictionTracker(RestrictionTracker):
     return self._range.stop
 
   def try_claim(self, position):
-    if self._last_claim_attempt and position <= self._last_claim_attempt:
+    if (self._last_claim_attempt is not None and
+        position <= self._last_claim_attempt):
       raise ValueError(
           'Positions claimed should strictly increase. Trying to claim '
           'position %d while last claim attempt was %d.' %
