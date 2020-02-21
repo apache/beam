@@ -236,6 +236,9 @@ if [[ $confirmation = "y" ]]; then
     ./gradlew ":runners:flink:${ver}:job-server-container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
   done
 
+  echo '-------------Generating and Pushing Spark job server image-------------'
+  ./gradlew ":runners:spark:job-server:container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
+
   rm -rf ~/${PYTHON_ARTIFACTS_DIR}
 
   echo '-------------------Clean up images at local-----------------'
@@ -247,6 +250,7 @@ if [[ $confirmation = "y" ]]; then
   for ver in "${FLINK_VER[@]}"; do
     docker rmi -f "apachebeam/flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
   done
+  docker rmi -f "apachebeam/spark_job_server:${RELEASE}_rc${RC_NUM}"
 fi
 
 echo "[Current Step]: Update beam-site"
