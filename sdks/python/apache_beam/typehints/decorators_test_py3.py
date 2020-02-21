@@ -114,6 +114,7 @@ class IOTypeHintsTest(unittest.TestCase):
   def test_from_callable_partial(self):
     def fn(a: int) -> int:
       return a
+
     # functools.partial objects don't have __name__ attributes by default.
     fn = functools.partial(fn, 1)
     th = decorators.IOTypeHints.from_callable(fn)
