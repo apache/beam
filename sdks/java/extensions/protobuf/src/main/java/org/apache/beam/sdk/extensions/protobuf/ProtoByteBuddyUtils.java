@@ -1019,6 +1019,9 @@ public class ProtoByteBuddyUtils {
               .intercept(new BuilderSupplier(protoClass));
       Supplier supplier =
           builder
+              .visit(
+                  new AsmVisitorWrapper.ForDeclaredMethods()
+                      .writerFlags(ClassWriter.COMPUTE_FRAMES))
               .make()
               .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
               .getLoaded()
