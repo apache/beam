@@ -620,23 +620,25 @@ class Pipeline(object):
         current.add_output(result, result._main_tag)
         continue
 
+      # TODO(BEAM-9322): Remove the experiment check and have this conditional
+      # be the default.
+      if self._options.view_as(DebugOptions).lookup_experiment(
+          'passthrough_pcollection_output_ids', default=False):
+        # Otherwise default to the new implementation which only auto-generates
+        # tags for multiple PCollections with an unset tag.
+        if result.tag is None and None in current.outputs:
+          tag = len(current.outputs)
+        else:
+          tag = result.tag
+        current.add_output(result, tag)
+        continue
+
       # TODO(BEAM-9322): Find the best auto-generated tags for nested
       # PCollections.
       # If the user wants the old implementation of always generated
       # PCollection output ids, then set the tag to None first, then count up
       # from 1.
-      if self._options.view_as(DebugOptions).lookup_experiment(
-          'force_generated_pcollection_output_ids', default=False):
-        tag = len(current.outputs) if None in current.outputs else None
-        current.add_output(result, tag)
-        continue
-
-      # Otherwise default to the new implementation which only auto-generates
-      # tags for multiple PCollections with an unset tag.
-      if result.tag is None and None in current.outputs:
-        tag = len(current.outputs)
-      else:
-        tag = result.tag
+      tag = len(current.outputs) if None in current.outputs else None
       current.add_output(result, tag)
 
     if (type_options is not None and

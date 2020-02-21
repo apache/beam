@@ -30,6 +30,7 @@ import logging
 
 import apache_beam as beam
 from apache_beam import runners
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
@@ -130,6 +131,10 @@ class InteractiveRunner(runners.PipelineRunner):
 
   def apply(self, transform, pvalueish, options):
     # TODO(qinyeli, BEAM-646): Remove runner interception of apply.
+    # TODO(BEAM-9322): Once nested PCollection naming schemes have been ironed
+    # out, this can be removed.
+    options.view_as(DebugOptions).add_experiment(
+        'passthrough_pcollection_output_ids')
     return self._underlying_runner.apply(transform, pvalueish, options)
 
   def run_pipeline(self, pipeline, options):
