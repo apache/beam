@@ -339,8 +339,6 @@ public class Read {
             currentReader.close();
           } catch (IOException e) {
             LOGGER.error("Failed to close BoundedReader due to failure processing bundle.", e);
-          } finally {
-            currentReader = null;
           }
         }
       }
