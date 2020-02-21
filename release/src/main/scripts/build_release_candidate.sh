@@ -253,7 +253,7 @@ if [[ $confirmation = "y" ]]; then
   for ver in "${FLINK_VER[@]}"; do
     docker rmi -f "${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
   done
-  docker rmi -f "apachebeam/spark_job_server:${RELEASE}_rc${RC_NUM}"
+  docker rmi -f "${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}spark_job_server:${RELEASE}_rc${RC_NUM}"
 fi
 
 echo "[Current Step]: Update beam-site"

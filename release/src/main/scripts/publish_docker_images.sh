@@ -124,7 +124,7 @@ if [[ $confirmation = "y" ]]; then
   done
 
   echo '-------------Generating and Pushing Spark job server image-------------'
-  SPARK_IMAGE_NAME="apachebeam/spark_job_server"
+  SPARK_IMAGE_NAME=${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}spark_job_server
 
   # Pull verified RC from dockerhub.
   docker pull "${SPARK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}"

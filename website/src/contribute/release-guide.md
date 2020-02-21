@@ -734,7 +734,7 @@ docker rmi -f apache/beam_go_sdk:${RELEASE}_rc{RC_NUM}
 for ver in "${FLINK_VER[@]}"; do
    docker rmi -f "apache/beam_flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
 done
-docker rmi -f "apachebeam/spark_job_server:${RELEASE}_rc${RC_NUM}"
+docker rmi -f "apache/beam_spark_job_server:${RELEASE}_rc${RC_NUM}"
 
 ```
 
