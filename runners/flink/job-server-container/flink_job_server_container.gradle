@@ -54,9 +54,10 @@ task copyDockerfileDependencies(type: Copy) {
 
 docker {
   name containerImageName(
-          name: "flink${project.parent.name}_job_server",
+          name: project.docker_image_default_repo_prefix + "flink${project.parent.name}_job_server",
           root: project.rootProject.hasProperty(["docker-repository-root"]) ?
-                  project.rootProject["docker-repository-root"] : "apachebeam")
+                  project.rootProject["docker-repository-root"] :
+                  project.docker_image_default_repo_root)
   files "./build/"
 }
 

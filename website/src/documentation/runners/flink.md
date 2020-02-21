@@ -273,15 +273,15 @@ If you have a Flink `JobManager` running on your local machine you can provide `
 Starting with Beam 2.18.0, pre-built Docker images are available at Docker Hub.
 
 JobService:
-[Flink 1.7](https://hub.docker.com/r/apachebeam/flink1.7_job_server),
-[Flink 1.8](https://hub.docker.com/r/apachebeam/flink1.8_job_server),
-[Flink 1.9](https://hub.docker.com/r/apachebeam/flink1.9_job_server).
+[Flink 1.7](https://hub.docker.com/r/apache/beam_flink1.7_job_server),
+[Flink 1.8](https://hub.docker.com/r/apache/beam_flink1.8_job_server),
+[Flink 1.9](https://hub.docker.com/r/apache/beam_flink1.9_job_server).
 
 Beam SDK:
-[Python 2.7](https://hub.docker.com/r/apachebeam/python2.7_sdk),
-[Python 3.5](https://hub.docker.com/r/apachebeam/python3.5_sdk),
-[Python 3.6](https://hub.docker.com/r/apachebeam/python3.6_sdk),
-[Python 3.7](https://hub.docker.com/r/apachebeam/python3.7_sdk).
+[Python 2.7](https://hub.docker.com/r/apache/beam_python2.7_sdk),
+[Python 3.5](https://hub.docker.com/r/apache/beam_python3.5_sdk),
+[Python 3.6](https://hub.docker.com/r/apache/beam_python3.6_sdk),
+[Python 3.7](https://hub.docker.com/r/apache/beam_python3.7_sdk).
 
 To run a pipeline on an embedded Flink cluster:
 <!-- Span implictly ended -->

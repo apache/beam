@@ -55,7 +55,11 @@ public class Environments {
    * container.
    */
   private static final String JAVA_SDK_HARNESS_CONTAINER_URL =
-      "apachebeam/java_sdk:" + ReleaseInfo.getReleaseInfo().getSdkVersion();
+      ReleaseInfo.getReleaseInfo().getDefaultDockerRepoRoot()
+          + "/"
+          + ReleaseInfo.getReleaseInfo().getDefaultDockerRepoPrefix()
+          + "java_sdk:"
+          + ReleaseInfo.getReleaseInfo().getSdkVersion();
   public static final Environment JAVA_SDK_HARNESS_ENVIRONMENT =
       createDockerEnvironment(JAVA_SDK_HARNESS_CONTAINER_URL);
 
