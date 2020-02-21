@@ -24,6 +24,7 @@ from __future__ import absolute_import
 from apache_beam.portability.api.beam_runner_api_pb2_urns import BeamConstants
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardCoders
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardEnvironments
+from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardProtocols
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardPTransforms
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardSideInputTypes
 from apache_beam.portability.api.metrics_pb2_urns import MonitoringInfo
@@ -54,3 +55,5 @@ session_windows = SessionWindowsPayload.Enum.PROPERTIES
 monitoring_info_specs = MonitoringInfoSpecs.Enum
 monitoring_info_types = MonitoringInfoTypeUrns.Enum
 monitoring_info_labels = MonitoringInfo.MonitoringInfoLabels
+
+protocols = StandardProtocols.Enum
