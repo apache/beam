@@ -82,13 +82,8 @@ class SplittableParDo(PTransform):
   def expand(self, pcoll):
     sdf = self._ptransform.fn
     signature = DoFnSignature(sdf)
-    invoker = DoFnInvoker.create_invoker(
-        signature,
-        output_processor=_NoneShallPassOutputProcessor(),
-        process_invocation=False)
-
+    restriction_coder = signature.get_restriction_coder()
     element_coder = typecoders.registry.get_coder(pcoll.element_type)
-    restriction_coder = invoker.invoke_restriction_coder()
 
     keyed_elements = (
         pcoll
