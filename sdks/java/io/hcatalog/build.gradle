@@ -22,7 +22,7 @@ applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.hcatalog')
 description = "Apache Beam :: SDKs :: Java :: IO :: HCatalog"
 ext.summary = "IO to read and write for HCatalog source."
 
-def hive_version = "2.1.0"
+def hive_version = "2.3.6"
 
 test {
   // TODO: Get tests to run. Known issues:
