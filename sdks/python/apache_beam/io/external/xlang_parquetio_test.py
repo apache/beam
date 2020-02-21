@@ -34,8 +34,9 @@ from apache_beam import coders
 from apache_beam.coders.avro_record import AvroRecord
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 
-PARQUET_WRITE_URN = "beam:transforms:xlang:parquet_write"
+PARQUET_WRITE_URN = "beam:transforms:xlang:test:parquet_write"
 
 
 @attr('UsesCrossLanguageTransforms')
@@ -54,15 +55,17 @@ class XlangParquetIOTest(unittest.TestCase):
     address = 'localhost:%s' % port
     try:
       with TestPipeline() as p:
-        p.get_pipeline_options().view_as(
-            DebugOptions).experiments.append('jar_packages='+expansion_jar)
+        p.get_pipeline_options().view_as(DebugOptions).experiments.append(
+            'jar_packages=' + expansion_jar)
         p.not_use_test_runner_api = True
         _ = p \
           | beam.Create([
               AvroRecord({"name": "abc"}), AvroRecord({"name": "def"}),
               AvroRecord({"name": "ghi"})]) \
           | beam.ExternalTransform(
-              PARQUET_WRITE_URN, b'/tmp/test.parquet', address)
+              PARQUET_WRITE_URN,
+              ImplicitSchemaPayloadBuilder({'data': u'/tmp/test.parquet'}),
+              address)
     except RuntimeError as e:
       if re.search(PARQUET_WRITE_URN, str(e)):
         print("looks like URN not implemented in expansion service, skipping.")

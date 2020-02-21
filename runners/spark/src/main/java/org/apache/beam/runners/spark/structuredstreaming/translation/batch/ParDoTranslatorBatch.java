@@ -38,7 +38,6 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -72,15 +71,17 @@ class ParDoTranslatorBatch<InputT, OutputT>
     // TODO: add support of Splittable DoFn
     DoFn<InputT, OutputT> doFn = getDoFn(context);
     checkState(
-        !DoFnSignatures.signatureForDoFn(doFn).processElement().isSplittable(),
+        !DoFnSignatures.isSplittable(doFn),
         "Not expected to directly translate splittable DoFn, should have been overridden: %s",
         doFn);
 
     // TODO: add support of states and timers
-    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
-    boolean stateful =
-        signature.stateDeclarations().size() > 0 || signature.timerDeclarations().size() > 0;
-    checkState(!stateful, "States and timers are not supported for the moment.");
+    checkState(
+        !DoFnSignatures.isStateful(doFn), "States and timers are not supported for the moment.");
+
+    checkState(
+        !DoFnSignatures.requiresTimeSortedInput(doFn),
+        "@RequiresTimeSortedInput is not " + "supported for the moment");
 
     DoFnSchemaInformation doFnSchemaInformation =
         ParDoTranslation.getSchemaInformation(context.getCurrentTransform());

@@ -19,7 +19,7 @@ package org.apache.beam.runners.fnexecution.control;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -321,8 +321,9 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
     private final ExecutableStage executableStage;
     private final int environmentIndex;
-    private final HashMap<WrappedSdkHarnessClient, PreparedClient> preparedClients = new HashMap();
-    private PreparedClient currentClient;
+    private final Map<WrappedSdkHarnessClient, PreparedClient> preparedClients =
+        new IdentityHashMap<>();
+    private volatile PreparedClient currentClient;
 
     private SimpleStageBundleFactory(ExecutableStage executableStage) {
       this.executableStage = executableStage;
@@ -342,22 +343,14 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       // TODO: Consider having BundleProcessor#newBundle take in an OutputReceiverFactory rather
       // than constructing the receiver map here. Every bundle factory will need this.
 
-      if (environmentExpirationMillis == 0 && !loadBalanceBundles) {
-        return currentClient.processor.newBundle(
-            getOutputReceivers(currentClient.processBundleDescriptor, outputReceiverFactory)
-                .build(),
-            stateRequestHandler,
-            progressHandler);
-      }
-
       final LoadingCache<Environment, WrappedSdkHarnessClient> currentCache;
+      final WrappedSdkHarnessClient client;
       if (loadBalanceBundles) {
         // The semaphore is used to ensure fairness, i.e. first stop first go.
         availableCachesSemaphore.acquire();
         // The blocking queue of caches for serving multiple bundles concurrently.
         currentCache = availableCaches.take();
-        WrappedSdkHarnessClient client =
-            currentCache.getUnchecked(executableStage.getEnvironment());
+        client = currentCache.getUnchecked(executableStage.getEnvironment());
         client.ref();
 
         currentClient = preparedClients.get(client);
@@ -370,8 +363,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
       } else {
         currentCache = environmentCaches.get(environmentIndex);
-        WrappedSdkHarnessClient client =
-            currentCache.getUnchecked(executableStage.getEnvironment());
+        client = currentCache.getUnchecked(executableStage.getEnvironment());
         client.ref();
 
         if (currentClient.wrappedClient != client) {
@@ -406,11 +398,14 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
         @Override
         public void close() throws Exception {
-          bundle.close();
-          currentClient.wrappedClient.unref();
-          if (loadBalanceBundles) {
-            availableCaches.offer(currentCache);
-            availableCachesSemaphore.release();
+          try {
+            bundle.close();
+          } finally {
+            client.unref();
+            if (loadBalanceBundles) {
+              availableCaches.offer(currentCache);
+              availableCachesSemaphore.release();
+            }
           }
         }
       };
@@ -467,13 +462,15 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       // DO NOT ADD ANYTHING HERE WHICH MIGHT CAUSE THE BLOCK BELOW TO NOT BE EXECUTED.
       // If we exit prematurely (e.g. due to an exception), resources won't be cleaned up properly.
       // Please make an AutoCloseable and add it to the try statement below.
+      // These will be closed in the reverse creation order:
       try (AutoCloseable envCloser = environment;
-          AutoCloseable stateServer = serverInfo.getStateServer();
-          AutoCloseable dateServer = serverInfo.getDataServer();
-          AutoCloseable controlServer = serverInfo.getControlServer();
-          AutoCloseable loggingServer = serverInfo.getLoggingServer();
+          AutoCloseable provisioningServer = serverInfo.getProvisioningServer();
           AutoCloseable retrievalServer = serverInfo.getRetrievalServer();
-          AutoCloseable provisioningServer = serverInfo.getProvisioningServer()) {
+          AutoCloseable stateServer = serverInfo.getStateServer();
+          AutoCloseable dataServer = serverInfo.getDataServer();
+          AutoCloseable controlServer = serverInfo.getControlServer();
+          // Close the logging server first to prevent spaming the logs with error messages
+          AutoCloseable loggingServer = serverInfo.getLoggingServer()) {
         // Wrap resources in try-with-resources to ensure all are cleaned up.
         // This will close _all_ of these even in the presence of exceptions.
         // The first exception encountered will be the base exception,

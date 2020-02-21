@@ -65,11 +65,12 @@ class SchemaAggregateFn {
       private final TupleTag<Object> combineTag;
       // The schema corresponding to the the subset of input fields being aggregated.
       @Nullable private final Schema inputSubSchema;
+      @Nullable private final FieldAccessDescriptor flattenedFieldAccessDescriptor;
       // The flattened version of inputSubSchema.
-      @Nullable private final Schema unnestedInputSubSchema;
+      @Nullable private final Schema flattenedInputSubSchema;
       // The output schema resulting from the aggregation.
       private final Schema aggregationSchema;
-      private final boolean needsUnnesting;
+      private final boolean needsFlattening;
 
       FieldAggregation(
           FieldAccessDescriptor fieldsToAggregate,
@@ -95,13 +96,17 @@ class SchemaAggregateFn {
         if (inputSchema != null) {
           this.fieldsToAggregate = fieldsToAggregate.resolve(inputSchema);
           this.inputSubSchema = SelectHelpers.getOutputSchema(inputSchema, this.fieldsToAggregate);
-          this.unnestedInputSubSchema = Unnest.getUnnestedSchema(inputSubSchema);
-          this.needsUnnesting = !inputSchema.equals(unnestedInputSubSchema);
+          this.flattenedFieldAccessDescriptor =
+              SelectHelpers.allLeavesDescriptor(inputSubSchema, SelectHelpers.CONCAT_FIELD_NAMES);
+          this.flattenedInputSubSchema =
+              SelectHelpers.getOutputSchema(inputSubSchema, flattenedFieldAccessDescriptor);
+          this.needsFlattening = !inputSchema.equals(flattenedInputSubSchema);
         } else {
           this.fieldsToAggregate = fieldsToAggregate;
           this.inputSubSchema = null;
-          this.unnestedInputSubSchema = null;
-          this.needsUnnesting = false;
+          this.flattenedFieldAccessDescriptor = null;
+          this.flattenedInputSubSchema = null;
+          this.needsFlattening = false;
         }
         this.outputField = outputField;
         this.fn = fn;
@@ -156,7 +161,7 @@ class SchemaAggregateFn {
           extractFunction = new ExtractSingleFieldFunction(fieldAggregation);
           extractOutputCoder =
               SchemaCoder.coderForFieldType(
-                  fieldAggregation.unnestedInputSubSchema.getField(0).getType());
+                  fieldAggregation.flattenedInputSubSchema.getField(0).getType());
         } else {
           extractFunction = new ExtractFieldsFunction(fieldAggregation);
           extractOutputCoder = SchemaCoder.of(fieldAggregation.inputSubSchema);
@@ -238,8 +243,13 @@ class SchemaAggregateFn {
                 fieldAggregation.fieldsToAggregate,
                 row.getSchema(),
                 fieldAggregation.inputSubSchema);
-        if (fieldAggregation.needsUnnesting) {
-          selected = Unnest.unnestRow(selected, fieldAggregation.unnestedInputSubSchema);
+        if (fieldAggregation.needsFlattening) {
+          selected =
+              SelectHelpers.selectRow(
+                  selected,
+                  fieldAggregation.flattenedFieldAccessDescriptor,
+                  row.getSchema(),
+                  fieldAggregation.flattenedInputSubSchema);
         }
         return selected.getValue(0);
       }

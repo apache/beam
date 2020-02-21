@@ -99,7 +99,6 @@ else:
   globals()['ByteCountingOutputStream'] = ByteCountingOutputStream
   # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
-
 _TIME_SHIFT = 1 << 63
 MIN_TIMESTAMP_micros = MIN_TIMESTAMP.micros
 MAX_TIMESTAMP_micros = MAX_TIMESTAMP.micros
@@ -108,26 +107,30 @@ IterableStateReader = Callable[[bytes, 'CoderImpl'], Iterable]
 IterableStateWriter = Callable[[Iterable, 'CoderImpl'], bytes]
 Observables = List[Tuple[observable.ObservableMixin, 'CoderImpl']]
 
+
 class CoderImpl(object):
   """For internal use only; no backwards-compatibility guarantees."""
-
   def encode_to_stream(self, value, stream, nested):
     # type: (Any, create_OutputStream, bool) -> None
+
     """Reads object from potentially-nested encoding in stream."""
     raise NotImplementedError
 
   def decode_from_stream(self, stream, nested):
     # type: (create_InputStream, bool) -> Any
+
     """Reads object from potentially-nested encoding in stream."""
     raise NotImplementedError
 
   def encode(self, value):
     # type: (Any) -> bytes
+
     """Encodes an object to an unnested string."""
     raise NotImplementedError
 
   def decode(self, encoded):
     # type: (bytes) -> Any
+
     """Decodes an object to an unnested string."""
     raise NotImplementedError
 
@@ -156,6 +159,7 @@ class CoderImpl(object):
 
   def estimate_size(self, value, nested=False):
     # type: (Any, bool) -> int
+
     """Estimates the encoded size of the given value, in bytes."""
     out = ByteCountingOutputStream()
     self.encode_to_stream(value, out, nested)
@@ -169,6 +173,7 @@ class CoderImpl(object):
 
   def get_estimated_size_and_observables(self, value, nested=False):
     # type: (Any, bool) -> Tuple[int, Observables]
+
     """Returns estimated size of value along with any nested observables.
 
     The list of nested observables is returned as a list of 2-tuples of
@@ -191,14 +196,15 @@ class SimpleCoderImpl(CoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   Subclass of CoderImpl implementing stream methods using encode/decode."""
-
   def encode_to_stream(self, value, stream, nested):
     # type: (Any, create_OutputStream, bool) -> None
+
     """Reads object from potentially-nested encoding in stream."""
     stream.write(self.encode(value), nested)
 
   def decode_from_stream(self, stream, nested):
     # type: (create_InputStream, bool) -> Any
+
     """Reads object from potentially-nested encoding in stream."""
     return self.decode(stream.read_all(nested))
 
@@ -207,7 +213,6 @@ class StreamCoderImpl(CoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   Subclass of CoderImpl implementing encode/decode using stream methods."""
-
   def encode(self, value):
     # type: (Any) -> bytes
     out = create_OutputStream()
@@ -220,6 +225,7 @@ class StreamCoderImpl(CoderImpl):
 
   def estimate_size(self, value, nested=False):
     # type: (Any, bool) -> int
+
     """Estimates the encoded size of the given value, in bytes."""
     out = ByteCountingOutputStream()
     self.encode_to_stream(value, out, nested)
@@ -234,7 +240,6 @@ class CallbackCoderImpl(CoderImpl):
   This is the default implementation used if Coder._get_impl()
   is not overwritten.
   """
-
   def __init__(self, encoder, decoder, size_estimator=None):
     self._encoder = encoder
     self._decoder = decoder
@@ -277,7 +282,6 @@ class CallbackCoderImpl(CoderImpl):
 
 class DeterministicFastPrimitivesCoderImpl(CoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
-
   def __init__(self, coder, step_label):
     self._underlying_coder = coder
     self._step_label = step_label
@@ -293,8 +297,8 @@ class DeterministicFastPrimitivesCoderImpl(CoderImpl):
     else:
       raise TypeError(
           "Unable to deterministically code '%s' of type '%s', "
-          "please provide a type hint for the input of '%s'" % (
-              value, type(value), self._step_label))
+          "please provide a type hint for the input of '%s'" %
+          (value, type(value), self._step_label))
 
   def encode_to_stream(self, value, stream, nested):
     # type: (Any, create_OutputStream, bool) -> None
@@ -324,7 +328,6 @@ class DeterministicFastPrimitivesCoderImpl(CoderImpl):
 
 class ProtoCoderImpl(SimpleCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
-
   def __init__(self, proto_message_type):
     self.proto_message_type = proto_message_type
 
@@ -339,7 +342,6 @@ class ProtoCoderImpl(SimpleCoderImpl):
 
 class DeterministicProtoCoderImpl(ProtoCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
-
   def encode(self, value):
     return value.SerializeToString(deterministic=True)
 
@@ -357,7 +359,6 @@ DICT_TYPE = 7
 SET_TYPE = 8
 ITERABLE_LIKE_TYPE = 10
 
-
 # Types that can be encoded as iterables, but are not literally
 # lists, etc. due to being lazy.  The actual type is not preserved
 # through encoding, only the elements. This is particularly useful
@@ -367,7 +368,6 @@ _ITERABLE_LIKE_TYPES = set()
 
 class FastPrimitivesCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
-
   def __init__(self, fallback_coder_impl):
     self.fallback_coder_impl = fallback_coder_impl
     self.iterable_coder_impl = IterableCoderImpl(self)
@@ -483,7 +483,6 @@ class BytesCoderImpl(CoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   A coder for bytes/str objects."""
-
   def encode_to_stream(self, value, out, nested):
     # type: (bytes, create_OutputStream, bool) -> None
     out.write(value, nested)
@@ -504,7 +503,6 @@ class BooleanCoderImpl(CoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   A coder for bool objects."""
-
   def encode_to_stream(self, value, out, nested):
     out.write_byte(1 if value else 0)
 
@@ -534,7 +532,6 @@ class BooleanCoderImpl(CoderImpl):
 
 class FloatCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
-
   def encode_to_stream(self, value, out, nested):
     # type: (float, create_OutputStream, bool) -> None
     out.write_bigendian_double(value)
@@ -568,8 +565,8 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
   def encode_to_stream(self, value, out, nested):
     # type: (IntervalWindow, create_OutputStream, bool) -> None
     typed_value = value
-    span_millis = (typed_value._end_micros // 1000
-                   - typed_value._start_micros // 1000)
+    span_millis = (
+        typed_value._end_micros // 1000 - typed_value._start_micros // 1000)
     out.write_bigendian_uint64(
         self._from_normal_time(typed_value._end_micros // 1000))
     out.write_var_int64(span_millis)
@@ -593,8 +590,8 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
     # An IntervalWindow is context-insensitive, with a timestamp (8 bytes)
     # and a varint timespam.
     typed_value = value
-    span_millis = (typed_value._end_micros // 1000
-                   - typed_value._start_micros // 1000)
+    span_millis = (
+        typed_value._end_micros // 1000 - typed_value._start_micros // 1000)
     return 8 + get_varint_size(span_millis)
 
 
@@ -606,7 +603,6 @@ class TimestampCoderImpl(StreamCoderImpl):
   that of the Java SDK InstantCoder.
   https://github.com/apache/beam/blob/f5029b4f0dfff404310b2ef55e2632bbacc7b04f/sdks/java/core/src/main/java/org/apache/beam/sdk/coders/InstantCoder.java#L79
   """
-
   def encode_to_stream(self, value, out, nested):
     # type: (Timestamp, create_OutputStream, bool) -> None
     millis = value.micros // 1000
@@ -658,7 +654,6 @@ class VarIntCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   A coder for long/int objects."""
-
   def encode_to_stream(self, value, out, nested):
     # type: (int, create_OutputStream, bool) -> None
     out.write_var_int64(value)
@@ -690,7 +685,6 @@ class SingletonCoderImpl(CoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   A coder that always encodes exactly one value."""
-
   def __init__(self, value):
     self._value = value
 
@@ -718,7 +712,6 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   CoderImpl for coders that are comprised of several component coders."""
-
   def __init__(self, coder_impls):
     for c in coder_impls:
       assert isinstance(c, CoderImpl), c
@@ -734,30 +727,31 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
     # type: (Any, create_OutputStream, bool) -> None
     values = self._extract_components(value)
     if len(self._coder_impls) != len(values):
-      raise ValueError(
-          'Number of components does not match number of coders.')
+      raise ValueError('Number of components does not match number of coders.')
     for i in range(0, len(self._coder_impls)):
-      c = self._coder_impls[i]   # type cast
-      c.encode_to_stream(values[i], out,
-                         nested or i + 1 < len(self._coder_impls))
+      c = self._coder_impls[i]  # type cast
+      c.encode_to_stream(
+          values[i], out, nested or i + 1 < len(self._coder_impls))
 
   def decode_from_stream(self, in_stream, nested):
     # type: (create_InputStream, bool) -> Any
-    return self._construct_from_components(
-        [c.decode_from_stream(in_stream,
-                              nested or i + 1 < len(self._coder_impls))
-         for i, c in enumerate(self._coder_impls)])
+    return self._construct_from_components([
+        c.decode_from_stream(
+            in_stream, nested or i + 1 < len(self._coder_impls)) for i,
+        c in enumerate(self._coder_impls)
+    ])
 
   def estimate_size(self, value, nested=False):
     # type: (Any, bool) -> int
+
     """Estimates the encoded size of the given value, in bytes."""
     # TODO(ccy): This ignores sizes of observable components.
-    estimated_size, _ = (
-        self.get_estimated_size_and_observables(value))
+    estimated_size, _ = (self.get_estimated_size_and_observables(value))
     return estimated_size
 
   def get_estimated_size_and_observables(self, value, nested=False):
     # type: (Any, bool) -> Tuple[int, Observables]
+
     """Returns estimated size of value along with any nested observables."""
     values = self._extract_components(value)
     estimated_size = 0
@@ -774,7 +768,6 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
 
 class AvroCoderImpl(SimpleCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
-
   def __init__(self, schema):
     self.parsed_schema = parse_schema(json.loads(schema))
 
@@ -791,7 +784,6 @@ class AvroCoderImpl(SimpleCoderImpl):
 
 class TupleCoderImpl(AbstractComponentCoderImpl):
   """A coder for tuple objects."""
-
   def _extract_components(self, value):
     return value
 
@@ -819,7 +811,7 @@ class _ConcatSequence(object):
     raise NotImplementedError
 
   def __reduce__(self):
-    return list, (list(self),)
+    return list, (list(self), )
 
 
 FastPrimitivesCoderImpl.register_iterable_like_type(_ConcatSequence)
@@ -907,11 +899,12 @@ class SequenceCoderImpl(StreamCoderImpl):
           out.write(buffer.get())
           prev_index = index
           buffer = create_OutputStream()
-          if (self._write_state is not None
-              and out.size() - start_size > self._write_state_threshold):
-            tail = (value_iter[index + 1:]
-                    if isinstance(value_iter, (list, tuple))
-                    else value_iter)
+          if (self._write_state is not None and
+              out.size() - start_size > self._write_state_threshold):
+            tail = (
+                value_iter[index +
+                           1:] if isinstance(value_iter,
+                                             (list, tuple)) else value_iter)
             state_token = self._write_state(tail, self._elem_coder)
             out.write_var_int64(-1)
             out.write(state_token, True)
@@ -927,8 +920,10 @@ class SequenceCoderImpl(StreamCoderImpl):
     size = in_stream.read_bigendian_int32()
 
     if size >= 0:
-      elements = [self._elem_coder.decode_from_stream(in_stream, True)
-                  for _ in range(size)]  # type: Iterable[Any]
+      elements = [
+          self._elem_coder.decode_from_stream(in_stream, True)
+          for _ in range(size)
+      ]  # type: Iterable[Any]
     else:
       elements = []
       count = in_stream.read_var_int64()
@@ -950,14 +945,15 @@ class SequenceCoderImpl(StreamCoderImpl):
 
   def estimate_size(self, value, nested=False):
     # type: (Any, bool) -> int
+
     """Estimates the encoded size of the given value, in bytes."""
     # TODO(ccy): This ignores element sizes.
-    estimated_size, _ = (
-        self.get_estimated_size_and_observables(value))
+    estimated_size, _ = (self.get_estimated_size_and_observables(value))
     return estimated_size
 
   def get_estimated_size_and_observables(self, value, nested=False):
     # type: (Any, bool) -> Tuple[int, Observables]
+
     """Returns estimated size of value along with any nested observables."""
     estimated_size = 0
     # Size of 32-bit integer storing number of elements.
@@ -986,7 +982,6 @@ class TupleSequenceCoderImpl(SequenceCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   A coder for homogeneous tuple objects."""
-
   def _construct_from_sequence(self, components):
     return tuple(components)
 
@@ -995,7 +990,6 @@ class IterableCoderImpl(SequenceCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   A coder for homogeneous iterable objects."""
-
   def _construct_from_sequence(self, components):
     return components
 
@@ -1024,7 +1018,6 @@ class PaneInfoCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   Coder for a PaneInfo descriptor."""
-
   def _choose_encoding(self, value):
     if ((value._index == 0 and value._nonspeculative_index == 0) or
         value._timing == PaneInfoTiming_UNKNOWN):
@@ -1074,6 +1067,7 @@ class PaneInfoCoderImpl(StreamCoderImpl):
 
   def estimate_size(self, value, nested=False):
     # type: (Any, bool) -> int
+
     """Estimates the encoded size of the given value, in bytes."""
     size = 1
     encoding_type = self._choose_encoding(value)
@@ -1123,10 +1117,8 @@ class WindowedValueCoderImpl(StreamCoderImpl):
         self._from_normal_time(
             restore_sign * (
                 abs(
-                    MIN_TIMESTAMP_micros
-                    if wv.timestamp_micros < MIN_TIMESTAMP_micros
-                    else wv.timestamp_micros
-                ) // 1000)))
+                    MIN_TIMESTAMP_micros if wv.timestamp_micros <
+                    MIN_TIMESTAMP_micros else wv.timestamp_micros) // 1000)))
     self._windows_coder.encode_to_stream(wv.windows, out, True)
     # Default PaneInfo encoded byte representing NO_FIRING.
     self._pane_info_coder.encode_to_stream(wv.pane_info, out, True)
@@ -1161,6 +1153,7 @@ class WindowedValueCoderImpl(StreamCoderImpl):
 
   def get_estimated_size_and_observables(self, value, nested=False):
     # type: (Any, bool) -> Tuple[int, Observables]
+
     """Returns estimated size of value along with any nested observables."""
     if isinstance(value, observable.ObservableMixin):
       # Should never be here.
@@ -1190,10 +1183,9 @@ class ParamWindowedValueCoderImpl(WindowedValueCoderImpl):
   encoding, and uses the supplied parameterized timestamp, windows
   and pane info values during decoding when reconstructing the windowed
   value."""
-
   def __init__(self, value_coder, window_coder, payload):
-    super(ParamWindowedValueCoderImpl, self).__init__(
-        value_coder, TimestampCoderImpl(), window_coder)
+    super(ParamWindowedValueCoderImpl,
+          self).__init__(value_coder, TimestampCoderImpl(), window_coder)
     self._timestamp, self._windows, self._pane_info = self._from_proto(
         payload, window_coder)
 
@@ -1210,10 +1202,7 @@ class ParamWindowedValueCoderImpl(WindowedValueCoderImpl):
   def decode_from_stream(self, in_stream, nested):
     value = self._value_coder.decode_from_stream(in_stream, nested)
     return windowed_value.create(
-        value,
-        self._timestamp,
-        self._windows,
-        self._pane_info)
+        value, self._timestamp, self._windows, self._pane_info)
 
   def get_estimated_size_and_observables(self, value, nested=False):
     """Returns estimated size of value along with any nested observables."""
@@ -1235,7 +1224,6 @@ class LengthPrefixCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   Coder which prefixes the length of the encoded object in the stream."""
-
   def __init__(self, value_coder):
     # type: (CoderImpl) -> None
     self._value_coder = value_coder

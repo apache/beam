@@ -22,6 +22,10 @@ from __future__ import absolute_import
 import unittest
 from builtins import object
 
+from nose.plugins.attrib import attr
+
+import apache_beam as beam
+from apache_beam import metrics
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsContainer
@@ -31,6 +35,9 @@ from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.runners.worker import statesampler
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.utils import counters
 
 
@@ -49,7 +56,6 @@ class NameTest(unittest.TestCase):
 
 
 class MetricResultsTest(unittest.TestCase):
-
   def test_metric_filter_namespace_matching(self):
     filter = MetricsFilter().with_namespace('ns1')
     name = MetricName('ns1', 'name1')
@@ -100,8 +106,9 @@ class MetricsTest(unittest.TestCase):
     class MyClass(object):
       pass
 
-    self.assertEqual('{}.{}'.format(MyClass.__module__, MyClass.__name__),
-                     Metrics.get_namespace(MyClass))
+    self.assertEqual(
+        '{}.{}'.format(MyClass.__module__, MyClass.__name__),
+        Metrics.get_namespace(MyClass))
 
   def test_get_namespace_string(self):
     namespace = 'MyNamespace'
@@ -127,11 +134,39 @@ class MetricsTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       Metrics.distribution("", "names")
 
+  @attr('ValidatesRunner')
+  def test_user_counter_using_pardo(self):
+    class SomeDoFn(beam.DoFn):
+      """A custom dummy DoFn using yield."""
+      def __init__(self):
+        self.user_counter_elements = metrics.Metrics.counter(
+            self.__class__, 'metrics_user_counter_element')
+
+      def process(self, element):
+        self.user_counter_elements.inc()
+        yield element
+
+    pipeline = TestPipeline()
+    nums = pipeline | 'Input' >> beam.Create([1, 2, 3, 4])
+    results = nums | 'ApplyPardo' >> beam.ParDo(SomeDoFn())
+    assert_that(results, equal_to([1, 2, 3, 4]))
+
+    res = pipeline.run()
+    res.wait_until_finish()
+    metric_results = (
+        res.metrics().query(
+            MetricsFilter().with_name('metrics_user_counter_element')))
+    outputs_counter = metric_results['counters'][0]
+
+    self.assertEqual(
+        outputs_counter.key.metric.name, 'metrics_user_counter_element')
+    self.assertEqual(outputs_counter.committed, 4)
+
   def test_create_counter_distribution(self):
     sampler = statesampler.StateSampler('', counters.CounterFactory())
     statesampler.set_current_tracker(sampler)
-    state1 = sampler.scoped_state('mystep', 'myState',
-                                  metrics_container=MetricsContainer('mystep'))
+    state1 = sampler.scoped_state(
+        'mystep', 'myState', metrics_container=MetricsContainer('mystep'))
 
     try:
       sampler.start()
@@ -153,12 +188,12 @@ class MetricsTest(unittest.TestCase):
 
         container = MetricsEnvironment.current_container()
         self.assertEqual(
-            container.get_counter(
-                MetricName(counter_ns, name)).get_cumulative(),
+            container.get_counter(MetricName(counter_ns,
+                                             name)).get_cumulative(),
             7)
         self.assertEqual(
-            container.get_distribution(
-                MetricName(distro_ns, name)).get_cumulative(),
+            container.get_distribution(MetricName(distro_ns,
+                                                  name)).get_cumulative(),
             DistributionData(12, 2, 2, 10))
     finally:
       sampler.stop()

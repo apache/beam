@@ -88,9 +88,9 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             bigQueryTable         : "java_dataflow_${mode}_GBK_3",
                             sourceOptions         : """
                                             {
-                                              "numRecords": 2000,
-                                              "keySizeBytes": 100000,
-                                              "valueSizeBytes": 900000
+                                              "numRecords": 20000,
+                                              "keySizeBytes": 10000,
+                                              "valueSizeBytes": 90000
                                             }
                                        """.trim().replaceAll("\\s", ""),
                             fanout                : 1,

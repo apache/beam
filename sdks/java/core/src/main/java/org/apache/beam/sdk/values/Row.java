@@ -35,6 +35,7 @@ import java.util.Objects;
 import java.util.stream.Collector;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Factory;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.Schema;
@@ -57,7 +58,7 @@ import org.joda.time.base.AbstractInstant;
  * <p>{@link Schema} contains the names for each field and the coder for the whole record,
  * {see @link Schema#getRowCoder()}.
  */
-@Experimental
+@Experimental(Kind.SCHEMAS)
 public abstract class Row implements Serializable {
   private final Schema schema;
 

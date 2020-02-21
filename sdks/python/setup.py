@@ -135,8 +135,12 @@ else:
     cythonize = lambda *args, **kwargs: []
 
 REQUIRED_PACKAGES = [
-    'avro>=1.8.1,<2.0.0; python_version < "3.0"',
-    'avro-python3>=1.8.1,<2.0.0; python_version >= "3.0"',
+    # Apache Avro does not follow semantic versioning, so we should not auto
+    # upgrade on minor versions. Due to AVRO-2429, Dataflow still
+    # requires Avro 1.8.x.
+    'avro>=1.8.1,<1.10.0; python_version < "3.0"',
+    # Avro 1.9.2 for python3 was broken. The issue was fixed in version 1.9.2.1
+    'avro-python3>=1.8.1,!=1.9.2,<1.10.0; python_version >= "3.0"',
     'crcmod>=1.7,<2.0',
     # Dill doesn't have forwards-compatibility guarantees within minor version.
     # Pickles created with a new version of dill may not unpickle using older
@@ -180,7 +184,7 @@ REQUIRED_TEST_PACKAGES = [
     'nose>=1.3.7',
     'nose_xunitmp>=0.4.1',
     'pandas>=0.23.4,<0.25',
-    'parameterized>=0.6.0,<0.8.0',
+    'parameterized>=0.7.1,<0.8.0',
     # pyhamcrest==1.10.0 doesn't work on Py2. Beam still supports Py2.
     # See: https://github.com/hamcrest/PyHamcrest/issues/131.
     'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
@@ -189,6 +193,7 @@ REQUIRED_TEST_PACKAGES = [
     'tenacity>=5.0.2,<6.0',
     'pytest>=4.4.0,<5.0',
     'pytest-xdist>=1.29.0,<2',
+    'pytest-timeout>=1.3.3,<2',
     ]
 
 GCP_REQUIREMENTS = [
@@ -202,10 +207,13 @@ GCP_REQUIREMENTS = [
     'google-cloud-bigquery>=1.6.0,<1.18.0',
     'google-cloud-core>=0.28.1,<2',
     'google-cloud-bigtable>=0.31.1,<1.1.0',
+    'google-cloud-dlp >=0.12.0,<=0.13.0',
     # [BEAM-4543] googledatastore is not supported in Python 3.
     'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4; python_version < "3.0"',
-    'google-cloud-spanner>=1.7.1<1.8.0',
+    'google-cloud-spanner>=1.13.0,<1.14.0',
     'grpcio-gcp>=0.2.2,<1',
+    # GCP Packages required by ML functionality
+    'google-cloud-videointelligence>=1.8.0<1.14.0',
 ]
 
 INTERACTIVE_BEAM = [

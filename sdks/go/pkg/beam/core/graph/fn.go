@@ -194,6 +194,17 @@ func (f *DoFn) Name() string {
 	return (*Fn)(f).Name()
 }
 
+// IsSplittable returns whether the DoFn is a valid Splittable DoFn.
+func (f *DoFn) IsSplittable() bool {
+	return false // TODO(BEAM-3301): Implement this when we add SDFs.
+}
+
+// RestrictionT returns the restriction type from the DoFn if it's splittable.
+// Otherwise, returns nil.
+func (f *DoFn) RestrictionT() *reflect.Type {
+	return nil // TODO(BEAM-3301): Implement this when we add SDFs.
+}
+
 // TODO(herohde) 5/19/2017: we can sometimes detect whether the main input must be
 // a KV or not based on the other signatures (unless we're more loose about which
 // sideinputs are present). Bind should respect that.

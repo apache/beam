@@ -825,6 +825,9 @@ This pull request is against the `apache/beam` repo, on the `master` branch.
 
 Write a blog post similar to https://beam.apache.org/blog/2019/08/22/beam-2.15.0.html
 
+- Update `CHANGES.md` by adding a new section for the next release.
+- Copy the changes for the current release from `CHANGES.md` to the blog post and edit as necessary.
+
 __Tip__: Use git log to find contributors to the releases. (e.g: `git log --pretty='%aN' ^v2.10.0 v2.11.0 | sort | uniq`).
 Make sure to clean it up, as there may be duplicate or incorrect user names.
 
@@ -857,7 +860,7 @@ Template:
     ### Breaking Changes
 
     * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-    * Y behavior was changed ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-X)).
+    * Y behavior was changed ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
 
     ### Deprecations
 
@@ -982,7 +985,7 @@ Since there are a bunch of tests, we recommend you running validations using aut
      [script.config](https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config)
   1. Then run
       ```
-      cd beam/release/src/main/scripts && ./run_rc_validation.sh
+      ./beam/release/src/main/scripts/run_rc_validation.sh
       ```
 
 * Tasks included
@@ -1019,7 +1022,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
   Apex Local Runner
   ```
   ./gradlew :runners:apex:runQuickstartJavaApex \
-  -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam${KEY} \
+  -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
   -Pver=${RELEASE_VERSION}
   ```
   Flink Local Runner
@@ -1047,7 +1050,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
   Pre-request
   * Create your own BigQuery dataset
     ```
-    bq mk --project=${YOUR_GCP_PROJECT} ${YOUR_DATASET}
+    bq mk --project_id=${YOUR_GCP_PROJECT} ${YOUR_DATASET}
     ```
   * Create yout PubSub topic 
     ```
@@ -1113,7 +1116,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
     
     ```
     bq rm -rf --project=${YOUR_PROJECT} ${USER}_test
-    bq mk --project=${YOUR_PROJECT} ${USER}_test
+    bq mk --project_id=${YOUR_PROJECT} ${USER}_test
     gsutil rm -rf ${YOUR_GS_STORAGE]
     gsutil mb -p ${YOUR_PROJECT} ${YOUR_GS_STORAGE}
     gcloud alpha pubsub topics create --project=${YOUR_PROJECT} ${YOUR_PUBSUB_TOPIC}

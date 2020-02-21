@@ -216,6 +216,8 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
     ImmutableMap.Builder<String, Iterable<PCollectionView<?>>> ptransformIdToPCollectionViews =
         ImmutableMap.builder();
     ImmutableMap.Builder<String, NameContext> pcollectionIdToNameContexts = ImmutableMap.builder();
+    ImmutableMap.Builder<InstructionOutputNode, String> instructionOutputNodeToCoderIdBuilder =
+        ImmutableMap.builder();
 
     // For each instruction output node:
     // 1. Generate new Coder and register it with SDKComponents and ProcessBundleDescriptor.
@@ -225,6 +227,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
       InstructionOutput instructionOutput = node.getInstructionOutput();
 
       String coderId = "generatedCoder" + idGenerator.getId();
+      instructionOutputNodeToCoderIdBuilder.put(node, coderId);
       try (ByteString.Output output = ByteString.newOutput()) {
         try {
           Coder<?> javaCoder =
@@ -274,6 +277,8 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
               instructionOutput.getName()));
     }
     processBundleDescriptor.putAllCoders(sdkComponents.toComponents().getCodersMap());
+    Map<InstructionOutputNode, String> instructionOutputNodeToCoderIdMap =
+        instructionOutputNodeToCoderIdBuilder.build();
 
     for (ParallelInstructionNode node :
         Iterables.filter(input.nodes(), ParallelInstructionNode.class)) {
@@ -408,22 +413,33 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
       Set<Node> predecessors = input.predecessors(node);
       Set<Node> successors = input.successors(node);
       if (predecessors.isEmpty() && !successors.isEmpty()) {
+        Node instructionOutputNode = Iterables.getOnlyElement(successors);
         pTransform.putOutputs(
             "generatedOutput" + idGenerator.getId(),
-            nodesToPCollections.get(Iterables.getOnlyElement(successors)));
+            nodesToPCollections.get(instructionOutputNode));
         pTransform.setSpec(
             RunnerApi.FunctionSpec.newBuilder()
                 .setUrn(DATA_INPUT_URN)
-                .setPayload(node.getRemoteGrpcPort().toByteString())
+                .setPayload(
+                    node.getRemoteGrpcPort()
+                        .toBuilder()
+                        .setCoderId(instructionOutputNodeToCoderIdMap.get(instructionOutputNode))
+                        .build()
+                        .toByteString())
                 .build());
       } else if (!predecessors.isEmpty() && successors.isEmpty()) {
+        Node instructionOutputNode = Iterables.getOnlyElement(predecessors);
         pTransform.putInputs(
-            "generatedInput" + idGenerator.getId(),
-            nodesToPCollections.get(Iterables.getOnlyElement(predecessors)));
+            "generatedInput" + idGenerator.getId(), nodesToPCollections.get(instructionOutputNode));
         pTransform.setSpec(
             RunnerApi.FunctionSpec.newBuilder()
                 .setUrn(DATA_OUTPUT_URN)
-                .setPayload(node.getRemoteGrpcPort().toByteString())
+                .setPayload(
+                    node.getRemoteGrpcPort()
+                        .toBuilder()
+                        .setCoderId(instructionOutputNodeToCoderIdMap.get(instructionOutputNode))
+                        .build()
+                        .toByteString())
                 .build());
       } else {
         throw new IllegalStateException(

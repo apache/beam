@@ -31,6 +31,7 @@ import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
+import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternalsFactory;
 import org.apache.beam.sdk.coders.Coder;
@@ -69,7 +70,6 @@ public class WindowDoFnOperator<K, InputT, OutputT>
         null,
         stepName,
         windowedInputCoder,
-        null,
         Collections.emptyMap(),
         mainOutputTag,
         additionalOutputTags,
@@ -88,7 +88,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
 
   @Override
   protected DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> createWrappingDoFnRunner(
-      DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> wrappedRunner) {
+      DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> wrappedRunner, StepContext stepContext) {
     // When the doFn is this, we know it came from WindowDoFnOperator and
     //   InputT = KeyedWorkItem<K, V>
     //   OutputT = KV<K, V>

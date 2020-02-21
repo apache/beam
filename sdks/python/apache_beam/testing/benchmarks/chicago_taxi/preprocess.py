@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """Preprocessor applying tf.transform to the chicago_taxi data."""
 # pytype: skip-file
 
@@ -53,17 +54,18 @@ def _fill_in_missing(x):
       axis=1)
 
 
-def transform_data(input_handle,
-                   outfile_prefix,
-                   working_dir,
-                   schema_file,
-                   transform_dir=None,
-                   max_rows=None,
-                   pipeline_args=None,
-                   publish_to_bq=False,
-                   project=None,
-                   metrics_table=None,
-                   metrics_dataset=None):
+def transform_data(
+    input_handle,
+    outfile_prefix,
+    working_dir,
+    schema_file,
+    transform_dir=None,
+    max_rows=None,
+    pipeline_args=None,
+    publish_to_bq=False,
+    project=None,
+    metrics_table=None,
+    metrics_dataset=None):
   """The main tf.transform method which analyzes and transforms data.
 
   Args:
@@ -81,7 +83,6 @@ def transform_data(input_handle,
     pipeline_args: additional DataflowRunner or DirectRunner args passed to the
       beam pipeline.
   """
-
   def preprocessing_fn(inputs):
     """tf.transform's callback function for preprocessing inputs.
 
@@ -99,8 +100,8 @@ def transform_data(input_handle,
 
     for key in taxi.VOCAB_FEATURE_KEYS:
       # Build a vocabulary for this feature.
-      outputs[
-          taxi.transformed_name(key)] = transform.compute_and_apply_vocabulary(
+      outputs[taxi.transformed_name(
+          key)] = transform.compute_and_apply_vocabulary(
               _fill_in_missing(inputs[key]),
               top_k=taxi.VOCAB_SIZE,
               num_oov_buckets=taxi.OOV_SIZE)
@@ -124,6 +125,7 @@ def transform_data(input_handle,
             tf.int64))
 
     return outputs
+
   namespace = metrics_table
   metrics_monitor = None
   if publish_to_bq:
@@ -132,8 +134,7 @@ def transform_data(input_handle,
         project_name=project,
         bq_table=metrics_table,
         bq_dataset=metrics_dataset,
-        filters=MetricsFilter().with_namespace(namespace)
-    )
+        filters=MetricsFilter().with_namespace(namespace))
   schema = taxi.read_schema(schema_file)
   raw_feature_spec = taxi.get_raw_feature_spec(schema)
   raw_schema = dataset_schema.from_feature_spec(raw_feature_spec)
@@ -144,20 +145,20 @@ def transform_data(input_handle,
     query = taxi.make_sql(input_handle, max_rows, for_eval=False)
     raw_data = (
         pipeline
-        | 'ReadBigQuery' >> ReadFromBigQuery(query=query, project=project,
-                                             use_standard_sql=True)
+        | 'ReadBigQuery' >> ReadFromBigQuery(
+            query=query, project=project, use_standard_sql=True)
         | 'Measure time: start' >> beam.ParDo(MeasureTime(namespace)))
     decode_transform = beam.Map(
         taxi.clean_raw_data_dict, raw_feature_spec=raw_feature_spec)
 
     if transform_dir is None:
       decoded_data = raw_data | 'DecodeForAnalyze' >> decode_transform
-      transform_fn = (
-          (decoded_data, raw_data_metadata) |
-          ('Analyze' >> tft_beam.AnalyzeDataset(preprocessing_fn)))
+      transform_fn = ((decoded_data, raw_data_metadata) |
+                      ('Analyze' >> tft_beam.AnalyzeDataset(preprocessing_fn)))
 
-      _ = (transform_fn | ('WriteTransformFn' >>
-                           tft_beam.WriteTransformFn(working_dir)))
+      _ = (
+          transform_fn |
+          ('WriteTransformFn' >> tft_beam.WriteTransformFn(working_dir)))
     else:
       transform_fn = pipeline | tft_beam.ReadTransformFn(transform_dir)
 
@@ -167,9 +168,9 @@ def transform_data(input_handle,
     shuffled_data = raw_data | 'RandomizeData' >> beam.transforms.Reshuffle()
 
     decoded_data = shuffled_data | 'DecodeForTransform' >> decode_transform
-    (transformed_data, transformed_metadata) = (
-        ((decoded_data, raw_data_metadata), transform_fn)
-        | 'Transform' >> tft_beam.TransformDataset())
+    (transformed_data,
+     transformed_metadata) = (((decoded_data, raw_data_metadata), transform_fn)
+                              | 'Transform' >> tft_beam.TransformDataset())
 
     coder = example_proto_coder.ExampleProtoCoder(transformed_metadata.schema)
     _ = (
@@ -177,9 +178,7 @@ def transform_data(input_handle,
         | 'SerializeExamples' >> beam.Map(coder.encode)
         | 'Measure time: end' >> beam.ParDo(MeasureTime(namespace))
         | 'WriteExamples' >> beam.io.WriteToTFRecord(
-            os.path.join(working_dir, outfile_prefix),
-            file_name_suffix='.gz')
-    )
+            os.path.join(working_dir, outfile_prefix), file_name_suffix='.gz'))
   result = pipeline.run()
   result.wait_until_finish()
   if metrics_monitor:
@@ -199,8 +198,9 @@ def main():
 
   parser.add_argument(
       '--output_dir',
-      help=('Directory in which transformed examples and function '
-            'will be emitted.'))
+      help=(
+          'Directory in which transformed examples and function '
+          'will be emitted.'))
 
   parser.add_argument(
       '--outfile_prefix',
@@ -224,16 +224,10 @@ def main():
       type=bool)
 
   parser.add_argument(
-      '--metrics_dataset',
-      help='BQ dataset',
-      default=None,
-      type=str)
+      '--metrics_dataset', help='BQ dataset', default=None, type=str)
 
   parser.add_argument(
-      '--metrics_table',
-      help='BQ table',
-      default=None,
-      type=str)
+      '--metrics_table', help='BQ table', default=None, type=str)
 
   parser.add_argument(
       '--metric_reporting_project',
@@ -253,8 +247,7 @@ def main():
       publish_to_bq=known_args.publish_to_big_query,
       metrics_dataset=known_args.metrics_dataset,
       metrics_table=known_args.metrics_table,
-      project=known_args.metric_reporting_project
-  )
+      project=known_args.metric_reporting_project)
 
 
 if __name__ == '__main__':

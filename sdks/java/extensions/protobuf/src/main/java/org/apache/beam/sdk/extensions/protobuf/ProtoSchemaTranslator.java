@@ -28,20 +28,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.DurationNanos;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.Fixed32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.Fixed64;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SFixed32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SFixed64;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SInt32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SInt64;
-import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.TimestampNanos;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.UInt32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.UInt64;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosDuration;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
@@ -93,7 +94,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  * new TimestampNanos logical type has been introduced to allow representing nanosecond timestamp,
  * as well as a DurationNanos logical type to represent google.com.protobuf.Duration types.
  *
- * <p>Protobuf wrapper classes are translated to nullable types, as follows.
+ * <p>As primitive types are mapped to a <b>not</b> nullable scalar type their nullable counter
+ * parts "wrapper classes" are translated to nullable types, as follows.
  *
  * <ul>
  *   <li>google.protobuf.Int32Value maps to a nullable FieldType.INT32
@@ -106,8 +108,26 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  *   <li>google.protobuf.StringValue maps to a nullable FieldType.STRING
  *   <li>google.protobuf.BytesValue maps to a nullable FieldType.BYTES
  * </ul>
+ *
+ * <p>All message in Protobuf are translated to a nullable Row, except for the well known types
+ * listed above. The rest of the nullable rules are as follows.
+ *
+ * <ul>
+ *   <li>Proto3 primitive types are <b>not</b> nullable
+ *   <li>Proto2 required types are <b>not</b> nullable
+ *   <li>Proto2 optional are <b>not</b> nullable as having an optional value doesn't mean it has not
+ *       value. The spec states it has the optional value.
+ *   <li>Arrays are <b>not</b> nullable, as proto arrays always have an empty array when no value is
+ *       set.
+ *   <li>Maps are <b>not</b> nullable, as proto maps always have an empty map when no value is set
+ *   <li>Elements in an array are <b>not</b> nullable, as nulls are not allowed in an array
+ *   <li>Names and Values are <b>not</b> nullable, as nulls are not allowed. Rows are nullable, as
+ *       messages are nullable.
+ *   <li>Messages, as well as Well Known Types are nullable, unless using proto2 and the required
+ *       label is specified.
+ * </ul>
  */
-@Experimental(Experimental.Kind.SCHEMAS)
+@Experimental(Kind.SCHEMAS)
 public class ProtoSchemaTranslator {
   /** This METADATA tag is used to store the field number of a proto tag. */
   public static final String PROTO_NUMBER_METADATA_TAG = "PROTO_NUMBER";
@@ -169,10 +189,12 @@ public class ProtoSchemaTranslator {
           protoFieldDescriptor.getMessageType().findFieldByName("value");
       fieldType =
           FieldType.map(
-              beamFieldTypeFromProtoField(keyFieldDescriptor),
-              beamFieldTypeFromProtoField(valueFieldDescriptor));
+              beamFieldTypeFromProtoField(keyFieldDescriptor).withNullable(false),
+              beamFieldTypeFromProtoField(valueFieldDescriptor).withNullable(false));
     } else if (protoFieldDescriptor.isRepeated()) {
-      fieldType = FieldType.array(beamFieldTypeFromSingularProtoField(protoFieldDescriptor));
+      fieldType =
+          FieldType.array(
+              beamFieldTypeFromSingularProtoField(protoFieldDescriptor).withNullable(false));
     } else {
       fieldType = beamFieldTypeFromSingularProtoField(protoFieldDescriptor);
     }
@@ -244,7 +266,7 @@ public class ProtoSchemaTranslator {
         String fullName = protoFieldDescriptor.getMessageType().getFullName();
         switch (fullName) {
           case "google.protobuf.Timestamp":
-            fieldType = FieldType.logicalType(new TimestampNanos());
+            fieldType = FieldType.logicalType(new NanosInstant());
             break;
           case "google.protobuf.Int32Value":
           case "google.protobuf.UInt32Value":
@@ -257,23 +279,23 @@ public class ProtoSchemaTranslator {
           case "google.protobuf.BytesValue":
             fieldType =
                 beamFieldTypeFromSingularProtoField(
-                        protoFieldDescriptor.getMessageType().findFieldByNumber(1))
-                    .withNullable(true);
+                    protoFieldDescriptor.getMessageType().findFieldByNumber(1));
             break;
           case "google.protobuf.Duration":
-            fieldType = FieldType.logicalType(new DurationNanos());
+            fieldType = FieldType.logicalType(new NanosDuration());
             break;
           case "google.protobuf.Any":
             throw new RuntimeException("Any not yet supported");
           default:
             fieldType = FieldType.row(getSchema(protoFieldDescriptor.getMessageType()));
         }
+        // all messages are nullable in Proto
+        if (protoFieldDescriptor.isOptional()) {
+          fieldType = fieldType.withNullable(true);
+        }
         break;
       default:
         throw new RuntimeException("Field type not matched.");
-    }
-    if (protoFieldDescriptor.isOptional()) {
-      fieldType = fieldType.withNullable(true);
     }
     return fieldType;
   }

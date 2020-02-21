@@ -300,13 +300,19 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
+            public Object restriction() {
+              throw new UnsupportedOperationException(
+                  "Not expected to access Restriction from a regular DoFn in DoFnTester");
+            }
+
+            @Override
             public RestrictionTracker<?, ?> restrictionTracker() {
               throw new UnsupportedOperationException(
                   "Not expected to access RestrictionTracker from a regular DoFn in DoFnTester");
             }
 
             @Override
-            public org.apache.beam.sdk.state.State state(String stateId) {
+            public org.apache.beam.sdk.state.State state(String stateId, boolean alwaysFetched) {
               throw new UnsupportedOperationException("DoFnTester doesn't support state yet");
             }
 

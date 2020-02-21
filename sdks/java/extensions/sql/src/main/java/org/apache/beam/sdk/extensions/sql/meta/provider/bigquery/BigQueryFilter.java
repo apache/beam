@@ -58,7 +58,7 @@ public class BigQueryFilter implements BeamSqlTableFilter {
 
     for (RexNode node : predicateCNF) {
       if (!node.getType().getSqlTypeName().equals(SqlTypeName.BOOLEAN)) {
-        throw new RuntimeException(
+        throw new IllegalArgumentException(
             "Predicate node '"
                 + node.getClass().getSimpleName()
                 + "' should be a boolean expression, but was: "
@@ -140,7 +140,7 @@ public class BigQueryFilter implements BeamSqlTableFilter {
     } else if (node instanceof RexLiteral) {
       // RexLiterals are expected, but no action is needed.
     } else {
-      throw new RuntimeException(
+      throw new UnsupportedOperationException(
           "Encountered an unexpected node type: " + node.getClass().getSimpleName());
     }
 

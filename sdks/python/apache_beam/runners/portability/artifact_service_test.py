@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Test cases for :module:`artifact_service_client`."""
 
 # pytype: skip-file
@@ -40,7 +41,6 @@ from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 
 class AbstractArtifactServiceTest(unittest.TestCase):
-
   def setUp(self):
     self._staging_dir = tempfile.mkdtemp()
     self._service = self.create_service(self._staging_dir)
@@ -58,21 +58,19 @@ class AbstractArtifactServiceTest(unittest.TestCase):
         metadata=beam_artifact_api_pb2.PutArtifactMetadata(
             staging_session_token=staging_token,
             metadata=beam_artifact_api_pb2.ArtifactMetadata(
-                name=name,
-                sha256=sha256)))
+                name=name, sha256=sha256)))
 
   @staticmethod
   def put_data(chunk):
     return beam_artifact_api_pb2.PutArtifactRequest(
-        data=beam_artifact_api_pb2.ArtifactChunk(
-            data=chunk))
+        data=beam_artifact_api_pb2.ArtifactChunk(data=chunk))
 
   @staticmethod
   def retrieve_artifact(retrieval_service, retrieval_token, name):
-    return b''.join(chunk.data for chunk in retrieval_service.GetArtifact(
-        beam_artifact_api_pb2.GetArtifactRequest(
-            retrieval_token=retrieval_token,
-            name=name)))
+    return b''.join(
+        chunk.data for chunk in retrieval_service.GetArtifact(
+            beam_artifact_api_pb2.GetArtifactRequest(
+                retrieval_token=retrieval_token, name=name)))
 
   def test_basic(self):
     self._run_staging(self._service, self._service)
@@ -88,10 +86,8 @@ class AbstractArtifactServiceTest(unittest.TestCase):
       server.start()
       channel = grpc.insecure_channel('localhost:%d' % port)
       self._run_staging(
-          beam_artifact_api_pb2_grpc.ArtifactStagingServiceStub(
-              channel),
-          beam_artifact_api_pb2_grpc.ArtifactRetrievalServiceStub(
-              channel))
+          beam_artifact_api_pb2_grpc.ArtifactStagingServiceStub(channel),
+          beam_artifact_api_pb2_grpc.ArtifactRetrievalServiceStub(channel))
       channel.close()
     finally:
       server.stop(1)
@@ -101,40 +97,50 @@ class AbstractArtifactServiceTest(unittest.TestCase):
     staging_session_token = '/session_staging_token \n\0*'
 
     # First stage some files.
-    staging_service.PutArtifact(iter([
-        self.put_metadata(staging_session_token, 'name'),
-        self.put_data(b'data')]))
+    staging_service.PutArtifact(
+        iter([
+            self.put_metadata(staging_session_token, 'name'),
+            self.put_data(b'data')
+        ]))
 
-    staging_service.PutArtifact(iter([
-        self.put_metadata(staging_session_token, 'many_chunks'),
-        self.put_data(b'a'),
-        self.put_data(b'b'),
-        self.put_data(b'c')]))
+    staging_service.PutArtifact(
+        iter([
+            self.put_metadata(staging_session_token, 'many_chunks'),
+            self.put_data(b'a'),
+            self.put_data(b'b'),
+            self.put_data(b'c')
+        ]))
 
-    staging_service.PutArtifact(iter([
-        self.put_metadata(staging_session_token, 'long'),
-        self.put_data(b'a' * 1000)]))
+    staging_service.PutArtifact(
+        iter([
+            self.put_metadata(staging_session_token, 'long'),
+            self.put_data(b'a' * 1000)
+        ]))
 
-    staging_service.PutArtifact(iter([
-        self.put_metadata(staging_session_token,
-                          'with_hash',
-                          hashlib.sha256(b'data...').hexdigest()),
-        self.put_data(b'data'),
-        self.put_data(b'...')]))
+    staging_service.PutArtifact(
+        iter([
+            self.put_metadata(
+                staging_session_token,
+                'with_hash',
+                hashlib.sha256(b'data...').hexdigest()),
+            self.put_data(b'data'),
+            self.put_data(b'...')
+        ]))
 
     with self.assertRaises(Exception):
-      staging_service.PutArtifact(iter([
-          self.put_metadata(staging_session_token,
-                            'bad_hash',
-                            'bad_hash'),
-          self.put_data(b'data')]))
+      staging_service.PutArtifact(
+          iter([
+              self.put_metadata(staging_session_token, 'bad_hash', 'bad_hash'),
+              self.put_data(b'data')
+          ]))
 
-    manifest = beam_artifact_api_pb2.Manifest(artifact=[
-        beam_artifact_api_pb2.ArtifactMetadata(name='name'),
-        beam_artifact_api_pb2.ArtifactMetadata(name='many_chunks'),
-        beam_artifact_api_pb2.ArtifactMetadata(name='long'),
-        beam_artifact_api_pb2.ArtifactMetadata(name='with_hash'),
-    ])
+    manifest = beam_artifact_api_pb2.Manifest(
+        artifact=[
+            beam_artifact_api_pb2.ArtifactMetadata(name='name'),
+            beam_artifact_api_pb2.ArtifactMetadata(name='many_chunks'),
+            beam_artifact_api_pb2.ArtifactMetadata(name='long'),
+            beam_artifact_api_pb2.ArtifactMetadata(name='with_hash'),
+        ])
 
     retrieval_token = staging_service.CommitManifest(
         beam_artifact_api_pb2.CommitManifestRequest(
@@ -193,7 +199,8 @@ class AbstractArtifactServiceTest(unittest.TestCase):
       self._service.PutArtifact([
           self.put_metadata(session(index), name(index)),
           self.put_data(delayed_data('a', index)),
-          self.put_data(delayed_data('b' * 20, index, 2))])
+          self.put_data(delayed_data('b' * 20, index, 2))
+      ])
       return session(index)
 
     def commit(session):
@@ -232,7 +239,6 @@ class BeamFilesystemArtifactServiceTest(AbstractArtifactServiceTest):
 
 # Don't discover/test the abstract base class.
 del AbstractArtifactServiceTest
-
 
 if __name__ == '__main__':
   unittest.main()

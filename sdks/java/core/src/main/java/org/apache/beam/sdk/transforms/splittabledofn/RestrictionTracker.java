@@ -17,12 +17,15 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
  * Manages access to the restriction and keeps track of its claimed part for a <a
  * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
  */
+@Experimental(Kind.SPLITTABLE_DO_FN)
 public abstract class RestrictionTracker<RestrictionT, PositionT> {
   /**
    * Attempts to claim the block of work in the current restriction identified by the given
@@ -68,8 +71,8 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    *
    * <p>{@code fractionOfRemainder = 0} means a checkpoint is required.
    *
-   * <p>The API is recommended to be implemented for batch pipeline given that it is very important
-   * for pipeline scaling and end to end pipeline execution.
+   * <p>The API is recommended to be implemented for a batch pipeline to improve parallel processing
+   * performance.
    *
    * <p>The API is required to be implemented for a streaming pipeline.
    *

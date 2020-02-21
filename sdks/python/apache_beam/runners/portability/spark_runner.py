@@ -38,9 +38,9 @@ class SparkRunner(portable_runner.PortableRunner):
   def run_pipeline(self, pipeline, options):
     spark_options = options.view_as(pipeline_options.SparkRunnerOptions)
     portable_options = options.view_as(pipeline_options.PortableOptions)
-    if (re.match(LOCAL_MASTER_PATTERN, spark_options.spark_master_url)
-        and not portable_options.environment_type
-        and not portable_options.output_executable_path):
+    if (re.match(LOCAL_MASTER_PATTERN, spark_options.spark_master_url) and
+        not portable_options.environment_type and
+        not portable_options.output_executable_path):
       portable_options.environment_type = 'LOOPBACK'
     return super(SparkRunner, self).run_pipeline(pipeline, options)
 
@@ -49,8 +49,8 @@ class SparkRunner(portable_runner.PortableRunner):
     if spark_options.spark_submit_uber_jar:
       if sys.version_info < (3, 6):
         raise ValueError(
-            'spark_submit_uber_jar requires Python 3.6+, current version %s'
-            % sys.version)
+            'spark_submit_uber_jar requires Python 3.6+, current version %s' %
+            sys.version)
       if not spark_options.spark_rest_url:
         raise ValueError('Option spark_rest_url must be set.')
       return spark_uber_jar_job_server.SparkUberJarJobServer(
@@ -74,9 +74,14 @@ class SparkJarJobServer(job_server.JavaJarJobServer):
   def java_arguments(
       self, job_port, artifact_port, expansion_port, artifacts_dir):
     return [
-        '--spark-master-url', self._master_url,
-        '--artifacts-dir', artifacts_dir,
-        '--job-port', job_port,
-        '--artifact-port', artifact_port,
-        '--expansion-port', expansion_port
+        '--spark-master-url',
+        self._master_url,
+        '--artifacts-dir',
+        artifacts_dir,
+        '--job-port',
+        job_port,
+        '--artifact-port',
+        artifact_port,
+        '--expansion-port',
+        expansion_port
     ]

@@ -207,7 +207,7 @@ The MinimalWordCount pipeline contains five transforms:
     ```java
         .apply("ExtractWords", FlatMapElements
             .into(TypeDescriptors.strings())
-            .via((String word) -> Arrays.asList(word.split("[^\\p{L}]+"))))
+            .via((String line) -> Arrays.asList(line.split("[^\\p{L}]+"))))
     ```
 
     ```py

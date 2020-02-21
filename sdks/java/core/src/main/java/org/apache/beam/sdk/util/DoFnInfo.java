@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * @param <InputT> the type of the (main) input elements of the {@link DoFn}
  * @param <OutputT> the type of the (main) output elements of the {@link DoFn}
  */
+@Internal
 public class DoFnInfo<InputT, OutputT> implements Serializable {
   private final DoFn<InputT, OutputT> doFn;
   private final WindowingStrategy<?, ?> windowingStrategy;

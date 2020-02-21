@@ -23,10 +23,6 @@ import static org.junit.Assert.assertThat;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.GetProvisionInfoRequest;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.GetProvisionInfoResponse;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.ProvisionInfo;
-import org.apache.beam.model.fnexecution.v1.ProvisionApi.Resources;
-import org.apache.beam.model.fnexecution.v1.ProvisionApi.Resources.Cpu;
-import org.apache.beam.model.fnexecution.v1.ProvisionApi.Resources.Disk;
-import org.apache.beam.model.fnexecution.v1.ProvisionApi.Resources.Memory;
 import org.apache.beam.model.fnexecution.v1.ProvisionServiceGrpc;
 import org.apache.beam.model.fnexecution.v1.ProvisionServiceGrpc.ProvisionServiceBlockingStub;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
@@ -66,20 +62,7 @@ public class StaticGrpcProvisionServiceTest {
                             .build())
                     .build())
             .build();
-    Resources resourceLimits =
-        Resources.newBuilder()
-            .setCpu(Cpu.newBuilder().setShares(0.75F).buildPartial())
-            .setMemory(Memory.newBuilder().setSize(2L * 1024L * 1024L * 1024L).build())
-            .setSemiPersistentDisk(Disk.newBuilder().setSize(1024L * 1024L * 1024L * 1024L).build())
-            .build();
-    ProvisionInfo info =
-        ProvisionInfo.newBuilder()
-            .setJobId("id")
-            .setJobName("name")
-            .setWorkerId("worker")
-            .setPipelineOptions(options)
-            .setResourceLimits(resourceLimits)
-            .build();
+    ProvisionInfo info = ProvisionInfo.newBuilder().setPipelineOptions(options).build();
     GrpcFnServer<StaticGrpcProvisionService> server =
         GrpcFnServer.allocatePortAndCreateFor(
             StaticGrpcProvisionService.create(info), InProcessServerFactory.create());

@@ -30,6 +30,7 @@ description = "Apache Beam :: Runners :: Spark"
  */
 evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":sdks:java:io:hadoop-format")
+evaluationDependsOn(":runners:core-java")
 
 configurations {
   validatesRunner
@@ -89,6 +90,7 @@ dependencies {
   testCompile library.java.jackson_dataformat_yaml
   testCompile "org.apache.zookeeper:zookeeper:3.4.11"
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
   validatesRunner project(":sdks:java:io:hadoop-format")
   validatesRunner project(":sdks:java:io:hadoop-format").sourceSets.test.output
   validatesRunner project(path: ":examples:java", configuration: "testRuntime")
@@ -120,21 +122,27 @@ task validatesRunnerBatch(type: Test) {
   systemProperty "spark.ui.showConsoleProgress", "false"
 
   classpath = configurations.validatesRunner
-  testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(
+            project(":sdks:java:core").sourceSets.test.output.classesDirs,
+            project(":runners:core-java").sourceSets.test.output.classesDirs,
+        )
   testClassesDirs += files(project.sourceSets.test.output.classesDirs)
 
-  // Only one SparkContext may be running in a JVM (SPARK-2243)
+
+          // Only one SparkContext may be running in a JVM (SPARK-2243)
   forkEvery 1
   maxParallelForks 4
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     includeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
     // Unbounded
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     // Metrics
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
     // SDF
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // Portability
@@ -177,7 +185,10 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
   systemProperty "spark.ui.showConsoleProgress", "false"
 
   classpath = configurations.validatesRunner
-  testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(
+          project(":sdks:java:core").sourceSets.test.output.classesDirs,
+          project(":runners:core-java").sourceSets.test.output.classesDirs,
+  )
   testClassesDirs += files(project.sourceSets.test.output.classesDirs)
 
   // Only one SparkContext may be running in a JVM (SPARK-2243)
@@ -193,8 +204,10 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
     excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
     // Metrics
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
     // SDF
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // Portability

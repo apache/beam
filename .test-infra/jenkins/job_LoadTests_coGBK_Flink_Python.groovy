@@ -28,7 +28,7 @@ String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 def scenarios = { datasetName, sdkHarnessImageTag -> [
         [
                 title          : 'CoGroupByKey Python Load test: 2GB of 100B records with a single key',
-                test           : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
+                test           : 'apache_beam.testing.load_tests.co_group_by_key_test',
                 runner         : CommonTestProperties.Runner.PORTABLE,
                 pipelineOptions: [
                         project              : 'apache-beam-testing',
@@ -58,7 +58,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
         ],
         [
                 title          : 'CoGroupByKey Python Load test: 2GB of 100B records with multiple keys',
-                test           : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
+                test           : 'apache_beam.testing.load_tests.co_group_by_key_test',
                 runner         : CommonTestProperties.Runner.PORTABLE,
                 pipelineOptions: [
                         project              : 'apache-beam-testing',
@@ -88,7 +88,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
         ],
         [
                 title          : 'CoGroupByKey Python Load test: reiterate 4 times 10kB values',
-                test           : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
+                test           : 'apache_beam.testing.load_tests.co_group_by_key_test',
                 runner         : CommonTestProperties.Runner.PORTABLE,
                 pipelineOptions: [
                         project              : 'apache-beam-testing',
@@ -118,7 +118,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
         ],
         [
                 title          : 'CoGroupByKey Python Load test: reiterate 4 times 2MB values',
-                test           : 'apache_beam.testing.load_tests.co_group_by_key_test:CoGroupByKeyTest.testCoGroupByKey',
+                test           : 'apache_beam.testing.load_tests.co_group_by_key_test',
                 runner         : CommonTestProperties.Runner.PORTABLE,
                 pipelineOptions: [
                         project              : 'apache-beam-testing',

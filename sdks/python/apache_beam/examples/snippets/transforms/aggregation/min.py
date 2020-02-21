@@ -28,10 +28,9 @@ def min_globally(test=None):
     min_element = (
         pipeline
         | 'Create numbers' >> beam.Create([3, 4, 1, 2])
-        | 'Get min value' >> beam.CombineGlobally(
-            lambda elements: min(elements or [-1]))
-        | beam.Map(print)
-    )
+        | 'Get min value' >>
+        beam.CombineGlobally(lambda elements: min(elements or [-1]))
+        | beam.Map(print))
     # [END min_globally]
     if test:
       test(min_element)
@@ -53,8 +52,7 @@ def min_per_key(test=None):
             ('🍅', 3),
         ])
         | 'Get min value per key' >> beam.CombinePerKey(min)
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END min_per_key]
     if test:
       test(elements_with_min_value_per_key)

@@ -54,6 +54,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -687,7 +688,7 @@ public class BigQueryIO {
      * <p>Use new template-compatible source implementation. This implementation is compatible with
      * repeated template invocations. It does not support dynamic work rebalancing.
      */
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     public Read withTemplateCompatibility() {
       return new Read(this.inner.withTemplateCompatibility());
     }
@@ -699,7 +700,7 @@ public class BigQueryIO {
   @AutoValue
   public abstract static class TypedRead<T> extends PTransform<PBegin, PCollection<T>> {
     /** Determines the method used to read data from BigQuery. */
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     public enum Method {
       /** The default behavior if no method is explicitly set. Currently {@link #EXPORT}. */
       DEFAULT,
@@ -741,7 +742,7 @@ public class BigQueryIO {
 
       abstract Builder<T> setQueryLocation(String location);
 
-      @Experimental(Experimental.Kind.SOURCE_SINK)
+      @Experimental(Kind.SOURCE_SINK)
       abstract Builder<T> setMethod(Method method);
 
       /**
@@ -749,13 +750,13 @@ public class BigQueryIO {
        *     #setRowRestriction(ValueProvider)} instead.
        */
       @Deprecated
-      @Experimental(Experimental.Kind.SOURCE_SINK)
+      @Experimental(Kind.SOURCE_SINK)
       abstract Builder<T> setReadOptions(TableReadOptions readOptions);
 
-      @Experimental(Experimental.Kind.SOURCE_SINK)
+      @Experimental(Kind.SOURCE_SINK)
       abstract Builder<T> setSelectedFields(ValueProvider<List<String>> selectedFields);
 
-      @Experimental(Experimental.Kind.SOURCE_SINK)
+      @Experimental(Kind.SOURCE_SINK)
       abstract Builder<T> setRowRestriction(ValueProvider<String> rowRestriction);
 
       abstract TypedRead<T> build();
@@ -766,13 +767,13 @@ public class BigQueryIO {
 
       abstract Builder<T> setKmsKey(String kmsKey);
 
-      @Experimental(Experimental.Kind.SCHEMAS)
+      @Experimental(Kind.SCHEMAS)
       abstract Builder<T> setTypeDescriptor(TypeDescriptor<T> typeDescriptor);
 
-      @Experimental(Experimental.Kind.SCHEMAS)
+      @Experimental(Kind.SCHEMAS)
       abstract Builder<T> setToBeamRowFn(ToBeamRowFunction<T> toRowFn);
 
-      @Experimental(Experimental.Kind.SCHEMAS)
+      @Experimental(Kind.SCHEMAS)
       abstract Builder<T> setFromBeamRowFn(FromBeamRowFunction<T> fromRowFn);
     }
 
@@ -802,20 +803,20 @@ public class BigQueryIO {
     @Nullable
     abstract String getQueryLocation();
 
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     abstract Method getMethod();
 
     /** @deprecated Use {@link #getSelectedFields()} and {@link #getRowRestriction()} instead. */
     @Deprecated
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     @Nullable
     abstract TableReadOptions getReadOptions();
 
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     @Nullable
     abstract ValueProvider<List<String>> getSelectedFields();
 
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     @Nullable
     abstract ValueProvider<String> getRowRestriction();
 
@@ -826,15 +827,15 @@ public class BigQueryIO {
     abstract String getKmsKey();
 
     @Nullable
-    @Experimental(Experimental.Kind.SCHEMAS)
+    @Experimental(Kind.SCHEMAS)
     abstract TypeDescriptor<T> getTypeDescriptor();
 
     @Nullable
-    @Experimental(Experimental.Kind.SCHEMAS)
+    @Experimental(Kind.SCHEMAS)
     abstract ToBeamRowFunction<T> getToBeamRowFn();
 
     @Nullable
-    @Experimental(Experimental.Kind.SCHEMAS)
+    @Experimental(Kind.SCHEMAS)
     abstract FromBeamRowFunction<T> getFromBeamRowFn();
 
     /**
@@ -1424,7 +1425,7 @@ public class BigQueryIO {
      *
      * <p>Setting these conversion functions is necessary to enable {@link Schema} support.
      */
-    @Experimental(Experimental.Kind.SCHEMAS)
+    @Experimental(Kind.SCHEMAS)
     public TypedRead<T> withBeamRowConverters(
         TypeDescriptor<T> typeDescriptor,
         ToBeamRowFunction<T> toRowFn,
@@ -1502,7 +1503,7 @@ public class BigQueryIO {
     }
 
     /** See {@link Method}. */
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     public TypedRead<T> withMethod(Method method) {
       return toBuilder().setMethod(method).build();
     }
@@ -1512,14 +1513,14 @@ public class BigQueryIO {
      *     instead.
      */
     @Deprecated
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     public TypedRead<T> withReadOptions(TableReadOptions readOptions) {
       ensureReadOptionsFieldsNotSet();
       return toBuilder().setReadOptions(readOptions).build();
     }
 
     /** See {@link #withSelectedFields(ValueProvider)}. */
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     public TypedRead<T> withSelectedFields(List<String> selectedFields) {
       return withSelectedFields(StaticValueProvider.of(selectedFields));
     }
@@ -1530,14 +1531,14 @@ public class BigQueryIO {
      *
      * <p>Requires {@link Method#DIRECT_READ}. Not compatible with {@link #fromQuery(String)}.
      */
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     public TypedRead<T> withSelectedFields(ValueProvider<List<String>> selectedFields) {
       ensureReadOptionsNotSet();
       return toBuilder().setSelectedFields(selectedFields).build();
     }
 
     /** See {@link #withRowRestriction(ValueProvider)}. */
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     public TypedRead<T> withRowRestriction(String rowRestriction) {
       return withRowRestriction(StaticValueProvider.of(rowRestriction));
     }
@@ -1549,13 +1550,13 @@ public class BigQueryIO {
      *
      * <p>Requires {@link Method#DIRECT_READ}. Not compatible with {@link #fromQuery(String)}.
      */
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     public TypedRead<T> withRowRestriction(ValueProvider<String> rowRestriction) {
       ensureReadOptionsNotSet();
       return toBuilder().setRowRestriction(rowRestriction).build();
     }
 
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     public TypedRead<T> withTemplateCompatibility() {
       return toBuilder().setWithTemplateCompatibility(true).build();
     }
@@ -1782,6 +1783,7 @@ public class BigQueryIO {
 
     abstract Boolean getOptimizeWrites();
 
+    @Experimental(Kind.SCHEMAS)
     abstract Boolean getUseBeamSchema();
 
     abstract Builder<T> toBuilder();
@@ -1855,6 +1857,7 @@ public class BigQueryIO {
 
       abstract Builder<T> setOptimizeWrites(Boolean optimizeWrites);
 
+      @Experimental(Kind.SCHEMAS)
       abstract Builder<T> setUseBeamSchema(Boolean useBeamSchema);
 
       abstract Write<T> build();
@@ -2273,7 +2276,7 @@ public class BigQueryIO {
      * formatFunction is set, then BigQueryIO will automatically turn the input records into
      * TableRows that match the schema.
      */
-    @Experimental
+    @Experimental(Kind.SCHEMAS)
     public Write<T> useBeamSchema() {
       return toBuilder().setUseBeamSchema(true).build();
     }
