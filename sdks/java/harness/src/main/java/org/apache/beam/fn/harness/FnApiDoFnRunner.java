@@ -342,26 +342,20 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
                       parDoPayload.getSideInputsMap().keySet(),
                       parDoPayload.getTimerSpecsMap().keySet())));
       PCollection mainInput = pCollections.get(pTransform.getInputsOrThrow(mainInputTag));
-      inputCoder = rehydratedComponents.getCoder(mainInput.getCoderId());
-      if (inputCoder instanceof KvCoder
-          // TODO: Stop passing windowed value coders within PCollections.
-          || (inputCoder instanceof WindowedValue.WindowedValueCoder
-              && (((WindowedValueCoder) inputCoder).getValueCoder() instanceof KvCoder))) {
-        this.keyCoder =
-            inputCoder instanceof WindowedValueCoder
-                ? ((KvCoder) ((WindowedValueCoder) inputCoder).getValueCoder()).getKeyCoder()
-                : ((KvCoder) inputCoder).getKeyCoder();
+      Coder<?> maybeWindowedValueInputCoder = rehydratedComponents.getCoder(mainInput.getCoderId());
+      // TODO: Stop passing windowed value coders within PCollections.
+      if (maybeWindowedValueInputCoder instanceof WindowedValue.WindowedValueCoder) {
+        inputCoder = ((WindowedValueCoder) maybeWindowedValueInputCoder).getValueCoder();
+      } else {
+        inputCoder = maybeWindowedValueInputCoder;
+      }
+      if (inputCoder instanceof KvCoder) {
+        this.keyCoder = ((KvCoder) inputCoder).getKeyCoder();
       } else {
         this.keyCoder = null;
       }
-      if (inputCoder instanceof SchemaCoder
-          // TODO: Stop passing windowed value coders within PCollections.
-          || (inputCoder instanceof WindowedValue.WindowedValueCoder
-              && (((WindowedValueCoder) inputCoder).getValueCoder() instanceof SchemaCoder))) {
-        this.schemaCoder =
-            inputCoder instanceof WindowedValueCoder
-                ? (SchemaCoder<InputT>) ((WindowedValueCoder) inputCoder).getValueCoder()
-                : ((SchemaCoder<InputT>) inputCoder);
+      if (inputCoder instanceof SchemaCoder) {
+        this.schemaCoder = ((SchemaCoder<InputT>) inputCoder);
       } else {
         this.schemaCoder = null;
       }

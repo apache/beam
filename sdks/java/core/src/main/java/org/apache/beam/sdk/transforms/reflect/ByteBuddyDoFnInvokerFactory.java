@@ -785,11 +785,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
           @Override
           public StackManipulation dispatch(BundleFinalizerParameter p) {
-            return new StackManipulation.Compound(
-                pushDelegate,
-                MethodInvocation.invoke(
-                    getExtraContextFactoryMethodDescription(
-                        BUNDLE_FINALIZER_PARAMETER_METHOD, DoFn.class)));
+            return simpleExtraContextParameter(BUNDLE_FINALIZER_PARAMETER_METHOD);
           }
 
           @Override

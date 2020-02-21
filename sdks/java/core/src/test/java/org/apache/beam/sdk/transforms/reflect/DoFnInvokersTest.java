@@ -51,6 +51,7 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.FakeArgumentProvider;
@@ -946,5 +947,23 @@ public class DoFnInvokersTest {
         equalTo(
             String.format(
                 "%s$%s", StableNameTestDoFn.class.getName(), DoFnInvoker.class.getSimpleName())));
+  }
+
+  @Test
+  public void testBundleFinalizer() {
+    class BundleFinalizerDoFn extends DoFn<String, String> {
+      @ProcessElement
+      public void processElement(BundleFinalizer bundleFinalizer) {
+        bundleFinalizer.afterBundleCommit(Instant.ofEpochSecond(42L), null);
+      }
+    }
+
+    BundleFinalizer mockBundleFinalizer = mock(BundleFinalizer.class);
+    when(mockArgumentProvider.bundleFinalizer()).thenReturn(mockBundleFinalizer);
+
+    DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(new BundleFinalizerDoFn());
+    invoker.invokeProcessElement(mockArgumentProvider);
+
+    verify(mockBundleFinalizer).afterBundleCommit(eq(Instant.ofEpochSecond(42L)), eq(null));
   }
 }

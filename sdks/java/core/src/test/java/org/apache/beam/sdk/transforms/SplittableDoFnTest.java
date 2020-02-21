@@ -823,12 +823,11 @@ public class SplittableDoFnTest implements Serializable {
 
     @NewTracker
     public RestrictionTracker<OffsetRange, Long> newTracker(@Restriction OffsetRange restriction) {
-      // Use a modified OffsetRangeTracker with disabled splitting to prevent
-      // parallelization of execution.
+      // Use a modified OffsetRangeTracker with only support for checkpointing.
       return new OffsetRangeTracker(restriction) {
         @Override
         public SplitResult<OffsetRange> trySplit(double fractionOfRemainder) {
-          return null;
+          return super.trySplit(0);
         }
       };
     }
@@ -869,21 +868,21 @@ public class SplittableDoFnTest implements Serializable {
   public void testBundleFinalizationOccursOnBoundedSplittableDoFn() throws Exception {
     @BoundedPerElement
     class BoundedBundleFinalizingSplittableDoFn extends BundleFinalizingSplittableDoFn {}
-    Pipeline p = TestPipeline.create();
     PCollection<String> foo = p.apply(Create.of("foo"));
     PCollection<String> res = foo.apply(ParDo.of(new BoundedBundleFinalizingSplittableDoFn()));
     PAssert.that(res).containsInAnyOrder("foo");
+    p.run();
   }
 
   @Test
   @Category({ValidatesRunner.class, UsesUnboundedSplittableParDo.class, UsesBundleFinalizer.class})
   public void testBundleFinalizationOccursOnUnboundedSplittableDoFn() throws Exception {
-    @BoundedPerElement
+    @UnboundedPerElement
     class UnboundedBundleFinalizingSplittableDoFn extends BundleFinalizingSplittableDoFn {}
-    Pipeline p = TestPipeline.create();
     PCollection<String> foo = p.apply(Create.of("foo"));
     PCollection<String> res = foo.apply(ParDo.of(new UnboundedBundleFinalizingSplittableDoFn()));
     PAssert.that(res).containsInAnyOrder("foo");
+    p.run();
   }
 
   // TODO (https://issues.apache.org/jira/browse/BEAM-988): Test that Splittable DoFn
