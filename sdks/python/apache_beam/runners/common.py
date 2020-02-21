@@ -1087,7 +1087,7 @@ class _OutputProcessor(OutputProcessor):
           windowed_value.windows *= len(windowed_input_element.windows)
       else:
         windowed_value = windowed_input_element.with_value(result)
-      if watermark_estimator:
+      if watermark_estimator is not None:
         watermark_estimator.observe_timestamp(windowed_value.timestamp)
       if tag is None:
         self.main_receivers.receive(windowed_value)
