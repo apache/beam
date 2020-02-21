@@ -16,8 +16,12 @@
  * limitations under the License.
  */
 package org.apache.beam.sdk.testing;
+
+import org.apache.beam.sdk.annotations.Internal;
+
 /**
  * Category tag for validation tests which use timerMap. Tests tagged with {@link UsesTimerMap}
  * should be run for runners which support timerMap.
  */
+@Internal
 public interface UsesTimerMap extends UsesTimersInParDo {}
