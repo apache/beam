@@ -201,10 +201,7 @@ class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
     def _state_iter():
       sleep_secs = 1.0
       while True:
-        current_state, timestamp = self._get_state()
-        if timestamp is not None:
-          # non-None indicates that the state has changed
-          yield current_state, timestamp
+        yield self.get_state()
         sleep_secs = min(60, sleep_secs * 1.2)
         time.sleep(sleep_secs)
 

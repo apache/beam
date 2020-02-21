@@ -33,7 +33,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow/dataflowlib"
@@ -166,7 +165,8 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return err
 	}
-	model, err := graphx.Marshal(edges, &graphx.Options{Environment: createEnvironment(ctx)})
+	model, err := graphx.Marshal(edges, &graphx.Options{Environment: graphx.CreateEnvironment(
+		ctx, jobopts.GetEnvironmentUrn(ctx), getContainerImage)})
 	if err != nil {
 		return errors.WithContext(err, "generating model pipeline")
 	}
@@ -214,28 +214,4 @@ func getContainerImage(ctx context.Context) string {
 		return jobopts.GetEnvironmentConfig(ctx)
 	}
 	panic(fmt.Sprintf("Unsupported environment %v", urn))
-}
-
-func createEnvironment(ctx context.Context) pb.Environment {
-	var environment pb.Environment
-	switch urn := jobopts.GetEnvironmentUrn(ctx); urn {
-	case "beam:env:process:v1":
-		// TODO Support process based SDK Harness.
-		panic(fmt.Sprintf("Unsupported environment %v", urn))
-	case "beam:env:docker:v1":
-		fallthrough
-	default:
-		config := *image
-		payload := &pb.DockerPayload{ContainerImage: config}
-		serializedPayload, err := proto.Marshal(payload)
-		if err != nil {
-			panic(errors.Wrapf(err,
-				"Failed to serialize Environment payload %v for config %v", payload, config))
-		}
-		environment = pb.Environment{
-			Urn:     urn,
-			Payload: serializedPayload,
-		}
-	}
-	return environment
 }
