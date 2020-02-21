@@ -23,6 +23,7 @@ import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_MAP_POJO_SCHEMA
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_NULLABLE_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NULLABLES_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NULLABLE_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.POJO_WITH_ENUM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.POJO_WITH_ITERABLE;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.POJO_WITH_NESTED_ARRAY_SCHEMA;
@@ -47,6 +48,7 @@ import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArraysPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedMapPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedPOJO;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.NullablePOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNestedNullable;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNullables;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PojoWithEnum;
@@ -89,6 +91,10 @@ public class JavaFieldSchemaTest {
         BYTE_BUFFER,
         BigDecimal.ONE,
         new StringBuilder(name).append("builder"));
+  }
+
+  private NullablePOJO createNullable() {
+    return new NullablePOJO(null, null, null, null, null, null, null, null, null, null, null, null);
   }
 
   private AnnotatedSimplePojo createAnnotated(String name) {
@@ -187,6 +193,54 @@ public class JavaFieldSchemaTest {
     assertEquals(BYTE_BUFFER, pojo.byteBuffer);
     assertEquals(BigDecimal.ONE, pojo.bigDecimal);
     assertEquals("stringbuilder", pojo.stringBuilder.toString());
+  }
+
+  @Test
+  public void testNullableSchema() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(NullablePOJO.class);
+    SchemaTestUtils.assertSchemaEquivalent(NULLABLE_POJO_SCHEMA, schema);
+  }
+
+  @Test
+  public void testNullableToRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    NullablePOJO pojo = createNullable();
+    Row row = registry.getToRowFunction(NullablePOJO.class).apply(pojo);
+
+    assertEquals(12, row.getFieldCount());
+    assertNull(row.getString("str"));
+    assertNull(row.getByte("aByte"));
+    assertNull(row.getInt16("aShort"));
+    assertNull(row.getInt32("anInt"));
+    assertNull(row.getInt64("aLong"));
+    assertNull(row.getBoolean("aBoolean"));
+    assertNull(row.getDateTime("dateTime"));
+    assertNull(row.getDateTime("instant"));
+    assertNull(row.getBytes("bytes"));
+    assertNull(row.getBytes("byteBuffer"));
+    assertNull(row.getDecimal("bigDecimal"));
+    assertNull(row.getString("stringBuilder"));
+  }
+
+  @Test
+  public void testNullableFromRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row = Row.nullRow(NULLABLE_POJO_SCHEMA);
+
+    NullablePOJO pojo = registry.getFromRowFunction(NullablePOJO.class).apply(row);
+    assertNull(pojo.str);
+    assertNull(pojo.aByte);
+    assertNull(pojo.aShort);
+    assertNull(pojo.anInt);
+    assertNull(pojo.aLong);
+    assertNull(pojo.aBoolean);
+    assertNull(pojo.dateTime);
+    assertNull(pojo.instant);
+    assertNull(pojo.bytes);
+    assertNull(pojo.byteBuffer);
+    assertNull(pojo.bigDecimal);
+    assertNull(pojo.stringBuilder);
   }
 
   @Test
