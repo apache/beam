@@ -119,4 +119,23 @@ if [[ $confirmation = "y" ]]; then
     docker rmi -f "${FLINK_IMAGE_NAME}:${RELEASE}"
     docker rmi -f "${FLINK_IMAGE_NAME}:latest"
   done
+
+  echo '-------------Generating and Pushing Spark job server image-------------'
+  SPARK_IMAGE_NAME="apachebeam/spark_job_server"
+
+  # Pull verified RC from dockerhub.
+  docker pull "${SPARK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}"
+
+  # Tag with ${RELEASE} and push to dockerhub.
+  docker tag "${SPARK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}" "${SPARK_IMAGE_NAME}:${RELEASE}"
+  docker push "${SPARK_IMAGE_NAME}:${RELEASE}"
+
+  # Tag with latest and push to dockerhub.
+  docker tag "${SPARK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}" "${SPARK_IMAGE_NAME}:latest"
+  docker push "${SPARK_IMAGE_NAME}:latest"
+
+  # Cleanup images from local
+  docker rmi -f "${SPARK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}"
+  docker rmi -f "${SPARK_IMAGE_NAME}:${RELEASE}"
+  docker rmi -f "${SPARK_IMAGE_NAME}:latest"
 fi
