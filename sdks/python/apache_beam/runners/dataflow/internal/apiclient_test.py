@@ -21,6 +21,7 @@
 
 from __future__ import absolute_import
 
+import logging
 import sys
 import unittest
 
@@ -30,9 +31,12 @@ import mock
 
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.pipeline import Pipeline
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow
 from apache_beam.transforms import DataflowDistributionCounter
+from apache_beam.transforms.environments import DockerEnvironment
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -43,6 +47,7 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 FAKE_PIPELINE_URL = "gs://invalid-bucket/anywhere"
+_LOGGER = logging.getLogger(__name__)
 
 
 @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
@@ -157,6 +162,81 @@ class UtilTest(unittest.TestCase):
         (
             dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
             FLEXRS_SPEED_OPTIMIZED))
+
+  def test_sdk_harness_container_images_get_set(self):
+    if 'sdkHarnessContainerImages' not in dataflow.WorkerPool.__dict__:
+      _LOGGER.warning(
+          'Skipping test \'test_sdk_harness_container_images_get_set\' since '
+          'Dataflow API WorkerPool does not have attribute '
+          '\'sdkHarnessContainerImages\'')
+      return
+
+    pipeline_options = PipelineOptions([
+        '--experiments=beam_fn_api',
+        '--experiments=use_unified_worker',
+        '--temp_location',
+        'gs://any-location/temp'
+    ])
+
+    pipeline = Pipeline(options=pipeline_options)
+
+    test_environment = DockerEnvironment(
+        container_image='dummy_container_image')
+    proto_pipeline, _ = pipeline.to_runner_api(
+        return_context=True, default_environment=test_environment)
+
+    env = apiclient.Environment([],  # packages
+                                pipeline_options,
+                                '2.0.0',  # any environment version
+                                FAKE_PIPELINE_URL, proto_pipeline)
+    worker_pool = env.proto.workerPools[0]
+    self.assertIsNotNone(1, len(worker_pool.sdkHarnessContainerImages))
+
+    # Container image should be overridden by a Dataflow specific URL.
+    self.assertTrue(
+        str.startswith(
+            (worker_pool.sdkHarnessContainerImages[0]).containerImage,
+            'gcr.io/cloud-dataflow/v1beta3/python'))
+
+  def test_sdk_harness_container_image_overrides(self):
+    if 'sdkHarnessContainerImages' not in dataflow.WorkerPool.__dict__:
+      _LOGGER.warning(
+          'Skipping test \'test_sdk_harness_container_image_overrides\' since '
+          'Dataflow API WorkerPool does not have attribute '
+          '\'sdkHarnessContainerImages\'')
+      return
+    pipeline_options = PipelineOptions([
+        '--experiments=beam_fn_api',
+        '--experiments=use_unified_worker',
+        '--temp_location',
+        'gs://any-location/temp',
+        '--project',
+        'dummy_project',
+        '--sdk_harness_container_image_overrides',
+        '.*dummy.*,new_dummy_container_image',
+    ])
+
+    pipeline = Pipeline(options=pipeline_options)
+
+    test_environment = DockerEnvironment(
+        container_image='dummy_container_image')
+    proto_pipeline, _ = pipeline.to_runner_api(
+      return_context=True, default_environment=test_environment)
+    dataflow_client = apiclient.DataflowApplicationClient(pipeline_options)
+
+    # Accessing non-public method for testing.
+    dataflow_client._apply_sdk_environment_overrides(proto_pipeline)
+
+    self.assertIsNotNone(1, len(proto_pipeline.components.environments))
+    env = list(proto_pipeline.components.environments.values())[0]
+
+    from apache_beam.utils import proto_utils
+    docker_payload = proto_utils.parse_Bytes(
+        env.payload, beam_runner_api_pb2.DockerPayload)
+
+    # Container image should be overridden by a the given override.
+    self.assertEqual(
+        docker_payload.container_image, 'new_dummy_container_image')
 
   def test_invalid_default_job_name(self):
     # Regexp for job names in dataflow.
