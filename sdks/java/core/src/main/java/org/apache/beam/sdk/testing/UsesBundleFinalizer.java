@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.testing;
 
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 
 /**
  * Category tag for validation tests which use {@link BundleFinalizer}. Tests tagged with {@link
  * UsesBundleFinalizer} should be run for runners which support bundle finalization.
  */
+@Internal
 public interface UsesBundleFinalizer {}
