@@ -177,6 +177,7 @@ class GrpcVendoring_1_26_0 {
       "com/google/j2objc/annotations/**",
       "javax/annotation/**",
       "junit/**",
+      "module-info.class",
       "org/apache/commons/logging/**",
       "org/apache/log/**",
       "org/apache/log4j/**",
@@ -184,6 +185,8 @@ class GrpcVendoring_1_26_0 {
       "org/checkerframework/**",
       "org/codehaus/mojo/animal_sniffer/**",
       "org/hamcrest/**",
+      // This Main class prevents shading (BEAM-9252)
+      "org/jboss/modules/Main*",
       "org/junit/**",
       "org/mockito/**",
       "org/objenesis/**",
