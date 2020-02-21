@@ -167,8 +167,14 @@ def is_new_type(typ):
   return hasattr(typ, '__supertype__')
 
 
+try:
+  _ForwardRef = typing.ForwardRef
+except AttributeError:
+  _ForwardRef = typing._ForwardRef
+
+
 def is_forward_ref(typ):
-  return isinstance(typ, typing._ForwardRef)
+  return isinstance(typ, _ForwardRef)
 
 
 # Mapping from typing.TypeVar/typehints.TypeVariable ids to an object of the
