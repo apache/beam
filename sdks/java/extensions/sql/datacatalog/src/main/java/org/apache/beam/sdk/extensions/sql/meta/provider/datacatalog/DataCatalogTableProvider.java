@@ -19,14 +19,14 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog;
 
 import static java.util.stream.Collectors.toMap;
 
-import com.google.cloud.datacatalog.DataCatalogGrpc;
-import com.google.cloud.datacatalog.DataCatalogGrpc.DataCatalogBlockingStub;
-import com.google.cloud.datacatalog.Entry;
-import com.google.cloud.datacatalog.LookupEntryRequest;
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
-import io.grpc.auth.MoreCallCredentials;
+import com.google.api.gax.rpc.InvalidArgumentException;
+import com.google.api.gax.rpc.NotFoundException;
+import com.google.api.gax.rpc.PermissionDeniedException;
+import com.google.cloud.datacatalog.v1beta1.DataCatalogClient;
+import com.google.cloud.datacatalog.v1beta1.DataCatalogSettings;
+import com.google.cloud.datacatalog.v1beta1.Entry;
+import com.google.cloud.datacatalog.v1beta1.LookupEntryRequest;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -56,12 +56,11 @@ public class DataCatalogTableProvider extends FullNameTableProvider {
       Stream.of(new PubsubJsonTableProvider(), new BigQueryTableProvider(), new TextTableProvider())
           .collect(toMap(TableProvider::getTableType, p -> p));
 
-  private final DataCatalogBlockingStub dataCatalog;
+  private final DataCatalogClient dataCatalog;
   private final Map<String, Table> tableCache;
   private final TableFactory tableFactory;
 
-  private DataCatalogTableProvider(
-      DataCatalogBlockingStub dataCatalog, boolean truncateTimestamps) {
+  private DataCatalogTableProvider(DataCatalogClient dataCatalog, boolean truncateTimestamps) {
 
     this.tableCache = new HashMap<>();
     this.dataCatalog = dataCatalog;
@@ -135,22 +134,21 @@ public class DataCatalogTableProvider extends FullNameTableProvider {
           tableName,
           dataCatalog.lookupEntry(
               LookupEntryRequest.newBuilder().setSqlResource(tableName).build()));
-    } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode().equals(Status.Code.INVALID_ARGUMENT)
-          || e.getStatus().getCode().equals(Status.Code.PERMISSION_DENIED)
-          || e.getStatus().getCode().equals(Status.Code.NOT_FOUND)) {
-        throw new InvalidTableException("Could not resolve table in Data Catalog: " + tableName, e);
-      }
-      throw new RuntimeException(e);
+    } catch (InvalidArgumentException | PermissionDeniedException | NotFoundException e) {
+      throw new InvalidTableException("Could not resolve table in Data Catalog: " + tableName, e);
     }
   }
 
-  private static DataCatalogBlockingStub createDataCatalogClient(
-      DataCatalogPipelineOptions options) {
-    return DataCatalogGrpc.newBlockingStub(
-            ManagedChannelBuilder.forTarget(options.getDataCatalogEndpoint()).build())
-        .withCallCredentials(
-            MoreCallCredentials.from(options.as(GcpOptions.class).getGcpCredential()));
+  private static DataCatalogClient createDataCatalogClient(DataCatalogPipelineOptions options) {
+    try {
+      return DataCatalogClient.create(
+          DataCatalogSettings.newBuilder()
+              .setCredentialsProvider(() -> options.as(GcpOptions.class).getGcpCredential())
+              .setEndpoint(options.getDataCatalogEndpoint())
+              .build());
+    } catch (IOException e) {
+      throw new RuntimeException("Error creating Data Catalog client", e);
+    }
   }
 
   private Table toCalciteTable(String tableName, Entry entry) {
