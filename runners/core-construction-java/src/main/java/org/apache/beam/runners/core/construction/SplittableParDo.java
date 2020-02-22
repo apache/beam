@@ -417,6 +417,25 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
                 }
 
                 @Override
+                public boolean requestsFinalization() {
+                  return (signature.startBundle() != null
+                          && signature
+                              .startBundle()
+                              .extraParameters()
+                              .contains(DoFnSignature.Parameter.bundleFinalizer()))
+                      || (signature.processElement() != null
+                          && signature
+                              .processElement()
+                              .extraParameters()
+                              .contains(DoFnSignature.Parameter.bundleFinalizer()))
+                      || (signature.finishBundle() != null
+                          && signature
+                              .finishBundle()
+                              .extraParameters()
+                              .contains(DoFnSignature.Parameter.bundleFinalizer()));
+                }
+
+                @Override
                 public String translateRestrictionCoderId(SdkComponents newComponents) {
                   return restrictionCoderId;
                 }

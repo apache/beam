@@ -92,7 +92,8 @@ public class FlattenRunnerTest {
             null /* startFunctionRegistry */,
             null, /* finishFunctionRegistry */
             null, /* tearDownRegistry */
-            null /* splitListener */);
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     mainOutputValues.clear();
     assertThat(
@@ -160,7 +161,8 @@ public class FlattenRunnerTest {
             null /* startFunctionRegistry */,
             null, /* finishFunctionRegistry */
             null, /* tearDownRegistry */
-            null /* splitListener */);
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     mainOutputValues.clear();
     assertThat(consumers.keySet(), containsInAnyOrder("inputATarget", "mainOutputTarget"));

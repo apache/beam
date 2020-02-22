@@ -38,6 +38,7 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
@@ -391,6 +392,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       throw new UnsupportedOperationException(
           "Cannot access timer family outside of @ProcessElement and @OnTimer methods");
     }
+
+    @Override
+    public BundleFinalizer bundleFinalizer() {
+      throw new UnsupportedOperationException(
+          "Bundle finalization is not supported in non-portable pipelines.");
+    }
   }
 
   /** B A concrete implementation of {@link DoFn.FinishBundleContext}. */
@@ -537,6 +544,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
       outputWindowedValue(tag, WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
+    }
+
+    @Override
+    public BundleFinalizer bundleFinalizer() {
+      throw new UnsupportedOperationException(
+          "Bundle finalization is not supported in non-portable pipelines.");
     }
   }
 
@@ -791,6 +804,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         throw new RuntimeException(e);
       }
     }
+
+    @Override
+    public BundleFinalizer bundleFinalizer() {
+      throw new UnsupportedOperationException(
+          "Bundle finalization is not supported in non-portable pipelines.");
+    }
   }
 
   /**
@@ -1013,6 +1032,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       outputWindowedValue(tag, WindowedValue.of(output, timestamp, window(), PaneInfo.NO_FIRING));
+    }
+
+    @Override
+    public BundleFinalizer bundleFinalizer() {
+      throw new UnsupportedOperationException(
+          "Bundle finalization is not supported in non-portable pipelines.");
     }
   }
 

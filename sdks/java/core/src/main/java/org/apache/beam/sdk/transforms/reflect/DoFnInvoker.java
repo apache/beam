@@ -26,6 +26,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -53,10 +54,10 @@ public interface DoFnInvoker<InputT, OutputT> {
   void invokeSetup();
 
   /** Invoke the {@link DoFn.StartBundle} method on the bound {@link DoFn}. */
-  void invokeStartBundle(DoFn<InputT, OutputT>.StartBundleContext c);
+  void invokeStartBundle(ArgumentProvider<InputT, OutputT> arguments);
 
   /** Invoke the {@link DoFn.FinishBundle} method on the bound {@link DoFn}. */
-  void invokeFinishBundle(DoFn<InputT, OutputT>.FinishBundleContext c);
+  void invokeFinishBundle(ArgumentProvider<InputT, OutputT> arguments);
 
   /** Invoke the {@link DoFn.Teardown} method on the bound {@link DoFn}. */
   void invokeTeardown();
@@ -168,8 +169,14 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a {@link OutputReceiver} for outputting rows to the default output. */
     OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn);
 
-    /** Provide a {@link MultiOutputReceiver} for outputing to the default output. */
+    /** Provide a {@link MultiOutputReceiver} for outputting to the default output. */
     MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn);
+
+    /**
+     * Provide a {@link BundleFinalizer} for being able to register a callback after the bundle has
+     * been successfully persisted by the runner.
+     */
+    BundleFinalizer bundleFinalizer();
 
     /**
      * If this is a splittable {@link DoFn}, returns the associated restriction with the current
@@ -330,6 +337,12 @@ public interface DoFnInvoker<InputT, OutputT> {
           String.format("RestrictionTracker unsupported in %s", getErrorContext()));
     }
 
+    @Override
+    public BundleFinalizer bundleFinalizer() {
+      throw new UnsupportedOperationException(
+          String.format("BundleFinalizer unsupported in %s", getErrorContext()));
+    }
+
     /**
      * Return a human readable representation of the current call context to be used during error
      * reporting.
@@ -453,6 +466,11 @@ public interface DoFnInvoker<InputT, OutputT> {
     @Override
     public String timerId(DoFn<InputT, OutputT> doFn) {
       return delegate.timerId(doFn);
+    }
+
+    @Override
+    public BundleFinalizer bundleFinalizer() {
+      return delegate.bundleFinalizer();
     }
 
     @Override

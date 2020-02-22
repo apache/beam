@@ -599,7 +599,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *       Finalize Bundles</a> for further details.
    * </ul>
    */
-  // TODO: Add support for bundle finalization parameter.
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
@@ -1165,8 +1164,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * consumers without waiting for finalization to succeed. For pipelines that are sensitive to
    * duplicate messages, they must perform output deduplication in the pipeline.
    */
-  // TODO: Add support for a deduplication PTransform.
-  @Experimental(Kind.SPLITTABLE_DO_FN)
+  @Experimental(Kind.PORTABILITY)
   public interface BundleFinalizer {
     /**
      * The provided function will be called after the runner successfully commits the output of a
