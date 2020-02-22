@@ -967,7 +967,7 @@ class BeamModulePlugin implements Plugin<Project> {
                 FileTree exposedClasses = project.zipTree(it).matching {
                   include "**/*.class"
                   // BEAM-5919: Exclude paths for Java 9 multi-release jars.
-                  exclude "**/module-info.class"
+                  exclude "META-INF/versions/*/module-info.class"
                   configuration.shadowJarValidationExcludes.each {
                     exclude "$it"
                     exclude "META-INF/versions/*/$it"
