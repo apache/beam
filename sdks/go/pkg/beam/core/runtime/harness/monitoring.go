@@ -102,8 +102,7 @@ func shortIdsToInfos(shortids []string) map[string]*pipepb.MonitoringInfo {
 	return defaultShortIDCache.shortIdsToInfos(shortids)
 }
 
-func monitoring(p *exec.Plan) ([]*pipepb.MonitoringInfo, map[string][]byte) {
-	store := p.Store()
+func monitoring(p *exec.Plan, store *metrics.Store) ([]*pipepb.MonitoringInfo, map[string][]byte) {
 	if store == nil {
 		return nil, nil
 	}
