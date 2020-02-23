@@ -25,11 +25,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 )
 
-func monitoring(p *exec.Plan) (*fnpb.Metrics, []*ppb.MonitoringInfo) {
-	store := p.Store()
-	if store == nil {
-		return nil, nil
-	}
+func monitoring(p *exec.Plan, store *metrics.Store) (*fnpb.Metrics, []*ppb.MonitoringInfo) {
 	// Get the legacy style metrics.
 	transforms := make(map[string]*fnpb.Metrics_PTransform)
 	metrics.Extractor{
