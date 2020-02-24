@@ -456,7 +456,7 @@ public class ProtoByteBuddyUtils {
     Preconditions.checkArgument(
         typeInformation.getType().equals(TypeDescriptor.of(OneOfType.Value.class)));
 
-    int keys[] = getterMethodMap.keySet().stream().mapToInt(Integer::intValue).toArray();
+    int[] keys = getterMethodMap.keySet().stream().mapToInt(Integer::intValue).toArray();
 
     DynamicType.Builder<FieldValueGetter> builder =
         ByteBuddyUtils.subclassGetterInterface(BYTE_BUDDY, protoClass, OneOfType.Value.class);
@@ -512,7 +512,7 @@ public class ProtoByteBuddyUtils {
           Class protoBuilderClass) {
     Set<Integer> indices = setterMethodMap.keySet();
     boolean contiguous = isContiguous(indices);
-    int keys[] = setterMethodMap.keySet().stream().mapToInt(Integer::intValue).toArray();
+    int[] keys = setterMethodMap.keySet().stream().mapToInt(Integer::intValue).toArray();
 
     DynamicType.Builder<FieldValueSetter> builder =
         ByteBuddyUtils.subclassSetterInterface(
