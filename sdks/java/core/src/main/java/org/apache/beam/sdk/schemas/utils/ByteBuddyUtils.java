@@ -157,7 +157,7 @@ public class ByteBuddyUtils {
 
   // Create a new FieldValueSetter subclass.
   @SuppressWarnings("unchecked")
-  static DynamicType.Builder<FieldValueSetter> subclassSetterInterface(
+  public static DynamicType.Builder<FieldValueSetter> subclassSetterInterface(
       ByteBuddy byteBuddy, Type objectType, Type fieldType) {
     TypeDescription.Generic setterGenericType =
         TypeDescription.Generic.Builder.parameterizedType(
