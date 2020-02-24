@@ -37,7 +37,9 @@ from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
+  from apache_beam.io.iobase import RestrictionProgress
   from apache_beam.io.iobase import RestrictionTracker
+  from apache_beam.io.iobase import WatermarkEstimator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -113,6 +115,7 @@ class ThreadsafeRestrictionTracker(object):
       return self._restriction_tracker.check_done()
 
   def current_progress(self):
+    # type: () -> RestrictionProgress
     with self._lock:
       return self._restriction_tracker.current_progress()
 
@@ -158,6 +161,7 @@ class RestrictionTrackerView(object):
   restriction_tracker.
   """
   def __init__(self, threadsafe_restriction_tracker):
+    # type: (ThreadsafeRestrictionTracker) -> None
     if not isinstance(threadsafe_restriction_tracker,
                       ThreadsafeRestrictionTracker):
       raise ValueError(
@@ -180,6 +184,7 @@ class ThreadsafeWatermarkEstimator(object):
   mechanism to guarantee multi-thread safety.
   """
   def __init__(self, watermark_estimator):
+    # type: (WatermarkEstimator) -> None
     from apache_beam.io.iobase import WatermarkEstimator
     if not isinstance(watermark_estimator, WatermarkEstimator):
       raise ValueError('Initializing Threadsafe requires a WatermarkEstimator')
@@ -200,19 +205,13 @@ class ThreadsafeWatermarkEstimator(object):
     with self._lock:
       return self._watermark_estimator.get_estimator_state()
 
-  def current_watermark_with_lock(self):
-    # The caller should hold the lock before entering this function.
-    if not self._lock.locked():
-      raise RuntimeError(
-          'Expected lock to be held to guarantee thread-safe '
-          'access.')
-    return self._watermark_estimator.current_watermark()
-
   def current_watermark(self):
+    # type: () -> Timestamp
     with self._lock:
-      return self.current_watermark_with_lock()
+      return self._watermark_estimator.current_watermark()
 
   def observe_timestamp(self, timestamp):
+    # type: (Timestamp) -> None
     if not isinstance(timestamp, Timestamp):
       raise ValueError(
           'Input of observe_timestamp should be a Timestamp '
