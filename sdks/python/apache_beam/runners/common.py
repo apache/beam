@@ -337,15 +337,13 @@ class DoFnSignature(object):
 
   def get_restriction_coder(self):
     # type: () -> Optional[TupleCoder]
+
     """Get coder for a restriction when processing an SDF. """
     if self.is_splittable_dofn():
-      restriction_coder = TupleCoder([
+      return TupleCoder([
           (self.get_restriction_provider().restriction_coder()),
           (self.get_watermark_estimator_provider().estimator_state_coder())
       ])
-    else:
-      restriction_coder = None
-    return restriction_coder
 
   def is_stateful_dofn(self):
     # type: () -> bool
@@ -562,7 +560,7 @@ class PerWindowInvoker(DoFnInvoker):
     self.user_state_context = user_state_context
     self.is_splittable = signature.is_splittable_dofn()
     self.threadsafe_restriction_tracker = None  # type: Optional[ThreadsafeRestrictionTracker]
-    self.threadsafe_watermark_estimator = None # type: Optional[ThreadsafeWatermarkEstimator]
+    self.threadsafe_watermark_estimator = None  # type: Optional[ThreadsafeWatermarkEstimator]
     self.current_windowed_value = None  # type: Optional[WindowedValue]
     self.bundle_finalizer_param = bundle_finalizer_param
     self.is_key_param_required = False

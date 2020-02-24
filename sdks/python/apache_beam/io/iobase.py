@@ -1264,12 +1264,14 @@ class WatermarkEstimator(object):
 
   def current_watermark(self):
     # type: () -> timestamp.Timestamp
+
     """Return estimated output_watermark. This function must return
     monotonically increasing watermarks."""
     raise NotImplementedError(type(self))
 
   def observe_timestamp(self, timestamp):
     # type: (timestamp.Timestamp) -> None
+
     """Update tracking  watermark with latest output timestamp.
 
     Args:
