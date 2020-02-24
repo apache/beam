@@ -48,9 +48,11 @@ PROCESS_BUNDLE_MSECS_URN = (
 FINISH_BUNDLE_MSECS_URN = (
     common_urns.monitoring_info_specs.FINISH_BUNDLE_MSECS.spec.urn)
 TOTAL_MSECS_URN = common_urns.monitoring_info_specs.TOTAL_MSECS.spec.urn
-USER_COUNTER_URN = (common_urns.monitoring_info_specs.USER_COUNTER.spec.urn)
+USER_COUNTER_URN = common_urns.monitoring_info_specs.USER_COUNTER.spec.urn
 USER_DISTRIBUTION_COUNTER_URN = (
     common_urns.monitoring_info_specs.USER_DISTRIBUTION_COUNTER.spec.urn)
+WORK_REMAINING_URN = common_urns.monitoring_info_specs.WORK_REMAINING.spec.urn
+WORK_COMPLETED_URN = common_urns.monitoring_info_specs.WORK_COMPLETED.spec.urn
 
 # TODO(ajamato): Implement the remaining types, i.e. Double types
 # Extrema types, etc. See:
@@ -59,6 +61,7 @@ SUM_INT64_TYPE = common_urns.monitoring_info_types.SUM_INT64_TYPE.urn
 DISTRIBUTION_INT64_TYPE = (
     common_urns.monitoring_info_types.DISTRIBUTION_INT64_TYPE.urn)
 LATEST_INT64_TYPE = common_urns.monitoring_info_types.LATEST_INT64_TYPE.urn
+LATEST_DOUBLES_TYPE = common_urns.monitoring_info_types.LATEST_DOUBLES_TYPE.urn
 
 COUNTER_TYPES = set([SUM_INT64_TYPE])
 DISTRIBUTION_TYPES = set([DISTRIBUTION_INT64_TYPE])
