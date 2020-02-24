@@ -778,7 +778,8 @@ class Pipeline(object):
     root_transform_id = context.transforms.get_id(self._root_transform())
     proto = beam_runner_api_pb2.Pipeline(
         root_transform_ids=[root_transform_id],
-        components=context.to_runner_api())
+        components=context.to_runner_api(),
+        requirements=context.requirements())
     proto.components.transforms[root_transform_id].unique_name = (
         root_transform_id)
     if return_context:
@@ -799,7 +800,9 @@ class Pipeline(object):
     p = Pipeline(runner=runner, options=options)
     from apache_beam.runners import pipeline_context
     context = pipeline_context.PipelineContext(
-        proto.components, allow_proto_holders=allow_proto_holders)
+        proto.components,
+        allow_proto_holders=allow_proto_holders,
+        requirements=proto.requirements)
     root_transform_id, = proto.root_transform_ids
     p.transforms_stack = [context.transforms.get_by_id(root_transform_id)]
     # TODO(robertwb): These are only needed to continue construction. Omit?

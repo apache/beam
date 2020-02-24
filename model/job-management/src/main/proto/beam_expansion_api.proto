@@ -57,6 +57,10 @@ message ExpansionResponse {
   // and subtransforms.
   org.apache.beam.model.pipeline.v1.PTransform transform = 2;
 
+  // A set of requirements that must be appended to this pipeline's
+  // requirements.
+  repeated string requirements = 3;
+
   // (Optional) An string representation of any error encountered while
   // attempting to expand this transform.
   string error = 10;

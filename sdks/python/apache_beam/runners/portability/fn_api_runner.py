@@ -466,6 +466,13 @@ class FnApiRunner(runner.PipelineRunner):
     self._last_uid += 1
     return str(self._last_uid)
 
+  @staticmethod
+  def supported_requirements():
+    return (
+        common_urns.requirements.REQUIRES_STATEFUL_PROCESSING.urn,
+        common_urns.requirements.REQUIRES_BUNDLE_FINALIZATION.urn,
+    )
+
   def run_pipeline(self,
                    pipeline,  # type: Pipeline
                    options  # type: pipeline_options.PipelineOptions
@@ -511,6 +518,8 @@ class FnApiRunner(runner.PipelineRunner):
 
   def run_via_runner_api(self, pipeline_proto):
     # type: (beam_runner_api_pb2.Pipeline) -> RunnerResult
+    self._validate_requirements(pipeline_proto)
+    self._check_requirements(pipeline_proto)
     stage_context, stages = self.create_stages(pipeline_proto)
     # TODO(pabloem, BEAM-7514): Create a watermark manager (that has access to
     #   the teststream (if any), and all the stages).
@@ -560,6 +569,47 @@ class FnApiRunner(runner.PipelineRunner):
     else:
       # Empty context.
       yield
+
+  def _validate_requirements(self, pipeline_proto):
+    """As a test runner, validate requirements were set correctly."""
+    expected_requirements = set()
+
+    def add_requirements(transform_id):
+      transform = pipeline_proto.components.transforms[transform_id]
+      if transform.spec.urn in fn_api_runner_transforms.PAR_DO_URNS:
+        payload = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        if payload.requests_finalization:
+          expected_requirements.add(
+              common_urns.requirements.REQUIRES_BUNDLE_FINALIZATION.urn)
+        if (payload.state_specs or payload.timer_specs or
+            payload.timer_family_specs):
+          expected_requirements.add(
+              common_urns.requirements.REQUIRES_STATEFUL_PROCESSING.urn)
+        if payload.requires_stable_input:
+          expected_requirements.add(
+              common_urns.requirements.REQUIRES_STABLE_INPUT.urn)
+        if payload.requires_time_sorted_input:
+          expected_requirements.add(
+              common_urns.requirements.REQUIRES_TIME_SORTED_INPUT.urn)
+      else:
+        for sub in transform.subtransforms:
+          add_requirements(sub)
+
+    for root in pipeline_proto.root_transform_ids:
+      add_requirements(root)
+    if not expected_requirements.issubset(pipeline_proto.requirements):
+      raise ValueError(
+          'Missing requirement declaration: %s' %
+          (expected_requirements - set(pipeline_proto.requirements)))
+
+  def _check_requirements(self, pipeline_proto):
+    """Check that this runner can satisfy all pipeline requirements."""
+    supported_requirements = set(self.supported_requirements())
+    for requirement in pipeline_proto.requirements:
+      if requirement not in supported_requirements:
+        raise ValueError(
+            'Unable to run pipeline with requirement: %s' % requirement)
 
   def create_stages(
       self,
