@@ -37,8 +37,8 @@ from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
-  from apache_beam.io.iobase import RestrictionTracker
   from apache_beam.io.iobase import RestrictionProgress
+  from apache_beam.io.iobase import RestrictionTracker
   from apache_beam.io.iobase import WatermarkEstimator
 
 _LOGGER = logging.getLogger(__name__)
