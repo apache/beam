@@ -17,23 +17,19 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import java.io.Serializable;
+import java.util.Map;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.kafka.common.serialization.Deserializer;
 
-/**
- * Provides instances of Confluent Schema Registry client, schema registry url, key and value
- * subjects.
- *
- * <p>Please note, that any instance of {@link CSRClientProvider} must be {@link Serializable} to
- * ensure it can be sent to worker machines.
- */
-public interface CSRClientProvider extends Serializable {
+/** Provides a configured {@link Deserializer} instance and its associated {@link Coder}. */
+@Experimental(Kind.SOURCE_SINK)
+interface DeserializerProvider<T> extends Serializable {
 
-  SchemaRegistryClient getCSRClient();
+  Deserializer<T> getDeserializer(Map<String, ?> configs, boolean isKey);
 
-  String getSchemaRegistryUrl();
-
-  String getKeySchemaSubject();
-
-  String getValueSchemaSubject();
+  Coder<T> getCoder(CoderRegistry coderRegistry);
 }
