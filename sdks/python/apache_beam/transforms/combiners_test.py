@@ -470,6 +470,9 @@ class CombineTest(unittest.TestCase):
       ts.add_elements([i])
     ts.advance_watermark_to_infinity()
 
+    def is_early_firing(element, num_partitions):
+      return 0 if element < 15 else 1
+
     options = PipelineOptions()
     options.view_as(StandardOptions).streaming = True
     with TestPipeline(options=options) as p:
@@ -482,9 +485,16 @@ class CombineTest(unittest.TestCase):
               trigger=AfterWatermark(early=AfterAll(AfterCount(1))))
           | beam.CombineGlobally(sum).without_defaults().with_fanout(2))
 
-      # The frings for DISCARDING mode is [1, 2, 3, 4, 5, 0, 0].
-      firings = [1, 3, 6, 10, 15, 15, 15]
-      assert_that(result, equal_to(firings))
+      # Partition the result into early_firings and other_firings.
+      # In ACCUMULATING mode, the early_frings is [1, 3, 6, 10], the
+      # other_frings is [15, 15, ...]. Different runners have different
+      # number of 15s.
+      early_firings, other_firings = (
+          result
+          | beam.Partition(is_early_firing, 2))
+      exepected_early_firings = [1, 3, 6, 10]
+      assert_that(early_firings, equal_to(exepected_early_firings))
+
 
   def test_MeanCombineFn_combine(self):
     with TestPipeline() as p:
