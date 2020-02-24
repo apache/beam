@@ -32,7 +32,6 @@ import threading
 import time
 from builtins import object
 from builtins import range
-from types import TracebackType
 from typing import TYPE_CHECKING
 from typing import Callable
 from typing import DefaultDict
@@ -56,7 +55,13 @@ from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 if TYPE_CHECKING:
-  # TODO: remove from TYPE_CHECKING scope when we drop support for python < 3.6
+  # TODO(BEAM-9372): move this out of the TYPE_CHECKING scope when we drop
+  #  support for python < 3.5.3
+  from types import TracebackType
+  ExcInfo = Tuple[Type[BaseException], BaseException, TracebackType]
+  OptExcInfo = Union[ExcInfo, Tuple[None, None, None]]
+  # TODO: move this out of the TYPE_CHECKING scope when we drop support for
+  #  python < 3.6
   from typing import Collection
   import apache_beam.coders.slow_stream
   OutputStream = apache_beam.coders.slow_stream.OutputStream
@@ -69,9 +74,6 @@ _LOGGER = logging.getLogger(__name__)
 
 _DEFAULT_SIZE_FLUSH_THRESHOLD = 10 << 20  # 10MB
 _DEFAULT_TIME_FLUSH_THRESHOLD_MS = 0  # disable time-based flush by default
-
-ExcInfo = Tuple[Type[BaseException], BaseException, TracebackType]
-OptExcInfo = Union[ExcInfo, Tuple[None, None, None]]
 
 
 class ClosableOutputStream(OutputStream):
