@@ -37,21 +37,17 @@ those generated rows in the table.
 """
 from __future__ import absolute_import
 
-from collections import namedtuple
-
 import apache_beam as beam
 from apache_beam.io import iobase
 from apache_beam.metrics import Metrics
 from apache_beam.transforms import util
 from apache_beam.transforms.display import DisplayDataItem
-
-import logging
+from collections import namedtuple
 
 try:
   from google.cloud.bigtable import Client
 except ImportError:
-  Client = None
-
+  pass
 
 __all__ = ['WriteToBigTable', 'ReadFromBigtable']
 
@@ -74,27 +70,27 @@ class _BigTableWriteFn(beam.DoFn):
       table_id(str): GCP Table to write the `DirectRows`
     """
     super(_BigTableWriteFn, self).__init__()
-    self._beam_options = {'project_id': project_id,
-                          'instance_id': instance_id,
-                          'table_id': table_id}
+    self.beam_options = {'project_id': project_id,
+                         'instance_id': instance_id,
+                         'table_id': table_id}
     self.table = None
     self.batcher = None
     self.written = Metrics.counter(self.__class__, 'Written Row')
 
   def __getstate__(self):
-    return self._beam_options
+    return self.beam_options
 
   def __setstate__(self, options):
-    self._beam_options = options
+    self.beam_options = options
     self.table = None
     self.batcher = None
     self.written = Metrics.counter(self.__class__, 'Written Row')
 
   def start_bundle(self):
     if self.table is None:
-      client = Client(project=self._beam_options['project_id'])
-      instance = client.instance(self._beam_options['instance_id'])
-      self.table = instance.table(self._beam_options['table_id'])
+      client = Client(project=self.beam_options['project_id'])
+      instance = client.instance(self.beam_options['instance_id'])
+      self.table = instance.table(self.beam_options['table_id'])
     self.batcher = self.table.mutations_batcher()
 
   def process(self, row):
@@ -114,11 +110,11 @@ class _BigTableWriteFn(beam.DoFn):
     self.batcher = None
 
   def display_data(self):
-    return {'projectId': DisplayDataItem(self._beam_options['project_id'],
+    return {'projectId': DisplayDataItem(self.beam_options['project_id'],
                                          label='Bigtable Project Id'),
-            'instanceId': DisplayDataItem(self._beam_options['instance_id'],
+            'instanceId': DisplayDataItem(self.beam_options['instance_id'],
                                           label='Bigtable Instance Id'),
-            'tableId': DisplayDataItem(self._beam_options['table_id'],
+            'tableId': DisplayDataItem(self.beam_options['table_id'],
                                        label='Bigtable Table Id')
            }
 
@@ -129,7 +125,8 @@ class WriteToBigTable(beam.PTransform):
   A PTransform that write a list of `DirectRow` into the Bigtable Table
 
   """
-  def __init__(self, project_id=None, instance_id=None, table_id=None):
+  def __init__(self, project_id=None, instance_id=None,
+               table_id=None):
     """ The PTransform to access the Bigtable Write connector
     Args:
       project_id(str): GCP Project of to write the Rows
@@ -137,16 +134,16 @@ class WriteToBigTable(beam.PTransform):
       table_id(str): GCP Table to write the `DirectRows`
     """
     super(WriteToBigTable, self).__init__()
-    self._beam_options = {'project_id': project_id,
-                          'instance_id': instance_id,
-                          'table_id': table_id}
+    self.beam_options = {'project_id': project_id,
+                         'instance_id': instance_id,
+                         'table_id': table_id}
 
   def expand(self, pvalue):
-    beam_options = self._beam_options
+    beam_options = self.beam_options
     return (pvalue
             | beam.ParDo(_BigTableWriteFn(beam_options['project_id'],
                                           beam_options['instance_id'],
-                                          beam_options['table_id'],)))
+                                          beam_options['table_id'])))
 
 
 class _BigtableReadFn(beam.DoFn):
@@ -199,8 +196,6 @@ class _BigtableReadFn(beam.DoFn):
   def process(self, source_bundle):
     _start_key = source_bundle.start_position
     _end_key = source_bundle.stop_position
-    logging.info('{}: processing the bundle of {}'
-                 .format(self.__class__.__name__, _start_key))
     for row in self._table.read_rows(_start_key, _end_key):
       self._counter.inc()
       yield row
@@ -250,7 +245,6 @@ class ReadFromBigtable(beam.PTransform):
       .table(table_id=self._options['table_id'])
 
     keys = list(table.sample_row_keys())
-    logging.info('{} sample row key(s) obtained:'.format(len(keys)))
 
     SampleRowKey = namedtuple("SampleRowKey", "row_key offset_bytes")
     keys.insert(0, SampleRowKey(b'', 0))
