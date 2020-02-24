@@ -67,6 +67,8 @@ from apache_beam.utils.windowed_value import WindowedValue
 if TYPE_CHECKING:
   from apache_beam.transforms import sideinputs
   from apache_beam.transforms.core import TimerSpec
+  from apache_beam.iobase import RestrictionTracker
+  from apache_beam.iobase import WatermarkEstimator
 
 
 class NameContext(object):
@@ -296,6 +298,7 @@ class DoFnSignature(object):
     return self.process_method.restriction_provider
 
   def get_watermark_estimator_provider(self):
+    # type: () -> WatermarkEstimatorProvider
     return self.process_method.watermark_estimator_provider
 
   def _validate(self):
@@ -333,15 +336,14 @@ class DoFnSignature(object):
     return self.get_restriction_provider() is not None
 
   def get_restriction_coder(self):
+    # type: () -> Optional[TupleCoder]
+
     """Get coder for a restriction when processing an SDF. """
     if self.is_splittable_dofn():
-      restriction_coder = TupleCoder([
+      return TupleCoder([
           (self.get_restriction_provider().restriction_coder()),
           (self.get_watermark_estimator_provider().estimator_state_coder())
       ])
-    else:
-      restriction_coder = None
-    return restriction_coder
 
   def is_stateful_dofn(self):
     # type: () -> bool
@@ -450,11 +452,11 @@ class DoFnInvoker(object):
   def invoke_process(self,
                      windowed_value,  # type: WindowedValue
                      restriction_tracker=None,  # type: Optional[RestrictionTracker]
-                     watermark_estimator=None,
+                     watermark_estimator=None,  # type: Optional[WatermarkEstimator]
                      additional_args=None,
                      additional_kwargs=None
                     ):
-    # type: (...) -> Optional[SplitResultType]
+    # type: (...) -> Optional[SplitResultResidual]
 
     """Invokes the DoFn.process() function.
 
@@ -537,7 +539,7 @@ class SimpleInvoker(DoFnInvoker):
   def invoke_process(self,
                      windowed_value,  # type: WindowedValue
                      restriction_tracker=None,  # type: Optional[RestrictionTracker]
-                     watermark_estimator=None,
+                     watermark_estimator=None, # type: Optional[WatermarkEstimator]
                      additional_args=None,
                      additional_kwargs=None
                     ):
@@ -570,8 +572,8 @@ class PerWindowInvoker(DoFnInvoker):
         signature.is_stateful_dofn())
     self.user_state_context = user_state_context
     self.is_splittable = signature.is_splittable_dofn()
-    self.threadsafe_restriction_tracker = None
-    self.threadsafe_watermark_estimator = None
+    self.threadsafe_restriction_tracker = None  # type: Optional[ThreadsafeRestrictionTracker]
+    self.threadsafe_watermark_estimator = None  # type: Optional[ThreadsafeWatermarkEstimator]
     self.current_windowed_value = None  # type: Optional[WindowedValue]
     self.bundle_finalizer_param = bundle_finalizer_param
     self.is_key_param_required = False
@@ -653,12 +655,12 @@ class PerWindowInvoker(DoFnInvoker):
 
   def invoke_process(self,
                      windowed_value,  # type: WindowedValue
-                     restriction_tracker=None,
-                     watermark_estimator=None,
+                     restriction_tracker=None, # type: Optional[RestrictionTracker]
+                     watermark_estimator=None, # type: Optional[WatermarkEstimator]
                      additional_args=None,
                      additional_kwargs=None
                     ):
-    # type: (...) -> Optional[SplitResultType]
+    # type: (...) -> Optional[SplitResultResidual]
     if not additional_args:
       additional_args = []
     if not additional_kwargs:
@@ -803,9 +805,6 @@ class PerWindowInvoker(DoFnInvoker):
 
     if self.is_splittable:
       assert self.threadsafe_restriction_tracker is not None
-      # TODO: Consider calling check_done right after SDF.Process() finishing.
-      # In order to do this, we need to know that current invoking dofn is
-      # ProcessSizedElementAndRestriction.
       self.threadsafe_restriction_tracker.check_done()
       deferred_status = self.threadsafe_restriction_tracker.deferred_status()
       if deferred_status:
