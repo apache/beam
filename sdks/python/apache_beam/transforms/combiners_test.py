@@ -485,16 +485,15 @@ class CombineTest(unittest.TestCase):
               trigger=AfterWatermark(early=AfterAll(AfterCount(1))))
           | beam.CombineGlobally(sum).without_defaults().with_fanout(2))
 
-      # Partition the result into early_firings and other_firings.
-      # In ACCUMULATING mode, the early_frings is [1, 3, 6, 10], the
-      # other_frings is [15, 15, ...]. Different runners have different
-      # number of 15s.
-      early_firings, other_firings = (
+      # Partition the result into early_firings and _.
+      # In ACCUMULATING mode, the early_frings is [1, 3, 6, 10], other
+      # firings are [15, 15, ...]. Different runners have different number
+      # of 15s.
+      early_firings, _ = (
           result
           | beam.Partition(is_early_firing, 2))
       exepected_early_firings = [1, 3, 6, 10]
       assert_that(early_firings, equal_to(exepected_early_firings))
-
 
   def test_MeanCombineFn_combine(self):
     with TestPipeline() as p:
