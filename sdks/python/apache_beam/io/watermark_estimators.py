@@ -120,10 +120,19 @@ class ManualWatermarkEstimator(WatermarkEstimator):
     return self._watermark
 
   def set_watermark(self, timestamp):
-    # Please call set_watermark after calling restriction_tracker.try_claim() to
-    # prevent advancing watermark early.
-    # TODO(BEAM-7473): It's possible that getting a slightly stale watermark
-    # when performing split.
+    # pylint: disable=line-too-long
+
+    """Sets a timestamp before or at the timestamps of all future elements
+    produced by the associated DoFn.
+
+    This can be approximate. If records are output that violate this guarantee,
+    they will be considered late, which will affect how they will be processed.
+    See https://beam.apache.org/documentation/programming-guide/#watermarks-and-late-data
+    for more information on late data and how to handle it.
+
+    However, this value should be as late as possible. Downstream windows may
+    not be able to close until this watermark passes their end.
+    """
     if not isinstance(timestamp, Timestamp):
       raise ValueError('set_watermark expects a Timestamp as input')
     if self._watermark and self._watermark > timestamp:
