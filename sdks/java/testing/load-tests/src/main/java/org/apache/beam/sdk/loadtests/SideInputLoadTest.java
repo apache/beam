@@ -135,11 +135,12 @@ public class SideInputLoadTest extends LoadTest<SideInputLoadTest.Options> {
   }
 
   private static class AddTimestamps extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> {
-    private Long increment = 1L;
+    private static Instant timestamp = TIME;
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      c.outputWithTimestamp(c.element(), TIME.plus(increment++));
+      timestamp = TIME.plus(1L);
+      c.outputWithTimestamp(c.element(), timestamp);
     }
   }
 
@@ -180,7 +181,7 @@ public class SideInputLoadTest extends LoadTest<SideInputLoadTest.Options> {
       int elementCount = size / options.getAccessPercentage() * 100;
       Random gen = new Random();
       for (int i = 0; i < elementCount; i++) {
-        si.get(keyList.get(gen.nextInt(elementCount)));
+        byte[] value = si.get(keyList.get(gen.nextInt(elementCount)));
       }
     }
   }
