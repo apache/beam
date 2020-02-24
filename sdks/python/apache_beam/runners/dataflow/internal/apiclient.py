@@ -186,11 +186,13 @@ class Environment(object):
     if job_type.startswith('FNAPI_'):
       self.debug_options = self.debug_options or DebugOptions()
       self.debug_options.experiments = self.debug_options.experiments or []
-      # Don't add the default image overwrite if user overwrites or
-      # if using unified worker.
-      if not self.debug_options.lookup_experiment(
-          'runner_harness_container_image') and not _use_unified_worker(
+      if self.debug_options.lookup_experiment(
+          'runner_harness_container_image') or _use_unified_worker(
               self.debug_options):
+        # Don't add the default image overwrite if user overwrites or
+        # if using unified worker.
+        pass
+      else:
         runner_harness_override = (get_runner_harness_container_image())
         if runner_harness_override:
           self.debug_options.add_experiment(
