@@ -331,7 +331,8 @@ class IOTypeHints(NamedTuple(
     else:
       output_args.append(typehints.Any)
 
-    msg = ['from_callable(%s)' % fn.__name__, '  signature: %s' % signature]
+    name = getattr(fn, '__name__', '<unknown>')
+    msg = ['from_callable(%s)' % name, '  signature: %s' % signature]
     if hasattr(fn, '__code__'):
       msg.append(
           '  File "%s", line %d' %
