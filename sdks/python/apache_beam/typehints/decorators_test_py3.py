@@ -21,6 +21,7 @@
 
 from __future__ import absolute_import
 
+import functools
 import typing
 import unittest
 
@@ -109,6 +110,15 @@ class IOTypeHintsTest(unittest.TestCase):
             'foo': List[int], 'kwargs': Dict[str, str]
         }))
     self.assertEqual(th.output_types, ((Tuple[Any, ...], ), {}))
+
+  def test_from_callable_partial(self):
+    def fn(a: int) -> int:
+      return a
+
+    # functools.partial objects don't have __name__ attributes by default.
+    fn = functools.partial(fn, 1)
+    th = decorators.IOTypeHints.from_callable(fn)
+    self.assertRegex(th.debug_str(), r'unknown')
 
   def test_getcallargs_forhints(self):
     def fn(
