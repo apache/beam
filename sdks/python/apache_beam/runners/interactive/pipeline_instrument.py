@@ -572,7 +572,8 @@ def unbounded_sources(pipeline):
   class CheckUnboundednessVisitor(PipelineVisitor):
     """Visitor checks if there are any unbounded read sources in the Pipeline.
 
-    Visitor visits all nodes and checks if it is an instance of capturable sources.
+    Visitor visits all nodes and checks if it is an instance of capturable
+    sources.
     """
     def __init__(self):
       self.unbounded_sources = []
