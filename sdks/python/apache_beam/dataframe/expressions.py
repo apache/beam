@@ -14,6 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Any
+from typing import Callable
+from typing import Iterable
+from typing import Optional
+from typing import TypeVar
+
 
 class Session(object):
   """A session represents a mapping of expressions to concrete values.
@@ -24,13 +30,17 @@ class Session(object):
   def __init__(self, bindings={}):
     self._bindings = dict(bindings)
 
-  def evaluate(self, expr):
+  def evaluate(self, expr):  # type: (Expression) -> Any
     if expr not in self._bindings:
       self._bindings[expr] = expr.evaluate_at(self)
     return self._bindings[expr]
 
-  def lookup(self, expr):
+  def lookup(self, expr):  #  type: (Expression) -> Any
     return self._bindings[expr]
+
+
+# The return type of an Expression
+T = TypeVar('T')
 
 
 class Expression(object):
@@ -39,36 +49,41 @@ class Expression(object):
   An expression represents a deferred tree of operations, which can be
   evaluated at a specific bindings of root expressions to values.
   """
-  def __init__(self, name, proxy=None, _id=None):
+  def __init__(
+      self,
+      name,  # type: str
+      proxy,  # type: T
+      _id=None  # type: Optional[str]
+  ):
     self._name = name
     self._proxy = proxy
     # Store for preservation through pickling.
     self._id = _id or '%s_%s' % (name, id(self))
 
-  def proxy(self):
+  def proxy(self):  # type: () -> T
     return self._proxy
 
   def __hash__(self):
     return hash(self._id)
 
-  def __eq__(self):
+  def __eq__(self, other):
     return self._id == other._id
 
   def __ne__(self, other):
     return not self == other
 
-  def evaluate_at(self, session):
+  def evaluate_at(self, session):  # type: (Session) -> T
     """Returns the result of self with the bindings given in session."""
     raise NotImplementedError(type(self))
 
-  def requires_partition_by_index(self):
+  def requires_partition_by_index(self):  # type: () -> bool
     """Whether this expression requires its argument(s) to be partitioned
     by index."""
     # TODO: It might be necessary to support partitioning by part of the index,
     # for some args, which would require returning more than a boolean here.
     raise NotImplementedError(type(self))
 
-  def preserves_partition_by_index(self):
+  def preserves_partition_by_index(self):  # type: () -> bool
     """Whether the result of this expression will be partitioned by index
     whenever all of its inputs are partitioned by index."""
     raise NotImplementedError(type(self))
@@ -76,8 +91,17 @@ class Expression(object):
 
 class PlaceholderExpression(Expression):
   """An expression whose value must be explicitly bound in the session."""
-  def __init__(self, proxy):
+  def __init__(
+      self,  # type: PlaceholderExpression
+      proxy  # type: T
+  ):
     super(PlaceholderExpression, self).__init__('placeholder', proxy)
+    """Initialize a placeholder expression.
+
+    Args:
+      proxy: A proxy object with the type expected to be bound to this
+        expression. Used for type checking at pipeline construction time.
+    """
 
   def args(self):
     return ()
@@ -93,8 +117,20 @@ class PlaceholderExpression(Expression):
 
 
 class ConstantExpression(Expression):
-  """An expression whose value is known at compile time."""
-  def __init__(self, value, proxy=None):
+  """An expression whose value is known at pipeline construction time."""
+  def __init__(
+      self,  # type: ConstantExpression
+      value,  # type: T
+      proxy=None  # type: Optional[T]
+  ):
+    """Initialize a constant expression.
+
+    Args:
+      value: The constant value to be produced by this expression.
+      proxy: (Optional) a proxy object with same type as `value` to use for
+        rapid type checking at pipeline construction time. If not provided,
+        `value` will be used directly.
+    """
     if proxy is None:
       proxy = value
     super(ConstantExpression, self).__init__('constant', proxy)
@@ -114,16 +150,36 @@ class ConstantExpression(Expression):
 
 
 class ComputedExpression(Expression):
+  """An expression whose value must be computed at pipeline execution time."""
   def __init__(
       self,  # type: ComputedExpression
       name,  # type: str
-      func,  # type: callable
+      func,  # type: Callable[...,T]
       args,  # type: Iterable[Expression]
-      proxy=None,  # type: Optional[Any]
+      proxy=None,  # type: Optional[T]
       _id=None,  # type: Optional[str]
       requires_partition_by_index=True,  # type: bool
       preserves_partition_by_index=False,  # type: bool
   ):
+    """Initialize a computed expression.
+
+    Args:
+      name: The name of this expression.
+      func: The function that will be used to compute the value of this
+        expression. Should accept arguments of the types returned when
+        evaluating the `args` expressions.
+      args: The list of expressions that will be used to produce inputs to
+        `func`.
+      proxy: (Optional) a proxy object with same type as the objects that this
+        ComputedExpression will produce at execution time. If not provided, a
+        proxy will be generated using `func` and the proxies of `args`.
+      _id: (Optional) a string to uniquely identify this expression.
+      requires_partition_by_index: Whether this expression requires its
+        argument(s) to be partitioned by index.
+      preserves_partition_by_index: Whether the result of this expression will
+        be partitioned by index whenever all of its inputs are partitioned by
+        index.
+    """
     args = tuple(args)
     if proxy is None:
       proxy = func(*(arg.proxy() for arg in args))
