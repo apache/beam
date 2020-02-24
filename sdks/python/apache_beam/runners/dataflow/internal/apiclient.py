@@ -184,13 +184,12 @@ class Environment(object):
     ])
     # TODO: Use enumerated type instead of strings for job types.
     if job_type.startswith('FNAPI_'):
-      self.debug_options = self.debug_options or DebugOptions()
       self.debug_options.experiments = self.debug_options.experiments or []
       if self.debug_options.lookup_experiment(
-          'runner_harness_container_image') or _use_unified_worker(
-              self.debug_options):
-        # Don't add the default image overwrite if user overwrites or
-        # if using unified worker.
+          'runner_harness_container_image') or _use_unified_worker(options):
+        # Default image is not used if user provides a runner harness image.
+        # Default runner harness image is selected by the service for unified
+        # worker.
         pass
       else:
         runner_harness_override = (get_runner_harness_container_image())
