@@ -274,8 +274,6 @@ func (c *StateChannel) terminateStreamOnError(err error) {
 		c.forceRecreate(c.id, err)
 		c.forceRecreate = nil
 	}
-	c.responses = nil
-	c.requests = nil
 	// Cancelling context after forcing recreation to ensure closedErr is set.
 	c.cancelFn()
 	c.mu.Unlock()
