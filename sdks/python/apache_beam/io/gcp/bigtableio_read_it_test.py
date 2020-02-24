@@ -38,7 +38,7 @@ try:
 except ImportError:
   Client = None
 
-from bigtableio_read import ReadFromBigtable
+from bigtableio import ReadFromBigtable
 
 
 @unittest.skipIf(Client is None, 'GC Bigtable dependencies are not installed')
