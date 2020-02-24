@@ -3124,8 +3124,9 @@ public class MyMetricsDoFn extends DoFn<Integer, Integer> {
 
 ## 10. State and Timers {#state-and-timers}
 Beam's windowing and triggering facilities provide a powerful abstraction for grouping and aggregating unbounded input
-data based on timestamps. However there are aggregation use cases for which Beam's windows and triggers are not the best
-fit. Beam provides an API for manually managing per-key state, allowing for finer-grained control over aggregations.
+data based on timestamps. However there are aggregation use cases for which developers may require a higher degree of
+control than provided by windows and triggers. Beam provides an API for manually managing per-key state, allowing for 
+fine-grained control over aggregations.
 
 Beam's state API models state per key. To use the state API, you start out with a keyed `PCollection`, which in Java
 is modeled as a `PCollection<KV<K, V>>`. A `ParDo` processing this `PCollection` can now declare state variables. Inside
@@ -3134,19 +3135,28 @@ written for that key. State is always fully scoped only to the current processin
 
 Windowing can still be used together with stateful processing. All state for a key is scoped to the current window. This
 means that the first time a key is seen for a given window any state reads will return empty, and that a runner can
-garbage collect state when a window is completed.  Merging windows are not currently supported when using state and timers.
+garbage collect state when a window is completed. It's also often useful to use Beam's windowed aggegations prior to
+the stateful operator. For example, using a combiner to preaggregate data, and then storing aggregated data inside of
+state. Merging windows are not currently supported when using state and timers.
 
+Sometimes stateful processing is used to implement state-machine style processing inside a `DoFn`. When doing this,
+care must be taken to remember that the elements in input PCollection have no guaranteed order and to ensure that the
+program logic is resilient to this. Unit tests written using the DirectRunner will shuffle the order of element
+processing, and are recommended to test for correctness.
+
+In Java DoFn declares states to be accessed by creating final `StateSpec` member variables representing each state. Each
+state must be named using the `StateId` annotation; this name is unique to a ParDo in the graph and has no relation
+to other nodes in the graph. A `DoFn` can declare multiple state variables.
 
 ### 10.1 Types of state {#types-of-state}
 Beam provides several types of state:
 
 #### ValueState
-A DoFn declares states to be accessed by creating final `StateSpec` member variables representing each state. Each
-state must be named using the `StateId` annotation; this name is unique to a ParDo in the graph and has no relation
-to other nodes in the graph. A `DoFn` can declare multiple state variables.
-
-If the type of the ValueState has a coder registered, then Beam will automatically infer the coder for the state value.
-For example, the following ParDo creates a single state variable that accumulates the number of elements seen.
+A ValueState is a scalar state value. For each key in the input, a ValueState will store a typed value that can be
+read and modified inside the DoFn's @ProcessElement or @OnTimer methods. If the type of the ValueState has a coder 
+registered, then Beam will automatically infer the coder for the state value. Otherwise, a coder can be explicitly
+specified when creating the ValueState. For example, the following ParDo creates a  single state variable that 
+accumulates the number of elements seen.
 
 ```java
 PCollection<KV<String, ValueT>> perUser = readPerUser();
@@ -3192,7 +3202,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 A common use case for state is to accumulate multiple elements. `BagState` allows for accumulating elements in an 
 unordered manner. This allows for addition of elements to the collection without requiring the reading of the entire
 collection first, which is an efficiency gain. In addition, runners that support paged reads can allow individual
-bag collections larger than available memory.
+bags larger than available memory.
 
 ```java
 PCollection<KV<String, ValueT>> perUser = readPerUser();
@@ -3214,10 +3224,33 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 ```
 ### 10.2 Deferred state reads {#deferred-state-reads}
-When a `DoFn` contains multiple state specifications, reading each one in order can be slow. Calling the read() function
+When a `DoFn` contains multiple state specifications, reading each one in order can be slow. Calling the `read()` function
 on a state can cause the runner to perform a blocking read. Performing multiple blocking reads in sequence adds latency
-to element processing. The readLater method allows the runner to know that the state will be read in the future, 
-allowing multiple state reads to be batched together.
+to element processing. If you know that a state will always be read, you can annotate it as @AlwaysFetched, and then the
+runner can prefetch all of the states necessary. For example:
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+   @StateId("state1") private final StateSpec<ValueState<Integer>> state1 = StateSpecs.value();
+   @StateId("state2") private final StateSpec<ValueState<String>> state2 = StateSpecs.value();
+   @StateId("state3") private final StateSpec<BagState<ValueT>> state3 = StateSpecs.bag();
+
+  @ProcessElement public void process(
+    @AlwaysFetched @StateId("state1") ValueState<Integer> state1,
+    @AlwaysFetched @StateId("state2") ValueState<String> state2,
+    @AlwaysFetched @StateId("state3") BagState<ValueT> state3) {
+    state1.read();
+    state2.read();
+    state3.read();
+  }
+}));
+```
+
+If however there are code paths in which the states are not fetched, then annotating with @AlwaysFetched will add
+unnecessary fetching for those paths. In this case, the readLater method allows the runner to know that the state will
+be read in the future, allowing multiple state reads to be batched together.
+
 ```java
 PCollection<KV<String, ValueT>> perUser = readPerUser();
 perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
@@ -3229,20 +3262,22 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
     @StateId("state1") ValueState<Integer> state1,
     @StateId("state2") ValueState<String> state2,
     @StateId("state3") BagState<ValueT> state3) {
-    state1.readLater();
-    state2.readLater();
-    state3.readLater();
+    if (/* should read state */) {}
+      state1.readLater();
+      state2.readLater();
+      state3.readLater();
    
-    // The runner can now batch all three states into a single read, reducing latency.
-    processState1(state1.read());
-    processState2(state2.read());
-    processState3(state3.read());
+      // The runner can now batch all three states into a single read, reducing latency.
+      processState1(state1.read());
+      processState2(state2.read());
+      processState3(state3.read());
+    }
   }
 }));
 ```
 
 ### 10.3 Timers {#timers}
-Beam provides a per-key timer callback API. This allows for delayed processing of data aggregated using the state API.
+Beam provides a per-key timer callback API. This allows for delayed processing of data stored using the state API.
 Timers can be set to callback at either an event-time or a processing-time timestamp. Every timer is identified with a
 TimerId. A given timer for a keycan only be set for a single timestamp. Calling set on a timer overwrites the previous
 firing time for that key's timer.
@@ -3290,7 +3325,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
   @ProcessElement public void process(@TimerId("timer") Timer timer) {
      ...
      // Set a timer to go off 30 seconds in the future.
-     timer.offset(Duration.standardSeconds(30).setRelative();
+     timer.offset(Duration.standardSeconds(30)).setRelative();
   }
   
    @OnTimer("timer") public void onTimer() {
@@ -3302,7 +3337,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 
 #### 10.3.3 Dynamic timer tags {#dynamic-timer-tags}
 Beam also supports dynamically setting a timer tag using `TimerMap`. This allows for setting multiple different timers
-in a `ParDo` and allowing for the timer tags to be dynamically chosen - e.g. based on data in the input elements. A
+in a `DoFn` and allowing for the timer tags to be dynamically chosen - e.g. based on data in the input elements. A
 timer with a specific tag can only be set to a single timestamp, so setting the timer again has the effect of
 overwriting the previous expiration time for the timer with that tag. Each `TimerMap` is identified with a timer family
 id, and timers in different timer families are independent.
@@ -3334,9 +3369,9 @@ means that any elements output from the onTimer method will have a timestamp equ
 For processing-time timers, the default output timestamp and watermark hold is the value of the input watermark at the
 time the timer was set.
 
-In some cases, a pipeline needs to output timestamps earlier than the timer expiration time, and therefore also needs to
-hold the watermark to those timestamps. For example, consider the following pipeline that temporarily batches records 
-into state, and sets a timer to drain the state. This code may appear correct, but will not work properly.
+In some cases, a DoFn needs to output timestamps earlier than the timer expiration time, and therefore also needs to
+hold its output watermark to those timestamps. For example, consider the following pipeline that temporarily batches 
+records into state, and sets a timer to drain the state. This code may appear correct, but will not work properly.
 
 ```java
 PCollection<KV<String, ValueT>> perUser = readPerUser();
@@ -3394,12 +3429,9 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
   @ProcessElement public void process(
       @Element KV<String, ValueT> element, 
       @StateId("elementBag") BagState<ValueT> elementBag,
-      @StateId("timerTimestamp") ValueState<Long> timerTimestamp,
-      @StateId("minTimestampInBag") CombiningState<Long, long[], Long> minTimestamp,
+      @AlwaysFetched @StateId("timerTimestamp") ValueState<Long> timerTimestamp,
+      @AlwaysFetched @StateId("minTimestampInBag") CombiningState<Long, long[], Long> minTimestamp,
       @TimerId("outputState") Timer timer) {
-    timerTimestamp.readLater();
-    minTimestamp.readLater();
-
     // Add the current element to the bag for this key.
     elementBag.add(element.getValue());
     // Keep track of the minimum element timestamp currently stored in the bag.
@@ -3418,7 +3450,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
   
   @OnTimer("outputState") public void onTimer(
       @StateId("elementBag") BagState<ValueT> elementBag,
-      @StateId("timerSet") ValueState<Boolean> timerSet,
+      @StateId("timerTimestamp") ValueState<Long> timerTimestamp,
       OutputReceiver<ValueT> output) {
     for (ValueT bufferedElement : elementBag.read()) {
       // Output each element.
@@ -3437,10 +3469,11 @@ performance. There are two common strategies for garbage collecting state.
 All state and timers for a key is scoped to the window it is in. This means that depending on the timestamp of the 
 input element the ParDo will see different values for the state depending on the window that element falls into. In
 addition, once the input watermark passes the end of the window, the runner should garbage collect all state for that
-window. (note: if allowed lateness is set to a positive value for the window, the runner must wait past the end of the
-window in order to garbage collect state). This can be used as a garbage-collection strategy.
+window. (note: if allowed lateness is set to a positive value for the window, the runner must wait for the watemark to
+pass the end of the window plus the allowed lateness before garbage collecting state). This can be used as a 
+garbage-collection strategy.
 
-For example, give the following:
+For example, given the following:
 
 ```java
 PCollection<KV<String, ValueT>> perUser = readPerUser();
@@ -3539,16 +3572,11 @@ perUser.apply(ParDo.of(new DoFn<KV<String, Event>, JoinedEvent>() {
   @ProcessElement public void process(
       @Element KV<String, Event> element,
       @Timestamp Instant ts,
-      @StateId("view") ValueState<Event> viewState,
-      @StateId("click") ValueState<Event> clickState,
-      @StateId("maxTimestampSeen") CombiningState<Long, long[], Long> maxTimestampState,
+      @AlwaysFetched @StateId("view") ValueState<Event> viewState,
+      @AlwaysFetched @StateId("click") ValueState<Event> clickState,
+      @AlwaysFetched @StateId("maxTimestampSeen") CombiningState<Long, long[], Long> maxTimestampState,
       @TimerId("gcTimer") gcTimer,
       OutputReceiver<JoinedEvent> output) { 
-    // For performance, note all the states that will be read in order to allow efficient read batching.
-    viewState.readLater();
-    clickState.readLater();
-    maxTimestampState.readLater();
-
     // Store the event into the correct state variable.
     Event event = element.getValue();
     ValueState<Event> valueState = event.getType().equals(VIEW) ? viewState : clickState;
@@ -3602,31 +3630,31 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
   // Store the elements buffered so far.
   @StateId("state") private final StateSpec<BagState<ValueT>> elements = StateSpecs.bag();
   // Keep track of whether a timer is currently set or not.
-  @StateId("timerSet") private final StateSpec<ValueState<Boolean>> timerSet = StateSpecs.value();
+  @StateId("isTimerSet") private final StateSpec<ValueState<Boolean>> isTimerSet = StateSpecs.value();
   // The processing-time timer user to publish the RPC.
   @TimerId("outputState") private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
   
   @ProcessElement public void process(
     @Element KV<String, ValueT> element, 
     @StateId("state") BagState<ValueT> elementsState,
-    @StateId("timerSet") ValueState<Boolean> timerSetState,
+    @StateId("isTimerSet") ValueState<Boolean> isTimerSetState,
     @TimerId("outputState") Timer) {
     // Add the current element to the bag for this key.
     state.add(element.getValue());
     if (!MoreObjects.firstNonNull(timerSet.read(), false)) {
       // If there is no timer currently set, then set one to go off in 10 seconds.
       timer.offset(Duration.standardSeconds(10)).setRelative();
-      timerSet.write(true);
+      isTimerSet.write(true);
    }
   }
  
   @OnTimer("outputState") public void onTimer(
     @StateId("state") BagState<ValueT> elementsState,
-    @StateId("timerSet") ValueState<Boolean> timerSetState) {
+    @StateId("isTimerSet") ValueState<Boolean> isTimerSetState) {
     // Send an RPC containing the batched elements and clear state.
     sendRPC(elementsState.read());
     elementsState.clear();
-    timerSet.clear();
+    isTimerSet.clear();
   }
 }));
 ```
