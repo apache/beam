@@ -67,8 +67,8 @@ from apache_beam.utils.windowed_value import WindowedValue
 if TYPE_CHECKING:
   from apache_beam.transforms import sideinputs
   from apache_beam.transforms.core import TimerSpec
-  from apache_beam.iobase import WatermarkEstimator
   from apache_beam.iobase import RestrictionTracker
+  from apache_beam.iobase import WatermarkEstimator
 
 
 class NameContext(object):
