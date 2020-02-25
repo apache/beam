@@ -200,7 +200,9 @@ public class SideInputLoadTest extends LoadTest<SideInputLoadTest.Options> {
       Integer accessPercentage = options.getAccessPercentage();
       int elementCount = (int) (sourceOptions.numRecords * accessPercentage / 100);
       for (KV<byte[], byte[]> sideInputElement : si) {
-        if (--elementCount < 0) break;
+        if (--elementCount < 0) {
+          break;
+        }
         // for every _input_ element iterate over all _sideInput_ elements
         // count consumed bytes, examine memory usage, etc (Metrics API).
         byte[] key = sideInputElement.getKey();
