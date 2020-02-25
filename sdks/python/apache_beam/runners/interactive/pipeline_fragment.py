@@ -100,17 +100,20 @@ class PipelineFragment(object):
         self._runner_pipeline.runner,
         self._options)
 
-  def run(self, display_pipeline_graph=False, use_cache=True):
+  def run(self, display_pipeline_graph=False, use_cache=True, blocking=False):
     """Shorthand to run the pipeline fragment."""
     try:
-      skip_pipeline_graph = self._runner_pipeline.runner._skip_display
-      force_compute = self._runner_pipeline.runner._force_compute
+      preserved_skip_display = self._runner_pipeline.runner._skip_display
+      preserved_force_compute = self._runner_pipeline.runner._force_compute
+      preserved_blocking = self._runner_pipeline.runner._blocking
       self._runner_pipeline.runner._skip_display = not display_pipeline_graph
       self._runner_pipeline.runner._force_compute = not use_cache
+      self._runner_pipeline.runner._blocking = blocking
       return self.deduce_fragment().run()
     finally:
-      self._runner_pipeline.runner._skip_display = skip_pipeline_graph
-      self._runner_pipeline.runner._force_compute = force_compute
+      self._runner_pipeline.runner._skip_display = preserved_skip_display
+      self._runner_pipeline.runner._force_compute = preserved_force_compute
+      self._runner_pipeline.runner._blocking = preserved_blocking
 
   def _build_runner_pipeline(self):
     return beam.pipeline.Pipeline.from_runner_api(
