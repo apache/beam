@@ -76,6 +76,12 @@ public interface SamzaPipelineOptions extends PipelineOptions {
 
   void setSystemBufferSize(int consumerBufferSize);
 
+  @Description("The maximum number of event-time timers to buffer in memory for a PTransform")
+  @Default.Integer(5000)
+  int getEventTimerBufferSize();
+
+  void setEventTimerBufferSize(int eventTimerBufferSize);
+
   @Description("The maximum parallelism allowed for any data source.")
   @Default.Integer(1)
   int getMaxSourceParallelism();

@@ -386,7 +386,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       }
 
       final Expression expression = list.append(list.newName("current"), input);
-      //LinkedIn: no need to check storage type here.
+      // LinkedIn: no need to check storage type here.
       FieldType fromType = schema.getField(index).getType();
       String getter;
       if (fromType.getTypeName().isLogicalType()) {
