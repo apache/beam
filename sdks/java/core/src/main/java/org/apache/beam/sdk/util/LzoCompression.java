@@ -22,58 +22,52 @@ import io.airlift.compress.lzo.LzopCodec;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import org.apache.hadoop.io.compress.CompressionInputStream;
-import org.apache.hadoop.io.compress.CompressionOutputStream;
 
 public class LzoCompression {
 
   /**
-   * Create a {@link CompressionInputStream} that will read from the given {@link InputStream} using
-   * {@link LzoCodec}.
+   * Create a {@link InputStream} that will read from the given {@link InputStream} using {@link
+   * LzoCodec}.
    *
    * @param inputStream the stream to read compressed bytes from
    * @return a stream to read uncompressed bytes from
    * @throws IOException
    */
-  public static CompressionInputStream createLzoInputStream(InputStream inputStream)
-      throws IOException {
+  public static InputStream createLzoInputStream(InputStream inputStream) throws IOException {
     return new LzoCodec().createInputStream(inputStream);
   }
 
   /**
-   * Create a {@link CompressionInputStream} that will read from the given {@link InputStream} using
-   * {@link LzopCodec}.
+   * Create a {@link InputStream} that will read from the given {@link InputStream} using {@link
+   * LzopCodec}.
    *
    * @param inputStream the stream to read compressed bytes from
    * @return a stream to read uncompressed bytes from
    * @throws IOException
    */
-  public static CompressionInputStream createLzopInputStream(InputStream inputStream)
-      throws IOException {
+  public static InputStream createLzopInputStream(InputStream inputStream) throws IOException {
     return new LzopCodec().createInputStream(inputStream);
   }
 
   /**
-   * Create a {@link CompressionOutputStream} that will write to the given {@link OutputStream}.
+   * Create a {@link OutputStream} that will write to the given {@link OutputStream}.
    *
    * @param outputStream the location for the final output stream
    * @return a stream the user can write uncompressed data to have it compressed
    * @throws IOException
    */
-  public static CompressionOutputStream createLzoOutputStream(OutputStream outputStream)
-      throws IOException {
+  public static OutputStream createLzoOutputStream(OutputStream outputStream) throws IOException {
     return new LzoCodec().createOutputStream(outputStream);
   }
 
   /**
-   * Create a {@link CompressionOutputStream} that will write to the given {@link OutputStream}.
+   * Create a {@link OutputStream} that will write to the given {@link OutputStream}.
    *
    * @param outputStream the location for the final output stream
    * @return a stream the user can write uncompressed data to have it compressed
    * @throws IOException
    */
-  public static CompressionOutputStream createLzopOutputStream(OutputStream outputStream)
-      throws IOException {
+  public static OutputStream createLzopOutputStream(OutputStream outputStream) throws IOException {
     return new LzopCodec().createOutputStream(outputStream);
   }
 }
