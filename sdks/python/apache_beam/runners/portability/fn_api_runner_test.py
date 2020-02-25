@@ -1604,23 +1604,6 @@ class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
     return restriction.size()
 
 
-class FnApiRunnerSplitTestWithMultiWorkers(FnApiRunnerSplitTest):
-  def create_pipeline(self):
-    pipeline_options = PipelineOptions(
-        direct_num_workers=2, direct_running_mode='multi_threading')
-    p = beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(), options=pipeline_options)
-    #TODO(BEAM-8444): Fix these tests..
-    p.options.view_as(DebugOptions).experiments.remove('beam_fn_api')
-    return p
-
-  def test_checkpoint(self):
-    raise unittest.SkipTest("This test is for a single worker only.")
-
-  def test_split_half(self):
-    raise unittest.SkipTest("This test is for a single worker only.")
-
-
 class FnApiBasedLullLoggingTest(unittest.TestCase):
   def create_pipeline(self):
     return beam.Pipeline(
