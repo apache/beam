@@ -28,7 +28,7 @@ public interface DataCatalogPipelineOptions extends PipelineOptions {
   /** DataCatalog endpoint. */
   @Description("Data catalog endpoint.")
   @Validation.Required
-  @Default.String("datacatalog.googleapis.com")
+  @Default.String("datacatalog.googleapis.com:443")
   String getDataCatalogEndpoint();
 
   void setDataCatalogEndpoint(String dataCatalogEndpoint);

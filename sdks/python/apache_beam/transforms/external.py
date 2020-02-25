@@ -315,7 +315,12 @@ class ExternalTransform(ptransform.PTransform):
         transform=transform_proto)
 
     if isinstance(self._expansion_service, str):
-      with grpc.insecure_channel(self._expansion_service) as channel:
+      # Some environments may not support unsecure channels. Hence using a
+      # secure channel with local credentials here.
+      # TODO: update this to support secure non-local channels.
+      channel_creds = grpc.local_channel_credentials()
+      with grpc.secure_channel(self._expansion_service,
+                               channel_creds) as channel:
         response = beam_expansion_api_pb2_grpc.ExpansionServiceStub(
             channel).Expand(request)
     else:
@@ -325,6 +330,7 @@ class ExternalTransform(ptransform.PTransform):
       raise RuntimeError(response.error)
     self._expanded_components = response.components
     self._expanded_transform = response.transform
+    self._expanded_requirements = response.requirements
     result_context = pipeline_context.PipelineContext(response.components)
 
     def fix_output(pcoll, tag):
@@ -416,6 +422,9 @@ class ExternalTransform(ptransform.PTransform):
           },
           environment_id=proto.environment_id)
       context.transforms.put_proto(id, new_proto)
+
+    for requirement in self._expanded_requirements:
+      context.add_requirement(requirement)
 
     return beam_runner_api_pb2.PTransform(
         unique_name=full_label,

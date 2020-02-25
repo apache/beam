@@ -443,10 +443,19 @@ message ParDoPayload {
   map<string, SideInput> side_inputs = 3;
 
   // (Optional) A mapping of local state names to state specifications.
+  // If this is set, the stateful processing requirement should also
+  // be placed in the pipeline requirements.
   map<string, StateSpec> state_specs = 4;
 
   // (Optional) A mapping of local timer names to timer specifications.
+  // If this is set, the stateful processing requirement should also
+  // be placed in the pipeline requirements.
   map<string, TimerSpec> timer_specs = 5;
+
+  // (Optional) A mapping of local timer family names to timer specifications.
+  // If this is set, the stateful processing requirement should also
+  // be placed in the pipeline requirements.
+  map<string, TimerFamilySpec> timer_family_specs = 9;
 
   // Whether the DoFn is splittable
   bool splittable = 6;
@@ -455,13 +464,19 @@ message ParDoPayload {
   string restriction_coder_id = 7;
 
   // (Optional) Only set when this ParDo can request bundle finalization.
+  // If this is set, the corresponding standard requirement should also
+  // be placed in the pipeline requirements.
   bool requests_finalization = 8;
 
-  // (Optional) A mapping of local timer family names to timer specifications.
-  map<string, TimerFamilySpec> timer_family_specs = 9;
-
-  // Whether this stage requires time sorted input
+  // Whether this stage requires time sorted input.
+  // If this is set, the corresponding standard requirement should also
+  // be placed in the pipeline requirements.
   bool requires_time_sorted_input = 10;
+
+  // Whether this stage requires stable input.
+  // If this is set, the corresponding standard requirement should also
+  // be placed in the pipeline requirements.
+  bool requires_stable_input = 11;
 }
 
 // Parameters that a UDF might require.
@@ -1158,6 +1173,87 @@ message SideInput {
   FunctionSpec window_mapping_fn = 3;
 }
 
+message StandardArtifacts {
+  enum Types {
+    // A URN for locally-accessible artifact files.
+    // payload: ArtifactFilePayload
+    FILE     = 0 [(beam_urn) = "beam:artifact:type:file:v1"];
+
+    // A URN for artifacts described by URLs.
+    // payload: ArtifactUrlPayload
+    URL      = 1 [(beam_urn) = "beam:artifact:type:url:v1"];
+
+    // A URN for artifacts embedded in ArtifactInformation proto.
+    // payload: EmbeddedFilePayload.
+    EMBEDDED = 2 [(beam_urn) = "beam:artifact:type:embedded:v1"];
+
+    // A URN for Python artifacts hosted on PYPI.
+    // payload: PypiPayload
+    PYPI     = 3 [(beam_urn) = "beam:artifact:type:pypi:v1"];
+
+    // A URN for Java artifacts hosted on a Maven repository.
+    // payload: MavenPayload
+    MAVEN    = 4 [(beam_urn) = "beam:artifact:type:maven:v1"];
+  }
+  enum Roles {
+    // A URN for staging-to role.
+    // payload: ArtifactStagingToRolePayload
+    STAGING_TO  = 0 [(beam_urn) = "beam:artifact:role:staging_to:v1"];
+  }
+}
+
+message ArtifactFilePayload {
+  // a string for an artifact path e.g. "/tmp/foo.jar"
+  string path = 1;
+
+  // The hex-encoded sha256 checksum of the artifact.
+  string sha256 = 2;
+}
+
+message ArtifactUrlPayload {
+  // a string for an artifact URL e.g. "https://.../foo.jar" or "gs://tmp/foo.jar"
+  string path = 1;
+}
+
+message EmbeddedFilePayload {
+  // raw data bytes for an embedded artifact
+  bytes data = 1;
+}
+
+message PyPIPayload {
+  // Pypi compatible artifact id e.g. "apache-beam"
+  string artifact_id = 1;
+
+  // Pypi compatible version string.
+  string version = 2;
+}
+
+message MavenPayload {
+  // A string specifying Maven artifact.
+  // The standard format is "groupId:artifactId:version[:packaging[:classifier]]"
+  string artifact = 1;
+
+  // (Optional) Repository URL. If not specified, Maven central is used by default.
+  string repository_url = 2;
+}
+
+message ArtifactStagingToRolePayload {
+  // A generated staged name (relative path under staging directory).
+  string staged_name = 1;
+}
+
+message ArtifactInformation {
+  // A URN that describes the type of artifact
+  string type_urn = 1;
+
+  bytes type_payload = 2;
+
+  // A URN that describes the role of artifact
+  string role_urn = 3;
+
+  bytes role_payload = 4;
+}
+
 // An environment for executing UDFs. By default, an SDK container URL, but
 // can also be a process forked by a command, or an externally managed process.
 message Environment {
@@ -1167,6 +1263,7 @@ message Environment {
   // (Optional) The data specifying any parameters to the URN. If
   // the URN does not require any arguments, this may be omitted.
   bytes payload = 3;
+
 
   // (Optional) Static display data for the environment. If there is none,
   // it may be omitted.
@@ -1178,6 +1275,9 @@ message Environment {
   // appearing in the pipeline proto. This may also be used to indicate
   // support of optional protocols not tied to a concrete component.
   repeated string capabilities = 5;
+
+  // (Optional) artifact dependency information used for executing UDFs in this environment.
+  repeated ArtifactInformation dependencies = 6;
 
   reserved 1;
 }
@@ -1207,6 +1307,55 @@ message ProcessPayload {
 message ExternalPayload {
   ApiServiceDescriptor endpoint = 1;
   map<string, string> params = 2;  // Arbitrary extra parameters to pass
+}
+
+// These URNs are used to indicate capabilities of environments that cannot
+// simply be expressed as a component (such as a Coder or PTransform) that this
+// environment understands.
+message StandardProtocols {
+  enum Enum {
+    // Indicates suport for progress reporting via the legacy Metrics proto.
+    LEGACY_PROGRESS_REPORTING = 0 [(beam_urn) = "beam:protocol:progress_reporting:v0"];
+
+    // Indicates suport for progress reporting via the new MonitoringInfo proto.
+    PROGRESS_REPORTING = 1 [(beam_urn) = "beam:protocol:progress_reporting:v1"];
+
+    // Indicates suport for worker status protocol defined at
+    // https://s.apache.org/beam-fn-api-harness-status.
+    WORKER_STATUS = 2 [(beam_urn) = "beam:protocol:worker_status:v1"];
+
+    // Indicates this SDK can take advantage of multiple cores when processing
+    // concurrent process bundle requests. (Note that all SDKs must process
+    // an unbounded number of concurrent process bundle requests; this capability
+    // simply indicates this SDK can actually parallelize the work across multiple
+    // cores.
+    MULTI_CORE_BUNDLE_PROCESSING = 3 [(beam_urn) = "beam:protocol:multi_core_bundle_processing:v1"];
+  }
+}
+
+// These URNs are used to indicate requirements of a pipeline that cannot
+// simply be expressed as a component (such as a Coder or PTransform) that the
+// runner must understand. In many cases, this indicates a particular field
+// of a transform must be inspected and respected (which allows new fields
+// to be added in a forwards-compatible way).
+message StandardRequirements {
+  enum Enum {
+    // This requirement indicates the state_spec and time_spec fields of ParDo
+    // transform payloads must be inspected.
+    REQUIRES_STATEFUL_PROCESSING = 0 [(beam_urn) = "beam:requirement:pardo:stateful:v1"];
+
+    // This requirement indicates the requests_finalization field of ParDo
+    // transform payloads must be inspected.
+    REQUIRES_BUNDLE_FINALIZATION = 1 [(beam_urn) = "beam:requirement:pardo:finalization:v1"];
+
+    // This requirement indicates the requires_stable_input field of ParDo
+    // transform payloads must be inspected.
+    REQUIRES_STABLE_INPUT = 2 [(beam_urn) = "beam:requirement:pardo:stable_input:v1"];
+
+    // This requirement indicates the requires_time_sorted_input field of ParDo
+    // transform payloads must be inspected.
+    REQUIRES_TIME_SORTED_INPUT = 3 [(beam_urn) = "beam:requirement:pardo:time_sorted_input:v1"];
+  }
 }
 
 extend google.protobuf.EnumValueOptions {

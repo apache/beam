@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.testing;
 
+import org.apache.beam.sdk.annotations.Internal;
+
 /**
  * Category tag for validation tests which utilize {@link org.apache.beam.sdk.metrics.Counter}.
  * Tests tagged with {@link UsesCounterMetrics} should be run for runners which support counters.
  */
+@Internal
 public class UsesCounterMetrics {}

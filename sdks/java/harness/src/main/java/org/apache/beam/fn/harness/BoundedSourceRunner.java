@@ -41,6 +41,7 @@ import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source.Reader;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
@@ -83,7 +84,8 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
         Consumer<ThrowingRunnable> tearDownFunctions,
-        BundleSplitListener splitListener) {
+        BundleSplitListener splitListener,
+        BundleFinalizer bundleFinalizer) {
       ImmutableList.Builder<FnDataReceiver<WindowedValue<?>>> consumers = ImmutableList.builder();
       for (String pCollectionId : pTransform.getOutputsMap().values()) {
         consumers.add(pCollectionConsumerRegistry.getMultiplexingConsumer(pCollectionId));

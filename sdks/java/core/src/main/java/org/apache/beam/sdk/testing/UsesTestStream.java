@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.testing;
 
+import org.apache.beam.sdk.annotations.Internal;
+
 /**
  * Category tag for tests that use {@link TestStream}, which is not a part of the Beam model but a
  * special feature currently only implemented by the direct runner and the Flink Runner (streaming).
  */
+@Internal
 public interface UsesTestStream {}

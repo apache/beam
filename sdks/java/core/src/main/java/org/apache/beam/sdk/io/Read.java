@@ -38,9 +38,12 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link PTransform} for reading from a {@link Source}.
@@ -215,6 +218,7 @@ public class Read {
    * allows us to split the sub-source over and over yet still receive "source" objects as inputs.
    */
   static class BoundedSourceAsSDFWrapperFn<T> extends DoFn<BoundedSource<T>, T> {
+    private static final Logger LOGGER = LoggerFactory.getLogger(BoundedSourceAsSDFWrapperFn.class);
     private static final long DEFAULT_DESIRED_BUNDLE_SIZE_BYTES = 64 * (1 << 20);
 
     @GetInitialRestriction
@@ -242,18 +246,19 @@ public class Read {
     }
 
     @NewTracker
-    public RestrictionTracker<BoundedSource<T>, Object[]> restrictionTracker(
+    public RestrictionTracker<BoundedSource<T>, TimestampedValue<T>[]> restrictionTracker(
         @Restriction BoundedSource<T> restriction, PipelineOptions pipelineOptions) {
       return new BoundedSourceAsSDFRestrictionTracker<>(restriction, pipelineOptions);
     }
 
     @ProcessElement
     public void processElement(
-        RestrictionTracker<BoundedSource<T>, Object[]> tracker, OutputReceiver<T> receiver)
+        RestrictionTracker<BoundedSource<T>, TimestampedValue<T>[]> tracker,
+        OutputReceiver<T> receiver)
         throws IOException {
-      Object[] out = new Object[1];
+      TimestampedValue<T>[] out = new TimestampedValue[1];
       while (tracker.tryClaim(out)) {
-        receiver.output((T) out[0]);
+        receiver.outputWithTimestamp(out[0].getValue(), out[0].getTimestamp());
       }
     }
 
@@ -267,7 +272,7 @@ public class Read {
      * object is used to advance the underlying source and to "return" the current element.
      */
     private static class BoundedSourceAsSDFRestrictionTracker<T>
-        extends RestrictionTracker<BoundedSource<T>, Object[]> {
+        extends RestrictionTracker<BoundedSource<T>, TimestampedValue<T>[]> {
       private final BoundedSource<T> initialRestriction;
       private final PipelineOptions pipelineOptions;
       private BoundedSource.BoundedReader<T> currentReader;
@@ -280,7 +285,7 @@ public class Read {
       }
 
       @Override
-      public boolean tryClaim(Object[] position) {
+      public boolean tryClaim(TimestampedValue<T>[] position) {
         if (claimedAll) {
           return false;
         }
@@ -289,29 +294,68 @@ public class Read {
             currentReader = initialRestriction.createReader(pipelineOptions);
             if (!currentReader.start()) {
               claimedAll = true;
+              try {
+                currentReader.close();
+              } finally {
+                currentReader = null;
+              }
               return false;
             }
-            position[0] = currentReader.getCurrent();
+            position[0] =
+                TimestampedValue.of(
+                    currentReader.getCurrent(), currentReader.getCurrentTimestamp());
             return true;
           }
           if (!currentReader.advance()) {
             claimedAll = true;
+            try {
+              currentReader.close();
+            } finally {
+              currentReader = null;
+            }
             return false;
           }
-          position[0] = currentReader.getCurrent();
+          position[0] =
+              TimestampedValue.of(currentReader.getCurrent(), currentReader.getCurrentTimestamp());
           return true;
         } catch (IOException e) {
+          if (currentReader != null) {
+            try {
+              currentReader.close();
+            } catch (IOException closeException) {
+              e.addSuppressed(closeException);
+            } finally {
+              currentReader = null;
+            }
+          }
           throw new RuntimeException(e);
         }
       }
 
       @Override
+      protected void finalize() throws Throwable {
+        if (currentReader != null) {
+          try {
+            currentReader.close();
+          } catch (IOException e) {
+            LOGGER.error("Failed to close BoundedReader due to failure processing bundle.", e);
+          }
+        }
+      }
+
+      @Override
       public BoundedSource<T> currentRestriction() {
+        if (currentReader == null) {
+          return initialRestriction;
+        }
         return currentReader.getCurrentSource();
       }
 
       @Override
       public SplitResult<BoundedSource<T>> trySplit(double fractionOfRemainder) {
+        if (currentReader == null) {
+          return null;
+        }
         double consumedFraction = currentReader.getFractionConsumed();
         double fraction = consumedFraction + (1 - consumedFraction) * fractionOfRemainder;
         BoundedSource<T> residual = currentReader.splitAtFraction(fraction);

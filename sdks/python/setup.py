@@ -204,7 +204,7 @@ GCP_REQUIREMENTS = [
     'google-cloud-datastore>=1.7.1,<1.8.0',
     'google-cloud-pubsub>=0.39.0,<1.1.0',
     # GCP packages required by tests
-    'google-cloud-bigquery>=1.6.0,<1.18.0',
+    'google-cloud-bigquery>=1.6.0,<=1.24.0',
     'google-cloud-core>=0.28.1,<2',
     'google-cloud-bigtable>=0.31.1,<1.1.0',
     'google-cloud-dlp >=0.12.0,<=0.13.0',
@@ -214,7 +214,8 @@ GCP_REQUIREMENTS = [
     'grpcio-gcp>=0.2.2,<1',
     # GCP Packages required by ML functionality
     'google-cloud-videointelligence>=1.8.0<=1.12.1',
-    'google-cloud-vision==0.42.0'
+    'google-cloud-videointelligence>=1.8.0<1.14.0',
+    'google-cloud-vision<=0.43.0'
 ]
 
 INTERACTIVE_BEAM = [

@@ -100,16 +100,16 @@ class PipelineInstrumentTest(unittest.TestCase):
     # Watch the local variables, i.e., the Beam pipeline defined.
     ib.watch(locals())
 
-    pin = instr.pin(p)
+    pipeline_instrument = instr.build_pipeline_instrument(p)
     self.assertEqual(
-        pin.cache_key(init_pcoll),
+        pipeline_instrument.cache_key(init_pcoll),
         'init_pcoll_' + str(id(init_pcoll)) + '_' +
         str(id(init_pcoll.producer)))
     self.assertEqual(
-        pin.cache_key(squares),
+        pipeline_instrument.cache_key(squares),
         'squares_' + str(id(squares)) + '_' + str(id(squares.producer)))
     self.assertEqual(
-        pin.cache_key(cubes),
+        pipeline_instrument.cache_key(cubes),
         'cubes_' + str(id(cubes)) + '_' + str(id(cubes.producer)))
 
   def test_cacheables(self):
@@ -120,25 +120,25 @@ class PipelineInstrumentTest(unittest.TestCase):
     cubes = init_pcoll | 'Cube' >> beam.Map(lambda x: x**3)
     ib.watch(locals())
 
-    pin = instr.pin(p)
+    pipeline_instrument = instr.build_pipeline_instrument(p)
     self.assertEqual(
-        pin.cacheables,
+        pipeline_instrument.cacheables,
         {
-            pin._cacheable_key(init_pcoll): {
+            pipeline_instrument._cacheable_key(init_pcoll): {
                 'var': 'init_pcoll',
                 'version': str(id(init_pcoll)),
                 'pcoll_id': 'ref_PCollection_PCollection_10',
                 'producer_version': str(id(init_pcoll.producer)),
                 'pcoll': init_pcoll
             },
-            pin._cacheable_key(squares): {
+            pipeline_instrument._cacheable_key(squares): {
                 'var': 'squares',
                 'version': str(id(squares)),
                 'pcoll_id': 'ref_PCollection_PCollection_11',
                 'producer_version': str(id(squares.producer)),
                 'pcoll': squares
             },
-            pin._cacheable_key(cubes): {
+            pipeline_instrument._cacheable_key(cubes): {
                 'var': 'cubes',
                 'version': str(id(cubes)),
                 'pcoll_id': 'ref_PCollection_PCollection_12',
@@ -175,7 +175,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     _ = c | beam.Map(lambda x: x)
 
     ib.watch(locals())
-    instrumenter = instr.pin(p)
+    instrumenter = instr.build_pipeline_instrument(p)
     actual_pipeline = instrumenter.background_caching_pipeline_proto()
 
     # Now recreate the expected pipeline, which should only have the unbounded
@@ -232,13 +232,13 @@ class PipelineInstrumentTest(unittest.TestCase):
     # Copied instance when execution has no user defined variables.
     p_copy, _, _ = self._example_pipeline(False)
     # Instrument the copied pipeline.
-    pin = instr.pin(p_copy)
+    pipeline_instrument = instr.build_pipeline_instrument(p_copy)
     # Manually instrument original pipeline with expected pipeline transforms.
-    init_pcoll_cache_key = pin.cache_key(init_pcoll)
+    init_pcoll_cache_key = pipeline_instrument.cache_key(init_pcoll)
     _ = init_pcoll | (
         ('_WriteCache_' + init_pcoll_cache_key) >> cache.WriteCache(
             ie.current_env().cache_manager(), init_pcoll_cache_key))
-    second_pcoll_cache_key = pin.cache_key(second_pcoll)
+    second_pcoll_cache_key = pipeline_instrument.cache_key(second_pcoll)
     _ = second_pcoll | (
         ('_WriteCache_' + second_pcoll_cache_key) >> cache.WriteCache(
             ie.current_env().cache_manager(), second_pcoll_cache_key))
@@ -260,7 +260,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     # Mark the completeness of PCollections from the original(user) pipeline.
     ie.current_env().mark_pcollection_computed(
         (p_origin, init_pcoll, second_pcoll))
-    instr.pin(p_copy)
+    instr.build_pipeline_instrument(p_copy)
 
     cached_init_pcoll = p_origin | (
         '_ReadCache_' + init_pcoll_cache_key) >> cache.ReadCache(
@@ -299,8 +299,8 @@ class PipelineInstrumentTest(unittest.TestCase):
         interactive_runner.InteractiveRunner())
     ib.watch({'irrelevant_user_pipeline': irrelevant_user_pipeline})
     # Build instrument from the runner pipeline.
-    pipeline_instrument = instr.pin(runner_pipeline)
-    self.assertIs(pipeline_instrument.user_pipeline, user_pipeline)
+    pipeline_instrument = instr.build_pipeline_instrument(runner_pipeline)
+    self.assertTrue(pipeline_instrument.user_pipeline is user_pipeline)
 
 
 if __name__ == '__main__':

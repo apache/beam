@@ -92,7 +92,8 @@ class ExpansionServiceServicer(
         del pipeline_proto.components.transforms[transform_id]
       return beam_expansion_api_pb2.ExpansionResponse(
           components=pipeline_proto.components,
-          transform=expanded_transform_proto)
+          transform=expanded_transform_proto,
+          requirements=pipeline_proto.requirements)
 
     except Exception:  # pylint: disable=broad-except
       return beam_expansion_api_pb2.ExpansionResponse(

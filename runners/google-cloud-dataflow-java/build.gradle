@@ -141,6 +141,7 @@ def commonExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesTestStream',
   'org.apache.beam.sdk.testing.UsesParDoLifecycle',
   'org.apache.beam.sdk.testing.UsesMetricsPusher',
+  'org.apache.beam.sdk.testing.UsesBundleFinalizer'
 ]
 
 def fnApiWorkerExcludeCategories = [
@@ -188,8 +189,8 @@ task buildAndPushDockerContainer() {
   dependsOn ":sdks:java:container:docker"
   finalizedBy 'cleanUpDockerImages'
   def defaultDockerImageName = containerImageName(
-          name: "java_sdk",
-          root: "apachebeam",
+          name: project.docker_image_default_repo_prefix + "java_sdk",
+          root: "apache",
           tag: project.sdk_version)
   doLast {
     exec {

@@ -1004,10 +1004,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | 'T' >> beam.Create([1, 2, 3]).with_output_types(int)
           | 'Upper' >> beam.ParDo(ToUpperCaseWithPrefix(), 'hello'))
 
-    self.assertEqual(
+    self.assertStartswith(
+        e.exception.args[0],
         "Type hint violation for 'Upper': "
-        "requires {} but got {} for element".format(str, int),
-        e.exception.args[0])
+        "requires {} but got {} for element".format(str, int))
 
   def test_do_fn_pipeline_runtime_type_check_satisfied(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
@@ -1042,10 +1042,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | 'Add' >> beam.ParDo(AddWithNum(), 5))
       self.p.run()
 
-    self.assertEqual(
+    self.assertStartswith(
+        e.exception.args[0],
         "Type hint violation for 'Add': "
-        "requires {} but got {} for element".format(int, str),
-        e.exception.args[0])
+        "requires {} but got {} for element".format(int, str))
 
   def test_pardo_does_not_type_check_using_type_hint_decorators(self):
     @with_input_types(a=int)
@@ -1061,10 +1061,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | 'S' >> beam.Create(['b', 'a', 'r']).with_output_types(str)
           | 'ToStr' >> beam.FlatMap(int_to_str))
 
-    self.assertEqual(
+    self.assertStartswith(
+        e.exception.args[0],
         "Type hint violation for 'ToStr': "
-        "requires {} but got {} for a".format(int, str),
-        e.exception.args[0])
+        "requires {} but got {} for a".format(int, str))
 
   def test_pardo_properly_type_checks_using_type_hint_decorators(self):
     @with_input_types(a=str)
@@ -1098,10 +1098,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
               'Upper' >> beam.FlatMap(lambda x: [x.upper()]).with_input_types(
                   str).with_output_types(str)))
 
-    self.assertEqual(
+    self.assertStartswith(
+        e.exception.args[0],
         "Type hint violation for 'Upper': "
-        "requires {} but got {} for x".format(str, int),
-        e.exception.args[0])
+        "requires {} but got {} for x".format(str, int))
 
   def test_pardo_properly_type_checks_using_type_hint_methods(self):
     # Pipeline should be created successfully without an error
@@ -1126,10 +1126,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | 'Upper' >> beam.Map(lambda x: x.upper()).with_input_types(
               str).with_output_types(str))
 
-    self.assertEqual(
+    self.assertStartswith(
+        e.exception.args[0],
         "Type hint violation for 'Upper': "
-        "requires {} but got {} for x".format(str, int),
-        e.exception.args[0])
+        "requires {} but got {} for x".format(str, int))
 
   def test_map_properly_type_checks_using_type_hints_methods(self):
     # No error should be raised if this type-checks properly.
@@ -1155,10 +1155,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | 'S' >> beam.Create([1, 2, 3, 4]).with_output_types(int)
           | 'Upper' >> beam.Map(upper))
 
-    self.assertEqual(
+    self.assertStartswith(
+        e.exception.args[0],
         "Type hint violation for 'Upper': "
-        "requires {} but got {} for s".format(str, int),
-        e.exception.args[0])
+        "requires {} but got {} for s".format(str, int))
 
   def test_map_properly_type_checks_using_type_hints_decorator(self):
     @with_input_types(a=bool)
@@ -1186,10 +1186,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
               str).with_output_types(str)
           | 'Below 3' >> beam.Filter(lambda x: x < 3).with_input_types(int))
 
-    self.assertEqual(
+    self.assertStartswith(
+        e.exception.args[0],
         "Type hint violation for 'Below 3': "
-        "requires {} but got {} for x".format(int, str),
-        e.exception.args[0])
+        "requires {} but got {} for x".format(int, str))
 
   def test_filter_type_checks_using_type_hints_method(self):
     # No error should be raised if this type-checks properly.
@@ -1214,10 +1214,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | 'Ints' >> beam.Create([1, 2, 3, 4]).with_output_types(int)
           | 'Half' >> beam.Filter(more_than_half))
 
-    self.assertEqual(
+    self.assertStartswith(
+        e.exception.args[0],
         "Type hint violation for 'Half': "
-        "requires {} but got {} for a".format(float, int),
-        e.exception.args[0])
+        "requires {} but got {} for a".format(float, int))
 
   def test_filter_type_checks_using_type_hints_decorator(self):
     @with_input_types(b=int)
@@ -1270,11 +1270,11 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | beam.Create([1, 2, 3]).with_output_types(int)
           | 'F' >> _GroupByKeyOnly())
 
-    self.assertEqual(
+    self.assertStartswith(
+        e.exception.args[0],
         "Input type hint violation at F: "
         "expected Tuple[TypeVariable[K], TypeVariable[V]], "
-        "got {}".format(int),
-        e.exception.args[0])
+        "got {}".format(int))
 
   def test_group_by_does_not_type_check(self):
     # Create is returning a List[int, str], rather than a Tuple[int, str]
@@ -1285,11 +1285,11 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | (beam.Create([[1], [2]]).with_output_types(typing.Iterable[int]))
           | 'T' >> beam.GroupByKey())
 
-    self.assertEqual(
+    self.assertStartswith(
+        e.exception.args[0],
         "Input type hint violation at T: "
         "expected Tuple[TypeVariable[K], TypeVariable[V]], "
-        "got Iterable[int]",
-        e.exception.args[0])
+        "got Iterable[int]")
 
   def test_pipeline_checking_pardo_insufficient_type_information(self):
     self.p._options.view_as(TypeOptions).type_check_strictness = 'ALL_REQUIRED'
@@ -1709,10 +1709,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
               'SortJoin' >> beam.CombineGlobally(lambda s: ''.join(sorted(s))).
               with_input_types(str).with_output_types(str)))
 
-    self.assertEqual(
+    self.assertStartswith(
+        e.exception.args[0],
         "Input type hint violation at SortJoin: "
-        "expected {}, got {}".format(str, int),
-        e.exception.args[0])
+        "expected {}, got {}".format(str, int))
 
   def test_combine_runtime_type_check_violation_using_methods(self):
     self.p._options.view_as(TypeOptions).pipeline_type_check = False
@@ -1780,7 +1780,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         "requires Tuple[TypeVariable[K], Union[float, int, long]] " \
         "but got Tuple[None, str] for element"
 
-    self.assertEqual(expected_msg, e.exception.args[0])
+    self.assertStartswith(e.exception.args[0], expected_msg)
 
   def test_mean_globally_runtime_checking_satisfied(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
@@ -1852,7 +1852,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         "requires Tuple[TypeVariable[K], Union[float, int, long]] " \
         "but got Tuple[str, str] for element"
 
-    self.assertEqual(expected_msg, e.exception.args[0])
+    self.assertStartswith(e.exception.args[0], expected_msg)
 
   def test_mean_per_key_runtime_checking_satisfied(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
@@ -1946,11 +1946,11 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | beam.Create(range(5)).with_output_types(int)
           | 'CountInt' >> combine.Count.PerKey())
 
-    self.assertEqual(
+    self.assertStartswith(
+        e.exception.args[0],
         "Type hint violation for 'CombinePerKey(CountCombineFn)': "
         "requires Tuple[TypeVariable[K], Any] "
-        "but got {} for element".format(int),
-        e.exception.args[0])
+        "but got {} for element".format(int))
 
   def test_count_perkey_runtime_type_checking_satisfied(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
@@ -2033,11 +2033,11 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | 'Num + 1' >> beam.Map(lambda x: x + 1).with_output_types(int)
           | 'TopMod' >> combine.Top.PerKey(1))
 
-    self.assertEqual(
+    self.assertStartswith(
+        e.exception.args[0],
         "Type hint violation for 'CombinePerKey(TopCombineFn)': "
         "requires Tuple[TypeVariable[K], TypeVariable[T]] "
-        "but got {} for element".format(int),
-        e.exception.args[0])
+        "but got {} for element".format(int))
 
   def test_per_key_pipeline_checking_satisfied(self):
     d = (
@@ -2192,12 +2192,12 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | beam.Create([1, 2, 3, 4]).with_output_types(int)
           | combine.ToDict())
 
-    self.assertEqual(
+    self.assertStartswith(
+        e.exception.args[0],
         "Type hint violation for 'CombinePerKey': "
         "requires "
         "Tuple[TypeVariable[K], Tuple[TypeVariable[K], TypeVariable[V]]] "
-        "but got Tuple[None, int] for element",
-        e.exception.args[0])
+        "but got Tuple[None, int] for element")
 
   def test_to_dict_pipeline_check_satisfied(self):
     d = (
@@ -2270,11 +2270,11 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | 'Ungroupable' >> beam.Map(lambda x: (x, 0, 1.0))
           | beam.GroupByKey())
 
-    self.assertEqual(
+    self.assertStartswith(
+        e.exception.args[0],
         'Input type hint violation at GroupByKey: '
         'expected Tuple[TypeVariable[K], TypeVariable[V]], '
-        'got Tuple[str, int, float]',
-        e.exception.args[0])
+        'got Tuple[str, int, float]')
 
   def test_type_inference_command_line_flag_toggle(self):
     self.p._options.view_as(TypeOptions).pipeline_type_check = False

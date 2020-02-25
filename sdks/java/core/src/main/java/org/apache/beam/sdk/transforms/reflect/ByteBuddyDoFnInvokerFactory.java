@@ -36,6 +36,7 @@ import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BundleFinalizerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.FinishBundleContextParameter;
@@ -107,6 +108,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String ELEMENT_PARAMETER_METHOD = "element";
   public static final String SCHEMA_ELEMENT_PARAMETER_METHOD = "schemaElement";
   public static final String TIMESTAMP_PARAMETER_METHOD = "timestamp";
+  public static final String BUNDLE_FINALIZER_PARAMETER_METHOD = "bundleFinalizer";
   public static final String OUTPUT_ROW_RECEIVER_METHOD = "outputRowReceiver";
   public static final String TIME_DOMAIN_PARAMETER_METHOD = "timeDomain";
   public static final String OUTPUT_PARAMETER_METHOD = "outputReceiver";
@@ -366,9 +368,11 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             //   public invokeStartBundle(Context c) { delegate.<@StartBundle>(c); }
             //   ... etc ...
             .method(ElementMatchers.named("invokeStartBundle"))
-            .intercept(delegateOrNoop(clazzDescription, signature.startBundle()))
+            .intercept(
+                delegateMethodWithExtraParametersOrNoop(clazzDescription, signature.startBundle()))
             .method(ElementMatchers.named("invokeFinishBundle"))
-            .intercept(delegateOrNoop(clazzDescription, signature.finishBundle()))
+            .intercept(
+                delegateMethodWithExtraParametersOrNoop(clazzDescription, signature.finishBundle()))
             .method(ElementMatchers.named("invokeSetup"))
             .intercept(delegateOrNoop(clazzDescription, signature.setup()))
             .method(ElementMatchers.named("invokeTeardown"))
@@ -777,6 +781,11 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                 MethodInvocation.invoke(
                     getExtraContextFactoryMethodDescription(
                         TIMESTAMP_PARAMETER_METHOD, DoFn.class)));
+          }
+
+          @Override
+          public StackManipulation dispatch(BundleFinalizerParameter p) {
+            return simpleExtraContextParameter(BUNDLE_FINALIZER_PARAMETER_METHOD);
           }
 
           @Override

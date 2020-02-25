@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.testing;
 
+import org.apache.beam.sdk.annotations.Internal;
+
 /**
  * Category for tests that enforce strict event-time ordering of fired timers, even in situations
  * where multiple tests mutually set one another and watermark hops arbitrarily far to the future.
  */
+@Internal
 public interface UsesStrictTimerOrdering extends UsesTimersInParDo {}

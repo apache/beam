@@ -39,6 +39,7 @@ from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.pipeline import PTransformOverride
+from apache_beam.portability import common_urns
 from apache_beam.pvalue import AsSingleton
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
@@ -824,6 +825,16 @@ class RunnerApiTest(unittest.TestCase):
     self.assertIsNotNone(p.transforms_stack[0].parts[0].parent)
     self.assertEqual(
         p.transforms_stack[0].parts[0].parent, p.transforms_stack[0])
+
+  def test_requirements(self):
+    p = beam.Pipeline()
+    _ = (
+        p | beam.Create([])
+        | beam.ParDo(lambda x, finalize=beam.DoFn.BundleFinalizerParam: None))
+    proto = p.to_runner_api()
+    self.assertTrue(
+        common_urns.requirements.REQUIRES_BUNDLE_FINALIZATION.urn,
+        proto.requirements)
 
 
 if __name__ == '__main__':

@@ -36,6 +36,7 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
@@ -68,7 +69,8 @@ public class FlattenRunner<InputT> {
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
         Consumer<ThrowingRunnable> tearDownFunctions,
-        BundleSplitListener splitListener)
+        BundleSplitListener splitListener,
+        BundleFinalizer bundleFinalizer)
         throws IOException {
 
       // Give each input a MultiplexingFnDataReceiver to all outputs of the flatten.

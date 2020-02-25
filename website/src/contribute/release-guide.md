@@ -586,7 +586,7 @@ For this step, we recommend you using automation script to create a RC, but you 
   1. Run gradle publish to push java artifacts into Maven staging repo.
   1. Stage source release into dist.apache.org dev [repo](https://dist.apache.org/repos/dist/dev/beam/).
   1. Stage,sign and hash python binaries into dist.apache.ord dev repo python dir
-  1. Stage SDK docker images to [https://hub.docker.com/u/apachebeam](https://hub.docker.com/u/apachebeam).
+  1. Stage SDK docker images to [docker hub Apache organization](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
   1. Create a PR to update beam and beam-site, changes includes:
      * Copy python doc into beam-site
      * Copy java doc into beam-site
@@ -692,7 +692,7 @@ Verify that files are [present](https://dist.apache.org/repos/dist/dev/beam).
 
 PYTHON_VER=("python2.7" "python3.5" "python3.6" "python3.7")
 for ver in "${PYTHON_VER[@]}"; do
-   docker push apachebeam/${ver}_sdk:${RELEASE}_rc{RC_NUM} &
+   docker push apache/beam_${ver}_sdk:${RELEASE}_rc{RC_NUM} &
 done
 ``` 
 
@@ -717,22 +717,29 @@ for ver in "${FLINK_VER[@]}"; do
 done
 ```
 
+* Build Spark job server image and push to DockerHub.
+
+```
+./gradlew ":runners:spark:job-server:container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
+```
+
 Clean up images from local
 
 ```
 for ver in "${PYTHON_VER[@]}"; do
-   docker rmi -f apachebeam/${ver}_sdk:${RELEASE}_rc{RC_NUM}
+   docker rmi -f apache/beam_${ver}_sdk:${RELEASE}_rc{RC_NUM}
 done
-docker rmi -f apachebeam/java_sdk:${RELEASE}_rc{RC_NUM}
-docker rmi -f apachebeam/go_sdk:${RELEASE}_rc{RC_NUM}
+docker rmi -f apache/beam_java_sdk:${RELEASE}_rc{RC_NUM}
+docker rmi -f apache/beam_go_sdk:${RELEASE}_rc{RC_NUM}
 for ver in "${FLINK_VER[@]}"; do
-   docker rmi -f "apachebeam/flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
+   docker rmi -f "apache/beam_flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
 done
+docker rmi -f "apache/beam_spark_job_server:${RELEASE}_rc${RC_NUM}"
 
 ```
 
 How to find images:
-1. Visit [https://hub.docker.com/u/apachebeam](https://hub.docker.com/u/apachebeam)
+1. Visit [https://hub.docker.com/u/apache](https://hub.docker.com/search?q=apache%2Fbeam&type=image)
 2. Visit each repository and navigate to *tags* tab.
 3. Verify images are pushed with tags: ${RELEASE}_rc{RC_NUM}
 
@@ -891,7 +898,7 @@ Template:
 1. Maven artifacts deployed to the staging repository of [repository.apache.org](https://repository.apache.org/content/repositories/)
 1. Source distribution deployed to the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
 1. Website pull request proposed to list the [release]({{ site.baseurl }}/get-started/downloads/), publish the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and publish the [Python API reference manual](https://beam.apache.org/releases/pydoc/).
-1. Docker images are published to [DockerHub](https://hub.docker.com/u/apachebeam) with tags: {RELEASE}_rc{RC_NUM}.
+1. Docker images are published to [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with tags: {RELEASE}_rc{RC_NUM}.
 
 You can (optionally) also do additional verification by:
 1. Check that Python zip file contains the `README.md`, `NOTICE`, and `LICENSE` files.
@@ -902,7 +909,7 @@ You can (optionally) also do additional verification by:
 1. Pull docker images to make sure they are pullable.
 ```
 docker pull {image_name}
-docker pull apachebeam/python3.5_sdk:2.16.0_rc1
+docker pull apache/beam_python3.5_sdk:2.16.0_rc1
 ```
 
 
@@ -950,7 +957,7 @@ Start the review-and-vote thread on the dev@ mailing list. Here’s an email tem
     [7] https://github.com/apache/beam-site/pull/...
     [8] https://github.com/apache/beam/pull/...
     [9] https://docs.google.com/spreadsheets/d/1qk-N5vjXvbcEk68GjbkSZTR8AGqyNUM-oLFo_ZXBpJw/edit#gid=...
-    [10] https://hub.docker.com/u/apachebeam
+    [10] https://hub.docker.com/search?q=apache%2Fbeam&type=image
     
 If there are any issues found in the release candidate, reply on the vote thread to cancel the vote. There’s no need to wait 72 hours. Proceed to the `Fix Issues` step below and address the problem. However, some issues don’t require cancellation. For example, if an issue is found in the website pull request, just correct it on the spot and the vote can continue as-is.
 
