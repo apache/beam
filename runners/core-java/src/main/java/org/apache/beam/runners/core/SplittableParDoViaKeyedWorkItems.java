@@ -36,9 +36,13 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
+import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
+import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.BaseArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -376,7 +380,18 @@ public class SplittableParDoViaKeyedWorkItems {
       }
 
       final RestrictionTracker<RestrictionT, PositionT> tracker =
-          invoker.invokeNewTracker(elementAndRestriction.getValue());
+          invoker.invokeNewTracker(
+              new BaseArgumentProvider<InputT, OutputT>() {
+                @Override
+                public Object restriction() {
+                  return elementAndRestriction.getValue();
+                }
+
+                @Override
+                public String getErrorContext() {
+                  return ProcessFn.class.getSimpleName() + ".invokeNewTracker";
+                }
+              });
       SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, PositionT>.Result result =
           processElementInvoker.invokeProcessElement(
               invoker, elementAndRestriction.getKey(), tracker);
@@ -402,39 +417,62 @@ public class SplittableParDoViaKeyedWorkItems {
           TimerInternals.TimerData.of(stateNamespace, wakeupTime, TimeDomain.PROCESSING_TIME));
     }
 
-    private DoFn<InputT, OutputT>.StartBundleContext wrapContextAsStartBundle(
+    private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapContextAsStartBundle(
         final StartBundleContext baseContext) {
-      return fn.new StartBundleContext() {
+      return new BaseArgumentProvider<InputT, OutputT>() {
         @Override
-        public PipelineOptions getPipelineOptions() {
-          return baseContext.getPipelineOptions();
+        public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(
+            DoFn<InputT, OutputT> doFn) {
+          return fn.new StartBundleContext() {
+            @Override
+            public PipelineOptions getPipelineOptions() {
+              return baseContext.getPipelineOptions();
+            }
+          };
+        }
+
+        @Override
+        public String getErrorContext() {
+          return "SplittableParDoViaKeyedWorkItems/StartBundle";
         }
       };
     }
 
-    private DoFn<InputT, OutputT>.FinishBundleContext wrapContextAsFinishBundle(
+    private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapContextAsFinishBundle(
         final FinishBundleContext baseContext) {
-      return fn.new FinishBundleContext() {
+      return new BaseArgumentProvider<InputT, OutputT>() {
         @Override
-        public void output(OutputT output, Instant timestamp, BoundedWindow window) {
-          throwUnsupportedOutput();
+        public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
+            DoFn<InputT, OutputT> doFn) {
+          return fn.new FinishBundleContext() {
+            @Override
+            public void output(OutputT output, Instant timestamp, BoundedWindow window) {
+              throwUnsupportedOutput();
+            }
+
+            @Override
+            public <T> void output(
+                TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
+              throwUnsupportedOutput();
+            }
+
+            @Override
+            public PipelineOptions getPipelineOptions() {
+              return baseContext.getPipelineOptions();
+            }
+
+            private void throwUnsupportedOutput() {
+              throw new UnsupportedOperationException(
+                  String.format(
+                      "Splittable DoFn can only output from @%s",
+                      ProcessElement.class.getSimpleName()));
+            }
+          };
         }
 
         @Override
-        public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
-          throwUnsupportedOutput();
-        }
-
-        @Override
-        public PipelineOptions getPipelineOptions() {
-          return baseContext.getPipelineOptions();
-        }
-
-        private void throwUnsupportedOutput() {
-          throw new UnsupportedOperationException(
-              String.format(
-                  "Splittable DoFn can only output from @%s",
-                  ProcessElement.class.getSimpleName()));
+        public String getErrorContext() {
+          return "SplittableParDoViaKeyedWorkItems/FinishBundle";
         }
       };
     }

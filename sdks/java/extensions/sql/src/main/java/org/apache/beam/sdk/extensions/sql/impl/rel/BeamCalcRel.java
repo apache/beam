@@ -228,7 +228,8 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       try {
         se.cook(processElementBlock);
       } catch (CompileException e) {
-        throw new RuntimeException("Could not compile CalcFn: " + processElementBlock, e);
+        throw new UnsupportedOperationException(
+            "Could not compile CalcFn: " + processElementBlock, e);
       }
       return se;
     }
@@ -292,21 +293,24 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
     Expression valueDateTime = value;
 
     // First, convert to millis
-    if (CalciteUtils.TIMESTAMP.typesEqual(toType)) {
+    if (CalciteUtils.TIMESTAMP.typesEqual(toType)
+        || CalciteUtils.NULLABLE_TIMESTAMP.typesEqual(toType)) {
       if (value.getType() == java.sql.Timestamp.class) {
         valueDateTime = Expressions.call(BuiltInMethod.TIMESTAMP_TO_LONG.method, valueDateTime);
       }
-    } else if (CalciteUtils.TIME.typesEqual(toType)) {
+    } else if (CalciteUtils.TIME.typesEqual(toType)
+        || CalciteUtils.NULLABLE_TIME.typesEqual(toType)) {
       if (value.getType() == java.sql.Time.class) {
         valueDateTime = Expressions.call(BuiltInMethod.TIME_TO_INT.method, valueDateTime);
       }
-    } else if (CalciteUtils.DATE.typesEqual(toType)) {
+    } else if (CalciteUtils.DATE.typesEqual(toType)
+        || CalciteUtils.NULLABLE_DATE.typesEqual(toType)) {
       if (value.getType() == java.sql.Date.class) {
         valueDateTime = Expressions.call(BuiltInMethod.DATE_TO_INT.method, valueDateTime);
       }
       valueDateTime = Expressions.multiply(valueDateTime, Expressions.constant(MILLIS_PER_DAY));
     } else {
-      throw new IllegalArgumentException("Unknown DateTime type " + toType);
+      throw new UnsupportedOperationException("Unknown DateTime type " + toType);
     }
 
     // Second, convert to joda DateTime
@@ -389,7 +393,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
         getter = TYPE_GETTER_MAP.get(fromType.getTypeName());
       }
       if (getter == null) {
-        throw new IllegalArgumentException("Unable to get " + fromType.getTypeName());
+        throw new UnsupportedOperationException("Unable to get " + fromType.getTypeName());
       }
 
       Expression value = Expressions.call(expression, getter, Expressions.constant(index));
@@ -411,7 +415,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
                       Expressions.divide(millisField, Expressions.constant(MILLIS_PER_DAY)),
                       int.class));
         } else if (!logicalId.equals(CharType.IDENTIFIER)) {
-          throw new IllegalArgumentException(
+          throw new UnsupportedOperationException(
               "Unknown LogicalType " + type.getLogicalType().getIdentifier());
         }
       } else if (type.getTypeName().isMapType()) {

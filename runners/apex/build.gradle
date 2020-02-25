@@ -94,11 +94,13 @@ task validatesRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     // TODO[BEAM-8304]: Support multiple side inputs with different coders.
     excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputsWithDifferentCoders'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
 
   // apex runner is run in embedded mode. Increase default HeapSize

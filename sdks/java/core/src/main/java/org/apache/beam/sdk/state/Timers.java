@@ -19,10 +19,11 @@ package org.apache.beam.sdk.state;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.joda.time.Instant;
 
 /** Interface for interacting with time. */
-@Experimental(Experimental.Kind.TIMERS)
+@Experimental(Kind.TIMERS)
 public interface Timers {
   /**
    * Sets a timer to fire when the event time watermark, the current processing time, or the

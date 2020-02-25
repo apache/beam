@@ -181,7 +181,7 @@ class TestInput {
           .addRows(1L, null, null, null, null);
 
   public static final Schema TABLE_WITH_STRUCT_ROW_SCHEMA =
-      Schema.builder().addInt32Field("struct_col_int").addStringField("struct_col_str").build();
+      Schema.builder().addInt64Field("struct_col_long").addStringField("struct_col_str").build();
 
   public static final TestBoundedTable TABLE_WITH_STRUCT =
       TestBoundedTable.of(
@@ -191,9 +191,9 @@ class TestInput {
                   .build())
           .addRows(
               1L,
-              Row.withSchema(TABLE_WITH_STRUCT_ROW_SCHEMA).addValues(16, "row_one").build(),
+              Row.withSchema(TABLE_WITH_STRUCT_ROW_SCHEMA).addValues(16L, "row_one").build(),
               2L,
-              Row.withSchema(TABLE_WITH_STRUCT_ROW_SCHEMA).addValues(17, "row_two").build());
+              Row.withSchema(TABLE_WITH_STRUCT_ROW_SCHEMA).addValues(17L, "row_two").build());
 
   public static final TestBoundedTable TABLE_WITH_STRUCT_TIMESTAMP_STRING =
       TestBoundedTable.of(
@@ -202,7 +202,7 @@ class TestInput {
                   .build())
           .addRows(
               Row.withSchema(TABLE_WITH_STRUCT_ROW_SCHEMA)
-                  .addValues(3, "2019-01-15 13:21:03")
+                  .addValues(3L, "2019-01-15 13:21:03")
                   .build());
 
   private static final Schema structSchema =

@@ -692,7 +692,6 @@ public class FlinkStreamingPortablePipelineTranslator
         new ExecutableStageDoFnOperator<>(
             transform.getUniqueName(),
             windowedInputCoder,
-            null,
             Collections.emptyMap(),
             mainOutputTag,
             additionalOutputTags,

@@ -189,18 +189,10 @@ message BundleApplication {
   // use MIN_TIMESTAMP by default.
   map<string, google.protobuf.Timestamp> output_watermarks = 4;
 
-  // (Required) Whether this application potentially produces an unbounded
+  // Whether this application potentially produces an unbounded
   // amount of data. Note that this should only be set to BOUNDED if and
   // only if the application is known to produce a finite amount of output.
   org.apache.beam.model.pipeline.v1.IsBounded.Enum is_bounded = 5;
-
-  // Contains additional monitoring information related to this application.
-  //
-  // Each application is able to report information that some runners
-  // will use when providing a UI or for making scaling and performance
-  // decisions. See https://s.apache.org/beam-bundles-backlog-splitting for
-  // details about what types of signals may be useful to report.
-  repeated org.apache.beam.model.pipeline.v1.MonitoringInfo monitoring_infos = 6;
 }
 
 // An Application should be scheduled for execution after a delay.
@@ -227,13 +219,15 @@ message ProcessBundleRequest {
   // of cached elements which have a cache token associated.
   message CacheToken {
 
-    // A flag to indicate a cache token is valid for user state.
+    // A flag to indicate a cache token is valid for all user state.
     message UserState {}
 
     // A flag to indicate a cache token is valid for a side input.
     message SideInput {
-      // The id of a side input.
-      string side_input = 1;
+      // (Required) The id of the PTransform containing a side input.
+      string transform_id = 1;
+      // (Required) The id of the side input.
+      string side_input_id = 2;
     }
 
     // The scope of a cache token.

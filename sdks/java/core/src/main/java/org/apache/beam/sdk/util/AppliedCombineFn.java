@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -39,6 +40,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
  * @param <AccumT> type of mutable accumulator values
  * @param <OutputT> type of output values
  */
+@Internal
 public class AppliedCombineFn<K, InputT, AccumT, OutputT> implements Serializable {
 
   private final GlobalCombineFn<InputT, AccumT, OutputT> fn;

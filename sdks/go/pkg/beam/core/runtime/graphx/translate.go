@@ -16,6 +16,7 @@
 package graphx
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
@@ -43,10 +44,10 @@ const (
 	// URNIterableSideInput = "beam:side_input:iterable:v1"
 	URNMultimapSideInput = "beam:side_input:multimap:v1"
 
-	URNGlobalWindowsWindowFn  = "beam:windowfn:global_windows:v0.1"
-	URNFixedWindowsWindowFn   = "beam:windowfn:fixed_windows:v0.1"
-	URNSlidingWindowsWindowFn = "beam:windowfn:sliding_windows:v0.1"
-	URNSessionsWindowFn       = "beam:windowfn:session_windows:v0.1"
+	URNGlobalWindowsWindowFn  = "beam:window_fn:global_windows:v1"
+	URNFixedWindowsWindowFn   = "beam:window_fn:fixed_windows:v1"
+	URNSlidingWindowsWindowFn = "beam:window_fn:sliding_windows:v1"
+	URNSessionsWindowFn       = "beam:window_fn:session_windows:v1"
 
 	// SDK constants
 
@@ -57,7 +58,43 @@ const (
 	URNDoFn     = "beam:go:transform:dofn:v1"
 
 	URNIterableSideInputKey = "beam:go:transform:iterablesideinputkey:v1"
+
+	URNLegacyProgressReporting = "beam:protocol:progress_reporting:v0"
+	URNMultiCore               = "beam:protocol:multi_core_bundle_processing:v1"
 )
+
+func goCapabilities() []string {
+	capabilities := []string{
+		URNLegacyProgressReporting,
+		URNMultiCore,
+	}
+	return append(capabilities, knownStandardCoders()...)
+}
+
+func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig func(context.Context) string) pb.Environment {
+	var environment pb.Environment
+	switch urn {
+	case "beam:env:process:v1":
+		// TODO Support process based SDK Harness.
+		panic(fmt.Sprintf("Unsupported environment %v", urn))
+	case "beam:env:docker:v1":
+		fallthrough
+	default:
+		config := extractEnvironmentConfig(ctx)
+		payload := &pb.DockerPayload{ContainerImage: config}
+		serializedPayload, err := proto.Marshal(payload)
+		if err != nil {
+			panic(fmt.Sprintf(
+				"Failed to serialize Environment payload %v for config %v: %v", payload, config, err))
+		}
+		environment = pb.Environment{
+			Urn:          urn,
+			Payload:      serializedPayload,
+			Capabilities: goCapabilities(),
+		}
+	}
+	return environment
+}
 
 // TODO(herohde) 11/6/2017: move some of the configuration into the graph during construction.
 
@@ -268,6 +305,10 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 				Payload: []byte(mustEncodeMultiEdgeBase64(edge.Edge)),
 			},
 			SideInputs: si,
+		}
+		if edge.Edge.DoFn.IsSplittable() {
+			payload.Splittable = true
+			payload.RestrictionCoderId = m.coders.Add(edge.Edge.RestrictionCoder)
 		}
 		transformEnvID = m.addDefaultEnv()
 		spec = &pb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
@@ -529,7 +570,7 @@ func makeWindowFn(w *window.Fn) *pb.FunctionSpec {
 		return &pb.FunctionSpec{
 			Urn: URNSessionsWindowFn,
 			Payload: protox.MustEncode(
-				&pb.SessionsPayload{
+				&pb.SessionWindowsPayload{
 					GapSize: ptypes.DurationProto(w.Gap),
 				},
 			),

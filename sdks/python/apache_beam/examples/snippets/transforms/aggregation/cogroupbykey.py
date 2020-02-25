@@ -41,11 +41,11 @@ def cogroupbykey(test=None):
         ('Tomato', 'annual'),
     ])
 
-    plants = (
-        ({'icons': icon_pairs, 'durations': duration_pairs})
-        | 'Merge' >> beam.CoGroupByKey()
-        | beam.Map(print)
-    )
+    plants = (({
+        'icons': icon_pairs, 'durations': duration_pairs
+    })
+              | 'Merge' >> beam.CoGroupByKey()
+              | beam.Map(print))
     # [END cogroupbykey]
     if test:
       test(plants)

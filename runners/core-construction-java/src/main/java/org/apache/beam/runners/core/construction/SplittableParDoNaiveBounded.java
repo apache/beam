@@ -31,12 +31,14 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.ArgumentProvider;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.BaseArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -131,22 +133,46 @@ public class SplittableParDoNaiveBounded {
     @StartBundle
     public void startBundle(StartBundleContext c) {
       invoker.invokeStartBundle(
-          new DoFn<InputT, OutputT>.StartBundleContext() {
+          new BaseArgumentProvider<InputT, OutputT>() {
             @Override
-            public PipelineOptions getPipelineOptions() {
-              return c.getPipelineOptions();
+            public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(
+                DoFn<InputT, OutputT> doFn) {
+              return new DoFn<InputT, OutputT>.StartBundleContext() {
+                @Override
+                public PipelineOptions getPipelineOptions() {
+                  return c.getPipelineOptions();
+                }
+              };
+            }
+
+            @Override
+            public String getErrorContext() {
+              return "SplittableParDoNaiveBounded/StartBundle";
             }
           });
     }
 
     @ProcessElement
     public void process(ProcessContext c, BoundedWindow w) {
-      InputT element = c.element().getKey();
       RestrictionT restriction = c.element().getValue();
       while (true) {
-        RestrictionTracker<RestrictionT, PositionT> tracker = invoker.invokeNewTracker(restriction);
+        RestrictionT finalRestriction = restriction;
+        RestrictionTracker<RestrictionT, PositionT> tracker =
+            invoker.invokeNewTracker(
+                new BaseArgumentProvider<InputT, OutputT>() {
+                  @Override
+                  public RestrictionT restriction() {
+                    return finalRestriction;
+                  }
+
+                  @Override
+                  public String getErrorContext() {
+                    return NaiveProcessFn.class.getSimpleName() + ".invokeNewTracker";
+                  }
+                });
         ProcessContinuation continuation =
-            invoker.invokeProcessElement(new NestedProcessContext<>(fn, c, element, w, tracker));
+            invoker.invokeProcessElement(
+                new NestedProcessContext<>(fn, c, c.element().getKey(), w, tracker));
         if (continuation.shouldResume()) {
           restriction = tracker.trySplit(0).getResidual();
           Uninterruptibles.sleepUninterruptibly(
@@ -160,23 +186,35 @@ public class SplittableParDoNaiveBounded {
     @FinishBundle
     public void finishBundle(FinishBundleContext c) {
       invoker.invokeFinishBundle(
-          new DoFn<InputT, OutputT>.FinishBundleContext() {
+          new BaseArgumentProvider<InputT, OutputT>() {
             @Override
-            public PipelineOptions getPipelineOptions() {
-              return c.getPipelineOptions();
+            public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
+                DoFn<InputT, OutputT> doFn) {
+              return new DoFn<InputT, OutputT>.FinishBundleContext() {
+                @Override
+                public PipelineOptions getPipelineOptions() {
+                  return c.getPipelineOptions();
+                }
+
+                @Override
+                public void output(
+                    @Nullable OutputT output, Instant timestamp, BoundedWindow window) {
+                  throw new UnsupportedOperationException(
+                      "Output from FinishBundle for SDF is not supported");
+                }
+
+                @Override
+                public <T> void output(
+                    TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
+                  throw new UnsupportedOperationException(
+                      "Output from FinishBundle for SDF is not supported");
+                }
+              };
             }
 
             @Override
-            public void output(@Nullable OutputT output, Instant timestamp, BoundedWindow window) {
-              throw new UnsupportedOperationException(
-                  "Output from FinishBundle for SDF is not supported");
-            }
-
-            @Override
-            public <T> void output(
-                TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
-              throw new UnsupportedOperationException(
-                  "Output from FinishBundle for SDF is not supported");
+            public String getErrorContext() {
+              return "SplittableParDoNaiveBounded/StartBundle";
             }
           });
     }
@@ -304,6 +342,16 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public BundleFinalizer bundleFinalizer() {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public Object restriction() {
+        return tracker.currentRestriction();
+      }
+
+      @Override
       public RestrictionTracker<?, ?> restrictionTracker() {
         return tracker;
       }
@@ -383,7 +431,7 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
-      public State state(String stateId) {
+      public State state(String stateId, boolean alwaysFetched) {
         throw new UnsupportedOperationException();
       }
 

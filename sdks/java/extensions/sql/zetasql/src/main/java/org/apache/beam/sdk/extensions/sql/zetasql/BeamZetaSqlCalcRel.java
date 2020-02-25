@@ -55,9 +55,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /**
- * TODO[BEAM-8630]: This class is currently a prototype and not used in runtime.
- *
- * <p>BeamRelNode to replace {@code Project} and {@code Filter} node based on the {@code ZetaSQL}
+ * BeamRelNode to replace {@code Project} and {@code Filter} node based on the {@code ZetaSQL}
  * expression evaluator.
  */
 @Internal
@@ -103,7 +101,6 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
               .collect(Collectors.toList());
       final RexNode condition = getProgram().getCondition();
 
-      // TODO[BEAM-8630]: validate sql expressions at pipeline construction time
       Schema outputSchema = CalciteUtils.toSchema(getRowType());
       CalcFn calcFn =
           new CalcFn(
@@ -111,6 +108,10 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
               condition == null ? null : unparseRexNode(condition),
               upstream.getSchema(),
               outputSchema);
+
+      // validate prepared expressions
+      calcFn.setup();
+
       return upstream.apply(ParDo.of(calcFn)).setRowSchema(outputSchema);
     }
   }

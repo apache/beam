@@ -29,17 +29,25 @@ from apache_beam.runners.worker.statecache import StateCache
 
 
 class StateCacheTest(unittest.TestCase):
-
   def test_empty_cache_get(self):
     cache = self.get_cache(5)
     self.assertEqual(cache.get("key", 'cache_token'), None)
     with self.assertRaises(Exception):
       # Invalid cache token provided
       self.assertEqual(cache.get("key", None), None)
-    self.verify_metrics(cache, {'get': 1, 'put': 0, 'extend': 0,
-                                'miss': 1, 'hit': 0, 'clear': 0,
-                                'evict': 0,
-                                'size': 0, 'capacity': 5})
+    self.verify_metrics(
+        cache,
+        {
+            'get': 1,
+            'put': 0,
+            'extend': 0,
+            'miss': 1,
+            'hit': 0,
+            'clear': 0,
+            'evict': 0,
+            'size': 0,
+            'capacity': 5
+        })
 
   def test_put_get(self):
     cache = self.get_cache(5)
@@ -49,22 +57,19 @@ class StateCacheTest(unittest.TestCase):
     self.assertEqual(cache.get("key", "cache_token2"), None)
     with self.assertRaises(Exception):
       self.assertEqual(cache.get("key", None), None)
-    self.verify_metrics(cache, {'get': 2, 'put': 1, 'extend': 0,
-                                'miss': 1, 'hit': 1, 'clear': 0,
-                                'evict': 0,
-                                'size': 1, 'capacity': 5})
-
-  def test_overwrite(self):
-    cache = self.get_cache(2)
-    cache.put("key", "cache_token", "value")
-    cache.put("key", "cache_token2", "value2")
-    self.assertEqual(cache.size(), 1)
-    self.assertEqual(cache.get("key", "cache_token"), None)
-    self.assertEqual(cache.get("key", "cache_token2"), "value2")
-    self.verify_metrics(cache, {'get': 2, 'put': 2, 'extend': 0,
-                                'miss': 1, 'hit': 1, 'clear': 0,
-                                'evict': 0,
-                                'size': 1, 'capacity': 2})
+    self.verify_metrics(
+        cache,
+        {
+            'get': 2,
+            'put': 1,
+            'extend': 0,
+            'miss': 1,
+            'hit': 1,
+            'clear': 0,
+            'evict': 0,
+            'size': 1,
+            'capacity': 5
+        })
 
   def test_extend(self):
     cache = self.get_cache(3)
@@ -72,20 +77,33 @@ class StateCacheTest(unittest.TestCase):
     # test extend for existing key
     cache.extend("key", "cache_token", ['yet', 'another', 'val'])
     self.assertEqual(cache.size(), 1)
-    self.assertEqual(cache.get("key", "cache_token"),
-                     ['val', 'yet', 'another', 'val'])
+    self.assertEqual(
+        cache.get("key", "cache_token"), ['val', 'yet', 'another', 'val'])
     # test extend without existing key
     cache.extend("key2", "cache_token", ['another', 'val'])
     self.assertEqual(cache.size(), 2)
     self.assertEqual(cache.get("key2", "cache_token"), ['another', 'val'])
-    # test eviction in case the cache token changes
-    cache.extend("key2", "new_token", ['new_value'])
-    self.assertEqual(cache.get("key2", "new_token"), None)
+    self.verify_metrics(
+        cache,
+        {
+            'get': 2,
+            'put': 1,
+            'extend': 2,
+            'miss': 0,
+            'hit': 2,
+            'clear': 0,
+            'evict': 0,
+            'size': 2,
+            'capacity': 3
+        })
+
+  def test_extend_non_list(self):
+    cache = self.get_cache(3)
+    cache.put("key", "cache_token", tuple(['val']))
+    cache.extend("key", "cache_token", ['yet', 'another', 'val'])
     self.assertEqual(cache.size(), 1)
-    self.verify_metrics(cache, {'get': 3, 'put': 1, 'extend': 3,
-                                'miss': 1, 'hit': 2, 'clear': 0,
-                                'evict': 1,
-                                'size': 1, 'capacity': 3})
+    self.assertEqual(
+        list(cache.get("key", "cache_token")), ['val', 'yet', 'another', 'val'])
 
   def test_clear(self):
     cache = self.get_cache(5)
@@ -98,15 +116,19 @@ class StateCacheTest(unittest.TestCase):
     cache.clear("non-existing", "token")
     self.assertEqual(cache.size(), 3)
     self.assertEqual(cache.get("non-existing", "token"), [])
-    # test eviction in case the cache token changes
-    cache.clear("new-key", "wrong_token")
-    self.assertEqual(cache.size(), 2)
-    self.assertEqual(cache.get("new-key", "cache_token"), None)
-    self.assertEqual(cache.get("new-key", "wrong_token"), None)
-    self.verify_metrics(cache, {'get': 5, 'put': 1, 'extend': 0,
-                                'miss': 3, 'hit': 2, 'clear': 3,
-                                'evict': 1,
-                                'size': 2, 'capacity': 5})
+    self.verify_metrics(
+        cache,
+        {
+            'get': 3,
+            'put': 1,
+            'extend': 0,
+            'miss': 1,
+            'hit': 2,
+            'clear': 2,
+            'evict': 0,
+            'size': 3,
+            'capacity': 5
+        })
 
   def test_max_size(self):
     cache = self.get_cache(2)
@@ -117,10 +139,19 @@ class StateCacheTest(unittest.TestCase):
     self.assertEqual(cache.size(), 2)
     cache.put("key", "cache_token", "value")
     self.assertEqual(cache.size(), 2)
-    self.verify_metrics(cache, {'get': 0, 'put': 4, 'extend': 0,
-                                'miss': 0, 'hit': 0, 'clear': 0,
-                                'evict': 0,
-                                'size': 2, 'capacity': 2})
+    self.verify_metrics(
+        cache,
+        {
+            'get': 0,
+            'put': 4,
+            'extend': 0,
+            'miss': 0,
+            'hit': 0,
+            'clear': 0,
+            'evict': 0,
+            'size': 2,
+            'capacity': 2
+        })
 
   def test_evict_all(self):
     cache = self.get_cache(5)
@@ -131,10 +162,19 @@ class StateCacheTest(unittest.TestCase):
     self.assertEqual(cache.size(), 0)
     self.assertEqual(cache.get("key", "cache_token"), None)
     self.assertEqual(cache.get("key2", "cache_token"), None)
-    self.verify_metrics(cache, {'get': 2, 'put': 2, 'extend': 0,
-                                'miss': 2, 'hit': 0, 'clear': 0,
-                                'evict': 0,
-                                'size': 0, 'capacity': 5})
+    self.verify_metrics(
+        cache,
+        {
+            'get': 2,
+            'put': 2,
+            'extend': 0,
+            'miss': 2,
+            'hit': 0,
+            'clear': 0,
+            'evict': 0,
+            'size': 0,
+            'capacity': 5
+        })
 
   def test_lru(self):
     cache = self.get_cache(5)
@@ -157,7 +197,7 @@ class StateCacheTest(unittest.TestCase):
     # least recently used key should be gone ("key")
     self.assertEqual(cache.get("key", "cache_token"), None)
     # trigger a read on "key2"
-    cache.get("key2", "cache_token")
+    cache.get("key2", "cache_token2")
     # insert another key to trigger cache eviction
     cache.put("key7", "cache_token", "value7")
     self.assertEqual(cache.size(), 5)
@@ -175,10 +215,19 @@ class StateCacheTest(unittest.TestCase):
     cache.extend("key5", "cache_token", ["another"])
     # least recently used key should be gone ("key6")
     self.assertEqual(cache.get("key6", "cache_token"), None)
-    self.verify_metrics(cache, {'get': 10, 'put': 11, 'extend': 1,
-                                'miss': 5, 'hit': 5, 'clear': 0,
-                                'evict': 0,
-                                'size': 5, 'capacity': 5})
+    self.verify_metrics(
+        cache,
+        {
+            'get': 10,
+            'put': 11,
+            'extend': 1,
+            'miss': 4,
+            'hit': 6,
+            'clear': 0,
+            'evict': 0,
+            'size': 5,
+            'capacity': 5
+        })
 
   def test_is_cached_enabled(self):
     cache = self.get_cache(1)

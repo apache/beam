@@ -23,6 +23,7 @@ import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
@@ -67,15 +68,14 @@ import org.apache.beam.sdk.values.Row;
  * <p>Explicit {@code null} literals are allowed in JSON objects. No other values are parsed into
  * {@code null}.
  */
-@Experimental
+@Experimental(Kind.SCHEMAS)
 public class JsonToRow {
 
-  public static PTransform<PCollection<? extends String>, PCollection<Row>> withSchema(
-      Schema rowSchema) {
+  public static PTransform<PCollection<String>, PCollection<Row>> withSchema(Schema rowSchema) {
     return JsonToRowFn.forSchema(rowSchema);
   }
 
-  static class JsonToRowFn extends PTransform<PCollection<? extends String>, PCollection<Row>> {
+  static class JsonToRowFn extends PTransform<PCollection<String>, PCollection<Row>> {
     private transient volatile @Nullable ObjectMapper objectMapper;
     private Schema schema;
 
@@ -88,7 +88,7 @@ public class JsonToRow {
     }
 
     @Override
-    public PCollection<Row> expand(PCollection<? extends String> jsonStrings) {
+    public PCollection<Row> expand(PCollection<String> jsonStrings) {
       return jsonStrings
           .apply(
               ParDo.of(

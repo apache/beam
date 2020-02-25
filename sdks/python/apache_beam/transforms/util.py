@@ -93,7 +93,7 @@ __all__ = [
     'Values',
     'WithKeys',
     'GroupIntoBatches'
-    ]
+]
 
 K = TypeVar('K')
 V = TypeVar('V')
@@ -150,7 +150,6 @@ class CoGroupByKey(PTransform):
       (or if there's a chance there may be none), this argument is the only way
       to provide pipeline information, and should be considered mandatory.
   """
-
   def __init__(self, **kwargs):
     super(CoGroupByKey, self).__init__()
     self.pipeline = kwargs.pop('pipeline', None)
@@ -167,6 +166,7 @@ class CoGroupByKey(PTransform):
 
   def expand(self, pcolls):
     """Performs CoGroupByKey on argument pcolls; see class docstring."""
+
     # For associating values in K-V pairs with the PCollections they came from.
     def _pair_tag_with_value(key_value, tag):
       (key, value) = key_value
@@ -175,8 +175,7 @@ class CoGroupByKey(PTransform):
     # Creates the key, value pairs for the output PCollection. Values are either
     # lists or dicts (per the class docstring), initialized by the result of
     # result_ctor(result_ctor_arg).
-    def _merge_tagged_vals_under_key(key_grouped, result_ctor,
-                                     result_ctor_arg):
+    def _merge_tagged_vals_under_key(key_grouped, result_ctor, result_ctor_arg):
       (key, grouped) = key_grouped
       result_value = result_ctor(result_ctor_arg)
       for tag, value in grouped:
@@ -204,8 +203,10 @@ class CoGroupByKey(PTransform):
       if self.pipeline:
         assert pcoll.pipeline == self.pipeline
 
-    return ([pcoll | 'pair_with_%s' % tag >> Map(_pair_tag_with_value, tag)
-             for tag, pcoll in pcolls]
+    return ([
+        pcoll | 'pair_with_%s' % tag >> Map(_pair_tag_with_value, tag) for tag,
+        pcoll in pcolls
+    ]
             | Flatten(pipeline=self.pipeline)
             | GroupByKey()
             | Map(_merge_tagged_vals_under_key, result_ctor, result_ctor_arg))
@@ -229,10 +230,11 @@ def KvSwap(label='KvSwap'):  # pylint: disable=invalid-name
 @ptransform_fn
 def Distinct(pcoll):  # pylint: disable=invalid-name
   """Produces a PCollection containing distinct elements of a PCollection."""
-  return (pcoll
-          | 'ToPairs' >> Map(lambda v: (v, None))
-          | 'Group' >> CombinePerKey(lambda vs: None)
-          | 'Distinct' >> Keys())
+  return (
+      pcoll
+      | 'ToPairs' >> Map(lambda v: (v, None))
+      | 'Group' >> CombinePerKey(lambda vs: None)
+      | 'Distinct' >> Keys())
 
 
 @deprecated(since='2.12', current='Distinct')
@@ -249,29 +251,35 @@ class _BatchSizeEstimator(object):
   _MAX_DATA_POINTS = 100
   _MAX_GROWTH_FACTOR = 2
 
-  def __init__(self,
-               min_batch_size=1,
-               max_batch_size=10000,
-               target_batch_overhead=.05,
-               target_batch_duration_secs=1,
-               variance=0.25,
-               clock=time.time,
-               ignore_first_n_seen_per_batch_size=0):
+  def __init__(
+      self,
+      min_batch_size=1,
+      max_batch_size=10000,
+      target_batch_overhead=.05,
+      target_batch_duration_secs=1,
+      variance=0.25,
+      clock=time.time,
+      ignore_first_n_seen_per_batch_size=0):
     if min_batch_size > max_batch_size:
-      raise ValueError("Minimum (%s) must not be greater than maximum (%s)" % (
-          min_batch_size, max_batch_size))
+      raise ValueError(
+          "Minimum (%s) must not be greater than maximum (%s)" %
+          (min_batch_size, max_batch_size))
     if target_batch_overhead and not 0 < target_batch_overhead <= 1:
-      raise ValueError("target_batch_overhead (%s) must be between 0 and 1" % (
-          target_batch_overhead))
+      raise ValueError(
+          "target_batch_overhead (%s) must be between 0 and 1" %
+          (target_batch_overhead))
     if target_batch_duration_secs and target_batch_duration_secs <= 0:
-      raise ValueError("target_batch_duration_secs (%s) must be positive" % (
-          target_batch_duration_secs))
+      raise ValueError(
+          "target_batch_duration_secs (%s) must be positive" %
+          (target_batch_duration_secs))
     if not (target_batch_overhead or target_batch_duration_secs):
-      raise ValueError("At least one of target_batch_overhead or "
-                       "target_batch_duration_secs must be positive.")
+      raise ValueError(
+          "At least one of target_batch_overhead or "
+          "target_batch_duration_secs must be positive.")
     if ignore_first_n_seen_per_batch_size < 0:
-      raise ValueError('ignore_first_n_seen_per_batch_size (%s) must be non '
-                       'negative' % (ignore_first_n_seen_per_batch_size))
+      raise ValueError(
+          'ignore_first_n_seen_per_batch_size (%s) must be non '
+          'negative' % (ignore_first_n_seen_per_batch_size))
     self._min_batch_size = min_batch_size
     self._max_batch_size = max_batch_size
     self._target_batch_overhead = target_batch_overhead
@@ -339,8 +347,9 @@ class _BatchSizeEstimator(object):
     if all(xs[0] == x for x in xs):
       # Simply use the mean if all values in xs are same.
       return 0, ybar / xbar
-    b = (sum([(x - xbar) * (y - ybar) for x, y in zip(xs, ys)])
-         / sum([(x - xbar)**2 for x in xs]))
+    b = (
+        sum([(x - xbar) * (y - ybar)
+             for x, y in zip(xs, ys)]) / sum([(x - xbar)**2 for x in xs]))
     a = ybar - b * xbar
     return a, b
 
@@ -397,10 +406,12 @@ class _BatchSizeEstimator(object):
     elif len(self._data) < 2:
       # Force some variety so we have distinct batch sizes on which to do
       # linear regression below.
-      return int(max(
-          min(self._max_batch_size,
-              self._min_batch_size * self._MAX_GROWTH_FACTOR),
-          self._min_batch_size + 1))
+      return int(
+          max(
+              min(
+                  self._max_batch_size,
+                  self._min_batch_size * self._MAX_GROWTH_FACTOR),
+              self._min_batch_size + 1))
 
     # There tends to be a lot of noise in the top quantile, which also
     # has outsided influence in the regression.  If we have enough data,
@@ -499,7 +510,7 @@ class _WindowAwareBatchingDoFn(DoFn):
     if len(self._batches[window]) >= self._batch_size:
       with self._batch_size_estimator.record_time(self._batch_size):
         yield windowed_value.WindowedValue(
-            self._batches[window], window.max_timestamp(), (window,))
+            self._batches[window], window.max_timestamp(), (window, ))
       del self._batches[window]
       self._batch_size = self._batch_size_estimator.next_batch_size()
     elif len(self._batches) > self._MAX_LIVE_WINDOWS:
@@ -509,7 +520,7 @@ class _WindowAwareBatchingDoFn(DoFn):
           reverse=True)[0]
       with self._batch_size_estimator.record_time(self._batch_size):
         yield windowed_value.WindowedValue(
-            self._batches[window], window.max_timestamp(), (window,))
+            self._batches[window], window.max_timestamp(), (window, ))
       del self._batches[window]
       self._batch_size = self._batch_size_estimator.next_batch_size()
 
@@ -518,7 +529,7 @@ class _WindowAwareBatchingDoFn(DoFn):
       if batch:
         with self._batch_size_estimator.record_time(self._batch_size):
           yield windowed_value.WindowedValue(
-              batch, window.max_timestamp(), (window,))
+              batch, window.max_timestamp(), (window, ))
     self._batches = None
     self._batch_size = self._batch_size_estimator.next_batch_size()
 
@@ -557,14 +568,14 @@ class BatchElements(PTransform):
     clock: (optional) an alternative to time.time for measuring the cost of
         donwstream operations (mostly for testing)
   """
-
-  def __init__(self,
-               min_batch_size=1,
-               max_batch_size=10000,
-               target_batch_overhead=.05,
-               target_batch_duration_secs=1,
-               variance=0.25,
-               clock=time.time):
+  def __init__(
+      self,
+      min_batch_size=1,
+      max_batch_size=10000,
+      target_batch_overhead=.05,
+      target_batch_duration_secs=1,
+      variance=0.25,
+      clock=time.time):
     self._batch_size_estimator = _BatchSizeEstimator(
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
@@ -579,8 +590,8 @@ class BatchElements(PTransform):
     elif pcoll.windowing.is_default():
       # This is the same logic as _GlobalWindowsBatchingDoFn, but optimized
       # for that simpler case.
-      return pcoll | ParDo(_GlobalWindowsBatchingDoFn(
-          self._batch_size_estimator))
+      return pcoll | ParDo(
+          _GlobalWindowsBatchingDoFn(self._batch_size_estimator))
     else:
       return pcoll | ParDo(_WindowAwareBatchingDoFn(self._batch_size_estimator))
 
@@ -592,7 +603,6 @@ class _IdentityWindowFn(NonMergingWindowFn):
   Will raise an exception when used after DoFns that return TimestampedValue
   elements.
   """
-
   def __init__(self, window_coder):
     """Create a new WindowFn with compatible coder.
     To be applied to PCollections with windows that are compatible with the
@@ -627,7 +637,6 @@ class ReshufflePerKey(PTransform):
 
   ReshufflePerKey is experimental. No backwards compatibility guarantees.
   """
-
   def expand(self, pcoll):
     windowing_saved = pcoll.windowing
     if windowing_saved.is_default():
@@ -645,15 +654,15 @@ class ReshufflePerKey(PTransform):
       def restore_timestamps(element):
         key, values = element
         return [
-            globally_windowed.with_value((key, value))
-            if timestamp is None
-            else window.GlobalWindows.windowed_value((key, value), timestamp)
-            for (value, timestamp) in values]
+            globally_windowed.with_value((key, value)) if timestamp is None else
+            window.GlobalWindows.windowed_value((key, value), timestamp)
+            for (value, timestamp) in values
+        ]
 
     else:
-      def reify_timestamps(element,
-                           timestamp=DoFn.TimestampParam,
-                           window=DoFn.WindowParam):
+
+      def reify_timestamps(
+          element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam):
         key, value = element
         # Transport the window as part of the value and restore it later.
         return key, windowed_value.WindowedValue(value, timestamp, [window])
@@ -672,9 +681,10 @@ class ReshufflePerKey(PTransform):
         triggerfn=AfterCount(1),
         accumulation_mode=AccumulationMode.DISCARDING,
         timestamp_combiner=TimestampCombiner.OUTPUT_AT_EARLIEST)
-    result = (ungrouped
-              | GroupByKey()
-              | FlatMap(restore_timestamps).with_output_types(Any))
+    result = (
+        ungrouped
+        | GroupByKey()
+        | FlatMap(restore_timestamps).with_output_types(Any))
     result._windowing = windowing_saved
     return result
 
@@ -692,24 +702,25 @@ class Reshuffle(PTransform):
 
   Reshuffle is experimental. No backwards compatibility guarantees.
   """
-
   def expand(self, pcoll):
     # type: (pvalue.PValue) -> pvalue.PCollection
-    if sys.version_info >= (3,):
+    if sys.version_info >= (3, ):
       KeyedT = Tuple[int, T]
     else:
       KeyedT = Tuple[long, T]  # pylint: disable=long-builtin
-    return (pcoll
-            | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t))
-            .with_input_types(T).with_output_types(KeyedT)
-            | ReshufflePerKey()
-            | 'RemoveRandomKeys' >> Map(lambda t: t[1])
-            .with_input_types(KeyedT).with_output_types(T))
+    return (
+        pcoll
+        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(
+            32), t)).with_input_types(T).with_output_types(KeyedT)
+        | ReshufflePerKey()
+        | 'RemoveRandomKeys' >>
+        Map(lambda t: t[1]).with_input_types(KeyedT).with_output_types(T))
 
   def to_runner_api_parameter(self, unused_context):
     # type: (PipelineContext) -> Tuple[str, None]
     return common_urns.composites.RESHUFFLE.urn, None
 
+  @staticmethod
   @PTransform.register_urn(common_urns.composites.RESHUFFLE.urn, None)
   def from_runner_api_parameter(unused_parameter, unused_context):
     return Reshuffle()
@@ -739,21 +750,21 @@ class GroupIntoBatches(PTransform):
   GroupIntoBatches is experimental. Its use case will depend on the runner if
   it has support of States and Timers.
   """
-
   def __init__(self, batch_size):
     """Create a new GroupIntoBatches with batch size.
 
     Arguments:
       batch_size: (required) How many elements should be in a batch
     """
-    warnings.warn('Use of GroupIntoBatches transform requires State/Timer '
-                  'support from the runner')
+    warnings.warn(
+        'Use of GroupIntoBatches transform requires State/Timer '
+        'support from the runner')
     self.batch_size = batch_size
 
   def expand(self, pcoll):
     input_coder = coders.registry.get_coder(pcoll)
-    return pcoll | ParDo(_pardo_group_into_batches(
-        self.batch_size, input_coder))
+    return pcoll | ParDo(
+        _pardo_group_into_batches(self.batch_size, input_coder))
 
 
 def _pardo_group_into_batches(batch_size, input_coder):
@@ -762,12 +773,13 @@ def _pardo_group_into_batches(batch_size, input_coder):
   EXPIRY_TIMER = TimerSpec('expiry', TimeDomain.WATERMARK)
 
   class _GroupIntoBatchesDoFn(DoFn):
-
-    def process(self, element,
-                window=DoFn.WindowParam,
-                element_state=DoFn.StateParam(ELEMENT_STATE),
-                count_state=DoFn.StateParam(COUNT_STATE),
-                expiry_timer=DoFn.TimerParam(EXPIRY_TIMER)):
+    def process(
+        self,
+        element,
+        window=DoFn.WindowParam,
+        element_state=DoFn.StateParam(ELEMENT_STATE),
+        count_state=DoFn.StateParam(COUNT_STATE),
+        expiry_timer=DoFn.TimerParam(EXPIRY_TIMER)):
       # Allowed lateness not supported in Python SDK
       # https://beam.apache.org/documentation/programming-guide/#watermarks-and-late-data
       expiry_timer.set(window.end)
@@ -781,8 +793,10 @@ def _pardo_group_into_batches(batch_size, input_coder):
         count_state.clear()
 
     @on_timer(EXPIRY_TIMER)
-    def expiry(self, element_state=DoFn.StateParam(ELEMENT_STATE),
-               count_state=DoFn.StateParam(COUNT_STATE)):
+    def expiry(
+        self,
+        element_state=DoFn.StateParam(ELEMENT_STATE),
+        count_state=DoFn.StateParam(COUNT_STATE)):
       batch = [element for element in element_state.read()]
       if batch:
         yield batch
@@ -797,65 +811,63 @@ class ToString(object):
   PTransform for converting a PCollection element, KV or PCollection Iterable
   to string.
   """
-
   class Kvs(PTransform):
     """
     Transforms each element of the PCollection to a string on the key followed
     by the specific delimiter and the value.
     """
-
     def __init__(self, delimiter=None):
       self.delimiter = delimiter or ","
 
     def expand(self, pcoll):
       input_type = Tuple[Any, Any]
       output_type = str
-      return (pcoll | ('%s:KeyVaueToString' % self.label >> (Map(
-          lambda x: "{}{}{}".format(x[0], self.delimiter, x[1])))
-                       .with_input_types(input_type)  # type: ignore[misc]
-                       .with_output_types(output_type)))
+      return (
+          pcoll | (
+              '%s:KeyVaueToString' % self.label >>
+              (Map(lambda x: "{}{}{}".format(x[0], self.delimiter, x[1]))
+               ).with_input_types(input_type)  # type: ignore[misc]
+              .with_output_types(output_type)))
 
   class Element(PTransform):
     """
     Transforms each element of the PCollection to a string.
     """
-
     def expand(self, pcoll):
       input_type = T
       output_type = str
-      return (pcoll | ('%s:ElementToString' % self.label >> (Map(
-          lambda x: str(x)))
-                       .with_input_types(input_type)
-                       .with_output_types(output_type)))
+      return (
+          pcoll | (
+              '%s:ElementToString' % self.label >>
+              (Map(lambda x: str(x))
+               ).with_input_types(input_type).with_output_types(output_type)))
 
   class Iterables(PTransform):
     """
     Transforms each item in the iterable of the input of PCollection to a
     string. There is no trailing delimiter.
     """
-
     def __init__(self, delimiter=None):
       self.delimiter = delimiter or ","
 
     def expand(self, pcoll):
       input_type = Iterable[Any]
       output_type = str
-      return (pcoll | ('%s:IterablesToString' % self.label >> (
-          Map(lambda x: self.delimiter.join(str(_x) for _x in x)))
-                       .with_input_types(input_type)
-                       .with_output_types(output_type)))
+      return (
+          pcoll | (
+              '%s:IterablesToString' % self.label >>
+              (Map(lambda x: self.delimiter.join(str(_x) for _x in x))
+               ).with_input_types(input_type).with_output_types(output_type)))
 
 
 class Reify(object):
   """PTransforms for converting between explicit and implicit form of various
   Beam values."""
-
   @typehints.with_input_types(T)
   @typehints.with_output_types(T)
   class Timestamp(PTransform):
     """PTransform to wrap a value in a TimestampedValue with it's
     associated timestamp."""
-
     @staticmethod
     def add_timestamp_info(element, timestamp=DoFn.TimestampParam):
       yield TimestampedValue(element, timestamp)
@@ -869,10 +881,9 @@ class Reify(object):
     """PTransform to convert an element in a PCollection into a tuple of
     (element, timestamp, window), wrapped in a TimestampedValue with it's
     associated timestamp."""
-
     @staticmethod
-    def add_window_info(element, timestamp=DoFn.TimestampParam,
-                        window=DoFn.WindowParam):
+    def add_window_info(
+        element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam):
       yield TimestampedValue((element, timestamp, window), timestamp)
 
     def expand(self, pcoll):
@@ -883,7 +894,6 @@ class Reify(object):
   class TimestampInValue(PTransform):
     """PTransform to wrap the Value in a KV pair in a TimestampedValue with
     the element's associated timestamp."""
-
     @staticmethod
     def add_timestamp_info(element, timestamp=DoFn.TimestampParam):
       key, value = element
@@ -898,10 +908,9 @@ class Reify(object):
     """PTransform to convert the Value in a KV pair into a tuple of
     (value, timestamp, window), with the whole element being wrapped inside a
     TimestampedValue."""
-
     @staticmethod
-    def add_window_info(element, timestamp=DoFn.TimestampParam,
-                        window=DoFn.WindowParam):
+    def add_window_info(
+        element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam):
       key, value = element
       yield TimestampedValue((key, (value, timestamp, window)), timestamp)
 
@@ -948,6 +957,7 @@ class Regex(object):
       m = regex.match(element)
       if m:
         yield m.group(group)
+
     return pcoll | FlatMap(_process)
 
   @staticmethod
@@ -992,6 +1002,7 @@ class Regex(object):
       match = regex.match(element)
       if match:
         yield (match.group(keyGroup), match.group(valueGroup))
+
     return pcoll | FlatMap(_process)
 
   @staticmethod
@@ -1014,6 +1025,7 @@ class Regex(object):
       r = regex.search(element)
       if r:
         yield r.group(group)
+
     return pcoll | FlatMap(_process)
 
   @staticmethod
@@ -1038,10 +1050,11 @@ class Regex(object):
     def _process(element):
       matches = regex.finditer(element)
       if group == Regex.ALL:
-        yield [(m.group(), m.groups()[0]) for m in matches if outputEmpty
-               or m.groups()[0]]
+        yield [(m.group(), m.groups()[0]) for m in matches
+               if outputEmpty or m.groups()[0]]
       else:
         yield [m.group(group) for m in matches if outputEmpty or m.group(group)]
+
     return pcoll | FlatMap(_process)
 
   @staticmethod

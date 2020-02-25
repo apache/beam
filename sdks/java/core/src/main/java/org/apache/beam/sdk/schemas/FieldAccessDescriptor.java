@@ -106,6 +106,9 @@ public abstract class FieldAccessDescriptor implements Serializable {
     @Nullable
     public abstract Integer getFieldId();
 
+    @Nullable
+    public abstract String getFieldRename();
+
     public abstract List<Qualifier> getQualifiers();
 
     public static Builder builder() {
@@ -119,6 +122,8 @@ public abstract class FieldAccessDescriptor implements Serializable {
       public abstract Builder setFieldName(@Nullable String name);
 
       public abstract Builder setFieldId(@Nullable Integer id);
+
+      public abstract Builder setFieldRename(@Nullable String rename);
 
       public abstract Builder setQualifiers(List<Qualifier> qualifiers);
 
@@ -191,6 +196,14 @@ public abstract class FieldAccessDescriptor implements Serializable {
         StreamSupport.stream(fieldNames.spliterator(), false)
             .map(FieldAccessDescriptorParser::parse)
             .collect(Collectors.toList());
+    return union(fields);
+  }
+
+  public static FieldAccessDescriptor withFieldNamesAs(Map<String, String> fieldNamesAs) {
+    List<FieldAccessDescriptor> fields = Lists.newArrayListWithCapacity(fieldNamesAs.size());
+    for (Map.Entry<String, String> entry : fieldNamesAs.entrySet()) {
+      fields.add(FieldAccessDescriptor.create().withFieldNameAs(entry.getKey(), entry.getValue()));
+    }
     return union(fields);
   }
 
@@ -279,6 +292,33 @@ public abstract class FieldAccessDescriptor implements Serializable {
   }
 
   /**
+   * Add a field with a new name. This is only valid if the fieldName references a single field
+   * (wildcards are not allowed here).
+   */
+  public FieldAccessDescriptor withFieldNameAs(String fieldName, String fieldRename) {
+    FieldAccessDescriptor fieldAccessDescriptor =
+        FieldAccessDescriptorParser.parse(fieldName).renameSingleField(fieldRename);
+    return union(ImmutableList.of(this, fieldAccessDescriptor));
+  }
+
+  // Rename the field. Only valid if this FieldAccessDescriptor references a single field.
+  private FieldAccessDescriptor renameSingleField(String fieldRename) {
+    checkArgument(referencesSingleField());
+    if (!getFieldsAccessed().isEmpty()) {
+      FieldDescriptor fieldDescriptor = Iterables.getOnlyElement(getFieldsAccessed());
+      fieldDescriptor = fieldDescriptor.toBuilder().setFieldRename(fieldRename).build();
+      return toBuilder().setFieldsAccessed(ImmutableList.of(fieldDescriptor)).build();
+    } else {
+      Map.Entry<FieldDescriptor, FieldAccessDescriptor> entry =
+          Iterables.getOnlyElement(getNestedFieldsAccessed().entrySet());
+      return toBuilder()
+          .setNestedFieldsAccessed(
+              ImmutableMap.of(entry.getKey(), entry.getValue().renameSingleField(fieldRename)))
+          .build();
+    }
+  }
+
+  /**
    * Return a descriptor that access the specified nested field. The nested field must be of type
    * {@link Schema.TypeName#ROW}, and the fieldAccess argument specifies what fields of the nested
    * type will be accessed.
@@ -297,6 +337,17 @@ public abstract class FieldAccessDescriptor implements Serializable {
   public FieldAccessDescriptor withNestedField(
       String nestedFieldName, FieldAccessDescriptor fieldAccess) {
     FieldDescriptor field = FieldDescriptor.builder().setFieldName(nestedFieldName).build();
+    return withNestedField(field, fieldAccess);
+  }
+
+  /** Like {@link #withNestedField} along with a rename of the nested field. */
+  public FieldAccessDescriptor withNestedFieldAs(
+      String nestedFieldName, String nestedFieldRename, FieldAccessDescriptor fieldAccess) {
+    FieldDescriptor field =
+        FieldDescriptor.builder()
+            .setFieldName(nestedFieldName)
+            .setFieldRename(nestedFieldRename)
+            .build();
     return withNestedField(field, fieldAccess);
   }
 

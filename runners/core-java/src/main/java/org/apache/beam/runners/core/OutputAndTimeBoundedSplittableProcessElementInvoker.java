@@ -32,6 +32,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -118,6 +119,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               }
 
               @Override
+              public Object restriction() {
+                return tracker.currentRestriction();
+              }
+
+              @Override
               public InputT element(DoFn<InputT, OutputT> doFn) {
                 return processContext.element();
               }
@@ -162,6 +168,12 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               @Override
               public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
                 return DoFnOutputReceivers.windowedMultiReceiver(processContext, null);
+              }
+
+              @Override
+              public BundleFinalizer bundleFinalizer() {
+                throw new UnsupportedOperationException(
+                    "Not supported in non-portable SplittableDoFn");
               }
 
               @Override
@@ -210,7 +222,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               }
 
               @Override
-              public State state(String stateId) {
+              public State state(String stateId, boolean alwaysFetched) {
                 throw new UnsupportedOperationException(
                     "Access to state not supported in Splittable DoFn");
               }

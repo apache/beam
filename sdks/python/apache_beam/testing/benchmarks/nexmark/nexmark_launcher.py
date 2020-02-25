@@ -103,34 +103,38 @@ class NexmarkLauncher(object):
   def parse_args(self):
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--query', '-q',
-                        type=int,
-                        action='append',
-                        required=True,
-                        choices=[0, 1, 2],
-                        help='Query to run')
+    parser.add_argument(
+        '--query',
+        '-q',
+        type=int,
+        action='append',
+        required=True,
+        choices=[0, 1, 2],
+        help='Query to run')
 
-    parser.add_argument('--subscription_name',
-                        type=str,
-                        help='Pub/Sub subscription to read from')
+    parser.add_argument(
+        '--subscription_name',
+        type=str,
+        help='Pub/Sub subscription to read from')
 
-    parser.add_argument('--topic_name',
-                        type=str,
-                        help='Pub/Sub topic to read from')
+    parser.add_argument(
+        '--topic_name', type=str, help='Pub/Sub topic to read from')
 
-    parser.add_argument('--loglevel',
-                        choices=['DEBUG', 'INFO', 'WARNING',
-                                 'ERROR', 'CRITICAL'],
-                        default='INFO',
-                        help='Set logging level to debug')
-    parser.add_argument('--input',
-                        type=str,
-                        required=True,
-                        help='Path to the data file containing nexmark events.')
+    parser.add_argument(
+        '--loglevel',
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        default='INFO',
+        help='Set logging level to debug')
+    parser.add_argument(
+        '--input',
+        type=str,
+        required=True,
+        help='Path to the data file containing nexmark events.')
 
     self.args, self.pipeline_args = parser.parse_known_args()
-    logging.basicConfig(level=getattr(logging, self.args.loglevel, None),
-                        format='(%(threadName)-10s) %(message)s')
+    logging.basicConfig(
+        level=getattr(logging, self.args.loglevel, None),
+        format='(%(threadName)-10s) %(message)s')
 
     self.pipeline_options = PipelineOptions(self.pipeline_args)
     logging.debug('args, pipeline_args: %s, %s', self.args, self.pipeline_args)
@@ -151,11 +155,10 @@ class NexmarkLauncher(object):
 
     # wait_until_finish ensures that the streaming job is canceled.
     self.wait_until_finish_duration = (
-        self.pipeline_options.view_as(TestOptions).wait_until_finish_duration
-    )
+        self.pipeline_options.view_as(TestOptions).wait_until_finish_duration)
     if self.wait_until_finish_duration is None:
       parser.print_usage()
-      print(sys.argv[0] + ': error: argument --wait_until_finish_duration is required') # pylint: disable=line-too-long
+      print(sys.argv[0] + ': error: argument --wait_until_finish_duration is required')  # pylint: disable=line-too-long
       sys.exit(1)
 
     # We use the save_main_session option because one or more DoFn's in this
@@ -200,9 +203,8 @@ class NexmarkLauncher(object):
       query.load(raw_events, query_args)
       result = self.pipeline.run()
       job_duration = (
-          self.pipeline_options.view_as(TestOptions).wait_until_finish_duration
-      )
-      if self.pipeline_options.view_as(StandardOptions).runner == 'DataflowRunner': # pylint: disable=line-too-long
+          self.pipeline_options.view_as(TestOptions).wait_until_finish_duration)
+      if self.pipeline_options.view_as(StandardOptions).runner == 'DataflowRunner':  # pylint: disable=line-too-long
         result.wait_until_finish(duration=job_duration)
         result.cancel()
       else:
@@ -224,16 +226,11 @@ class NexmarkLauncher(object):
     queries = {
         0: query0,
         1: query1,
-        2: query2,
-        # TODO(mariagh): Add more queries.
+        2: query2,  # TODO(mariagh): Add more queries.
     }
 
     # TODO(mariagh): Move to a config file.
-    query_args = {
-        2: {
-            'auction_id': 'a1003'
-        }
-    }
+    query_args = {2: {'auction_id': 'a1003'}}
 
     query_errors = []
     for i in self.args.query:
@@ -245,11 +242,10 @@ class NexmarkLauncher(object):
       launch_from_direct_runner = self.pipeline_options.view_as(
           StandardOptions).runner in [None, 'DirectRunner']
 
-      query_duration = self.pipeline_options.view_as(TestOptions).wait_until_finish_duration # pylint: disable=line-too-long
+      query_duration = self.pipeline_options.view_as(TestOptions).wait_until_finish_duration  # pylint: disable=line-too-long
       if launch_from_direct_runner:
-        command = Command(self.run_query, args=[queries[i],
-                                                query_args.get(i),
-                                                query_errors])
+        command = Command(
+            self.run_query, args=[queries[i], query_args.get(i), query_errors])
         command.run(timeout=query_duration // 1000)
       else:
         try:

@@ -182,7 +182,7 @@ public class MapElements<InputT, OutputT>
    * <p>See {@link WithFailures} documentation for usage patterns of the returned {@link
    * WithFailures.Result}.
    */
-  @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+  @Experimental(Kind.WITH_EXCEPTIONS)
   public <NewFailureT> MapWithFailures<InputT, OutputT, NewFailureT> exceptionsInto(
       TypeDescriptor<NewFailureT> failureTypeDescriptor) {
     return new MapWithFailures<>(
@@ -212,7 +212,7 @@ public class MapElements<InputT, OutputT>
    * PCollection<String> failures = result.failures();
    * }</pre>
    */
-  @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+  @Experimental(Kind.WITH_EXCEPTIONS)
   public <FailureT> MapWithFailures<InputT, OutputT, FailureT> exceptionsVia(
       InferableFunction<ExceptionElement<InputT>, FailureT> exceptionHandler) {
     return new MapWithFailures<>(

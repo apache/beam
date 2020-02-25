@@ -39,7 +39,6 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager.StagedFile;
 import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
@@ -151,8 +150,6 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
 
   @Override
   public PipelineResult run(Pipeline pipeline) {
-    pipeline.replaceAll(ImmutableList.of(JavaReadViaImpulse.boundedOverride()));
-
     Runnable cleanup;
     if (Environments.ENVIRONMENT_LOOPBACK.equals(
         options.as(PortablePipelineOptions.class).getDefaultEnvironmentType())) {

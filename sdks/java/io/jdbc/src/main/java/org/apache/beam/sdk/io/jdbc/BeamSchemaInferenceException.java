@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.jdbc;
 
 /** Exception to signal that inferring the Beam schema from the JDBC source failed. */
-public class BeamSchemaInferenceException extends RuntimeException {
-  public BeamSchemaInferenceException(String message, Throwable cause) {
+class BeamSchemaInferenceException extends RuntimeException {
+  BeamSchemaInferenceException(String message, Throwable cause) {
     super(message, cause);
   }
 }

@@ -53,6 +53,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -260,6 +261,30 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
             @Override
             public boolean isSplittable() {
               return signature.processElement().isSplittable();
+            }
+
+            @Override
+            public boolean isRequiresTimeSortedInput() {
+              return signature.processElement().requiresTimeSortedInput();
+            }
+
+            @Override
+            public boolean requestsFinalization() {
+              return (signature.startBundle() != null
+                      && signature
+                          .startBundle()
+                          .extraParameters()
+                          .contains(Parameter.bundleFinalizer()))
+                  || (signature.processElement() != null
+                      && signature
+                          .processElement()
+                          .extraParameters()
+                          .contains(Parameter.bundleFinalizer()))
+                  || (signature.finishBundle() != null
+                      && signature
+                          .finishBundle()
+                          .extraParameters()
+                          .contains(Parameter.bundleFinalizer()));
             }
 
             @Override

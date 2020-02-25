@@ -156,13 +156,14 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
     }
 
     // Else try to make a setter-based creator
-    UserTypeCreatorFactory setterBasedFactory =
+    Factory<SchemaUserTypeCreator> setterBasedFactory =
         new SetterBasedCreatorFactory(new JavaBeanSetterFactory());
     return setterBasedFactory.create(targetClass, schema);
   }
 
   /** A factory for creating {@link FieldValueSetter} objects for a JavaBean object. */
-  public static class JavaBeanSetterFactory implements FieldValueSetterFactory {
+  @Experimental(Kind.SCHEMAS)
+  private static class JavaBeanSetterFactory implements Factory<List<FieldValueSetter>> {
     @Override
     public List<FieldValueSetter> create(Class<?> targetClass, Schema schema) {
       return JavaBeanUtils.getSetters(

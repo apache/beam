@@ -34,6 +34,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -44,9 +47,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Primitives;
 
 /** A set of reflection helper methods. */
+@Internal
 public class ReflectUtils {
   /** Represents a class and a schema. */
   @AutoValue
+  @Experimental(Kind.SCHEMAS)
   public abstract static class ClassWithSchema {
     public abstract Class getClazz();
 
@@ -57,9 +62,9 @@ public class ReflectUtils {
     }
   }
 
-  private static final Map<Class, List<Method>> DECLARED_METHODS = Maps.newHashMap();
-  private static final Map<Class, Method> ANNOTATED_CONSTRUCTORS = Maps.newHashMap();
-  private static final Map<Class, List<Field>> DECLARED_FIELDS = Maps.newHashMap();
+  private static final Map<Class, List<Method>> DECLARED_METHODS = Maps.newConcurrentMap();
+  private static final Map<Class, Method> ANNOTATED_CONSTRUCTORS = Maps.newConcurrentMap();
+  private static final Map<Class, List<Field>> DECLARED_FIELDS = Maps.newConcurrentMap();
 
   /**
    * Returns the list of non private/protected, non-static methods in the class, caching the

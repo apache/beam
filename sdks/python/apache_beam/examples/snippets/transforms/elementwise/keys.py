@@ -37,8 +37,7 @@ def keys(test=None):
             ('🥔', 'Potato'),
         ])
         | 'Keys' >> beam.Keys()
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END keys]
     if test:
       test(icons)

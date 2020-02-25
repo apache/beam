@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
@@ -146,7 +147,7 @@ import org.slf4j.LoggerFactory;
  * be different in some aspects, but the idea is that users can easily migrate from one to the other
  * .
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class HBaseIO {
   private static final Logger LOG = LoggerFactory.getLogger(HBaseIO.class);
 
@@ -273,6 +274,7 @@ public class HBaseIO {
    * A {@link PTransform} that works like {@link #read}, but executes read operations coming from a
    * {@link PCollection} of {@link HBaseQuery}.
    */
+  @Experimental(Kind.SPLITTABLE_DO_FN)
   public static ReadAll readAll() {
     return new ReadAll(null);
   }
@@ -336,7 +338,10 @@ public class HBaseIO {
         try (Connection connection =
             ConnectionFactory.createConnection(read.serializableConfiguration.get())) {
           estimatedSizeBytes =
-              HBaseUtils.estimateSizeBytes(connection, read.tableId, read.serializableScan.get());
+              HBaseUtils.estimateSizeBytes(
+                  connection,
+                  read.tableId,
+                  HBaseUtils.getByteKeyRange(read.serializableScan.get()));
         }
         LOG.debug(
             "Estimated size {} bytes for table {} and scan {}",
@@ -359,12 +364,16 @@ public class HBaseIO {
 
       try (Connection connection = ConnectionFactory.createConnection(read.getConfiguration())) {
         List<HRegionLocation> regionLocations =
-            HBaseUtils.getRegionLocations(connection, read.tableId, read.serializableScan.get());
+            HBaseUtils.getRegionLocations(
+                connection, read.tableId, HBaseUtils.getByteKeyRange(read.serializableScan.get()));
         LOG.debug("Suggested {} source(s) based on size", numSplits);
         LOG.debug("Suggested {} source(s) based on number of regions", regionLocations.size());
 
         List<ByteKeyRange> ranges =
-            HBaseUtils.getRanges(regionLocations, read.tableId, read.serializableScan.get());
+            HBaseUtils.getRanges(
+                regionLocations,
+                read.tableId,
+                HBaseUtils.getByteKeyRange(read.serializableScan.get()));
         final int numSources = ranges.size();
         LOG.debug("Spliting into {} source(s)", numSources);
         if (numSources > 0) {

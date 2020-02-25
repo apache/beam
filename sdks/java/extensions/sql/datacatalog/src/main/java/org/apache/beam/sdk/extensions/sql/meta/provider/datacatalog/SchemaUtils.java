@@ -19,9 +19,11 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog;
 
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
-import com.google.cloud.datacatalog.ColumnSchema;
+import com.google.cloud.datacatalog.v1beta1.ColumnSchema;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -29,6 +31,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Strings;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 
+@Experimental(Kind.SCHEMAS)
 class SchemaUtils {
 
   private static final Map<String, FieldType> FIELD_TYPES =
@@ -49,7 +52,7 @@ class SchemaUtils {
           .build();
 
   /** Convert DataCatalog schema to Beam schema. */
-  static Schema fromDataCatalog(com.google.cloud.datacatalog.Schema dcSchema) {
+  static Schema fromDataCatalog(com.google.cloud.datacatalog.v1beta1.Schema dcSchema) {
     return fromColumnsList(dcSchema.getColumnsList());
   }
 

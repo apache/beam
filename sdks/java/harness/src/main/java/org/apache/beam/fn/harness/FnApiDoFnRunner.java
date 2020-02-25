@@ -58,11 +58,13 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
@@ -70,13 +72,14 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.BaseArgumentProvider;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.DelegatingArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.Sizes.HasSize;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -126,169 +129,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     }
   }
 
-  static class Context<InputT, OutputT> {
-    final PipelineOptions pipelineOptions;
-    final BeamFnStateClient beamFnStateClient;
-    final String ptransformId;
-    final PTransform pTransform;
-    final Supplier<String> processBundleInstructionId;
-    final RehydratedComponents rehydratedComponents;
-    final DoFn<InputT, OutputT> doFn;
-    final DoFnSignature doFnSignature;
-    final TupleTag<OutputT> mainOutputTag;
-    final Coder<?> inputCoder;
-    final SchemaCoder<InputT> schemaCoder;
-    final Coder<?> keyCoder;
-    final SchemaCoder<OutputT> mainOutputSchemaCoder;
-    final Coder<? extends BoundedWindow> windowCoder;
-    final WindowingStrategy<InputT, ?> windowingStrategy;
-    final Map<TupleTag<?>, SideInputSpec> tagToSideInputSpecMap;
-    Map<TupleTag<?>, Coder<?>> outputCoders;
-    final ParDoPayload parDoPayload;
-    final ListMultimap<String, FnDataReceiver<WindowedValue<?>>> localNameToConsumer;
-    final BundleSplitListener splitListener;
-
-    Context(
-        PipelineOptions pipelineOptions,
-        BeamFnStateClient beamFnStateClient,
-        String ptransformId,
-        PTransform pTransform,
-        Supplier<String> processBundleInstructionId,
-        Map<String, PCollection> pCollections,
-        Map<String, RunnerApi.Coder> coders,
-        Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        PCollectionConsumerRegistry pCollectionConsumerRegistry,
-        BundleSplitListener splitListener) {
-      this.pipelineOptions = pipelineOptions;
-      this.beamFnStateClient = beamFnStateClient;
-      this.ptransformId = ptransformId;
-      this.pTransform = pTransform;
-      this.processBundleInstructionId = processBundleInstructionId;
-      ImmutableMap.Builder<TupleTag<?>, SideInputSpec> tagToSideInputSpecMapBuilder =
-          ImmutableMap.builder();
-      try {
-        rehydratedComponents =
-            RehydratedComponents.forComponents(
-                    RunnerApi.Components.newBuilder()
-                        .putAllCoders(coders)
-                        .putAllPcollections(pCollections)
-                        .putAllWindowingStrategies(windowingStrategies)
-                        .build())
-                .withPipeline(Pipeline.create());
-        parDoPayload = ParDoPayload.parseFrom(pTransform.getSpec().getPayload());
-        doFn = (DoFn) ParDoTranslation.getDoFn(parDoPayload);
-        doFnSignature = DoFnSignatures.signatureForDoFn(doFn);
-        switch (pTransform.getSpec().getUrn()) {
-          case PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN:
-          case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
-          case PTransformTranslation.PAR_DO_TRANSFORM_URN:
-            mainOutputTag = (TupleTag) ParDoTranslation.getMainOutputTag(parDoPayload);
-            break;
-          case PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN:
-          case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
-          case PTransformTranslation.SPLITTABLE_SPLIT_RESTRICTION_URN:
-            mainOutputTag =
-                new TupleTag(Iterables.getOnlyElement(pTransform.getOutputsMap().keySet()));
-            break;
-          default:
-            throw new IllegalStateException(
-                String.format("Unknown urn: %s", pTransform.getSpec().getUrn()));
-        }
-        String mainInputTag =
-            Iterables.getOnlyElement(
-                Sets.difference(
-                    pTransform.getInputsMap().keySet(),
-                    Sets.union(
-                        parDoPayload.getSideInputsMap().keySet(),
-                        parDoPayload.getTimerSpecsMap().keySet())));
-        PCollection mainInput = pCollections.get(pTransform.getInputsOrThrow(mainInputTag));
-        inputCoder = rehydratedComponents.getCoder(mainInput.getCoderId());
-        if (inputCoder instanceof KvCoder
-            // TODO: Stop passing windowed value coders within PCollections.
-            || (inputCoder instanceof WindowedValue.WindowedValueCoder
-                && (((WindowedValueCoder) inputCoder).getValueCoder() instanceof KvCoder))) {
-          this.keyCoder =
-              inputCoder instanceof WindowedValueCoder
-                  ? ((KvCoder) ((WindowedValueCoder) inputCoder).getValueCoder()).getKeyCoder()
-                  : ((KvCoder) inputCoder).getKeyCoder();
-        } else {
-          this.keyCoder = null;
-        }
-        if (inputCoder instanceof SchemaCoder
-            // TODO: Stop passing windowed value coders within PCollections.
-            || (inputCoder instanceof WindowedValue.WindowedValueCoder
-                && (((WindowedValueCoder) inputCoder).getValueCoder() instanceof SchemaCoder))) {
-          this.schemaCoder =
-              inputCoder instanceof WindowedValueCoder
-                  ? (SchemaCoder<InputT>) ((WindowedValueCoder) inputCoder).getValueCoder()
-                  : ((SchemaCoder<InputT>) inputCoder);
-        } else {
-          this.schemaCoder = null;
-        }
-
-        windowingStrategy =
-            (WindowingStrategy)
-                rehydratedComponents.getWindowingStrategy(mainInput.getWindowingStrategyId());
-        windowCoder = windowingStrategy.getWindowFn().windowCoder();
-
-        outputCoders = Maps.newHashMap();
-        for (Map.Entry<String, String> entry : pTransform.getOutputsMap().entrySet()) {
-          TupleTag<?> outputTag = new TupleTag<>(entry.getKey());
-          RunnerApi.PCollection outputPCollection = pCollections.get(entry.getValue());
-          Coder<?> outputCoder = rehydratedComponents.getCoder(outputPCollection.getCoderId());
-          if (outputCoder instanceof WindowedValueCoder) {
-            outputCoder = ((WindowedValueCoder) outputCoder).getValueCoder();
-          }
-          outputCoders.put(outputTag, outputCoder);
-        }
-        Coder<OutputT> outputCoder = (Coder<OutputT>) outputCoders.get(mainOutputTag);
-        mainOutputSchemaCoder =
-            (outputCoder instanceof SchemaCoder) ? (SchemaCoder<OutputT>) outputCoder : null;
-
-        // Build the map from tag id to side input specification
-        for (Map.Entry<String, RunnerApi.SideInput> entry :
-            parDoPayload.getSideInputsMap().entrySet()) {
-          String sideInputTag = entry.getKey();
-          RunnerApi.SideInput sideInput = entry.getValue();
-          checkArgument(
-              Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
-                  sideInput.getAccessPattern().getUrn()),
-              "This SDK is only capable of dealing with %s materializations "
-                  + "but was asked to handle %s for PCollectionView with tag %s.",
-              Materializations.MULTIMAP_MATERIALIZATION_URN,
-              sideInput.getAccessPattern().getUrn(),
-              sideInputTag);
-
-          PCollection sideInputPCollection =
-              pCollections.get(pTransform.getInputsOrThrow(sideInputTag));
-          WindowingStrategy sideInputWindowingStrategy =
-              rehydratedComponents.getWindowingStrategy(
-                  sideInputPCollection.getWindowingStrategyId());
-          tagToSideInputSpecMapBuilder.put(
-              new TupleTag<>(entry.getKey()),
-              SideInputSpec.create(
-                  rehydratedComponents.getCoder(sideInputPCollection.getCoderId()),
-                  sideInputWindowingStrategy.getWindowFn().windowCoder(),
-                  PCollectionViewTranslation.viewFnFromProto(entry.getValue().getViewFn()),
-                  PCollectionViewTranslation.windowMappingFnFromProto(
-                      entry.getValue().getWindowMappingFn())));
-        }
-      } catch (IOException exn) {
-        throw new IllegalArgumentException("Malformed ParDoPayload", exn);
-      }
-
-      ImmutableListMultimap.Builder<String, FnDataReceiver<WindowedValue<?>>>
-          localNameToConsumerBuilder = ImmutableListMultimap.builder();
-      for (Map.Entry<String, String> entry : pTransform.getOutputsMap().entrySet()) {
-        localNameToConsumerBuilder.putAll(
-            entry.getKey(), pCollectionConsumerRegistry.getMultiplexingConsumer(entry.getValue()));
-      }
-      localNameToConsumer = localNameToConsumerBuilder.build();
-      tagToSideInputSpecMap = tagToSideInputSpecMapBuilder.build();
-      this.splitListener = splitListener;
-    }
-  }
-
   static class Factory<InputT, RestrictionT, PositionT, OutputT>
       implements PTransformRunnerFactory<
           FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT>> {
@@ -309,9 +149,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
             PTransformFunctionRegistry startFunctionRegistry,
             PTransformFunctionRegistry finishFunctionRegistry,
             Consumer<ThrowingRunnable> tearDownFunctions,
-            BundleSplitListener splitListener) {
-      Context<InputT, OutputT> context =
-          new Context<>(
+            BundleSplitListener splitListener,
+            BundleFinalizer bundleFinalizer) {
+
+      FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> runner =
+          new FnApiDoFnRunner<>(
               pipelineOptions,
               beamFnStateClient,
               pTransformId,
@@ -321,10 +163,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
               coders,
               windowingStrategies,
               pCollectionConsumerRegistry,
-              splitListener);
-
-      FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> runner =
-          new FnApiDoFnRunner<>(context);
+              splitListener,
+              bundleFinalizer);
 
       // Register the appropriate handlers.
       startFunctionRegistry.register(pTransformId, runner::startBundle);
@@ -359,10 +199,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
           pTransform.getInputsOrThrow(mainInput), pTransformId, (FnDataReceiver) mainInputConsumer);
 
       // Register as a consumer for each timer PCollection.
-      for (String localName : context.parDoPayload.getTimerSpecsMap().keySet()) {
+      for (String localName : runner.parDoPayload.getTimerSpecsMap().keySet()) {
         TimeDomain timeDomain =
             DoFnSignatures.getTimerSpecOrThrow(
-                    context.doFnSignature.timerDeclarations().get(localName), context.doFn)
+                    runner.doFnSignature.timerDeclarations().get(localName), runner.doFn)
                 .getTimeDomain();
         pCollectionConsumerRegistry.register(
             pTransform.getInputsOrThrow(localName),
@@ -381,21 +221,37 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  private final Context<InputT, OutputT> context;
+  private final PipelineOptions pipelineOptions;
+  private final BeamFnStateClient beamFnStateClient;
+  private final String pTransformId;
+  private final PTransform pTransform;
+  private final Supplier<String> processBundleInstructionId;
+  private final RehydratedComponents rehydratedComponents;
+  private final DoFn<InputT, OutputT> doFn;
+  private final DoFnSignature doFnSignature;
+  private final TupleTag<OutputT> mainOutputTag;
+  private final Coder<?> inputCoder;
+  private final SchemaCoder<InputT> schemaCoder;
+  private final Coder<?> keyCoder;
+  private final SchemaCoder<OutputT> mainOutputSchemaCoder;
+  private final Coder<? extends BoundedWindow> windowCoder;
+  private final WindowingStrategy<InputT, ?> windowingStrategy;
+  private final Map<TupleTag<?>, SideInputSpec> tagToSideInputSpecMap;
+  private final Map<TupleTag<?>, Coder<?>> outputCoders;
+  private final ParDoPayload parDoPayload;
+  private final ListMultimap<String, FnDataReceiver<WindowedValue<?>>> localNameToConsumer;
+  private final BundleSplitListener splitListener;
+  private final BundleFinalizer bundleFinalizer;
+
   private final Collection<FnDataReceiver<WindowedValue<OutputT>>> mainOutputConsumers;
   private final String mainInputId;
   private FnApiStateAccessor stateAccessor;
   private final DoFnInvoker<InputT, OutputT> doFnInvoker;
-  private final DoFn<InputT, OutputT>.StartBundleContext startBundleContext;
+  private final StartBundleArgumentProvider startBundleArgumentProvider;
   private final ProcessBundleContext processContext;
   private final OnTimerContext onTimerContext;
-  private final DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext;
-  /**
-   * Only set for {@link PTransformTranslation#SPLITTABLE_SPLIT_RESTRICTION_URN} and {@link
-   * PTransformTranslation#SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN} transforms. Can only be
-   * invoked from within {@code processElement...} methods.
-   */
-  private final OutputReceiver<RestrictionT> outputSplitRestrictionReceiver;
+  private final FinishBundleArgumentProvider finishBundleArgumentProvider;
+
   /**
    * Only set for {@link PTransformTranslation#SPLITTABLE_PROCESS_ELEMENTS_URN} and {@link
    * PTransformTranslation#SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN} transforms. Can
@@ -410,6 +266,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
   // The member variables below are only valid for the lifetime of certain methods.
   /** Only valid during {@code processElement...} methods, null otherwise. */
   private WindowedValue<InputT> currentElement;
+
+  /** Only valid during {@link #processElementForSplitRestriction}, null otherwise. */
+  private RestrictionT currentRestriction;
 
   /**
    * Only valid during {@code processElement...} and {@link #processTimer} methods, null otherwise.
@@ -428,70 +287,162 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
   /** Only valid during {@link #processTimer}, null otherwise. */
   private TimeDomain currentTimeDomain;
 
-  FnApiDoFnRunner(Context<InputT, OutputT> context) {
-    this.context = context;
+  FnApiDoFnRunner(
+      PipelineOptions pipelineOptions,
+      BeamFnStateClient beamFnStateClient,
+      String pTransformId,
+      PTransform pTransform,
+      Supplier<String> processBundleInstructionId,
+      Map<String, PCollection> pCollections,
+      Map<String, RunnerApi.Coder> coders,
+      Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
+      PCollectionConsumerRegistry pCollectionConsumerRegistry,
+      BundleSplitListener splitListener,
+      BundleFinalizer bundleFinalizer) {
+    this.pipelineOptions = pipelineOptions;
+    this.beamFnStateClient = beamFnStateClient;
+    this.pTransformId = pTransformId;
+    this.pTransform = pTransform;
+    this.processBundleInstructionId = processBundleInstructionId;
+    ImmutableMap.Builder<TupleTag<?>, SideInputSpec> tagToSideInputSpecMapBuilder =
+        ImmutableMap.builder();
     try {
-      this.mainInputId = ParDoTranslation.getMainInputName(context.pTransform);
+      rehydratedComponents =
+          RehydratedComponents.forComponents(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(coders)
+                      .putAllPcollections(pCollections)
+                      .putAllWindowingStrategies(windowingStrategies)
+                      .build())
+              .withPipeline(Pipeline.create());
+      parDoPayload = ParDoPayload.parseFrom(pTransform.getSpec().getPayload());
+      doFn = (DoFn) ParDoTranslation.getDoFn(parDoPayload);
+      doFnSignature = DoFnSignatures.signatureForDoFn(doFn);
+      switch (pTransform.getSpec().getUrn()) {
+        case PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN:
+        case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
+        case PTransformTranslation.PAR_DO_TRANSFORM_URN:
+          mainOutputTag = (TupleTag) ParDoTranslation.getMainOutputTag(parDoPayload);
+          break;
+        case PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN:
+        case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
+        case PTransformTranslation.SPLITTABLE_SPLIT_RESTRICTION_URN:
+          mainOutputTag =
+              new TupleTag(Iterables.getOnlyElement(pTransform.getOutputsMap().keySet()));
+          break;
+        default:
+          throw new IllegalStateException(
+              String.format("Unknown urn: %s", pTransform.getSpec().getUrn()));
+      }
+      String mainInputTag =
+          Iterables.getOnlyElement(
+              Sets.difference(
+                  pTransform.getInputsMap().keySet(),
+                  Sets.union(
+                      parDoPayload.getSideInputsMap().keySet(),
+                      parDoPayload.getTimerSpecsMap().keySet())));
+      PCollection mainInput = pCollections.get(pTransform.getInputsOrThrow(mainInputTag));
+      Coder<?> maybeWindowedValueInputCoder = rehydratedComponents.getCoder(mainInput.getCoderId());
+      // TODO: Stop passing windowed value coders within PCollections.
+      if (maybeWindowedValueInputCoder instanceof WindowedValue.WindowedValueCoder) {
+        inputCoder = ((WindowedValueCoder) maybeWindowedValueInputCoder).getValueCoder();
+      } else {
+        inputCoder = maybeWindowedValueInputCoder;
+      }
+      if (inputCoder instanceof KvCoder) {
+        this.keyCoder = ((KvCoder) inputCoder).getKeyCoder();
+      } else {
+        this.keyCoder = null;
+      }
+      if (inputCoder instanceof SchemaCoder) {
+        this.schemaCoder = ((SchemaCoder<InputT>) inputCoder);
+      } else {
+        this.schemaCoder = null;
+      }
+
+      windowingStrategy =
+          (WindowingStrategy)
+              rehydratedComponents.getWindowingStrategy(mainInput.getWindowingStrategyId());
+      windowCoder = windowingStrategy.getWindowFn().windowCoder();
+
+      outputCoders = Maps.newHashMap();
+      for (Map.Entry<String, String> entry : pTransform.getOutputsMap().entrySet()) {
+        TupleTag<?> outputTag = new TupleTag<>(entry.getKey());
+        RunnerApi.PCollection outputPCollection = pCollections.get(entry.getValue());
+        Coder<?> outputCoder = rehydratedComponents.getCoder(outputPCollection.getCoderId());
+        if (outputCoder instanceof WindowedValueCoder) {
+          outputCoder = ((WindowedValueCoder) outputCoder).getValueCoder();
+        }
+        outputCoders.put(outputTag, outputCoder);
+      }
+      Coder<OutputT> outputCoder = (Coder<OutputT>) outputCoders.get(mainOutputTag);
+      mainOutputSchemaCoder =
+          (outputCoder instanceof SchemaCoder) ? (SchemaCoder<OutputT>) outputCoder : null;
+
+      // Build the map from tag id to side input specification
+      for (Map.Entry<String, RunnerApi.SideInput> entry :
+          parDoPayload.getSideInputsMap().entrySet()) {
+        String sideInputTag = entry.getKey();
+        RunnerApi.SideInput sideInput = entry.getValue();
+        checkArgument(
+            Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
+                sideInput.getAccessPattern().getUrn()),
+            "This SDK is only capable of dealing with %s materializations "
+                + "but was asked to handle %s for PCollectionView with tag %s.",
+            Materializations.MULTIMAP_MATERIALIZATION_URN,
+            sideInput.getAccessPattern().getUrn(),
+            sideInputTag);
+
+        PCollection sideInputPCollection =
+            pCollections.get(pTransform.getInputsOrThrow(sideInputTag));
+        WindowingStrategy sideInputWindowingStrategy =
+            rehydratedComponents.getWindowingStrategy(
+                sideInputPCollection.getWindowingStrategyId());
+        tagToSideInputSpecMapBuilder.put(
+            new TupleTag<>(entry.getKey()),
+            SideInputSpec.create(
+                rehydratedComponents.getCoder(sideInputPCollection.getCoderId()),
+                sideInputWindowingStrategy.getWindowFn().windowCoder(),
+                PCollectionViewTranslation.viewFnFromProto(entry.getValue().getViewFn()),
+                PCollectionViewTranslation.windowMappingFnFromProto(
+                    entry.getValue().getWindowMappingFn())));
+      }
+    } catch (IOException exn) {
+      throw new IllegalArgumentException("Malformed ParDoPayload", exn);
+    }
+
+    ImmutableListMultimap.Builder<String, FnDataReceiver<WindowedValue<?>>>
+        localNameToConsumerBuilder = ImmutableListMultimap.builder();
+    for (Map.Entry<String, String> entry : pTransform.getOutputsMap().entrySet()) {
+      localNameToConsumerBuilder.putAll(
+          entry.getKey(), pCollectionConsumerRegistry.getMultiplexingConsumer(entry.getValue()));
+    }
+    localNameToConsumer = localNameToConsumerBuilder.build();
+    tagToSideInputSpecMap = tagToSideInputSpecMapBuilder.build();
+    this.splitListener = splitListener;
+    this.bundleFinalizer = bundleFinalizer;
+
+    try {
+      this.mainInputId = ParDoTranslation.getMainInputName(pTransform);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
     this.mainOutputConsumers =
         (Collection<FnDataReceiver<WindowedValue<OutputT>>>)
-            (Collection) context.localNameToConsumer.get(context.mainOutputTag.getId());
-    this.doFnSchemaInformation = ParDoTranslation.getSchemaInformation(context.parDoPayload);
-    this.sideInputMapping = ParDoTranslation.getSideInputMapping(context.parDoPayload);
-    this.doFnInvoker = DoFnInvokers.invokerFor(context.doFn);
+            (Collection) localNameToConsumer.get(mainOutputTag.getId());
+    this.doFnSchemaInformation = ParDoTranslation.getSchemaInformation(parDoPayload);
+    this.sideInputMapping = ParDoTranslation.getSideInputMapping(parDoPayload);
+    this.doFnInvoker = DoFnInvokers.invokerFor(doFn);
     this.doFnInvoker.invokeSetup();
 
-    this.startBundleContext =
-        this.context.doFn.new StartBundleContext() {
-          @Override
-          public PipelineOptions getPipelineOptions() {
-            return context.pipelineOptions;
-          }
-        };
-    this.processContext = new ProcessBundleContext();
-    this.onTimerContext = new OnTimerContext();
-    this.finishBundleContext =
-        this.context.doFn.new FinishBundleContext() {
-          @Override
-          public PipelineOptions getPipelineOptions() {
-            return context.pipelineOptions;
-          }
-
-          @Override
-          public void output(OutputT output, Instant timestamp, BoundedWindow window) {
-            outputTo(
-                mainOutputConsumers,
-                WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
-          }
-
-          @Override
-          public <T> void output(
-              TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
-            Collection<FnDataReceiver<WindowedValue<T>>> consumers =
-                (Collection) context.localNameToConsumer.get(tag.getId());
-            if (consumers == null) {
-              throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
-            }
-            outputTo(consumers, WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
-          }
-        };
-    switch (context.pTransform.getSpec().getUrn()) {
+    this.startBundleArgumentProvider = new StartBundleArgumentProvider();
+    switch (pTransform.getSpec().getUrn()) {
       case PTransformTranslation.SPLITTABLE_SPLIT_RESTRICTION_URN:
-        this.outputSplitRestrictionReceiver =
-            new OutputReceiver<RestrictionT>() {
-
+        // OutputT == RestrictionT
+        this.processContext =
+            new ProcessBundleContext() {
               @Override
-              public void output(RestrictionT output) {
-                outputTo(
-                    mainOutputConsumers,
-                    (WindowedValue<OutputT>)
-                        currentElement.withValue(KV.of(currentElement.getValue(), output)));
-              }
-
-              @Override
-              public void outputWithTimestamp(RestrictionT output, Instant timestamp) {
+              public void outputWithTimestamp(OutputT output, Instant timestamp) {
                 outputTo(
                     mainOutputConsumers,
                     (WindowedValue<OutputT>)
@@ -504,64 +455,58 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
             };
         break;
       case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
-        this.outputSplitRestrictionReceiver =
-            new OutputReceiver<RestrictionT>() {
-
+        // OutputT == RestrictionT
+        this.processContext =
+            new ProcessBundleContext() {
               @Override
-              public void output(RestrictionT output) {
-                RestrictionTracker<RestrictionT, PositionT> outputTracker =
-                    doFnInvoker.invokeNewTracker(output);
-                outputTo(
-                    mainOutputConsumers,
-                    (WindowedValue<OutputT>)
-                        currentElement.withValue(
-                            KV.of(
-                                KV.of(currentElement.getValue(), output),
-                                outputTracker instanceof HasSize
-                                    ? ((HasSize) outputTracker).getSize()
-                                    : 1.0)));
-              }
+              public void outputWithTimestamp(OutputT output, Instant timestamp) {
+                double size =
+                    doFnInvoker.invokeGetSize(
+                        new DelegatingArgumentProvider<InputT, OutputT>(
+                            this,
+                            PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN
+                                + "/GetSize") {
+                          @Override
+                          public Object restriction() {
+                            return output;
+                          }
 
-              @Override
-              public void outputWithTimestamp(RestrictionT output, Instant timestamp) {
-                RestrictionTracker<RestrictionT, PositionT> outputTracker =
-                    doFnInvoker.invokeNewTracker(output);
+                          @Override
+                          public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                            return timestamp;
+                          }
+
+                          @Override
+                          public RestrictionTracker<?, ?> restrictionTracker() {
+                            return doFnInvoker.invokeNewTracker(this);
+                          }
+                        });
+
                 outputTo(
                     mainOutputConsumers,
                     (WindowedValue<OutputT>)
                         WindowedValue.of(
-                            KV.of(
-                                KV.of(currentElement.getValue(), output),
-                                outputTracker instanceof HasSize
-                                    ? ((HasSize) outputTracker).getSize()
-                                    : 1.0),
+                            KV.of(KV.of(currentElement.getValue(), output), size),
                             timestamp,
                             currentWindow,
                             currentElement.getPane()));
               }
             };
         break;
+      case PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN:
+      case PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN:
+      case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
+      case PTransformTranslation.PAR_DO_TRANSFORM_URN:
+        this.processContext = new ProcessBundleContext();
+        break;
       default:
-        this.outputSplitRestrictionReceiver =
-            new OutputReceiver<RestrictionT>() {
-              @Override
-              public void output(RestrictionT output) {
-                throw new IllegalStateException(
-                    String.format(
-                        "Unimplemented split output handler for %s.",
-                        context.pTransform.getSpec().getUrn()));
-              }
-
-              @Override
-              public void outputWithTimestamp(RestrictionT output, Instant timestamp) {
-                throw new IllegalStateException(
-                    String.format(
-                        "Unimplemented split output handler for %s.",
-                        context.pTransform.getSpec().getUrn()));
-              }
-            };
+        throw new IllegalStateException(
+            String.format("Unknown URN %s", pTransform.getSpec().getUrn()));
     }
-    switch (context.pTransform.getSpec().getUrn()) {
+    this.onTimerContext = new OnTimerContext();
+    this.finishBundleArgumentProvider = new FinishBundleArgumentProvider();
+
+    switch (pTransform.getSpec().getUrn()) {
       case PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN:
         this.convertSplitResultToWindowedSplitResult =
             (splitResult) ->
@@ -574,23 +519,48 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
       case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
         this.convertSplitResultToWindowedSplitResult =
             (splitResult) -> {
-              RestrictionTracker<RestrictionT, PositionT> primaryTracker =
-                  doFnInvoker.invokeNewTracker(splitResult.getPrimary());
-              RestrictionTracker<RestrictionT, PositionT> residualTracker =
-                  doFnInvoker.invokeNewTracker(splitResult.getResidual());
+              double primarySize =
+                  doFnInvoker.invokeGetSize(
+                      new DelegatingArgumentProvider<InputT, OutputT>(
+                          processContext,
+                          PTransformTranslation
+                                  .SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN
+                              + "/GetPrimarySize") {
+                        @Override
+                        public Object restriction() {
+                          return splitResult.getPrimary();
+                        }
+
+                        @Override
+                        public RestrictionTracker<?, ?> restrictionTracker() {
+                          return doFnInvoker.invokeNewTracker(this);
+                        }
+                      });
+              double residualSize =
+                  doFnInvoker.invokeGetSize(
+                      new DelegatingArgumentProvider<InputT, OutputT>(
+                          processContext,
+                          PTransformTranslation
+                                  .SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN
+                              + "/GetResidualSize") {
+                        @Override
+                        public Object restriction() {
+                          return splitResult.getResidual();
+                        }
+
+                        @Override
+                        public RestrictionTracker<?, ?> restrictionTracker() {
+                          return doFnInvoker.invokeNewTracker(this);
+                        }
+                      });
               return WindowedSplitResult.forRoots(
                   currentElement.withValue(
                       KV.of(
-                          KV.of(currentElement.getValue(), splitResult.getPrimary()),
-                          primaryTracker instanceof HasSize
-                              ? ((HasSize) primaryTracker).getSize()
-                              : 1.0)),
+                          KV.of(currentElement.getValue(), splitResult.getPrimary()), primarySize)),
                   currentElement.withValue(
                       KV.of(
                           KV.of(currentElement.getValue(), splitResult.getResidual()),
-                          residualTracker instanceof HasSize
-                              ? ((HasSize) residualTracker).getSize()
-                              : 1.0)));
+                          residualSize)));
             };
         break;
       default:
@@ -599,7 +569,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
               throw new IllegalStateException(
                   String.format(
                       "Unimplemented split conversion handler for %s.",
-                      context.pTransform.getSpec().getUrn()));
+                      pTransform.getSpec().getUrn()));
             };
     }
   }
@@ -607,17 +577,17 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
   public void startBundle() {
     this.stateAccessor =
         new FnApiStateAccessor(
-            context.pipelineOptions,
-            context.ptransformId,
-            context.processBundleInstructionId,
-            context.tagToSideInputSpecMap,
-            context.beamFnStateClient,
-            context.keyCoder,
-            (Coder<BoundedWindow>) context.windowCoder,
+            pipelineOptions,
+            pTransformId,
+            processBundleInstructionId,
+            tagToSideInputSpecMap,
+            beamFnStateClient,
+            keyCoder,
+            (Coder<BoundedWindow>) windowCoder,
             () -> MoreObjects.firstNonNull(currentElement, currentTimer),
             () -> currentWindow);
 
-    doFnInvoker.invokeStartBundle(startBundleContext);
+    doFnInvoker.invokeStartBundle(startBundleArgumentProvider);
   }
 
   public void processElementForParDo(WindowedValue<InputT> elem) {
@@ -647,8 +617,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
             (WindowedValue)
                 elem.withValue(
                     KV.of(
-                        elem.getValue(),
-                        doFnInvoker.invokeGetInitialRestriction(elem.getValue()))));
+                        elem.getValue(), doFnInvoker.invokeGetInitialRestriction(processContext))));
       }
     } finally {
       currentElement = null;
@@ -658,18 +627,17 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
 
   public void processElementForSplitRestriction(WindowedValue<KV<InputT, RestrictionT>> elem) {
     currentElement = elem.withValue(elem.getValue().getKey());
+    currentRestriction = elem.getValue().getValue();
     try {
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) elem.getWindows().iterator();
       while (windowIterator.hasNext()) {
         currentWindow = windowIterator.next();
-        doFnInvoker.invokeSplitRestriction(
-            elem.getValue().getKey(),
-            elem.getValue().getValue(),
-            this.outputSplitRestrictionReceiver);
+        doFnInvoker.invokeSplitRestriction(processContext);
       }
     } finally {
       currentElement = null;
+      currentRestriction = null;
       currentWindow = null;
     }
   }
@@ -698,8 +666,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) elem.getWindows().iterator();
       while (windowIterator.hasNext()) {
-        currentTracker = doFnInvoker.invokeNewTracker(elem.getValue().getValue());
+        currentRestriction = elem.getValue().getValue();
         currentWindow = windowIterator.next();
+        currentTracker = doFnInvoker.invokeNewTracker(processContext);
         DoFn.ProcessContinuation continuation = doFnInvoker.invokeProcessElement(processContext);
         // Ensure that all the work is done if the user tells us that they don't want to
         // resume processing.
@@ -723,8 +692,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
         ByteString.Output primaryBytes = ByteString.newOutput();
         ByteString.Output residualBytes = ByteString.newOutput();
         try {
-          Coder fullInputCoder =
-              WindowedValue.getFullCoder(context.inputCoder, context.windowCoder);
+          Coder fullInputCoder = WindowedValue.getFullCoder(inputCoder, windowCoder);
           fullInputCoder.encode(windowedSplitResult.getPrimaryRoot(), primaryBytes);
           fullInputCoder.encode(windowedSplitResult.getResidualRoot(), residualBytes);
         } catch (IOException e) {
@@ -732,17 +700,17 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
         }
         BundleApplication primaryApplication =
             BundleApplication.newBuilder()
-                .setTransformId(context.ptransformId)
+                .setTransformId(pTransformId)
                 .setInputId(mainInputId)
                 .setElement(primaryBytes.toByteString())
                 .build();
         BundleApplication residualApplication =
             BundleApplication.newBuilder()
-                .setTransformId(context.ptransformId)
+                .setTransformId(pTransformId)
                 .setInputId(mainInputId)
                 .setElement(residualBytes.toByteString())
                 .build();
-        context.splitListener.split(
+        splitListener.split(
             ImmutableList.of(primaryApplication),
             ImmutableList.of(
                 DelayedBundleApplication.newBuilder()
@@ -753,6 +721,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
       }
     } finally {
       currentElement = null;
+      currentRestriction = null;
       currentWindow = null;
       currentTracker = null;
     }
@@ -767,7 +736,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
           (Iterator<BoundedWindow>) timer.getWindows().iterator();
       while (windowIterator.hasNext()) {
         currentWindow = windowIterator.next();
-        doFnInvoker.invokeOnTimer(timerId, timerId, onTimerContext);
+        doFnInvoker.invokeOnTimer(timerId, "", onTimerContext);
       }
     } finally {
       currentTimer = null;
@@ -777,7 +746,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
   }
 
   public void finishBundle() {
-    doFnInvoker.invokeFinishBundle(finishBundleContext);
+    doFnInvoker.invokeFinishBundle(finishBundleArgumentProvider);
 
     // TODO: Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
@@ -815,9 +784,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
       this.timerId = timerId;
       this.currentElementOrTimer = currentElementOrTimer;
 
-      TimerDeclaration timerDeclaration = context.doFnSignature.timerDeclarations().get(timerId);
-      this.timeDomain =
-          DoFnSignatures.getTimerSpecOrThrow(timerDeclaration, context.doFn).getTimeDomain();
+      TimerDeclaration timerDeclaration = doFnSignature.timerDeclarations().get(timerId);
+      this.timeDomain = DoFnSignatures.getTimerSpecOrThrow(timerDeclaration, doFn).getTimeDomain();
 
       switch (timeDomain) {
         case EVENT_TIME:
@@ -835,9 +803,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
 
       try {
         this.allowedLateness =
-            context
-                .rehydratedComponents
-                .getPCollection(context.pTransform.getInputsOrThrow(timerId))
+            rehydratedComponents
+                .getPCollection(pTransform.getInputsOrThrow(timerId))
                 .getWindowingStrategy()
                 .getAllowedLateness();
       } catch (IOException e) {
@@ -910,7 +877,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
       this.currentOutputTimestamp = outputTime;
       return this;
     }
-
     /**
      * For event time timers the target time should be prior to window GC time. So it returns
      * min(time to set, GC Time of window).
@@ -928,7 +894,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     private void output(Instant scheduledTime) {
       Object key = ((KV) currentElementOrTimer.getValue()).getKey();
       Collection<FnDataReceiver<WindowedValue<KV<Object, Timer>>>> consumers =
-          (Collection) context.localNameToConsumer.get(timerId);
+          (Collection) localNameToConsumer.get(timerId);
 
       if (currentOutputTimestamp == null) {
         if (TimeDomain.EVENT_TIME.equals(timeDomain)) {
@@ -959,6 +925,83 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     }
   }
 
+  private class StartBundleArgumentProvider extends BaseArgumentProvider<InputT, OutputT> {
+    private class Context extends DoFn<InputT, OutputT>.StartBundleContext {
+      Context() {
+        doFn.super();
+      }
+
+      @Override
+      public PipelineOptions getPipelineOptions() {
+        return pipelineOptions;
+      }
+    }
+
+    private final Context context = new Context();
+
+    @Override
+    public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
+      return context;
+    }
+
+    @Override
+    public BundleFinalizer bundleFinalizer() {
+      return bundleFinalizer;
+    }
+
+    @Override
+    public String getErrorContext() {
+      return "FnApiDoFnRunner/StartBundle";
+    }
+  }
+
+  private class FinishBundleArgumentProvider extends BaseArgumentProvider<InputT, OutputT> {
+    private class Context extends DoFn<InputT, OutputT>.FinishBundleContext {
+      Context() {
+        doFn.super();
+      }
+
+      @Override
+      public PipelineOptions getPipelineOptions() {
+        return pipelineOptions;
+      }
+
+      @Override
+      public void output(OutputT output, Instant timestamp, BoundedWindow window) {
+        outputTo(
+            mainOutputConsumers, WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
+      }
+
+      @Override
+      public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
+        Collection<FnDataReceiver<WindowedValue<T>>> consumers =
+            (Collection) localNameToConsumer.get(tag.getId());
+        if (consumers == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
+        outputTo(consumers, WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
+      }
+    }
+
+    private final Context context = new Context();
+
+    @Override
+    public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
+        DoFn<InputT, OutputT> doFn) {
+      return context;
+    }
+
+    @Override
+    public BundleFinalizer bundleFinalizer() {
+      return bundleFinalizer;
+    }
+
+    @Override
+    public String getErrorContext() {
+      return "FnApiDoFnRunner/FinishBundle";
+    }
+  }
+
   /**
    * Provides arguments for a {@link DoFnInvoker} for {@link DoFn.ProcessElement @ProcessElement}.
    */
@@ -966,7 +1009,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
       implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
 
     private ProcessBundleContext() {
-      context.doFn.super();
+      doFn.super();
     }
 
     @Override
@@ -1037,12 +1080,22 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
 
     @Override
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.rowReceiver(this, null, context.mainOutputSchemaCoder);
+      return DoFnOutputReceivers.rowReceiver(this, null, mainOutputSchemaCoder);
     }
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(this, context.outputCoders);
+      return DoFnOutputReceivers.windowedMultiReceiver(this, outputCoders);
+    }
+
+    @Override
+    public BundleFinalizer bundleFinalizer() {
+      return bundleFinalizer;
+    }
+
+    @Override
+    public Object restriction() {
+      return currentRestriction;
     }
 
     @Override
@@ -1057,16 +1110,21 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     }
 
     @Override
-    public State state(String stateId) {
-      StateDeclaration stateDeclaration = context.doFnSignature.stateDeclarations().get(stateId);
+    public State state(String stateId, boolean alwaysFetched) {
+      StateDeclaration stateDeclaration = doFnSignature.stateDeclarations().get(stateId);
       checkNotNull(stateDeclaration, "No state declaration found for %s", stateId);
       StateSpec<?> spec;
       try {
-        spec = (StateSpec<?>) stateDeclaration.field().get(context.doFn);
+        spec = (StateSpec<?>) stateDeclaration.field().get(doFn);
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
-      return spec.bind(stateId, stateAccessor);
+      State state = spec.bind(stateId, stateAccessor);
+      if (alwaysFetched) {
+        return (State) ((ReadableState) state).readLater();
+      } else {
+        return state;
+      }
     }
 
     @Override
@@ -1087,20 +1145,17 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
 
     @Override
     public PipelineOptions getPipelineOptions() {
-      return context.pipelineOptions;
+      return pipelineOptions;
     }
 
     @Override
     public PipelineOptions pipelineOptions() {
-      return context.pipelineOptions;
+      return pipelineOptions;
     }
 
     @Override
     public void output(OutputT output) {
-      outputTo(
-          mainOutputConsumers,
-          WindowedValue.of(
-              output, currentElement.getTimestamp(), currentWindow, currentElement.getPane()));
+      outputWithTimestamp(output, currentElement.getTimestamp());
     }
 
     @Override
@@ -1112,21 +1167,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
 
     @Override
     public <T> void output(TupleTag<T> tag, T output) {
-      Collection<FnDataReceiver<WindowedValue<T>>> consumers =
-          (Collection) context.localNameToConsumer.get(tag.getId());
-      if (consumers == null) {
-        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
-      }
-      outputTo(
-          consumers,
-          WindowedValue.of(
-              output, currentElement.getTimestamp(), currentWindow, currentElement.getPane()));
+      outputWithTimestamp(tag, output, currentElement.getTimestamp());
     }
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       Collection<FnDataReceiver<WindowedValue<T>>> consumers =
-          (Collection) context.localNameToConsumer.get(tag.getId());
+          (Collection) localNameToConsumer.get(tag.getId());
       if (consumers == null) {
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
@@ -1161,12 +1208,87 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
   }
 
   /** Provides arguments for a {@link DoFnInvoker} for {@link DoFn.OnTimer @OnTimer}. */
-  private class OnTimerContext extends DoFn<InputT, OutputT>.OnTimerContext
-      implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
+  private class OnTimerContext extends BaseArgumentProvider<InputT, OutputT> {
+    private class Context extends DoFn<InputT, OutputT>.OnTimerContext {
+      private Context() {
+        doFn.super();
+      }
 
-    private OnTimerContext() {
-      context.doFn.super();
+      @Override
+      public PipelineOptions getPipelineOptions() {
+        return pipelineOptions;
+      }
+
+      @Override
+      public BoundedWindow window() {
+        return currentWindow;
+      }
+
+      @Override
+      public void output(OutputT output) {
+        outputTo(
+            mainOutputConsumers,
+            WindowedValue.of(
+                output, currentTimer.getTimestamp(), currentWindow, PaneInfo.NO_FIRING));
+      }
+
+      @Override
+      public void outputWithTimestamp(OutputT output, Instant timestamp) {
+        checkArgument(
+            !currentTimer.getTimestamp().isAfter(timestamp),
+            "Output time %s can not be before timer timestamp %s.",
+            timestamp,
+            currentTimer.getTimestamp());
+        outputTo(
+            mainOutputConsumers,
+            WindowedValue.of(output, timestamp, currentWindow, PaneInfo.NO_FIRING));
+      }
+
+      @Override
+      public <T> void output(TupleTag<T> tag, T output) {
+        Collection<FnDataReceiver<WindowedValue<T>>> consumers =
+            (Collection) localNameToConsumer.get(tag.getId());
+        if (consumers == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
+        outputTo(
+            consumers,
+            WindowedValue.of(
+                output, currentTimer.getTimestamp(), currentWindow, PaneInfo.NO_FIRING));
+      }
+
+      @Override
+      public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+        checkArgument(
+            !currentTimer.getTimestamp().isAfter(timestamp),
+            "Output time %s can not be before timer timestamp %s.",
+            timestamp,
+            currentTimer.getTimestamp());
+        Collection<FnDataReceiver<WindowedValue<T>>> consumers =
+            (Collection) localNameToConsumer.get(tag.getId());
+        if (consumers == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
+        outputTo(consumers, WindowedValue.of(output, timestamp, currentWindow, PaneInfo.NO_FIRING));
+      }
+
+      @Override
+      public TimeDomain timeDomain() {
+        return currentTimeDomain;
+      }
+
+      @Override
+      public Instant fireTimestamp() {
+        return currentTimer.getValue().getValue().getTimestamp();
+      }
+
+      @Override
+      public Instant timestamp() {
+        return currentTimer.getTimestamp();
+      }
     }
+
+    private final Context context = new Context();
 
     @Override
     public BoundedWindow window() {
@@ -1174,96 +1296,51 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     }
 
     @Override
-    public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access paneInfo outside of @ProcessElement methods.");
-    }
-
-    @Override
-    public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access StartBundleContext outside of @StartBundle method.");
-    }
-
-    @Override
-    public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
-        DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access FinishBundleContext outside of @FinishBundle method.");
-    }
-
-    @Override
-    public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access ProcessContext outside of @ProcessElement method.");
-    }
-
-    @Override
-    public InputT element(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException("Element parameters are not supported.");
-    }
-
-    @Override
-    public InputT sideInput(String tagId) {
-      throw new UnsupportedOperationException("SideInput parameters are not supported.");
-    }
-
-    @Override
-    public Object schemaElement(int index) {
-      throw new UnsupportedOperationException("Element parameters are not supported.");
-    }
-
-    @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-      return timestamp();
-    }
-
-    @Override
-    public String timerId(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException("TimerId parameters are not supported.");
+      return currentTimer.getTimestamp();
     }
 
     @Override
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
-      return timeDomain();
+      return currentTimeDomain;
     }
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedReceiver(this, null);
+      return DoFnOutputReceivers.windowedReceiver(context, null);
     }
 
     @Override
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.rowReceiver(this, null, context.mainOutputSchemaCoder);
+      return DoFnOutputReceivers.rowReceiver(context, null, mainOutputSchemaCoder);
     }
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(this);
+      return DoFnOutputReceivers.windowedMultiReceiver(context);
     }
 
     @Override
     public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
-      return this;
+      return context;
     }
 
     @Override
-    public RestrictionTracker<?, ?> restrictionTracker() {
-      throw new UnsupportedOperationException("RestrictionTracker parameters are not supported.");
-    }
-
-    @Override
-    public State state(String stateId) {
-      StateDeclaration stateDeclaration = context.doFnSignature.stateDeclarations().get(stateId);
+    public State state(String stateId, boolean alwaysFetched) {
+      StateDeclaration stateDeclaration = doFnSignature.stateDeclarations().get(stateId);
       checkNotNull(stateDeclaration, "No state declaration found for %s", stateId);
       StateSpec<?> spec;
       try {
-        spec = (StateSpec<?>) stateDeclaration.field().get(context.doFn);
+        spec = (StateSpec<?>) stateDeclaration.field().get(doFn);
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
-      return spec.bind(stateId, stateAccessor);
+      State state = spec.bind(stateId, stateAccessor);
+      if (alwaysFetched) {
+        return (State) ((ReadableState) state).readLater();
+      } else {
+        return state;
+      }
     }
 
     @Override
@@ -1279,78 +1356,17 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     @Override
     public TimerMap timerFamily(String tagId) {
       // TODO: implement timerFamily
-      throw new UnsupportedOperationException("TimerFamily parameters are not supported.");
-    }
-
-    @Override
-    public PipelineOptions getPipelineOptions() {
-      return context.pipelineOptions;
+      return super.timerFamily(tagId);
     }
 
     @Override
     public PipelineOptions pipelineOptions() {
-      return context.pipelineOptions;
+      return pipelineOptions;
     }
 
     @Override
-    public void output(OutputT output) {
-      outputTo(
-          mainOutputConsumers,
-          WindowedValue.of(output, currentTimer.getTimestamp(), currentWindow, PaneInfo.NO_FIRING));
-    }
-
-    @Override
-    public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      checkArgument(
-          !currentTimer.getTimestamp().isAfter(timestamp),
-          "Output time %s can not be before timer timestamp %s.",
-          timestamp,
-          currentTimer.getTimestamp());
-      outputTo(
-          mainOutputConsumers,
-          WindowedValue.of(output, timestamp, currentWindow, PaneInfo.NO_FIRING));
-    }
-
-    @Override
-    public <T> void output(TupleTag<T> tag, T output) {
-      Collection<FnDataReceiver<WindowedValue<T>>> consumers =
-          (Collection) context.localNameToConsumer.get(tag.getId());
-      if (consumers == null) {
-        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
-      }
-      outputTo(
-          consumers,
-          WindowedValue.of(output, currentTimer.getTimestamp(), currentWindow, PaneInfo.NO_FIRING));
-    }
-
-    @Override
-    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      checkArgument(
-          !currentTimer.getTimestamp().isAfter(timestamp),
-          "Output time %s can not be before timer timestamp %s.",
-          timestamp,
-          currentTimer.getTimestamp());
-      Collection<FnDataReceiver<WindowedValue<T>>> consumers =
-          (Collection) context.localNameToConsumer.get(tag.getId());
-      if (consumers == null) {
-        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
-      }
-      outputTo(consumers, WindowedValue.of(output, timestamp, currentWindow, PaneInfo.NO_FIRING));
-    }
-
-    @Override
-    public TimeDomain timeDomain() {
-      return currentTimeDomain;
-    }
-
-    @Override
-    public Instant fireTimestamp() {
-      return currentTimer.getValue().getValue().getTimestamp();
-    }
-
-    @Override
-    public Instant timestamp() {
-      return currentTimer.getTimestamp();
+    public String getErrorContext() {
+      return "FnApiDoFnRunner/OnTimer";
     }
   }
 }

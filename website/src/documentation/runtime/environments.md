@@ -40,7 +40,7 @@ It's often easier to write a new Dockerfile. However, by modifying the original 
 
 1. Pull a [prebuilt SDK container image](https://hub.docker.com/u/apachebeam) for your [target](https://docs.docker.com/docker-hub/repos/#searching-for-repositories) language and version. The following example pulls the latest Python SDK:
 ```
-docker pull apachebeam/python3.7_sdk
+docker pull apache/beam_python3.7_sdk
 ```
 2. [Write a new Dockerfile](https://docs.docker.com/develop/develop-images/dockerfile_best-practices/) that [designates](https://docs.docker.com/engine/reference/builder/#from) the original as its [parent](https://docs.docker.com/glossary/?term=parent%20image).
 3. [Build](#building-container-images) a child image.
@@ -140,12 +140,12 @@ To build Beam SDK container images:
 To examine the containers that you built, run `docker images` from anywhere in the command line. If you successfully built all of the container images, the command prints a table like the following:
 ```
 REPOSITORY                          TAG                 IMAGE ID            CREATED           SIZE
-apachebeam/java_sdk                 latest              16ca619d489e        2 weeks ago        550MB
-apachebeam/python2.7_sdk            latest              b6fb40539c29        2 weeks ago       1.78GB
-apachebeam/python3.5_sdk            latest              bae309000d09        2 weeks ago       1.85GB
-apachebeam/python3.6_sdk            latest              42faad307d1a        2 weeks ago       1.86GB
-apachebeam/python3.7_sdk            latest              18267df54139        2 weeks ago       1.86GB
-apachebeam/go_sdk                   latest              30cf602e9763        2 weeks ago        124MB
+apache/beam_java_sdk                 latest              16ca619d489e        2 weeks ago        550MB
+apache/beam_python2.7_sdk            latest              b6fb40539c29        2 weeks ago       1.78GB
+apache/beam_python3.5_sdk            latest              bae309000d09        2 weeks ago       1.85GB
+apache/beam_python3.6_sdk            latest              42faad307d1a        2 weeks ago       1.86GB
+apache/beam_python3.7_sdk            latest              18267df54139        2 weeks ago       1.86GB
+apache/beam_go_sdk                   latest              30cf602e9763        2 weeks ago        124MB
 ```
 
 ### Overriding default Docker targets
@@ -174,12 +174,12 @@ docker login
 ```
 2. Navigate to the local copy of your container image and upload it to the remote repository:
 ```
-docker push apachebeam/python2.7_sdk
+docker push apache/beam_python2.7_sdk
 ```
 
 To download the image again, run `docker pull`:
 ```
-docker pull apachebeam/python2.7_sdk
+docker pull apache/beam_python2.7_sdk
 ```
 
 > **Note**: After pushing a container image, the remote image ID and digest match the local image ID and digest.

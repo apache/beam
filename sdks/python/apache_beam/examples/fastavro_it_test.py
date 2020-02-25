@@ -49,8 +49,6 @@ from __future__ import division
 
 import json
 import logging
-import os
-import sys
 import unittest
 import uuid
 
@@ -70,9 +68,9 @@ from apache_beam.transforms.util import CoGroupByKey
 
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from avro.schema import Parse # avro-python3 library for python3
+  from avro.schema import Parse  # avro-python3 library for python3
 except ImportError:
-  from avro.schema import parse as Parse # avro library for python2
+  from avro.schema import parse as Parse  # avro library for python2
 # pylint: enable=wrong-import-order, wrong-import-position
 
 LABELS = ['abc', 'def', 'ghi', 'jkl', 'mno', 'pqr', 'stu', 'vwx']
@@ -88,10 +86,6 @@ def record(i):
   }
 
 
-@unittest.skipIf(sys.version_info[0] >= 3 and
-                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                 'Due to a known issue in avro-python3 package, this'
-                 'test is skipped until BEAM-6522 is addressed. ')
 class FastavroIT(unittest.TestCase):
 
   SCHEMA_STRING = '''
@@ -110,10 +104,7 @@ class FastavroIT(unittest.TestCase):
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.uuid = str(uuid.uuid4())
-    self.output = '/'.join([
-        self.test_pipeline.get_option('output'),
-        self.uuid
-    ])
+    self.output = '/'.join([self.test_pipeline.get_option('output'), self.uuid])
 
   @attr('IT')
   def test_avro_it(self):
@@ -184,7 +175,7 @@ class FastavroIT(unittest.TestCase):
           if l != r:
             raise BeamAssertException('Assertion failed: %s == %s' % (l, r))
 
-        assertEqual(v.keys(), ['avro', 'fastavro'])
+        assertEqual(sorted(v.keys()), ['avro', 'fastavro'])
         avro_values = v['avro']
         fastavro_values = v['fastavro']
         assertEqual(avro_values, fastavro_values)

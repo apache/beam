@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.testing;
 
+import org.apache.beam.sdk.annotations.Internal;
+
 /**
  * Category tag for validation tests which use outputTimestamp. Tests tagged with {@link
  * UsesTestStreamWithOutputTimestamp} should be run for runners which support outputTimestamp.
  */
-public interface UsesTestStreamWithOutputTimestamp {}
+@Internal
+public interface UsesTestStreamWithOutputTimestamp extends UsesTestStream {}

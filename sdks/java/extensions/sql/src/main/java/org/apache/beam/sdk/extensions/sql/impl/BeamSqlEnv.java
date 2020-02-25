@@ -31,6 +31,7 @@ import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.udf.BeamBuiltinFunctionProvider;
@@ -100,7 +101,12 @@ public class BeamSqlEnv {
   }
 
   public BeamRelNode parseQuery(String query) throws ParseException {
-    return planner.convertToBeamRel(query);
+    return planner.convertToBeamRel(query, QueryParameters.ofNone());
+  }
+
+  public BeamRelNode parseQuery(String query, QueryParameters queryParameters)
+      throws ParseException {
+    return planner.convertToBeamRel(query, queryParameters);
   }
 
   public boolean isDdl(String sqlStatement) throws ParseException {
@@ -122,7 +128,7 @@ public class BeamSqlEnv {
 
   public String explain(String sqlString) throws ParseException {
     try {
-      return RelOptUtil.toString(planner.convertToBeamRel(sqlString));
+      return RelOptUtil.toString(planner.convertToBeamRel(sqlString, QueryParameters.ofNone()));
     } catch (Exception e) {
       throw new ParseException("Unable to parse statement", e);
     }

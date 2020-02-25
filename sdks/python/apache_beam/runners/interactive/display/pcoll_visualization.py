@@ -156,15 +156,15 @@ class PCollectionVisualization(object):
   access current interactive environment for materialized PCollection data at
   the moment of self instantiation through cache.
   """
-
   def __init__(self, pcoll):
     assert _pcoll_visualization_ready, (
         'Dependencies for PCollection visualization are not available. Please '
         'use `pip install apache-beam[interactive]` to install necessary '
         'dependencies and make sure that you are executing code in an '
         'interactive environment such as a Jupyter notebook.')
-    assert isinstance(pcoll, pvalue.PCollection), (
-        'pcoll should be apache_beam.pvalue.PCollection')
+    assert isinstance(
+        pcoll,
+        pvalue.PCollection), ('pcoll should be apache_beam.pvalue.PCollection')
     self._pcoll = pcoll
     # This allows us to access cache key and other meta data about the pipeline
     # whether it's the pipeline defined in user code or a copy of that pipeline.
@@ -176,23 +176,26 @@ class PCollectionVisualization(object):
     # pre-process or instrument is not triggered for performance concerns.
     self._pin = instr.PipelineInstrument(pcoll.pipeline)
     self._cache_key = self._pin.cache_key(self._pcoll)
-    self._dive_display_id = 'facets_dive_{}_{}'.format(self._cache_key,
-                                                       id(self))
-    self._overview_display_id = 'facets_overview_{}_{}'.format(self._cache_key,
-                                                               id(self))
+    self._dive_display_id = 'facets_dive_{}_{}'.format(
+        self._cache_key, id(self))
+    self._overview_display_id = 'facets_overview_{}_{}'.format(
+        self._cache_key, id(self))
     self._df_display_id = 'df_{}_{}'.format(self._cache_key, id(self))
 
   def display_plain_text(self):
-    """Displays a random sample of the normalized PCollection data.
+    """Displays a head sample of the normalized PCollection data.
 
     This function is used when the ipython kernel is not connected to a
     notebook frontend such as when running ipython in terminal or in unit tests.
+    It's a visualization in terminal-like UI, not a function to retrieve data
+    for programmatically usages.
     """
     # Double check if the dependency is ready in case someone mistakenly uses
     # the function.
     if _pcoll_visualization_ready:
       data = self._to_dataframe()
-      data_sample = data.sample(n=25 if len(data) > 25 else len(data))
+      # Displays a data-table with at most 25 entries from the head.
+      data_sample = data.head(25)
       display(data_sample)
 
   def display_facets(self, updating_pv=None):
@@ -225,44 +228,39 @@ class PCollectionVisualization(object):
     sprite_size = 32 if len(data.index) > 50000 else 64
     jsonstr = data.to_json(orient='records')
     if update:
-      script = _DIVE_SCRIPT_TEMPLATE.format(display_id=update,
-                                            jsonstr=jsonstr)
+      script = _DIVE_SCRIPT_TEMPLATE.format(display_id=update, jsonstr=jsonstr)
       display_javascript(Javascript(script))
     else:
-      html = _DIVE_HTML_TEMPLATE.format(display_id=self._dive_display_id,
-                                        jsonstr=jsonstr,
-                                        sprite_size=sprite_size)
+      html = _DIVE_HTML_TEMPLATE.format(
+          display_id=self._dive_display_id,
+          jsonstr=jsonstr,
+          sprite_size=sprite_size)
       display(HTML(html))
 
   def _display_overview(self, data, update=None):
     gfsg = GenericFeatureStatisticsGenerator()
-    proto = gfsg.ProtoFromDataFrames(
-        [{'name': 'data', 'table': data}])
+    proto = gfsg.ProtoFromDataFrames([{'name': 'data', 'table': data}])
     protostr = base64.b64encode(proto.SerializeToString()).decode('utf-8')
     if update:
       script = _OVERVIEW_SCRIPT_TEMPLATE.format(
-          display_id=update,
-          protostr=protostr)
+          display_id=update, protostr=protostr)
       display_javascript(Javascript(script))
     else:
       html = _OVERVIEW_HTML_TEMPLATE.format(
-          display_id=self._overview_display_id,
-          protostr=protostr)
+          display_id=self._overview_display_id, protostr=protostr)
       display(HTML(html))
 
   def _display_dataframe(self, data, update=None):
     if update:
       table_id = 'table_{}'.format(update)
       html = _DATAFRAME_PAGINATION_TEMPLATE.format(
-          dataframe_html=data.to_html(notebook=True,
-                                      table_id=table_id),
+          dataframe_html=data.to_html(notebook=True, table_id=table_id),
           table_id=table_id)
       update_display(HTML(html), display_id=update)
     else:
       table_id = 'table_{}'.format(self._df_display_id)
       html = _DATAFRAME_PAGINATION_TEMPLATE.format(
-          dataframe_html=data.to_html(notebook=True,
-                                      table_id=table_id),
+          dataframe_html=data.to_html(notebook=True, table_id=table_id),
           table_id=table_id)
       display(HTML(html), display_id=self._df_display_id)
 

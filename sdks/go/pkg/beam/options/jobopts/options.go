@@ -108,7 +108,7 @@ func GetEnvironmentUrn(ctx context.Context) string {
 // Convenience function.
 func GetEnvironmentConfig(ctx context.Context) string {
 	if *EnvironmentConfig == "" {
-		*EnvironmentConfig = os.ExpandEnv("apachebeam/go_sdk:latest")
+		*EnvironmentConfig = os.ExpandEnv("apache/beam_go_sdk:latest")
 		log.Infof(ctx, "No environment config specified. Using default config: '%v'", *EnvironmentConfig)
 	}
 	return *EnvironmentConfig

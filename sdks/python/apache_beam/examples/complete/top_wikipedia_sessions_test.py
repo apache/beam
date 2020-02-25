@@ -34,17 +34,33 @@ from apache_beam.testing.util import equal_to
 class ComputeTopSessionsTest(unittest.TestCase):
 
   EDITS = [
-      json.dumps({'timestamp': 0.0, 'contributor_username': 'user1'}),
-      json.dumps({'timestamp': 0.001, 'contributor_username': 'user1'}),
-      json.dumps({'timestamp': 0.002, 'contributor_username': 'user1'}),
-      json.dumps({'timestamp': 0.0, 'contributor_username': 'user2'}),
-      json.dumps({'timestamp': 0.001, 'contributor_username': 'user2'}),
-      json.dumps({'timestamp': 3.601, 'contributor_username': 'user2'}),
-      json.dumps({'timestamp': 3.602, 'contributor_username': 'user2'}),
-      json.dumps(
-          {'timestamp': 2 * 3600.0, 'contributor_username': 'user2'}),
-      json.dumps(
-          {'timestamp': 35 * 24 * 3.600, 'contributor_username': 'user3'})
+      json.dumps({
+          'timestamp': 0.0, 'contributor_username': 'user1'
+      }),
+      json.dumps({
+          'timestamp': 0.001, 'contributor_username': 'user1'
+      }),
+      json.dumps({
+          'timestamp': 0.002, 'contributor_username': 'user1'
+      }),
+      json.dumps({
+          'timestamp': 0.0, 'contributor_username': 'user2'
+      }),
+      json.dumps({
+          'timestamp': 0.001, 'contributor_username': 'user2'
+      }),
+      json.dumps({
+          'timestamp': 3.601, 'contributor_username': 'user2'
+      }),
+      json.dumps({
+          'timestamp': 3.602, 'contributor_username': 'user2'
+      }),
+      json.dumps({
+          'timestamp': 2 * 3600.0, 'contributor_username': 'user2'
+      }),
+      json.dumps({
+          'timestamp': 35 * 24 * 3.600, 'contributor_username': 'user3'
+      })
   ]
 
   EXPECTED = [

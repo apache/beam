@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """
   PTransforms for supporting Kafka in Python pipelines. These transforms do not
   run a Kafka client in Python. Instead, they expand to ExternalTransforms
@@ -53,8 +54,7 @@ ReadFromKafkaSchema = typing.NamedTuple(
         ('topics', typing.List[unicode]),
         ('key_deserializer', unicode),
         ('value_deserializer', unicode),
-    ]
-)
+    ])
 
 
 class ReadFromKafka(ExternalTransform):
@@ -76,11 +76,13 @@ class ReadFromKafka(ExternalTransform):
 
   URN = 'beam:external:java:kafka:read:v1'
 
-  def __init__(self, consumer_config,
-               topics,
-               key_deserializer=byte_array_deserializer,
-               value_deserializer=byte_array_deserializer,
-               expansion_service=None):
+  def __init__(
+      self,
+      consumer_config,
+      topics,
+      key_deserializer=byte_array_deserializer,
+      value_deserializer=byte_array_deserializer,
+      expansion_service=None):
     """
     Initializes a read operation from Kafka.
 
@@ -108,10 +110,8 @@ class ReadFromKafka(ExternalTransform):
                 topics=topics,
                 key_deserializer=key_deserializer,
                 value_deserializer=value_deserializer,
-            )
-        ),
-        expansion_service
-    )
+            )),
+        expansion_service)
 
 
 WriteToKafkaSchema = typing.NamedTuple(
@@ -121,8 +121,7 @@ WriteToKafkaSchema = typing.NamedTuple(
         ('topic', unicode),
         ('key_serializer', unicode),
         ('value_serializer', unicode),
-    ]
-)
+    ])
 
 
 class WriteToKafka(ExternalTransform):
@@ -141,11 +140,13 @@ class WriteToKafka(ExternalTransform):
 
   URN = 'beam:external:java:kafka:write:v1'
 
-  def __init__(self, producer_config,
-               topic,
-               key_serializer=byte_array_serializer,
-               value_serializer=byte_array_serializer,
-               expansion_service=None):
+  def __init__(
+      self,
+      producer_config,
+      topic,
+      key_serializer=byte_array_serializer,
+      value_serializer=byte_array_serializer,
+      expansion_service=None):
     """
     Initializes a write operation to Kafka.
 
@@ -173,7 +174,5 @@ class WriteToKafka(ExternalTransform):
                 topic=topic,
                 key_serializer=key_serializer,
                 value_serializer=value_serializer,
-            )
-        ),
-        expansion_service
-    )
+            )),
+        expansion_service)

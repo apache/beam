@@ -284,6 +284,30 @@ public class ParDoTranslation {
           }
 
           @Override
+          public boolean isRequiresTimeSortedInput() {
+            return signature.processElement().requiresTimeSortedInput();
+          }
+
+          @Override
+          public boolean requestsFinalization() {
+            return (signature.startBundle() != null
+                    && signature
+                        .startBundle()
+                        .extraParameters()
+                        .contains(Parameter.bundleFinalizer()))
+                || (signature.processElement() != null
+                    && signature
+                        .processElement()
+                        .extraParameters()
+                        .contains(Parameter.bundleFinalizer()))
+                || (signature.finishBundle() != null
+                    && signature
+                        .finishBundle()
+                        .extraParameters()
+                        .contains(Parameter.bundleFinalizer()));
+          }
+
+          @Override
           public String translateRestrictionCoderId(SdkComponents newComponents) {
             return restrictionCoderId;
           }
@@ -756,6 +780,10 @@ public class ParDoTranslation {
 
     boolean isSplittable();
 
+    boolean isRequiresTimeSortedInput();
+
+    boolean requestsFinalization();
+
     String translateRestrictionCoderId(SdkComponents newComponents);
   }
 
@@ -770,7 +798,9 @@ public class ParDoTranslation {
         .putAllTimerFamilySpecs(parDo.translateTimerFamilySpecs(components))
         .putAllSideInputs(parDo.translateSideInputs(components))
         .setSplittable(parDo.isSplittable())
+        .setRequiresTimeSortedInput(parDo.isRequiresTimeSortedInput())
         .setRestrictionCoderId(parDo.translateRestrictionCoderId(components))
+        .setRequestsFinalization(parDo.requestsFinalization())
         .build();
   }
 }

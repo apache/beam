@@ -37,11 +37,13 @@ type DataSource struct {
 	Coder *coder.Coder
 	Out   Node
 
-	source   DataManager
-	state    StateReader
-	index    int64
-	splitIdx int64
-	start    time.Time
+	source DataManager
+	state  StateReader
+	// TODO(lostluck) 2020/02/06: refactor to support more general PCollection metrics on nodes.
+	outputPID string // The index is the output count for the PCollection.
+	index     int64
+	splitIdx  int64
+	start     time.Time
 
 	mu sync.Mutex
 }
@@ -239,9 +241,12 @@ func (n *DataSource) incrementIndexAndCheckSplit() bool {
 }
 
 // ProgressReportSnapshot captures the progress reading an input source.
+//
+// TODO(lostluck) 2020/02/06: Add a visitor pattern for collecting progress
+// metrics from downstream Nodes.
 type ProgressReportSnapshot struct {
-	ID, Name string
-	Count    int64
+	ID, Name, PID string
+	Count         int64
 }
 
 // Progress returns a snapshot of the source's progress.
@@ -258,7 +263,7 @@ func (n *DataSource) Progress() ProgressReportSnapshot {
 	if c < 0 {
 		c = 0
 	}
-	return ProgressReportSnapshot{ID: n.SID.PtransformID, Name: n.Name, Count: c}
+	return ProgressReportSnapshot{PID: n.outputPID, ID: n.SID.PtransformID, Name: n.Name, Count: c}
 }
 
 // Split takes a sorted set of potential split indices, selects and actuates

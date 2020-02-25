@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"log"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -34,19 +35,39 @@ type fakeStateClient struct {
 	// Blocks the read routine
 	recv    chan *pb.StateResponse
 	recvErr error
+	recvMu  sync.Mutex
+
 	// Blocks the write routine
 	send    chan *pb.StateRequest
 	sendErr error
+	sendMu  sync.Mutex
 }
 
 func (f *fakeStateClient) Recv() (*pb.StateResponse, error) {
 	// Blocks until something is sent.
-	return <-f.recv, f.recvErr
+	v := <-f.recv
+	f.recvMu.Lock()
+	defer f.recvMu.Unlock()
+	return v, f.recvErr
 }
 
 func (f *fakeStateClient) Send(req *pb.StateRequest) error {
 	f.send <- req // blocks until consumed.
+	f.sendMu.Lock()
+	defer f.sendMu.Unlock()
 	return f.sendErr
+}
+
+func (f *fakeStateClient) setRecvErr(err error) {
+	f.recvMu.Lock()
+	defer f.recvMu.Unlock()
+	f.recvErr = err
+}
+
+func (f *fakeStateClient) setSendErr(err error) {
+	f.sendMu.Lock()
+	defer f.sendMu.Unlock()
+	f.sendErr = err
 }
 
 func TestStateChannel(t *testing.T) {
@@ -105,7 +126,7 @@ func TestStateChannel(t *testing.T) {
 				go func() {
 					req := <-client.send // Send should succeed.
 
-					client.recvErr = io.EOF
+					client.setRecvErr(io.EOF)
 					client.recv <- &pb.StateResponse{
 						Id: req.Id,
 					}
@@ -121,7 +142,7 @@ func TestStateChannel(t *testing.T) {
 				go func() {
 					req := <-client.send // Send should succeed.
 
-					client.recvErr = expectedError
+					client.setRecvErr(expectedError)
 					client.recv <- &pb.StateResponse{
 						Id: req.Id,
 					}
@@ -156,11 +177,11 @@ func TestStateChannel(t *testing.T) {
 			name: "writeEOF",
 			caseFn: func(t *testing.T, c *StateChannel, client *fakeStateClient) error {
 				go func() {
-					client.sendErr = io.EOF
+					client.setSendErr(io.EOF)
 					req := <-client.send
 					// This can be plumbed through on either side, write or read,
 					// the important part is that we get it.
-					client.recvErr = expectedError
+					client.setRecvErr(expectedError)
 					client.recv <- &pb.StateResponse{
 						Id: req.Id,
 					}
@@ -174,7 +195,7 @@ func TestStateChannel(t *testing.T) {
 			name: "writeOtherError",
 			caseFn: func(t *testing.T, c *StateChannel, client *fakeStateClient) error {
 				go func() {
-					client.sendErr = expectedError
+					client.setSendErr(expectedError)
 					<-client.send
 					// Shouldn't need to unblock any Recv calls.
 				}()
@@ -209,8 +230,8 @@ func TestStateChannel(t *testing.T) {
 			// Verify that new Sends return the same error on their reads after client.Recv is done.
 			go func() {
 				// Ensure that the client isn't helping us.
-				client.sendErr = nil
-				client.recvErr = nil
+				client.setSendErr(nil)
+				client.setRecvErr(nil)
 				// Drain the next send, and ensure the response is unblocked.
 				req := <-client.send
 				client.recv <- &pb.StateResponse{Id: req.Id} // Ids need to match up to ensure routing can occur properly.

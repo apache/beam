@@ -83,7 +83,7 @@ public class SplittableParDoTest {
         ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {}
 
     @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(Integer element) {
+    public SomeRestriction getInitialRestriction(@Element Integer element) {
       return null;
     }
   }
@@ -96,7 +96,7 @@ public class SplittableParDoTest {
     }
 
     @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(Integer element) {
+    public SomeRestriction getInitialRestriction(@Element Integer element) {
       return null;
     }
   }

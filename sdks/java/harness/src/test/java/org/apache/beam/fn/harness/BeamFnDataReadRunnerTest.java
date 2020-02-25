@@ -175,7 +175,8 @@ public class BeamFnDataReadRunnerTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
-            null /* splitListener */);
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     assertThat(teardownFunctions, empty());
 
@@ -218,7 +219,6 @@ public class BeamFnDataReadRunnerTest {
             INPUT_TRANSFORM_ID,
             RemoteGrpcPortRead.readFromPort(PORT_SPEC, "localOutput").toPTransform(),
             bundleId::get,
-            CODER_SPEC,
             COMPONENTS.getCodersMap(),
             mockBeamFnDataClient,
             consumers);
@@ -477,6 +477,7 @@ public class BeamFnDataReadRunnerTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
-            null /* splitListener */);
+            null /* splitListener */,
+            null /* bundleFinalizer */);
   }
 }
