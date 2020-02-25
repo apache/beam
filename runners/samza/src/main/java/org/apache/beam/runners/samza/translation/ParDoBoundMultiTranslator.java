@@ -250,15 +250,11 @@ class ParDoBoundMultiTranslator<InT, OutT>
     WindowedValue.WindowedValueCoder<InT> windowedInputCoder =
         ctx.instantiateCoder(inputId, pipeline.getComponents());
 
-    /*
-     * Temporary LI change: disabling schema information in portable ParDo as it's causing issues.
-     * TODO: LISAMZA-13154 to track this issue as this will eventually be needed for schema aware in Python
-     */
+    // TODO: support schema and side inputs for portable runner
+    // Note: transform.getTransform() is an ExecutableStage, not ParDo, so we need to extract
+    // these info from its components.
     final DoFnSchemaInformation doFnSchemaInformation = null;
-    // doFnSchemaInformation = ParDoTranslation.getSchemaInformation(transform.getTransform());
-
-    Map<String, PCollectionView<?>> sideInputMapping =
-        ParDoTranslation.getSideInputMapping(transform.getTransform());
+    final Map<String, PCollectionView<?>> sideInputMapping = Collections.emptyMap();
 
     final RunnerApi.PCollection input = pipeline.getComponents().getPcollectionsOrThrow(inputId);
     final PCollection.IsBounded isBounded = SamzaPipelineTranslatorUtils.isBounded(input);
