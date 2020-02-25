@@ -56,7 +56,6 @@ class VisionTest(unittest.TestCase):
             type=feature_type, max_results=3, model="builtin/stable")
     ]
     self.img_ctx = vision.types.ImageContext()
-    self.gcs_destination = "gs://mock-example-bucket/prefix/"
 
   def test_AnnotateImage_URIs(self):
     images_to_annotate = [

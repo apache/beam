@@ -88,6 +88,7 @@ class AnnotateImage(PTransform):
         The time in seconds to wait for the response from the
         Vision API.
       client_options: (Union[dict, google.api_core.client_options.ClientOptions])
+        Optional.
         Client options used to set user options on the client.
         API Endpoint should be set through client_options.
       context_side_input: (beam.pvalue.AsDict) Optional.
@@ -195,6 +196,7 @@ class AnnotateImageWithContext(AnnotateImage):
         The time in seconds to wait for the response from the
         Vision API
       client_options: (Union[dict, google.api_core.client_options.ClientOptions])
+        Optional.
         Client options used to set user options on the client.
         API Endpoint should be set through client_options.
     """
@@ -434,7 +436,7 @@ class BatchAnnotateImageWithContext(BatchAnnotateImage):
 class _BatchImageAnnotateFn(DoFn):
   """A DoFn that sends each input element to the GCP Vision API
   service in batches.
-  Returns a ``google.cloud.vision.types.AsyncBatchAnnotateImagesResponse``.
+  Returns ``google.cloud.vision.types.BatchAnnotateImagesResponse``.
   """
   def __init__(self, features, retry, timeout, client_options, metadata):
     super(_BatchImageAnnotateFn, self).__init__()
