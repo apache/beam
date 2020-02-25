@@ -36,6 +36,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.zetasql.ArrayType;
 import com.google.zetasql.EnumType;
+import com.google.zetasql.StructType;
 import com.google.zetasql.Type;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
@@ -76,10 +77,12 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDat
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlRowOperator;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
@@ -566,8 +569,10 @@ public class ExpressionConverter {
       case TYPE_ENUM:
         ret = convertEnumToRexNode(type.asEnum(), value);
         break;
+      case TYPE_STRUCT:
+        ret = convertStructValueToRexNode(type.asStruct(), value);
+        break;
       default:
-        // TODO: convert struct literal.
         throw new UnsupportedOperationException(
             "Unsupported ResolvedLiteral kind: " + type.getKind() + " type: " + type.typeName());
     }
@@ -663,6 +668,19 @@ public class ExpressionConverter {
       operands.add(convertValueToRexNode(arrayType.getElementType(), v));
     }
     return rexBuilder().makeCall(SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR, operands);
+  }
+
+  private RexNode convertStructValueToRexNode(StructType structType, Value value) {
+    if (value.isNull()) {
+      return rexBuilder()
+          .makeNullLiteral(TypeUtils.toStructRelDataType(rexBuilder(), structType, false));
+    }
+
+    List<RexNode> operands = new ArrayList<>();
+    for (Value field : value.getFieldList()) {
+      operands.add(convertValueToRexNode(field.getType(), field));
+    }
+    return rexBuilder().makeCall(SqlStdOperatorTable.ROW, operands);
   }
 
   private RexNode convertEnumToRexNode(EnumType type, Value value) {
@@ -962,20 +980,28 @@ public class ExpressionConverter {
   }
 
   private RexNode convertResolvedStructFieldAccess(ResolvedGetStructField resolvedGetStructField) {
-    return rexBuilder()
-        .makeFieldAccess(
-            convertRexNodeFromResolvedExpr(resolvedGetStructField.getExpr()),
-            (int) resolvedGetStructField.getFieldIdx());
+    RexNode referencedExpr = convertRexNodeFromResolvedExpr(resolvedGetStructField.getExpr());
+    return convertResolvedStructFieldAccessInternal(
+        referencedExpr, (int) resolvedGetStructField.getFieldIdx());
   }
 
   private RexNode convertResolvedStructFieldAccess(
       ResolvedGetStructField resolvedGetStructField,
       List<ResolvedColumn> columnList,
       List<RelDataTypeField> fieldList) {
-    return rexBuilder()
-        .makeFieldAccess(
-            convertRexNodeFromResolvedExpr(resolvedGetStructField.getExpr(), columnList, fieldList),
-            (int) resolvedGetStructField.getFieldIdx());
+    RexNode referencedExpr =
+        convertRexNodeFromResolvedExpr(resolvedGetStructField.getExpr(), columnList, fieldList);
+    return convertResolvedStructFieldAccessInternal(
+        referencedExpr, (int) resolvedGetStructField.getFieldIdx());
+  }
+
+  private RexNode convertResolvedStructFieldAccessInternal(RexNode referencedExpr, int fieldIdx) {
+    // Calcite SQL does not allow the ROW constructor to be dereferenced directly, so do it here.
+    if (referencedExpr instanceof RexCall
+        && ((RexCall) referencedExpr).getOperator() instanceof SqlRowOperator) {
+      return ((RexCall) referencedExpr).getOperands().get(fieldIdx);
+    }
+    return rexBuilder().makeFieldAccess(referencedExpr, fieldIdx);
   }
 
   private RexBuilder rexBuilder() {
