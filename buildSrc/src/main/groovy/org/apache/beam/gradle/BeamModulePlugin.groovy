@@ -498,6 +498,8 @@ class BeamModulePlugin implements Plugin<Project> {
         jackson_core                                : "com.fasterxml.jackson.core:jackson-core:$jackson_version",
         jackson_databind                            : "com.fasterxml.jackson.core:jackson-databind:$jackson_version",
         jackson_dataformat_cbor                     : "com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:$jackson_version",
+        jackson_dataformat_csv                      : "com.fasterxml.jackson.dataformat:jackson-dataformat-csv:$jackson_version",
+        jackson_dataformat_xml                      : "com.fasterxml.jackson.dataformat:jackson-dataformat-xml:$jackson_version",
         jackson_dataformat_yaml                     : "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jackson_version",
         jackson_datatype_joda                       : "com.fasterxml.jackson.datatype:jackson-datatype-joda:$jackson_version",
         jackson_module_scala                        : "com.fasterxml.jackson.module:jackson-module-scala_2.11:$jackson_version",
