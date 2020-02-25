@@ -38,7 +38,7 @@ public class LzoCompression {
   }
 
   /**
-   * Create a {@link InputStream} that will read from the given {@link InputStream} using {@link
+   * Create an {@link InputStream} that will read from the given {@link InputStream} using {@link
    * LzopCodec}.
    *
    * @param inputStream the stream to read compressed bytes from
