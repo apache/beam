@@ -118,8 +118,13 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
   }
 
   /** Create a {@link Value} specifying which field to set and the value to set. */
-  public <T> Value createValue(String caseType, T value) {
-    return createValue(getCaseEnumType().valueOf(caseType), value);
+  public <T> Value createValue(String caseValue, T value) {
+    return createValue(getCaseEnumType().valueOf(caseValue), value);
+  }
+
+  /** Create a {@link Value} specifying which field to set and the value to set. */
+  public <T> Value createValue(int caseValue, T value) {
+    return createValue(getCaseEnumType().valueOf(caseValue), value);
   }
 
   /** Create a {@link Value} specifying which field to set and the value to set. */
