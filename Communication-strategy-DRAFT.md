@@ -1,4 +1,4 @@
-# Apache Beam communication strategy - DRAFT
+# Apache Beam communication strategy
 
 
 ## This map describes how each communication channel contributes to the growth of Apache Beam project.  
