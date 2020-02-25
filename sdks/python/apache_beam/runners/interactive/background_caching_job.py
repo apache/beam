@@ -266,13 +266,14 @@ def is_source_to_cache_changed(
             'Interactive Beam has detected you have unbounded sources '
             'in your pipeline. In order to have a deterministic replay '
             'of your pipeline, data from sources will be captured. %s',
-                ie.current_env().options.capture_control)
+            ie.current_env().options.capture_control)
       else:
         _LOGGER.info(
             'Interactive Beam has detected a new streaming source was '
             'added to the pipeline. In order for the captured streaming '
             'data to start at the same time, all captured data have been '
-            'cleared. %s', ie.current_env().options.capture_control)
+            'cleared. %s',
+            ie.current_env().options.capture_control)
 
     ie.current_env().cleanup()
     ie.current_env().set_cached_source_signature(

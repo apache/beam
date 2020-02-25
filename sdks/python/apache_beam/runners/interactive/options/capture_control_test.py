@@ -139,3 +139,7 @@ class CaptureControlTest(unittest.TestCase):
     background_caching_job._timer.is_alive.return_value = False
     self.assertFalse(background_caching_job._timer.is_alive())
     self.assertTrue(background_caching_job._should_end_condition_checker())
+
+
+if __name__ == '__main__':
+  unittest.main()
