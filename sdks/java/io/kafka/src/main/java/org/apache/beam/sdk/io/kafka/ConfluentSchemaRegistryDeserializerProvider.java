@@ -27,6 +27,7 @@ import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import java.io.IOException;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -48,12 +49,14 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
   private final SerializableFunction<Void, SchemaRegistryClient> schemaRegistryClientProviderFn;
   private final String schemaRegistryUrl;
   private final String subject;
+  private final @Nullable Integer version;
 
   @VisibleForTesting
   ConfluentSchemaRegistryDeserializerProvider(
       SerializableFunction<Void, SchemaRegistryClient> schemaRegistryClientProviderFn,
       String schemaRegistryUrl,
-      String subject) {
+      String subject,
+      @Nullable Integer version) {
     checkArgument(
         schemaRegistryClientProviderFn != null,
         "You should provide a schemaRegistryClientProviderFn.");
@@ -62,15 +65,22 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
     this.schemaRegistryClientProviderFn = schemaRegistryClientProviderFn;
     this.schemaRegistryUrl = schemaRegistryUrl;
     this.subject = subject;
+    this.version = version;
   }
 
   public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
       String schemaRegistryUrl, String subject) {
+    return of(schemaRegistryUrl, subject, null);
+  }
+
+  public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
+      String schemaRegistryUrl, String subject, @Nullable Integer version) {
     return new ConfluentSchemaRegistryDeserializerProvider(
         (SerializableFunction<Void, SchemaRegistryClient>)
             input -> new CachedSchemaRegistryClient(schemaRegistryUrl, Integer.MAX_VALUE),
         schemaRegistryUrl,
-        subject);
+        subject,
+        version);
   }
 
   @Override
@@ -94,7 +104,9 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
 
   private SchemaMetadata getSchemaMetadata() {
     try {
-      return getSchemaRegistryClient().getLatestSchemaMetadata(subject);
+      return (version == null)
+          ? getSchemaRegistryClient().getLatestSchemaMetadata(subject)
+          : getSchemaRegistryClient().getSchemaMetadata(subject, version);
     } catch (IOException | RestClientException e) {
       throw new RuntimeException("Unable to get latest schema metadata for subject: " + subject, e);
     }
