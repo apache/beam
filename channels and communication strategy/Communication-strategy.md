@@ -2,7 +2,7 @@
 
 
 ## This map describes how each communication channel contributes to the growth of Apache Beam project.  
-![Beam communications logic model](/comms-logic-model.svg)
+![Beam communications logic model](comms-logic-model.svg)
 
 While all the channels are connected to a specific function in the short, medium, and long term, some areas have redundancies, and some other areas could use more exposure. In order to continue to grow the project, there are 3 proposals we need to focus on (click on the link on each section to read more):
 
