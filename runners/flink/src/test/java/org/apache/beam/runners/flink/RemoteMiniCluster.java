@@ -15,16 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation.utils;
+package org.apache.beam.runners.flink;
 
-import com.fasterxml.jackson.databind.type.TypeFactory;
+import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 
-/** Workarounds for dealing with limitations of Flink or its libraries. */
-public class Workarounds {
+/** A Mini cluster which exposes a remote port for end-to-end tests. */
+public abstract class RemoteMiniCluster extends MiniCluster {
 
-  public static void deleteStaticCaches() {
-    // Clear cache to get rid of any references to the Flink Classloader
-    // See https://jira.apache.org/jira/browse/BEAM-6460
-    TypeFactory.defaultInstance().clearCache();
+  public RemoteMiniCluster(MiniClusterConfiguration miniClusterConfiguration) {
+    super(miniClusterConfiguration);
   }
+
+  abstract int getClusterPort();
+
+  abstract int getRestPort();
 }
