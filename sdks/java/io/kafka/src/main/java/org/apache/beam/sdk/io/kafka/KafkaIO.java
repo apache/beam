@@ -34,10 +34,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.AvroGenericCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -50,6 +52,8 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -57,11 +61,13 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -189,6 +195,8 @@ import org.slf4j.LoggerFactory;
  *          ConfluentSchemaRegistryDeserializerProvider.of("http://localhost:8081", "my_topic-value"))
  *    ...
  * }</pre>
+ *
+ * TODO: add an example for Beam schema usage.
  *
  * <h3>Writing to Kafka</h3>
  *
@@ -845,9 +853,21 @@ public class KafkaIO {
       return toBuilder().setConsumerConfig(config).build();
     }
 
-    /** Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata. */
+    /**
+     * Returns a {@link PTransform} for {@link PCollection} of {@link KV}, dropping Kafka metadata.
+     */
     public PTransform<PBegin, PCollection<KV<K, V>>> withoutMetadata() {
       return new TypedWithoutMetadata<>(this);
+    }
+
+    /**
+     * Returns a {@link PTransform} for {@link PCollection} of {@link GenericRecord}, dropping Kafka
+     * keys and metadata. It has to be used only with {@link
+     * ConfluentSchemaRegistryDeserializerProvider}. See {@link KafkaIO} for more information on
+     * usage and configuration of reader.
+     */
+    public PTransform<PBegin, PCollection<GenericRecord>> withAvroSchemaValues() {
+      return new ReadValuesWithAvroSchema<K>((Read<K, GenericRecord>) this);
     }
 
     @Override
@@ -1010,7 +1030,7 @@ public class KafkaIO {
 
   /**
    * A {@link PTransform} to read from Kafka topics. Similar to {@link KafkaIO.Read}, but removes
-   * Kafka metatdata and returns a {@link PCollection} of {@link KV}. See {@link KafkaIO} for more
+   * Kafka metadata and returns a {@link PCollection} of {@link KV}. See {@link KafkaIO} for more
    * information on usage and configuration of reader.
    */
   public static class TypedWithoutMetadata<K, V> extends PTransform<PBegin, PCollection<KV<K, V>>> {
@@ -1034,6 +1054,54 @@ public class KafkaIO {
                       ctx.output(ctx.element().getKV());
                     }
                   }));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      read.populateDisplayData(builder);
+    }
+  }
+
+  /**
+   * A {@link PTransform} to read values serialised with Avro schema from Kafka topics. It removes
+   * Kafka metadata and returns a {@link PCollection} of only values typed as {@link GenericRecord}.
+   * Also, it sets Beam schema based on Avro schema used for values serialisation. See {@link
+   * KafkaIO} for more information on usage and configuration of reader.
+   */
+  public static class ReadValuesWithAvroSchema<K>
+      extends PTransform<PBegin, PCollection<GenericRecord>> {
+    private final Read<K, GenericRecord> read;
+
+    ReadValuesWithAvroSchema(Read<K, GenericRecord> read) {
+      super("KafkaIO.Read");
+      this.read = read;
+    }
+
+    @Override
+    public PCollection<GenericRecord> expand(PBegin begin) {
+      PCollection<GenericRecord> values =
+          begin
+              .apply("Remove Kafka Metadata", read.withoutMetadata())
+              .apply("Read only values", Values.create());
+
+      Coder<GenericRecord> valueCoder = values.getCoder();
+      checkState(valueCoder != null, "Value coder can't be null");
+      checkState(
+          valueCoder instanceof AvroGenericCoder,
+          "Values coder must be instance of AvroGenericCoder");
+
+      org.apache.avro.Schema avroSchema = ((AvroGenericCoder) valueCoder).getSchema();
+      checkState(avroSchema != null, "Avro schema can't be null");
+
+      Schema schema = AvroUtils.getSchema(GenericRecord.class, avroSchema);
+      values.setSchema(
+          schema,
+          TypeDescriptor.of(GenericRecord.class),
+          AvroUtils.getToRowFunction(GenericRecord.class, avroSchema),
+          AvroUtils.getFromRowFunction(GenericRecord.class));
+
+      return values;
     }
 
     @Override

@@ -65,6 +65,7 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -77,6 +78,8 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -86,6 +89,7 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
@@ -95,8 +99,10 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -489,6 +495,45 @@ public class KafkaIOTest {
     PCollection<KV<Integer, AvroGeneratedUser>> input = p.apply(reader.withoutMetadata());
 
     PAssert.that(input).containsInAnyOrder(inputs);
+    p.run();
+  }
+
+  @Test
+  public void testReadValuesAsAvroGenericRecordsWithSqlQuery() {
+    int numElements = 100;
+    String topic = "my_topic";
+    String schemaRegistryUrl = "mock://my-scope-name";
+    String valueSchemaSubject = topic + "-value";
+
+    Schema schema = AvroUtils.getSchema(GenericRecord.class, AVRO_SCHEMA);
+    List<Row> outputs = new ArrayList<>();
+    for (int i = 0; i < numElements; i++) {
+      outputs.add(Row.withSchema(schema).addValues("ValueName" + i, i, "color" + i).build());
+    }
+
+    PTransform<PBegin, PCollection<GenericRecord>> reader =
+        KafkaIO.<Integer, GenericRecord>read()
+            .withBootstrapServers("localhost:9092")
+            .withTopic(topic)
+            .withKeyDeserializer(IntegerDeserializer.class)
+            .withValueDeserializer(mockDeserializerProvider(schemaRegistryUrl, valueSchemaSubject))
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(
+                    ImmutableList.of(topic),
+                    1,
+                    numElements,
+                    OffsetResetStrategy.EARLIEST,
+                    i -> ByteBuffer.wrap(new byte[4]).putInt(i).array(),
+                    new ValueAvroSerializableFunction(topic, schemaRegistryUrl)))
+            .withMaxNumRecords(numElements)
+            .withAvroSchemaValues();
+
+    PCollection<GenericRecord> input = p.apply(reader);
+    PCollection<Row> output =
+        input.apply(
+            SqlTransform.query("SELECT name, favorite_number, favorite_color FROM PCOLLECTION"));
+
+    PAssert.that(output).containsInAnyOrder(outputs);
     p.run();
   }
 
