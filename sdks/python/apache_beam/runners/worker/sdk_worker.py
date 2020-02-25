@@ -289,7 +289,7 @@ class BundleProcessorCache(object):
     }  # type: Dict[str, Tuple[str, bundle_processor.BundleProcessor]]
     self.cached_bundle_processors = collections.defaultdict(
         list)  # type: DefaultDict[str, List[bundle_processor.BundleProcessor]]
-    self.cached_bundle_processors_last_access_time = \
+    self.last_access_times = \
         collections.defaultdict(float)  # type: DefaultDict[str, float]
     self._schedule_periodic_shutdown()
 
@@ -348,7 +348,7 @@ class BundleProcessorCache(object):
     """
     descriptor_id, processor = self.active_bundle_processors.pop(instruction_id)
     processor.reset()
-    self.cached_bundle_processors_last_access_time[descriptor_id] = time.time()
+    self.last_access_times[descriptor_id] = time.time()
     self.cached_bundle_processors[descriptor_id].append(processor)
 
   def shutdown(self):
@@ -369,8 +369,7 @@ class BundleProcessorCache(object):
 
   def _schedule_periodic_shutdown(self):
     def shutdown_inactive_bundle_processors():
-      items = self.cached_bundle_processors_last_access_time.items()
-      for descriptor_id, last_access_time in items:
+      for descriptor_id, last_access_time in self.last_access_times.items():
         if (time.time() - last_access_time >
             DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S):
           BundleProcessorCache._shutdown_cached_bundle_processors(
