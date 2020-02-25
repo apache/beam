@@ -128,7 +128,7 @@ public class TypeUtils {
         .createArrayType(toRelDataType(rexBuilder, arrayType.getElementType(), isNullable), -1);
   }
 
-  private static RelDataType toStructRelDataType(
+  public static RelDataType toStructRelDataType(
       RexBuilder rexBuilder, StructType structType, boolean isNullable) {
 
     List<StructField> fields = structType.getFieldList();
