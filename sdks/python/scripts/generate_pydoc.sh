@@ -140,6 +140,7 @@ ignore_identifiers = [
   'Iterable',
   'List',
   'Set',
+  'Text',
   'Tuple',
 
   # Ignore broken built-in type references
