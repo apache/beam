@@ -50,7 +50,7 @@ public class LzoCompression {
   }
 
   /**
-   * Create a {@link OutputStream} that will write to the given {@link OutputStream}.
+   * Create an {@link OutputStream} that will write to the given {@link OutputStream}.
    *
    * @param outputStream the location for the final output stream
    * @return a stream the user can write uncompressed data to have it compressed
