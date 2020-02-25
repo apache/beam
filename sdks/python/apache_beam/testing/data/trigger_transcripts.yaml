@@ -167,9 +167,9 @@ trigger_fn: AfterWatermark(early=AfterCount(2))
 timestamp_combiner: OUTPUT_AT_EOW
 accumulation_mode: discarding
 transcript:
-- input: [1, 2, 3]
+- input: [1, 2]
 - expect:
-  - {window: [0, 9], values: [1, 2, 3], timestamp: 9, early: true, index: 0}
+  - {window: [0, 9], values: [1, 2], timestamp: 9, early: true, index: 0}
 - input: [4]    # no output
 - input: [14]   # no output
 - input: [5]
@@ -181,9 +181,9 @@ transcript:
 - input: [6]
 - watermark: 100
 - expect:
-  - {window: [0, 9], values:[6], timestamp: 9, early: false, late: false,
+  - {window: [0, 9], values: [6], timestamp: 9, early: false, late: false,
      final: true, index: 2, nonspeculative_index: 0}
-  - {window: [10, 19], values:[], timestamp: 19, early: false, late: false,
+  - {window: [10, 19], values: [], timestamp: 19, early: false, late: false,
      final: true, index: 1, nonspeculative_index: 0}
 
 ---
