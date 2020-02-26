@@ -41,6 +41,64 @@ from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
 from apache_beam.runners.interactive import pipeline_fragment as pf
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize
+from apache_beam.runners.interactive.options import interactive_options
+
+
+class Options(interactive_options.InteractiveOptions):
+  """Options that guide how Interactive Beam works."""
+  @property
+  def enable_capture_replay(self):
+    """Whether replayable source data capture should be replayed for multiple
+    PCollection evaluations and pipeline runs as long as the data captured is
+    still valid."""
+    return self.capture_control._enable_capture_replay
+
+  @enable_capture_replay.setter
+  def enable_capture_replay(self, value):
+    """Sets whether source data capture should be replayed. True - Enables
+    capture of replayable source data so that following PCollection evaluations
+    and pipeline runs always use the same data captured; False - Disables
+    capture of replayable source data so that following PCollection evaluation
+    and pipeline runs always use new data from sources."""
+    self.capture_control._enable_capture_replay = value
+
+  @property
+  def capturable_sources(self):
+    """Interactive Beam automatically captures data from sources in this set."""
+    return self.capture_control._capturable_sources
+
+  @property
+  def capture_duration(self):
+    """The data capture of sources ends as soon as the background caching job
+    has run for this long."""
+    return self.capture_control._capture_duration
+
+  @capture_duration.setter
+  def capture_duration(self, value):
+    """Sets the capture duration as a timedelta.
+
+    Example::
+
+      # Sets the capture duration limit to 10 seconds.
+      interactive_beam.options.capture_duration = timedelta(seconds=10)
+      # Evicts all captured data if there is any.
+      interactive_beam.evict_captured_data()
+      # The next PCollection evaluation will capture fresh data from sources,
+      # and the data captured will be replayed until another eviction.
+    """
+    self.capture_control._capture_duration = value
+
+  # TODO(BEAM-8335): add capture_size options when they are supported.
+
+
+# Users can set options to guide how Interactive Beam works.
+# Examples:
+# from datetime import timedelta
+# from apache_beam.runners.interactive import interactive_beam as ib
+# ib.options.enable_capture_replay = False/True
+# ib.options.capture_duration = timedelta(seconds=60)
+# ib.options.capturable_sources.add(SourceClass)
+options = Options()
 
 
 def watch(watchable):
@@ -161,7 +219,7 @@ def show(*pcolls):
 
   # Build a pipeline fragment for the PCollections and run it.
   result = pf.PipelineFragment(list(pcolls)).run()
-  ie.current_env().set_pipeline_result(user_pipeline, result, is_main_job=True)
+  ie.current_env().set_pipeline_result(user_pipeline, result)
 
   # If in notebook, dynamic plotting as computation goes.
   if ie.current_env().is_in_notebook:
@@ -182,3 +240,13 @@ def show(*pcolls):
   # invocation occurs, Interactive Beam wouldn't need to re-compute them.
   if result.state is beam.runners.runner.PipelineState.DONE:
     ie.current_env().mark_pcollection_computed(pcolls)
+
+
+def evict_captured_data():
+  """Forcefully evicts all captured replayable data.
+
+  Once invoked, Interactive Beam will capture new data based on the guidance of
+  options the next time it evaluates/visualizes PCollections or runs pipelines.
+  """
+  from apache_beam.runners.interactive.options import capture_control
+  capture_control.evict_captured_data()
