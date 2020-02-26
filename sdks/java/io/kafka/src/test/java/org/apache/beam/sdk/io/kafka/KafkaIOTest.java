@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.apache.beam.sdk.io.kafka.ConfluentSchemaRegistryDeserializerProviderTest.mockDeserializerProvider;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.containsString;
@@ -32,7 +33,6 @@ import static org.junit.internal.matchers.ThrowableCauseMatcher.hasCause;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
-import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 import io.confluent.kafka.schemaregistry.testutil.MockSchemaRegistry;
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
@@ -440,8 +440,10 @@ public class KafkaIOTest {
         KafkaIO.<GenericRecord, GenericRecord>read()
             .withBootstrapServers("localhost:9092")
             .withTopic(topic)
-            .withKeyDeserializer(mockDeserializerProvider(schemaRegistryUrl, keySchemaSubject))
-            .withValueDeserializer(mockDeserializerProvider(schemaRegistryUrl, valueSchemaSubject))
+            .withKeyDeserializer(
+                mockDeserializerProvider(schemaRegistryUrl, keySchemaSubject, null))
+            .withValueDeserializer(
+                mockDeserializerProvider(schemaRegistryUrl, valueSchemaSubject, null))
             .withConsumerFactoryFn(
                 new ConsumerFactoryFn(
                     ImmutableList.of(topic),
@@ -475,7 +477,8 @@ public class KafkaIOTest {
             .withBootstrapServers("localhost:9092")
             .withTopic(topic)
             .withKeyDeserializer(IntegerDeserializer.class)
-            .withValueDeserializer(mockDeserializerProvider(schemaRegistryUrl, valueSchemaSubject))
+            .withValueDeserializer(
+                mockDeserializerProvider(schemaRegistryUrl, valueSchemaSubject, null))
             .withConsumerFactoryFn(
                 new ConsumerFactoryFn(
                     ImmutableList.of(topic),
@@ -491,41 +494,6 @@ public class KafkaIOTest {
     PAssert.that(input).containsInAnyOrder(inputs);
     p.run();
   }
-
-  private static <T> DeserializerProvider<T> mockDeserializerProvider(
-      String schemaRegistryUrl, String subject) {
-    return new ConfluentSchemaRegistryDeserializerProvider<>(
-        (SerializableFunction<Void, SchemaRegistryClient>)
-            input -> mockSchemaRegistryClient(schemaRegistryUrl, subject),
-        schemaRegistryUrl,
-        subject);
-  }
-
-  private static SchemaRegistryClient mockSchemaRegistryClient(
-      String schemaRegistryUrl, String subject) {
-    SchemaRegistryClient mockRegistryClient =
-        MockSchemaRegistry.getClientForScope(schemaRegistryUrl);
-    try {
-      mockRegistryClient.register(subject, AVRO_SCHEMA);
-    } catch (IOException | RestClientException e) {
-      throw new RuntimeException("Unable to register schema for subject: " + subject, e);
-    }
-    return mockRegistryClient;
-  }
-
-  private static final String AVRO_SCHEMA_STRING =
-      "{\"namespace\": \"example.avro\",\n"
-          + " \"type\": \"record\",\n"
-          + " \"name\": \"AvroGeneratedUser\",\n"
-          + " \"fields\": [\n"
-          + "     {\"name\": \"name\", \"type\": \"string\"},\n"
-          + "     {\"name\": \"favorite_number\", \"type\": [\"int\", \"null\"]},\n"
-          + "     {\"name\": \"favorite_color\", \"type\": [\"string\", \"null\"]}\n"
-          + " ]\n"
-          + "}";
-
-  private static final org.apache.avro.Schema AVRO_SCHEMA =
-      new org.apache.avro.Schema.Parser().parse(AVRO_SCHEMA_STRING);
 
   @Test
   public void testUnboundedSource() {
