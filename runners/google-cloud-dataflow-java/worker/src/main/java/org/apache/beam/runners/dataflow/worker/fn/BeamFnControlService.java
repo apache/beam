@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
  */
 public class BeamFnControlService extends BeamFnControlGrpc.BeamFnControlImplBase
     implements BeamFnService, Supplier<FnApiControlClient> {
-  private static final Logger LOGGER = LoggerFactory.getLogger(BeamFnControlService.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BeamFnControlService.class);
   private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
   private final Function<
           StreamObserver<BeamFnApi.InstructionRequest>,
@@ -57,7 +57,7 @@ public class BeamFnControlService extends BeamFnControlGrpc.BeamFnControlImplBas
     this.newClients = new SynchronousQueue<>(true /* fair */);
     this.streamObserverFactory = streamObserverFactory;
     this.apiServiceDescriptor = serviceDescriptor;
-    LOGGER.info("Launched Beam Fn Control service {}", this.apiServiceDescriptor);
+    LOG.info("Launched Beam Fn Control service {}", this.apiServiceDescriptor);
   }
 
   @Override
@@ -68,7 +68,7 @@ public class BeamFnControlService extends BeamFnControlGrpc.BeamFnControlImplBas
   @Override
   public StreamObserver<BeamFnApi.InstructionResponse> control(
       StreamObserver<BeamFnApi.InstructionRequest> outboundObserver) {
-    LOGGER.info("Beam Fn Control client connected with id {}", headerAccessor.getSdkWorkerId());
+    LOG.info("Beam Fn Control client connected with id {}", headerAccessor.getSdkWorkerId());
     FnApiControlClient newClient =
         FnApiControlClient.forRequestObserver(
             headerAccessor.getSdkWorkerId(), streamObserverFactory.apply(outboundObserver));
