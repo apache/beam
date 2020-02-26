@@ -54,6 +54,7 @@ from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.portability import fn_api_runner
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
+from apache_beam.runners.sdf_utils import DeduplicationByUniqueId
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statesampler
@@ -66,6 +67,7 @@ from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 from apache_beam.utils import timestamp
+from apache_beam.utils.windowed_value import WindowedValue
 
 if statesampler.FAST_SAMPLER:
   DEFAULT_SAMPLING_PERIOD_MS = statesampler.DEFAULT_SAMPLING_PERIOD_MS
@@ -542,6 +544,17 @@ class FnApiRunnerTest(unittest.TestCase):
       counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
       self.assertEqual(1, len(counters))
       self.assertEqual(counters[0].committed, len(''.join(data)))
+
+  def test_deduplication_by_id(self):
+    with self.create_pipeline() as p:
+      res = (p
+             | beam.Create([window.TimestampedValue(('id_1', 'value_1'), 1),
+                            window.TimestampedValue(('id_1', 'value_1'), 2),
+                            window.TimestampedValue(('id_1', 'value_1'), 5),
+                            window.TimestampedValue(('id_1', 'value_1'), 100),
+                            window.TimestampedValue(('id_2', 'value_2'), 101)])
+             | DeduplicationByUniqueId(10))
+      assert_that(res, equal_to(['value_1', 'value_1', 'value_2']))
 
   def test_group_by_key(self):
     with self.create_pipeline() as p:
