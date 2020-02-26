@@ -26,8 +26,10 @@ import uuid
 from builtins import object
 from threading import Lock
 from threading import Timer
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Iterable
+from typing import Optional
 
 import apache_beam as beam
 from apache_beam import TimeDomain
@@ -49,6 +51,9 @@ from apache_beam.transforms.core import ProcessContinuation
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.trigger import _ValueStateTag
 from apache_beam.utils.windowed_value import WindowedValue
+
+if TYPE_CHECKING:
+  from apache_beam.iobase import WatermarkEstimator
 
 
 class SplittableParDoOverride(PTransformOverride):
@@ -517,7 +522,7 @@ class _OutputProcessor(OutputProcessor):
 
   def process_outputs(
       self, windowed_input_element, output_iter, watermark_estimator=None):
-    # type: (WindowedValue, Iterable[Any]) -> None
+    # type: (WindowedValue, Iterable[Any], Optional[WatermarkEstimator]) -> None
     self.output_iter = output_iter
 
   def reset(self):
@@ -527,4 +532,5 @@ class _OutputProcessor(OutputProcessor):
 class _NoneShallPassOutputProcessor(OutputProcessor):
   def process_outputs(
       self, windowed_input_element, output_iter, watermark_estimator=None):
+    # type: (WindowedValue, Iterable[Any], Optional[WatermarkEstimator]) -> None
     raise RuntimeError()
