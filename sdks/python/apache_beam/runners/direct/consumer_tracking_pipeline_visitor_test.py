@@ -83,6 +83,19 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
       def process(self, element, negatives):
         yield element
 
+    def _process_numbers(pcoll, negatives):
+      first_output = (
+          pcoll
+          | 'process numbers step 1' >> ParDo(ProcessNumbersFn(), negatives))
+
+      second_output = (
+          first_output
+          | 'process numbers step 2' >> ParDo(ProcessNumbersFn(), negatives))
+
+      output_pc = ((first_output, second_output)
+                   | 'flatten results' >> beam.Flatten())
+      return output_pc
+
     root_read = beam.Impulse()
 
     result = (
@@ -90,13 +103,13 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
         | 'read' >> root_read
         | ParDo(SplitNumbersFn()).with_outputs('tag_negative', main='positive'))
     positive, negative = result
-    positive | ParDo(ProcessNumbersFn(), AsList(negative))
+    _process_numbers(positive, AsList(negative))
 
     self.pipeline.visit(self.visitor)
 
     root_transforms = [t.transform for t in self.visitor.root_transforms]
     self.assertEqual(root_transforms, [root_read])
-    self.assertEqual(len(self.visitor.step_names), 3)
+    self.assertEqual(len(self.visitor.step_names), 5)
     self.assertEqual(len(self.visitor.views), 1)
     self.assertTrue(isinstance(self.visitor.views[0], pvalue.AsList))
 
