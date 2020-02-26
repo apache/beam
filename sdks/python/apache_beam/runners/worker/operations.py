@@ -629,21 +629,21 @@ class DoOperation(Operation):
       state = common.DoFnState(self.counter_factory)
       state.step_name = self.name_context.logging_name()
 
-      # Tag to output index map used to dispatch the side output values emitted
+      # Tag to output index map used to dispatch the output values emitted
       # by the DoFn function to the appropriate receivers. The main output is
-      # tagged with None and is associated with its corresponding index.
+      # either the only output or the output tagged with 'None' and is
+      # associated with its corresponding index.
       self.tagged_receivers = _TaggedReceivers(
           self.counter_factory, self.name_context.logging_name())
 
-      output_tag_prefix = PropertyNames.OUT + '_'
-      for index, tag in enumerate(self.spec.output_tags):
-        if tag == PropertyNames.OUT:
-          original_tag = None  # type: Optional[str]
-        elif tag.startswith(output_tag_prefix):
-          original_tag = tag[len(output_tag_prefix):]
+      if len(self.spec.output_tags) == 1:
+        self.tagged_receivers[None] = self.receivers[0]
+        self.tagged_receivers[self.spec.output_tags[0]] = self.receivers[0]
         else:
-          raise ValueError('Unexpected output name for operation: %s' % tag)
-        self.tagged_receivers[original_tag] = self.receivers[index]
+        for index, tag in enumerate(self.spec.output_tags):
+          self.tagged_receivers[tag] = self.receivers[index]
+          if tag == 'None':
+            self.tagged_receivers[None] = self.receivers[index]
 
       if self.user_state_context:
         self.user_state_context.update_timer_receivers(self.tagged_receivers)
