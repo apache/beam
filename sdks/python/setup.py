@@ -213,7 +213,8 @@ GCP_REQUIREMENTS = [
     'google-cloud-spanner>=1.13.0,<1.14.0',
     'grpcio-gcp>=0.2.2,<1',
     # GCP Packages required by ML functionality
-    'google-cloud-videointelligence>=1.8.0<1.14.0',
+    'google-cloud-videointelligence>=1.8.0,<1.14.0',
+    'google-cloud-vision>=0.38.0,<0.43.0',
 ]
 
 INTERACTIVE_BEAM = [
