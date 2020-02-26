@@ -1099,7 +1099,7 @@ class AppliedPTransform(object):
         id in proto.inputs.items() if is_side_input(tag)
     ]
     side_inputs = [si for _, si in sorted(indexed_side_inputs)]
-    transform = ptransform.PTransform.from_runner_api(proto.spec, context)
+    transform = ptransform.PTransform.from_runner_api(proto, context)
     result = AppliedPTransform(
         parent=None,
         transform=transform,
