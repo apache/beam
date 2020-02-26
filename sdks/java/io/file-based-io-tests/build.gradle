@@ -32,5 +32,6 @@ dependencies {
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
+  testCompile library.java.hadoop_client
   testCompile library.java.jaxb_api
 }

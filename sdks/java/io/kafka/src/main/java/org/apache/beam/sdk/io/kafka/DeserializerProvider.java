@@ -15,16 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation.utils;
+package org.apache.beam.sdk.io.kafka;
 
-import com.fasterxml.jackson.databind.type.TypeFactory;
+import java.io.Serializable;
+import java.util.Map;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.kafka.common.serialization.Deserializer;
 
-/** Workarounds for dealing with limitations of Flink or its libraries. */
-public class Workarounds {
+/** Provides a configured {@link Deserializer} instance and its associated {@link Coder}. */
+@Experimental(Kind.SOURCE_SINK)
+interface DeserializerProvider<T> extends Serializable {
 
-  public static void deleteStaticCaches() {
-    // Clear cache to get rid of any references to the Flink Classloader
-    // See https://jira.apache.org/jira/browse/BEAM-6460
-    TypeFactory.defaultInstance().clearCache();
-  }
+  Deserializer<T> getDeserializer(Map<String, ?> configs, boolean isKey);
+
+  Coder<T> getCoder(CoderRegistry coderRegistry);
 }

@@ -1459,16 +1459,6 @@ def _create_pardo_operation(
 
   output_tags = list(transform_proto.outputs.keys())
 
-  # Hack to match out prefix injected by dataflow runner.
-  def mutate_tag(tag):
-    if 'None' in output_tags:
-      if tag == 'None':
-        return 'out'
-      else:
-        return 'out_' + tag
-    else:
-      return tag
-
   dofn_data = pickler.loads(serialized_fn)
   if not dofn_data[-1]:
     # Windowing not set.
@@ -1517,7 +1507,7 @@ def _create_pardo_operation(
   output_coders = factory.get_output_coders(transform_proto)
   spec = operation_specs.WorkerDoFn(
       serialized_fn=serialized_fn,
-      output_tags=[mutate_tag(tag) for tag in output_tags],
+      output_tags=output_tags,
       input=None,
       side_inputs=None,  # Fn API uses proto definitions and the Fn State API
       output_coders=[output_coders[tag] for tag in output_tags])

@@ -128,11 +128,9 @@ class Step(object):
     if tag is None or len(outputs) == 1:
       return outputs[0]
     else:
-      name = '%s_%s' % (PropertyNames.OUT, tag)
-      if name not in outputs:
-        raise ValueError(
-            'Cannot find named output: %s in %s.' % (name, outputs))
-      return name
+      if tag not in outputs:
+        raise ValueError('Cannot find named output: %s in %s.' % (tag, outputs))
+      return tag
 
 
 class Environment(object):
@@ -654,9 +652,9 @@ class DataflowApplicationClient(object):
         'A template was just created at location %s', template_location)
     return None
 
-  def _apply_sdk_environment_overrides(self, proto_pipeline):
+  @staticmethod
+  def _apply_sdk_environment_overrides(proto_pipeline, sdk_overrides):
     # Update environments based on user provided overrides
-    sdk_overrides = self._sdk_image_overrides
     if sdk_overrides:
       for environment in proto_pipeline.components.environments.values():
         docker_payload = proto_utils.parse_Bytes(
@@ -669,7 +667,8 @@ class DataflowApplicationClient(object):
 
   def create_job_description(self, job):
     """Creates a job described by the workflow proto."""
-    self._apply_sdk_environment_overrides(job.proto_pipeline)
+    DataflowApplicationClient._apply_sdk_environment_overrides(
+        job.proto_pipeline, self._sdk_image_overrides)
 
     # Stage proto pipeline.
     self.stage_file(
@@ -1046,9 +1045,10 @@ def get_container_image_from_options(
   if worker_options.worker_harness_container_image:
     return worker_options.worker_harness_container_image
   elif external_image_to_override:
-    raise NotImplementedError(
+    _LOGGER.warning(
         'Add support for determining container images for external SDKs '
         'without user overrides')
+    return external_image_to_override
 
   if sys.version_info[0] == 2:
     version_suffix = ''
