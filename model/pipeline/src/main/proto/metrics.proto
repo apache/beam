@@ -137,8 +137,6 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
-    // TODO(BEAM-6926): Add the PTRANSFORM name as a required label after
-    // upgrading the python SDK.
     USER_DISTRIBUTION_COUNTER = 6 [(monitoring_info_spec) = {
       urn: "beam:metric:user_distribution",
       type_urn: "beam:metrics:distribution_int_64",
@@ -148,6 +146,34 @@ message MonitoringInfoSpecs {
         value: "URN utilized to report user distribution counters."
       }]
     }];
+
+    // All values reported across all beam:metric:ptransform_progress:.* metrics
+    // are of the same magnitude.
+    WORK_REMAINING = 8 [(monitoring_info_spec) = {
+      urn: "beam:metric:ptransform_progress:remaining:v1",
+      type_urn: "beam:metrics:latest_doubles",
+      required_labels: [ "PTRANSFORM" ],
+      annotations: [{
+        key: "description",
+        value: "The remaining amount of work for each active element. Each active element represents an independent amount of work not shared with any other active element."
+      }]
+    }];
+
+    // All values reported across all beam:metric:ptransform_progress:.* metrics
+    // are of the same magnitude.
+    WORK_COMPLETED = 9 [(monitoring_info_spec) = {
+      urn: "beam:metric:ptransform_progress:completed:v1",
+      type_urn: "beam:metrics:latest_doubles",
+      required_labels: [ "PTRANSFORM" ],
+      annotations: [{
+        key: "description",
+        value: "The remaining amount of work for each active element. Each active element represents an independent amount of work not shared with any other active element."
+      }]
+    }];
+
+    // TODO: Support reporting the completed and remaining amount of work for
+    // active elements that share work such as a pubsub topic where each
+    // restriction may read from a shared queue.
   }
 }
 
@@ -178,13 +204,15 @@ message MonitoringInfo {
   // valid values are:
   // beam:metrics:[sum_int_64|latest_int_64|top_n_int_64|bottom_n_int_64|
   //     sum_double|latest_double|top_n_double|bottom_n_double|
-  //     distribution_int_64|distribution_double|monitoring_data_table
+  //     distribution_int_64|distribution_double|monitoring_data_table|
+  //     latest_doubles
   string type = 2;
 
   // The Metric or monitored state.
   oneof data {
     MonitoringTableData monitoring_table_data = 3;
     Metric metric = 4;
+    bytes payload = 7;
   }
 
   enum MonitoringInfoLabels {
@@ -226,6 +254,11 @@ message MonitoringInfoTypeUrns {
 
     LATEST_INT64_TYPE = 2 [(org.apache.beam.model.pipeline.v1.beam_urn) =
                                "beam:metrics:latest_int_64"];
+
+    // iterable<double> is encoded with a beam:coder:double:v1 coder for each
+    // element.
+    LATEST_DOUBLES_TYPE = 3 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+                                 "beam:metrics:latest_doubles"];
   }
 }
 

@@ -132,6 +132,13 @@ public class ProtoSchemaTranslator {
   /** This METADATA tag is used to store the field number of a proto tag. */
   public static final String PROTO_NUMBER_METADATA_TAG = "PROTO_NUMBER";
 
+  public static final String PROTO_MESSAGE_NAME_METADATA_TAG = "PROTO_MESSAGE_NAME";
+
+  public static final String PROTO_MAP_KEY_MESSAGE_NAME_METADATA_TAG = "PROTO_MAP_KEY_MESSAGE_NAME";
+
+  public static final String PROTO_MAP_VALUE_MESSAGE_NAME_METADATA_TAG =
+      "PROTO_MAP_VALUE_MESSAGE_NAME";
+
   /** Attach a proto field number to a type. */
   public static FieldType withFieldNumber(FieldType fieldType, int index) {
     return fieldType.withMetadata(PROTO_NUMBER_METADATA_TAG, Long.toString(index));
@@ -142,12 +149,42 @@ public class ProtoSchemaTranslator {
     return Integer.parseInt(fieldType.getMetadataString(PROTO_NUMBER_METADATA_TAG));
   }
 
+  /** Attach the name of the message to a type. */
+  public static FieldType withMessageName(FieldType fieldType, String messageName) {
+    return fieldType.withMetadata(PROTO_MESSAGE_NAME_METADATA_TAG, messageName);
+  }
+
+  /** Return the message name for a type. */
+  public static String getMessageName(FieldType fieldType) {
+    return fieldType.getMetadataString(PROTO_MESSAGE_NAME_METADATA_TAG);
+  }
+
+  /** Attach the name of the message to a map key. */
+  public static FieldType withMapKeyMessageName(FieldType fieldType, String messageName) {
+    return fieldType.withMetadata(PROTO_MAP_KEY_MESSAGE_NAME_METADATA_TAG, messageName);
+  }
+
+  /** Return the message name for a map key. */
+  public static String getMapKeyMessageName(FieldType fieldType) {
+    return fieldType.getMetadataString(PROTO_MAP_KEY_MESSAGE_NAME_METADATA_TAG);
+  }
+
+  /** Attach the name of the message to a map value. */
+  public static FieldType withMapValueMessageName(FieldType fieldType, String messageName) {
+    return fieldType.withMetadata(PROTO_MAP_VALUE_MESSAGE_NAME_METADATA_TAG, messageName);
+  }
+
+  /** Return the message name for a map value. */
+  public static String getMapValueMessageName(FieldType fieldType) {
+    return fieldType.getMetadataString(PROTO_MAP_VALUE_MESSAGE_NAME_METADATA_TAG);
+  }
+
   /** Return a Beam scheam representing a proto class. */
   public static Schema getSchema(Class<? extends Message> clazz) {
     return getSchema(ProtobufUtil.getDescriptorForClass(clazz));
   }
 
-  private static Schema getSchema(Descriptors.Descriptor descriptor) {
+  static Schema getSchema(Descriptors.Descriptor descriptor) {
     Set<Integer> oneOfFields = Sets.newHashSet();
     List<Field> fields = Lists.newArrayListWithCapacity(descriptor.getFields().size());
     for (OneofDescriptor oneofDescriptor : descriptor.getOneofs()) {
@@ -157,8 +194,7 @@ public class ProtoSchemaTranslator {
         oneOfFields.add(fieldDescriptor.getNumber());
         // Store proto field number in metadata.
         FieldType fieldType =
-            withFieldNumber(
-                beamFieldTypeFromProtoField(fieldDescriptor), fieldDescriptor.getNumber());
+            withMetaData(beamFieldTypeFromProtoField(fieldDescriptor), fieldDescriptor);
         subFields.add(Field.nullable(fieldDescriptor.getName(), fieldType));
         checkArgument(
             enumIds.putIfAbsent(fieldDescriptor.getName(), fieldDescriptor.getNumber()) == null);
@@ -171,12 +207,32 @@ public class ProtoSchemaTranslator {
       if (!oneOfFields.contains(fieldDescriptor.getNumber())) {
         // Store proto field number in metadata.
         FieldType fieldType =
-            withFieldNumber(
-                beamFieldTypeFromProtoField(fieldDescriptor), fieldDescriptor.getNumber());
+            withMetaData(beamFieldTypeFromProtoField(fieldDescriptor), fieldDescriptor);
         fields.add(Field.of(fieldDescriptor.getName(), fieldType));
       }
     }
     return Schema.builder().addFields(fields).build();
+  }
+
+  private static FieldType withMetaData(
+      FieldType inType, Descriptors.FieldDescriptor fieldDescriptor) {
+    FieldType fieldType = withFieldNumber(inType, fieldDescriptor.getNumber());
+    if (fieldDescriptor.isMapField()) {
+      FieldDescriptor keyFieldDescriptor = fieldDescriptor.getMessageType().findFieldByName("key");
+      FieldDescriptor valueFieldDescriptor =
+          fieldDescriptor.getMessageType().findFieldByName("value");
+      if ((keyFieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE)) {
+        fieldType =
+            withMapKeyMessageName(fieldType, keyFieldDescriptor.getMessageType().getFullName());
+      }
+      if ((valueFieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE)) {
+        fieldType =
+            withMapValueMessageName(fieldType, valueFieldDescriptor.getMessageType().getFullName());
+      }
+    } else if (fieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE) {
+      return withMessageName(fieldType, fieldDescriptor.getMessageType().getFullName());
+    }
+    return fieldType;
   }
 
   private static FieldType beamFieldTypeFromProtoField(
