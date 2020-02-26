@@ -23,8 +23,6 @@ import argparse
 import logging
 import subprocess
 import sys
-import types  # pylint: disable=unused-import
-from typing import Optional
 
 import grpc
 from mock import patch
@@ -39,11 +37,12 @@ from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
-apiclient = None  # type: Optional[types.ModuleType]
 try:
-  from apache_beam.runners.dataflow.internal import apiclient
+  from apache_beam.runners.dataflow.internal import apiclient as _apiclient
 except ImportError:
-  pass
+  apiclient = None
+else:
+  apiclient = _apiclient
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
