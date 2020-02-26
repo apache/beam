@@ -163,6 +163,10 @@ def is_Any(typ):
   return typ is typing.Any
 
 
+def is_new_type(typ):
+  return hasattr(typ, '__supertype__')
+
+
 # Mapping from typing.TypeVar/typehints.TypeVariable ids to an object of the
 # other type. Bidirectional mapping preserves typing.TypeVar instances.
 _type_var_cache = {}  # type: typing.Dict[int, typehints.TypeVariable]
@@ -203,6 +207,8 @@ def convert_to_beam_type(typ):
     return typ
 
   type_map = [
+      # TODO(BEAM-9355): Currently unsupported.
+      _TypeMapEntry(match=is_new_type, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(match=is_Any, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(
           match=_match_issubclass(typing.Dict),

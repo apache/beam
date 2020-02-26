@@ -107,6 +107,10 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
   def test_string_literal_converted_to_any(self):
     self.assertEqual(typehints.Any, convert_to_beam_type('typing.List[int]'))
 
+  def test_newtype(self):
+    self.assertEqual(
+        typehints.Any, convert_to_beam_type(typing.NewType('Number', int)))
+
   def test_convert_nested_to_beam_type(self):
     self.assertEqual(typehints.List[typing.Any], typehints.List[typehints.Any])
     self.assertEqual(
