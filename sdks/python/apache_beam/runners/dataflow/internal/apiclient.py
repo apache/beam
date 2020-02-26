@@ -727,8 +727,7 @@ class DataflowApplicationClient(object):
     _LOGGER.info('Created job with id: [%s]', response.id)
     _LOGGER.info(
         'To access the Dataflow monitoring console, please navigate to '
-        'https://console.cloud.google.com/dataflow/jobsDetail'
-        '/locations/%s/jobs/%s?project=%s',
+        'https://console.cloud.google.com/dataflow/jobs/%s/%s?project=%s',
         self.google_cloud_options.region,
         response.id,
         self.google_cloud_options.project)
