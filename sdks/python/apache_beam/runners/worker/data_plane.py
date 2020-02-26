@@ -505,7 +505,8 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
   def __init__(self,
                credentials=None,
                worker_id=None,  # type: Optional[str]
-               data_buffer_time_limit_ms=0  # type: Optional[int]
+               data_buffer_time_limit_ms=0,  # type: Optional[int]
+               token=None  # type: str
                ):
     # type: (...) -> None
     self._data_channel_cache = {}  # type: Dict[str, GrpcClientDataChannel]
@@ -513,6 +514,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
     self._credentials = None
     self._worker_id = worker_id
     self._data_buffer_time_limit_ms = data_buffer_time_limit_ms
+    self._token = token
     if credentials is not None:
       _LOGGER.info('Using secure channel creds.')
       self._credentials = credentials
