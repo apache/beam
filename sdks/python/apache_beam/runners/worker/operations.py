@@ -28,6 +28,7 @@ import collections
 import logging
 import sys
 import threading
+import time
 from builtins import filter
 from builtins import object
 from builtins import zip
@@ -44,6 +45,7 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
+from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
@@ -67,7 +69,6 @@ from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
-  from apache_beam.coders import coders
   from apache_beam.runners.worker.bundle_processor import ExecutionContext
   from apache_beam.runners.worker.statesampler import StateSampler
 
@@ -810,6 +811,36 @@ class SdfProcessSizedElements(DoOperation):
       metrics.active_elements.fraction_remaining = (
           current_element_progress.fraction_remaining)
     return metrics
+
+  def monitoring_infos(self, transform_id):
+    # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+    with self.lock:
+      infos = super(SdfProcessSizedElements,
+                    self).monitoring_infos(transform_id)
+      current_element_progress = self.current_element_progress()
+      if current_element_progress:
+        if current_element_progress.completed_work():
+          completed = current_element_progress.completed_work()
+          remaining = current_element_progress.remaining_work()
+        else:
+          completed = current_element_progress.fraction_completed()
+          remaining = current_element_progress.fraction_remaining()
+
+        completed_mi = metrics_pb2.MonitoringInfo(
+            urn=monitoring_infos.WORK_COMPLETED_URN,
+            type=monitoring_infos.LATEST_DOUBLES_URN,
+            labels=monitoring_infos.create_labels(ptransform=transform_id),
+            payload=coders.FloatCoder().get_impl().encode_nested(completed),
+            timestamp=monitoring_infos.to_timestamp_proto(time.time()))
+        remaining_mi = metrics_pb2.MonitoringInfo(
+            urn=monitoring_infos.WORK_REMAINING_URN,
+            type=monitoring_infos.LATEST_DOUBLES_URN,
+            labels=monitoring_infos.create_labels(ptransform=transform_id),
+            payload=coders.FloatCoder().get_impl().encode_nested(remaining),
+            timestamp=monitoring_infos.to_timestamp_proto(time.time()))
+        infos[monitoring_infos.to_key(completed_mi)] = completed_mi
+        infos[monitoring_infos.to_key(remaining_mi)] = remaining_mi
+    return infos
 
   def _total_output_bytes(self):
     total = 0
