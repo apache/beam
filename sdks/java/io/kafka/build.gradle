@@ -46,6 +46,7 @@ dependencies {
     // "kafka-clients" has to be provided since user can use its own version. 
     exclude group: "org.apache.kafka", module: "kafka-clients"
   }
+  provided library.java.jackson_dataformat_csv
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(":sdks:java:io:synthetic")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
