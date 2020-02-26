@@ -53,7 +53,6 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
-from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sideinputs
