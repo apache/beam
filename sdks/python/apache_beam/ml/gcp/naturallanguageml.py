@@ -17,7 +17,6 @@
 
 from __future__ import absolute_import
 
-from typing import Dict
 from typing import Mapping
 from typing import Optional
 from typing import Sequence
@@ -36,7 +35,7 @@ except ImportError:
       'Google Cloud Natural Language API not supported for this execution '
       'environment (could not import Natural Language API client).')
 
-__all__ = ['Document', 'Feature', 'AnnotateText']
+__all__ = ['Document', 'AnnotateText']
 
 
 class Document(object):
@@ -84,23 +83,10 @@ class Document(object):
     return dict_repr
 
 
-class Feature(object):
-  EXTRACT_SYNTAX = 'extract_syntax'
-  EXTRACT_ENTITIES = 'extract_entities'
-  EXTRACT_DOCUMENT_SENTIMENT = 'extract_document_sentiment'
-  EXTRACT_ENTITY_SENTIMENT = 'extract_entity_sentiment'
-  CLASSIFY_TEXT = 'classify_text'
-
-  @staticmethod
-  def to_dict(features):
-    # type: (Sequence[str]) -> Dict[str, bool]
-    return {feature: True for feature in features}
-
-
 @beam.ptransform_fn
 def AnnotateText(
     pcoll,  # type: beam.pvalue.PCollection
-    features,  # type: Sequence[str]
+    features,  # type: Union[Mapping[str, bool], types.AnnotateTextRequest.Features]
     timeout=None,  # type: Optional[float]
     metadata=None  # type: Optional[Sequence[Tuple[str, str]]]
 ):
@@ -111,8 +97,12 @@ def AnnotateText(
   Args:
     pcoll (:class:`~apache_beam.pvalue.PCollection`): An input PCollection of
       :class:`Document` objects.
-    features (`Sequence[str]`): A list of natural language operations to be
-      performed on given text.
+    features (`Union[Mapping[str, bool], types.AnnotateTextRequest.Features]`):
+      A dictionary of natural language operations to be performed on given
+      text in the following format::
+
+      {'extact_syntax'=True, 'extract_entities'=True}
+
     timeout (`Optional[float]`): The amount of time, in seconds, to wait
       for the request to complete. The timeout applies to each individual
       retry attempt.
@@ -127,7 +117,7 @@ def AnnotateText(
 class _AnnotateTextFn(beam.DoFn):
   def __init__(
       self,
-      features,  # type: Sequence[str]
+      features,  # type: Union[Mapping[str, bool], types.AnnotateTextRequest.Features]
       timeout,  # type: Optional[float]
       metadata=None  # type: Optional[Sequence[Tuple[str, str]]]
   ):
@@ -148,7 +138,7 @@ class _AnnotateTextFn(beam.DoFn):
   def process(self, element):
     response = self.client.annotate_text(
         document=Document.to_dict(element),
-        features=Feature.to_dict(self.features),
+        features=self.features,
         encoding_type=element.encoding,
         timeout=self.timeout,
         metadata=self.metadata)

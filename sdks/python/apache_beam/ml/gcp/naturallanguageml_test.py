@@ -62,22 +62,14 @@ class NaturalLanguageMlTest(unittest.TestCase):
     self.assertFalse('content' in dict_)
     self.assertTrue('gcs_content_uri' in dict_)
 
-  def test_dictionary_of_features(self):
-    features = [
-        naturallanguageml.Feature.EXTRACT_SYNTAX,
-        naturallanguageml.Feature.CLASSIFY_TEXT
-    ]
-    dict_ = naturallanguageml.Feature.to_dict(features)
-    self.assertEqual({
-        'extract_syntax': True,
-        'classify_text': True,
-    }, dict_)
-
   def test_annotate_test_called(self):
     with mock.patch('apache_beam.ml.gcp.naturallanguageml._AnnotateTextFn'
                     '._get_api_client'):
       p = TestPipeline()
-      features = [naturallanguageml.Feature.EXTRACT_SYNTAX]
+      features = [
+          naturallanguageml.types.AnnotateTextRequest.Features(
+              extract_syntax=True)
+      ]
       _ = (
           p | beam.Create([naturallanguageml.Document('Hello, world!')])
           | naturallanguageml.AnnotateText(features))
