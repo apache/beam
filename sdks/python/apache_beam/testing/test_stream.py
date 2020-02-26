@@ -175,9 +175,8 @@ class WatermarkEvent(Event):
   def to_runner_api(self, unused_element_coder):
     tag = 'None' if self.tag is None else self.tag
 
-    # Assert that no prevision is lost.
-    assert 1000 * (
-        self.new_watermark.micros // 1000) == self.new_watermark.micros
+    # Assert that no precision is lost.
+    assert self.new_watermark.micros % 1000 == 0
     return beam_runner_api_pb2.TestStreamPayload.Event(
         watermark_event=beam_runner_api_pb2.TestStreamPayload.Event.
         AdvanceWatermark(
@@ -234,6 +233,10 @@ class TestStream(PTransform):
   time. After all of the specified elements are emitted, ceases to produce
   output.
 
+  Applying the PTransform will return a single PCollection if only the default
+  output or only one output tag has been used. Otherwise a dictionary of output
+  names to PCollections will be returned.
+
   To use the multi-output functionality pelase use the
   'passthrough_pcollection_output_ids' flag. See BEAM-9322 for more info.
 
@@ -243,7 +246,6 @@ class TestStream(PTransform):
     options = ...
     options.view_as(DebugOptions).add_experiment(
         'passthrough_pcollection_output_ids')
-
   """
   def __init__(
       self,
@@ -251,15 +253,16 @@ class TestStream(PTransform):
       events=None,
       output_tags=None,
       endpoint=None):
-    """TestStream constructor.
-
+    """
     Args:
-      coder: (apache_beam.Coder) the element coder for any ElementEvents.
+      coder: (apache_beam.Coder) the coder to encode/decode elements.
       events: (List[Event]) a list of instructions for the TestStream to
-        execute. This must be a subset of the given output_tags.
-      output_tags: (List[str]) a list of PCollection output tags.
+        execute. If specified, the events tags must exist in the output_tags.
+      output_tags: (List[str]) can be specified to allow for adding outputs that
+                        produce no output.
       endpoint: (str) a URL locating a TestStreamService.
     """
+
     super(TestStream, self).__init__()
     assert coder is not None
 
