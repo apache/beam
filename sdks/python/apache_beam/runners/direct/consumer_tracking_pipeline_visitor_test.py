@@ -85,19 +85,15 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
 
     def _process_numbers(pcoll, negatives):
       first_output = (
-        pcoll
-        | 'process numbers step 1' >> ParDo(ProcessNumbersFn(), negatives)
-      )
+          pcoll
+          | 'process numbers step 1' >> ParDo(ProcessNumbersFn(), negatives))
 
       second_output = (
-        first_output
-        | 'process numbers step 2' >> ParDo(ProcessNumbersFn(), negatives)
-      )
+          first_output
+          | 'process numbers step 2' >> ParDo(ProcessNumbersFn(), negatives))
 
-      output_pc = (
-        (first_output, second_output)
-        | 'flatten results' >> beam.Flatten()
-      )
+      output_pc = ((first_output, second_output)
+                   | 'flatten results' >> beam.Flatten())
       return output_pc
 
     root_read = beam.Impulse()

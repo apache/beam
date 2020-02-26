@@ -46,11 +46,19 @@ class ConsumerTrackingPipelineVisitor(PipelineVisitor):
     self.value_to_consumers = {
     }  # type: Dict[pvalue.PValue, List[AppliedPTransform]]
     self.root_transforms = set()  # type: Set[AppliedPTransform]
-    self.views = []  # type: List[pvalue.AsSideInput]
     self.step_names = {}  # type: Dict[AppliedPTransform, str]
 
     self._num_transforms = 0
-    self._side_input_views = {}
+    self._views = set()
+
+  @property
+  def views(self):
+    """Returns a list of side intputs extracted from the graph.
+
+    Returns:
+      A list of pvalue.AsSideInput.
+    """
+    return list(self._views)
 
   def visit_transform(self, applied_ptransform):
     # type: (AppliedPTransform) -> None
@@ -68,8 +76,4 @@ class ConsumerTrackingPipelineVisitor(PipelineVisitor):
     self._num_transforms += 1
 
     for side_input in applied_ptransform.side_inputs:
-      if side_input not in self._side_input_views:
-        self._side_input_views[side_input] = side_input
-    self.views = [
-        side_input for side_input in self._side_input_views
-    ]
+      self._views.add(side_input)
