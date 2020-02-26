@@ -722,7 +722,8 @@ class Reshuffle(PTransform):
 
   @staticmethod
   @PTransform.register_urn(common_urns.composites.RESHUFFLE.urn, None)
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return Reshuffle()
 
 

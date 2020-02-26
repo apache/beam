@@ -46,7 +46,7 @@ class ExternalTransformIT(unittest.TestCase):
         return 'simple', None
 
       @staticmethod
-      def from_runner_api_parameter(_1, _2):
+      def from_runner_api_parameter(_0, _1, _2):
         return SimpleTransform()
 
     pipeline = TestPipeline(is_integration_test=True)
