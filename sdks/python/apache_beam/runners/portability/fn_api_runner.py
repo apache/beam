@@ -43,6 +43,7 @@ from typing import Iterable
 from typing import Iterator
 from typing import List
 from typing import Mapping
+from typing import MutableMapping
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -289,11 +290,12 @@ class _ListBuffer():
   """Used to support parititioning of a list."""
   def __init__(self, coder_impl):
     self._coder_impl = coder_impl
-    self._inputs = []
+    self._inputs = []  # type: List[bytes]
     self._grouped_output = None
     self.cleared = False
 
   def append(self, element):
+    # type: (bytes) -> None
     if self.cleared:
       raise RuntimeError('Trying to append to a cleared ListBuffer.')
     if self._grouped_output:
@@ -323,11 +325,13 @@ class _ListBuffer():
       return self._grouped_output
 
   def __iter__(self):
+    # type: () -> Iterator[bytes]
     if self.cleared:
       raise RuntimeError('Trying to iterate through a cleared ListBuffer.')
     return iter(self._inputs)
 
   def clear(self):
+    # type: () -> None
     self.cleared = True
     self._inputs = []
     self._grouped_output = None
@@ -697,7 +701,7 @@ class FnApiRunner(runner.PipelineRunner):
 
     try:
       with self.maybe_profile():
-        pcoll_buffers = {}
+        pcoll_buffers = {}  # type: Dict[bytes, PartitionableBuffer]
         for stage in stages:
           stage_results = self._run_stage(
               worker_handler_manager.get_worker_handlers,
@@ -790,7 +794,7 @@ class FnApiRunner(runner.PipelineRunner):
       pipeline_components,  # type: beam_runner_api_pb2.Components
       stage,  # type: fn_api_runner_transforms.Stage
       get_buffer_callable,
-      deferred_inputs  # type: DefaultDict[str, PartitionableBuffer]
+      deferred_inputs  # type: MutableMapping[str, PartitionableBuffer]
   ):
     # type: (...) -> None
 
@@ -829,7 +833,7 @@ class FnApiRunner(runner.PipelineRunner):
       get_input_coder_impl_callable,
       input_for_callable,
       last_sent,
-      deferred_inputs  # type: DefaultDict[str, PartitionableBuffer]
+      deferred_inputs  # type: MutableMapping[str, PartitionableBuffer]
   ):
     # type: (...) -> None
 
@@ -880,7 +884,7 @@ class FnApiRunner(runner.PipelineRunner):
       stage,  # type: fn_api_runner_transforms.Stage
       pipeline_components,  # type: beam_runner_api_pb2.Components
       data_api_service_descriptor,
-      pcoll_buffers,  # type: DefaultDict[bytes, PartitionableBuffer]
+      pcoll_buffers,  # type: MutableMapping[bytes, PartitionableBuffer]
       safe_coders
   ):
     # type: (...) -> Tuple[Dict[Tuple[str, str], PartitionableBuffer], DataSideInput, Dict[Tuple[str, str], bytes]]
@@ -933,7 +937,7 @@ class FnApiRunner(runner.PipelineRunner):
                  worker_handler_factory,  # type: Callable[[Optional[str], int], List[WorkerHandler]]
                  pipeline_components,  # type: beam_runner_api_pb2.Components
                  stage,  # type: fn_api_runner_transforms.Stage
-                 pcoll_buffers,  # type: DefaultDict[bytes, PartitionableBuffer]
+                 pcoll_buffers,  # type: MutableMapping[bytes, PartitionableBuffer]
                  safe_coders
                 ):
     # type: (...) -> beam_fn_api_pb2.InstructionResponse
@@ -1005,7 +1009,7 @@ class FnApiRunner(runner.PipelineRunner):
         safe_coders)
 
     def get_buffer(buffer_id, transform_id):
-      # type: (bytes) -> PartitionableBuffer
+      # type: (bytes, str) -> PartitionableBuffer
 
       """Returns the buffer for a given (operation_type, PCollection ID).
 
@@ -1042,6 +1046,7 @@ class FnApiRunner(runner.PipelineRunner):
       return pcoll_buffers[buffer_id]
 
     def get_input_coder_impl(transform_id):
+      # type: (str) -> CoderImpl
       coder_id = beam_fn_api_pb2.RemoteGrpcPort.FromString(
           process_bundle_descriptor.transforms[transform_id].spec.payload
       ).coder_id
@@ -1091,7 +1096,7 @@ class FnApiRunner(runner.PipelineRunner):
     # may miss some data.
     bundle_manager._num_workers = 1
     while True:
-      deferred_inputs = {}
+      deferred_inputs = {}  # type: Dict[str, PartitionableBuffer]
 
       self._collect_written_timers_and_add_to_deferred_inputs(
           context, pipeline_components, stage, get_buffer, deferred_inputs)
@@ -1136,7 +1141,7 @@ class FnApiRunner(runner.PipelineRunner):
   def _extract_endpoints(stage,  # type: fn_api_runner_transforms.Stage
                          pipeline_components,  # type: beam_runner_api_pb2.Components
                          data_api_service_descriptor, # type: Optional[endpoints_pb2.ApiServiceDescriptor]
-                         pcoll_buffers,  # type: DefaultDict[bytes, PartitionableBuffer]
+                         pcoll_buffers,  # type: MutableMapping[bytes, PartitionableBuffer]
                          context,
                          safe_coders
                          ):
@@ -2092,7 +2097,7 @@ class BundleManager(object):
 
   def __init__(self,
                worker_handler_list,  # type: Sequence[WorkerHandler]
-               get_buffer,  # type: Callable[[bytes], PartitionableBuffer]
+               get_buffer,  # type: Callable[[bytes, str], PartitionableBuffer]
                get_input_coder_impl,  # type: Callable[[str], CoderImpl]
                bundle_descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
                progress_frequency=None,
@@ -2296,7 +2301,7 @@ class ParallelBundleManager(BundleManager):
   def __init__(
       self,
       worker_handler_list,  # type: Sequence[WorkerHandler]
-      get_buffer,  # type: Callable[[bytes], PartitionableBuffer]
+      get_buffer,  # type: Callable[[bytes, str], PartitionableBuffer]
       get_input_coder_impl,  # type: Callable[[str], CoderImpl]
       bundle_descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
       progress_frequency=None,

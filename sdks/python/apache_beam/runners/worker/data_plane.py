@@ -62,7 +62,7 @@ if TYPE_CHECKING:
   OptExcInfo = Union[ExcInfo, Tuple[None, None, None]]
   # TODO: move this out of the TYPE_CHECKING scope when we drop support for
   #  python < 3.6
-  from typing import Collection
+  from typing import Collection  # pylint: disable=ungrouped-imports
   import apache_beam.coders.slow_stream
   OutputStream = apache_beam.coders.slow_stream.OutputStream
 else:

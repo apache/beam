@@ -67,6 +67,7 @@ from apache_beam.utils.windowed_value import WindowedValue
 if TYPE_CHECKING:
   from apache_beam.transforms import sideinputs
   from apache_beam.transforms.core import TimerSpec
+  from apache_beam.io.iobase import RestrictionProgress
   from apache_beam.iobase import RestrictionTracker
   from apache_beam.iobase import WatermarkEstimator
 
@@ -348,6 +349,8 @@ class DoFnSignature(object):
           (self.get_restriction_provider().restriction_coder()),
           (self.get_watermark_estimator_provider().estimator_state_coder())
       ])
+    else:
+      return None
 
   def is_stateful_dofn(self):
     # type: () -> bool
@@ -379,7 +382,7 @@ class DoFnInvoker(object):
   represented by a given DoFnSignature."""
 
   def __init__(self,
-               output_processor,  # type: _OutputProcessor
+               output_processor,  # type: OutputProcessor
                signature  # type: DoFnSignature
               ):
     # type: (...) -> None
@@ -530,7 +533,7 @@ class SimpleInvoker(DoFnInvoker):
   """An invoker that processes elements ignoring windowing information."""
 
   def __init__(self,
-               output_processor,  # type: _OutputProcessor
+               output_processor,  # type: OutputProcessor
                signature  # type: DoFnSignature
               ):
     # type: (...) -> None
@@ -1037,7 +1040,7 @@ class DoFnRunner:
 class OutputProcessor(object):
   def process_outputs(
       self, windowed_input_element, results, watermark_estimator=None):
-    # type: (WindowedValue, Iterable[Any]) -> None
+    # type: (WindowedValue, Iterable[Any], Optional[WatermarkEstimator]) -> None
     raise NotImplementedError
 
 
@@ -1065,7 +1068,7 @@ class _OutputProcessor(OutputProcessor):
 
   def process_outputs(
       self, windowed_input_element, results, watermark_estimator=None):
-    # type: (WindowedValue, Iterable[Any]) -> None
+    # type: (WindowedValue, Iterable[Any], Optional[WatermarkEstimator]) -> None
 
     """Dispatch the result of process computation to the appropriate receivers.
 
