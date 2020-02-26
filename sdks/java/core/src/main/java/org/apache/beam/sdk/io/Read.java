@@ -218,7 +218,7 @@ public class Read {
    * allows us to split the sub-source over and over yet still receive "source" objects as inputs.
    */
   static class BoundedSourceAsSDFWrapperFn<T> extends DoFn<BoundedSource<T>, T> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BoundedSourceAsSDFWrapperFn.class);
+    private static final Logger LOG = LoggerFactory.getLogger(BoundedSourceAsSDFWrapperFn.class);
     private static final long DEFAULT_DESIRED_BUNDLE_SIZE_BYTES = 64 * (1 << 20);
 
     @GetInitialRestriction
@@ -338,7 +338,7 @@ public class Read {
           try {
             currentReader.close();
           } catch (IOException e) {
-            LOGGER.error("Failed to close BoundedReader due to failure processing bundle.", e);
+            LOG.error("Failed to close BoundedReader due to failure processing bundle.", e);
           }
         }
       }
