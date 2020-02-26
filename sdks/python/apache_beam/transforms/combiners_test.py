@@ -489,9 +489,7 @@ class CombineTest(unittest.TestCase):
       # In ACCUMULATING mode, the early_frings is [1, 3, 6, 10], other
       # firings are [15, 15, ...]. Different runners have different number
       # of 15s.
-      early_firings, _ = (
-          result
-          | beam.Partition(is_early_firing, 2))
+      early_firings, _ = result | beam.Partition(is_early_firing, 2)
       exepected_early_firings = [1, 3, 6, 10]
       assert_that(early_firings, equal_to(exepected_early_firings))
 
