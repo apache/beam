@@ -330,6 +330,7 @@ class ExternalTransform(ptransform.PTransform):
       raise RuntimeError(response.error)
     self._expanded_components = response.components
     self._expanded_transform = response.transform
+    self._expanded_requirements = response.requirements
     result_context = pipeline_context.PipelineContext(response.components)
 
     def fix_output(pcoll, tag):
@@ -421,6 +422,9 @@ class ExternalTransform(ptransform.PTransform):
           },
           environment_id=proto.environment_id)
       context.transforms.put_proto(id, new_proto)
+
+    for requirement in self._expanded_requirements:
+      context.add_requirement(requirement)
 
     return beam_runner_api_pb2.PTransform(
         unique_name=full_label,

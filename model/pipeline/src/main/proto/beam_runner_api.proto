@@ -443,10 +443,19 @@ message ParDoPayload {
   map<string, SideInput> side_inputs = 3;
 
   // (Optional) A mapping of local state names to state specifications.
+  // If this is set, the stateful processing requirement should also
+  // be placed in the pipeline requirements.
   map<string, StateSpec> state_specs = 4;
 
   // (Optional) A mapping of local timer names to timer specifications.
+  // If this is set, the stateful processing requirement should also
+  // be placed in the pipeline requirements.
   map<string, TimerSpec> timer_specs = 5;
+
+  // (Optional) A mapping of local timer family names to timer specifications.
+  // If this is set, the stateful processing requirement should also
+  // be placed in the pipeline requirements.
+  map<string, TimerFamilySpec> timer_family_specs = 9;
 
   // Whether the DoFn is splittable
   bool splittable = 6;
@@ -455,13 +464,19 @@ message ParDoPayload {
   string restriction_coder_id = 7;
 
   // (Optional) Only set when this ParDo can request bundle finalization.
+  // If this is set, the corresponding standard requirement should also
+  // be placed in the pipeline requirements.
   bool requests_finalization = 8;
 
-  // (Optional) A mapping of local timer family names to timer specifications.
-  map<string, TimerFamilySpec> timer_family_specs = 9;
-
-  // Whether this stage requires time sorted input
+  // Whether this stage requires time sorted input.
+  // If this is set, the corresponding standard requirement should also
+  // be placed in the pipeline requirements.
   bool requires_time_sorted_input = 10;
+
+  // Whether this stage requires stable input.
+  // If this is set, the corresponding standard requirement should also
+  // be placed in the pipeline requirements.
+  bool requires_stable_input = 11;
 }
 
 // Parameters that a UDF might require.
@@ -1315,6 +1330,31 @@ message StandardProtocols {
     // simply indicates this SDK can actually parallelize the work across multiple
     // cores.
     MULTI_CORE_BUNDLE_PROCESSING = 3 [(beam_urn) = "beam:protocol:multi_core_bundle_processing:v1"];
+  }
+}
+
+// These URNs are used to indicate requirements of a pipeline that cannot
+// simply be expressed as a component (such as a Coder or PTransform) that the
+// runner must understand. In many cases, this indicates a particular field
+// of a transform must be inspected and respected (which allows new fields
+// to be added in a forwards-compatible way).
+message StandardRequirements {
+  enum Enum {
+    // This requirement indicates the state_spec and time_spec fields of ParDo
+    // transform payloads must be inspected.
+    REQUIRES_STATEFUL_PROCESSING = 0 [(beam_urn) = "beam:requirement:pardo:stateful:v1"];
+
+    // This requirement indicates the requests_finalization field of ParDo
+    // transform payloads must be inspected.
+    REQUIRES_BUNDLE_FINALIZATION = 1 [(beam_urn) = "beam:requirement:pardo:finalization:v1"];
+
+    // This requirement indicates the requires_stable_input field of ParDo
+    // transform payloads must be inspected.
+    REQUIRES_STABLE_INPUT = 2 [(beam_urn) = "beam:requirement:pardo:stable_input:v1"];
+
+    // This requirement indicates the requires_time_sorted_input field of ParDo
+    // transform payloads must be inspected.
+    REQUIRES_TIME_SORTED_INPUT = 3 [(beam_urn) = "beam:requirement:pardo:time_sorted_input:v1"];
   }
 }
 

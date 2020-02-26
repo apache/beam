@@ -125,7 +125,7 @@ fi
 
 # Build the container
 TAG=$(date +%Y%m%d-%H%M%S)
-CONTAINER=us.gcr.io/$PROJECT/$USER/go_sdk
+CONTAINER=us.gcr.io/$PROJECT/$USER/beam_go_sdk
 echo "Using container $CONTAINER"
 ./gradlew :sdks:go:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG
 

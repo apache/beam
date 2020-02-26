@@ -32,6 +32,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 
 /** A factory able to instantiate an appropriate handler for a given PTransform. */
 public interface PTransformRunnerFactory<T> {
@@ -59,6 +60,9 @@ public interface PTransformRunnerFactory<T> {
    * @param finishFunctionRegistry A class to register a finish bundle handler with.
    * @param addTearDownFunction A consumer to register a tear down handler with.
    * @param splitListener A listener to be invoked when the PTransform splits itself.
+   * @param bundleFinalizer Register callbacks that will be invoked when the runner completes the
+   *     bundle. The specified instant provides the timeout on how long the finalization callback is
+   *     valid for.
    */
   T createRunnerForPTransform(
       PipelineOptions pipelineOptions,
@@ -74,7 +78,8 @@ public interface PTransformRunnerFactory<T> {
       PTransformFunctionRegistry startFunctionRegistry,
       PTransformFunctionRegistry finishFunctionRegistry,
       Consumer<ThrowingRunnable> addTearDownFunction,
-      BundleSplitListener splitListener)
+      BundleSplitListener splitListener,
+      BundleFinalizer bundleFinalizer)
       throws IOException;
 
   /**

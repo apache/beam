@@ -55,19 +55,23 @@ import org.apache.beam.sdk.testing.SerializableMatchers;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BundleFinalizerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ElementParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.FinishBundleContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PaneInfoParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PipelineOptionsParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StartBundleContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TaggedOutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimeDomainParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimestampParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures.FnAnalysisContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -121,10 +125,11 @@ public class DoFnSignaturesTest {
                   OutputReceiver<String> receiver,
                   PipelineOptions options,
                   @SideInput("tag1") String input1,
-                  @SideInput("tag2") Integer input2) {}
+                  @SideInput("tag2") Integer input2,
+                  BundleFinalizer bundleFinalizer) {}
             }.getClass());
 
-    assertThat(sig.processElement().extraParameters().size(), equalTo(8));
+    assertThat(sig.processElement().extraParameters().size(), equalTo(9));
     assertThat(sig.processElement().extraParameters().get(0), instanceOf(ElementParameter.class));
     assertThat(sig.processElement().extraParameters().get(1), instanceOf(TimestampParameter.class));
     assertThat(sig.processElement().extraParameters().get(2), instanceOf(WindowParameter.class));
@@ -135,6 +140,8 @@ public class DoFnSignaturesTest {
         sig.processElement().extraParameters().get(5), instanceOf(PipelineOptionsParameter.class));
     assertThat(sig.processElement().extraParameters().get(6), instanceOf(SideInputParameter.class));
     assertThat(sig.processElement().extraParameters().get(7), instanceOf(SideInputParameter.class));
+    assertThat(
+        sig.processElement().extraParameters().get(8), instanceOf(BundleFinalizerParameter.class));
   }
 
   @Test
@@ -276,8 +283,7 @@ public class DoFnSignaturesTest {
   @Test
   public void testBadExtraContext() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Must take a single argument of type DoFn<Integer, String>.StartBundleContext");
+    thrown.expectMessage("int is not a valid context parameter");
 
     DoFnSignatures.analyzeStartBundleMethod(
         errors(),
@@ -286,7 +292,8 @@ public class DoFnSignaturesTest {
           void method(DoFn<Integer, String>.StartBundleContext c, int n) {}
         }.getMethod(),
         TypeDescriptor.of(Integer.class),
-        TypeDescriptor.of(String.class));
+        TypeDescriptor.of(String.class),
+        FnAnalysisContext.create());
   }
 
   @Test
@@ -346,6 +353,25 @@ public class DoFnSignaturesTest {
   }
 
   @Test
+  public void testStartBundleWithAllParameters() throws Exception {
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<String, String>() {
+              @ProcessElement
+              public void processElement() {}
+
+              @StartBundle
+              public void startBundle(
+                  StartBundleContext context, BundleFinalizer bundleFinalizer) {}
+            }.getClass());
+    assertThat(sig.startBundle().extraParameters().size(), equalTo(2));
+    assertThat(
+        sig.startBundle().extraParameters().get(0), instanceOf(StartBundleContextParameter.class));
+    assertThat(
+        sig.startBundle().extraParameters().get(1), instanceOf(BundleFinalizerParameter.class));
+  }
+
+  @Test
   public void testPrivateFinishBundle() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("finishBundle()");
@@ -359,6 +385,26 @@ public class DoFnSignaturesTest {
           @FinishBundle
           void finishBundle() {}
         }.getClass());
+  }
+
+  @Test
+  public void testFinishBundleWithAllParameters() throws Exception {
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<String, String>() {
+              @ProcessElement
+              public void processElement() {}
+
+              @FinishBundle
+              public void finishBundle(
+                  FinishBundleContext context, BundleFinalizer bundleFinalizer) {}
+            }.getClass());
+    assertThat(sig.finishBundle().extraParameters().size(), equalTo(2));
+    assertThat(
+        sig.finishBundle().extraParameters().get(0),
+        instanceOf(FinishBundleContextParameter.class));
+    assertThat(
+        sig.finishBundle().extraParameters().get(1), instanceOf(BundleFinalizerParameter.class));
   }
 
   @Test

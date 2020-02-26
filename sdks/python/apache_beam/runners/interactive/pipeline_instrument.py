@@ -502,8 +502,13 @@ class PipelineInstrument(object):
     return self._cacheable_var_by_pcoll_id.get(pcoll_id, None)
 
 
-def pin(pipeline, options=None):
+def build_pipeline_instrument(pipeline, options=None):
   """Creates PipelineInstrument for a pipeline and its options with cache.
+
+  Throughout the process, the returned PipelineInstrument snapshots the given
+  pipeline and then mutates the pipeline. It's invoked by interactive components
+  such as the InteractiveRunner and the given pipeline should be implicitly
+  created runner pipelines instead of pipeline instances defined by the user.
 
   This is the shorthand for doing 3 steps: 1) compute once for metadata of the
   given runner pipeline and everything watched from user pipelines; 2) associate

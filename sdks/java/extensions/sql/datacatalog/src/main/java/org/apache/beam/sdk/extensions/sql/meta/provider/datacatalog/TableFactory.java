@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog;
 
-import com.google.cloud.datacatalog.Entry;
+import com.google.cloud.datacatalog.v1beta1.Entry;
 import java.util.Optional;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 

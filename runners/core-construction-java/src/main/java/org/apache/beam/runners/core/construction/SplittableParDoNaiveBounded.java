@@ -31,6 +31,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
@@ -132,10 +133,21 @@ public class SplittableParDoNaiveBounded {
     @StartBundle
     public void startBundle(StartBundleContext c) {
       invoker.invokeStartBundle(
-          new DoFn<InputT, OutputT>.StartBundleContext() {
+          new BaseArgumentProvider<InputT, OutputT>() {
             @Override
-            public PipelineOptions getPipelineOptions() {
-              return c.getPipelineOptions();
+            public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(
+                DoFn<InputT, OutputT> doFn) {
+              return new DoFn<InputT, OutputT>.StartBundleContext() {
+                @Override
+                public PipelineOptions getPipelineOptions() {
+                  return c.getPipelineOptions();
+                }
+              };
+            }
+
+            @Override
+            public String getErrorContext() {
+              return "SplittableParDoNaiveBounded/StartBundle";
             }
           });
     }
@@ -174,23 +186,35 @@ public class SplittableParDoNaiveBounded {
     @FinishBundle
     public void finishBundle(FinishBundleContext c) {
       invoker.invokeFinishBundle(
-          new DoFn<InputT, OutputT>.FinishBundleContext() {
+          new BaseArgumentProvider<InputT, OutputT>() {
             @Override
-            public PipelineOptions getPipelineOptions() {
-              return c.getPipelineOptions();
+            public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
+                DoFn<InputT, OutputT> doFn) {
+              return new DoFn<InputT, OutputT>.FinishBundleContext() {
+                @Override
+                public PipelineOptions getPipelineOptions() {
+                  return c.getPipelineOptions();
+                }
+
+                @Override
+                public void output(
+                    @Nullable OutputT output, Instant timestamp, BoundedWindow window) {
+                  throw new UnsupportedOperationException(
+                      "Output from FinishBundle for SDF is not supported");
+                }
+
+                @Override
+                public <T> void output(
+                    TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
+                  throw new UnsupportedOperationException(
+                      "Output from FinishBundle for SDF is not supported");
+                }
+              };
             }
 
             @Override
-            public void output(@Nullable OutputT output, Instant timestamp, BoundedWindow window) {
-              throw new UnsupportedOperationException(
-                  "Output from FinishBundle for SDF is not supported");
-            }
-
-            @Override
-            public <T> void output(
-                TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
-              throw new UnsupportedOperationException(
-                  "Output from FinishBundle for SDF is not supported");
+            public String getErrorContext() {
+              return "SplittableParDoNaiveBounded/StartBundle";
             }
           });
     }
@@ -315,6 +339,11 @@ public class SplittableParDoNaiveBounded {
             throw new UnsupportedOperationException();
           }
         };
+      }
+
+      @Override
+      public BundleFinalizer bundleFinalizer() {
+        throw new UnsupportedOperationException();
       }
 
       @Override

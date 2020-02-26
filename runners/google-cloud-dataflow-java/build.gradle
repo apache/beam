@@ -141,6 +141,7 @@ def commonExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesTestStream',
   'org.apache.beam.sdk.testing.UsesParDoLifecycle',
   'org.apache.beam.sdk.testing.UsesMetricsPusher',
+  'org.apache.beam.sdk.testing.UsesBundleFinalizer'
 ]
 
 def fnApiWorkerExcludeCategories = [

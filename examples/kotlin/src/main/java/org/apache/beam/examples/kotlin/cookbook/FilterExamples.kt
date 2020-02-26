@@ -25,11 +25,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult
 import org.apache.beam.sdk.options.*
 import org.apache.beam.sdk.transforms.*
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement
 import org.apache.beam.sdk.values.PCollection
-import org.apache.beam.sdk.values.PCollectionView
-
-import java.util.ArrayList
 import java.util.logging.Logger
 
 /**
@@ -109,7 +105,7 @@ object FilterExamples {
      * Examines each row in the input table. Outputs only rows from the month monthFilter, which is
      * passed in as a parameter during construction of this DoFn.
      */
-    internal class FilterSingleMonthDataFn(var monthFilter: Int?) : DoFn<TableRow, TableRow>() {
+    internal class FilterSingleMonthDataFn(private var monthFilter: Int?) : DoFn<TableRow, TableRow>() {
 
         @ProcessElement
         fun processElement(c: ProcessContext) {
@@ -138,7 +134,7 @@ object FilterExamples {
      * Finds the global mean of the mean_temp for each day/record, and outputs only data that has a
      * mean temp larger than this global mean.
      */
-    internal class BelowGlobalMean(var monthFilter: Int?) : PTransform<PCollection<TableRow>, PCollection<TableRow>>() {
+    internal class BelowGlobalMean(private var monthFilter: Int?) : PTransform<PCollection<TableRow>, PCollection<TableRow>>() {
 
         override fun expand(rows: PCollection<TableRow>): PCollection<TableRow> {
 
