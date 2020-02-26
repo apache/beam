@@ -111,7 +111,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 
-public class ProtoByteBuddyUtils {
+class ProtoByteBuddyUtils {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
   private static final TypeDescriptor<ByteString> BYTE_STRING_TYPE_DESCRIPTOR =
       TypeDescriptor.of(ByteString.class);
