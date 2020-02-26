@@ -128,11 +128,9 @@ class Step(object):
     if tag is None or len(outputs) == 1:
       return outputs[0]
     else:
-      name = '%s_%s' % (PropertyNames.OUT, tag)
-      if name not in outputs:
-        raise ValueError(
-            'Cannot find named output: %s in %s.' % (name, outputs))
-      return name
+      if tag not in outputs:
+        raise ValueError('Cannot find named output: %s in %s.' % (tag, outputs))
+      return tag
 
 
 class Environment(object):
