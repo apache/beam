@@ -46,7 +46,6 @@ except ImportError:
 class VisionTest(unittest.TestCase):
   def setUp(self):
     self._mock_client = mock.Mock()
-    self.m2 = mock.Mock()
     self._mock_client.batch_annotate_images.return_value = None
 
     feature_type = vision.enums.Feature.Type.TEXT_DETECTION
@@ -83,7 +82,7 @@ class VisionTest(unittest.TestCase):
       query_result = result.metrics().query(read_filter)
       if query_result['counters']:
         read_counter = query_result['counters'][0]
-        self.assertTrue(read_counter.committed == expected_counter)
+        self.assertTrue(read_counter.result == expected_counter)
 
   def test_AnnotateImage_URI_with_side_input_context(self):
     images_to_annotate = [
@@ -117,7 +116,7 @@ class VisionTest(unittest.TestCase):
       query_result = result.metrics().query(read_filter)
       if query_result['counters']:
         read_counter = query_result['counters'][0]
-        self.assertTrue(read_counter.committed == expected_counter)
+        self.assertTrue(read_counter.result == expected_counter)
 
   def test_AnnotateImage_b64_content(self):
     base_64_encoded_image = \
@@ -146,7 +145,7 @@ class VisionTest(unittest.TestCase):
       query_result = result.metrics().query(read_filter)
       if query_result['counters']:
         read_counter = query_result['counters'][0]
-        self.assertTrue(read_counter.committed == expected_counter)
+        self.assertTrue(read_counter.result == expected_counter)
 
   def test_AnnotateImageWithContext_URIs(self):
     images_to_annotate = [
@@ -174,7 +173,7 @@ class VisionTest(unittest.TestCase):
       query_result = result.metrics().query(read_filter)
       if query_result['counters']:
         read_counter = query_result['counters'][0]
-        self.assertTrue(read_counter.committed == expected_counter)
+        self.assertTrue(read_counter.result == expected_counter)
 
   def test_AnnotateImageWithContext_bad_input(self):
     """AnnotateImageWithContext should not accept images without context"""
@@ -244,7 +243,7 @@ class VisionTest(unittest.TestCase):
       query_result = result.metrics().query(read_filter)
       if query_result['counters']:
         read_counter = query_result['counters'][0]
-        self.assertTrue(read_counter.committed == expected_counter)
+        self.assertTrue(read_counter.result == expected_counter)
 
 
 if __name__ == '__main__':
