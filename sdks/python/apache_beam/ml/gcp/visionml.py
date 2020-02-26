@@ -49,8 +49,6 @@ except ImportError:
 __all__ = [
     'AnnotateImage',
     'AnnotateImageWithContext',
-    'BatchAnnotateImage',
-    'BatchAnnotateImageWithContext'
 ]
 
 
@@ -62,21 +60,29 @@ def get_vision_client(client_options=None):
 
 
 class AnnotateImage(PTransform):
-  """A ``PTransform`` for annotating images using the GCP Vision API
+  """A ``PTransform`` for annotating images using the GCP Vision API.
   ref: https://cloud.google.com/vision/docs/
 
-  Sends each element to the GCP Vision API. Element is a
-  Union[text_type, binary_type] of either an URI (e.g. a GCS URI) or binary_type
-  base64-encoded image data.
+  Batches elements together using ``util.BatchElements`` PTransform and sends
+  each batch of elements to the GCP Vision API.
+  Element is a Union[text_type, binary_type] of either an URI (e.g. a GCS URI)
+  or binary_type base64-encoded image data.
   Accepts an `AsDict` side input that maps each image to an image context.
   """
+
+  MAX_BATCH_SIZE = 5
+  MIN_BATCH_SIZE = 1
+
   def __init__(
       self,
       features,
       retry=None,
       timeout=120,
+      max_batch_size=None,
+      min_batch_size=None,
       client_options=None,
-      context_side_input=None):
+      context_side_input=None,
+      metadata=None):
     """
     Args:
       features: (List[``vision.types.Feature.enums.Feature``]) Required.
@@ -85,10 +91,17 @@ class AnnotateImage(PTransform):
         A retry object used to retry requests.
         If None is specified (default), requests will not be retried.
       timeout: (float) Optional.
-        The time in seconds to wait for the response from the
-        Vision API.
-      client_options: (Union[dict, google.api_core.client_options.ClientOptions])
-        Optional.
+        The time in seconds to wait for the response from the Vision API.
+        Default is 120.
+      max_batch_size: (int) Optional.
+        Maximum number of images to batch in the same request to the Vision API.
+        Default is 5 (which is also the Vision API max).
+        This parameter is primarily intended for testing.
+      min_batch_size: (int) Optional.
+        Minimum number of images to batch in the same request to the Vision API.
+        Default is None. This parameter is primarily intended for testing.
+      client_options:
+        (Union[dict, google.api_core.client_options.ClientOptions]) Optional.
         Client options used to set user options on the client.
         API Endpoint should be set through client_options.
       context_side_input: (beam.pvalue.AsDict) Optional.
@@ -111,206 +124,20 @@ class AnnotateImage(PTransform):
 
           visionml.AnnotateImage(features,
             context_side_input=beam.pvalue.AsDict(context_side_input)))
+      metadata: (Optional[Sequence[Tuple[str, str]]]): Optional.
+        Additional metadata that is provided to the method.
     """
     super(AnnotateImage, self).__init__()
     self.features = features
     self.retry = retry
     self.timeout = timeout
-    self.client_options = client_options
-    self.context_side_input = context_side_input
-
-  def expand(self, pvalue):
-    return pvalue | ParDo(
-        _ImageAnnotateFn(
-            features=self.features,
-            retry=self.retry,
-            timeout=self.timeout,
-            client_options=self.client_options),
-        context_side_input=self.context_side_input)
-
-
-@typehints.with_input_types(
-    Union[text_type, binary_type], Optional[vision.types.ImageContext])
-class _ImageAnnotateFn(DoFn):
-  """A DoFn that sends each input element to the GCP Vision API
-  service and outputs an element with the return result of the API
-  (``google.cloud.vision_v1.types.AnnotateImageResponse``).
-  """
-  def __init__(self, features, retry, timeout, client_options):
-    super(_ImageAnnotateFn, self).__init__()
-    self._client = None
-    self.features = features
-    self.retry = retry
-    self.timeout = timeout
-    self.client_options = client_options
-    self.counter = Metrics.counter(self.__class__, "API Calls")
-
-  def setup(self):
-    self._client = get_vision_client(self.client_options)
-
-  def _annotate_image(self, element, image_context):
-    if isinstance(element, text_type):
-      image = vision.types.Image(
-          source=vision.types.ImageSource(image_uri=element))
-    else:  # Typehint checks only allows text_type or binary_type
-      image = vision.types.Image(content=element)
-
-    request = vision.types.AnnotateImageRequest(
-        image=image, features=self.features, image_context=image_context)
-    response = self._client.annotate_image(
-        request=request, retry=self.retry, timeout=self.timeout)
-
-    return response
-
-  def process(self, element, context_side_input=None, *args, **kwargs):
-    if context_side_input:  # If we have a side input image context, use that
-      image_context = context_side_input.get(element)
-    else:
-      image_context = None
-    response = self._annotate_image(element, image_context)
-    self.counter.inc()
-    yield response
-
-
-class AnnotateImageWithContext(AnnotateImage):
-  """A ``PTransform`` for annotating images using the GCP Vision API
-  ref: https://cloud.google.com/vision/docs/
-
-  Sends each element to the GCP Vision API. Element is a tuple of
-
-      (Union[text_type, binary_type],
-      Optional[``vision.types.ImageContext``])
-
-  where the former is either an URI (e.g. a GCS URI) or binary_type
-  base64-encoded image data.
-  """
-  def __init__(self, features, retry=None, timeout=120, client_options=None):
-    """
-     Args:
-      features: (List[``vision.types.Feature.enums.Feature``]) Required.
-        The Vision API features to detect
-      retry: (google.api_core.retry.Retry) Optional.
-        A retry object used to retry requests.
-        If None is specified (default), requests will not be retried.
-      timeout: (float) Optional.
-        The time in seconds to wait for the response from the
-        Vision API
-      client_options: (Union[dict, google.api_core.client_options.ClientOptions])
-        Optional.
-        Client options used to set user options on the client.
-        API Endpoint should be set through client_options.
-    """
-    super(AnnotateImageWithContext, self).__init__(
-        features=features,
-        retry=retry,
-        timeout=timeout,
-        client_options=client_options)
-
-  def expand(self, pvalue):
-    return pvalue | ParDo(
-        _ImageAnnotateFnWithContext(
-            features=self.features,
-            retry=self.retry,
-            timeout=self.timeout,
-            client_options=self.client_options))
-
-
-@typehints.with_input_types(
-    Tuple[Union[text_type, binary_type], Optional[vision.types.ImageContext]])
-class _ImageAnnotateFnWithContext(_ImageAnnotateFn):
-  """A DoFn that unpacks each input tuple to element, image_context variables
-  and sends these to the GCP Vision API service and outputs an element with the
-  return result of the API
-  (``google.cloud.vision_v1.types.AnnotateImageResponse``).
-  """
-  def __init__(self, features, retry, timeout, client_options):
-    super(_ImageAnnotateFnWithContext, self).__init__(
-        features=features,
-        retry=retry,
-        timeout=timeout,
-        client_options=client_options)
-
-  def process(self, element, *args, **kwargs):
-    element, image_context = element  # Unpack (image, image_context) tuple
-    response = self._annotate_image(element, image_context)
-    self.counter.inc()
-    yield response
-
-
-class BatchAnnotateImage(PTransform):
-  """A ``PTransform`` for batch (offline) annotating images using the
-  GCP Vision API. ref: https://cloud.google.com/vision/docs/
-
-  Sends each batch of elements to the GCP Vision API.
-  Element is a Union[text_type, binary_type] of either an URI (e.g. a GCS URI)
-  or binary_type base64-encoded image data.
-  Accepts an `AsDict` side input that maps each image to an image context.
-  """
-
-  MAX_BATCH_SIZE = 5
-
-  def __init__(
-      self,
-      features,
-      retry=None,
-      timeout=120,
-      max_batch_size=None,
-      min_batch_size=1,
-      client_options=None,
-      context_side_input=None,
-      metadata=None):
-    """
-    Args:
-      features: (List[``vision.types.Feature.enums.Feature``]) Required.
-        The Vision API features to detect
-      retry: (google.api_core.retry.Retry) Optional.
-        A retry object used to retry requests.
-        If None is specified (default), requests will not be retried.
-      timeout: (float) Optional.
-        The time in seconds to wait for the response from the Vision API.
-        Default is 120 for single-element requests and 300 for batch annotation.
-      max_batch_size: (int) Maximum number of images to batch in the same
-        request to the Vision API.
-        Default is 5 (which is also the Vision API max).
-      min_batch_size: (int) Minimum number of images to batch in the same
-        request to the Vision API. Default is 1.
-      client_options: (Union[dict, google.api_core.client_options.ClientOptions])
-        Client options used to set user options on the client.
-        API Endpoint should be set through client_options.
-      context_side_input: (beam.pvalue.AsDict) Optional.
-        An ``AsDict`` of a PCollection to be passed to the
-        _ImageAnnotateFn as the image context mapping containing additional
-        image context and/or feature-specific parameters.
-        Example usage::
-
-          image_contexts =
-            [(''gs://cloud-samples-data/vision/ocr/sign.jpg'', Union[dict,
-            ``vision.types.ImageContext()``]),
-            (''gs://cloud-samples-data/vision/ocr/sign.jpg'', Union[dict,
-            ``vision.types.ImageContext()``]),]
-
-          context_side_input =
-            (
-              p
-              | "Image contexts" >> beam.Create(image_contexts)
-            )
-
-          visionml.AsyncBatchAnnotateImage(features, output_config,
-            context_side_input=beam.pvalue.AsDict(context_side_input)))
-      metadata: (Optional[Sequence[Tuple[str, str]]]): Optional.
-        Additional metadata that is provided to the method.
-    """
-    super(BatchAnnotateImage, self).__init__()
-    self.features = features
-    self.retry = retry
-    self.timeout = timeout
-    self.max_batch_size = max_batch_size or BatchAnnotateImage.MAX_BATCH_SIZE
-    if self.max_batch_size > BatchAnnotateImage.MAX_BATCH_SIZE:
+    self.max_batch_size = max_batch_size or AnnotateImage.MAX_BATCH_SIZE
+    if self.max_batch_size > AnnotateImage.MAX_BATCH_SIZE:
       raise ValueError(
           'Max batch_size exceeded. '
           'Batch size needs to be smaller than {}'.format(
-              BatchAnnotateImage.MAX_BATCH_SIZE))
-    self.min_batch_size = min_batch_size
+              AnnotateImage.MAX_BATCH_SIZE))
+    self.min_batch_size = min_batch_size or AnnotateImage.MIN_BATCH_SIZE
     self.client_options = client_options
     self.context_side_input = context_side_input
     self.metadata = metadata
@@ -323,7 +150,7 @@ class BatchAnnotateImage(PTransform):
             min_batch_size=self.min_batch_size,
             max_batch_size=self.max_batch_size)
         | ParDo(
-            _BatchImageAnnotateFn(
+            _ImageAnnotateFn(
                 features=self.features,
                 retry=self.retry,
                 timeout=self.timeout,
@@ -350,11 +177,13 @@ class BatchAnnotateImage(PTransform):
     yield request
 
 
-class BatchAnnotateImageWithContext(BatchAnnotateImage):
-  """A ``PTransform`` for batch (offline) annotating images using the
-  GCP Vision API. ref: https://cloud.google.com/vision/docs/batch
+class AnnotateImageWithContext(AnnotateImage):
+  """A ``PTransform`` for annotating images using the GCP Vision API.
+  ref: https://cloud.google.com/vision/docs/
+  Batches elements together using ``util.BatchElements`` PTransform and sends
+  each batch of elements to the GCP Vision API.
 
-  Sends each element to the GCP Vision API. Element is a tuple of
+  Element is a tuple of::
 
     (Union[text_type, binary_type],
     Optional[``vision.types.ImageContext``])
@@ -368,7 +197,7 @@ class BatchAnnotateImageWithContext(BatchAnnotateImage):
       retry=None,
       timeout=120,
       max_batch_size=None,
-      min_batch_size=1,
+      min_batch_size=None,
       client_options=None,
       metadata=None):
     """
@@ -380,19 +209,22 @@ class BatchAnnotateImageWithContext(BatchAnnotateImage):
         If None is specified (default), requests will not be retried.
       timeout: (float) Optional.
         The time in seconds to wait for the response from the Vision API.
-        Default is 120 for single-element requests and 300 for batch annotation.
-      max_batch_size: (int) Maximum number of images to batch in the same
-        request to the Vision API.
+        Default is 120.
+      max_batch_size: (int) Optional.
+        Maximum number of images to batch in the same request to the Vision API.
         Default is 5 (which is also the Vision API max).
-      min_batch_size: (int) Minimum number of images to batch in the same
-        request to the Vision API. Default is 1.
-      client_options: (Union[dict, google.api_core.client_options.ClientOptions])
+        This parameter is primarily intended for testing.
+      min_batch_size: (int) Optional.
+        Minimum number of images to batch in the same request to the Vision API.
+        Default is None. This parameter is primarily intended for testing.
+      client_options:
+        (Union[dict, google.api_core.client_options.ClientOptions]) Optional.
         Client options used to set user options on the client.
         API Endpoint should be set through client_options.
       metadata: (Optional[Sequence[Tuple[str, str]]]): Optional.
         Additional metadata that is provided to the method.
     """
-    super(BatchAnnotateImageWithContext, self).__init__(
+    super(AnnotateImageWithContext, self).__init__(
         features=features,
         retry=retry,
         timeout=timeout,
@@ -409,7 +241,7 @@ class BatchAnnotateImageWithContext(BatchAnnotateImage):
             min_batch_size=self.min_batch_size,
             max_batch_size=self.max_batch_size)
         | ParDo(
-            _BatchImageAnnotateFn(
+            _ImageAnnotateFn(
                 features=self.features,
                 retry=self.retry,
                 timeout=self.timeout,
@@ -433,13 +265,12 @@ class BatchAnnotateImageWithContext(BatchAnnotateImage):
 
 
 @typehints.with_input_types(List[vision.types.AnnotateImageRequest])
-class _BatchImageAnnotateFn(DoFn):
-  """A DoFn that sends each input element to the GCP Vision API
-  service in batches.
+class _ImageAnnotateFn(DoFn):
+  """A DoFn that sends each input element to the GCP Vision API.
   Returns ``google.cloud.vision.types.BatchAnnotateImagesResponse``.
   """
   def __init__(self, features, retry, timeout, client_options, metadata):
-    super(_BatchImageAnnotateFn, self).__init__()
+    super(_ImageAnnotateFn, self).__init__()
     self._client = None
     self.features = features
     self.retry = retry
@@ -448,7 +279,7 @@ class _BatchImageAnnotateFn(DoFn):
     self.metadata = metadata
     self.counter = Metrics.counter(self.__class__, "API Calls")
 
-  def start_bundle(self):
+  def setup(self):
     self._client = get_vision_client(self.client_options)
 
   def process(self, element, *args, **kwargs):
