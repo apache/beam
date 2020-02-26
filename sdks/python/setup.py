@@ -24,7 +24,6 @@ import os
 import platform
 import sys
 import warnings
-from distutils import log
 from distutils.errors import DistutilsError
 from distutils.version import StrictVersion
 
@@ -239,7 +238,7 @@ def generate_protos_first(original_cmd):
 
     class cmd(original_cmd, object):
       def run(self):
-        gen_protos.generate_proto_files(log=log)
+        gen_protos.generate_proto_files()
         super(cmd, self).run()
     return cmd
   except ImportError:
