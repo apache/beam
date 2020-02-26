@@ -129,8 +129,7 @@ class Step(object):
       return outputs[0]
     else:
       if tag not in outputs:
-        raise ValueError(
-            'Cannot find named output: %s in %s.' % (tag, outputs))
+        raise ValueError('Cannot find named output: %s in %s.' % (tag, outputs))
       return tag
 
 

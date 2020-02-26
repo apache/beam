@@ -973,8 +973,7 @@ class DataflowRunner(PipelineRunner):
     # external transforms, we leave tags unmodified.
     #
     # Python SDK uses 'None' as the tag of the main output.
-    main_output_tag = (
-        all_output_tags[0] if external_transform else 'None')
+    main_output_tag = (all_output_tags[0] if external_transform else 'None')
 
     side_output_tags = set(all_output_tags).difference({main_output_tag})
 

@@ -639,7 +639,7 @@ class DoOperation(Operation):
       if len(self.spec.output_tags) == 1:
         self.tagged_receivers[None] = self.receivers[0]
         self.tagged_receivers[self.spec.output_tags[0]] = self.receivers[0]
-        else:
+      else:
         for index, tag in enumerate(self.spec.output_tags):
           self.tagged_receivers[tag] = self.receivers[index]
           if tag == 'None':
