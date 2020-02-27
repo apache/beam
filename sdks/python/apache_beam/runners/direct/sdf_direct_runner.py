@@ -43,6 +43,7 @@ from apache_beam.runners.common import OutputProcessor
 from apache_beam.runners.direct.evaluation_context import DirectStepContext
 from apache_beam.runners.direct.util import KeyedWorkItem
 from apache_beam.runners.direct.watermark_manager import WatermarkManager
+from apache_beam.runners.sdf_utils import NoOpWatermarkEstimatorProvider
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import ProcessContinuation
 from apache_beam.transforms.ptransform import PTransform
@@ -82,13 +83,8 @@ class SplittableParDo(PTransform):
   def expand(self, pcoll):
     sdf = self._ptransform.fn
     signature = DoFnSignature(sdf)
-    invoker = DoFnInvoker.create_invoker(
-        signature,
-        output_processor=_NoneShallPassOutputProcessor(),
-        process_invocation=False)
-
+    restriction_coder = signature.get_restriction_coder()
     element_coder = typecoders.registry.get_coder(pcoll.element_type)
-    restriction_coder = invoker.invoke_restriction_coder()
 
     keyed_elements = (
         pcoll
@@ -467,10 +463,13 @@ class SDFProcessElementInvoker(object):
       checkpoint_state.checkpointed = object()
 
     output_processor.reset()
+    noop_estimator = (
+        NoOpWatermarkEstimatorProvider().create_watermark_estimator(None))
     Timer(self._max_duration, initiate_checkpoint).start()
     sdf_invoker.invoke_process(
         element,
         restriction_tracker=tracker,
+        watermark_estimator=noop_estimator,
         additional_args=args,
         additional_kwargs=kwargs)
 
@@ -516,7 +515,8 @@ class _OutputProcessor(OutputProcessor):
   def __init__(self):
     self.output_iter = None
 
-  def process_outputs(self, windowed_input_element, output_iter):
+  def process_outputs(
+      self, windowed_input_element, output_iter, watermark_estimator=None):
     # type: (WindowedValue, Iterable[Any]) -> None
     self.output_iter = output_iter
 
@@ -525,5 +525,6 @@ class _OutputProcessor(OutputProcessor):
 
 
 class _NoneShallPassOutputProcessor(OutputProcessor):
-  def process_outputs(self, windowed_input_element, output_iter):
+  def process_outputs(
+      self, windowed_input_element, output_iter, watermark_estimator=None):
     raise RuntimeError()

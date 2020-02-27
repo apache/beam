@@ -956,9 +956,7 @@ class DataflowRunner(PipelineRunner):
     step.add_property(PropertyNames.NON_PARALLEL_INPUTS, si_dict)
 
     # Generate description for the outputs. The output names
-    # will be 'out' for main output and 'out_<tag>' for a tagged output.
-    # Using 'out' as a tag will not clash with the name for main since it will
-    # be transformed into 'out_out' internally.
+    # will be 'None' for main output and '<tag>' for a tagged output.
     outputs = []
     step.encoding = self._get_encoded_output_coder(transform_node)
 
@@ -973,12 +971,11 @@ class DataflowRunner(PipelineRunner):
     # dependending on which output tag we choose as the main output here.
     # Also, some SDKs do not work correctly if output tags are modified. So for
     # external transforms, we leave tags unmodified.
-    main_output_tag = (
-        all_output_tags[0] if external_transform else PropertyNames.OUT)
-
+    #
     # Python SDK uses 'None' as the tag of the main output.
-    tag_to_ignore = main_output_tag if external_transform else 'None'
-    side_output_tags = set(all_output_tags).difference({tag_to_ignore})
+    main_output_tag = (all_output_tags[0] if external_transform else 'None')
+
+    side_output_tags = set(all_output_tags).difference({main_output_tag})
 
     # Add the main output to the description.
     outputs.append({
@@ -995,9 +992,7 @@ class DataflowRunner(PipelineRunner):
           PropertyNames.USER_NAME: (
               '%s.%s' % (transform_node.full_label, side_tag)),
           PropertyNames.ENCODING: step.encoding,
-          PropertyNames.OUTPUT_NAME: (
-              side_tag if external_transform else '%s_%s' %
-              (PropertyNames.OUT, side_tag))
+          PropertyNames.OUTPUT_NAME: side_tag
       })
 
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)

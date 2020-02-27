@@ -27,6 +27,7 @@ tagged PCollection.
 
 from __future__ import absolute_import
 
+from apache_beam import ParDo
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.testing.test_stream import WatermarkEvent
@@ -45,11 +46,69 @@ class _WatermarkController(PTransform):
    - If the instance receives an ElementEvent, it emits all specified elements
      to the Global Window with the event time set to the element's timestamp.
   """
+  def __init__(self, output_tag):
+    self.output_tag = output_tag
+
   def get_windowing(self, _):
     return core.Windowing(window.GlobalWindows())
 
   def expand(self, pcoll):
-    return pvalue.PCollection.from_(pcoll)
+    ret = pvalue.PCollection.from_(pcoll)
+    ret.tag = self.output_tag
+    return ret
+
+
+class _ExpandableTestStream(PTransform):
+  def __init__(self, test_stream):
+    self.test_stream = test_stream
+
+  def expand(self, pbegin):
+    """Expands the TestStream into the DirectRunner implementation.
+
+
+    Takes the TestStream transform and creates a _TestStream -> multiplexer ->
+    _WatermarkController.
+    """
+
+    assert isinstance(pbegin, pvalue.PBegin)
+
+    # If there is only one tag there is no need to add the multiplexer.
+    if len(self.test_stream.output_tags) == 1:
+      return (
+          pbegin
+          | _TestStream(
+              self.test_stream.output_tags,
+              events=self.test_stream._events,
+              coder=self.test_stream.coder)
+          | _WatermarkController(list(self.test_stream.output_tags)[0]))
+
+    # Multiplex to the correct PCollection based upon the event tag.
+    def mux(event):
+      if event.tag:
+        yield pvalue.TaggedOutput(event.tag, event)
+      else:
+        yield event
+
+    mux_output = (
+        pbegin
+        | _TestStream(
+            self.test_stream.output_tags,
+            events=self.test_stream._events,
+            coder=self.test_stream.coder)
+        | 'TestStream Multiplexer' >> ParDo(mux).with_outputs())
+
+    # Apply a way to control the watermark per output. It is necessary to
+    # have an individual _WatermarkController per PCollection because the
+    # calculation of the input watermark of a transform is based on the event
+    # timestamp of the elements flowing through it. Meaning, it is impossible
+    # to control the output watermarks of the individual PCollections solely
+    # on the event timestamps.
+    outputs = {}
+    for tag in self.test_stream.output_tags:
+      label = '_WatermarkController[{}]'.format(tag)
+      outputs[tag] = (mux_output[tag] | label >> _WatermarkController(tag))
+
+    return outputs
 
 
 class _TestStream(PTransform):

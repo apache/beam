@@ -71,6 +71,7 @@ __all__ = [
     'RangeTracker',
     'Read',
     'RestrictionTracker',
+    'WatermarkEstimator',
     'Sink',
     'Write',
     'Writer'
@@ -924,7 +925,7 @@ class Read(ptransform.PTransform):
             beam_runner_api_pb2.IsBounded.UNBOUNDED))
 
   @staticmethod
-  def from_runner_api_parameter(parameter, context):
+  def from_runner_api_parameter(unused_ptransform, parameter, context):
     # type: (beam_runner_api_pb2.ReadPayload, PipelineContext) -> Read
     return Read(SourceBase.from_runner_api(parameter.source, context))
 
@@ -1241,6 +1242,44 @@ class RestrictionTracker(object):
     Otherwise, returns ``False``.
     """
     raise NotImplementedError
+
+
+class WatermarkEstimator(object):
+  """A WatermarkEstimator which is used for estimating output_watermark based on
+  the timestamp of output records or manual modifications.
+
+  The base class provides common APIs that are called by the framework, which
+  are also accessible inside a DoFn.process() body. Derived watermark estimator
+  should implement all APIs listed below. Additional methods can be implemented
+  and will be available when invoked within a DoFn.
+
+  Internal state must not be updated asynchronously.
+  """
+  def get_estimator_state(self):
+    """Get current state of the WatermarkEstimator instance, which can be used
+    to recreate the WatermarkEstimator when processing the restriction. See
+    WatermarkEstimatorProvider.create_watermark_estimator.
+    """
+    raise NotImplementedError(type(self))
+
+  def current_watermark(self):
+    # type: () -> timestamp.Timestamp
+
+    """Return estimated output_watermark. This function must return
+    monotonically increasing watermarks."""
+    raise NotImplementedError(type(self))
+
+  def observe_timestamp(self, timestamp):
+    # type: (timestamp.Timestamp) -> None
+
+    """Update tracking  watermark with latest output timestamp.
+
+    Args:
+      timestamp: the `timestamp.Timestamp` of current output element.
+
+    This is called with the timestamp of every element output from the DoFn.
+    """
+    raise NotImplementedError(type(self))
 
 
 class RestrictionProgress(object):

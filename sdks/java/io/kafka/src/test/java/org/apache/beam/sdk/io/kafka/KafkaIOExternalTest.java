@@ -139,8 +139,18 @@ public class KafkaIOExternalTest {
 
     assertThat(spec.getConsumerConfig(), Matchers.is(consumerConfig));
     assertThat(spec.getTopics(), Matchers.is(topics));
-    assertThat(spec.getKeyDeserializer().getName(), Matchers.is(keyDeserializer));
-    assertThat(spec.getValueDeserializer().getName(), Matchers.is(valueDeserializer));
+    assertThat(
+        spec.getKeyDeserializerProvider()
+            .getDeserializer(spec.getConsumerConfig(), true)
+            .getClass()
+            .getName(),
+        Matchers.is(keyDeserializer));
+    assertThat(
+        spec.getValueDeserializerProvider()
+            .getDeserializer(spec.getConsumerConfig(), false)
+            .getClass()
+            .getName(),
+        Matchers.is(valueDeserializer));
   }
 
   @Test

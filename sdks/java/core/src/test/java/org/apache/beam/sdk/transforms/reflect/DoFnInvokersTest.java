@@ -26,6 +26,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.same;
 import static org.mockito.Mockito.doAnswer;
@@ -50,6 +51,7 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.FakeArgumentProvider;
@@ -70,7 +72,6 @@ import org.junit.runners.JUnit4;
 import org.mockito.AdditionalAnswers;
 import org.mockito.Matchers;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DoFnInvokers}. */
@@ -342,6 +343,10 @@ public class DoFnInvokersTest {
 
   @Test
   public void testDoFnWithStartBundleSetupTeardown() throws Exception {
+    when(mockArgumentProvider.startBundleContext(any(DoFn.class)))
+        .thenReturn(mockStartBundleContext);
+    when(mockArgumentProvider.finishBundleContext(any(DoFn.class)))
+        .thenReturn(mockFinishBundleContext);
     class MockFn extends DoFn<String, String> {
       @ProcessElement
       public void processElement(ProcessContext c) {}
@@ -362,8 +367,8 @@ public class DoFnInvokersTest {
     MockFn fn = mock(MockFn.class);
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
     invoker.invokeSetup();
-    invoker.invokeStartBundle(mockStartBundleContext);
-    invoker.invokeFinishBundle(mockFinishBundleContext);
+    invoker.invokeStartBundle(mockArgumentProvider);
+    invoker.invokeFinishBundle(mockArgumentProvider);
     invoker.invokeTeardown();
     verify(fn).before();
     verify(fn).startBundle(mockStartBundleContext);
@@ -450,7 +455,7 @@ public class DoFnInvokersTest {
                   }
                 }))
         .when(fn)
-        .splitRestriction(eq(mockElement), same(restriction), Mockito.any());
+        .splitRestriction(eq(mockElement), same(restriction), any());
     when(fn.newTracker(restriction)).thenReturn(tracker);
     when(fn.processElement(mockProcessContext, tracker)).thenReturn(resume());
 
@@ -832,6 +837,9 @@ public class DoFnInvokersTest {
 
   @Test
   public void testStartBundleException() throws Exception {
+    DoFnInvoker.ArgumentProvider<Integer, Integer> mockArguments =
+        mock(DoFnInvoker.ArgumentProvider.class);
+    when(mockArguments.startBundleContext(any(DoFn.class))).thenReturn(null);
     DoFnInvoker<Integer, Integer> invoker =
         DoFnInvokers.invokerFor(
             new DoFn<Integer, Integer>() {
@@ -845,11 +853,14 @@ public class DoFnInvokersTest {
             });
     thrown.expect(UserCodeException.class);
     thrown.expectMessage("bogus");
-    invoker.invokeStartBundle(null);
+    invoker.invokeStartBundle(mockArguments);
   }
 
   @Test
   public void testFinishBundleException() throws Exception {
+    DoFnInvoker.ArgumentProvider<Integer, Integer> mockArguments =
+        mock(DoFnInvoker.ArgumentProvider.class);
+    when(mockArguments.finishBundleContext(any(DoFn.class))).thenReturn(null);
     DoFnInvoker<Integer, Integer> invoker =
         DoFnInvokers.invokerFor(
             new DoFn<Integer, Integer>() {
@@ -863,7 +874,7 @@ public class DoFnInvokersTest {
             });
     thrown.expect(UserCodeException.class);
     thrown.expectMessage("bogus");
-    invoker.invokeFinishBundle(null);
+    invoker.invokeFinishBundle(mockArguments);
   }
 
   @Test
@@ -936,5 +947,23 @@ public class DoFnInvokersTest {
         equalTo(
             String.format(
                 "%s$%s", StableNameTestDoFn.class.getName(), DoFnInvoker.class.getSimpleName())));
+  }
+
+  @Test
+  public void testBundleFinalizer() {
+    class BundleFinalizerDoFn extends DoFn<String, String> {
+      @ProcessElement
+      public void processElement(BundleFinalizer bundleFinalizer) {
+        bundleFinalizer.afterBundleCommit(Instant.ofEpochSecond(42L), null);
+      }
+    }
+
+    BundleFinalizer mockBundleFinalizer = mock(BundleFinalizer.class);
+    when(mockArgumentProvider.bundleFinalizer()).thenReturn(mockBundleFinalizer);
+
+    DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(new BundleFinalizerDoFn());
+    invoker.invokeProcessElement(mockArgumentProvider);
+
+    verify(mockBundleFinalizer).afterBundleCommit(eq(Instant.ofEpochSecond(42L)), eq(null));
   }
 }

@@ -157,6 +157,7 @@ public class CombineRunnersTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             null,
+            null,
             null);
 
     Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
@@ -232,6 +233,7 @@ public class CombineRunnersTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             null,
+            null,
             null);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());
@@ -295,6 +297,7 @@ public class CombineRunnersTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             null,
+            null,
             null);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());
@@ -357,6 +360,7 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            null,
             null,
             null);
 

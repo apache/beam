@@ -119,23 +119,21 @@ class PCollectionVisualizationTest(unittest.TestCase):
 
   def test_auto_stop_dynamic_plotting_when_job_is_terminated(self):
     fake_pipeline_result = runner.PipelineResult(runner.PipelineState.RUNNING)
-    ie.current_env().set_pipeline_result(
-        self._p, fake_pipeline_result, is_main_job=True)
+    ie.current_env().set_pipeline_result(self._p, fake_pipeline_result)
     # When job is running, the dynamic plotting will not be stopped.
     self.assertFalse(ie.current_env().is_terminated(self._p))
 
     fake_pipeline_result = runner.PipelineResult(runner.PipelineState.DONE)
-    ie.current_env().set_pipeline_result(
-        self._p, fake_pipeline_result, is_main_job=True)
+    ie.current_env().set_pipeline_result(self._p, fake_pipeline_result)
     # When job is done, the dynamic plotting will be stopped.
     self.assertTrue(ie.current_env().is_terminated(self._p))
 
-  @patch('pandas.DataFrame.sample')
-  def test_display_plain_text_when_kernel_has_no_frontend(self, _mocked_sample):
+  @patch('pandas.DataFrame.head')
+  def test_display_plain_text_when_kernel_has_no_frontend(self, _mocked_head):
     # Resets the notebook check to False.
     ie.current_env()._is_in_notebook = False
     self.assertIsNone(pv.visualize(self._pcoll))
-    _mocked_sample.assert_called_once()
+    _mocked_head.assert_called_once()
 
 
 if __name__ == '__main__':

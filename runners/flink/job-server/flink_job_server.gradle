@@ -149,6 +149,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
       if (streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'
@@ -218,7 +219,9 @@ def addTestJavaJarCreator(String pyVersion) {
                 "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
                 "--python_root_dir ${project.rootDir}/sdks/python",
                 "--python_version ${pyVersion}",
-                "--python_container_image apachebeam/python${pyVersion}_sdk:${project.sdk_version}",
+                "--python_container_image ${project.docker_image_default_repo_root}/"
+                        + ${project.docker_image_default_repo_prefix}
+                        + "python${pyVersion}_sdk:${project.sdk_version}",
         ]
         args "-c", "../../../portability/test_pipeline_jar.sh ${options.join(' ')}"
       }
@@ -260,7 +263,9 @@ def addTestFlinkUberJarPy(String pyVersion) {
                 "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
                 "--python_root_dir ${project.rootDir}/sdks/python",
                 "--python_version ${pyVersion}",
-                "--python_container_image apachebeam/python${pyVersion}_sdk:${project.sdk_version}",
+                "--python_container_image ${project.docker_image_default_repo_root}/"
+                        + ${project.docker_image_default_repo_prefix}
+                        + "python${pyVersion}_sdk:${project.sdk_version}",
         ]
         args "-c", "../../job-server/test_flink_uber_jar.sh ${options.join(' ')}"
       }

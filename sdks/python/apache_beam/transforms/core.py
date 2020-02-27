@@ -66,7 +66,6 @@ from apache_beam.typehints.decorators import with_input_types
 from apache_beam.typehints.decorators import with_output_types
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import is_consistent_with
-from apache_beam.utils import timestamp
 from apache_beam.utils import urns
 from apache_beam.utils.timestamp import Duration
 
@@ -106,7 +105,7 @@ __all__ = [
     'Create',
     'Impulse',
     'RestrictionProvider',
-    'WatermarkEstimator'
+    'WatermarkEstimatorProvider',
 ]
 
 # Type variables
@@ -416,45 +415,31 @@ class RunnerAPIPTransformHolder(PTransform):
     return None
 
 
-class WatermarkEstimator(object):
-  """A WatermarkEstimator which is used for tracking output_watermark in a
-  DoFn.process(), typically tracking per <element, restriction> pair in SDF in
-  streaming.
+class WatermarkEstimatorProvider(object):
+  """Provides methods for generating WatermarkEstimator.
 
-  There are 3 APIs in this class: set_watermark, current_watermark and reset
-  with default implementations.
+  This class should be implemented if wanting to providing output_watermark
+  information within an SDF.
 
-  TODO(BEAM-8537): Create WatermarkEstimatorProvider to support different types.
+  In order to make an SDF.process() access to the typical WatermarkEstimator,
+  the SDF author should pass a DoFn.WatermarkEstimatorParam with a default value
+  of one WatermarkEstimatorProvider instance.
   """
-  def __init__(self):
-    self._watermark = None  # type: typing.Optional[timestamp.Timestamp]
-
-  def set_watermark(self, watermark):
-    # type: (timestamp.Timestamp) -> None
-
-    """Update tracking output_watermark with latest output_watermark.
-    This function is called inside an SDF.Process() to track the watermark of
-    output element.
-
-    Args:
-      watermark: the `timestamp.Timestamp` of current output element.
+  def initial_estimator_state(self, element, restriction):
+    """Returns the initial state of the WatermarkEstimator with given element
+    and restriction.
+    This function is called by the system.
     """
-    if not isinstance(watermark, timestamp.Timestamp):
-      raise ValueError('watermark should be a object of timestamp.Timestamp')
-    if self._watermark is None:
-      self._watermark = watermark
-    else:
-      self._watermark = min(self._watermark, watermark)
+    raise NotImplementedError
 
-  def current_watermark(self):
-    # type: () -> typing.Optional[timestamp.Timestamp]
+  def create_watermark_estimator(self, estimator_state):
+    """Create a new WatermarkEstimator based on the state. The state is
+    typically useful when resuming processing an element.
+    """
+    raise NotImplementedError
 
-    """Get current output_watermark. This function is called by system."""
-    return self._watermark
-
-  def reset(self):
-    """ Reset current tracking watermark to None."""
-    self._watermark = None
+  def estimator_state_coder(self):
+    return coders.registry.get_coder(object)
 
 
 class _DoFnParam(object):
@@ -537,13 +522,14 @@ class _BundleFinalizerParam(_DoFnParam):
 
 class _WatermarkEstimatorParam(_DoFnParam):
   """WatermarkEstomator DoFn parameter."""
-  def __init__(self, watermark_estimator):
-    if not isinstance(watermark_estimator, WatermarkEstimator):
+  def __init__(self, watermark_estimator_provider):
+    # type: (WatermarkEstimatorProvider) -> None
+    if not isinstance(watermark_estimator_provider, WatermarkEstimatorProvider):
       raise ValueError(
-          'DoFn.WatermarkEstimatorParam expected'
-          'WatermarkEstimator object.')
-    self.watermark_estimator = watermark_estimator
-    self.param_id = 'WatermarkEstimator'
+          'DoFn._WatermarkEstimatorParam expected'
+          'WatermarkEstimatorProvider object.')
+    self.watermark_estimator_provider = watermark_estimator_provider
+    self.param_id = 'WatermarkEstimatorProvider'
 
 
 class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
@@ -1307,15 +1293,22 @@ class ParDo(PTransformWithSideInputs):
         "expected instance of ParDo, but got %s" % self.__class__
     picked_pardo_fn_data = pickler.dumps(self._pardo_fn_data())
     state_specs, timer_specs = userstate.get_dofn_specs(self.fn)
+    if state_specs or timer_specs:
+      context.add_requirement(
+          common_urns.requirements.REQUIRES_STATEFUL_PROCESSING.urn)
     from apache_beam.runners.common import DoFnSignature
-    is_splittable = DoFnSignature(self.fn).is_splittable_dofn()
+    sig = DoFnSignature(self.fn)
+    is_splittable = sig.is_splittable_dofn()
     if is_splittable:
-      restriction_coder = (
-          DoFnSignature(self.fn).get_restriction_provider().restriction_coder())
+      restriction_coder = sig.get_restriction_coder()
       restriction_coder_id = context.coders.get_id(
           restriction_coder)  # type: typing.Optional[str]
     else:
       restriction_coder_id = None
+    has_bundle_finalization = sig.has_bundle_finalization()
+    if has_bundle_finalization:
+      context.add_requirement(
+          common_urns.requirements.REQUIRES_BUNDLE_FINALIZATION.urn)
     return (
         common_urns.primitives.PAR_DO.urn,
         beam_runner_api_pb2.ParDoPayload(
@@ -1323,6 +1316,7 @@ class ParDo(PTransformWithSideInputs):
                 urn=python_urns.PICKLED_DOFN_INFO,
                 payload=picked_pardo_fn_data),
             splittable=is_splittable,
+            requests_finalization=has_bundle_finalization,
             restriction_coder_id=restriction_coder_id,
             state_specs={
                 spec.name: spec.to_runner_api(context)
@@ -1346,7 +1340,7 @@ class ParDo(PTransformWithSideInputs):
   @staticmethod
   @PTransform.register_urn(
       common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
-  def from_runner_api_parameter(pardo_payload, context):
+  def from_runner_api_parameter(unused_ptransform, pardo_payload, context):
     assert pardo_payload.do_fn.urn == python_urns.PICKLED_DOFN_INFO
     fn, args, kwargs, si_tags_and_types, windowing = pickler.loads(
         pardo_payload.do_fn.payload)
@@ -1373,10 +1367,7 @@ class ParDo(PTransformWithSideInputs):
     Returns `None` otherwise.
     """
     from apache_beam.runners.common import DoFnSignature
-    signature = DoFnSignature(self.fn)
-    return (
-        signature.get_restriction_provider().restriction_coder()
-        if signature.is_splittable_dofn() else None)
+    return DoFnSignature(self.fn).get_restriction_coder()
 
 
 class _MultiParDo(PTransform):
@@ -1942,7 +1933,7 @@ class CombinePerKey(PTransformWithSideInputs):
   @PTransform.register_urn(
       common_urns.composites.COMBINE_PER_KEY.urn,
       beam_runner_api_pb2.CombinePayload)
-  def from_runner_api_parameter(combine_payload, context):
+  def from_runner_api_parameter(unused_ptransform, combine_payload, context):
     return CombinePerKey(
         CombineFn.from_runner_api(combine_payload.combine_fn, context))
 
@@ -1985,7 +1976,7 @@ class CombineValues(PTransformWithSideInputs):
   @PTransform.register_urn(
       common_urns.combine_components.COMBINE_GROUPED_VALUES.urn,
       beam_runner_api_pb2.CombinePayload)
-  def from_runner_api_parameter(combine_payload, context):
+  def from_runner_api_parameter(unused_ptransform, combine_payload, context):
     return CombineValues(
         CombineFn.from_runner_api(combine_payload.combine_fn, context))
 
@@ -2213,7 +2204,8 @@ class GroupByKey(PTransform):
 
   @staticmethod
   @PTransform.register_urn(common_urns.primitives.GROUP_BY_KEY.urn, None)
-  def from_runner_api_parameter(unused_payload, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_payload, unused_context):
     return GroupByKey()
 
   def runner_api_requires_keyed_input(self):
@@ -2504,7 +2496,7 @@ class WindowInto(ParDo):
         self.windowing.to_runner_api(context))
 
   @staticmethod
-  def from_runner_api_parameter(proto, context):
+  def from_runner_api_parameter(unused_ptransform, proto, context):
     windowing = Windowing.from_runner_api(proto, context)
     return WindowInto(
         windowing.windowfn,
@@ -2578,7 +2570,8 @@ class Flatten(PTransform):
     return common_urns.primitives.FLATTEN.urn, None
 
   @staticmethod
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return Flatten()
 
 
@@ -2691,5 +2684,6 @@ class Impulse(PTransform):
 
   @staticmethod
   @PTransform.register_urn(common_urns.primitives.IMPULSE.urn, None)
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return Impulse()

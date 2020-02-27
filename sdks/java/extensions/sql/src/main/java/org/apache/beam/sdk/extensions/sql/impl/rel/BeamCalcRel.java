@@ -293,15 +293,18 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
     Expression valueDateTime = value;
 
     // First, convert to millis
-    if (CalciteUtils.TIMESTAMP.typesEqual(toType)) {
+    if (CalciteUtils.TIMESTAMP.typesEqual(toType)
+        || CalciteUtils.NULLABLE_TIMESTAMP.typesEqual(toType)) {
       if (value.getType() == java.sql.Timestamp.class) {
         valueDateTime = Expressions.call(BuiltInMethod.TIMESTAMP_TO_LONG.method, valueDateTime);
       }
-    } else if (CalciteUtils.TIME.typesEqual(toType)) {
+    } else if (CalciteUtils.TIME.typesEqual(toType)
+        || CalciteUtils.NULLABLE_TIME.typesEqual(toType)) {
       if (value.getType() == java.sql.Time.class) {
         valueDateTime = Expressions.call(BuiltInMethod.TIME_TO_INT.method, valueDateTime);
       }
-    } else if (CalciteUtils.DATE.typesEqual(toType)) {
+    } else if (CalciteUtils.DATE.typesEqual(toType)
+        || CalciteUtils.NULLABLE_DATE.typesEqual(toType)) {
       if (value.getType() == java.sql.Date.class) {
         valueDateTime = Expressions.call(BuiltInMethod.DATE_TO_INT.method, valueDateTime);
       }

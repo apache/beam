@@ -749,6 +749,17 @@ class WorkerOptions(PipelineOptions):
             'SDK. Note: currently, only approved Google Cloud Dataflow '
             'container images may be used here.'))
     parser.add_argument(
+        '--sdk_harness_container_image_overrides',
+        action='append',
+        default=None,
+        help=(
+            'Overrides for SDK harness container images. Could be for the '
+            'local SDK or for a remote SDK that pipeline has to support due '
+            'to a cross-language transform. Each entry consist of two values '
+            'separated by a comma where first value gives a regex to '
+            'identify the container image to override and the second value '
+            'gives the replacement container image.'))
+    parser.add_argument(
         '--use_public_ips',
         default=None,
         action='store_true',

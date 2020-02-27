@@ -782,6 +782,9 @@ public class Schema implements Serializable {
           return false;
         }
       }
+      if (!Objects.equals(getNullable(), other.getNullable())) {
+        return false;
+      }
       if (!Objects.equals(getMetadata(), other.getMetadata())) {
         return false;
       }

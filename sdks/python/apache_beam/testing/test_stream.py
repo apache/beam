@@ -76,16 +76,21 @@ class Event(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
   @staticmethod
   def from_runner_api(proto, element_coder):
     if proto.HasField('element_event'):
+      event = proto.element_event
+      tag = None if event.tag == 'None' else event.tag
       return ElementEvent([
           TimestampedValue(
               element_coder.decode(tv.encoded_element),
               timestamp.Timestamp(micros=1000 * tv.timestamp))
           for tv in proto.element_event.elements
-      ])
+      ], tag=tag) # yapf: disable
     elif proto.HasField('watermark_event'):
+      event = proto.watermark_event
+      tag = None if event.tag == 'None' else event.tag
       return WatermarkEvent(
           timestamp.Timestamp(
-              micros=1000 * proto.watermark_event.new_watermark))
+              micros=1000 * proto.watermark_event.new_watermark),
+          tag=tag)
     elif proto.HasField('processing_time_event'):
       return ProcessingTimeEvent(
           timestamp.Duration(
@@ -113,6 +118,7 @@ class ElementEvent(Event):
     return self.timestamped_values < other.timestamped_values
 
   def to_runner_api(self, element_coder):
+    tag = 'None' if self.tag is None else self.tag
     return beam_runner_api_pb2.TestStreamPayload.Event(
         element_event=beam_runner_api_pb2.TestStreamPayload.Event.AddElements(
             elements=[
@@ -120,7 +126,8 @@ class ElementEvent(Event):
                     encoded_element=element_coder.encode(tv.value),
                     timestamp=tv.timestamp.micros // 1000)
                 for tv in self.timestamped_values
-            ]))
+            ],
+            tag=tag))
 
 
 class WatermarkEvent(Event):
@@ -133,15 +140,21 @@ class WatermarkEvent(Event):
     return self.new_watermark == other.new_watermark and self.tag == other.tag
 
   def __hash__(self):
-    return hash(self.new_watermark)
+    return hash(str(self.new_watermark) + str(self.tag))
 
   def __lt__(self, other):
     return self.new_watermark < other.new_watermark
 
   def to_runner_api(self, unused_element_coder):
+    tag = 'None' if self.tag is None else self.tag
+
+    # Assert that no prevision is lost.
+    assert 1000 * (
+        self.new_watermark.micros // 1000) == self.new_watermark.micros
     return beam_runner_api_pb2.TestStreamPayload.Event(
         watermark_event=beam_runner_api_pb2.TestStreamPayload.Event.
-        AdvanceWatermark(new_watermark=self.new_watermark.micros // 1000))
+        AdvanceWatermark(
+            new_watermark=self.new_watermark.micros // 1000, tag=tag))
 
 
 class ProcessingTimeEvent(Event):
@@ -171,13 +184,20 @@ class TestStream(PTransform):
   time. After all of the specified elements are emitted, ceases to produce
   output.
   """
-  def __init__(self, coder=coders.FastPrimitivesCoder(), events=None):
+  def __init__(
+      self, coder=coders.FastPrimitivesCoder(), events=None, output_tags=None):
     super(TestStream, self).__init__()
     assert coder is not None
+
     self.coder = coder
     self.watermarks = {None: timestamp.MIN_TIMESTAMP}
     self._events = [] if events is None else list(events)
-    self.output_tags = set()
+    self.output_tags = set(output_tags) if output_tags else set()
+
+    event_tags = set(
+        e.tag for e in self._events
+        if isinstance(e, (WatermarkEvent, ElementEvent)))
+    assert event_tags.issubset(self.output_tags)
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
@@ -188,7 +208,17 @@ class TestStream(PTransform):
   def expand(self, pbegin):
     assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
-    return pvalue.PCollection(self.pipeline, is_bounded=False)
+    if not self.output_tags:
+      self.output_tags = set([None])
+
+    # For backwards compatibility return a single PCollection.
+    if len(self.output_tags) == 1:
+      return pvalue.PCollection(
+          self.pipeline, is_bounded=False, tag=list(self.output_tags)[0])
+    return {
+        tag: pvalue.PCollection(self.pipeline, is_bounded=False, tag=tag)
+        for tag in self.output_tags
+    }
 
   def _add(self, event):
     if isinstance(event, ElementEvent):
@@ -276,8 +306,11 @@ class TestStream(PTransform):
   @PTransform.register_urn(
       common_urns.primitives.TEST_STREAM.urn,
       beam_runner_api_pb2.TestStreamPayload)
-  def from_runner_api_parameter(payload, context):
+  def from_runner_api_parameter(ptransform, payload, context):
     coder = context.coders.get_by_id(payload.coder_id)
+    output_tags = set(
+        None if k == 'None' else k for k in ptransform.outputs.keys())
     return TestStream(
         coder=coder,
-        events=[Event.from_runner_api(e, coder) for e in payload.events])
+        events=[Event.from_runner_api(e, coder) for e in payload.events],
+        output_tags=output_tags)

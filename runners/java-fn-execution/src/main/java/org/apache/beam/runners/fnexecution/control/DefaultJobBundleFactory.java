@@ -28,6 +28,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.model.fnexecution.v1.ProvisionApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
 import org.apache.beam.runners.core.construction.BeamUrns;
@@ -521,9 +522,13 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
     GrpcFnServer<ArtifactRetrievalService> retrievalServer =
         GrpcFnServer.allocatePortAndCreateFor(artifactRetrievalService, serverFactory);
+    ProvisionApi.ProvisionInfo.Builder provisionInfo = jobInfo.toProvisionInfo().toBuilder();
+    provisionInfo.setLoggingEndpoint(loggingServer.getApiServiceDescriptor());
+    provisionInfo.setArtifactEndpoint(retrievalServer.getApiServiceDescriptor());
+    provisionInfo.setControlEndpoint(controlServer.getApiServiceDescriptor());
     GrpcFnServer<StaticGrpcProvisionService> provisioningServer =
         GrpcFnServer.allocatePortAndCreateFor(
-            StaticGrpcProvisionService.create(jobInfo.toProvisionInfo()), serverFactory);
+            StaticGrpcProvisionService.create(provisionInfo.build()), serverFactory);
     GrpcFnServer<GrpcDataService> dataServer =
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcDataService.create(

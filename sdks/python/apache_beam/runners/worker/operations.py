@@ -28,6 +28,7 @@ import collections
 import logging
 import sys
 import threading
+import time
 from builtins import filter
 from builtins import object
 from builtins import zip
@@ -44,6 +45,7 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
+from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
@@ -53,7 +55,6 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
-from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sideinputs
@@ -68,7 +69,6 @@ from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
-  from apache_beam.coders import coders
   from apache_beam.runners.worker.bundle_processor import ExecutionContext
   from apache_beam.runners.worker.statesampler import StateSampler
 
@@ -629,21 +629,21 @@ class DoOperation(Operation):
       state = common.DoFnState(self.counter_factory)
       state.step_name = self.name_context.logging_name()
 
-      # Tag to output index map used to dispatch the side output values emitted
+      # Tag to output index map used to dispatch the output values emitted
       # by the DoFn function to the appropriate receivers. The main output is
-      # tagged with None and is associated with its corresponding index.
+      # either the only output or the output tagged with 'None' and is
+      # associated with its corresponding index.
       self.tagged_receivers = _TaggedReceivers(
           self.counter_factory, self.name_context.logging_name())
 
-      output_tag_prefix = PropertyNames.OUT + '_'
-      for index, tag in enumerate(self.spec.output_tags):
-        if tag == PropertyNames.OUT:
-          original_tag = None  # type: Optional[str]
-        elif tag.startswith(output_tag_prefix):
-          original_tag = tag[len(output_tag_prefix):]
-        else:
-          raise ValueError('Unexpected output name for operation: %s' % tag)
-        self.tagged_receivers[original_tag] = self.receivers[index]
+      if len(self.spec.output_tags) == 1:
+        self.tagged_receivers[None] = self.receivers[0]
+        self.tagged_receivers[self.spec.output_tags[0]] = self.receivers[0]
+      else:
+        for index, tag in enumerate(self.spec.output_tags):
+          self.tagged_receivers[tag] = self.receivers[index]
+          if tag == 'None':
+            self.tagged_receivers[None] = self.receivers[index]
 
       if self.user_state_context:
         self.user_state_context.update_timer_receivers(self.tagged_receivers)
@@ -811,6 +811,36 @@ class SdfProcessSizedElements(DoOperation):
       metrics.active_elements.fraction_remaining = (
           current_element_progress.fraction_remaining)
     return metrics
+
+  def monitoring_infos(self, transform_id):
+    # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+    with self.lock:
+      infos = super(SdfProcessSizedElements,
+                    self).monitoring_infos(transform_id)
+      current_element_progress = self.current_element_progress()
+      if current_element_progress:
+        if current_element_progress.completed_work():
+          completed = current_element_progress.completed_work()
+          remaining = current_element_progress.remaining_work()
+        else:
+          completed = current_element_progress.fraction_completed()
+          remaining = current_element_progress.fraction_remaining()
+
+        completed_mi = metrics_pb2.MonitoringInfo(
+            urn=monitoring_infos.WORK_COMPLETED_URN,
+            type=monitoring_infos.LATEST_DOUBLES_URN,
+            labels=monitoring_infos.create_labels(ptransform=transform_id),
+            payload=coders.FloatCoder().get_impl().encode_nested(completed),
+            timestamp=monitoring_infos.to_timestamp_proto(time.time()))
+        remaining_mi = metrics_pb2.MonitoringInfo(
+            urn=monitoring_infos.WORK_REMAINING_URN,
+            type=monitoring_infos.LATEST_DOUBLES_URN,
+            labels=monitoring_infos.create_labels(ptransform=transform_id),
+            payload=coders.FloatCoder().get_impl().encode_nested(remaining),
+            timestamp=monitoring_infos.to_timestamp_proto(time.time()))
+        infos[monitoring_infos.to_key(completed_mi)] = completed_mi
+        infos[monitoring_infos.to_key(remaining_mi)] = remaining_mi
+    return infos
 
   def _total_output_bytes(self):
     total = 0

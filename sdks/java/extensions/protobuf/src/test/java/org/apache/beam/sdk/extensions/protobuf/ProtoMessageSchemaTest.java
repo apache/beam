@@ -24,6 +24,10 @@ import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.MAP_PRIMI
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NESTED_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NESTED_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NESTED_SCHEMA;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_MAP_PRIMITIVE_PROTO;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_MAP_PRIMITIVE_ROW;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_REPEATED_PROTO;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_REPEATED_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.ONEOF_PROTO_BOOL;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.ONEOF_PROTO_INT32;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.ONEOF_PROTO_PRIMITIVE;
@@ -158,6 +162,20 @@ public class ProtoMessageSchemaTest {
     assertEquals(REPEATED_PROTO, fromRow.apply(REPEATED_ROW));
   }
 
+  @Test
+  public void testNullRepeatedProtoToRow() {
+    SerializableFunction<RepeatPrimitive, Row> toRow =
+        new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(RepeatPrimitive.class));
+    assertEquals(NULL_REPEATED_ROW, toRow.apply(NULL_REPEATED_PROTO));
+  }
+
+  @Test
+  public void testNullRepeatedRowToProto() {
+    SerializableFunction<Row, RepeatPrimitive> fromRow =
+        new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(RepeatPrimitive.class));
+    assertEquals(NULL_REPEATED_PROTO, fromRow.apply(NULL_REPEATED_ROW));
+  }
+
   // Test map type
   @Test
   public void testMapSchema() {
@@ -177,6 +195,20 @@ public class ProtoMessageSchemaTest {
     SerializableFunction<Row, MapPrimitive> fromRow =
         new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(MapPrimitive.class));
     assertEquals(MAP_PRIMITIVE_PROTO, fromRow.apply(MAP_PRIMITIVE_ROW));
+  }
+
+  @Test
+  public void testNullMapProtoToRow() {
+    SerializableFunction<MapPrimitive, Row> toRow =
+        new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(MapPrimitive.class));
+    assertEquals(NULL_MAP_PRIMITIVE_ROW, toRow.apply(NULL_MAP_PRIMITIVE_PROTO));
+  }
+
+  @Test
+  public void testNullMapRowToProto() {
+    SerializableFunction<Row, MapPrimitive> fromRow =
+        new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(MapPrimitive.class));
+    assertEquals(NULL_MAP_PRIMITIVE_PROTO, fromRow.apply(NULL_MAP_PRIMITIVE_ROW));
   }
 
   @Test

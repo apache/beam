@@ -411,7 +411,8 @@ class PTransform(WithTypeHints, HasDisplayData):
     self.type_check_inputs_or_outputs(pvalueish, 'output')
 
   def type_check_inputs_or_outputs(self, pvalueish, input_or_output):
-    hints = getattr(self.get_type_hints(), input_or_output + '_types')
+    type_hints = self.get_type_hints()
+    hints = getattr(type_hints, input_or_output + '_types')
     if hints is None or not any(hints):
       return
     arg_hints, kwarg_hints = hints
@@ -429,12 +430,14 @@ class PTransform(WithTypeHints, HasDisplayData):
       if hint and not typehints.is_consistent_with(pvalue_.element_type, hint):
         at_context = ' %s %s' % (input_or_output, context) if context else ''
         raise TypeCheckError(
-            '%s type hint violation at %s%s: expected %s, got %s' % (
-                input_or_output.title(),
-                self.label,
-                at_context,
-                hint,
-                pvalue_.element_type))
+            '{type} type hint violation at {label}{context}: expected {hint}, '
+            'got {actual_type}\nFull type hint:\n{debug_str}'.format(
+                type=input_or_output.title(),
+                label=self.label,
+                context=at_context,
+                hint=hint,
+                actual_type=pvalue_.element_type,
+                debug_str=type_hints.debug_str()))
 
   def _infer_output_coder(self, input_type=None, input_coder=None):
     # type: (...) -> Optional[coders.Coder]
@@ -666,23 +669,25 @@ class PTransform(WithTypeHints, HasDisplayData):
 
   @classmethod
   def from_runner_api(cls,
-                      proto,  # type: Optional[beam_runner_api_pb2.FunctionSpec]
+                      proto,  # type: Optional[beam_runner_api_pb2.PTransform]
                       context  # type: PipelineContext
                      ):
     # type: (...) -> Optional[PTransform]
-    if proto is None or not proto.urn:
+    if proto is None or proto.spec is None or not proto.spec.urn:
       return None
-    parameter_type, constructor = cls._known_urns[proto.urn]
+    parameter_type, constructor = cls._known_urns[proto.spec.urn]
 
     try:
       return constructor(
-          proto_utils.parse_Bytes(proto.payload, parameter_type), context)
+          proto,
+          proto_utils.parse_Bytes(proto.spec.payload, parameter_type),
+          context)
     except Exception:
       if context.allow_proto_holders:
         # For external transforms we cannot build a Python ParDo object so
         # we build a holder transform instead.
         from apache_beam.transforms.core import RunnerAPIPTransformHolder
-        return RunnerAPIPTransformHolder(proto, context)
+        return RunnerAPIPTransformHolder(proto.spec, context)
       raise
 
   def to_runner_api_parameter(
@@ -704,14 +709,14 @@ class PTransform(WithTypeHints, HasDisplayData):
 
 
 @PTransform.register_urn(python_urns.GENERIC_COMPOSITE_TRANSFORM, None)
-def _create_transform(payload, unused_context):
+def _create_transform(unused_ptransform, payload, unused_context):
   empty_transform = PTransform()
   empty_transform._fn_api_payload = payload
   return empty_transform
 
 
 @PTransform.register_urn(python_urns.PICKLED_TRANSFORM, None)
-def _unpickle_transform(pickled_bytes, unused_context):
+def _unpickle_transform(unused_ptransform, pickled_bytes, unused_context):
   return pickler.loads(pickled_bytes)
 
 
@@ -827,8 +832,9 @@ class PTransformWithSideInputs(PTransform):
         self, input_type_hint, *side_inputs_arg_hints, **side_input_kwarg_hints)
 
   def type_check_inputs(self, pvalueish):
-    type_hints = self.get_type_hints().input_types
-    if type_hints:
+    type_hints = self.get_type_hints()
+    input_types = type_hints.input_types
+    if input_types:
       args, kwargs = self.raw_side_inputs
 
       def element_type(side_input):
@@ -840,7 +846,8 @@ class PTransformWithSideInputs(PTransform):
       kwargs_types = {k: element_type(v) for (k, v) in kwargs.items()}
       argspec_fn = self._process_argspec_fn()
       bindings = getcallargs_forhints(argspec_fn, *arg_types, **kwargs_types)
-      hints = getcallargs_forhints(argspec_fn, *type_hints[0], **type_hints[1])
+      hints = getcallargs_forhints(
+          argspec_fn, *input_types[0], **input_types[1])
       for arg, hint in hints.items():
         if arg.startswith('__unknown__'):
           continue
@@ -849,8 +856,13 @@ class PTransformWithSideInputs(PTransform):
         if not typehints.is_consistent_with(bindings.get(arg, typehints.Any),
                                             hint):
           raise TypeCheckError(
-              'Type hint violation for \'%s\': requires %s but got %s for %s' %
-              (self.label, hint, bindings[arg], arg))
+              'Type hint violation for \'{label}\': requires {hint} but got '
+              '{actual_type} for {arg}\nFull type hint:\n{debug_str}'.format(
+                  label=self.label,
+                  hint=hint,
+                  actual_type=bindings[arg],
+                  arg=arg,
+                  debug_str=type_hints.debug_str()))
 
   def _process_argspec_fn(self):
     """Returns an argspec of the function actually consuming the data.

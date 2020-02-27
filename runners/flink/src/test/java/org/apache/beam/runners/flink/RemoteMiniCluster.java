@@ -15,25 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.kafka;
+package org.apache.beam.runners.flink;
 
-import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
-import java.io.Serializable;
+import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 
-/**
- * Provides instances of Confluent Schema Registry client, schema registry url, key and value
- * subjects.
- *
- * <p>Please note, that any instance of {@link CSRClientProvider} must be {@link Serializable} to
- * ensure it can be sent to worker machines.
- */
-public interface CSRClientProvider extends Serializable {
+/** A Mini cluster which exposes a remote port for end-to-end tests. */
+public abstract class RemoteMiniCluster extends MiniCluster {
 
-  SchemaRegistryClient getCSRClient();
+  public RemoteMiniCluster(MiniClusterConfiguration miniClusterConfiguration) {
+    super(miniClusterConfiguration);
+  }
 
-  String getSchemaRegistryUrl();
+  abstract int getClusterPort();
 
-  String getKeySchemaSubject();
-
-  String getValueSchemaSubject();
+  abstract int getRestPort();
 }

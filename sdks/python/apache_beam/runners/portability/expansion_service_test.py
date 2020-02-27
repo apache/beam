@@ -62,7 +62,8 @@ class CountPerElementTransform(ptransform.PTransform):
     return 'beam:transforms:xlang:count', None
 
   @staticmethod
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return CountPerElementTransform()
 
 
@@ -82,7 +83,7 @@ class FilterLessThanTransform(ptransform.PTransform):
         'beam:transforms:xlang:filter_less_than', self._payload.encode('utf8'))
 
   @staticmethod
-  def from_runner_api_parameter(payload, unused_context):
+  def from_runner_api_parameter(unused_ptransform, payload, unused_context):
     return FilterLessThanTransform(payload.decode('utf8'))
 
 
@@ -101,7 +102,7 @@ class PrefixTransform(ptransform.PTransform):
         {'data': self._payload}).payload()
 
   @staticmethod
-  def from_runner_api_parameter(payload, unused_context):
+  def from_runner_api_parameter(unused_ptransform, payload, unused_context):
     return PrefixTransform(parse_string_payload(payload)['data'])
 
 
@@ -134,7 +135,8 @@ class GBKTransform(ptransform.PTransform):
     return TEST_GBK_URN, None
 
   @staticmethod
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return GBKTransform()
 
 
@@ -155,7 +157,8 @@ class CoGBKTransform(ptransform.PTransform):
     return TEST_CGBK_URN, None
 
   @staticmethod
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return CoGBKTransform()
 
 
@@ -169,7 +172,8 @@ class CombineGloballyTransform(ptransform.PTransform):
     return TEST_COMGL_URN, None
 
   @staticmethod
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return CombineGloballyTransform()
 
 
@@ -184,7 +188,8 @@ class CombinePerKeyTransform(ptransform.PTransform):
     return TEST_COMPK_URN, None
 
   @staticmethod
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return CombinePerKeyTransform()
 
 
@@ -197,7 +202,8 @@ class FlattenTransform(ptransform.PTransform):
     return TEST_FLATTEN_URN, None
 
   @staticmethod
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return FlattenTransform()
 
 
@@ -214,7 +220,8 @@ class PartitionTransform(ptransform.PTransform):
     return TEST_PARTITION_URN, None
 
   @staticmethod
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return PartitionTransform()
 
 
@@ -230,7 +237,7 @@ class PayloadTransform(ptransform.PTransform):
     return b'payload', self._payload.encode('ascii')
 
   @staticmethod
-  def from_runner_api_parameter(payload, unused_context):
+  def from_runner_api_parameter(unused_ptransform, payload, unused_context):
     return PayloadTransform(payload.decode('ascii'))
 
 
@@ -259,7 +266,7 @@ class FibTransform(ptransform.PTransform):
     return 'fib', str(self._level).encode('ascii')
 
   @staticmethod
-  def from_runner_api_parameter(level, unused_context):
+  def from_runner_api_parameter(unused_ptransform, level, unused_context):
     return FibTransform(int(level.decode('ascii')))
 
 

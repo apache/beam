@@ -93,7 +93,8 @@ public class MapFnRunnersTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
-            null /* splitListener */);
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());
     assertThat(finishFunctionRegistry.getFunctions(), empty());
@@ -138,7 +139,8 @@ public class MapFnRunnersTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
-            null /* splitListener */);
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());
     assertThat(finishFunctionRegistry.getFunctions(), empty());
@@ -182,7 +184,8 @@ public class MapFnRunnersTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
-            null /* splitListener */);
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());
     assertThat(finishFunctionRegistry.getFunctions(), empty());

@@ -30,6 +30,7 @@ import logging
 
 import apache_beam as beam
 from apache_beam import runners
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
@@ -55,7 +56,8 @@ class InteractiveRunner(runners.PipelineRunner):
       cache_format='text',
       render_option=None,
       skip_display=False,
-      force_compute=True):
+      force_compute=True,
+      blocking=True):
     """Constructor of InteractiveRunner.
 
     Args:
@@ -74,6 +76,7 @@ class InteractiveRunner(runners.PipelineRunner):
           pipeline and compute data for PCollections forcefully. If False, use
           available data and run minimum pipeline fragment to only compute data
           not available.
+      blocking: (bool) whether the pipeline run should be blocking or not.
     """
     self._underlying_runner = (
         underlying_runner or direct_runner.DirectRunner())
@@ -85,6 +88,7 @@ class InteractiveRunner(runners.PipelineRunner):
     self._in_session = False
     self._skip_display = skip_display
     self._force_compute = force_compute
+    self._blocking = blocking
 
   def is_fnapi_compatible(self):
     # TODO(BEAM-8436): return self._underlying_runner.is_fnapi_compatible()
@@ -130,13 +134,17 @@ class InteractiveRunner(runners.PipelineRunner):
 
   def apply(self, transform, pvalueish, options):
     # TODO(qinyeli, BEAM-646): Remove runner interception of apply.
+    # TODO(BEAM-9322): Once nested PCollection naming schemes have been ironed
+    # out, this can be removed.
+    options.view_as(DebugOptions).add_experiment(
+        'passthrough_pcollection_output_ids')
     return self._underlying_runner.apply(transform, pvalueish, options)
 
   def run_pipeline(self, pipeline, options):
     if self._force_compute:
       ie.current_env().evict_computed_pcollections()
 
-    pipeline_instrument = inst.pin(pipeline, options)
+    pipeline_instrument = inst.build_pipeline_instrument(pipeline, options)
 
     # The user_pipeline analyzed might be None if the pipeline given has nothing
     # to be cached and tracing back to the user defined pipeline is impossible.
@@ -166,9 +174,10 @@ class InteractiveRunner(runners.PipelineRunner):
     # outer scopes are also recommended since the user_pipeline might not be
     # available from within this scope.
     if user_pipeline:
-      ie.current_env().set_pipeline_result(
-          user_pipeline, main_job_result, is_main_job=True)
-    main_job_result.wait_until_finish()
+      ie.current_env().set_pipeline_result(user_pipeline, main_job_result)
+
+    if self._blocking:
+      main_job_result.wait_until_finish()
 
     if main_job_result.state is beam.runners.runner.PipelineState.DONE:
       # pylint: disable=dict-values-not-iterating

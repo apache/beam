@@ -35,6 +35,7 @@ import sys
 import tempfile
 import time
 import warnings
+from copy import copy
 from datetime import datetime
 
 from builtins import object
@@ -53,6 +54,8 @@ from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import WorkerOptions
+from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow
 from apache_beam.runners.dataflow.internal.names import PropertyNames
@@ -62,6 +65,7 @@ from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms.display import DisplayData
 from apache_beam.utils import retry
+from apache_beam.utils import proto_utils
 
 # Environment version information. It is passed to the service during a
 # a job submission and is used by the service to establish what features
@@ -124,21 +128,26 @@ class Step(object):
     if tag is None or len(outputs) == 1:
       return outputs[0]
     else:
-      name = '%s_%s' % (PropertyNames.OUT, tag)
-      if name not in outputs:
-        raise ValueError(
-            'Cannot find named output: %s in %s.' % (name, outputs))
-      return name
+      if tag not in outputs:
+        raise ValueError('Cannot find named output: %s in %s.' % (tag, outputs))
+      return tag
 
 
 class Environment(object):
   """Wrapper for a dataflow Environment protobuf."""
-  def __init__(self, packages, options, environment_version, pipeline_url):
+  def __init__(
+      self,
+      packages,
+      options,
+      environment_version,
+      proto_pipeline_staged_url,
+      proto_pipeline=None,
+      _sdk_image_overrides=None):
     self.standard_options = options.view_as(StandardOptions)
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
     self.worker_options = options.view_as(WorkerOptions)
     self.debug_options = options.view_as(DebugOptions)
-    self.pipeline_url = pipeline_url
+    self.pipeline_url = proto_pipeline_staged_url
     self.proto = dataflow.Environment()
     self.proto.clusterManagerApiService = GoogleCloudOptions.COMPUTE_API_SERVICE
     self.proto.dataset = '{}/cloud_dataflow'.format(
@@ -153,6 +162,8 @@ class Environment(object):
     # User agent information.
     self.proto.userAgent = dataflow.Environment.UserAgentValue()
     self.local = 'localhost' in self.google_cloud_options.dataflow_endpoint
+    self._proto_pipeline = proto_pipeline
+    self._sdk_image_overrides = _sdk_image_overrides or dict()
 
     if self.google_cloud_options.service_account_email:
       self.proto.serviceAccountEmail = (
@@ -184,10 +195,14 @@ class Environment(object):
     ])
     # TODO: Use enumerated type instead of strings for job types.
     if job_type.startswith('FNAPI_'):
-      self.debug_options = self.debug_options or DebugOptions()
       self.debug_options.experiments = self.debug_options.experiments or []
-      if not self.debug_options.lookup_experiment(
-          'runner_harness_container_image'):
+      if self.debug_options.lookup_experiment(
+          'runner_harness_container_image') or _use_unified_worker(options):
+        # Default image is not used if user provides a runner harness image.
+        # Default runner harness image is selected by the service for unified
+        # worker.
+        pass
+      else:
         runner_harness_override = (get_runner_harness_container_image())
         if runner_harness_override:
           self.debug_options.add_experiment(
@@ -259,6 +274,46 @@ class Environment(object):
       pool.subnetwork = self.worker_options.subnetwork
     pool.workerHarnessContainerImage = (
         get_container_image_from_options(options))
+
+    # Setting worker pool sdk_harness_container_images option for supported
+    # Dataflow workers.
+    # TODO: change the condition to just _use_unified_worker(options)
+    # when corresponding API change for Dataflow is
+    # rollback-safe.
+    environments_to_use = self._get_environments_from_tranforms()
+    if _use_unified_worker(options) and len(environments_to_use) > 1:
+      # Adding a SDK container image for the pipeline SDKs
+      container_image = dataflow.SdkHarnessContainerImage()
+      pipeline_sdk_container_image = get_container_image_from_options(options)
+      container_image.containerImage = pipeline_sdk_container_image
+      container_image.useSingleCorePerContainer = True  # True for Python SDK.
+      pool.sdkHarnessContainerImages.append(container_image)
+
+      # Adding container images for other SDKs that may be needed for
+      # cross-language pipelines.
+      for environment in environments_to_use:
+        if environment.urn != common_urns.environments.DOCKER.urn:
+          raise Exception(
+              'Dataflow can only execute pipeline steps in Docker environments.'
+              ' Received %r.' % environment)
+        environment_payload = proto_utils.parse_Bytes(
+            environment.payload, beam_runner_api_pb2.DockerPayload)
+        container_image_url = environment_payload.container_image
+        if container_image_url == pipeline_sdk_container_image:
+          # This was already added
+          continue
+        container_image = dataflow.SdkHarnessContainerImage()
+
+        # Not updating here if the image was already overriden by the user.
+        if container_image_url not in list(self._sdk_image_overrides.values()):
+          container_image_url = get_container_image_from_options(
+              options, container_image_url)
+        container_image.containerImage = container_image_url
+        # Currently we only set following to True for Python SDK.
+        # TODO: set this correctly for remote environments that might be Python.
+        container_image.useSingleCorePerContainer = False
+        pool.sdkHarnessContainerImages.append(container_image)
+
     if self.debug_options.number_of_worker_harness_threads:
       pool.numThreadsPerWorker = (
           self.debug_options.number_of_worker_harness_threads)
@@ -290,7 +345,7 @@ class Environment(object):
           k: v
           for k, v in sdk_pipeline_options.items() if v is not None
       }
-      options_dict["pipelineUrl"] = pipeline_url
+      options_dict["pipelineUrl"] = proto_pipeline_staged_url
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='options', value=to_json_value(options_dict)))
@@ -300,6 +355,20 @@ class Environment(object):
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='display_data', value=to_json_value(items)))
+
+  def _get_environments_from_tranforms(self):
+    if not self._proto_pipeline:
+      return []
+
+    environment_ids = set(
+        transform.environment_id
+        for transform in self._proto_pipeline.components.transforms.values()
+        if transform.environment_id)
+
+    return [
+        self._proto_pipeline.components.environments[id]
+        for id in environment_ids
+    ]
 
   def _get_python_sdk_name(self):
     python_version = '%d.%d' % (sys.version_info[0], sys.version_info[1])
@@ -478,6 +547,13 @@ class DataflowApplicationClient(object):
         get_credentials=(not self.google_cloud_options.no_auth),
         http=http_client,
         response_encoding=get_response_encoding())
+    self._sdk_image_overrides = self._get_sdk_image_overrides(options)
+
+  def _get_sdk_image_overrides(self, pipeline_options):
+    worker_options = pipeline_options.view_as(WorkerOptions)
+    sdk_overrides = worker_options.sdk_harness_container_image_overrides
+    if sdk_overrides:
+      return dict(override_str.split(',', 1) for override_str in sdk_overrides)
 
   # TODO(silviuc): Refactor so that retry logic can be applied.
   @retry.no_retries  # Using no_retries marks this as an integration point.
@@ -576,10 +652,25 @@ class DataflowApplicationClient(object):
         'A template was just created at location %s', template_location)
     return None
 
+  @staticmethod
+  def _apply_sdk_environment_overrides(proto_pipeline, sdk_overrides):
+    # Update environments based on user provided overrides
+    if sdk_overrides:
+      for environment in proto_pipeline.components.environments.values():
+        docker_payload = proto_utils.parse_Bytes(
+            environment.payload, beam_runner_api_pb2.DockerPayload)
+        for pattern, override in sdk_overrides.items():
+          new_payload = copy(docker_payload)
+          new_payload.container_image = re.sub(
+              pattern, override, docker_payload.container_image)
+          environment.payload = new_payload.SerializeToString()
+
   def create_job_description(self, job):
     """Creates a job described by the workflow proto."""
+    DataflowApplicationClient._apply_sdk_environment_overrides(
+        job.proto_pipeline, self._sdk_image_overrides)
 
-    # Stage the pipeline for the runner harness
+    # Stage proto pipeline.
     self.stage_file(
         job.google_cloud_options.staging_location,
         shared_names.STAGED_PIPELINE_FILENAME,
@@ -589,12 +680,14 @@ class DataflowApplicationClient(object):
     resources = self._stage_resources(job.options)
 
     job.proto.environment = Environment(
-        pipeline_url=FileSystems.join(
+        proto_pipeline_staged_url=FileSystems.join(
             job.google_cloud_options.staging_location,
             shared_names.STAGED_PIPELINE_FILENAME),
         packages=resources,
         options=job.options,
-        environment_version=self.environment_version).proto
+        environment_version=self.environment_version,
+        proto_pipeline=job.proto_pipeline,
+        _sdk_image_overrides=self._sdk_image_overrides).proto
     _LOGGER.debug('JOB: %s', job)
 
   @retry.with_exponential_backoff(num_retries=3, initial_delay_secs=3)
@@ -634,8 +727,7 @@ class DataflowApplicationClient(object):
     _LOGGER.info('Created job with id: [%s]', response.id)
     _LOGGER.info(
         'To access the Dataflow monitoring console, please navigate to '
-        'https://console.cloud.google.com/dataflow/jobsDetail'
-        '/locations/%s/jobs/%s?project=%s',
+        'https://console.cloud.google.com/dataflow/jobs/%s/%s?project=%s',
         self.google_cloud_options.region,
         response.id,
         self.google_cloud_options.project)
@@ -916,6 +1008,9 @@ def _use_unified_worker(pipeline_options):
   debug_options = pipeline_options.view_as(DebugOptions)
   use_unified_worker_flag = 'use_unified_worker'
 
+  if debug_options.lookup_experiment(use_unified_worker_flag):
+    return debug_options.lookup_experiment(use_unified_worker_flag)
+
   if debug_options.lookup_experiment('use_runner_v2'):
     debug_options.add_experiment(use_unified_worker_flag)
 
@@ -934,18 +1029,25 @@ def _get_container_image_tag():
   return base_version
 
 
-def get_container_image_from_options(pipeline_options):
+def get_container_image_from_options(
+    pipeline_options, external_image_to_override=None):
   """For internal use only; no backwards-compatibility guarantees.
 
     Args:
       pipeline_options (PipelineOptions): A container for pipeline options.
+      external_image_to_override: container image for an external SDK
 
     Returns:
       str: Container image for remote execution.
-    """
+  """
   worker_options = pipeline_options.view_as(WorkerOptions)
   if worker_options.worker_harness_container_image:
     return worker_options.worker_harness_container_image
+  elif external_image_to_override:
+    _LOGGER.warning(
+        'Add support for determining container images for external SDKs '
+        'without user overrides')
+    return external_image_to_override
 
   if sys.version_info[0] == 2:
     version_suffix = ''
