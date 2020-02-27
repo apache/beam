@@ -3269,8 +3269,7 @@ public class ZetaSQLDialectSpecTest {
 
     final Schema innerSchema =
         Schema.of(Field.of("s", FieldType.STRING), Field.of("i", FieldType.INT64));
-    final Schema schema =
-        Schema.builder().addNullableField("field1", FieldType.row(innerSchema)).build();
+    final Schema schema = Schema.of(Field.of("field1", FieldType.row(innerSchema)));
 
     PAssert.that(stream)
         .containsInAnyOrder(
