@@ -21,18 +21,19 @@ import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Prec
 
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSetOperatorsTransforms;
-import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.transforms.CoGroup;
+import org.apache.beam.sdk.schemas.transforms.CoGroup.By;
+import org.apache.beam.sdk.schemas.transforms.Group;
+import org.apache.beam.sdk.schemas.transforms.Select;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.join.CoGbkResult;
-import org.apache.beam.sdk.transforms.join.CoGroupByKey;
-import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * Delegate for Set operators: {@code BeamUnionRel}, {@code BeamIntersectRel} and {@code
@@ -65,6 +66,16 @@ public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCo
         inputs);
     PCollection<Row> leftRows = inputs.get(0);
     PCollection<Row> rightRows = inputs.get(1);
+    Schema leftSchema = leftRows.getSchema();
+    Schema rightSchema = rightRows.getSchema();
+    if (!leftSchema.typesEqual(rightSchema)) {
+      throw new IllegalArgumentException(
+          "Can't intersect two tables with different schemas."
+              + "lhsSchema: "
+              + leftSchema
+              + "  rhsSchema: "
+              + rightSchema);
+    }
 
     WindowFn leftWindow = leftRows.getWindowingStrategy().getWindowFn();
     WindowFn rightWindow = rightRows.getWindowingStrategy().getWindowFn();
@@ -78,25 +89,35 @@ public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCo
               + rightWindow);
     }
 
-    final TupleTag<Row> leftTag = new TupleTag<>();
-    final TupleTag<Row> rightTag = new TupleTag<>();
+    // Preaggregating counts is faster _if_ we expect duplicates in the PCollection, as otherwise we
+    // are shuffling all the duplicates just to count them in SetOperatorFilteringDoFn. However for
+    // a PCollection
+    // with no duplicates, this is slower.
+    final String numRowsField = "numRows";
+    PCollection<Row> leftRowsAggregated =
+        leftRows
+            .apply(
+                "countLeftUniqueElements",
+                Group.<Row>byFieldNames("*").aggregateField("*", Count.combineFn(), numRowsField))
+            .apply("partialFlattenLHS", Select.fieldNames("key", "value.numRows"));
+    PCollection<Row> rightRowsAggregated =
+        rightRows
+            .apply(
+                "countRightUniqueElements",
+                Group.<Row>byFieldNames("*").aggregateField("*", Count.combineFn(), numRowsField))
+            .apply("partialFlattenRHS", Select.fieldNames("key", "value.numRows"));
 
-    // co-group
-    PCollection<KV<Row, CoGbkResult>> coGbkResultCollection =
-        KeyedPCollectionTuple.of(
-                leftTag,
-                leftRows.apply(
-                    "CreateLeftIndex",
-                    MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())))
-            .and(
-                rightTag,
-                rightRows.apply(
-                    "CreateRightIndex",
-                    MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())))
-            .apply(CoGroupByKey.create());
-    return coGbkResultCollection.apply(
-        ParDo.of(
-            new BeamSetOperatorsTransforms.SetOperatorFilteringDoFn(
-                leftTag, rightTag, opType, all)));
+    final String lhsTag = "lhs";
+    final String rhsTag = "rhs";
+    PCollection<Row> joined =
+        PCollectionTuple.of(lhsTag, leftRowsAggregated, rhsTag, rightRowsAggregated)
+            .apply("CoGroup", CoGroup.join(By.fieldNames("key.*")));
+    return joined
+        .apply(
+            "FilterResults",
+            ParDo.of(
+                new BeamSetOperatorsTransforms.SetOperatorFilteringDoFn(
+                    lhsTag, rhsTag, numRowsField, opType, all)))
+        .setRowSchema(joined.getSchema().getField("key").getType().getRowSchema());
   }
 }
