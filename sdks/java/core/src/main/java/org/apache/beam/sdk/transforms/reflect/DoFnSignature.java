@@ -46,6 +46,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParam
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -114,6 +115,18 @@ public abstract class DoFnSignature {
   @Nullable
   public abstract GetRestrictionCoderMethod getRestrictionCoder();
 
+  /** Details about this {@link DoFn}'s {@link DoFn.GetWatermarkEstimatorStateCoder} method. */
+  @Nullable
+  public abstract GetWatermarkEstimatorStateCoderMethod getWatermarkEstimatorStateCoder();
+
+  /** Details about this {@link DoFn}'s {@link DoFn.GetInitialWatermarkEstimatorState} method. */
+  @Nullable
+  public abstract GetInitialWatermarkEstimatorStateMethod getInitialWatermarkEstimatorState();
+
+  /** Details about this {@link DoFn}'s {@link DoFn.NewWatermarkEstimator} method. */
+  @Nullable
+  public abstract NewWatermarkEstimatorMethod newWatermarkEstimator();
+
   /** Details about this {@link DoFn}'s {@link DoFn.NewTracker} method. */
   @Nullable
   public abstract NewTrackerMethod newTracker();
@@ -177,6 +190,14 @@ public abstract class DoFnSignature {
     abstract Builder setNewTracker(NewTrackerMethod newTracker);
 
     abstract Builder setGetSize(GetSizeMethod getSize);
+
+    abstract Builder setGetInitialWatermarkEstimatorState(
+        GetInitialWatermarkEstimatorStateMethod getInitialWatermarkEstimatorState);
+
+    abstract Builder setNewWatermarkEstimator(NewWatermarkEstimatorMethod newWatermarkEstimator);
+
+    abstract Builder setGetWatermarkEstimatorStateCoder(
+        GetWatermarkEstimatorStateCoderMethod getWatermarkEstimatorStateCoder);
 
     abstract Builder setStateDeclarations(Map<String, StateDeclaration> stateDeclarations);
 
@@ -247,6 +268,10 @@ public abstract class DoFnSignature {
         return cases.dispatch((RestrictionParameter) this);
       } else if (this instanceof RestrictionTrackerParameter) {
         return cases.dispatch((RestrictionTrackerParameter) this);
+      } else if (this instanceof WatermarkEstimatorParameter) {
+        return cases.dispatch((WatermarkEstimatorParameter) this);
+      } else if (this instanceof WatermarkEstimatorStateParameter) {
+        return cases.dispatch((WatermarkEstimatorStateParameter) this);
       } else if (this instanceof StateParameter) {
         return cases.dispatch((StateParameter) this);
       } else if (this instanceof TimerParameter) {
@@ -310,6 +335,10 @@ public abstract class DoFnSignature {
       ResultT dispatch(RestrictionParameter p);
 
       ResultT dispatch(RestrictionTrackerParameter p);
+
+      ResultT dispatch(WatermarkEstimatorParameter p);
+
+      ResultT dispatch(WatermarkEstimatorStateParameter p);
 
       ResultT dispatch(StateParameter p);
 
@@ -402,6 +431,16 @@ public abstract class DoFnSignature {
 
         @Override
         public ResultT dispatch(RestrictionTrackerParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(WatermarkEstimatorParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(WatermarkEstimatorStateParameter p) {
           return dispatchDefault(p);
         }
 
@@ -549,6 +588,19 @@ public abstract class DoFnSignature {
     /** Returns a {@link RestrictionTrackerParameter}. */
     public static RestrictionTrackerParameter restrictionTracker(TypeDescriptor<?> trackerT) {
       return new AutoValue_DoFnSignature_Parameter_RestrictionTrackerParameter(trackerT);
+    }
+
+    /** Returns a {@link WatermarkEstimatorParameter}. */
+    public static WatermarkEstimatorParameter watermarkEstimator(
+        TypeDescriptor<?> watermarkEstimatorT) {
+      return new AutoValue_DoFnSignature_Parameter_WatermarkEstimatorParameter(watermarkEstimatorT);
+    }
+
+    /** Returns a {@link WatermarkEstimatorStateParameter}. */
+    public static WatermarkEstimatorStateParameter watermarkEstimatorState(
+        TypeDescriptor<?> watermarkEstimatorStateT) {
+      return new AutoValue_DoFnSignature_Parameter_WatermarkEstimatorStateParameter(
+          watermarkEstimatorStateT);
     }
 
     /** Returns a {@link StateParameter} referring to the given {@link StateDeclaration}. */
@@ -768,6 +820,32 @@ public abstract class DoFnSignature {
     }
 
     /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.WatermarkEstimatorState}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class WatermarkEstimatorStateParameter extends Parameter {
+      // Package visible for AutoValue
+      WatermarkEstimatorStateParameter() {}
+
+      public abstract TypeDescriptor<?> estimatorStateT();
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.WatermarkEstimatorState}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class WatermarkEstimatorParameter extends Parameter {
+      // Package visible for AutoValue
+      WatermarkEstimatorParameter() {}
+
+      public abstract TypeDescriptor<?> estimatorT();
+    }
+
+    /**
      * Descriptor for a {@link Parameter} of a subclass of {@link RestrictionTracker}.
      *
      * <p>All such descriptors are equal.
@@ -845,6 +923,10 @@ public abstract class DoFnSignature {
     @Nullable
     public abstract TypeDescriptor<?> trackerT();
 
+    /** Concrete type of the {@link WatermarkEstimator} parameter, if present. */
+    @Nullable
+    public abstract TypeDescriptor<?> watermarkEstimatorT();
+
     /** The window type used by this method, if any. */
     @Nullable
     @Override
@@ -859,6 +941,7 @@ public abstract class DoFnSignature {
         boolean requiresStableInput,
         boolean requiresTimeSortedInput,
         TypeDescriptor<?> trackerT,
+        TypeDescriptor<?> watermarkEstimatorT,
         @Nullable TypeDescriptor<? extends BoundedWindow> windowT,
         boolean hasReturnValue) {
       return new AutoValue_DoFnSignature_ProcessElementMethod(
@@ -867,6 +950,7 @@ public abstract class DoFnSignature {
           requiresStableInput,
           requiresTimeSortedInput,
           trackerT,
+          watermarkEstimatorT,
           windowT,
           hasReturnValue);
     }
@@ -1228,7 +1312,7 @@ public abstract class DoFnSignature {
     }
   }
 
-  /** Describes a {@link DoFn.NewTracker} method. */
+  /** Describes a {@link DoFn.GetSize} method. */
   @AutoValue
   public abstract static class GetSizeMethod implements MethodWithExtraParameters {
     /** The annotated method itself. */
@@ -1264,6 +1348,82 @@ public abstract class DoFnSignature {
 
     static GetRestrictionCoderMethod create(Method targetMethod, TypeDescriptor<?> coderT) {
       return new AutoValue_DoFnSignature_GetRestrictionCoderMethod(targetMethod, coderT);
+    }
+  }
+
+  /** Describes a {@link DoFn.GetInitialWatermarkEstimatorState} method. */
+  @AutoValue
+  public abstract static class GetInitialWatermarkEstimatorStateMethod
+      implements MethodWithExtraParameters {
+    /** The annotated method itself. */
+    @Override
+    public abstract Method targetMethod();
+
+    /** Type of the returned watermark estimator state. */
+    public abstract TypeDescriptor<?> watermarkEstimatorStateT();
+
+    /** The window type used by this method, if any. */
+    @Nullable
+    @Override
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
+    /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
+    public abstract List<Parameter> extraParameters();
+
+    static GetInitialWatermarkEstimatorStateMethod create(
+        Method targetMethod,
+        TypeDescriptor<?> watermarkEstimatorStateT,
+        TypeDescriptor<? extends BoundedWindow> windowT,
+        List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_GetInitialWatermarkEstimatorStateMethod(
+          targetMethod, watermarkEstimatorStateT, windowT, extraParameters);
+    }
+  }
+
+  /** Describes a {@link DoFn.NewWatermarkEstimator} method. */
+  @AutoValue
+  public abstract static class NewWatermarkEstimatorMethod implements MethodWithExtraParameters {
+    /** The annotated method itself. */
+    @Override
+    public abstract Method targetMethod();
+
+    /** Type of the returned {@link WatermarkEstimator}. */
+    public abstract TypeDescriptor<?> watermarkEstimatorT();
+
+    /** The window type used by this method, if any. */
+    @Nullable
+    @Override
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
+    /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
+    public abstract List<Parameter> extraParameters();
+
+    static NewWatermarkEstimatorMethod create(
+        Method targetMethod,
+        TypeDescriptor<?> watermarkEstimatorT,
+        TypeDescriptor<? extends BoundedWindow> windowT,
+        List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_NewWatermarkEstimatorMethod(
+          targetMethod, watermarkEstimatorT, windowT, extraParameters);
+    }
+  }
+
+  /** Describes a {@link DoFn.GetRestrictionCoder} method. */
+  @AutoValue
+  public abstract static class GetWatermarkEstimatorStateCoderMethod implements DoFnMethod {
+    /** The annotated method itself. */
+    @Override
+    public abstract Method targetMethod();
+
+    /** Type of the returned {@link Coder}. */
+    public abstract TypeDescriptor<?> coderT();
+
+    static GetWatermarkEstimatorStateCoderMethod create(
+        Method targetMethod, TypeDescriptor<?> coderT) {
+      return new AutoValue_DoFnSignature_GetWatermarkEstimatorStateCoderMethod(
+          targetMethod, coderT);
     }
   }
 }
