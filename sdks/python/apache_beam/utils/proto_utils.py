@@ -28,11 +28,14 @@ from typing import Union
 from typing import overload
 
 from google.protobuf import any_pb2
+from google.protobuf import duration_pb2
 from google.protobuf import message
 from google.protobuf import struct_pb2
 from google.protobuf import timestamp_pb2
 
 MessageT = TypeVar('MessageT', bound=message.Message)
+TimeMessageT = TypeVar(
+    'TimeMessageT', duration_pb2.Duration, timestamp_pb2.Timestamp)
 
 
 @overload
@@ -119,12 +122,15 @@ def pack_Struct(**kwargs):
 
 
 def from_micros(cls, micros):
+  # type: (Type[TimeMessageT], int) -> TimeMessageT
   result = cls()
   result.FromMicroseconds(micros)
   return result
 
 
 def to_Timestamp(time):
+  # type: (Union[int, float]) -> timestamp_pb2.Timestamp
+
   """Convert a float returned by time.time() to a Timestamp.
   """
   seconds = int(time)
@@ -133,6 +139,8 @@ def to_Timestamp(time):
 
 
 def from_Timestamp(timestamp):
+  # type: (timestamp_pb2.Timestamp) -> float
+
   """Convert a Timestamp to a float expressed as seconds since the epoch.
   """
   return timestamp.seconds + float(timestamp.nanos) / 10**9
