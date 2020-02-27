@@ -624,8 +624,10 @@ class Pipeline(object):
       # be the default.
       if self._options.view_as(DebugOptions).lookup_experiment(
           'passthrough_pcollection_output_ids', default=False):
-        # Otherwise default to the new implementation which only auto-generates
-        # tags for multiple PCollections with an unset tag.
+        # Passthrough the PCollection output_ids from the PCollection tag.
+        # Only generate a tag if there are multiple PCollections that have a
+        # None tag. This happens when returning multiple PCollections from a
+        # composite.
         if result.tag is None and None in current.outputs:
           tag = len(current.outputs)
         else:

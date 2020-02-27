@@ -183,6 +183,16 @@ class TestStream(PTransform):
   Each event emits elements, advances the watermark or advances the processing
   time. After all of the specified elements are emitted, ceases to produce
   output.
+
+  To use the multi-output functionality pelase use the
+  'passthrough_pcollection_output_ids' flag. See BEAM-9322 for more info.
+
+  To add flag:
+  from apache_beam.options.pipeline_options import DebugOptions
+  options = ...
+  options.view_as(DebugOptions).add_experiment(
+      'passthrough_pcollection_output_ids')
+
   """
   def __init__(
       self, coder=coders.FastPrimitivesCoder(), events=None, output_tags=None):
@@ -197,7 +207,8 @@ class TestStream(PTransform):
     event_tags = set(
         e.tag for e in self._events
         if isinstance(e, (WatermarkEvent, ElementEvent)))
-    assert event_tags.issubset(self.output_tags)
+    assert event_tags.issubset(self.output_tags), \
+        '{} is not a subset of {}'.format(event_tags, output_tags)
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
