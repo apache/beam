@@ -69,6 +69,8 @@ from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
+  from apache_beam.runners.sdf_utils import SplitResultPrimary
+  from apache_beam.runners.sdf_utils import SplitResultResidual
   from apache_beam.runners.worker.bundle_processor import ExecutionContext
   from apache_beam.runners.worker.statesampler import StateSampler
 
@@ -88,6 +90,9 @@ _globally_windowed_value = GlobalWindows.windowed_value(None)
 _global_window_type = type(_globally_windowed_value.windows[0])
 
 _LOGGER = logging.getLogger(__name__)
+
+SdfSplitResultsPrimary = Tuple['DoOperation', 'SplitResultPrimary']
+SdfSplitResultsResidual = Tuple['DoOperation', 'SplitResultResidual']
 
 
 class ConsumerSet(Receiver):
@@ -795,7 +800,7 @@ class SdfProcessSizedElements(DoOperation):
           self.element_start_output_bytes = None
 
   def try_split(self, fraction_of_remainder):
-    # type: (...) -> Optional[Tuple[Tuple[DoOperation, common.SplitResultType], Tuple[DoOperation, common.SplitResultType]]]
+    # type: (...) -> Optional[Tuple[SdfSplitResultsPrimary, SdfSplitResultsResidual]]
     split = self.dofn_runner.try_split(fraction_of_remainder)
     if split:
       primary, residual = split

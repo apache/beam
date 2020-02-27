@@ -301,8 +301,7 @@ class Pipeline(object):
                 'PTransform overriding is only supported for PTransforms that '
                 'have a single input. Tried to replace input of '
                 'AppliedPTransform %r that has %d inputs' %
-                original_transform_node,
-                len(inputs))
+                (original_transform_node, len(inputs)))
           elif len(inputs) == 1:
             input_node = inputs[0]
           elif len(inputs) == 0:

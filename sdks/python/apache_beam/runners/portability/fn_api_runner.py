@@ -722,7 +722,7 @@ class FnApiRunner(runner.PipelineRunner):
                                   context,  # type: pipeline_context.PipelineContext
                                   pipeline_components,  # type: beam_runner_api_pb2.Components
                                   data_side_input,  # type: DataSideInput
-                                  pcoll_buffers,  # type: Mapping[bytes, PartitionableBuffer]
+                                  pcoll_buffers,  # type: MutableMapping[bytes, PartitionableBuffer]
                                   safe_coders
                                  ):
     # type: (...) -> None
