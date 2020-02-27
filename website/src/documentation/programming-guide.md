@@ -3153,7 +3153,7 @@ Beam provides several types of state:
 
 #### ValueState
 A ValueState is a scalar state value. For each key in the input, a ValueState will store a typed value that can be
-read and modified inside the DoFn's @ProcessElement or @OnTimer methods. If the type of the ValueState has a coder 
+read and modified inside the DoFn's `@ProcessElement` or `@OnTimer` methods. If the type of the ValueState has a coder 
 registered, then Beam will automatically infer the coder for the state value. Otherwise, a coder can be explicitly
 specified when creating the ValueState. For example, the following ParDo creates a  single state variable that 
 accumulates the number of elements seen.
@@ -3199,8 +3199,8 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 ```
 
 #### BagState
-A common use case for state is to accumulate multiple elements. `BagState` allows for accumulating elements in an 
-unordered manner. This allows for addition of elements to the collection without requiring the reading of the entire
+A common use case for state is to accumulate multiple elements. `BagState` allows for accumulating an unordered set
+ofelements. This allows for addition of elements to the collection without requiring the reading of the entire
 collection first, which is an efficiency gain. In addition, runners that support paged reads can allow individual
 bags larger than available memory.
 
@@ -3262,16 +3262,16 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
     @StateId("state1") ValueState<Integer> state1,
     @StateId("state2") ValueState<String> state2,
     @StateId("state3") BagState<ValueT> state3) {
-    if (/* should read state */) {}
+    if (/* should read state */) {
       state1.readLater();
       state2.readLater();
       state3.readLater();
-   
-      // The runner can now batch all three states into a single read, reducing latency.
-      processState1(state1.read());
-      processState2(state2.read());
-      processState3(state3.read());
     }
+   
+    // The runner can now batch all three states into a single read, reducing latency.
+     processState1(state1.read());
+    processState2(state2.read());
+    processState3(state3.read());
   }
 }));
 ```
@@ -3279,7 +3279,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 ### 10.3 Timers {#timers}
 Beam provides a per-key timer callback API. This allows for delayed processing of data stored using the state API.
 Timers can be set to callback at either an event-time or a processing-time timestamp. Every timer is identified with a
-TimerId. A given timer for a keycan only be set for a single timestamp. Calling set on a timer overwrites the previous
+TimerId. A given timer for a key can only be set for a single timestamp. Calling set on a timer overwrites the previous
 firing time for that key's timer.
 
 #### 10.3.1 Event-time timers {#event-time-timers}
@@ -3345,7 +3345,8 @@ id, and timers in different timer families are independent.
 ```java
 PCollection<KV<String, ValueT>> perUser = readPerUser();
 perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
-  @TimerFamily("actionTimers") private final TimerSpec timer = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
+  @TimerFamily("actionTimers") private final TimerSpec timer =
+    TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
 
   @ProcessElement public void process(
       @Element KV<String, ValueT> element, 
@@ -3408,8 +3409,8 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
   }
 }));
 ```
-However the above code will not work properly. The ParDo is buffering elements, but nothing is preventing the watermark
-from advancing past the timestamp of those elements, causing those elements to all be dropped as late data. In order
+The problem with this code is that the ParDo is buffering elements, however nothing is preventing the watermark
+from advancing past the timestamp of those elements, so all those elements might be dropped as late data. In order
 to prevent this from happening, an output timestamp needs to be set on the timer to prevent the watermark from advancing
 past the timestamp of the minimum element. The following code demonstrates this.
 
@@ -3465,7 +3466,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 Per-key state needs to be garbage collected, or eventually the increasing size of state may negatively impact 
 performance. There are two common strategies for garbage collecting state.
 
-##### 10.4.1 Using windows for garbage collection {#using-windows-for-garbage-collection}
+##### 10.4.1 **Using windows for garbage collection** {#using-windows-for-garbage-collection}
 All state and timers for a key is scoped to the window it is in. This means that depending on the timestamp of the 
 input element the ParDo will see different values for the state depending on the window that element falls into. In
 addition, once the input watermark passes the end of the window, the runner should garbage collect all state for that
@@ -3477,7 +3478,8 @@ For example, given the following:
 
 ```java
 PCollection<KV<String, ValueT>> perUser = readPerUser();
-perUser.apply(Window.into(CalendarWindows.days(1).withTimeZone(DateTimeZone.forID("America/Los_Angeles"))));
+perUser.apply(Window.into(CalendarWindows.days(1)
+   .withTimeZone(DateTimeZone.forID("America/Los_Angeles"))));
        .apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
            @StateId("state") private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
                               ...
@@ -3491,7 +3493,7 @@ perUser.apply(Window.into(CalendarWindows.days(1).withTimeZone(DateTimeZone.forI
 This `ParDo` stores state per day. Once the pipeline is done processing data for a given day, all the state for that
 day is garbage collected.
 
-##### 10.4.1 Using timers For garbage collection {#using-timers-for-garbage-collection}
+##### 10.4.1 **Using timers For garbage collection** {#using-timers-for-garbage-collection}
 In some cases, it is difficult to find a windowing strategy that models the desired garbage-collection strategy. For 
 example, a common desire is to garbage collect state for a key once no activity has been seen on the key for some time.
 This can be done by updating a timer that garbage collects state. For example
@@ -3595,7 +3597,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, Event>, JoinedEvent>() {
        // worth of event time (as measured by the watermark), then the gc timer will fire.
         maxTimestampState.add(ts.getMillis());
        Instant expirationTime = new Instant(maxTimestampState.read()).plus(Duration.standardHours(1));
-       timer.set(expirationTime);
+       gcTimer.set(expirationTime);
     }
   }
 
@@ -3615,7 +3617,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, Event>, JoinedEvent>() {
       clickState.clear();
       maxTimestampState.clear();
     }
- }
+ }));
 ````
 
 #### 10.5.2 Batching RPCs {#batching-rpcs}
@@ -3638,13 +3640,13 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
     @Element KV<String, ValueT> element, 
     @StateId("state") BagState<ValueT> elementsState,
     @StateId("isTimerSet") ValueState<Boolean> isTimerSetState,
-    @TimerId("outputState") Timer) {
+    @TimerId("outputState") Timer timer) {
     // Add the current element to the bag for this key.
     state.add(element.getValue());
-    if (!MoreObjects.firstNonNull(timerSet.read(), false)) {
+    if (!MoreObjects.firstNonNull(isTimerSetState.read(), false)) {
       // If there is no timer currently set, then set one to go off in 10 seconds.
       timer.offset(Duration.standardSeconds(10)).setRelative();
-      isTimerSet.write(true);
+      isTimerSetState.write(true);
    }
   }
  
@@ -3654,7 +3656,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
     // Send an RPC containing the batched elements and clear state.
     sendRPC(elementsState.read());
     elementsState.clear();
-    isTimerSet.clear();
+    isTimerSetState.clear();
   }
 }));
 ```
