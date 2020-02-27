@@ -220,7 +220,7 @@ def addTestJavaJarCreator(String pyVersion) {
                 "--python_root_dir ${project.rootDir}/sdks/python",
                 "--python_version ${pyVersion}",
                 "--python_container_image ${project.docker_image_default_repo_root}/"
-                        + ${project.docker_image_default_repo_prefix}
+                        + "${project.docker_image_default_repo_prefix}"
                         + "python${pyVersion}_sdk:${project.sdk_version}",
         ]
         args "-c", "../../../portability/test_pipeline_jar.sh ${options.join(' ')}"
@@ -264,7 +264,7 @@ def addTestFlinkUberJarPy(String pyVersion) {
                 "--python_root_dir ${project.rootDir}/sdks/python",
                 "--python_version ${pyVersion}",
                 "--python_container_image ${project.docker_image_default_repo_root}/"
-                        + ${project.docker_image_default_repo_prefix}
+                        + "${project.docker_image_default_repo_prefix}"
                         + "python${pyVersion}_sdk:${project.sdk_version}",
         ]
         args "-c", "../../job-server/test_flink_uber_jar.sh ${options.join(' ')}"
