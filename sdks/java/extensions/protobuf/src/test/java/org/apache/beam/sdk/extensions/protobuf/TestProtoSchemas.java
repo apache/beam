@@ -237,6 +237,28 @@ class TestProtoSchemas {
               ImmutableList.of(ByteString.copyFrom(BYTE_ARRAY), ByteString.copyFrom(BYTE_ARRAY)))
           .build();
 
+  static final Row NULL_REPEATED_ROW =
+      Row.withSchema(REPEATED_SCHEMA)
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .build();
+
+  // A sample instance of the proto.
+  static final RepeatPrimitive NULL_REPEATED_PROTO = RepeatPrimitive.newBuilder().build();
+
   // The schema for the MapPrimitive proto.
   static final Schema MAP_PRIMITIVE_SCHEMA =
       Schema.builder()
@@ -273,6 +295,18 @@ class TestProtoSchemas {
               ImmutableMap.of(
                   "k1", ByteString.copyFrom(BYTE_ARRAY), "k2", ByteString.copyFrom(BYTE_ARRAY)))
           .build();
+
+  // A sample instance of the row.
+  static final Row NULL_MAP_PRIMITIVE_ROW =
+      Row.withSchema(MAP_PRIMITIVE_SCHEMA)
+          .addValue(ImmutableMap.of())
+          .addValue(ImmutableMap.of())
+          .addValue(ImmutableMap.of())
+          .addValue(ImmutableMap.of())
+          .build();
+
+  // A sample instance of the proto.
+  static final MapPrimitive NULL_MAP_PRIMITIVE_PROTO = MapPrimitive.newBuilder().build();
 
   // The schema for the Nested proto.
   static final Schema NESTED_SCHEMA =

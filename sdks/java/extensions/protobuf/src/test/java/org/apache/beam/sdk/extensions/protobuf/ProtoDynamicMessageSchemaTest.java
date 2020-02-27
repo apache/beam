@@ -24,6 +24,10 @@ import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.MAP_PRIMI
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NESTED_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NESTED_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NESTED_SCHEMA;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_MAP_PRIMITIVE_PROTO;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_MAP_PRIMITIVE_ROW;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_REPEATED_PROTO;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_REPEATED_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.ONEOF_PROTO_BOOL;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.ONEOF_PROTO_INT32;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.ONEOF_PROTO_PRIMITIVE;
@@ -126,6 +130,22 @@ public class ProtoDynamicMessageSchemaTest {
     assertEquals(REPEATED_PROTO.toString(), fromRow.apply(REPEATED_ROW).toString());
   }
 
+  @Test
+  public void testNullRepeatedProtoToRow() throws InvalidProtocolBufferException {
+    ProtoDynamicMessageSchema schemaProvider =
+        schemaFromDescriptor(RepeatPrimitive.getDescriptor());
+    SerializableFunction<DynamicMessage, Row> toRow = schemaProvider.getToRowFunction();
+    assertEquals(NULL_REPEATED_ROW, toRow.apply(toDynamic(NULL_REPEATED_PROTO)));
+  }
+
+  @Test
+  public void testNullRepeatedRowToProto() {
+    ProtoDynamicMessageSchema schemaProvider =
+        schemaFromDescriptor(RepeatPrimitive.getDescriptor());
+    SerializableFunction<Row, DynamicMessage> fromRow = schemaProvider.getFromRowFunction();
+    assertEquals(NULL_REPEATED_PROTO.toString(), fromRow.apply(NULL_REPEATED_ROW).toString());
+  }
+
   // Test map type
   @Test
   public void testMapSchema() {
@@ -146,6 +166,21 @@ public class ProtoDynamicMessageSchemaTest {
     ProtoDynamicMessageSchema schemaProvider = schemaFromDescriptor(MapPrimitive.getDescriptor());
     SerializableFunction<Row, DynamicMessage> fromRow = schemaProvider.getFromRowFunction();
     assertEquals(MAP_PRIMITIVE_PROTO.toString(), fromRow.apply(MAP_PRIMITIVE_ROW).toString());
+  }
+
+  @Test
+  public void testNullMapProtoToRow() throws InvalidProtocolBufferException {
+    ProtoDynamicMessageSchema schemaProvider = schemaFromDescriptor(MapPrimitive.getDescriptor());
+    SerializableFunction<DynamicMessage, Row> toRow = schemaProvider.getToRowFunction();
+    assertEquals(NULL_MAP_PRIMITIVE_ROW, toRow.apply(toDynamic(NULL_MAP_PRIMITIVE_PROTO)));
+  }
+
+  @Test
+  public void testNullMapRowToProto() {
+    ProtoDynamicMessageSchema schemaProvider = schemaFromDescriptor(MapPrimitive.getDescriptor());
+    SerializableFunction<Row, DynamicMessage> fromRow = schemaProvider.getFromRowFunction();
+    assertEquals(
+        NULL_MAP_PRIMITIVE_PROTO.toString(), fromRow.apply(NULL_MAP_PRIMITIVE_ROW).toString());
   }
 
   @Test
