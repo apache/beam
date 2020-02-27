@@ -280,6 +280,17 @@
         <li><a href="/documentation/programming-guide/#using-metrics">Using metrics in pipeline</a></li>
       </ul>
     </li>
+    <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">State and Timers</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#types-of-state">Types of state</a></li>
+        <li><a href="/documentation/programming-guide/#deferred-state-reads">Deferred state reads</a></li>
+        <li><a href="/documentation/programming-guide/#timers">Timers</a></li>
+        <li><a href="/documentation/programming-guide/#garbage-collecting-state">Garbage collecting state</a></li>
+        <li><a href="/documentation/programming-guide/#state-timers-examples">State and timers examples</a></li>
+      </ul>
+    </li>
   </ul>
 </li>
 
@@ -521,6 +532,15 @@
       <li><a href="#types-of-metrics">9.2 Types of metrics</a></li>
       <li><a href="#querying-metrics">9.3 Querying metrics</a></li>
       <li><a href="#using-metrics">9.4 Using metrics in pipeline</a></li>
+    </ul>
+  </li>
+  <li><a href="#state-and-timers">10. State and Timers</a>
+    <ul>
+      <li><a href="#types-of-state">10.1 Types of state</a></li>
+      <li><a href="#deferred-state-reads">10.2 Deferred state reads</a></li>
+      <li><a href="#timers">10.3 Timers</a></li>
+      <li><a href="#garbage-collecting-state">10.4 Garbage collecting state</a></li>
+      <li><a href="#state-timers-examples">10.5 State and timers examples</a></li>
     </ul>
   </li>
 </ul>
@@ -3845,6 +3865,531 @@ matching a given filter.</p>
   <span class="o">}</span>
 <span class="o">}</span>
 </code></pre></div></div>
+
+<h2 id="state-and-timers">10. State and Timers</h2>
+<p>Beam’s windowing and triggering facilities provide a powerful abstraction for grouping and aggregating unbounded input
+data based on timestamps. However there are aggregation use cases for which developers may require a higher degree of
+control than provided by windows and triggers. Beam provides an API for manually managing per-key state, allowing for 
+fine-grained control over aggregations.</p>
+
+<p>Beam’s state API models state per key. To use the state API, you start out with a keyed <code class="highlighter-rouge">PCollection</code>, which in Java
+is modeled as a <code class="highlighter-rouge">PCollection&lt;KV&lt;K, V&gt;&gt;</code>. A <code class="highlighter-rouge">ParDo</code> processing this <code class="highlighter-rouge">PCollection</code> can now declare state variables. Inside
+the <code class="highlighter-rouge">ParDo</code> these state variables can be used to write or update state for the current key or to read previous state
+written for that key. State is always fully scoped only to the current processing key.</p>
+
+<p>Windowing can still be used together with stateful processing. All state for a key is scoped to the current window. This
+means that the first time a key is seen for a given window any state reads will return empty, and that a runner can
+garbage collect state when a window is completed. It’s also often useful to use Beam’s windowed aggegations prior to
+the stateful operator. For example, using a combiner to preaggregate data, and then storing aggregated data inside of
+state. Merging windows are not currently supported when using state and timers.</p>
+
+<p>Sometimes stateful processing is used to implement state-machine style processing inside a <code class="highlighter-rouge">DoFn</code>. When doing this,
+care must be taken to remember that the elements in input PCollection have no guaranteed order and to ensure that the
+program logic is resilient to this. Unit tests written using the DirectRunner will shuffle the order of element
+processing, and are recommended to test for correctness.</p>
+
+<p>In Java DoFn declares states to be accessed by creating final <code class="highlighter-rouge">StateSpec</code> member variables representing each state. Each
+state must be named using the <code class="highlighter-rouge">StateId</code> annotation; this name is unique to a ParDo in the graph and has no relation
+to other nodes in the graph. A <code class="highlighter-rouge">DoFn</code> can declare multiple state variables.</p>
+
+<h3 id="types-of-state">10.1 Types of state</h3>
+<p>Beam provides several types of state:</p>
+
+<h4 id="valuestate">ValueState</h4>
+<p>A ValueState is a scalar state value. For each key in the input, a ValueState will store a typed value that can be
+read and modified inside the DoFn’s <code class="highlighter-rouge">@ProcessElement</code> or <code class="highlighter-rouge">@OnTimer</code> methods. If the type of the ValueState has a coder 
+registered, then Beam will automatically infer the coder for the state value. Otherwise, a coder can be explicitly
+specified when creating the ValueState. For example, the following ParDo creates a  single state variable that 
+accumulates the number of elements seen.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;&gt;</span> <span class="n">perUser</span> <span class="o">=</span> <span class="n">readPerUser</span><span class="o">();</span>
+<span class="n">perUser</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;,</span> <span class="n">OutputT</span><span class="o">&gt;()</span> <span class="o">{</span>
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">numElements</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">();</span>
+  
+  <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="nd">@StateId</span><span class="o">(</span><span class="s">"state"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">state</span><span class="o">)</span> <span class="o">{</span>
+    <span class="c1">// Read the number element seen so far for this user key.</span>
+    <span class="c1">// state.read() returns null if it was never set. The below code allows us to have a default value of 0.</span>
+    <span class="kt">int</span> <span class="n">currentValue</span> <span class="o">=</span> <span class="n">MoreObjects</span><span class="o">.</span><span class="na">firstNonNull</span><span class="o">(</span><span class="n">state</span><span class="o">.</span><span class="na">read</span><span class="o">(),</span> <span class="mi">0</span><span class="o">);</span>
+    <span class="c1">// Update the state.</span>
+    <span class="n">state</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="n">currentValue</span> <span class="o">+</span> <span class="mi">1</span><span class="o">);</span>
+  <span class="o">}</span>
+<span class="o">}));</span>
+</code></pre></div></div>
+
+<p>Beam also allows explicitly specifying a coder for <code class="highlighter-rouge">ValueState</code> values. For example:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;&gt;</span> <span class="n">perUser</span> <span class="o">=</span> <span class="n">readPerUser</span><span class="o">();</span>
+<span class="n">perUser</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;,</span> <span class="n">OutputT</span><span class="o">&gt;()</span> <span class="o">{</span>
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">MyType</span><span class="o">&gt;&gt;</span> <span class="n">numElements</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">(</span><span class="k">new</span> <span class="n">MyTypeCoder</span><span class="o">());</span>
+                 <span class="o">...</span>
+<span class="o">}));</span>
+</code></pre></div></div>
+
+<h4 id="combiningstate">CombiningState</h4>
+<p><code class="highlighter-rouge">CombiningState</code> allows you to create a state object that is updated using a Beam combiner. For example, the previous
+<code class="highlighter-rouge">ValueState</code> example could be rewritten to use <code class="highlighter-rouge">CombiningState</code></p>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;&gt;</span> <span class="n">perUser</span> <span class="o">=</span> <span class="n">readPerUser</span><span class="o">();</span>
+<span class="n">perUser</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;,</span> <span class="n">OutputT</span><span class="o">&gt;()</span> <span class="o">{</span>
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">CombiningState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="kt">int</span><span class="o">[],</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">numElements</span> <span class="o">=</span> 
+      <span class="n">StateSpecs</span><span class="o">.</span><span class="na">combining</span><span class="o">(</span><span class="n">Sum</span><span class="o">.</span><span class="na">ofIntegers</span><span class="o">());</span>
+  
+  <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="nd">@StateId</span><span class="o">(</span><span class="s">"state"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">state</span><span class="o">)</span> <span class="o">{</span>
+    <span class="n">state</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="mi">1</span><span class="o">);</span>
+  <span class="o">}</span>
+<span class="o">}));</span>
+</code></pre></div></div>
+
+<h4 id="bagstate">BagState</h4>
+<p>A common use case for state is to accumulate multiple elements. <code class="highlighter-rouge">BagState</code> allows for accumulating an unordered set
+ofelements. This allows for addition of elements to the collection without requiring the reading of the entire
+collection first, which is an efficiency gain. In addition, runners that support paged reads can allow individual
+bags larger than available memory.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;&gt;</span> <span class="n">perUser</span> <span class="o">=</span> <span class="n">readPerUser</span><span class="o">();</span>
+<span class="n">perUser</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;,</span> <span class="n">OutputT</span><span class="o">&gt;()</span> <span class="o">{</span>
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">BagState</span><span class="o">&lt;</span><span class="n">ValueT</span><span class="o">&gt;&gt;</span> <span class="n">numElements</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">bag</span><span class="o">();</span>
+  
+  <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span>
+    <span class="nd">@Element</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;</span> <span class="n">element</span><span class="o">,</span> 
+    <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state"</span><span class="o">)</span> <span class="n">BagState</span><span class="o">&lt;</span><span class="n">ValueT</span><span class="o">&gt;</span> <span class="n">state</span><span class="o">)</span> <span class="o">{</span>
+    <span class="c1">// Add the current element to the bag for this key.</span>
+    <span class="n">state</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">element</span><span class="o">.</span><span class="na">getValue</span><span class="o">());</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">shouldFetch</span><span class="o">())</span> <span class="o">{</span>
+      <span class="c1">// Occasionally we fetch and process the values.</span>
+      <span class="n">Iterable</span><span class="o">&lt;</span><span class="n">ValueT</span><span class="o">&gt;</span> <span class="n">values</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="na">read</span><span class="o">();</span>
+      <span class="n">processValues</span><span class="o">(</span><span class="n">values</span><span class="o">);</span>
+      <span class="n">state</span><span class="o">.</span><span class="na">clear</span><span class="o">();</span>  <span class="c1">// Clear the state for this key.</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+<span class="o">}));</span>
+</code></pre></div></div>
+<h3 id="deferred-state-reads">10.2 Deferred state reads</h3>
+<p>When a <code class="highlighter-rouge">DoFn</code> contains multiple state specifications, reading each one in order can be slow. Calling the <code class="highlighter-rouge">read()</code> function
+on a state can cause the runner to perform a blocking read. Performing multiple blocking reads in sequence adds latency
+to element processing. If you know that a state will always be read, you can annotate it as @AlwaysFetched, and then the
+runner can prefetch all of the states necessary. For example:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;&gt;</span> <span class="n">perUser</span> <span class="o">=</span> <span class="n">readPerUser</span><span class="o">();</span>
+<span class="n">perUser</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;,</span> <span class="n">OutputT</span><span class="o">&gt;()</span> <span class="o">{</span>
+   <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state1"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">state1</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">();</span>
+   <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state2"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">state2</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">();</span>
+   <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state3"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">BagState</span><span class="o">&lt;</span><span class="n">ValueT</span><span class="o">&gt;&gt;</span> <span class="n">state3</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">bag</span><span class="o">();</span>
+
+  <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span>
+    <span class="nd">@AlwaysFetched</span> <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state1"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">state1</span><span class="o">,</span>
+    <span class="nd">@AlwaysFetched</span> <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state2"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">state2</span><span class="o">,</span>
+    <span class="nd">@AlwaysFetched</span> <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state3"</span><span class="o">)</span> <span class="n">BagState</span><span class="o">&lt;</span><span class="n">ValueT</span><span class="o">&gt;</span> <span class="n">state3</span><span class="o">)</span> <span class="o">{</span>
+    <span class="n">state1</span><span class="o">.</span><span class="na">read</span><span class="o">();</span>
+    <span class="n">state2</span><span class="o">.</span><span class="na">read</span><span class="o">();</span>
+    <span class="n">state3</span><span class="o">.</span><span class="na">read</span><span class="o">();</span>
+  <span class="o">}</span>
+<span class="o">}));</span>
+</code></pre></div></div>
+
+<p>If however there are code paths in which the states are not fetched, then annotating with @AlwaysFetched will add
+unnecessary fetching for those paths. In this case, the readLater method allows the runner to know that the state will
+be read in the future, allowing multiple state reads to be batched together.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;&gt;</span> <span class="n">perUser</span> <span class="o">=</span> <span class="n">readPerUser</span><span class="o">();</span>
+<span class="n">perUser</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;,</span> <span class="n">OutputT</span><span class="o">&gt;()</span> <span class="o">{</span>
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state1"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">state1</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">();</span>
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state2"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">state2</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">();</span>
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state3"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">BagState</span><span class="o">&lt;</span><span class="n">ValueT</span><span class="o">&gt;&gt;</span> <span class="n">state3</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">bag</span><span class="o">();</span>
+
+  <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span>
+    <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state1"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">state1</span><span class="o">,</span>
+    <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state2"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">state2</span><span class="o">,</span>
+    <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state3"</span><span class="o">)</span> <span class="n">BagState</span><span class="o">&lt;</span><span class="n">ValueT</span><span class="o">&gt;</span> <span class="n">state3</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">if</span> <span class="o">(</span><span class="cm">/* should read state */</span><span class="o">)</span> <span class="o">{</span>
+      <span class="n">state1</span><span class="o">.</span><span class="na">readLater</span><span class="o">();</span>
+      <span class="n">state2</span><span class="o">.</span><span class="na">readLater</span><span class="o">();</span>
+      <span class="n">state3</span><span class="o">.</span><span class="na">readLater</span><span class="o">();</span>
+    <span class="o">}</span>
+   
+    <span class="c1">// The runner can now batch all three states into a single read, reducing latency.</span>
+     <span class="n">processState1</span><span class="o">(</span><span class="n">state1</span><span class="o">.</span><span class="na">read</span><span class="o">());</span>
+    <span class="n">processState2</span><span class="o">(</span><span class="n">state2</span><span class="o">.</span><span class="na">read</span><span class="o">());</span>
+    <span class="n">processState3</span><span class="o">(</span><span class="n">state3</span><span class="o">.</span><span class="na">read</span><span class="o">());</span>
+  <span class="o">}</span>
+<span class="o">}));</span>
+</code></pre></div></div>
+
+<h3 id="timers">10.3 Timers</h3>
+<p>Beam provides a per-key timer callback API. This allows for delayed processing of data stored using the state API.
+Timers can be set to callback at either an event-time or a processing-time timestamp. Every timer is identified with a
+TimerId. A given timer for a key can only be set for a single timestamp. Calling set on a timer overwrites the previous
+firing time for that key’s timer.</p>
+
+<h4 id="event-time-timers">10.3.1 Event-time timers</h4>
+<p>Event-time timers fire when the input watermark for the DoFn passes the time at which the timer is set, meaning that 
+the runner believes that there are no more elements to be processed with timestamps before the timer timestamp. This
+allows for event-time aggregations.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;&gt;</span> <span class="n">perUser</span> <span class="o">=</span> <span class="n">readPerUser</span><span class="o">();</span>
+<span class="n">perUser</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;,</span> <span class="n">OutputT</span><span class="o">&gt;()</span> <span class="o">{</span>
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">state</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">();</span>
+  <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"timer"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">TimerSpec</span> <span class="n">timer</span> <span class="o">=</span> <span class="n">TimerSpecs</span><span class="o">.</span><span class="na">timer</span><span class="o">(</span><span class="n">TimeDomain</span><span class="o">.</span><span class="na">EVENT_TIME</span><span class="o">);</span>
+
+  <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span>
+      <span class="nd">@Element</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;</span> <span class="n">element</span><span class="o">,</span>
+      <span class="nd">@Timestamp</span> <span class="n">Instant</span> <span class="n">elementTs</span><span class="o">,</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">state</span><span class="o">,</span> 
+      <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"timer"</span><span class="o">)</span> <span class="n">Timer</span> <span class="n">timer</span><span class="o">)</span> <span class="o">{</span>
+     <span class="o">...</span>
+     <span class="c1">// Set an event-time timer to the element timestamp.</span>
+     <span class="n">timer</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">elementTs</span><span class="o">);</span>
+  <span class="o">}</span>
+  
+   <span class="nd">@OnTimer</span><span class="o">(</span><span class="s">"timer"</span><span class="o">)</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onTimer</span><span class="o">()</span> <span class="o">{</span>
+      <span class="c1">//Process timer.</span>
+   <span class="o">}</span>
+<span class="o">}));</span>
+
+</code></pre></div></div>
+<h4 id="processing-time-timers">10.3.2 Processing-time timers</h4>
+<p>Processing-time timers fire when the real wall-clock time passes. This is often used to create larger batches of data
+before processing. It can also be used to schedule events that should occur at a specific time. Just like with
+event-time timers, processing-time timers are per key - each key has a separate copy of the timer.</p>
+
+<p>While processing-time timers can be set to an absolute timestamp, it is very common to set them to an offset relative 
+to the current time. The <code class="highlighter-rouge">Timer.offset</code> and <code class="highlighter-rouge">Timer.setRelative</code> methods can be used to accomplish this.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;&gt;</span> <span class="n">perUser</span> <span class="o">=</span> <span class="n">readPerUser</span><span class="o">();</span>
+<span class="n">perUser</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;,</span> <span class="n">OutputT</span><span class="o">&gt;()</span> <span class="o">{</span>
+  <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"timer"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">TimerSpec</span> <span class="n">timer</span> <span class="o">=</span> <span class="n">TimerSpecs</span><span class="o">.</span><span class="na">timer</span><span class="o">(</span><span class="n">TimeDomain</span><span class="o">.</span><span class="na">PROCESSING_TIME</span><span class="o">);</span>
+
+  <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="nd">@TimerId</span><span class="o">(</span><span class="s">"timer"</span><span class="o">)</span> <span class="n">Timer</span> <span class="n">timer</span><span class="o">)</span> <span class="o">{</span>
+     <span class="o">...</span>
+     <span class="c1">// Set a timer to go off 30 seconds in the future.</span>
+     <span class="n">timer</span><span class="o">.</span><span class="na">offset</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">30</span><span class="o">)).</span><span class="na">setRelative</span><span class="o">();</span>
+  <span class="o">}</span>
+  
+   <span class="nd">@OnTimer</span><span class="o">(</span><span class="s">"timer"</span><span class="o">)</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onTimer</span><span class="o">()</span> <span class="o">{</span>
+      <span class="c1">//Process timer.</span>
+   <span class="o">}</span>
+<span class="o">}));</span>
+
+</code></pre></div></div>
+
+<h4 id="dynamic-timer-tags">10.3.3 Dynamic timer tags</h4>
+<p>Beam also supports dynamically setting a timer tag using <code class="highlighter-rouge">TimerMap</code>. This allows for setting multiple different timers
+in a <code class="highlighter-rouge">DoFn</code> and allowing for the timer tags to be dynamically chosen - e.g. based on data in the input elements. A
+timer with a specific tag can only be set to a single timestamp, so setting the timer again has the effect of
+overwriting the previous expiration time for the timer with that tag. Each <code class="highlighter-rouge">TimerMap</code> is identified with a timer family
+id, and timers in different timer families are independent.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;&gt;</span> <span class="n">perUser</span> <span class="o">=</span> <span class="n">readPerUser</span><span class="o">();</span>
+<span class="n">perUser</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;,</span> <span class="n">OutputT</span><span class="o">&gt;()</span> <span class="o">{</span>
+  <span class="nd">@TimerFamily</span><span class="o">(</span><span class="s">"actionTimers"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">TimerSpec</span> <span class="n">timer</span> <span class="o">=</span>
+    <span class="n">TimerSpecs</span><span class="o">.</span><span class="na">timerMap</span><span class="o">(</span><span class="n">TimeDomain</span><span class="o">.</span><span class="na">EVENT_TIME</span><span class="o">);</span>
+
+  <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span>
+      <span class="nd">@Element</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;</span> <span class="n">element</span><span class="o">,</span> 
+      <span class="nd">@Timestamp</span> <span class="n">Instant</span> <span class="n">elementTs</span><span class="o">,</span>
+      <span class="nd">@TimerFamily</span><span class="o">(</span><span class="s">"actionTimers"</span><span class="o">)</span> <span class="n">TimerMap</span> <span class="n">timers</span><span class="o">)</span> <span class="o">{</span>
+     <span class="n">timers</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">element</span><span class="o">.</span><span class="na">getValue</span><span class="o">().</span><span class="na">getActionType</span><span class="o">(),</span> <span class="n">elementTs</span><span class="o">);</span>
+  <span class="o">}</span>
+  
+   <span class="nd">@OnTimerFamily</span><span class="o">(</span><span class="s">"actionTimers"</span><span class="o">)</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onTimer</span><span class="o">(</span><span class="nd">@TimerId</span> <span class="n">String</span> <span class="n">timerId</span><span class="o">)</span> <span class="o">{</span>
+     <span class="n">LOG</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"Timer fired with id "</span> <span class="o">+</span> <span class="n">timerId</span><span class="o">);</span>
+   <span class="o">}</span>
+<span class="o">}));</span>
+
+</code></pre></div></div>
+
+<h4 id="timer-output-timestamps">10.3.4 Timer output timestamps</h4>
+<p>By default, event-time timers will hold the output watermark of the <code class="highlighter-rouge">ParDo</code> to the timestamp of the timer. This means
+that if a timer is set to 12pm, any windowed aggregations or event-time timers later in the pipeline graph that finish<br />
+after 12pm will not expire. The timestamp of the timer is also the default output timestamp for the timer callback. This
+means that any elements output from the onTimer method will have a timestamp equal to the timestamp of the timer firing.
+For processing-time timers, the default output timestamp and watermark hold is the value of the input watermark at the
+time the timer was set.</p>
+
+<p>In some cases, a DoFn needs to output timestamps earlier than the timer expiration time, and therefore also needs to
+hold its output watermark to those timestamps. For example, consider the following pipeline that temporarily batches 
+records into state, and sets a timer to drain the state. This code may appear correct, but will not work properly.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;&gt;</span> <span class="n">perUser</span> <span class="o">=</span> <span class="n">readPerUser</span><span class="o">();</span>
+<span class="n">perUser</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;,</span> <span class="n">OutputT</span><span class="o">&gt;()</span> <span class="o">{</span>
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"elementBag"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">BagState</span><span class="o">&lt;</span><span class="n">ValueT</span><span class="o">&gt;&gt;</span> <span class="n">elementBag</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">bag</span><span class="o">();</span>
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"timerSet"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Boolean</span><span class="o">&gt;&gt;</span> <span class="n">timerSet</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">();</span>
+  <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"outputState"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">TimerSpec</span> <span class="n">timer</span> <span class="o">=</span> <span class="n">TimerSpecs</span><span class="o">.</span><span class="na">timer</span><span class="o">(</span><span class="n">TimeDomain</span><span class="o">.</span><span class="na">PROCESSING_TIME</span><span class="o">);</span>
+  
+  <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span>
+      <span class="nd">@Element</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;</span> <span class="n">element</span><span class="o">,</span> 
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"elementBag"</span><span class="o">)</span> <span class="n">BagState</span><span class="o">&lt;</span><span class="n">ValueT</span><span class="o">&gt;</span> <span class="n">elementBag</span><span class="o">,</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"timerSet"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Boolean</span><span class="o">&gt;</span> <span class="n">timerSet</span><span class="o">,</span>
+      <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"outputState"</span><span class="o">)</span> <span class="n">Timer</span> <span class="n">timer</span><span class="o">)</span> <span class="o">{</span>
+    <span class="c1">// Add the current element to the bag for this key.</span>
+    <span class="n">elementBag</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">element</span><span class="o">.</span><span class="na">getValue</span><span class="o">());</span>
+    <span class="k">if</span> <span class="o">(!</span><span class="n">MoreObjects</span><span class="o">.</span><span class="na">firstNonNull</span><span class="o">(</span><span class="n">timerSet</span><span class="o">.</span><span class="na">read</span><span class="o">(),</span> <span class="kc">false</span><span class="o">))</span> <span class="o">{</span>
+      <span class="c1">// If the timer is not current set, then set it to go off in a minute.</span>
+      <span class="n">timer</span><span class="o">.</span><span class="na">offset</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">)).</span><span class="na">setRelative</span><span class="o">();</span>
+      <span class="n">timerSet</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+  
+  <span class="nd">@OnTimer</span><span class="o">(</span><span class="s">"outputState"</span><span class="o">)</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onTimer</span><span class="o">(</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"elementBag"</span><span class="o">)</span> <span class="n">BagState</span><span class="o">&lt;</span><span class="n">ValueT</span><span class="o">&gt;</span> <span class="n">elementBag</span><span class="o">,</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"timerSet"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Boolean</span><span class="o">&gt;</span> <span class="n">timerSet</span><span class="o">,</span>
+      <span class="n">OutputReceiver</span><span class="o">&lt;</span><span class="n">ValueT</span><span class="o">&gt;</span> <span class="n">output</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">for</span> <span class="o">(</span><span class="n">ValueT</span> <span class="n">bufferedElement</span> <span class="o">:</span> <span class="n">elementBag</span><span class="o">.</span><span class="na">read</span><span class="o">())</span> <span class="o">{</span>
+      <span class="c1">// Output each element.</span>
+      <span class="n">output</span><span class="o">.</span><span class="na">outputWithTimestamp</span><span class="o">(</span><span class="n">bufferedElement</span><span class="o">,</span> <span class="n">bufferedElement</span><span class="o">.</span><span class="na">timestamp</span><span class="o">());</span>
+    <span class="o">}</span>
+    <span class="n">elementBag</span><span class="o">.</span><span class="na">clear</span><span class="o">();</span>
+    <span class="c1">// Note that the timer has now fired.</span>
+    <span class="n">timerSet</span><span class="o">.</span><span class="na">clear</span><span class="o">();</span>
+  <span class="o">}</span>
+<span class="o">}));</span>
+</code></pre></div></div>
+<p>The problem with this code is that the ParDo is buffering elements, however nothing is preventing the watermark
+from advancing past the timestamp of those elements, so all those elements might be dropped as late data. In order
+to prevent this from happening, an output timestamp needs to be set on the timer to prevent the watermark from advancing
+past the timestamp of the minimum element. The following code demonstrates this.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;&gt;</span> <span class="n">perUser</span> <span class="o">=</span> <span class="n">readPerUser</span><span class="o">();</span>
+<span class="n">perUser</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;,</span> <span class="n">OutputT</span><span class="o">&gt;()</span> <span class="o">{</span>
+  <span class="c1">// The bag of elements accumulated.</span>
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"elementBag"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">BagState</span><span class="o">&lt;</span><span class="n">ValueT</span><span class="o">&gt;&gt;</span> <span class="n">elementBag</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">bag</span><span class="o">();</span>
+  <span class="c1">// The timestamp of the timer set.</span>
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"timerTimestamp"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">timerTimestamp</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">();</span>
+  <span class="c1">// The minimum timestamp stored in the bag.</span>
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"minTimestampInBag"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">CombiningState</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">,</span> <span class="kt">long</span><span class="o">[],</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> 
+     <span class="n">minTimestampInBag</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">combining</span><span class="o">(</span><span class="n">Min</span><span class="o">.</span><span class="na">ofLongs</span><span class="o">());</span>
+
+  <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"outputState"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">TimerSpec</span> <span class="n">timer</span> <span class="o">=</span> <span class="n">TimerSpecs</span><span class="o">.</span><span class="na">timer</span><span class="o">(</span><span class="n">TimeDomain</span><span class="o">.</span><span class="na">PROCESSING_TIME</span><span class="o">);</span>
+  
+  <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span>
+      <span class="nd">@Element</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;</span> <span class="n">element</span><span class="o">,</span> 
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"elementBag"</span><span class="o">)</span> <span class="n">BagState</span><span class="o">&lt;</span><span class="n">ValueT</span><span class="o">&gt;</span> <span class="n">elementBag</span><span class="o">,</span>
+      <span class="nd">@AlwaysFetched</span> <span class="nd">@StateId</span><span class="o">(</span><span class="s">"timerTimestamp"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;</span> <span class="n">timerTimestamp</span><span class="o">,</span>
+      <span class="nd">@AlwaysFetched</span> <span class="nd">@StateId</span><span class="o">(</span><span class="s">"minTimestampInBag"</span><span class="o">)</span> <span class="n">CombiningState</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">,</span> <span class="kt">long</span><span class="o">[],</span> <span class="n">Long</span><span class="o">&gt;</span> <span class="n">minTimestamp</span><span class="o">,</span>
+      <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"outputState"</span><span class="o">)</span> <span class="n">Timer</span> <span class="n">timer</span><span class="o">)</span> <span class="o">{</span>
+    <span class="c1">// Add the current element to the bag for this key.</span>
+    <span class="n">elementBag</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">element</span><span class="o">.</span><span class="na">getValue</span><span class="o">());</span>
+    <span class="c1">// Keep track of the minimum element timestamp currently stored in the bag.</span>
+    <span class="n">minTimestamp</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">element</span><span class="o">.</span><span class="na">getValue</span><span class="o">().</span><span class="na">timestamp</span><span class="o">());</span>
+
+    <span class="c1">// If the timer is already set, then reset it at the same time but with an updated output timestamp (otherwise</span>
+    <span class="c1">// we would keep resetting the timer to the future). If there is no timer set, then set one to expire in a minute.</span>
+    <span class="n">Long</span> <span class="n">timerTimestampMs</span> <span class="o">=</span> <span class="n">timerTimestamp</span><span class="o">.</span><span class="na">read</span><span class="o">();</span>
+    <span class="n">Instant</span> <span class="n">timerToSet</span> <span class="o">=</span> <span class="o">(</span><span class="n">timerTimestamp</span><span class="o">.</span><span class="na">isEmpty</span><span class="o">().</span><span class="na">read</span><span class="o">())</span>
+        <span class="o">?</span> <span class="n">Instant</span><span class="o">.</span><span class="na">now</span><span class="o">().</span><span class="na">plus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">))</span> <span class="o">:</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="n">timerTimestampMs</span><span class="o">);</span>
+    <span class="c1">// Setting the outputTimestamp to the minimum timestamp in the bag holds the watermark to that timestamp until the</span>
+    <span class="c1">// timer fires. This allows outputting all the elements with their timestamp.</span>
+    <span class="n">timer</span><span class="o">.</span><span class="na">withOutputTimestamp</span><span class="o">(</span><span class="n">minTimestamp</span><span class="o">.</span><span class="na">read</span><span class="o">()).</span><span class="na">set</span><span class="o">(</span><span class="n">timerToSet</span><span class="o">).</span>
+    <span class="n">timerTimestamp</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="n">timerToSet</span><span class="o">.</span><span class="na">getMillis</span><span class="o">());</span>
+  <span class="o">}</span>
+  
+  <span class="nd">@OnTimer</span><span class="o">(</span><span class="s">"outputState"</span><span class="o">)</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onTimer</span><span class="o">(</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"elementBag"</span><span class="o">)</span> <span class="n">BagState</span><span class="o">&lt;</span><span class="n">ValueT</span><span class="o">&gt;</span> <span class="n">elementBag</span><span class="o">,</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"timerTimestamp"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;</span> <span class="n">timerTimestamp</span><span class="o">,</span>
+      <span class="n">OutputReceiver</span><span class="o">&lt;</span><span class="n">ValueT</span><span class="o">&gt;</span> <span class="n">output</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">for</span> <span class="o">(</span><span class="n">ValueT</span> <span class="n">bufferedElement</span> <span class="o">:</span> <span class="n">elementBag</span><span class="o">.</span><span class="na">read</span><span class="o">())</span> <span class="o">{</span>
+      <span class="c1">// Output each element.</span>
+      <span class="n">output</span><span class="o">.</span><span class="na">outputWithTimestamp</span><span class="o">(</span><span class="n">bufferedElement</span><span class="o">,</span> <span class="n">bufferedElement</span><span class="o">.</span><span class="na">timestamp</span><span class="o">());</span>
+    <span class="o">}</span>
+    <span class="c1">// Note that the timer has now fired.</span>
+    <span class="n">timerTimestamp</span><span class="o">.</span><span class="na">clear</span><span class="o">();</span>
+  <span class="o">}</span>
+<span class="o">}));</span>
+</code></pre></div></div>
+<h3 id="garbage-collecting-state">10.4 Garbage collecting state</h3>
+<p>Per-key state needs to be garbage collected, or eventually the increasing size of state may negatively impact 
+performance. There are two common strategies for garbage collecting state.</p>
+
+<h5 id="using-windows-for-garbage-collection">10.4.1 <strong>Using windows for garbage collection</strong></h5>
+<p>All state and timers for a key is scoped to the window it is in. This means that depending on the timestamp of the 
+input element the ParDo will see different values for the state depending on the window that element falls into. In
+addition, once the input watermark passes the end of the window, the runner should garbage collect all state for that
+window. (note: if allowed lateness is set to a positive value for the window, the runner must wait for the watemark to
+pass the end of the window plus the allowed lateness before garbage collecting state). This can be used as a 
+garbage-collection strategy.</p>
+
+<p>For example, given the following:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;&gt;</span> <span class="n">perUser</span> <span class="o">=</span> <span class="n">readPerUser</span><span class="o">();</span>
+<span class="n">perUser</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Window</span><span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">CalendarWindows</span><span class="o">.</span><span class="na">days</span><span class="o">(</span><span class="mi">1</span><span class="o">)</span>
+   <span class="o">.</span><span class="na">withTimeZone</span><span class="o">(</span><span class="n">DateTimeZone</span><span class="o">.</span><span class="na">forID</span><span class="o">(</span><span class="s">"America/Los_Angeles"</span><span class="o">))));</span>
+       <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;,</span> <span class="n">OutputT</span><span class="o">&gt;()</span> <span class="o">{</span>
+           <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">state</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">();</span>
+                              <span class="o">...</span>
+           <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="nd">@Timestamp</span> <span class="n">Instant</span> <span class="n">ts</span><span class="o">,</span> <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">state</span><span class="o">)</span> <span class="o">{</span>
+              <span class="c1">// The state is scoped to a calendar day window. That means that if the input timestamp ts is after</span>
+              <span class="c1">// midnight PST, then a new copy of the state will be seen for the next day.</span>
+           <span class="o">}</span>
+         <span class="o">}));</span>
+</code></pre></div></div>
+
+<p>This <code class="highlighter-rouge">ParDo</code> stores state per day. Once the pipeline is done processing data for a given day, all the state for that
+day is garbage collected.</p>
+
+<h5 id="using-timers-for-garbage-collection">10.4.1 <strong>Using timers For garbage collection</strong></h5>
+<p>In some cases, it is difficult to find a windowing strategy that models the desired garbage-collection strategy. For 
+example, a common desire is to garbage collect state for a key once no activity has been seen on the key for some time.
+This can be done by updating a timer that garbage collects state. For example</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;&gt;</span> <span class="n">perUser</span> <span class="o">=</span> <span class="n">readPerUser</span><span class="o">();</span>
+<span class="n">perUser</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;,</span> <span class="n">OutputT</span><span class="o">&gt;()</span> <span class="o">{</span>
+  <span class="c1">// The state for the key.</span>
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">ValueT</span><span class="o">&gt;&gt;</span> <span class="n">state</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">();</span>
+
+  <span class="c1">// The maximum element timestamp seen so far.</span>
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"maxTimestampSeen"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">CombiningState</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">,</span> <span class="kt">long</span><span class="o">[],</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> 
+     <span class="n">maxTimestamp</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">combining</span><span class="o">(</span><span class="n">Max</span><span class="o">.</span><span class="na">ofLongs</span><span class="o">());</span>
+
+  <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"gcTimer"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">TimerSpec</span> <span class="n">gcTimer</span> <span class="o">=</span> <span class="n">TimerSpecs</span><span class="o">.</span><span class="na">timer</span><span class="o">(</span><span class="n">TimeDomain</span><span class="o">.</span><span class="na">EVENT_TIME</span><span class="o">);</span>
+
+  <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span>
+      <span class="nd">@Element</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;</span> <span class="n">element</span><span class="o">,</span>
+      <span class="nd">@Timestamp</span> <span class="n">Instant</span> <span class="n">ts</span><span class="o">,</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">ValueT</span><span class="o">&gt;</span> <span class="n">state</span><span class="o">,</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"maxTimestampSeen"</span><span class="o">)</span> <span class="n">CombiningState</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">,</span> <span class="kt">long</span><span class="o">[],</span> <span class="n">Long</span><span class="o">&gt;</span> <span class="n">maxTimestamp</span><span class="o">,</span>
+      <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"gcTimer"</span><span class="o">)</span> <span class="n">gcTimer</span><span class="o">)</span> <span class="o">{</span> 
+    <span class="n">updateState</span><span class="o">(</span><span class="n">state</span><span class="o">,</span> <span class="n">element</span><span class="o">);</span>
+    <span class="n">maxTimestamp</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">ts</span><span class="o">.</span><span class="na">getMillis</span><span class="o">());</span>
+    
+    <span class="c1">// Set the timer to be one hour after the maximum timestamp seen. This will keep overwriting the same timer, so </span>
+    <span class="c1">// as long as there is activity on this key the state will stay active. Once the key goes inactive for one hour's</span>
+    <span class="c1">// worth of event time (as measured by the watermark), then the gc timer will fire.</span>
+    <span class="n">Instant</span> <span class="n">expirationTime</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="n">maxTimestamp</span><span class="o">.</span><span class="na">read</span><span class="o">()).</span><span class="na">plus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardHours</span><span class="o">(</span><span class="mi">1</span><span class="o">));</span>
+    <span class="n">timer</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">expirationTime</span><span class="o">);</span>
+  <span class="o">}</span>
+
+  <span class="nd">@OnTimer</span><span class="o">(</span><span class="s">"gcTimer"</span><span class="o">)</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onTimer</span><span class="o">(</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">ValueT</span><span class="o">&gt;</span> <span class="n">state</span><span class="o">,</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"maxTimestampSeen"</span><span class="o">)</span> <span class="n">CombiningState</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">,</span> <span class="kt">long</span><span class="o">[],</span> <span class="n">Long</span><span class="o">&gt;</span> <span class="n">maxTimestamp</span><span class="o">)</span> <span class="o">{</span>
+       <span class="c1">// Clear all state for the key.</span>
+       <span class="n">state</span><span class="o">.</span><span class="na">clear</span><span class="o">();</span>
+       <span class="n">maxTimestamp</span><span class="o">.</span><span class="na">clear</span><span class="o">();</span>
+    <span class="o">}</span>
+ <span class="o">}</span>
+</code></pre></div></div>
+
+<h3 id="state-timers-examples">10.5 State and timers examples</h3>
+<p>Following are some example uses of state and timers</p>
+
+<h4 id="joining-clicks-and-views">10.5.1. Joining clicks and views</h4>
+<p>In this example, the pipeline is processing data from an e-commerce site’s home page. There are two input streams:
+a stream of views, representing suggested product links displayed to the user on the home page, and a stream of 
+clicks, representing actual user clicks on these links. The goal of the pipeline is to join click events with view
+events, outputting a new joined event that contains information from both events. Each link has a unique identifier
+that is present in both the view event and the join event.</p>
+
+<p>Many view events will never be followed up with clicks. This pipeline will wait one hour for a click, after which it 
+will give up on this join. While every click event should have a view event, some small number of view events may be
+lost and never make it to the Beam pipeline; the pipeline will similarly wait one hour after seeing a click event, and
+give up if the view event does not arrive in that time. Input events are not ordered - it is possible to see the click 
+event before the view event. The one hour join timeout should be based on event time, not on processing time.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Read the event stream and key it by the link id.</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Event</span><span class="o">&gt;&gt;</span> <span class="n">eventsPerLinkId</span> <span class="o">=</span> 
+    <span class="n">readEvents</span><span class="o">()</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">WithKeys</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="nl">Event:</span><span class="o">:</span><span class="n">getLinkId</span><span class="o">).</span><span class="na">withKeyType</span><span class="o">(</span><span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">strings</span><span class="o">()));</span>
+
+<span class="n">perUser</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Event</span><span class="o">&gt;,</span> <span class="n">JoinedEvent</span><span class="o">&gt;()</span> <span class="o">{</span>
+  <span class="c1">// Store the view event.</span>
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"view"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">&gt;&gt;</span> <span class="n">viewState</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">();</span>
+  <span class="c1">// Store the click event.</span>
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"click"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">&gt;&gt;</span> <span class="n">clickState</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">();</span>
+
+  <span class="c1">// The maximum element timestamp seen so far.</span>
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"maxTimestampSeen"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">CombiningState</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">,</span> <span class="kt">long</span><span class="o">[],</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> 
+     <span class="n">maxTimestamp</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">combining</span><span class="o">(</span><span class="n">Max</span><span class="o">.</span><span class="na">ofLongs</span><span class="o">());</span>
+
+  <span class="c1">// Timer that fires when an hour goes by with an incomplete join.</span>
+  <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"gcTimer"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">TimerSpec</span> <span class="n">gcTimer</span> <span class="o">=</span> <span class="n">TimerSpecs</span><span class="o">.</span><span class="na">timer</span><span class="o">(</span><span class="n">TimeDomain</span><span class="o">.</span><span class="na">EVENT_TIME</span><span class="o">);</span>
+
+  <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span>
+      <span class="nd">@Element</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Event</span><span class="o">&gt;</span> <span class="n">element</span><span class="o">,</span>
+      <span class="nd">@Timestamp</span> <span class="n">Instant</span> <span class="n">ts</span><span class="o">,</span>
+      <span class="nd">@AlwaysFetched</span> <span class="nd">@StateId</span><span class="o">(</span><span class="s">"view"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">&gt;</span> <span class="n">viewState</span><span class="o">,</span>
+      <span class="nd">@AlwaysFetched</span> <span class="nd">@StateId</span><span class="o">(</span><span class="s">"click"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">&gt;</span> <span class="n">clickState</span><span class="o">,</span>
+      <span class="nd">@AlwaysFetched</span> <span class="nd">@StateId</span><span class="o">(</span><span class="s">"maxTimestampSeen"</span><span class="o">)</span> <span class="n">CombiningState</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">,</span> <span class="kt">long</span><span class="o">[],</span> <span class="n">Long</span><span class="o">&gt;</span> <span class="n">maxTimestampState</span><span class="o">,</span>
+      <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"gcTimer"</span><span class="o">)</span> <span class="n">gcTimer</span><span class="o">,</span>
+      <span class="n">OutputReceiver</span><span class="o">&lt;</span><span class="n">JoinedEvent</span><span class="o">&gt;</span> <span class="n">output</span><span class="o">)</span> <span class="o">{</span> 
+    <span class="c1">// Store the event into the correct state variable.</span>
+    <span class="n">Event</span> <span class="n">event</span> <span class="o">=</span> <span class="n">element</span><span class="o">.</span><span class="na">getValue</span><span class="o">();</span>
+    <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">&gt;</span> <span class="n">valueState</span> <span class="o">=</span> <span class="n">event</span><span class="o">.</span><span class="na">getType</span><span class="o">().</span><span class="na">equals</span><span class="o">(</span><span class="n">VIEW</span><span class="o">)</span> <span class="o">?</span> <span class="n">viewState</span> <span class="o">:</span> <span class="n">clickState</span><span class="o">;</span>
+    <span class="n">valueState</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="n">event</span><span class="o">);</span>
+  
+    <span class="n">Event</span> <span class="n">view</span> <span class="o">=</span> <span class="n">viewState</span><span class="o">.</span><span class="na">read</span><span class="o">();</span>
+    <span class="n">Event</span> <span class="n">click</span> <span class="o">=</span> <span class="n">clickState</span><span class="o">.</span><span class="na">read</span><span class="o">();</span>
+    <span class="o">(</span><span class="k">if</span> <span class="n">view</span> <span class="o">!=</span> <span class="kc">null</span> <span class="o">&amp;&amp;</span> <span class="n">click</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+      <span class="c1">// We've seen both a view and a click. Output a joined event and clear state.</span>
+      <span class="n">output</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">JoinedEvent</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">view</span><span class="o">,</span> <span class="n">click</span><span class="o">));</span>
+      <span class="n">clearState</span><span class="o">(</span><span class="n">viewState</span><span class="o">,</span> <span class="n">clickState</span><span class="o">,</span> <span class="n">maxTimestampState</span><span class="o">);</span>
+    <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+       <span class="c1">// We've only seen on half of the join.</span>
+       <span class="c1">// Set the timer to be one hour after the maximum timestamp seen. This will keep overwriting the same timer, so </span>
+       <span class="c1">// as long as there is activity on this key the state will stay active. Once the key goes inactive for one hour's</span>
+       <span class="c1">// worth of event time (as measured by the watermark), then the gc timer will fire.</span>
+        <span class="n">maxTimestampState</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">ts</span><span class="o">.</span><span class="na">getMillis</span><span class="o">());</span>
+       <span class="n">Instant</span> <span class="n">expirationTime</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="n">maxTimestampState</span><span class="o">.</span><span class="na">read</span><span class="o">()).</span><span class="na">plus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardHours</span><span class="o">(</span><span class="mi">1</span><span class="o">));</span>
+       <span class="n">gcTimer</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">expirationTime</span><span class="o">);</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+
+  <span class="nd">@OnTimer</span><span class="o">(</span><span class="s">"gcTimer"</span><span class="o">)</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onTimer</span><span class="o">(</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"view"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">&gt;</span> <span class="n">viewState</span><span class="o">,</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"click"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">&gt;</span> <span class="n">clickState</span><span class="o">,</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"maxTimestampSeen"</span><span class="o">)</span> <span class="n">CombiningState</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">,</span> <span class="kt">long</span><span class="o">[],</span> <span class="n">Long</span><span class="o">&gt;</span> <span class="n">maxTimestampState</span><span class="o">)</span> <span class="o">{</span>
+       <span class="c1">// An hour has gone by with an incomplete join. Give up and clear the state.</span>
+       <span class="n">clearState</span><span class="o">(</span><span class="n">viewState</span><span class="o">,</span> <span class="n">clickState</span><span class="o">,</span> <span class="n">maxTimestampState</span><span class="o">);</span>
+    <span class="o">}</span>
+   
+    <span class="kd">private</span> <span class="kt">void</span> <span class="nf">clearState</span><span class="o">(</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"view"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">&gt;</span> <span class="n">viewState</span><span class="o">,</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"click"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Event</span><span class="o">&gt;</span> <span class="n">clickState</span><span class="o">,</span>
+      <span class="nd">@StateId</span><span class="o">(</span><span class="s">"maxTimestampSeen"</span><span class="o">)</span> <span class="n">CombiningState</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">,</span> <span class="kt">long</span><span class="o">[],</span> <span class="n">Long</span><span class="o">&gt;</span> <span class="n">maxTimestampState</span><span class="o">)</span> <span class="o">{</span>
+      <span class="n">viewState</span><span class="o">.</span><span class="na">clear</span><span class="o">();</span>
+      <span class="n">clickState</span><span class="o">.</span><span class="na">clear</span><span class="o">();</span>
+      <span class="n">maxTimestampState</span><span class="o">.</span><span class="na">clear</span><span class="o">();</span>
+    <span class="o">}</span>
+ <span class="o">}));</span>
+</code></pre></div></div>
+
+<h4 id="batching-rpcs">10.5.2 Batching RPCs</h4>
+
+<p>In this example, input elements are being forwarded to an external RPC service. The RPC accepts batch requests - 
+multiple events for the same user can be batched in a single RPC call. Since this RPC service also imposes rate limits,
+we want to batch ten seconds worth of events together in order to reduce the number of calls.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;&gt;</span> <span class="n">perUser</span> <span class="o">=</span> <span class="n">readPerUser</span><span class="o">();</span>
+<span class="n">perUser</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;,</span> <span class="n">OutputT</span><span class="o">&gt;()</span> <span class="o">{</span>
+  <span class="c1">// Store the elements buffered so far.</span>
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">BagState</span><span class="o">&lt;</span><span class="n">ValueT</span><span class="o">&gt;&gt;</span> <span class="n">elements</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">bag</span><span class="o">();</span>
+  <span class="c1">// Keep track of whether a timer is currently set or not.</span>
+  <span class="nd">@StateId</span><span class="o">(</span><span class="s">"isTimerSet"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Boolean</span><span class="o">&gt;&gt;</span> <span class="n">isTimerSet</span> <span class="o">=</span> <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">();</span>
+  <span class="c1">// The processing-time timer user to publish the RPC.</span>
+  <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"outputState"</span><span class="o">)</span> <span class="kd">private</span> <span class="kd">final</span> <span class="n">TimerSpec</span> <span class="n">timer</span> <span class="o">=</span> <span class="n">TimerSpecs</span><span class="o">.</span><span class="na">timer</span><span class="o">(</span><span class="n">TimeDomain</span><span class="o">.</span><span class="na">PROCESSING_TIME</span><span class="o">);</span>
+  
+  <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span>
+    <span class="nd">@Element</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">ValueT</span><span class="o">&gt;</span> <span class="n">element</span><span class="o">,</span> 
+    <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state"</span><span class="o">)</span> <span class="n">BagState</span><span class="o">&lt;</span><span class="n">ValueT</span><span class="o">&gt;</span> <span class="n">elementsState</span><span class="o">,</span>
+    <span class="nd">@StateId</span><span class="o">(</span><span class="s">"isTimerSet"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Boolean</span><span class="o">&gt;</span> <span class="n">isTimerSetState</span><span class="o">,</span>
+    <span class="nd">@TimerId</span><span class="o">(</span><span class="s">"outputState"</span><span class="o">)</span> <span class="n">Timer</span> <span class="n">timer</span><span class="o">)</span> <span class="o">{</span>
+    <span class="c1">// Add the current element to the bag for this key.</span>
+    <span class="n">state</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">element</span><span class="o">.</span><span class="na">getValue</span><span class="o">());</span>
+    <span class="k">if</span> <span class="o">(!</span><span class="n">MoreObjects</span><span class="o">.</span><span class="na">firstNonNull</span><span class="o">(</span><span class="n">isTimerSetState</span><span class="o">.</span><span class="na">read</span><span class="o">(),</span> <span class="kc">false</span><span class="o">))</span> <span class="o">{</span>
+      <span class="c1">// If there is no timer currently set, then set one to go off in 10 seconds.</span>
+      <span class="n">timer</span><span class="o">.</span><span class="na">offset</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">10</span><span class="o">)).</span><span class="na">setRelative</span><span class="o">();</span>
+      <span class="n">isTimerSetState</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+   <span class="o">}</span>
+  <span class="o">}</span>
+ 
+  <span class="nd">@OnTimer</span><span class="o">(</span><span class="s">"outputState"</span><span class="o">)</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onTimer</span><span class="o">(</span>
+    <span class="nd">@StateId</span><span class="o">(</span><span class="s">"state"</span><span class="o">)</span> <span class="n">BagState</span><span class="o">&lt;</span><span class="n">ValueT</span><span class="o">&gt;</span> <span class="n">elementsState</span><span class="o">,</span>
+    <span class="nd">@StateId</span><span class="o">(</span><span class="s">"isTimerSet"</span><span class="o">)</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Boolean</span><span class="o">&gt;</span> <span class="n">isTimerSetState</span><span class="o">)</span> <span class="o">{</span>
+    <span class="c1">// Send an RPC containing the batched elements and clear state.</span>
+    <span class="n">sendRPC</span><span class="o">(</span><span class="n">elementsState</span><span class="o">.</span><span class="na">read</span><span class="o">());</span>
+    <span class="n">elementsState</span><span class="o">.</span><span class="na">clear</span><span class="o">();</span>
+    <span class="n">isTimerSetState</span><span class="o">.</span><span class="na">clear</span><span class="o">();</span>
+  <span class="o">}</span>
+<span class="o">}));</span>
+</code></pre></div></div>
+
 
       </div>
     </div>
