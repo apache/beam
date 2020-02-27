@@ -561,10 +561,10 @@ public class ProtoDynamicMessageSchema<T> implements Serializable {
     @Override
     Map getFromProtoMessage(Message message) {
       List<Message> list = (List<Message>) message.getField(getFieldDescriptor(message));
-      if (list.size() == 0) {
-        return null;
-      }
       Map<Object, Object> rowMap = new HashMap<>();
+      if (list.size() == 0) {
+        return rowMap;
+      }
       list.forEach(
           entryMessage -> {
             Descriptors.Descriptor entryDescriptor = entryMessage.getDescriptorForType();
