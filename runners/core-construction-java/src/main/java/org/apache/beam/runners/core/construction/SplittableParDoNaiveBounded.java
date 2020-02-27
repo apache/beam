@@ -146,6 +146,11 @@ public class SplittableParDoNaiveBounded {
             }
 
             @Override
+            public PipelineOptions pipelineOptions() {
+              return c.getPipelineOptions();
+            }
+
+            @Override
             public String getErrorContext() {
               return "SplittableParDoNaiveBounded/StartBundle";
             }
@@ -200,16 +205,21 @@ public class SplittableParDoNaiveBounded {
                 public void output(
                     @Nullable OutputT output, Instant timestamp, BoundedWindow window) {
                   throw new UnsupportedOperationException(
-                      "Output from FinishBundle for SDF is not supported");
+                      "Output from FinishBundle for SDF is not supported in naive implementation");
                 }
 
                 @Override
                 public <T> void output(
                     TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
                   throw new UnsupportedOperationException(
-                      "Output from FinishBundle for SDF is not supported");
+                      "Output from FinishBundle for SDF is not supported in naive implementation");
                 }
               };
+            }
+
+            @Override
+            public PipelineOptions pipelineOptions() {
+              return c.getPipelineOptions();
             }
 
             @Override
