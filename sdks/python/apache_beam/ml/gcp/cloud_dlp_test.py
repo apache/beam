@@ -127,8 +127,8 @@ class TestDeidentifyFn(unittest.TestCase):
           | beam.ParDo(_InspectFn(config=inspect_config)))
       result = p.run()
       result.wait_until_finish()
-    called = result.metrics().query()['counters'][0]
-    self.assertEqual(called.result, 2)
+      called = result.metrics().query()['counters'][0]
+      self.assertEqual(called.result, 2)
 
 
 if __name__ == '__main__':
