@@ -945,6 +945,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     }
 
     @Override
+    public PipelineOptions pipelineOptions() {
+      return pipelineOptions;
+    }
+
+    @Override
     public BundleFinalizer bundleFinalizer() {
       return bundleFinalizer;
     }
@@ -989,6 +994,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
         DoFn<InputT, OutputT> doFn) {
       return context;
+    }
+
+    @Override
+    public PipelineOptions pipelineOptions() {
+      return pipelineOptions;
     }
 
     @Override
