@@ -47,6 +47,7 @@ import static org.apache.beam.sdk.schemas.Schema.FieldType.DATETIME;
 
 import com.google.protobuf.ByteString;
 import com.google.zetasql.SqlException;
+import com.google.zetasql.StructType;
 import com.google.zetasql.StructType.StructField;
 import com.google.zetasql.TypeFactory;
 import com.google.zetasql.Value;
@@ -375,7 +376,6 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  @Ignore("Does not support struct literal.")
   public void testIsNotNull3() {
     String sql = "SELECT @p0 IS NOT NULL AS ColA";
     ImmutableMap<String, Value> params =
@@ -521,7 +521,6 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  @Ignore("Struct literals are not currently supported")
   public void testCoalesceNullStruct() {
     String sql = "SELECT COALESCE(NULL, STRUCT(\"a\" AS s, -33 AS i))";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
@@ -538,7 +537,7 @@ public class ZetaSQLDialectSpecTest {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
-                .addValue(Row.withSchema(innerSchema).addValues("a", -33).build())
+                .addValue(Row.withSchema(innerSchema).addValues("a", -33L).build())
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -3246,6 +3245,67 @@ public class ZetaSQLDialectSpecTest {
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
     final Schema schema = Schema.builder().addInt64Field("field1").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(5L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testParameterStruct() {
+    String sql = "SELECT @p as ColA";
+    ImmutableMap<String, Value> params =
+        ImmutableMap.of(
+            "p",
+            Value.createStructValue(
+                TypeFactory.createStructType(
+                    ImmutableList.of(
+                        new StructType.StructField(
+                            "s", TypeFactory.createSimpleType(TypeKind.TYPE_STRING)),
+                        new StructType.StructField(
+                            "i", TypeFactory.createSimpleType(TypeKind.TYPE_INT64)))),
+                ImmutableList.of(Value.createStringValue("foo"), Value.createInt64Value(1L))));
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema innerSchema =
+        Schema.of(Field.of("s", FieldType.STRING), Field.of("i", FieldType.INT64));
+    final Schema schema = Schema.of(Field.of("field1", FieldType.row(innerSchema)));
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValue(Row.withSchema(innerSchema).addValues("foo", 1L).build())
+                .build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testParameterStructNested() {
+    String sql = "SELECT @outer_struct.inner_struct.s as ColA";
+    StructType innerStructType =
+        TypeFactory.createStructType(
+            ImmutableList.of(
+                new StructType.StructField(
+                    "s", TypeFactory.createSimpleType(TypeKind.TYPE_STRING))));
+    ImmutableMap<String, Value> params =
+        ImmutableMap.of(
+            "outer_struct",
+            Value.createStructValue(
+                TypeFactory.createStructType(
+                    ImmutableList.of(new StructType.StructField("inner_struct", innerStructType))),
+                ImmutableList.of(
+                    Value.createStructValue(
+                        innerStructType, ImmutableList.of(Value.createStringValue("foo"))))));
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addStringField("field1").build();
+
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue("foo").build());
+
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
