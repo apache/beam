@@ -72,14 +72,19 @@ class PrintFn(beam.DoFn):
 class AddTimestampFn(beam.DoFn):
   """A DoFn that attaches timestamps to its elements.
 
-  It just takes an element and adds a current timestamp.
+  It takes an element and attaches a timestamp of its same value for integer
+  and current timestamp in other cases.
 
-  For example, Sometext will result in:
-  (Sometext, Timestamp(1234567890).
+  For example, 120 and Sometext will result in:
+  (120, Timestamp(120) and (Sometext, Timestamp(1234567890).
   """
   def process(self, element):
     logging.info('Adding timestamp to: %s', element)
-    yield beam.window.TimestampedValue(element, int(time.time()))
+    try:
+      elem = int(element)
+    except ValueError:
+      elem = int(time.time())
+    yield beam.window.TimestampedValue(element, elem)
 
 
 def run(argv=None):
