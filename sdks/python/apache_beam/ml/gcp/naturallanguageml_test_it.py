@@ -23,13 +23,19 @@ import unittest
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
-from apache_beam.ml.gcp.naturallanguageml import AnnotateText
-from apache_beam.ml.gcp.naturallanguageml import Document
-from apache_beam.ml.gcp.naturallanguageml import enums
-from apache_beam.ml.gcp.naturallanguageml import types
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+# Protect against environments where Google Cloud Natural Language client is
+# not available.
+try:
+  from apache_beam.ml.gcp.naturallanguageml import AnnotateText
+  from apache_beam.ml.gcp.naturallanguageml import Document
+  from apache_beam.ml.gcp.naturallanguageml import enums
+  from apache_beam.ml.gcp.naturallanguageml import types
+except ImportError:
+  AnnotateText = None
 
 
 def extract(response):
@@ -43,6 +49,7 @@ def extract(response):
 
 
 @attr('IT')
+@unittest.skipIf(AnnotateText is None, 'GCP dependencies are not installed')
 class NaturalLanguageMlTestIT(unittest.TestCase):
   def test_analyzing_syntax(self):
     with TestPipeline(is_integration_test=True) as p:
