@@ -51,6 +51,11 @@ task copyLauncherDependencies(type: Copy) {
   }
 }
 
+task copyDependencyLicenses(type: Copy) {
+  from file("${project.rootProject.projectDir}/licenses/python")
+  into "build/target/dependencies"
+}
+
 docker {
   name containerImageName(
           name: "python3.7_sdk",
@@ -65,3 +70,4 @@ docker {
 
 dockerPrepare.dependsOn copyLauncherDependencies
 dockerPrepare.dependsOn copyDockerfileDependencies
+dockerPrepare.dependsOn copyDependencyLicenses

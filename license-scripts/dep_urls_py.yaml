@@ -1,0 +1,106 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+pip_dependencies:
+  # template.
+  # dependency_name:
+  #   license: url_to_license or "skip"
+  #   (optional)notice: url_to_notice
+  apache-beam:
+    license: "skip" # don't include self dependency.
+  apipkg:
+    license: "https://raw.githubusercontent.com/pytest-dev/apipkg/master/LICENSE"
+  atomicwrites:
+    license: "https://raw.githubusercontent.com/untitaker/python-atomicwrites/master/LICENSE"
+  avro-python3:
+    license: "https://raw.githubusercontent.com/apache/avro/master/LICENSE.txt"
+    notice: "https://raw.githubusercontent.com/apache/avro/master/NOTICE.txt"
+  beautifulsoup4:
+    license: "skip" # it is manually added.
+  chardet:
+    license: "https://raw.githubusercontent.com/chardet/chardet/master/LICENSE"
+  fastavro:
+    license: "https://raw.githubusercontent.com/fastavro/fastavro/master/LICENSE"
+    notice: "https://raw.githubusercontent.com/fastavro/fastavro/master/NOTICE.txt"
+  freezegun:
+    license: "https://raw.githubusercontent.com/spulec/freezegun/master/LICENSE"
+  google-apitools:
+    license: "https://raw.githubusercontent.com/google/apitools/master/LICENSE"
+  grpcio:
+    license: "https://raw.githubusercontent.com/grpc/grpc/master/LICENSE"
+    notice: "https://raw.githubusercontent.com/grpc/grpc/master/NOTICE.txt"
+  grpcio-gcp:
+    license: "https://raw.githubusercontent.com/GoogleCloudPlatform/grpc-gcp-python/master/LICENSE"
+  hdfs:
+    license: "https://raw.githubusercontent.com/mtth/hdfs/master/LICENSE"
+  httplib2:
+    license: "https://raw.githubusercontent.com/httplib2/httplib2/master/LICENSE"
+  mock:
+    license: "https://raw.githubusercontent.com/testing-cabal/mock/master/LICENSE.txt"
+  monotonic:
+    license: "https://raw.githubusercontent.com/atdt/monotonic/master/LICENSE"
+  mypy-protobuf:
+    license: "https://raw.githubusercontent.com/dropbox/mypy-protobuf/master/LICENSE"
+  nose:
+    license: "https://raw.githubusercontent.com/nose-devs/nose2/master/license.txt"
+  nose-xunitmp:
+    license: "skip" # no license available.
+  numpy:
+    license: "https://raw.githubusercontent.com/numpy/numpy/master/LICENSE.txt"
+  oauth2client:
+    license: "https://raw.githubusercontent.com/googleapis/oauth2client/master/LICENSE"
+  pandas:
+    license: "https://raw.githubusercontent.com/pandas-dev/pandas/master/LICENSE"
+  parameterized:
+    license: "https://raw.githubusercontent.com/wolever/parameterized/master/LICENSE.txt"
+  pathlib2:
+    license: "https://raw.githubusercontent.com/mcmtroffaes/pathlib2/develop/LICENSE.rst"
+  pkg-resources:
+    license: "https://raw.githubusercontent.com/pypa/setuptools/master/LICENSE"
+  protobuf:
+    license: "https://raw.githubusercontent.com/protocolbuffers/protobuf/master/LICENSE"
+  pyarrow:
+    license: "https://raw.githubusercontent.com/apache/arrow/master/LICENSE.txt"
+    notice: "https://raw.githubusercontent.com/apache/arrow/master/NOTICE.txt"
+  pyhamcrest:
+    license: "https://raw.githubusercontent.com/hamcrest/PyHamcrest/master/LICENSE.txt"
+  pymongo:
+    license: "https://raw.githubusercontent.com/mongodb/mongo-python-driver/master/LICENSE"
+  wget:
+    license: "https://raw.githubusercontent.com/mirror/wget/master/COPYING"
+  yapf:
+    license: "https://raw.githubusercontent.com/google/yapf/master/LICENSE"
+
+docker_dependencies:
+  pyvcf:
+    license: "https://raw.githubusercontent.com/jamescasbon/PyVCF/master/LICENSE"
+  googledatastore:
+    license: "https://raw.githubusercontent.com/GoogleCloudPlatform/google-cloud-datastore/master/LICENSE"
+  proto-google-cloud-datastore-v1:
+    license: "https://raw.githubusercontent.com/googleapis/googleapis/master/LICENSE"
+  cython:
+    license: "https://raw.githubusercontent.com/cython/cython/master/LICENSE.txt"
+  python-snappy:
+    license: "https://raw.githubusercontent.com/andrix/python-snappy/master/LICENSE"
+  scipy:
+    license: "https://raw.githubusercontent.com/scipy/scipy/master/LICENSE.txt"
+  protorpc:
+    license: "https://raw.githubusercontent.com/google/protorpc/master/LICENSE"
+  python-gflags:
+    license: "skip" # no license available.
+    notice: "https://raw.githubusercontent.com/google/python-gflags/master/COPYING"
+  tensorflow:
+    license: "https://raw.githubusercontent.com/tensorflow/tensorflow/master/LICENSE"
