@@ -24,6 +24,7 @@ from __future__ import absolute_import
 import unittest
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
@@ -133,11 +134,12 @@ class TestStreamTest(unittest.TestCase):
         TimestampedValue('2', 12),
         TimestampedValue('3', 13),
     ]
-    test_stream = (
-        TestStream().advance_watermark_to(5, tag='letters').add_elements(
-            letters_elements,
-            tag='letters').advance_watermark_to(10, tag='numbers').add_elements(
-                numbers_elements, tag='numbers'))
+    test_stream = \
+        (TestStream()
+             .advance_watermark_to(5, tag='letters')
+             .add_elements(letters_elements, tag='letters')
+             .advance_watermark_to(10, tag='numbers')
+         .add_elements(numbers_elements, tag='numbers')) # yapf: disable
 
     class RecordFn(beam.DoFn):
       def process(
@@ -147,6 +149,8 @@ class TestStreamTest(unittest.TestCase):
         yield (element, timestamp)
 
     options = StandardOptions(streaming=True)
+    options.view_as(DebugOptions).add_experiment(
+        'passthrough_pcollection_output_ids')
     p = TestPipeline(options=options)
 
     main = p | test_stream
@@ -189,20 +193,19 @@ class TestStreamTest(unittest.TestCase):
         TimestampedValue('2', 22),
         TimestampedValue('3', 23),
     ]
-    test_stream = (
-        TestStream().advance_watermark_to(
-            0, tag='letters').advance_watermark_to(
-                0, tag='numbers').advance_watermark_to(
-                    20, tag='numbers').advance_watermark_to(
-                        5, tag='letters').add_elements(
-                            letters_elements,
-                            tag='letters').advance_watermark_to(
-                                10, tag='letters').add_elements(
-                                    numbers_elements,
-                                    tag='numbers').advance_watermark_to(
-                                        30, tag='numbers'))
+    test_stream = (TestStream()
+                   .advance_watermark_to(0, tag='letters')
+                   .advance_watermark_to(0, tag='numbers')
+                   .advance_watermark_to(20, tag='numbers')
+                   .advance_watermark_to(5, tag='letters')
+                   .add_elements(letters_elements, tag='letters')
+                   .advance_watermark_to(10, tag='letters')
+                   .add_elements(numbers_elements, tag='numbers')
+                   .advance_watermark_to(30, tag='numbers')) # yapf: disable
 
     options = StandardOptions(streaming=True)
+    options.view_as(DebugOptions).add_experiment(
+        'passthrough_pcollection_output_ids')
     p = TestPipeline(options=options)
 
     main = p | test_stream
@@ -561,7 +564,11 @@ class TestStreamTest(unittest.TestCase):
                    .add_elements([1, 2, 3], tag='a')
                    .add_elements([4, 5, 6], tag='b')) # yapf: disable
 
-    p = TestPipeline(options=StandardOptions(streaming=True))
+    options = StandardOptions(streaming=True)
+    options.view_as(DebugOptions).add_experiment(
+        'passthrough_pcollection_output_ids')
+
+    p = TestPipeline(options=options)
     p | test_stream
 
     pipeline_proto, context = p.to_runner_api(return_context=True)
