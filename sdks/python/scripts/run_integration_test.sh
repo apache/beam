@@ -232,6 +232,7 @@ if [[ -z $PIPELINE_OPTS ]]; then
   if [[ "$RUNNER_V2" = true ]]; then
     opts+=("--experiments=use_runner_v2")
     opts+=("--enable_streaming_engine")
+    opts+=("--experiments=runner_harness_container_image=gcr.io/cloud-dataflow/v1beta3/unified-harness:20200227-rc01")
   fi
 
   if [[ ! -z "$KMS_KEY_NAME" ]]; then
