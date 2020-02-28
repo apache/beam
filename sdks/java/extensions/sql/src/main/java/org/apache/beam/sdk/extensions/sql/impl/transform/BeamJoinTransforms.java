@@ -23,12 +23,16 @@ import static org.apache.beam.sdk.values.Row.toRow;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.SerializableRexFieldAccess;
 import org.apache.beam.sdk.extensions.sql.impl.utils.SerializableRexInputRef;
 import org.apache.beam.sdk.extensions.sql.impl.utils.SerializableRexNode;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.FieldAccess;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -44,6 +48,34 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Pair;
 
 /** Collections of {@code PTransform} and {@code DoFn} used to perform JOIN operation. */
 public class BeamJoinTransforms {
+
+  public static FieldAccessDescriptor getJoinColumns(
+          boolean isLeft, List<Pair<RexNode, RexNode>> joinColumns, int leftRowColumnCount, Schema schema) {
+    List<SerializableRexNode> joinColumnsBuilt =
+            joinColumns.stream()
+                    .map(pair -> SerializableRexNode.builder(isLeft ? pair.left : pair.right).build())
+                    .collect(toList());
+    return FieldAccessDescriptor.union(
+            joinColumnsBuilt.stream()
+                    .map(v -> getJoinColumn(v, leftRowColumnCount).resolve(schema))
+                    .collect(Collectors.toList()));
+  }
+
+  private static FieldAccessDescriptor getJoinColumn(
+          SerializableRexNode serializableRexNode, int leftRowColumnCount) {
+    if (serializableRexNode instanceof SerializableRexInputRef) {
+      SerializableRexInputRef inputRef = (SerializableRexInputRef) serializableRexNode;
+      return FieldAccessDescriptor.withFieldIds(inputRef.getIndex() - leftRowColumnCount);
+    } else { // It can only be SerializableFieldAccess.
+      List<Integer> indexes = ((SerializableRexFieldAccess) serializableRexNode).getIndexes();
+      FieldAccessDescriptor fieldAccessDescriptor =
+              FieldAccessDescriptor.withFieldIds(indexes.get(0) - leftRowColumnCount);
+      for (int i = 1; i < indexes.size(); i++) {
+        fieldAccessDescriptor = FieldAccessDescriptor.withFieldIds(fieldAccessDescriptor, indexes.get(i));
+      }
+      return fieldAccessDescriptor;
+    }
+  }
 
   /** A {@code SimpleFunction} to extract join fields from the specified row. */
   public static class ExtractJoinFields extends SimpleFunction<Row, KV<Row, Row>> {
