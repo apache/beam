@@ -275,8 +275,12 @@ class PortableRunner(runner.PipelineRunner):
           job_server.DockerizedJobServer())
     return self._dockerized_job_server
 
-  def create_job_service_plan(self, options):
+  def create_job_service(self, options):
     # type: (PipelineOptions) -> JobServiceHandle
+
+    """
+    Start the job service and return a `JobServiceHandle`
+    """
     job_endpoint = options.view_as(PortableOptions).job_endpoint
     if job_endpoint:
       if job_endpoint == 'embed':
@@ -379,12 +383,12 @@ class PortableRunner(runner.PipelineRunner):
       cleanup_callbacks = []
 
     proto_pipeline = self.get_proto_pipeline(pipeline, options)
-    job_service_plan = self.create_job_service_plan(options)
+    job_service_handle = self.create_job_service(options)
     job_id, message_stream, state_stream = \
-      job_service_plan.submit(proto_pipeline)
+      job_service_handle.submit(proto_pipeline)
 
     result = PipelineResult(
-        job_service_plan.job_service,
+        job_service_handle.job_service,
         job_id,
         message_stream,
         state_stream,
