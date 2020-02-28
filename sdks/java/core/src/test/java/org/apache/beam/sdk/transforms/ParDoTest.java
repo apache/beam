@@ -512,7 +512,10 @@ public class ParDoTest implements Serializable {
               allOf(
                   hasKey("state_map"),
                   hasType(DisplayData.Type.STRING),
-                  hasValue("MapState<StringUtf8Coder, SerializableCoder>"),
+                  hasValue(
+                      "MapState<StringUtf8Coder, " +
+                      "SerializableCoder(org.apache.beam.sdk.transforms.ParDoTest" +
+                      "$BasicTests$SerializableClass)>"),
                   hasLabel("State \"map\""))));
     }
 

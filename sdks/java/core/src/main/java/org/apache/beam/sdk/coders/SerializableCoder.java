@@ -226,7 +226,7 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
 
   @Override
   public String toString() {
-    return "SerializableCoder";
+    return "SerializableCoder(" + type.getName() + ")";
   }
 
   // This coder inherits isRegisterByteSizeObserverCheap,
