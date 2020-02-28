@@ -17,9 +17,6 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-
 import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -150,6 +147,18 @@ public class FlinkSubmissionTest {
     waitUntilJobIsCompleted();
   }
 
+  private void waitUntilJobIsCompleted() throws Exception {
+    while (true) {
+      Collection<JobStatusMessage> allJobsStates = flinkCluster.listJobs().get();
+      if (allJobsStates.size() == expectedNumberOfJobs
+          && allJobsStates.stream()
+              .allMatch(jobStatus -> jobStatus.getJobState() == JobStatus.FINISHED)) {
+        return;
+      }
+      Thread.sleep(50);
+    }
+  }
+
   /** The Flink program which is executed by the CliFrontend. */
   public static void main(String[] args) {
     FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
@@ -211,19 +220,6 @@ public class FlinkSubmissionTest {
 
     modifiersField.setInt(envField, envField.getModifiers() & Modifier.FINAL);
     modifiersField.setAccessible(false);
-  }
-
-  private void waitUntilJobIsCompleted() throws Exception {
-    while (true) {
-      Collection<JobStatusMessage> allJobsStates = flinkCluster.listJobs().get();
-      assertThat(
-          "There should be a job per test run.", allJobsStates.size(), is(expectedNumberOfJobs));
-      if (allJobsStates.stream()
-          .allMatch(jobStatus -> jobStatus.getJobState() == JobStatus.FINISHED)) {
-        return;
-      }
-      Thread.sleep(50);
-    }
   }
 
   /** Prevents the CliFrontend from calling System.exit. */
