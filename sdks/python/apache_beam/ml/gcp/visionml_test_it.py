@@ -23,15 +23,17 @@ import unittest
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
-from apache_beam.ml.gcp.visionml import AnnotateImage
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
+# Protect against environments where Google Cloud Vision client is not
+# available.
 try:
-  from google.cloud.vision import types
+  from apache_beam.ml.gcp.visionml import AnnotateImage
+  from google.cloud import vision
 except ImportError:
-  types = None
+  vision = None
 
 
 def extract(response):
@@ -41,20 +43,21 @@ def extract(response):
 
 
 @attr('IT')
+@unittest.skipIf(vision is None, 'GCP dependencies are not installed')
 class VisionMlTestIT(unittest.TestCase):
-  IMAGES_TO_ANNOTATE = ['gs://cloud-samples-data/vision/ocr/sign.jpg']
-  IMAGE_CONTEXT = [types.ImageContext(language_hints=['en'])]
-
   def test_text_detection_with_language_hint(self):
+    IMAGES_TO_ANNOTATE = ['gs://cloud-samples-data/vision/ocr/sign.jpg']
+    IMAGE_CONTEXT = [vision.types.ImageContext(language_hints=['en'])]
+
     with TestPipeline(is_integration_test=True) as p:
       contexts = p | 'Create context' >> beam.Create(
-          dict(zip(self.IMAGES_TO_ANNOTATE, self.IMAGE_CONTEXT)))
+          dict(zip(IMAGES_TO_ANNOTATE, IMAGE_CONTEXT)))
 
       output = (
           p
-          | beam.Create(self.IMAGES_TO_ANNOTATE)
+          | beam.Create(IMAGES_TO_ANNOTATE)
           | AnnotateImage(
-              features=[types.Feature(type='TEXT_DETECTION')],
+              features=[vision.types.Feature(type='TEXT_DETECTION')],
               context_side_input=beam.pvalue.AsDict(contexts))
           | beam.ParDo(extract))
 
