@@ -21,12 +21,10 @@
 from __future__ import absolute_import
 
 import tempfile
-import time
 import unittest
 
 import apache_beam as beam
 from apache_beam import coders
-from apache_beam.io import filesystems
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_beam as ib
@@ -35,17 +33,12 @@ from apache_beam.runners.interactive import pipeline_instrument as instr
 from apache_beam.runners.interactive import interactive_runner
 from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_equal
 from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_proto_equal
-
-# Work around nose tests using Python2 without unittest.mock module.
-try:
-  from unittest.mock import MagicMock
-except ImportError:
-  from mock import MagicMock
+from apache_beam.runners.interactive.testing.test_cache_manager import InMemoryCache
 
 
 class PipelineInstrumentTest(unittest.TestCase):
   def setUp(self):
-    ie.new_env(cache_manager=cache.FileBasedCacheManager())
+    ie.new_env(cache_manager=InMemoryCache())
 
   def test_pcolls_to_pcoll_id(self):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
@@ -205,26 +198,12 @@ class PipelineInstrumentTest(unittest.TestCase):
 
   def _mock_write_cache(self, pcoll, cache_key):
     """Cache the PCollection where cache.WriteCache would write to."""
-    cache_path = filesystems.FileSystems.join(
-        ie.current_env().cache_manager()._cache_dir, 'full')
-    if not filesystems.FileSystems.exists(cache_path):
-      filesystems.FileSystems.mkdirs(cache_path)
-
-    # Pause for 0.1 sec, because the Jenkins test runs so fast that the file
-    # writes happen at the same timestamp.
-    time.sleep(0.1)
-
-    cache_file = cache_key + '-1-of-2'
     labels = ['full', cache_key]
 
     # Usually, the pcoder will be inferred from `pcoll.element_type`
     pcoder = coders.registry.get_coder(object)
     ie.current_env().cache_manager().save_pcoder(pcoder, *labels)
-    sink = ie.current_env().cache_manager().sink(*labels)
-
-    with open(ie.current_env().cache_manager()._path('full', cache_file),
-              'wb') as f:
-      sink.write_record(f, pcoll)
+    ie.current_env().cache_manager().write([b''], *labels)
 
   def test_instrument_example_pipeline_to_write_cache(self):
     # Original instance defined by user code has all variables handlers.
@@ -256,7 +235,6 @@ class PipelineInstrumentTest(unittest.TestCase):
     second_pcoll_cache_key = 'second_pcoll_' + str(
         id(second_pcoll)) + '_' + str(id(second_pcoll.producer))
     self._mock_write_cache(second_pcoll, second_pcoll_cache_key)
-    ie.current_env().cache_manager().exists = MagicMock(return_value=True)
     # Mark the completeness of PCollections from the original(user) pipeline.
     ie.current_env().mark_pcollection_computed(
         (p_origin, init_pcoll, second_pcoll))
