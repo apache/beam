@@ -54,9 +54,11 @@ except ImportError as e:
 # Protect against environments where aws tools are not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
-  from apache_beam.io.aws.clients.s3.messages import S3ClientError
+  from apache_beam.io.aws.clients.s3 import messages as _s3messages
 except ImportError:
   S3ClientError = None
+else:
+  S3ClientError = _s3messages.S3ClientError
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)

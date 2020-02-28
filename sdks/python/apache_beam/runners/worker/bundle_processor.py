@@ -80,10 +80,11 @@ if TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
   from apache_beam import pvalue
   from apache_beam.portability.api import metrics_pb2
+  from apache_beam.runners.sdf_utils import SplitResultPrimary
+  from apache_beam.runners.sdf_utils import SplitResultResidual
   from apache_beam.runners.worker import data_plane
   from apache_beam.runners.worker import sdk_worker
   from apache_beam.transforms import window
-  from apache_beam.utils.timestamp import Timestamp
 
 # This module is experimental. No backwards-compatibility guarantees.
 T = TypeVar('T')
@@ -216,7 +217,7 @@ class DataInputOperation(RunnerIOOperation):
       self.output(decoded_value)
 
   def try_split(self, fraction_of_remainder, total_buffer_size):
-    # type: (...) -> Optional[Tuple[int, Optional[Tuple[operations.DoOperation, common.SplitResultType]], Optional[Tuple[operations.DoOperation, common.SplitResultType]], int]]
+    # type: (...) -> Optional[Tuple[int, Optional[operations.SdfSplitResultsPrimary], Optional[operations.SdfSplitResultsResidual], int]]
     with self.splitting_lock:
       if not self.started:
         return None
@@ -245,7 +246,9 @@ class DataInputOperation(RunnerIOOperation):
         # If it's less than what's left of the current element,
         # try splitting at the current element.
         if keep_of_element_remainder < 1:
-          split = self.receivers[0].try_split(keep_of_element_remainder)
+          split = self.receivers[0].try_split(
+              keep_of_element_remainder
+          )  # type: Optional[Tuple[operations.SdfSplitResultsPrimary, operations.SdfSplitResultsResidual]]
           if split:
             element_primary, element_residual = split
             self.stop = self.index + 1
@@ -901,7 +904,7 @@ class BundleProcessor(object):
 
   def delayed_bundle_application(self,
                                  op,  # type: operations.DoOperation
-                                 deferred_remainder  # type: common.SplitResultType
+                                 deferred_remainder  # type: SplitResultResidual
                                 ):
     # type: (...) -> beam_fn_api_pb2.DelayedBundleApplication
     assert op.input_info is not None
@@ -910,8 +913,9 @@ class BundleProcessor(object):
         deferred_remainder)
     if deferred_timestamp:
       assert isinstance(deferred_timestamp, timestamp.Duration)
-      proto_deferred_watermark = duration_pb2.Duration()
-      proto_deferred_watermark.FromMicroseconds(deferred_timestamp.micros)
+      proto_deferred_watermark = proto_utils.from_micros(
+          duration_pb2.Duration,
+          deferred_timestamp.micros)  # type: Optional[duration_pb2.Duration]
     else:
       proto_deferred_watermark = None
     return beam_fn_api_pb2.DelayedBundleApplication(
@@ -921,16 +925,25 @@ class BundleProcessor(object):
 
   def bundle_application(self,
                          op,  # type: operations.DoOperation
-                         primary  # type: common.SplitResultType
+                         primary  # type: SplitResultPrimary
                         ):
+    # type: (...) -> beam_fn_api_pb2.BundleApplication
     return self.construct_bundle_application(op, None, primary.primary_value)
 
-  def construct_bundle_application(self, op, output_watermark, element):
+  def construct_bundle_application(self,
+                                   op,  # type: operations.DoOperation
+                                   output_watermark,  # type: Optional[timestamp.Timestamp]
+                                   element
+                                  ):
+    # type: (...) -> beam_fn_api_pb2.BundleApplication
     transform_id, main_input_tag, main_input_coder, outputs = op.input_info
     if output_watermark:
-      proto_output_watermark = timestamp_pb2.Timestamp()
-      proto_output_watermark.FromMicroseconds(output_watermark.micros)
-      output_watermarks = {output: proto_output_watermark for output in outputs}
+      proto_output_watermark = proto_utils.from_micros(
+          timestamp_pb2.Timestamp, output_watermark.micros)
+      output_watermarks = {
+          output: proto_output_watermark
+          for output in outputs
+      }  # type: Optional[Dict[str, timestamp_pb2.Timestamp]]
     else:
       output_watermarks = None
     return beam_fn_api_pb2.BundleApplication(
@@ -1712,7 +1725,7 @@ def create_map_windows(
     factory,  # type: BeamTransformFactory
     transform_id,  # type: str
     transform_proto,  # type: beam_runner_api_pb2.PTransform
-    mapping_fn_spec,  # type: beam_runner_api_pb2.SdkFunctionSpec
+    mapping_fn_spec,  # type: beam_runner_api_pb2.FunctionSpec
     consumers  # type: Dict[str, List[operations.Operation]]
 ):
   assert mapping_fn_spec.urn == python_urns.PICKLED_WINDOW_MAPPING_FN
