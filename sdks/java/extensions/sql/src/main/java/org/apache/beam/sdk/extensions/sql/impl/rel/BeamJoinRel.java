@@ -319,7 +319,7 @@ public abstract class BeamJoinRel extends Join implements BeamRelNode {
     return pairs;
   }
 
-  private static Pair<RexNode, RexNode> extractJoinPairOfRexNodes(RexCall rexCall) {
+   private static Pair<RexNode, RexNode> extractJoinPairOfRexNodes(RexCall rexCall) {
     if (!rexCall.getOperator().getName().equals("=")) {
       throw new UnsupportedOperationException("Non equi-join is not supported");
     }

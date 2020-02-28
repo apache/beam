@@ -207,6 +207,58 @@ public abstract class FieldAccessDescriptor implements Serializable {
     return union(fields);
   }
 
+  public static FieldAccessDescriptor withFieldNames(
+          FieldAccessDescriptor baseDescriptor, String... fieldNames) {
+    return withFieldNames(baseDescriptor, Arrays.asList(fieldNames));
+  }
+
+  public static FieldAccessDescriptor withFieldNames(
+          FieldAccessDescriptor baseDescriptor, Iterable<String> fieldNames) {
+    if (baseDescriptor.getFieldsAccessed().isEmpty()
+            && baseDescriptor.getNestedFieldsAccessed().isEmpty()) {
+      return withFieldNames(fieldNames);
+    }
+    if (!baseDescriptor.getFieldsAccessed().isEmpty()) {
+      checkArgument(baseDescriptor.getNestedFieldsAccessed().isEmpty());
+      FieldDescriptor fieldDescriptor =
+              Iterables.getOnlyElement(baseDescriptor.getFieldsAccessed());
+      return FieldAccessDescriptor.create()
+              .withNestedField(fieldDescriptor, FieldAccessDescriptor.withFieldNames(fieldNames));
+    } else {
+      checkArgument(baseDescriptor.getFieldsAccessed().isEmpty());
+      Map.Entry<FieldDescriptor, FieldAccessDescriptor> entry =
+              Iterables.getOnlyElement(baseDescriptor.getNestedFieldsAccessed().entrySet());
+      return FieldAccessDescriptor.create()
+              .withNestedField(entry.getKey(), withFieldNames(entry.getValue(), fieldNames));
+    }
+  }
+
+  public static FieldAccessDescriptor withFieldIds(
+          FieldAccessDescriptor baseDescriptor, Integer... fieldIds) {
+    return withFieldIds(baseDescriptor, Arrays.asList(fieldIds));
+  }
+
+  public static FieldAccessDescriptor withFieldIds(
+          FieldAccessDescriptor baseDescriptor, Iterable<Integer> fieldIds) {
+    if (baseDescriptor.getFieldsAccessed().isEmpty()
+            && baseDescriptor.getNestedFieldsAccessed().isEmpty()) {
+      return withFieldIds(fieldIds);
+    }
+    if (!baseDescriptor.getFieldsAccessed().isEmpty()) {
+      checkArgument(baseDescriptor.getNestedFieldsAccessed().isEmpty());
+      FieldDescriptor fieldDescriptor =
+              Iterables.getOnlyElement(baseDescriptor.getFieldsAccessed());
+      return FieldAccessDescriptor.create()
+              .withNestedField(fieldDescriptor, FieldAccessDescriptor.withFieldIds(fieldIds));
+    } else {
+      checkArgument(baseDescriptor.getFieldsAccessed().isEmpty());
+      Map.Entry<FieldDescriptor, FieldAccessDescriptor> entry =
+              Iterables.getOnlyElement(baseDescriptor.getNestedFieldsAccessed().entrySet());
+      return FieldAccessDescriptor.create()
+              .withNestedField(entry.getKey(), withFieldIds(entry.getValue(), fieldIds));
+    }
+  }
+
   /**
    * Return a descriptor that access the specified fields.
    *
@@ -243,9 +295,9 @@ public abstract class FieldAccessDescriptor implements Serializable {
     return builder().setFieldsAccessed(Lists.newArrayList(fields)).build();
   }
 
-  // Union a set of FieldAccessDescriptors. This function currently only supports descriptors with
-  // containing named fields, not those containing ids.
-  private static FieldAccessDescriptor union(
+  // Union a set of FieldAccessDescriptors.
+  // This should generally be used only on resolved descriptors.
+  public static FieldAccessDescriptor union(
       Iterable<FieldAccessDescriptor> fieldAccessDescriptors) {
     Set<FieldDescriptor> fieldsAccessed = Sets.newLinkedHashSet();
     Multimap<FieldDescriptor, FieldAccessDescriptor> nestedFieldsAccessed =
