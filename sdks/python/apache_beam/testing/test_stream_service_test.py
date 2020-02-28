@@ -33,9 +33,9 @@ from apache_beam.testing.test_stream_service import TestStreamServiceController
 # Nose automatically detects tests if they match a regex. Here, it mistakens
 # these protos as tests. For more info see the Nose docs at:
 # https://nose.readthedocs.io/en/latest/writing_tests.html
-TestStreamPayload.__test__ = False
-TestStreamFileHeader.__test__ = False
-TestStreamFileRecord.__test__ = False
+TestStreamPayload.__test__ = False  # type: ignore[attr-defined]
+TestStreamFileHeader.__test__ = False  # type: ignore[attr-defined]
+TestStreamFileRecord.__test__ = False  # type: ignore[attr-defined]
 
 
 class TestStreamServiceTest(unittest.TestCase):

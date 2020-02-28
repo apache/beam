@@ -1336,6 +1336,7 @@ class RestrictionProgress(object):
       return float(self._remaining) / self.total_work
 
   def with_completed(self, completed):
+    # type: (int) -> RestrictionProgress
     return RestrictionProgress(
         fraction=self._fraction, remaining=self._remaining, completed=completed)
 

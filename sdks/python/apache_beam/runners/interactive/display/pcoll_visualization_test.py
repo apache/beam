@@ -35,7 +35,7 @@ from apache_beam.runners.interactive.display import pcoll_visualization as pv
 try:
   from unittest.mock import patch, ANY
 except ImportError:
-  from mock import patch, ANY
+  from mock import patch, ANY  # type: ignore[misc]
 
 try:
   import timeloop
