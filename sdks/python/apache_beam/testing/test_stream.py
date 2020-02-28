@@ -187,11 +187,12 @@ class TestStream(PTransform):
   To use the multi-output functionality pelase use the
   'passthrough_pcollection_output_ids' flag. See BEAM-9322 for more info.
 
-  To add flag:
-  from apache_beam.options.pipeline_options import DebugOptions
-  options = ...
-  options.view_as(DebugOptions).add_experiment(
-      'passthrough_pcollection_output_ids')
+  To add flag::
+
+    from apache_beam.options.pipeline_options import DebugOptions
+    options = ...
+    options.view_as(DebugOptions).add_experiment(
+        'passthrough_pcollection_output_ids')
 
   """
   def __init__(
