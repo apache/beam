@@ -95,7 +95,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
                 + ".");
       }
     } else {
-      method = Method.DEFAULT;
+      method = Method.DIRECT_READ;
     }
 
     LOG.info("BigQuery method is set to: " + method.toString());
