@@ -115,6 +115,22 @@ public class JulHandlerPrintStreamAdapterFactoryTest {
     assertThat(handler.getLogs(), hasLogItem("blah"));
   }
 
+  @Test
+  public void testLogRawBytes() {
+    PrintStream printStream = createPrintStreamAdapter();
+    String msg = "♠ ♡ ♢ ♣ ♤ ♥ ♦ ♧";
+    byte[] bytes = msg.getBytes(Charset.defaultCharset());
+    printStream.write(bytes, 0, 1);
+    printStream.write(bytes, 1, 4);
+    printStream.write(bytes, 5, 15);
+    printStream.write(bytes, 20, bytes.length - 20);
+    assertThat(handler.getLogs(), is(empty()));
+    String newlineMsg = "♠ ♡ \n♦ ♧";
+    byte[] newlineMsgBytes = newlineMsg.getBytes(Charset.defaultCharset());
+    printStream.write(newlineMsgBytes, 0, newlineMsgBytes.length);
+    assertThat(handler.getLogs(), hasLogItem(msg + newlineMsg));
+  }
+
   private PrintStream createPrintStreamAdapter() {
     return JulHandlerPrintStreamAdapterFactory.create(handler, LOGGER_NAME, Level.INFO);
   }
