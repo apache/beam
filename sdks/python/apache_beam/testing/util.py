@@ -48,6 +48,7 @@ __all__ = [
     'equal_to_per_window',
     'is_empty',
     'is_not_empty',
+    'is_at_least_n_duplicates_of',
     'matches_all',
     # open_shards is internal and has no backwards compatibility guarantees.
     'open_shards',
@@ -242,6 +243,29 @@ def is_not_empty():
       raise BeamAssertException('Failed assert: pcol is empty')
 
   return _not_empty
+
+
+def is_at_least_n_duplicates_of(n, expected_value):
+  """
+  This is a matcher used by assert_that to check if a PCollection satisfies
+  all these conditions:
+  1. All the elements have the same value, namely expected_value.
+  2. There are at least n elements.
+  """
+  def _is_at_least_n_duplicates_of(actual):
+    count = 0
+    for element in actual:
+      if element == expected_value:
+        count = count + 1
+      else:
+        msg = 'Failed assert: %r == %r' % (expected_value, element)
+        raise BeamAssertException(msg)
+    if count < n:
+      msg = 'Failed assert: Expected at least %r duplicates, ' % (n)
+      msg = msg + 'but there are only %r duplicates.' % (count)
+      raise BeamAssertException(msg)
+
+  return _is_at_least_n_duplicates_of
 
 
 def assert_that(

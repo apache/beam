@@ -41,6 +41,7 @@ from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import equal_to_per_window
+from apache_beam.testing.util import is_at_least_n_duplicates_of
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 from apache_beam.transforms.core import CombineGlobally
@@ -486,12 +487,18 @@ class CombineTest(unittest.TestCase):
           | beam.CombineGlobally(sum).without_defaults().with_fanout(2))
 
       # Partition the result into early_firings and _.
-      # In ACCUMULATING mode, the early_frings is [1, 3, 6, 10], other
-      # firings are [15, 15, ...]. Different runners have different number
-      # of 15s.
-      early_firings, _ = result | beam.Partition(is_early_firing, 2)
-      exepected_early_firings = [1, 3, 6, 10]
-      assert_that(early_firings, equal_to(exepected_early_firings))
+      # In ACCUMULATING mode, the early_frings is [1, 3, 6, 10],
+      # other_firings is [15, 15, ...]. Different runners have different
+      # number of 15s.
+      early_firings, other_firings = (
+          result | beam.Partition(is_early_firing, 2))
+      expected_early_firings = [1, 3, 6, 10]
+      assert_that(
+          early_firings, equal_to(expected_early_firings),
+          label='early_firings')
+      assert_that(
+          other_firings, is_at_least_n_duplicates_of(1, 15),
+          label='other_firings')
 
   def test_MeanCombineFn_combine(self):
     with TestPipeline() as p:
