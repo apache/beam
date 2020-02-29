@@ -61,7 +61,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
@@ -135,7 +134,7 @@ public class FlinkSavepointTest implements Serializable {
   @After
   public void afterTest() throws Exception {
     for (JobStatusMessage jobStatusMessage : flinkCluster.listJobs().get()) {
-      if (jobStatusMessage.getJobState() == JobStatus.RUNNING) {
+      if (jobStatusMessage.getJobState().name().equals("RUNNING")) {
         flinkCluster.cancelJob(jobStatusMessage.getJobId()).get();
       }
     }
@@ -245,7 +244,7 @@ public class FlinkSavepointTest implements Serializable {
   private JobID waitForJobToBeReady() throws InterruptedException, ExecutionException {
     while (true) {
       JobStatusMessage jobStatus = Iterables.getFirst(flinkCluster.listJobs().get(), null);
-      if (jobStatus != null && jobStatus.getJobState() == JobStatus.RUNNING) {
+      if (jobStatus != null && jobStatus.getJobState().name().equals("RUNNING")) {
         return jobStatus.getJobId();
       }
       Thread.sleep(100);

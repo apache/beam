@@ -93,6 +93,7 @@
   <suppress checks="JavadocPackage" files=".*runners.flink.*CoderTypeSerializer\.java"/>
   <suppress checks="JavadocPackage" files=".*runners.flink.*EncodedTypeSerializer\.java"/>
   <suppress checks="JavadocPackage" files=".*runners.flink.*BeamStoppableFunction\.java"/>
+  <suppress checks="JavadocPackage" files=".*runners.flink.*BeamFlinkRemoteStreamEnvironment\.java"/>
 
   <!-- ThriftIO -->
   <!-- Suppress Checkstyle for Thrift generated test files. -->
