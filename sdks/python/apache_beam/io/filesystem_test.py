@@ -321,17 +321,17 @@ atomized in instants hammered around the
   def test_seekable_enabled_on_read(self):
     with open(self._create_temp_file(), 'rb') as f:
       readable = CompressedFile(f)
-      self.assertTrue(readable.seekable)
+      self.assertTrue(readable.seekable())
 
   def test_seekable_disabled_on_write(self):
     with open(self._create_temp_file(), 'wb') as f:
-      writeable = CompressedFile(f)
-      self.assertFalse(writeable.seekable)
+      writable = CompressedFile(f)
+      self.assertFalse(writable.seekable())
 
   def test_seekable_disabled_on_append(self):
     with open(self._create_temp_file(), 'ab') as f:
-      writeable = CompressedFile(f)
-      self.assertFalse(writeable.seekable)
+      writable = CompressedFile(f)
+      self.assertFalse(writable.seekable())
 
   def test_seek_set(self):
     for compression_type in [CompressionTypes.BZIP2,
@@ -461,12 +461,12 @@ atomized in instants hammered around the
     lines = [b'line%d\n' % i for i in range(10)]
     tmpfile = self._create_temp_file()
     with open(tmpfile, 'wb') as f:
-      writeable = CompressedFile(f)
+      writable = CompressedFile(f)
       current_offset = 0
       for line in lines:
-        writeable.write(line)
+        writable.write(line)
         current_offset += len(line)
-        self.assertEqual(current_offset, writeable.tell())
+        self.assertEqual(current_offset, writable.tell())
 
     with open(tmpfile, 'rb') as f:
       readable = CompressedFile(f)

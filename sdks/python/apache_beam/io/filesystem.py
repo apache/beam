@@ -38,11 +38,13 @@ import time
 import zlib
 from builtins import object
 from builtins import zip
-from typing import BinaryIO  # pylint: disable=unused-import
+from typing import BinaryIO
+from typing import Iterable
 from typing import Iterator
 from typing import List
 from typing import Optional
 from typing import Tuple
+from typing_extensions import Protocol
 
 from future.utils import with_metaclass
 from past.builtins import long
@@ -61,6 +63,27 @@ __all__ = [
     'FileSystem',
     'MatchResult'
 ]
+
+
+class Compressor(Protocol):
+  def compress(self, data):
+    # type: (bytes) -> bytes
+    pass
+
+  def flush(self):
+    # type: () -> bytes
+    pass
+
+
+class Decompressor(Protocol):
+  def decompress(self, data):
+    # type: (bytes) -> bytes
+    pass
+
+  @property
+  def unused_data(self):
+    # type: () -> bytes
+    pass
 
 
 class CompressionTypes(object):
@@ -121,13 +144,22 @@ class CompressionTypes(object):
     return cls.UNCOMPRESSED
 
 
-class CompressedFile(object):
-  """File wrapper for easier handling of compressed files."""
+class CompressedFile(BinaryIO):
+  """File wrapper for easier handling of compressed files.
+
+  Implements the BinaryIO protocol.
+  """
   # XXX: This class is not thread safe in the read path.
 
   # The bit mask to use for the wbits parameters of the zlib compressor and
   # decompressor objects.
   _gzip_mask = zlib.MAX_WBITS | 16  # Mask when using GZIP headers.
+
+  # For type analysis it's easier to mark these as non-optional, since we check
+  # for their existence indirectly using self.writable() and self.readable(),
+  # which mypy cannot grok.
+  _compressor = None  # type: Compressor
+  _decompressor = None  # type: Decompressor
 
   def __init__(
       self,
@@ -163,12 +195,12 @@ class CompressedFile(object):
 
       self._initialize_decompressor()
     else:
-      self._decompressor = None
+      self._decompressor = None  # type: ignore[assignment]
 
-    if self.writeable():
+    if self.writable():
       self._initialize_compressor()
     else:
-      self._compressor = None
+      self._compressor = None  # type: ignore[assignment]
 
   def _initialize_decompressor(self):
     if self._compression_type == CompressionTypes.BZIP2:
@@ -190,26 +222,55 @@ class CompressedFile(object):
       self._compressor = zlib.compressobj(
           zlib.Z_DEFAULT_COMPRESSION, zlib.DEFLATED, self._gzip_mask)
 
+  @property
+  def mode(self):
+    # type: () -> str
+    return self._file.mode
+
+  @property
+  def name(self):
+    # type: () -> str
+    return self._file.name
+
+  def fileno(self):
+    # type: () -> int
+    return self._file.fileno()
+
+  def isatty(self):
+    # type: () -> bool
+    return self._file.isatty()
+
   def readable(self):
     # type: () -> bool
     mode = self._file.mode
     return 'r' in mode or 'a' in mode
 
-  def writeable(self):
+  def writable(self):
     # type: () -> bool
     mode = self._file.mode
     return 'w' in mode or 'a' in mode
 
-  def write(self, data):
-    # type: (bytes) -> None
+  def truncate(self, size=None):
+    # type: (Optional[int]) -> int
+    raise io.UnsupportedOperation('truncate not supported')
+
+  def write(self, s):
+    # type: (bytes) -> int
 
     """Write data to file."""
     if not self._compressor:
       raise ValueError('compressor not initialized')
-    self._uncompressed_position += len(data)
-    compressed = self._compressor.compress(data)
+    self._uncompressed_position += len(s)
+    compressed = self._compressor.compress(s)
     if compressed:
-      self._file.write(compressed)
+      return self._file.write(compressed)
+    else:
+      return 0
+
+  def writelines(self, lines):
+    # type: (Iterable[bytes]) -> None
+    for line in lines:
+      self.write(line)
 
   def _fetch_to_internal_buffer(self, num_bytes):
     # type: (int) -> None
@@ -252,7 +313,8 @@ class CompressedFile(object):
           # Deflate, Gzip and bzip2 formats do not require flushing
           # remaining data in the decompressor into the read buffer when
           # fully decompressing files.
-          self._read_buffer.write(self._decompressor.flush())
+          self._read_buffer.write(
+              self._decompressor.flush())  # type: ignore[attr-defined]
 
         # Record that we have hit the end of file, so we won't unnecessarily
         # repeat the completeness verification step above.
@@ -267,17 +329,16 @@ class CompressedFile(object):
     self._read_buffer.seek(0, os.SEEK_END)  # Allow future writes.
     return result
 
-  def read(self, num_bytes):
+  def read(self, n=0):
     # type: (int) -> bytes
     if not self._decompressor:
       raise ValueError('decompressor not initialized')
 
-    self._fetch_to_internal_buffer(num_bytes)
-    return self._read_from_internal_buffer(
-        lambda: self._read_buffer.read(num_bytes))
+    self._fetch_to_internal_buffer(n)
+    return self._read_from_internal_buffer(lambda: self._read_buffer.read(n))
 
-  def readline(self):
-    # type: () -> bytes
+  def readline(self, limit=-1):
+    # type: (int) -> bytes
 
     """Equivalent to standard file.readline(). Same return conventions apply."""
     if not self._decompressor:
@@ -298,27 +359,45 @@ class CompressedFile(object):
 
     return bytes_io.getvalue()
 
+  def __next__(self):
+    # type: () -> bytes
+    line = self.readline()
+    if line:
+      return line
+    else:
+      raise StopIteration
+
+  next = __next__  # For Python 2
+
+  def __iter__(self):
+    # type: () -> Iterator[bytes]
+    return iter(self)
+
+  def readlines(self, hint=-1):
+    # type: (int) -> List[bytes]
+    return list(self)
+
+  @property
   def closed(self):
     # type: () -> bool
-    return not self._file or self._file.closed()
+    return not self._file or self._file.closed
 
   def close(self):
     # type: () -> None
     if self.readable():
       self._read_buffer.close()
 
-    if self.writeable():
+    if self.writable():
       self._file.write(self._compressor.flush())
 
     self._file.close()
 
   def flush(self):
     # type: () -> None
-    if self.writeable():
+    if self.writable():
       self._file.write(self._compressor.flush())
     self._file.flush()
 
-  @property
   def seekable(self):
     # type: () -> bool
     return 'r' in self._file.mode
@@ -354,7 +433,7 @@ class CompressedFile(object):
     self._initialize_decompressor()
 
   def seek(self, offset, whence=os.SEEK_SET):
-    # type: (int, int) -> None
+    # type: (int, int) -> int
 
     """Set the file's current offset.
 
@@ -418,6 +497,7 @@ class CompressedFile(object):
       if not data:
         break
       bytes_to_skip -= len(data)
+    return absolute_offset
 
   def tell(self):
     # type: () -> int

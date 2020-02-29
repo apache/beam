@@ -35,6 +35,7 @@ import threading
 import time
 import traceback
 from builtins import object
+from typing import BinaryIO  # pylint: disable=unused-import
 
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.filesystemio import Downloader
@@ -141,6 +142,8 @@ class GcsIO(object):
       mode='r',
       read_buffer_size=DEFAULT_READ_BUFFER_SIZE,
       mime_type='application/octet-stream'):
+    # type: (...) -> BinaryIO
+
     """Open a GCS file path for reading or writing.
 
     Args:
@@ -158,14 +161,12 @@ class GcsIO(object):
     if mode == 'r' or mode == 'rb':
       downloader = GcsDownloader(
           self.client, filename, buffer_size=read_buffer_size)
-      return io.BufferedReader(
-          DownloaderStream(
-              downloader, read_buffer_size=read_buffer_size, mode=mode),
-          buffer_size=read_buffer_size)
+      return DownloaderStream.create_buffered(
+          downloader, read_buffer_size=read_buffer_size, mode=mode)
     elif mode == 'w' or mode == 'wb':
       uploader = GcsUploader(self.client, filename, mime_type)
-      return io.BufferedWriter(
-          UploaderStream(uploader, mode=mode), buffer_size=128 * 1024)
+      return UploaderStream.create_buffered(
+          uploader, write_buffer_size=128 * 1024, mode=mode)
     else:
       raise ValueError('Invalid file open mode: %s.' % mode)
 

@@ -22,7 +22,6 @@ Hadoop Distributed File System files."""
 
 from __future__ import absolute_import
 
-import io
 import logging
 import posixpath
 import re
@@ -221,6 +220,7 @@ class HadoopFileSystem(FileSystem):
 
   @staticmethod
   def _add_compression(stream, path, mime_type, compression_type):
+    # type: (...) -> BinaryIO
     if mime_type != 'application/octet-stream':
       _LOGGER.warning(
           'Mime types are not supported. Got non-default mime_type:'
@@ -252,9 +252,10 @@ class HadoopFileSystem(FileSystem):
       path,
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO):
-    stream = io.BufferedWriter(
-        filesystemio.UploaderStream(HdfsUploader(self._hdfs_client, path)),
-        buffer_size=_DEFAULT_BUFFER_SIZE)
+    # type: (...) -> BinaryIO
+    stream = filesystemio.UploaderStream.create_buffered(
+        HdfsUploader(self._hdfs_client, path),
+        write_buffer_size=_DEFAULT_BUFFER_SIZE)
     return self._add_compression(stream, path, mime_type, compression_type)
 
   def open(
@@ -276,9 +277,9 @@ class HadoopFileSystem(FileSystem):
       path,
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO):
-    stream = io.BufferedReader(
-        filesystemio.DownloaderStream(HdfsDownloader(self._hdfs_client, path)),
-        buffer_size=_DEFAULT_BUFFER_SIZE)
+    stream = filesystemio.DownloaderStream.create_buffered(
+        HdfsDownloader(self._hdfs_client, path),
+        read_buffer_size=_DEFAULT_BUFFER_SIZE)
     return self._add_compression(stream, path, mime_type, compression_type)
 
   def copy(self, source_file_names, destination_file_names):

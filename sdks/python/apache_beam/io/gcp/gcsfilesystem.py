@@ -136,6 +136,8 @@ class GCSFileSystem(FileSystem):
       mode,
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
+
     """Helper functions to open a file in the provided mode.
     """
     compression_type = FileSystem._get_compression_type(path, compression_type)

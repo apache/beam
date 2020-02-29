@@ -24,7 +24,8 @@ from __future__ import absolute_import
 import os
 import shutil
 from builtins import zip
-from typing import BinaryIO  # pylint: disable=unused-import
+from typing import cast
+from typing import BinaryIO
 
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressedFile
@@ -136,10 +137,17 @@ class LocalFileSystem(FileSystem):
       mode,
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
+
     """Helper functions to open a file in the provided mode.
     """
     compression_type = FileSystem._get_compression_type(path, compression_type)
-    raw_file = open(path, mode)
+    if mode == 'r':
+      mode = 'rb'
+    elif mode == 'w':
+      mode = 'wb'
+    # we can safely assume the type will always be binary
+    raw_file = cast(BinaryIO, open(path, mode))
     if compression_type == CompressionTypes.UNCOMPRESSED:
       return raw_file
     else:

@@ -25,6 +25,11 @@ import abc
 import io
 import os
 from builtins import object
+from typing import cast
+from typing import BinaryIO
+from typing import Optional
+from typing import Type
+from typing import TypeVar
 
 from future.utils import with_metaclass
 
@@ -35,6 +40,9 @@ __all__ = [
     'UploaderStream',
     'PipeStream'
 ]
+
+DownloaderStreamT = TypeVar('DownloaderStreamT', bound='DownloaderStream')
+UploaderStreamT = TypeVar('UploaderStreamT', bound='UploaderStream')
 
 
 class Downloader(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
@@ -86,7 +94,10 @@ class Uploader(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
 class DownloaderStream(io.RawIOBase):
   """Provides a stream interface for Downloader objects."""
   def __init__(
-      self, downloader, read_buffer_size=io.DEFAULT_BUFFER_SIZE, mode='rb'):
+      self,
+      downloader,  # type: Downloader
+      read_buffer_size=io.DEFAULT_BUFFER_SIZE,
+      mode='rb'):
     """Initializes the stream.
 
     Args:
@@ -160,12 +171,16 @@ class DownloaderStream(io.RawIOBase):
     return self._position
 
   def seekable(self):
+    # type: () -> bool
     return True
 
   def readable(self):
+    # type: () -> bool
     return True
 
   def readall(self):
+    # type: () -> bytes
+
     """Read until EOF, using multiple read() call."""
     res = []
     while True:
@@ -175,10 +190,31 @@ class DownloaderStream(io.RawIOBase):
       res.append(data)
     return b''.join(res)
 
+  @classmethod
+  def create_buffered(cls,  # type: Type[DownloaderStreamT]
+                      downloader,  # type: Downloader
+                      read_buffer_size=io.DEFAULT_BUFFER_SIZE, mode='rb'):
+    # type: (...) -> BinaryIO
+    # In the python3 typeshed, io.BufferedReader and io.BufferedWriter do not
+    # inherit from typing.BinaryIO, and BinaryIO is not a Protocol, so a class
+    # must inherit from it.  We could roll our own BinaryIO Protocol, but the
+    # stubs for io.Buffered* do not have the required 'mode' or 'name' attrs to
+    # meet the protocol (the classes seem to expose 'mode' and 'name'
+    # conditionally, if their underlying io.RawIOBase possess the attributes).
+    # Thus, it is necessary to cast these types to BinaryIO either way.
+    return cast(
+        BinaryIO,
+        io.BufferedReader(
+            cls(downloader, read_buffer_size=read_buffer_size, mode=mode),
+            buffer_size=read_buffer_size))
+
 
 class UploaderStream(io.RawIOBase):
   """Provides a stream interface for Uploader objects."""
-  def __init__(self, uploader, mode='wb'):
+  def __init__(
+      self,
+      uploader,  # type: Uploader
+      mode='wb'):
     """Initializes the stream.
 
     Args:
@@ -190,6 +226,7 @@ class UploaderStream(io.RawIOBase):
     self._position = 0
 
   def tell(self):
+    # type: () -> int
     return self._position
 
   def write(self, b):
@@ -208,6 +245,8 @@ class UploaderStream(io.RawIOBase):
     return bytes_written
 
   def close(self):
+    # type: () -> None
+
     """Complete the upload and close this stream.
 
     This method has no effect if the stream is already closed.
@@ -221,7 +260,20 @@ class UploaderStream(io.RawIOBase):
     super(UploaderStream, self).close()
 
   def writable(self):
+    # type: () -> bool
     return True
+
+  @classmethod
+  def create_buffered(cls,  # type: Type[UploaderStreamT]
+                      uploader,  # type: Uploader
+                      write_buffer_size=io.DEFAULT_BUFFER_SIZE, mode='wb'):
+    # type: (...) -> BinaryIO
+    # see notes on DownloaderStream.create_buffered for why this cast is
+    # necessary.
+    return cast(
+        BinaryIO,
+        io.BufferedWriter(
+            cls(uploader, mode=mode), buffer_size=write_buffer_size))
 
 
 class PipeStream(object):
@@ -240,7 +292,7 @@ class PipeStream(object):
 
     # Data and position of last block streamed. Allows limited seeking backwards
     # of stream.
-    self.last_block_position = None
+    self.last_block_position = None  # type: Optional[int]
     self.last_block = b''
 
   def read(self, size):

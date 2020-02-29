@@ -21,6 +21,8 @@
 
 from __future__ import absolute_import
 
+from typing import BinaryIO  # pylint: disable=unused-import
+
 from future.utils import iteritems
 
 from apache_beam.io.aws import s3io
@@ -134,6 +136,8 @@ class S3FileSystem(FileSystem):
       mode,
       mime_type='application/octet-stream',
       compression_type=CompressionTypes.AUTO):
+    # type: (...) -> BinaryIO
+
     """Helper functions to open a file in the provided mode.
     """
     compression_type = FileSystem._get_compression_type(path, compression_type)

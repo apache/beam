@@ -23,12 +23,12 @@
 from __future__ import absolute_import
 
 import errno
-import io
 import logging
 import re
 import time
 import traceback
 from builtins import object
+from typing import BinaryIO  # pylint: disable=unused-import
 
 from apache_beam.io.aws.clients.s3 import messages
 from apache_beam.io.filesystemio import Downloader
@@ -74,6 +74,8 @@ class S3IO(object):
       mode='r',
       read_buffer_size=16 * 1024 * 1024,
       mime_type='application/octet-stream'):
+    # type: (...) -> BinaryIO
+
     """Open an S3 file path for reading or writing.
 
     Args:
@@ -91,12 +93,14 @@ class S3IO(object):
     if mode == 'r' or mode == 'rb':
       downloader = S3Downloader(
           self.client, filename, buffer_size=read_buffer_size)
-      return io.BufferedReader(
-          DownloaderStream(downloader, mode=mode), buffer_size=read_buffer_size)
+      # FIXME: DownloaderStream did not originally take read_buffer_size
+      #  and the default is different
+      return DownloaderStream.create_buffered(
+          downloader, read_buffer_size=read_buffer_size, mode=mode)
     elif mode == 'w' or mode == 'wb':
       uploader = S3Uploader(self.client, filename, mime_type)
-      return io.BufferedWriter(
-          UploaderStream(uploader, mode=mode), buffer_size=128 * 1024)
+      return UploaderStream.create_buffered(
+          uploader, write_buffer_size=128 * 1024, mode=mode)
     else:
       raise ValueError('Invalid file open mode: %s.' % mode)
 
