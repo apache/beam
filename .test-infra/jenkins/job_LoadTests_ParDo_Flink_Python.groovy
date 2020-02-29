@@ -129,9 +129,9 @@ def loadTest = { scope, triggeringContext ->
   List<Map> testScenarios = scenarios(datasetName, pythonHarnessImageTag)
 
   publisher.publish(':sdks:python:container:py2:docker', 'beam_python2.7_sdk')
-  publisher.publish(':runners:flink:1.9:job-server-container:docker', 'beam_flink1.9_job_server')
+  publisher.publish(':runners:flink:1.10:job-server-container:docker', 'beam_flink1.10_job_server')
   Flink flink = new Flink(scope, 'beam_LoadTests_Python_ParDo_Flink_Batch')
-  flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('beam_flink1.9_job_server'))
+  flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('beam_flink1.10_job_server'))
 
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON, testScenarios, 'ParDo', 'batch')
 }
