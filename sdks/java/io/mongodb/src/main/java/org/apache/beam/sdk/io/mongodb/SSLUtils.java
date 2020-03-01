@@ -27,7 +27,8 @@ import javax.net.ssl.X509TrustManager;
 /** Utility class for registration of ssl context, and to allow all certificate requests. */
 class SSLUtils {
 
-  /** static class to allow all requests. */
+  /** static class to allow all requests. 
+    * This is not secure. */
   private static final TrustManager[] trustAllCerts =
       new TrustManager[] {
         new X509TrustManager() {
