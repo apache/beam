@@ -61,8 +61,10 @@ import javax.annotation.Nullable;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
@@ -77,12 +79,15 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
@@ -1603,6 +1608,69 @@ public class KafkaIOTest {
     assertEquals(
         "read_uncommitted",
         reader2.getOffsetConsumerConfig().get(ConsumerConfig.ISOLATION_LEVEL_CONFIG));
+  }
+
+  @Test
+  public void testInferBeamSchema() {
+    int numElements = 100;
+    String topic = "my_topic";
+    String schemaRegistryUrl = "mock://my-scope-name";
+    String keySchemaSubject = topic + "-key";
+    String valueSchemaSubject = topic + "-value";
+
+    KafkaIO.Read<GenericRecord, GenericRecord> reader =
+        KafkaIO.<GenericRecord, GenericRecord>read()
+            .withBootstrapServers("localhost:9092")
+            .withTopic(topic)
+            .withKeyDeserializer(
+                mockDeserializerProvider(schemaRegistryUrl, keySchemaSubject, null))
+            .withValueDeserializer(
+                mockDeserializerProvider(schemaRegistryUrl, valueSchemaSubject, null))
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(
+                    ImmutableList.of(topic),
+                    1,
+                    numElements,
+                    OffsetResetStrategy.EARLIEST,
+                    new KeyAvroSerializableFunction(topic, schemaRegistryUrl),
+                    new ValueAvroSerializableFunction(topic, schemaRegistryUrl)))
+            .withMaxNumRecords(numElements);
+
+    PCollection<GenericRecord> keys =
+        p.apply("ReadKeys", reader.withoutMetadata())
+            .apply("ExtractKeys", Keys.<GenericRecord>create());
+    Coder<?> keysCoder = keys.getCoder();
+    assertTrue(keysCoder instanceof AvroCoder);
+
+    PCollection<GenericRecord> schemaKeys =
+        p.apply("ReadKeysInferBeamSchema", reader.withKeyInferBeamSchema(true).withoutMetadata())
+            .apply("ExtractKeysInferBeamSchema", Keys.<GenericRecord>create());
+    Coder<?> schemaKeysCoder = schemaKeys.getCoder();
+    assertTrue(schemaKeysCoder instanceof SchemaCoder);
+
+    PCollection<GenericRecord> values =
+        p.apply("ReadValues", reader.withoutMetadata())
+            .apply("ExtractValues", Values.<GenericRecord>create());
+    Coder<?> valueCoder = values.getCoder();
+    assertTrue(valueCoder instanceof AvroCoder);
+
+    PCollection<GenericRecord> schemaValues =
+        p.apply(
+                "ReadValuesInferBeamSchema",
+                reader.withValueInferBeamSchema(true).withoutMetadata())
+            .apply("ExtractValuesInferBeamSchema", Values.<GenericRecord>create());
+    Coder<?> schemaValuesCoder = schemaValues.getCoder();
+    assertTrue(schemaValuesCoder instanceof SchemaCoder);
+
+    p.run();
+  }
+
+  @Test
+  public void testNonInferrableBeamSchema() {
+    SchemaRegistry schemaRegistry = SchemaRegistry.createDefault();
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Could not infer a valid Beam schema for type java.lang.Long");
+    KafkaIO.Read.inferSchemaCoder(VarLongCoder.of(), schemaRegistry);
   }
 
   private static void verifyProducerRecords(

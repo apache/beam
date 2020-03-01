@@ -50,6 +50,10 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -62,6 +66,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -145,7 +150,7 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Partition Assignment and Checkpointing</h3>
  *
- * The Kafka partitions are evenly distributed among splits (workers).
+ * <p>The Kafka partitions are evenly distributed among splits (workers).
  *
  * <p>Checkpointing is fully supported and each split can resume from previous checkpoint (to the
  * extent supported by runner). See {@link KafkaUnboundedSource#split(int, PipelineOptions)} for
@@ -188,6 +193,30 @@ import org.slf4j.LoggerFactory;
  *      .withValueDeserializer(
  *          ConfluentSchemaRegistryDeserializerProvider.of("http://localhost:8081", "my_topic-value"))
  *    ...
+ * }</pre>
+ *
+ * <h3>Integrating KafkaIO reads with Beam's SQL / Schema-based PTransforms</h3>
+ *
+ * <p>To integrate KafkaIO reads with Beam schema-based transforms and Beam's SQL, you need to set a
+ * {@link SchemaCoder} in the resulting PCollection. KafkaIO provides methods to automatically infer
+ * a SchemaCoder for the {@link Read#withKeyInferBeamSchema(boolean) keys} and the {@link
+ * Read#withValueInferBeamSchema(boolean) values} to make the PCollection ready to use by downstream
+ * schema-based transforms.
+ *
+ * <pre>{@code
+ * PCollection<GenericRecord> input = pipeline
+ *   .apply(KafkaIO.<Long, GenericRecord>read()
+ *      .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *      .withTopic("my_topic")
+ *      .withKeyDeserializer(LongDeserializer.class)
+ *      // Use Confluent Schema Registry, specify schema registry URL and value subject
+ *      .withValueDeserializer(
+ *          ConfluentSchemaRegistryDeserializerProvider.of("http://localhost:8081", "my_topic-value"))
+ *      .withValueInferBeamSchema(true)
+ *      ...
+ *      .withoutMetadata())
+ *   .apply(Values.<GenericRecord>create())
+ *   .apply(SqlTransform.query("SELECT ..."));
  * }</pre>
  *
  * <h3>Writing to Kafka</h3>
@@ -249,22 +278,22 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Advanced Kafka Configuration</h3>
  *
- * KafkaIO allows setting most of the properties in {@link ConsumerConfig} for source or in {@link
- * ProducerConfig} for sink. E.g. if you would like to enable offset <em>auto commit</em> (for
- * external monitoring or other purposes), you can set <tt>"group.id"</tt>,
+ * <p>KafkaIO allows setting most of the properties in {@link ConsumerConfig} for source or in
+ * {@link ProducerConfig} for sink. E.g. if you would like to enable offset <em>auto commit</em>
+ * (for external monitoring or other purposes), you can set <tt>"group.id"</tt>,
  * <tt>"enable.auto.commit"</tt>, etc.
  *
  * <h3>Event Timestamps and Watermark</h3>
  *
- * By default, record timestamp (event time) is set to processing time in KafkaIO reader and source
- * watermark is current wall time. If a topic has Kafka server-side ingestion timestamp enabled
- * ('LogAppendTime'), it can enabled with {@link Read#withLogAppendTime()}. A custom timestamp
- * policy can be provided by implementing {@link TimestampPolicyFactory}. See {@link
+ * <p>By default, record timestamp (event time) is set to processing time in KafkaIO reader and
+ * source watermark is current wall time. If a topic has Kafka server-side ingestion timestamp
+ * enabled ('LogAppendTime'), it can enabled with {@link Read#withLogAppendTime()}. A custom
+ * timestamp policy can be provided by implementing {@link TimestampPolicyFactory}. See {@link
  * Read#withTimestampPolicyFactory(TimestampPolicyFactory)} for more information.
  *
  * <h3>Supported Kafka Client Versions</h3>
  *
- * KafkaIO relies on <i>kafka-clients</i> for all its interactions with the Kafka cluster.
+ * <p>KafkaIO relies on <i>kafka-clients</i> for all its interactions with the Kafka cluster.
  * <i>kafka-clients</i> versions 0.10.1 and newer are supported at runtime. The older versions 0.9.x
  * - 0.10.0.0 are also supported, but are deprecated and likely be removed in near future. Please
  * ensure that the version included with the application is compatible with the version of your
@@ -299,6 +328,8 @@ public class KafkaIO {
         .setMaxNumRecords(Long.MAX_VALUE)
         .setCommitOffsetsInFinalizeEnabled(false)
         .setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime())
+        .setKeyInferBeamSchema(false)
+        .setValueInferBeamSchema(false)
         .build();
   }
 
@@ -351,8 +382,12 @@ public class KafkaIO {
     @Nullable
     abstract Coder<K> getKeyCoder();
 
+    abstract boolean isKeyInferBeamSchema();
+
     @Nullable
     abstract Coder<V> getValueCoder();
+
+    abstract boolean isValueInferBeamSchema();
 
     abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         getConsumerFactoryFn();
@@ -395,7 +430,11 @@ public class KafkaIO {
 
       abstract Builder<K, V> setKeyCoder(Coder<K> keyCoder);
 
+      abstract Builder<K, V> setKeyInferBeamSchema(boolean inferSchema);
+
       abstract Builder<K, V> setValueCoder(Coder<V> valueCoder);
+
+      abstract Builder<K, V> setValueInferBeamSchema(boolean inferSchema);
 
       abstract Builder<K, V> setConsumerFactoryFn(
           SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn);
@@ -434,10 +473,12 @@ public class KafkaIO {
         Class keyDeserializer = resolveClass(config.keyDeserializer);
         setKeyDeserializerProvider(LocalDeserializerProvider.of(keyDeserializer));
         setKeyCoder(resolveCoder(keyDeserializer));
+        setKeyInferBeamSchema(config.keyInferBeamSchema);
 
         Class valueDeserializer = resolveClass(config.valueDeserializer);
         setValueDeserializerProvider(LocalDeserializerProvider.of(valueDeserializer));
         setValueCoder(resolveCoder(valueDeserializer));
+        setValueInferBeamSchema(config.valueInferBeamSchema);
 
         Map<String, Object> consumerConfig = new HashMap<>();
         for (KV<String, String> kv : config.consumerConfig) {
@@ -504,6 +545,8 @@ public class KafkaIO {
         private Iterable<String> topics;
         private String keyDeserializer;
         private String valueDeserializer;
+        private boolean keyInferBeamSchema;
+        private boolean valueInferBeamSchema;
 
         public void setConsumerConfig(Iterable<KV<String, String>> consumerConfig) {
           this.consumerConfig = consumerConfig;
@@ -519,6 +562,14 @@ public class KafkaIO {
 
         public void setValueDeserializer(String valueDeserializer) {
           this.valueDeserializer = valueDeserializer;
+        }
+
+        public void setKeyInferBeamSchema(boolean keyInferBeamSchema) {
+          this.keyInferBeamSchema = keyInferBeamSchema;
+        }
+
+        public void setValueInferBeamSchema(boolean valueInferBeamSchema) {
+          this.valueInferBeamSchema = valueInferBeamSchema;
         }
       }
     }
@@ -592,6 +643,16 @@ public class KafkaIO {
     }
 
     /**
+     * Infers a Beam {@link org.apache.beam.sdk.schemas.Schema} associated with the key and sets
+     * automatically the associated {@link SchemaCoder} to allow the use of Schema-based transforms
+     * or Beam's SQL in the following pipeline transforms.
+     */
+    @Experimental(Kind.SCHEMAS)
+    public Read<K, V> withKeyInferBeamSchema(boolean inferBeamSchema) {
+      return toBuilder().setKeyInferBeamSchema(inferBeamSchema).build();
+    }
+
+    /**
      * Sets a Kafka {@link Deserializer} to interpret value bytes read from Kafka.
      *
      * <p>In addition, Beam also needs a {@link Coder} to serialize and deserialize value objects at
@@ -617,6 +678,16 @@ public class KafkaIO {
 
     public Read<K, V> withValueDeserializer(DeserializerProvider<V> deserializerProvider) {
       return toBuilder().setValueDeserializerProvider(deserializerProvider).build();
+    }
+
+    /**
+     * Infers a Beam {@link org.apache.beam.sdk.schemas.Schema} associated with the value and sets
+     * automatically the associated {@link SchemaCoder} to allow the use of Schema-based transforms
+     * or Beam's SQL in the following pipeline transforms.
+     */
+    @Experimental(Kind.SCHEMAS)
+    public Read<K, V> withValueInferBeamSchema(boolean inferBeamSchema) {
+      return toBuilder().setValueInferBeamSchema(inferBeamSchema).build();
     }
 
     /**
@@ -894,9 +965,10 @@ public class KafkaIO {
 
       // Infer key/value coders if not specified explicitly
       CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
+      SchemaRegistry schemaRegistry = input.getPipeline().getSchemaRegistry();
 
-      Coder<K> keyCoder = getKeyCoder(coderRegistry);
-      Coder<V> valueCoder = getValueCoder(coderRegistry);
+      Coder<K> keyCoder = getKeyCoder(coderRegistry, schemaRegistry);
+      Coder<V> valueCoder = getValueCoder(coderRegistry, schemaRegistry);
 
       // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
       Unbounded<KafkaRecord<K, V>> unbounded =
@@ -913,16 +985,44 @@ public class KafkaIO {
       return input.getPipeline().apply(transform);
     }
 
-    private Coder<K> getKeyCoder(CoderRegistry coderRegistry) {
-      return (getKeyCoder() != null)
-          ? getKeyCoder()
-          : getKeyDeserializerProvider().getCoder(coderRegistry);
+    private Coder<K> getKeyCoder(CoderRegistry coderRegistry, SchemaRegistry schemaRegistry) {
+      final Coder<K> keyCoder =
+          (getKeyCoder() != null)
+              ? getKeyCoder()
+              : getKeyDeserializerProvider().getCoder(coderRegistry);
+      if (isKeyInferBeamSchema()) {
+        return inferSchemaCoder(keyCoder, schemaRegistry);
+      }
+      return keyCoder;
     }
 
-    private Coder<V> getValueCoder(CoderRegistry coderRegistry) {
-      return (getValueCoder() != null)
-          ? getValueCoder()
-          : getValueDeserializerProvider().getCoder(coderRegistry);
+    private Coder<V> getValueCoder(CoderRegistry coderRegistry, SchemaRegistry schemaRegistry) {
+      final Coder<V> valueCoder =
+          (getValueCoder() != null)
+              ? getValueCoder()
+              : getValueDeserializerProvider().getCoder(coderRegistry);
+      if (isValueInferBeamSchema()) {
+        return inferSchemaCoder(valueCoder, schemaRegistry);
+      }
+      return valueCoder;
+    }
+
+    @VisibleForTesting
+    static <T> SchemaCoder<T> inferSchemaCoder(Coder<T> coder, SchemaRegistry schemaRegistry) {
+      // At the moment there is not a general way to infer SchemaCoders from non-schema Coders (that
+      // are compatible), maybe we need to add this concept to the SchemaRegistry.
+      // In the meantime we have to do this resolution manually.
+      if (coder instanceof AvroCoder) {
+        return AvroUtils.schemaCoder((AvroCoder<T>) coder);
+      }
+
+      TypeDescriptor<T> typeDescriptor = coder.getEncodedTypeDescriptor();
+      try {
+        return schemaRegistry.getSchemaCoder(typeDescriptor);
+      } catch (NoSuchSchemaException e) {
+        throw new RuntimeException(
+            "Could not infer a valid Beam schema for type " + typeDescriptor.toString(), e);
+      }
     }
 
     /**
