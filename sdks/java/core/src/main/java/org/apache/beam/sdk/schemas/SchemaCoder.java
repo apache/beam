@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nullable;
@@ -59,7 +60,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 @Experimental(Kind.SCHEMAS)
 public class SchemaCoder<T> extends CustomCoder<T> {
   // This contains a map of primitive types to their coders.
-  public static final ImmutableMap<TypeName, Coder> CODER_MAP =
+  public static final Map<TypeName, Coder> CODER_MAP =
       ImmutableMap.<TypeName, Coder>builder()
           .put(TypeName.BYTE, ByteCoder.of())
           .put(TypeName.BYTES, ByteArrayCoder.of())
