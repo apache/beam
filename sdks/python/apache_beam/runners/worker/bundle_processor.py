@@ -997,22 +997,24 @@ class BundleProcessor(object):
     return beam_fn_api_pb2.DelayedBundleApplication(
         requested_time_delay=proto_deferred_watermark,
         application=self.construct_bundle_application(
-            op, current_watermark, element_and_restriction))
+            op.input_info, current_watermark, element_and_restriction))
 
   def bundle_application(self,
                          op,  # type: operations.DoOperation
                          primary  # type: SplitResultPrimary
                         ):
     # type: (...) -> beam_fn_api_pb2.BundleApplication
-    return self.construct_bundle_application(op, None, primary.primary_value)
+    assert op.input_info is not None
+    return self.construct_bundle_application(
+        op.input_info, None, primary.primary_value)
 
   def construct_bundle_application(self,
-                                   op,  # type: operations.DoOperation
+                                   op_input_info,  # type: operations.OpInputInfo
                                    output_watermark,  # type: Optional[timestamp.Timestamp]
                                    element
                                   ):
     # type: (...) -> beam_fn_api_pb2.BundleApplication
-    transform_id, main_input_tag, main_input_coder, outputs = op.input_info
+    transform_id, main_input_tag, main_input_coder, outputs = op_input_info
     if output_watermark:
       proto_output_watermark = proto_utils.from_micros(
           timestamp_pb2.Timestamp, output_watermark.micros)
@@ -1518,7 +1520,7 @@ def _create_pardo_operation(
       consumers,
       output_tags)
   if pardo_proto and pardo_proto.restriction_coder_id:
-    result.input_info = (
+    result.input_info = operations.OpInputInfo(
         transform_id,
         main_input_tag,
         main_input_coder,

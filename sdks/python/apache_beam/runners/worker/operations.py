@@ -37,9 +37,10 @@ from typing import DefaultDict
 from typing import Dict
 from typing import FrozenSet
 from typing import Hashable
+from typing import Iterable
 from typing import Iterator
 from typing import List
-from typing import MutableMapping
+from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 from typing import Union
@@ -532,6 +533,16 @@ class _TaggedReceivers(dict):
     return total
 
 
+OpInputInfo = NamedTuple(
+    'OpInputInfo',
+    [
+        ('transform_id', str),
+        ('main_input_tag', str),
+        ('main_input_coder', coders.WindowedValueCoder),
+        ('outputs', Iterable[str]),
+    ])
+
+
 class DoOperation(Operation):
   """A Do operation that will execute a custom DoFn for each input element."""
 
@@ -548,7 +559,7 @@ class DoOperation(Operation):
     self.user_state_context = user_state_context
     self.tagged_receivers = None  # type: Optional[_TaggedReceivers]
     # A mapping of timer tags to the input "PCollections" they come in on.
-    self.input_info = None  # type: Optional[Tuple[str, str, coders.WindowedValueCoder, MutableMapping[str, str]]]
+    self.input_info = None  # type: Optional[OpInputInfo]
 
   def _read_side_inputs(self, tags_and_types):
     # type: (...) -> Iterator[apache_sideinputs.SideInputMap]
