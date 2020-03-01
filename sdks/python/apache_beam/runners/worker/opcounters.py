@@ -30,6 +30,7 @@ import random
 from builtins import hex
 from builtins import object
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import Optional
 
 from future.utils import raise_with_traceback
@@ -231,7 +232,7 @@ class OperationCounters(object):
     return _observable_callback_inner
 
   def type_check(self, value):
-    # type: (any, bool) -> None
+    # type: (Any, bool) -> None
     for transform_label, type_constraint_tuple in (
             self.output_type_constraints.items()):
       parameter_name, constraint = type_constraint_tuple
