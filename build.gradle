@@ -63,8 +63,7 @@ rat {
     "**/.github/**/*",
 
     "**/package-list",
-    "**/test.avsc",
-    "**/user.avsc",
+    "**/*.avsc",
     "**/test/resources/**/*.txt",
     "**/test/**/.placeholder",
 

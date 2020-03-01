@@ -28,6 +28,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -47,6 +48,7 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.Utf8;
+import org.apache.avro.util.internal.JacksonUtils;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -84,6 +86,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.codehaus.jackson.JsonNode;
 import org.joda.time.Days;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -92,6 +95,13 @@ import org.joda.time.ReadableInstant;
 /** Utils to convert AVRO records to Beam rows. */
 @Experimental(Kind.SCHEMAS)
 public class AvroUtils {
+
+  public static final String SCHEMA_OPTION_RECORD_PREFIX = "beam:option:avro:record:";
+
+  public static final String SCHEMA_OPTION_FIELD_PREFIX = "beam:option:avro:field:";
+
+  public static final String SCHEMA_OPTION_FIELD_TYPE_PREFIX = "beam:option:avro:field_type:";
+
   static {
     // This works around a bug in the Avro library (AVRO-1891) around SpecificRecord's handling
     // of DateTime types.
@@ -287,7 +297,125 @@ public class AvroUtils {
   public static Schema.Field toBeamField(org.apache.avro.Schema.Field field) {
     TypeWithNullability nullableType = new TypeWithNullability(field.schema());
     FieldType beamFieldType = toFieldType(nullableType);
-    return Field.of(field.name(), beamFieldType);
+    return Field.of(field.name(), beamFieldType).withOptions(toBeamFieldOptions(field));
+  }
+
+  private static Schema.Options toBeamFieldOptions(org.apache.avro.Schema.Field field) {
+    Schema.Options.Builder builder = Schema.Options.builder();
+    field
+        .getJsonProps()
+        .forEach(
+            (name, jsonNode) -> addOption(builder, SCHEMA_OPTION_FIELD_PREFIX, name, jsonNode));
+    field
+        .schema()
+        .getJsonProps()
+        .forEach(
+            (name, jsonNode) ->
+                addOption(builder, SCHEMA_OPTION_FIELD_TYPE_PREFIX, name, jsonNode));
+    return builder.build();
+  }
+
+  private static Object getOptionFieldValueFromJsonNode(JsonNode jsonNode, FieldType fieldType) {
+    if (jsonNode == null) {
+      return null;
+    } else if (jsonNode.isNull()) {
+      return null;
+    } else if (jsonNode.isBoolean()) {
+      return jsonNode.asBoolean();
+    } else if (jsonNode.isInt()) {
+      return jsonNode.asInt();
+    } else if (jsonNode.isLong()) {
+      return jsonNode.asLong();
+    } else if (jsonNode.isDouble()) {
+      return jsonNode.asDouble();
+    } else if (jsonNode.isTextual()) {
+      return jsonNode.asText();
+    } else if (jsonNode.isArray()) {
+      if (jsonNode.size() == 0) {
+        return null;
+      }
+      List arrayList = new ArrayList();
+      FieldType arrayFieldType = getOptionFieldTypeFromJsonNode(jsonNode);
+      if (FieldType.of(TypeName.STRING).equals(arrayFieldType.getCollectionElementType())) {
+        for (JsonNode element : jsonNode) {
+          arrayList.add(element.asText());
+        }
+      } else {
+        for (JsonNode element : jsonNode) {
+          arrayList.add(JacksonUtils.toObject(element));
+        }
+      }
+      return arrayList;
+    } else if (jsonNode.isObject()) {
+      FieldType rowFieldType = getOptionFieldTypeFromJsonNode(jsonNode);
+      Schema rowSchema = rowFieldType.getRowSchema();
+      Row.Builder builder = Row.withSchema(rowSchema);
+      rowSchema
+          .getFields()
+          .forEach(
+              field -> {
+                JsonNode fieldNode = jsonNode.get(field.getName());
+                Object value = getOptionFieldValueFromJsonNode(fieldNode, field.getType());
+                builder.addValue(value);
+              });
+      return builder.build();
+    }
+    return null;
+  }
+
+  private static FieldType getOptionFieldTypeFromJsonNode(JsonNode jsonNode) {
+    if (jsonNode.isBoolean()) {
+      return FieldType.of(TypeName.BOOLEAN);
+    } else if (jsonNode.isInt()) {
+      return FieldType.of(TypeName.INT32);
+    } else if (jsonNode.isLong()) {
+      return FieldType.of(TypeName.INT64);
+    } else if (jsonNode.isDouble()) {
+      return FieldType.of(TypeName.DOUBLE);
+    } else if (jsonNode.isTextual()) {
+      return FieldType.of(TypeName.STRING);
+    } else if (jsonNode.isArray()) {
+      if (jsonNode.size() == 0) {
+        return null;
+      }
+      FieldType collectionElementType = getOptionFieldTypeFromJsonNode(jsonNode.get(0));
+      for (JsonNode element : jsonNode) {
+        if (!collectionElementType.equals(getOptionFieldTypeFromJsonNode(element))) {
+          collectionElementType = FieldType.of(TypeName.STRING);
+        }
+      }
+      return FieldType.array(collectionElementType);
+    } else if (jsonNode.isObject()) {
+      Schema.Builder builder = Schema.builder();
+      for (Iterator<String> it = jsonNode.getFieldNames(); it.hasNext(); ) {
+        String key = it.next();
+        JsonNode valueNode = jsonNode.get(key);
+        builder.addField(Field.of(key, getOptionFieldTypeFromJsonNode(valueNode)));
+      }
+      return FieldType.row(builder.build());
+    }
+    return null;
+  }
+
+  private static void addOption(
+      Schema.Options.Builder builder, String prefix, String name, JsonNode jsonNode) {
+    if (jsonNode != null) {
+      FieldType optionType = getOptionFieldTypeFromJsonNode(jsonNode);
+      if (optionType != null) {
+        if (jsonNode.isBoolean()
+            || jsonNode.isInt()
+            || jsonNode.isLong()
+            || jsonNode.isDouble()
+            || jsonNode.isTextual()
+            || jsonNode.isArray()) {
+          builder.setOption(
+              prefix + name, optionType, getOptionFieldValueFromJsonNode(jsonNode, optionType));
+        } else if (jsonNode.isObject()) {
+          builder.setOption(
+              prefix + name, (Row) getOptionFieldValueFromJsonNode(jsonNode, optionType));
+        }
+      }
+    }
   }
 
   /** Get Avro Field from Beam Field. */
@@ -316,6 +444,15 @@ public class AvroUtils {
       builder.addField(beamField);
     }
 
+    return builder.setOptions(toBeamSchemaOptions(schema)).build();
+  }
+
+  private static Schema.Options toBeamSchemaOptions(org.apache.avro.Schema schema) {
+    Schema.Options.Builder builder = Schema.Options.builder();
+    schema
+        .getJsonProps()
+        .forEach(
+            (name, jsonNode) -> addOption(builder, SCHEMA_OPTION_RECORD_PREFIX, name, jsonNode));
     return builder.build();
   }
 

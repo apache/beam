@@ -1,0 +1,30 @@
+{
+  "namespace": "org.apache.beam.sdk.schemas",
+  "type": "record",
+  "name": "TestOptionsAvro",
+  "connect.name": "connect.beam.TestOptions",
+  "fields": [
+    { "name": "ts", "type": {
+            "type": "string",
+            "connect.version": 1,
+            "connect.default": "1970-01-01T00:00:00Z",
+            "connect.name": "io.debezium.time.ZonedTimestamp"
+        }
+    },
+    {   "name": "field_1",
+        "type": "string",
+        "test.string": "foobar",
+        "test.int": 42,
+        "test.boolean": true,
+        "test.double": 2.3,
+        "test.array": [ "string", "other", "foo", "bar" ],
+        "test.row": {
+            "row_field_string": "string",
+            "row_field_int": 12,
+            "row_field_boolean": true,
+            "row_field_double": 2.3,
+            "row_field_array": [ "string", "other", "foo", "bar" ]
+            }
+    }
+  ]
+}

@@ -31,6 +31,7 @@ import org.apache.avro.reflect.AvroIgnore;
 import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.AvroSchema;
 import org.apache.avro.util.Utf8;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
@@ -272,12 +273,88 @@ public class AvroSchemaTest {
           .addNullableField("string", FieldType.STRING)
           .addNullableField("bytes", FieldType.BYTES)
           .addField("fixed", FieldType.logicalType(FixedBytes.of(4)))
-          .addField("date", FieldType.DATETIME)
-          .addField("timestampMillis", FieldType.DATETIME)
+          .addField(
+              Field.of("date", FieldType.DATETIME)
+                  .withOptions(
+                      Schema.Options.builder()
+                          .setOption(
+                              "beam:option:avro:field_type:logicalType", FieldType.STRING, "date")))
+          .addField(
+              Field.of("timestampMillis", FieldType.DATETIME)
+                  .withOptions(
+                      Schema.Options.builder()
+                          .setOption(
+                              "beam:option:avro:field_type:logicalType",
+                              FieldType.STRING,
+                              "timestamp-millis")))
           .addField("testEnum", FieldType.logicalType(TEST_ENUM_TYPE))
           .addNullableField("row", SUB_TYPE)
           .addNullableField("array", FieldType.array(SUB_TYPE))
           .addNullableField("map", FieldType.map(FieldType.STRING, SUB_TYPE))
+          .build();
+
+  private static final Schema OPTIONS_SCHEMA =
+      Schema.builder()
+          .addField(
+              Field.of("ts", FieldType.STRING)
+                  .withOptions(
+                      Schema.Options.builder()
+                          .setOption(
+                              "beam:option:avro:field_type:avro.java.string",
+                              FieldType.STRING,
+                              "String")
+                          .setOption(
+                              "beam:option:avro:field_type:connect.default",
+                              FieldType.STRING,
+                              "1970-01-01T00:00:00Z")
+                          .setOption(
+                              "beam:option:avro:field_type:connect.name",
+                              FieldType.STRING,
+                              "io.debezium.time.ZonedTimestamp")
+                          .setOption(
+                              "beam:option:avro:field_type:connect.version", FieldType.INT32, 1)
+                          .build()))
+          .addField(
+              Field.of("field_1", FieldType.STRING)
+                  .withOptions(
+                      Schema.Options.builder()
+                          .setOption(
+                              "beam:option:avro:field_type:avro.java.string",
+                              FieldType.STRING,
+                              "String")
+                          .setOption(
+                              "beam:option:avro:field:test.string", FieldType.STRING, "foobar")
+                          .setOption("beam:option:avro:field:test.int", FieldType.INT32, 42)
+                          .setOption("beam:option:avro:field:test.boolean", FieldType.BOOLEAN, true)
+                          .setOption("beam:option:avro:field:test.double", FieldType.DOUBLE, 2.3)
+                          .setOption(
+                              "beam:option:avro:field:test.array",
+                              FieldType.array(FieldType.STRING),
+                              Arrays.asList("string", "other", "foo", "bar"))
+                          .setOption(
+                              "beam:option:avro:field:test.row",
+                              Row.withSchema(
+                                      Schema.builder()
+                                          .addStringField("row_field_string")
+                                          .addInt32Field("row_field_int")
+                                          .addBooleanField("row_field_boolean")
+                                          .addDoubleField("row_field_double")
+                                          .addArrayField("row_field_array", FieldType.STRING)
+                                          .build())
+                                  .addValue("string")
+                                  .addValue(12)
+                                  .addValue(true)
+                                  .addValue(2.3)
+                                  .addValue(Arrays.asList("string", "other", "foo", "bar"))
+                                  .build())
+                          .build()))
+          .setOptions(
+              Schema.Options.builder()
+                  .setOption(
+                      "beam:option:avro:record:connect.name",
+                      FieldType.STRING,
+                      "connect.beam.TestOptions")
+                  .build())
           .build();
 
   private static final Schema POJO_SCHEMA =
@@ -290,8 +367,20 @@ public class AvroSchemaTest {
           .addNullableField("string", FieldType.STRING)
           .addNullableField("bytes", FieldType.BYTES)
           .addField("fixed", FieldType.logicalType(FixedBytes.of(4)))
-          .addField("date", FieldType.DATETIME)
-          .addField("timestampMillis", FieldType.DATETIME)
+          .addField(
+              Field.of("date", FieldType.DATETIME)
+                  .withOptions(
+                      Schema.Options.builder()
+                          .setOption(
+                              "beam:option:avro:field_type:logicalType", FieldType.STRING, "date")))
+          .addField(
+              Field.of("timestampMillis", FieldType.DATETIME)
+                  .withOptions(
+                      Schema.Options.builder()
+                          .setOption(
+                              "beam:option:avro:field_type:logicalType",
+                              FieldType.STRING,
+                              "timestamp-millis")))
           .addField("testEnum", FieldType.logicalType(TEST_ENUM_TYPE))
           .addNullableField("row", SUB_TYPE)
           .addNullableField("array", FieldType.array(SUB_TYPE.withNullable(false)))
@@ -373,6 +462,12 @@ public class AvroSchemaTest {
   @Test
   public void testSpecificRecordSchema() {
     assertEquals(SCHEMA, new AvroRecordSchema().schemaFor(TypeDescriptor.of(TestAvro.class)));
+  }
+
+  @Test
+  public void testOptionsRecordSchema() {
+    assertEquals(
+        OPTIONS_SCHEMA, new AvroRecordSchema().schemaFor(TypeDescriptor.of(TestOptionsAvro.class)));
   }
 
   @Test

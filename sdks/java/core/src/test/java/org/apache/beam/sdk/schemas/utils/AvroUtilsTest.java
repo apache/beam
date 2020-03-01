@@ -260,8 +260,25 @@ public class AvroUtilsTest {
         .addField(Field.of("double", FieldType.DOUBLE))
         .addField(Field.of("string", FieldType.STRING))
         .addField(Field.of("bytes", FieldType.BYTES))
-        .addField(Field.of("decimal", FieldType.DECIMAL))
-        .addField(Field.of("timestampMillis", FieldType.DATETIME))
+        .addField(
+            Field.of("decimal", FieldType.DECIMAL)
+                .withOptions(
+                    Schema.Options.builder()
+                        .setOption(
+                            "beam:option:avro:field_type:logicalType", FieldType.STRING, "decimal")
+                        .setOption(
+                            "beam:option:avro:field_type:precision",
+                            FieldType.INT32,
+                            Integer.MAX_VALUE)
+                        .setOption("beam:option:avro:field_type:scale", FieldType.INT32, 0)))
+        .addField(
+            Field.of("timestampMillis", FieldType.DATETIME)
+                .withOptions(
+                    Schema.Options.builder()
+                        .setOption(
+                            "beam:option:avro:field_type:logicalType",
+                            FieldType.STRING,
+                            "timestamp-millis")))
         .addField(Field.of("row", FieldType.row(subSchema)))
         .addField(Field.of("array", FieldType.array(FieldType.row(subSchema))))
         .addField(Field.of("map", FieldType.map(FieldType.STRING, FieldType.row(subSchema))))
