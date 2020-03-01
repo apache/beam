@@ -514,9 +514,7 @@ public class ParDoTest implements Serializable {
       SingleOutput<KV<String, String>, String> parDo = ParDo.of(fn);
 
       // Use the parDo in a pipeline to cause state coders to be inferred.
-      pipeline
-          .apply(Create.of(KV.of("input", "value")))
-          .apply(parDo);
+      pipeline.apply(Create.of(KV.of("input", "value"))).apply(parDo);
 
       DisplayData displayData = DisplayData.from(parDo);
       assertThat(
@@ -534,9 +532,9 @@ public class ParDoTest implements Serializable {
                   hasKey("state_map"),
                   hasType(DisplayData.Type.STRING),
                   hasValue(
-                      "MapState<StringUtf8Coder, " +
-                      "SerializableCoder(org.apache.beam.sdk.transforms.ParDoTest" +
-                      "$BasicTests$SerializableClass)>"),
+                      "MapState<StringUtf8Coder, "
+                          + "SerializableCoder(org.apache.beam.sdk.transforms.ParDoTest"
+                          + "$BasicTests$SerializableClass)>"),
                   hasLabel("State \"map\""))));
     }
 
