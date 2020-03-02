@@ -21,6 +21,8 @@ import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Matchers.same;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
@@ -56,6 +58,7 @@ public class ShardReadersPoolTest {
   @Mock private KinesisRecord a, b, c, d;
   @Mock private WatermarkPolicyFactory watermarkPolicyFactory;
   @Mock private RateLimitPolicyFactory rateLimitPolicyFactory;
+  @Mock private RateLimitPolicy customRateLimitPolicy;
 
   private KinesisReaderCheckpoint checkpoint;
   private ShardReadersPool shardReadersPool;
@@ -296,5 +299,35 @@ public class ShardReadersPoolTest {
 
     verify(firstIterator, times(2)).getShardWatermark();
     verify(secondIterator, times(2)).getShardWatermark();
+  }
+
+  @Test
+  public void shouldCallRateLimitPolicy()
+      throws TransientKinesisException, KinesisShardClosedException, InterruptedException {
+    KinesisClientThrottledException e = new KinesisClientThrottledException("", null);
+    when(firstIterator.readNextBatch())
+        .thenThrow(e)
+        .thenReturn(ImmutableList.of(a, b))
+        .thenReturn(Collections.emptyList());
+    when(secondIterator.readNextBatch())
+        .thenReturn(singletonList(c))
+        .thenReturn(singletonList(d))
+        .thenReturn(Collections.emptyList());
+    when(rateLimitPolicyFactory.getRateLimitPolicy()).thenReturn(customRateLimitPolicy);
+
+    shardReadersPool.start();
+    List<KinesisRecord> fetchedRecords = new ArrayList<>();
+    while (fetchedRecords.size() < 4) {
+      CustomOptional<KinesisRecord> nextRecord = shardReadersPool.nextRecord();
+      if (nextRecord.isPresent()) {
+        fetchedRecords.add(nextRecord.get());
+      }
+    }
+
+    verify(customRateLimitPolicy).onThrottle(same(e));
+    verify(customRateLimitPolicy).onSuccess(eq(ImmutableList.of(a, b)));
+    verify(customRateLimitPolicy).onSuccess(eq(singletonList(c)));
+    verify(customRateLimitPolicy).onSuccess(eq(singletonList(d)));
+    verify(customRateLimitPolicy, atLeastOnce()).onSuccess(eq(Collections.emptyList()));
   }
 }

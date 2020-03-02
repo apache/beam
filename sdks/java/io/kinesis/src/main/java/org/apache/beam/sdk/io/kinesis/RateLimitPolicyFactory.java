@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.kinesis;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.function.Supplier;
 import org.joda.time.Duration;
 
 /**
@@ -34,30 +35,34 @@ public interface RateLimitPolicyFactory extends Serializable {
   }
 
   static RateLimitPolicyFactory withFixedDelay() {
-    return FixedDelayRateLimiter::new;
+    return DelayIntervalRateLimiter::new;
   }
 
   static RateLimitPolicyFactory withFixedDelay(Duration delay) {
-    return () -> new FixedDelayRateLimiter(delay);
+    return () -> new DelayIntervalRateLimiter(() -> delay);
   }
 
-  class FixedDelayRateLimiter implements RateLimitPolicy {
+  static RateLimitPolicyFactory withDelay(Supplier<Duration> delay) {
+    return () -> new DelayIntervalRateLimiter(delay);
+  }
 
-    private static final Duration DEFAULT_DELAY = Duration.standardSeconds(1);
+  class DelayIntervalRateLimiter implements RateLimitPolicy {
 
-    private final Duration delay;
+    private static final Supplier<Duration> DEFAULT_DELAY = () -> Duration.standardSeconds(1);
 
-    public FixedDelayRateLimiter() {
+    private final Supplier<Duration> delay;
+
+    public DelayIntervalRateLimiter() {
       this(DEFAULT_DELAY);
     }
 
-    public FixedDelayRateLimiter(Duration delay) {
+    public DelayIntervalRateLimiter(Supplier<Duration> delay) {
       this.delay = delay;
     }
 
     @Override
     public void onSuccess(List<KinesisRecord> records) throws InterruptedException {
-      Thread.sleep(delay.getMillis());
+      Thread.sleep(delay.get().getMillis());
     }
   }
 }
