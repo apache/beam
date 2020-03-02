@@ -1537,7 +1537,7 @@ class DataflowPipelineResult(PipelineResult):
       # use thread.join() to wait for the polling thread.
       thread.daemon = True
       thread.start()
-      while thread.isAlive():
+      while thread.is_alive():
         time.sleep(5.0)
 
       # TODO: Merge the termination code in poll_for_job_completion and
