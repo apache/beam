@@ -4874,4 +4874,46 @@ public class ParDoTest implements Serializable {
       pipeline.run();
     }
   }
+
+  /** Tests to validate Key in OnTimer */
+  @RunWith(JUnit4.class)
+  public static class KeyTests extends SharedTestBase implements Serializable {
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+    })
+    public void testKeyInOnTimer() throws Exception {
+      final String timerId = "foo";
+
+      DoFn<KV<String, Integer>, Integer> fn =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
+              timer.set(new Instant(1));
+              r.output(3);
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(TimeDomain timeDomain, OutputReceiver<Integer> r) {
+              r.output(42);
+            }
+          };
+
+      TestStream<KV<String, Integer>> stream =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+              .addElements(KV.of("hello", 37))
+              .advanceWatermarkTo(new Instant(3))
+              .advanceWatermarkToInfinity();
+
+      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
+      PAssert.that(output).containsInAnyOrder(3, 42);
+      pipeline.run();
+    }
+  }
 }
