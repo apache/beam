@@ -25,14 +25,18 @@ Only works with Python 3.5+.
 from __future__ import absolute_import
 
 import base64
+import datetime
 import logging
 from datetime import timedelta
+from dateutil import tz
 
 from pandas.io.json import json_normalize
 
 from apache_beam import pvalue
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as instr
+from apache_beam.transforms.window import GlobalWindow
+from apache_beam.transforms.window import IntervalWindow
 
 try:
   import jsons  # pylint: disable=import-error
@@ -52,12 +56,29 @@ try:
 except ImportError:
   _pcoll_visualization_ready = False
 
+_LOGGER = logging.getLogger(__name__)
+
 # 1-d types that need additional normalization to be compatible with DataFrame.
 _one_dimension_types = (int, float, str, bool, list, tuple)
 
+_CSS = """
+            <style>
+            .p-Widget.jp-OutputPrompt.jp-OutputArea-prompt:empty {{
+              padding: 0;
+              border: 0;
+            }}
+            .p-Widget.jp-RenderedJavaScript.jp-mod-trusted.jp-OutputArea-output:empty {{
+              padding: 0;
+              border: 0;
+            }}
+            </style>"""
 _DIVE_SCRIPT_TEMPLATE = """
-            document.querySelector("#{display_id}").data = {jsonstr};"""
-_DIVE_HTML_TEMPLATE = """
+            try {{
+              document.querySelector("#{display_id}").data = {jsonstr};
+            }} catch (e) {{
+              console.log("#{display_id} is not rendered yet.");
+            }}"""
+_DIVE_HTML_TEMPLATE = _CSS + """
             <script src="https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.3.3/webcomponents-lite.js"></script>
             <link rel="import" href="https://raw.githubusercontent.com/PAIR-code/facets/1.0.0/facets-dist/facets-jupyter.html">
             <facets-dive sprite-image-width="{sprite_size}" sprite-image-height="{sprite_size}" id="{display_id}" height="600"></facets-dive>
@@ -65,29 +86,59 @@ _DIVE_HTML_TEMPLATE = """
               document.querySelector("#{display_id}").data = {jsonstr};
             </script>"""
 _OVERVIEW_SCRIPT_TEMPLATE = """
-              document.querySelector("#{display_id}").protoInput = "{protostr}";
-              """
-_OVERVIEW_HTML_TEMPLATE = """
+              try {{
+                document.querySelector("#{display_id}").protoInput = "{protostr}";
+              }} catch (e) {{
+                console.log("#{display_id} is not rendered yet.");
+              }}"""
+_OVERVIEW_HTML_TEMPLATE = _CSS + """
             <script src="https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.3.3/webcomponents-lite.js"></script>
             <link rel="import" href="https://raw.githubusercontent.com/PAIR-code/facets/1.0.0/facets-dist/facets-jupyter.html">
             <facets-overview id="{display_id}"></facets-overview>
             <script>
               document.querySelector("#{display_id}").protoInput = "{protostr}";
             </script>"""
-_DATAFRAME_PAGINATION_TEMPLATE = """
-            <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.2/jquery.min.js"></script>
-            <script src="https://cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js"></script>
+_DATATABLE_INITIALIZATION_CONFIG = """
+            columns: {columns},
+            destroy: true,
+            responsive: true,
+            columnDefs: [
+              {{
+                targets: "_all",
+                className: "dt-left"
+              }},
+              {{
+                "targets": 0,
+                "width": "10px",
+                "title": ""
+              }}
+            ]"""
+_DATAFRAME_SCRIPT_TEMPLATE = """
+            var dt;
+            if ($.fn.dataTable.isDataTable("#{table_id}")) {{
+              dt = $("#{table_id}").dataTable();
+            }} else {{
+              dt = $("#{table_id}").dataTable({{
+                """ + _DATATABLE_INITIALIZATION_CONFIG + """
+              }});
+            }}
+            dt.api()
+              .clear()
+              .rows.add({data_as_rows})
+              .draw('full-hold');"""
+_DATAFRAME_PAGINATION_TEMPLATE = _CSS + """
             <link rel="stylesheet" href="https://cdn.datatables.net/1.10.20/css/jquery.dataTables.min.css">
-            {dataframe_html}
+            <table id="{table_id}" class="display"></table>
             <script>
-              $(document).ready(
-                function() {{
-                  $("#{table_id}").DataTable();
-                }});
+              {script_in_jquery_with_datatable}
             </script>"""
 
 
-def visualize(pcoll, dynamic_plotting_interval=None):
+def visualize(
+    pcoll,
+    dynamic_plotting_interval=None,
+    include_window_info=False,
+    display_facets=False):
   """Visualizes the data of a given PCollection. Optionally enables dynamic
   plotting with interval in seconds if the PCollection is being produced by a
   running pipeline or the pipeline is streaming indefinitely. The function
@@ -109,14 +160,23 @@ def visualize(pcoll, dynamic_plotting_interval=None):
 
   If dynamic_plotting is not enabled (by default), None is returned.
 
+  If include_window_info is True, the data will include window information,
+  which consists of the event timestamps, windows, and pane info.
+
+  If display_facets is True, the facets widgets will be rendered. Otherwise, the
+  facets widgets will not be rendered.
+
   The function is experimental. For internal use only; no
   backwards-compatibility guarantees.
   """
   if not _pcoll_visualization_ready:
     return None
-  pv = PCollectionVisualization(pcoll)
+  pv = PCollectionVisualization(
+      pcoll,
+      include_window_info=include_window_info,
+      display_facets=display_facets)
   if ie.current_env().is_in_notebook:
-    pv.display_facets()
+    pv.display()
   else:
     pv.display_plain_text()
     # We don't want to do dynamic plotting if there is no notebook frontend.
@@ -127,14 +187,20 @@ def visualize(pcoll, dynamic_plotting_interval=None):
     logging.getLogger('timeloop').disabled = True
     tl = Timeloop()
 
-    def dynamic_plotting(pcoll, pv, tl):
+    def dynamic_plotting(pcoll, pv, tl, include_window_info, display_facets):
       @tl.job(interval=timedelta(seconds=dynamic_plotting_interval))
       def continuous_update_display():  # pylint: disable=unused-variable
         # Always creates a new PCollVisualization instance when the
         # PCollection materialization is being updated and dynamic
         # plotting is in-process.
-        updated_pv = PCollectionVisualization(pcoll)
-        updated_pv.display_facets(updating_pv=pv)
+        # PCollectionVisualization created at this level doesn't need dynamic
+        # plotting interval information when instantiated because it's already
+        # in dynamic plotting logic.
+        updated_pv = PCollectionVisualization(
+            pcoll,
+            include_window_info=include_window_info,
+            display_facets=display_facets)
+        updated_pv.display(updating_pv=pv)
         if ie.current_env().is_terminated(pcoll.pipeline):
           try:
             tl.stop()
@@ -145,7 +211,7 @@ def visualize(pcoll, dynamic_plotting_interval=None):
       tl.start()
       return tl
 
-    return dynamic_plotting(pcoll, pv, tl)
+    return dynamic_plotting(pcoll, pv, tl, include_window_info, display_facets)
   return None
 
 
@@ -156,7 +222,7 @@ class PCollectionVisualization(object):
   access current interactive environment for materialized PCollection data at
   the moment of self instantiation through cache.
   """
-  def __init__(self, pcoll):
+  def __init__(self, pcoll, include_window_info=False, display_facets=False):
     assert _pcoll_visualization_ready, (
         'Dependencies for PCollection visualization are not available. Please '
         'use `pip install apache-beam[interactive]` to install necessary '
@@ -181,6 +247,12 @@ class PCollectionVisualization(object):
     self._overview_display_id = 'facets_overview_{}_{}'.format(
         self._cache_key, id(self))
     self._df_display_id = 'df_{}_{}'.format(self._cache_key, id(self))
+    # Whether the visualization should include window info.
+    self._include_window_info = include_window_info
+    # Whether facets widgets should be displayed.
+    self._display_facets = display_facets
+    # Whether datatable rendered from data is empty.
+    self._is_datatable_empty = True
 
   def display_plain_text(self):
     """Displays a head sample of the normalized PCollection data.
@@ -198,7 +270,7 @@ class PCollectionVisualization(object):
       data_sample = data.head(25)
       display(data_sample)
 
-  def display_facets(self, updating_pv=None):
+  def display(self, updating_pv=None):
     """Displays the visualization through IPython.
 
     Args:
@@ -215,20 +287,32 @@ class PCollectionVisualization(object):
     # Ensures that dive, overview and table render the same data because the
     # materialized PCollection data might being updated continuously.
     data = self._to_dataframe()
+    # String-ify the dictionaries for display because elements of type dict
+    # cannot be ordered.
+    data = data.applymap(lambda x: str(x) if isinstance(x, dict) else x)
     if updating_pv:
-      self._display_dive(data, updating_pv._dive_display_id)
-      self._display_overview(data, updating_pv._overview_display_id)
-      self._display_dataframe(data, updating_pv._df_display_id)
+      # Only updates when data is not empty. Otherwise, consider it a bad
+      # iteration and noop since there is nothing to be updated.
+      if data.empty:
+        _LOGGER.debug('Skip a visualization update due to empty data.')
+      else:
+        self._display_dataframe(data.copy(deep=True), updating_pv)
+        if self._display_facets:
+          self._display_dive(data.copy(deep=True), updating_pv)
+          self._display_overview(data.copy(deep=True), updating_pv)
     else:
-      self._display_dive(data)
-      self._display_overview(data)
-      self._display_dataframe(data)
+      self._display_dataframe(data.copy(deep=True))
+      if self._display_facets:
+        self._display_dive(data.copy(deep=True))
+        self._display_overview(data.copy(deep=True))
 
   def _display_dive(self, data, update=None):
     sprite_size = 32 if len(data.index) > 50000 else 64
-    jsonstr = data.to_json(orient='records')
+    format_window_info_in_dataframe(data)
+    jsonstr = data.to_json(orient='records', default_handler=str)
     if update:
-      script = _DIVE_SCRIPT_TEMPLATE.format(display_id=update, jsonstr=jsonstr)
+      script = _DIVE_SCRIPT_TEMPLATE.format(
+          display_id=update._dive_display_id, jsonstr=jsonstr)
       display_javascript(Javascript(script))
     else:
       html = _DIVE_HTML_TEMPLATE.format(
@@ -238,12 +322,17 @@ class PCollectionVisualization(object):
       display(HTML(html))
 
   def _display_overview(self, data, update=None):
+    if (not data.empty and self._include_window_info and
+        all(column in data.columns
+            for column in ('event_time', 'windows', 'pane_info'))):
+      data = data.drop(['event_time', 'windows', 'pane_info'], axis=1)
+
     gfsg = GenericFeatureStatisticsGenerator()
     proto = gfsg.ProtoFromDataFrames([{'name': 'data', 'table': data}])
     protostr = base64.b64encode(proto.SerializeToString()).decode('utf-8')
     if update:
       script = _OVERVIEW_SCRIPT_TEMPLATE.format(
-          display_id=update, protostr=protostr)
+          display_id=update._overview_display_id, protostr=protostr)
       display_javascript(Javascript(script))
     else:
       html = _OVERVIEW_HTML_TEMPLATE.format(
@@ -251,18 +340,39 @@ class PCollectionVisualization(object):
       display(HTML(html))
 
   def _display_dataframe(self, data, update=None):
-    if update:
-      table_id = 'table_{}'.format(update)
-      html = _DATAFRAME_PAGINATION_TEMPLATE.format(
-          dataframe_html=data.to_html(notebook=True, table_id=table_id),
-          table_id=table_id)
-      update_display(HTML(html), display_id=update)
+    table_id = 'table_{}'.format(
+        update._df_display_id if update else self._df_display_id)
+    columns = [{
+        'title': ''
+    }] + [{
+        'title': str(column)
+    } for column in data.columns]
+    format_window_info_in_dataframe(data)
+    rows = data.applymap(lambda x: str(x)).to_dict('split')['data']
+    rows = [{k + 1: v for k, v in enumerate(row)} for row in rows]
+    for k, row in enumerate(rows):
+      row[0] = k
+    script = _DATAFRAME_SCRIPT_TEMPLATE.format(
+        table_id=table_id, columns=columns, data_as_rows=rows)
+    script_in_jquery_with_datatable = ie._JQUERY_WITH_DATATABLE_TEMPLATE.format(
+        customized_script=script)
+    # Dynamically load data into the existing datatable if not empty.
+    if update and not update._is_datatable_empty:
+      display_javascript(Javascript(script_in_jquery_with_datatable))
     else:
-      table_id = 'table_{}'.format(self._df_display_id)
       html = _DATAFRAME_PAGINATION_TEMPLATE.format(
-          dataframe_html=data.to_html(notebook=True, table_id=table_id),
-          table_id=table_id)
-      display(HTML(html), display_id=self._df_display_id)
+          table_id=table_id,
+          script_in_jquery_with_datatable=script_in_jquery_with_datatable)
+      if update:
+        if not data.empty:
+          # Re-initialize a datatable to replace the existing empty datatable.
+          update_display(HTML(html), display_id=update._df_display_id)
+          update._is_datatable_empty = False
+      else:
+        # Initialize a datatable for the first time rendering.
+        display(HTML(html), display_id=self._df_display_id)
+        if not data.empty:
+          self._is_datatable_empty = False
 
   def _to_element_list(self):
     pcoll_list = []
@@ -271,6 +381,7 @@ class PCollectionVisualization(object):
                                                             self._cache_key)
     return pcoll_list
 
+  # TODO(BEAM-7926): Refactor to new non-flatten dataframe conversion logic.
   def _to_dataframe(self):
     normalized_list = []
     # Column name for _one_dimension_types if presents.
@@ -291,3 +402,81 @@ class PCollectionVisualization(object):
 
   def _is_one_dimension_type(self, val):
     return type(val) in _one_dimension_types
+
+
+def format_window_info_in_dataframe(data):
+  if 'event_time' in data.columns:
+    data['event_time'] = data['event_time'].apply(event_time_formatter)
+  if 'windows' in data.columns:
+    data['windows'] = data['windows'].apply(windows_formatter)
+  if 'pane_info' in data.columns:
+    data['pane_info'] = data['pane_info'].apply(pane_info_formatter)
+
+
+def event_time_formatter(event_time_us):
+  options = ie.current_env().options
+  to_tz = options.display_timezone
+  try:
+    return (
+        datetime.datetime.utcfromtimestamp(event_time_us / 1000000).replace(
+            tzinfo=tz.tzutc()).astimezone(to_tz).strftime(
+                options.display_timestamp_format))
+  except ValueError:
+    if event_time_us < 0:
+      return 'Min Timestamp'
+    return 'Max Timestamp'
+
+
+def windows_formatter(windows):
+  result = []
+  for w in windows:
+    if isinstance(w, GlobalWindow):
+      result.append(str(w))
+    elif isinstance(w, IntervalWindow):
+      # First get the duration in terms of hours, minutes, seconds, and
+      # micros.
+      duration = w.end.micros - w.start.micros
+      duration_secs = duration // 1000000
+      hours, remainder = divmod(duration_secs, 3600)
+      minutes, seconds = divmod(remainder, 60)
+      micros = (duration - duration_secs * 1000000) % 1000000
+
+      # Construct the duration string. Try and write the string in such a
+      # way that minimizes the amount of characters written.
+      duration = ''
+      if hours:
+        duration += '{}h '.format(hours)
+
+      if minutes or (hours and seconds):
+        duration += '{}m '.format(minutes)
+
+      if seconds:
+        if micros:
+          duration += '{}.{:06}s'.format(seconds, micros)
+        else:
+          duration += '{}s'.format(seconds)
+
+      options = ie.current_env().options
+      to_tz = options.display_timezone
+      start = event_time_formatter(w.start.micros)
+
+      result.append('{} ({})'.format(start, duration))
+
+  return ','.join(result)
+
+
+def pane_info_formatter(pane_info):
+  from apache_beam.utils.windowed_value import PaneInfo
+  from apache_beam.utils.windowed_value import PaneInfoTiming
+  assert isinstance(pane_info, PaneInfo)
+
+  result = 'Pane {}'.format(pane_info.index)
+  timing_info = '{}{}'.format(
+      'Final ' if pane_info.is_last else '',
+      PaneInfoTiming.to_string(pane_info.timing).lower().capitalize() if
+      pane_info.timing in (PaneInfoTiming.EARLY, PaneInfoTiming.LATE) else '')
+
+  if timing_info:
+    result += ': ' + timing_info
+
+  return result
