@@ -1055,7 +1055,7 @@ class BigQueryWriteFn(DoFn):
   def process(
       self,
       element,
-      destination_created=beam.DoFn.StateParam(DESTINATION_EXISTS_STATE),
+      destination_created=DoFn.StateParam(DESTINATION_EXISTS_STATE),
       *schema_side_inputs):
     destination_shard = element[0]
     destination = destination_shard[0]
