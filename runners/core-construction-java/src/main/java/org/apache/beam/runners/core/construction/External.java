@@ -232,8 +232,11 @@ public class External {
           .forEach(
               (pcolId, pCol) -> {
                 try {
-                  Coder coder = rehydratedComponents.getCoder(pCol.getCoderId());
-                  externalCoderIdMapBuilder.putIfAbsent(coder, pCol.getCoderId());
+                  String coderId = pCol.getCoderId();
+                  if (isJavaSDKCompatible(expandedComponents, coderId)) {
+                    Coder coder = rehydratedComponents.getCoder(coderId);
+                    externalCoderIdMapBuilder.putIfAbsent(coder, coderId);
+                  }
                 } catch (IOException e) {
                   throw new RuntimeException("cannot rehydrate Coder.");
                 }
@@ -241,6 +244,20 @@ public class External {
       externalCoderIdMap = ImmutableMap.copyOf(externalCoderIdMapBuilder);
 
       return toOutputCollection(outputMapBuilder.build());
+    }
+
+    boolean isJavaSDKCompatible(RunnerApi.Components components, String coderId) {
+      RunnerApi.Coder coder = components.getCodersOrThrow(coderId);
+      if (!CoderTranslation.JAVA_SERIALIZED_CODER_URN.equals(coder.getSpec().getUrn())
+          && !CoderTranslation.KNOWN_CODER_URNS.containsValue(coder.getSpec().getUrn())) {
+        return false;
+      }
+      for (String componentId : coder.getComponentCoderIdsList()) {
+        if (!isJavaSDKCompatible(components, componentId)) {
+          return false;
+        }
+      }
+      return true;
     }
 
     abstract OutputT toOutputCollection(Map<TupleTag<?>, PCollection> output);
