@@ -482,6 +482,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
+    public PipelineOptions pipelineOptions() {
+      return options;
+    }
+
+    @Override
     public String getErrorContext() {
       return "DoFnTester/StartBundle";
     }
@@ -507,6 +512,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
               .add(ValueInSingleWindow.of(output, timestamp, window, PaneInfo.NO_FIRING));
         }
       };
+    }
+
+    @Override
+    public PipelineOptions pipelineOptions() {
+      return options;
     }
 
     @Override

@@ -53,6 +53,7 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.testing.SerializableMatchers;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BundleFinalizerParameter;
@@ -362,13 +363,17 @@ public class DoFnSignaturesTest {
 
               @StartBundle
               public void startBundle(
-                  StartBundleContext context, BundleFinalizer bundleFinalizer) {}
+                  StartBundleContext context,
+                  BundleFinalizer bundleFinalizer,
+                  PipelineOptions options) {}
             }.getClass());
-    assertThat(sig.startBundle().extraParameters().size(), equalTo(2));
+    assertThat(sig.startBundle().extraParameters().size(), equalTo(3));
     assertThat(
         sig.startBundle().extraParameters().get(0), instanceOf(StartBundleContextParameter.class));
     assertThat(
         sig.startBundle().extraParameters().get(1), instanceOf(BundleFinalizerParameter.class));
+    assertThat(
+        sig.startBundle().extraParameters().get(2), instanceOf(PipelineOptionsParameter.class));
   }
 
   @Test
@@ -397,14 +402,18 @@ public class DoFnSignaturesTest {
 
               @FinishBundle
               public void finishBundle(
-                  FinishBundleContext context, BundleFinalizer bundleFinalizer) {}
+                  FinishBundleContext context,
+                  BundleFinalizer bundleFinalizer,
+                  PipelineOptions pipelineOptions) {}
             }.getClass());
-    assertThat(sig.finishBundle().extraParameters().size(), equalTo(2));
+    assertThat(sig.finishBundle().extraParameters().size(), equalTo(3));
     assertThat(
         sig.finishBundle().extraParameters().get(0),
         instanceOf(FinishBundleContextParameter.class));
     assertThat(
         sig.finishBundle().extraParameters().get(1), instanceOf(BundleFinalizerParameter.class));
+    assertThat(
+        sig.finishBundle().extraParameters().get(2), instanceOf(PipelineOptionsParameter.class));
   }
 
   @Test
