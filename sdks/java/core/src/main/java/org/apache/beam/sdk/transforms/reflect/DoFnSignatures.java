@@ -132,11 +132,15 @@ public class DoFnSignatures {
 
   private static final ImmutableList<Class<? extends Parameter>> ALLOWED_START_BUNDLE_PARAMETERS =
       ImmutableList.of(
-          Parameter.StartBundleContextParameter.class, Parameter.BundleFinalizerParameter.class);
+          Parameter.PipelineOptionsParameter.class,
+          Parameter.StartBundleContextParameter.class,
+          Parameter.BundleFinalizerParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>> ALLOWED_FINISH_BUNDLE_PARAMETERS =
       ImmutableList.of(
-          Parameter.FinishBundleContextParameter.class, Parameter.BundleFinalizerParameter.class);
+          Parameter.PipelineOptionsParameter.class,
+          Parameter.FinishBundleContextParameter.class,
+          Parameter.BundleFinalizerParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>> ALLOWED_ON_TIMER_PARAMETERS =
       ImmutableList.of(
