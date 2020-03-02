@@ -1490,6 +1490,9 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
       def __init__(self, read_source):
         self.source = read_source
 
+      def display_data(self):
+        return {'source': self.source, 'source_type': str(type(self.source))}
+
       def process(
           self,
           element,
