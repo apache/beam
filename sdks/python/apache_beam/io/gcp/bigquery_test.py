@@ -564,6 +564,8 @@ class TestWriteToBigQuery(unittest.TestCase):
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertTransformTests(unittest.TestCase):
   def test_dofn_client_process_performs_batching(self):
+    state_mock = mock.Mock()
+    state_mock.read.return_value = []
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
@@ -580,12 +582,15 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
         kms_key=None,
         test_client=client)
 
-    fn.process(('project_id:dataset_id.table_id', {'month': 1}))
+    fn.process((('project_id:dataset_id.table_id', 0), {'month': 1}),
+               destination_created=state_mock)
 
     # InsertRows not called as batch size is not hit yet
     self.assertFalse(client.tabledata.InsertAll.called)
 
   def test_dofn_client_process_flush_called(self):
+    state_mock = mock.Mock()
+    state_mock.read.return_value = []
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
@@ -603,12 +608,18 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
         test_client=client)
 
     fn.start_bundle()
-    fn.process(('project_id:dataset_id.table_id', ({'month': 1}, 'insertid1')))
-    fn.process(('project_id:dataset_id.table_id', ({'month': 2}, 'insertid2')))
+    fn.process((('project_id:dataset_id.table_id', 0),
+                ({'month': 1}, 'insertid1')),
+               destination_created=state_mock)
+    fn.process((('project_id:dataset_id.table_id', 1),
+                ({'month': 2}, 'insertid2')),
+               destination_created=state_mock)
     # InsertRows called as batch size is hit
     self.assertTrue(client.tabledata.InsertAll.called)
 
   def test_dofn_client_finish_bundle_flush_called(self):
+    state_mock = mock.Mock()
+    state_mock.read.return_value = []
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(
         tableReference=bigquery.TableReference(
@@ -629,7 +640,9 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
 
     # Destination is a tuple of (destination, schema) to ensure the table is
     # created.
-    fn.process(('project_id:dataset_id.table_id', ({'month': 1}, 'insertid3')))
+    fn.process((('project_id:dataset_id.table_id', 0),
+                ({'month': 1}, 'insertid3')),
+               destination_created=state_mock)
 
     self.assertTrue(client.tables.Get.called)
     # InsertRows not called as batch size is not hit

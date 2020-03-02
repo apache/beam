@@ -194,7 +194,7 @@ def parse_table_reference(table, dataset=None, project=None):
     if not match:
       raise ValueError(
           'Expected a table reference (PROJECT:DATASET.TABLE or '
-          'DATASET.TABLE) instead of %s.' % table)
+          'DATASET.TABLE) instead of %r.' % table)
     table_reference.projectId = match.group('project')
     table_reference.datasetId = match.group('dataset')
     table_reference.tableId = match.group('table')
