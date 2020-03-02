@@ -57,7 +57,9 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
+import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
+import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
@@ -78,6 +80,7 @@ import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.state.StateSpec;
@@ -125,6 +128,18 @@ import org.mockito.ArgumentMatcher;
 @RunWith(JUnit4.class)
 public class DataflowPipelineTranslatorTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
+
+  private SdkComponents createSdkComponents(PipelineOptions options) {
+    SdkComponents sdkComponents = SdkComponents.create();
+
+    String workerHarnessContainerImageURL =
+        DataflowRunner.getContainerImageForJob(options.as(DataflowPipelineOptions.class));
+    RunnerApi.Environment defaultEnvironmentForDataflow =
+        Environments.createDockerEnvironment(workerHarnessContainerImageURL);
+
+    sdkComponents.registerEnvironment(defaultEnvironmentForDataflow);
+    return sdkComponents;
+  }
 
   // A Custom Mockito matcher for an initial Job that checks that all
   // expected fields are set.
@@ -205,9 +220,16 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     Pipeline p = buildPipeline(options);
     p.traverseTopologically(new RecordingPipelineVisitor());
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
     Job job =
         DataflowPipelineTranslator.fromOptions(options)
-            .translate(p, DataflowRunner.fromOptions(options), Collections.emptyList())
+            .translate(
+                p,
+                pipelineProto,
+                sdkComponents,
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList())
             .getJob();
 
     assertEquals(1, job.getEnvironment().getWorkerPools().size());
@@ -220,9 +242,16 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     Pipeline p = buildPipeline(options);
     p.traverseTopologically(new RecordingPipelineVisitor());
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
     Job job =
         DataflowPipelineTranslator.fromOptions(options)
-            .translate(p, DataflowRunner.fromOptions(options), Collections.emptyList())
+            .translate(
+                p,
+                pipelineProto,
+                sdkComponents,
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList())
             .getJob();
 
     assertEquals(1, job.getEnvironment().getWorkerPools().size());
@@ -238,9 +267,16 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     Pipeline p = buildPipeline(options);
     p.traverseTopologically(new RecordingPipelineVisitor());
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
     Job job =
         DataflowPipelineTranslator.fromOptions(options)
-            .translate(p, DataflowRunner.fromOptions(options), Collections.emptyList())
+            .translate(
+                p,
+                pipelineProto,
+                sdkComponents,
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList())
             .getJob();
 
     assertEquals(1, job.getEnvironment().getWorkerPools().size());
@@ -253,9 +289,16 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     Pipeline p = buildPipeline(options);
     p.traverseTopologically(new RecordingPipelineVisitor());
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
     Job job =
         DataflowPipelineTranslator.fromOptions(options)
-            .translate(p, DataflowRunner.fromOptions(options), Collections.emptyList())
+            .translate(
+                p,
+                pipelineProto,
+                sdkComponents,
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList())
             .getJob();
 
     assertEquals(1, job.getEnvironment().getWorkerPools().size());
@@ -268,9 +311,16 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     Pipeline p = buildPipeline(options);
     p.traverseTopologically(new RecordingPipelineVisitor());
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
     Job job =
         DataflowPipelineTranslator.fromOptions(options)
-            .translate(p, DataflowRunner.fromOptions(options), Collections.emptyList())
+            .translate(
+                p,
+                pipelineProto,
+                sdkComponents,
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList())
             .getJob();
 
     assertEquals(1, job.getEnvironment().getWorkerPools().size());
@@ -297,9 +347,16 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     Pipeline p = buildPipeline(options);
     p.traverseTopologically(new RecordingPipelineVisitor());
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
     Job job =
         DataflowPipelineTranslator.fromOptions(options)
-            .translate(p, DataflowRunner.fromOptions(options), Collections.emptyList())
+            .translate(
+                p,
+                pipelineProto,
+                sdkComponents,
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList())
             .getJob();
 
     assertEquals(1, job.getEnvironment().getWorkerPools().size());
@@ -325,9 +382,16 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     Pipeline p = buildPipeline(options);
     p.traverseTopologically(new RecordingPipelineVisitor());
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
     Job job =
         DataflowPipelineTranslator.fromOptions(options)
-            .translate(p, DataflowRunner.fromOptions(options), Collections.emptyList())
+            .translate(
+                p,
+                pipelineProto,
+                sdkComponents,
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList())
             .getJob();
 
     assertEquals(1, job.getEnvironment().getWorkerPools().size());
@@ -352,9 +416,16 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     Pipeline p = buildPipeline(options);
     p.traverseTopologically(new RecordingPipelineVisitor());
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
     Job job =
         DataflowPipelineTranslator.fromOptions(options)
-            .translate(p, DataflowRunner.fromOptions(options), Collections.emptyList())
+            .translate(
+                p,
+                pipelineProto,
+                sdkComponents,
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList())
             .getJob();
 
     assertEquals(1, job.getEnvironment().getWorkerPools().size());
@@ -372,9 +443,16 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     Pipeline p = buildPipeline(options);
     p.traverseTopologically(new RecordingPipelineVisitor());
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
     Job job =
         DataflowPipelineTranslator.fromOptions(options)
-            .translate(p, DataflowRunner.fromOptions(options), Collections.emptyList())
+            .translate(
+                p,
+                pipelineProto,
+                sdkComponents,
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList())
             .getJob();
 
     assertEquals(1, job.getEnvironment().getWorkerPools().size());
@@ -449,8 +527,15 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             PipelineOptionsFactory.as(DataflowPipelineOptions.class));
 
     // Check that translation doesn't fail.
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
     JobSpecification jobSpecification =
-        t.translate(p, DataflowRunner.fromOptions(options), Collections.emptyList());
+        t.translate(
+            p,
+            pipelineProto,
+            sdkComponents,
+            DataflowRunner.fromOptions(options),
+            Collections.emptyList());
     assertAllStepOutputsHaveUniqueIds(jobSpecification.getJob());
   }
 
@@ -489,8 +574,15 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     applyRead(pipeline, "gs://bucket/foo[0-9]/baz");
 
     // Check that translation doesn't fail.
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
     JobSpecification jobSpecification =
-        t.translate(pipeline, DataflowRunner.fromOptions(options), Collections.emptyList());
+        t.translate(
+            pipeline,
+            pipelineProto,
+            sdkComponents,
+            DataflowRunner.fromOptions(options),
+            Collections.emptyList());
     assertAllStepOutputsHaveUniqueIds(jobSpecification.getJob());
   }
 
@@ -519,7 +611,14 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     pipeline.apply(TextIO.read().from(new TestValueProvider()));
 
     // Check that translation does not fail.
-    t.translate(pipeline, DataflowRunner.fromOptions(options), Collections.emptyList());
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    t.translate(
+        pipeline,
+        pipelineProto,
+        sdkComponents,
+        DataflowRunner.fromOptions(options),
+        Collections.emptyList());
   }
 
   /**
@@ -539,7 +638,12 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     runner.replaceTransforms(pipeline);
 
-    Job job = translator.translate(pipeline, runner, Collections.emptyList()).getJob();
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    Job job =
+        translator
+            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
+            .getJob();
 
     // The Create step
     Step step = job.getSteps().get(0);
@@ -590,7 +694,12 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     runner.replaceTransforms(pipeline);
 
-    Job job = translator.translate(pipeline, runner, Collections.emptyList()).getJob();
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    Job job =
+        translator
+            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
+            .getJob();
 
     // The ParDo step
     Step step = job.getSteps().get(1);
@@ -639,7 +748,12 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     runner.replaceTransforms(pipeline);
 
-    Job job = translator.translate(pipeline, runner, Collections.emptyList()).getJob();
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    Job job =
+        translator
+            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
+            .getJob();
 
     // The job should look like:
     // 0. ParallelRead (Create)
@@ -684,7 +798,12 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     runner.replaceTransforms(pipeline);
 
-    Job job = translator.translate(pipeline, runner, Collections.emptyList()).getJob();
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    Job job =
+        translator
+            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
+            .getJob();
 
     // The job should contain a SplittableParDo.ProcessKeyedElements step, translated as
     // "SplittableProcessKeyed".
@@ -747,7 +866,11 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     runner.replaceTransforms(pipeline);
 
-    JobSpecification result = translator.translate(pipeline, runner, Collections.emptyList());
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    JobSpecification result =
+        translator.translate(
+            pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList());
 
     Job job = result.getJob();
 
@@ -837,7 +960,12 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     pipeline.apply(Create.of(1)).apply(View.asSingleton());
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     runner.replaceTransforms(pipeline);
-    Job job = translator.translate(pipeline, runner, Collections.emptyList()).getJob();
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    Job job =
+        translator
+            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
+            .getJob();
     assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
@@ -867,7 +995,12 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     runner.replaceTransforms(pipeline);
-    Job job = translator.translate(pipeline, runner, Collections.emptyList()).getJob();
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    Job job =
+        translator
+            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
+            .getJob();
     assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
@@ -897,7 +1030,12 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     pipeline.apply(Create.of(1)).apply(View.asSingleton());
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     runner.replaceTransforms(pipeline);
-    Job job = translator.translate(pipeline, runner, Collections.emptyList()).getJob();
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    Job job =
+        translator
+            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
+            .getJob();
     assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
@@ -928,7 +1066,12 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     runner.replaceTransforms(pipeline);
-    Job job = translator.translate(pipeline, runner, Collections.emptyList()).getJob();
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    Job job =
+        translator
+            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
+            .getJob();
     assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
@@ -986,7 +1129,12 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     runner.replaceTransforms(pipeline);
-    Job job = translator.translate(pipeline, runner, Collections.emptyList()).getJob();
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    Job job =
+        translator
+            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
+            .getJob();
     assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
@@ -1062,10 +1210,15 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     String containerImage = "gcr.io/IMAGE/foo";
     options.as(DataflowPipelineOptions.class).setWorkerHarnessContainerImage(containerImage);
 
+    Pipeline p = Pipeline.create(options);
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline proto = PipelineTranslation.toProto(p, sdkComponents, true);
     JobSpecification specification =
         DataflowPipelineTranslator.fromOptions(options)
             .translate(
-                Pipeline.create(options),
+                p,
+                proto,
+                sdkComponents,
                 DataflowRunner.fromOptions(options),
                 Collections.emptyList());
     RunnerApi.Pipeline pipelineProto = specification.getPipelineProto();

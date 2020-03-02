@@ -103,7 +103,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         '--staging_location=ignored',
         '--temp_location=/dev/null',
         '--no_auth',
-        '--dry_run=True'
+        '--dry_run=True',
+        '--sdk_location=container'
     ]
 
   @mock.patch('time.sleep', return_value=None)
