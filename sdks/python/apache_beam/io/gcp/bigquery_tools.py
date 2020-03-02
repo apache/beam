@@ -33,6 +33,7 @@ import datetime
 import decimal
 import json
 import logging
+import random
 import re
 import sys
 import time
@@ -1199,8 +1200,17 @@ class AppendDestinationsFn(DoFn):
 
   Experimental; no backwards compatibility guarantees.
   """
-  def __init__(self, destination):
+  def __init__(self, destination, shard_destinations=None):
+    """Initialize an AppendDestinationsFn.
+
+    Args:
+      destination: A ValueProvider/callable/value that returns or represents the
+        destination for the element.
+      shard_destinations: An integer representing the number of shards per
+        destination. None if no sharding is wanted.
+    """
     self.destination = AppendDestinationsFn._get_table_fn(destination)
+    self.shard_destinations = shard_destinations
 
   @staticmethod
   def _value_provider_or_static_val(elm):
@@ -1219,5 +1229,13 @@ class AppendDestinationsFn(DoFn):
       return lambda x: AppendDestinationsFn._value_provider_or_static_val(
           destination).get()
 
+  def start_bundle(self):
+    if self.shard_destinations is not None:
+      self._shard = random.randint(0, self.shard_destinations)
+
   def process(self, element, *side_inputs):
-    yield (self.destination(element, *side_inputs), element)
+    if self.shard_destinations is not None:
+      yield ((self.destination(element, *side_inputs), self._shard), element)
+      self._shard += 1
+    else:
+      yield (self.destination(element, *side_inputs), element)

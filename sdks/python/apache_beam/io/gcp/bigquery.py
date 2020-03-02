@@ -270,6 +270,7 @@ from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
@@ -907,6 +908,8 @@ class BigQueryWriteFn(DoFn):
 
   FAILED_ROWS = 'FailedRows'
 
+  DESTINATION_EXISTS_STATE = BagStateSpec('destination', coders.BooleanCoder())
+
   def __init__(
       self,
       batch_size,
@@ -1049,18 +1052,29 @@ class BigQueryWriteFn(DoFn):
         additional_create_parameters=self.additional_bq_parameters)
     self._observed_tables.add(str_table_reference)
 
-  def process(self, element, *schema_side_inputs):
-    destination = element[0]
+  def process(
+      self,
+      element,
+      destination_created=beam.DoFn.StateParam(DESTINATION_EXISTS_STATE),
+      *schema_side_inputs):
+    destination_shard = element[0]
+    destination = destination_shard[0]
 
-    if callable(self.schema):
-      schema = self.schema(destination, *schema_side_inputs)
-    elif isinstance(self.schema, vp.ValueProvider):
-      schema = self.schema.get()
-    else:
-      schema = self.schema
+    # Only try to create the table if we have not already tried to create it.
+    # This function will be called across multiple shards, so it will be called
+    # more than once per pipeline - but only once per shard per destination.
+    if not destination_created.read():
+      if callable(self.schema):
+        schema = self.schema(destination, *schema_side_inputs)
+      elif isinstance(self.schema, vp.ValueProvider):
+        schema = self.schema.get()
+      else:
+        schema = self.schema
 
-    self._create_table_if_needed(
-        bigquery_tools.parse_table_reference(destination), schema)
+      self._create_table_if_needed(
+          bigquery_tools.parse_table_reference(destination), schema)
+
+      destination_created.add(True)
 
     destination = bigquery_tools.get_hashable_destination(destination)
 
@@ -1194,7 +1208,8 @@ class _StreamToBigQuery(PTransform):
     return (
         input
         | 'AppendDestination' >> beam.ParDo(
-            bigquery_tools.AppendDestinationsFn(self.table_reference),
+            # Sharding destinations 1000 ways to increase parallelism.
+            bigquery_tools.AppendDestinationsFn(self.table_reference, 1000),
             *self.table_side_inputs)
         | 'AddInsertIds' >> beam.ParDo(_StreamToBigQuery.InsertIdPrefixFn())
         | 'CommitInsertIds' >> beam.Reshuffle()
