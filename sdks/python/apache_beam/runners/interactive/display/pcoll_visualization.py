@@ -247,11 +247,8 @@ class PCollectionVisualization(object):
     self._overview_display_id = 'facets_overview_{}_{}'.format(
         self._cache_key, id(self))
     self._df_display_id = 'df_{}_{}'.format(self._cache_key, id(self))
-    # Whether the visualization should include window info.
     self._include_window_info = include_window_info
-    # Whether facets widgets should be displayed.
     self._display_facets = display_facets
-    # Whether datatable rendered from data is empty.
     self._is_datatable_empty = True
 
   def display_plain_text(self):

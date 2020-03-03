@@ -33,6 +33,8 @@ this module in your notebook or application code.
 
 from __future__ import absolute_import
 
+import warnings
+
 import apache_beam as beam
 from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_environment as ie
@@ -121,7 +123,7 @@ class Options(interactive_options.InteractiveOptions):
 
   @display_timezone.setter
   def display_timezone(self, value):
-    """Sets the timezone in which timestamps are displayed.
+    """Sets the timezone (datetime.tzinfo) in which timestamps are displayed.
 
     Defaults to local timezone.
 
@@ -132,6 +134,10 @@ class Options(interactive_options.InteractiveOptions):
 
       # Will display all timestamps in the US/Eastern time zone.
       tz = timezone('US/Eastern')
+
+      # You can also use dateutil.tz to get a timezone.
+      tz = dateutil.tz.gettz('US/Eastern')
+
       interactive_beam.options.capture_size = tz
     """
     self._display_timezone = value
@@ -282,8 +288,12 @@ def show(*pcolls, **configs):
     if pcoll not in watched_pcollections:
       watch({'anonymous_pcollection_{}'.format(id(pcoll)): pcoll})
 
-  import warnings
-  warnings.filterwarnings('ignore', category=DeprecationWarning)
+  if ie.current_env().is_in_ipython:
+    warnings.filterwarnings(
+        'ignore',
+        'options is deprecated since First stable release. References to '
+        '<pipeline>.options will not be supported',
+        category=DeprecationWarning)
   # Attempt to run background caching job since we have the reference to the
   # user-defined pipeline.
   bcj.attempt_to_run_background_caching_job(
