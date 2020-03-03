@@ -278,6 +278,7 @@
         <li><a href="/documentation/programming-guide/#types-of-metrics">Types of metrics</a></li>
         <li><a href="/documentation/programming-guide/#querying-metrics">Querying metrics</a></li>
         <li><a href="/documentation/programming-guide/#using-metrics">Using metrics in pipeline</a></li>
+        <li><a href="/documentation/programming-guide/#export-metrics">Export metrics</a></li>
       </ul>
     </li>
     <li class="section-nav-item--collapsible">
@@ -532,6 +533,7 @@
       <li><a href="#types-of-metrics">9.2 Types of metrics</a></li>
       <li><a href="#querying-metrics">9.3 Querying metrics</a></li>
       <li><a href="#using-metrics">9.4 Using metrics in pipeline</a></li>
+      <li><a href="#export-metrics">9.5 Export metrics</a></li>
     </ul>
   </li>
   <li><a href="#state-and-timers">10. State and Timers</a>
@@ -3865,6 +3867,13 @@ matching a given filter.</p>
   <span class="o">}</span>
 <span class="o">}</span>
 </code></pre></div></div>
+<h3 id="export-metrics">9.5 Export metrics</h3>
+<p>Beam metrics can be exported to external sinks. If a metrics sink is set up in the configuration, the runner will push metrics to it at a default 5s period. 
+The configuration is held in the <a href="https://beam.apache.org/releases/javadoc/2.19.0/org/apache/beam/sdk/metrics/MetricsOptions.html">MetricsOptions</a> class.
+It contains push period configuration and also sink specific options such as type and URL. As for now only the REST HTTP and the Graphite sinks are supported and only
+Flink and Spark runners support metrics export.</p>
+
+<p>Also Beam metrics are exported to inner Spark and Flink dashboards to be consulted in their respective UI.</p>
 
 <h2 id="state-and-timers">10. State and Timers</h2>
 <p>Beam’s windowing and triggering facilities provide a powerful abstraction for grouping and aggregating unbounded input
