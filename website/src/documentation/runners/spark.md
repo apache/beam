@@ -224,11 +224,10 @@ For more details on the different deployment modes see: [Standalone](http://spar
 
 <span class="language-py">3. Submit the pipeline as above.
 Note however that `environment_type=LOOPBACK` is only intended for local testing.
-See [here]({{ site.baseurl }}/roadmap/portability/#sdk-harness-config) for details.</span>
 
 <span class="language-py">
-(Note that, depending on your cluster setup, you may need to change the `environment_type` option.
-See [here]({{ site.baseurl }}/roadmap/portability/#sdk-harness-config) for details.)
+Depending on your cluster setup, you may need to change the `environment_type` option.
+See [here]({{ site.baseurl }}/documentation/runtime/sdk-harness-config/) for details.
 </span>
 
 ## Pipeline options for the Spark Runner
