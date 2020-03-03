@@ -28,8 +28,8 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.RowSelector;
-import org.apache.beam.sdk.schemas.utils.SelectByteBuddyHelpers;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
+import org.apache.beam.sdk.schemas.utils.SelectHelpers.RowSelectorContainer;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -118,7 +118,7 @@ public class Select {
     private final FieldAccessDescriptor fieldAccessDescriptor;
     private final Schema inputSchema;
     private final Schema outputSchema;
-    volatile RowSelector rowSelector;
+    RowSelector rowSelector;
 
     // TODO: This should be the same as resolved so that Beam knows which fields
     // are being accessed. Currently Beam only supports wildcard descriptors.
@@ -131,19 +131,12 @@ public class Select {
       this.fieldAccessDescriptor = fieldAccessDescriptor;
       this.inputSchema = inputSchema;
       this.outputSchema = outputSchema;
-    }
-
-    private RowSelector getRowSelector() {
-      if (rowSelector == null) {
-        rowSelector = SelectByteBuddyHelpers.getRowSelector(inputSchema, fieldAccessDescriptor);
-      }
-      return rowSelector;
+      this.rowSelector = new RowSelectorContainer(inputSchema, fieldAccessDescriptor, true);
     }
 
     @ProcessElement
     public void process(@FieldAccess("selectFields") @Element Row row, OutputReceiver<Row> r) {
-      // r.output(SelectHelpers.selectRow(row, fieldAccessDescriptor, inputSchema, outputSchema));
-      r.output(getRowSelector().select(row));
+      r.output(rowSelector.select(row));
     }
   }
 
