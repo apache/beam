@@ -17,30 +17,32 @@
  */
 package org.apache.beam.sdk.io.aws2.sns;
 
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import software.amazon.awssdk.http.SdkHttpResponse;
-import software.amazon.awssdk.services.sns.model.PublishRequest;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import software.amazon.awssdk.services.sns.model.PublishResponse;
 
-final class MockSnsAsyncClient extends MockSnsAsyncBaseClient {
-  private final int statusCode;
+/** Custom Coder for handling publish result. */
+public class PublishResponseCoder extends AtomicCoder<PublishResponse> implements Serializable {
+  private static final PublishResponseCoder INSTANCE = new PublishResponseCoder();
 
-  private MockSnsAsyncClient(int statusCode) {
-    this.statusCode = statusCode;
-  }
+  private PublishResponseCoder() {}
 
-  static MockSnsAsyncClient withStatusCode(int statusCode) {
-    return new MockSnsAsyncClient(statusCode);
+  static PublishResponseCoder of() {
+    return INSTANCE;
   }
 
   @Override
-  public CompletableFuture<PublishResponse> publish(PublishRequest publishRequest) {
-    SdkHttpResponse sdkHttpResponse = SdkHttpResponse.builder().statusCode(statusCode).build();
-    PublishResponse.Builder builder = PublishResponse.builder();
-    builder.messageId(UUID.randomUUID().toString());
-    builder.sdkHttpResponse(sdkHttpResponse).build();
-    PublishResponse response = builder.build();
-    return CompletableFuture.completedFuture(response);
+  public void encode(PublishResponse value, OutputStream outStream) throws IOException {
+    StringUtf8Coder.of().encode(value.messageId(), outStream);
+  }
+
+  @Override
+  public PublishResponse decode(InputStream inStream) throws IOException {
+    final String messageId = StringUtf8Coder.of().decode(inStream);
+    return PublishResponse.builder().messageId(messageId).build();
   }
 }
