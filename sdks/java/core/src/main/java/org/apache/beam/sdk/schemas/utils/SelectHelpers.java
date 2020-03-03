@@ -20,6 +20,7 @@ package org.apache.beam.sdk.schemas.utils;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -179,12 +180,45 @@ public class SelectHelpers {
     }
   }
 
+  public static RowSelector getRowSelectorOptimized(
+      Schema inputSchema, FieldAccessDescriptor fieldAccessDescriptor) {
+    return SelectByteBuddyHelpers.getRowSelector(inputSchema, fieldAccessDescriptor);
+  }
+
+  public static RowSelector getRowSelector(
+      Schema inputSchema, FieldAccessDescriptor fieldAccessDescriptor) {
+    Schema outputSchema = getOutputSchema(inputSchema, fieldAccessDescriptor);
+    return input -> selectRow(input, fieldAccessDescriptor, outputSchema);
+  }
+
+  public static class RowSelectorContainer implements RowSelector, Serializable {
+    private transient RowSelector rowSelector;
+    private final Schema inputSchema;
+    private final FieldAccessDescriptor fieldAccessDescriptor;
+    private final boolean optimized;
+
+    public RowSelectorContainer(
+        Schema inputSchema, FieldAccessDescriptor fieldAccessDescriptor, boolean optimized) {
+      this.inputSchema = inputSchema;
+      this.fieldAccessDescriptor = fieldAccessDescriptor;
+      this.optimized = optimized;
+    }
+
+    @Override
+    public Row select(Row input) {
+      if (this.rowSelector == null) {
+        rowSelector =
+            optimized
+                ? getRowSelectorOptimized(inputSchema, fieldAccessDescriptor)
+                : getRowSelector(inputSchema, fieldAccessDescriptor);
+      }
+      return rowSelector.select(input);
+    }
+  }
+
   /** Select a sub Row from an input Row. */
-  public static Row selectRow(
-      Row input,
-      FieldAccessDescriptor fieldAccessDescriptor,
-      Schema inputSchema,
-      Schema outputSchema) {
+  private static Row selectRow(
+      Row input, FieldAccessDescriptor fieldAccessDescriptor, Schema outputSchema) {
     if (fieldAccessDescriptor.getAllFields()) {
       return input;
     }
@@ -195,7 +229,7 @@ public class SelectHelpers {
   }
 
   /** Select out of a given {@link Row} object. */
-  public static void selectIntoRow(
+  private static void selectIntoRow(
       Row input, Row.Builder output, FieldAccessDescriptor fieldAccessDescriptor) {
     if (fieldAccessDescriptor.getAllFields()) {
       output.addValues(input.getValues());
@@ -214,34 +248,15 @@ public class SelectHelpers {
       FieldAccessDescriptor nestedAccess = nested.getValue();
       FieldType nestedInputType = input.getSchema().getField(field.getFieldId()).getType();
       FieldType nestedOutputType = outputSchema.getField(output.nextFieldId()).getType();
-      selectIntoRowHelper(
+      selectIntoRowWithQualifiers(
           field.getQualifiers(),
+          0,
           input.getValue(field.getFieldId()),
           output,
           nestedAccess,
           nestedInputType,
           nestedOutputType);
     }
-  }
-
-  @SuppressWarnings("unchecked")
-  private static void selectIntoRowHelper(
-      List<Qualifier> qualifiers,
-      Object value,
-      Row.Builder output,
-      FieldAccessDescriptor fieldAccessDescriptor,
-      FieldType inputType,
-      FieldType outputType) {
-    if (qualifiers.isEmpty()) {
-      Row row = (Row) value;
-      selectIntoRow(row, output, fieldAccessDescriptor);
-      return;
-    }
-
-    // There are qualifiers. That means that the result will be either a list or a map, so
-    // construct the result and add that to our Row.
-    selectIntoRowWithQualifiers(
-        qualifiers, 0, value, output, fieldAccessDescriptor, inputType, outputType);
   }
 
   private static void selectIntoRowWithQualifiers(
