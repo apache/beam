@@ -438,12 +438,11 @@ For more details on the different deployment modes see: <a href="http://spark.ap
 <p><span class="language-py">2. Start JobService that will connect with the Spark master: <code class="highlighter-rouge">./gradlew :runners:spark:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077</code>.</span></p>
 
 <p><span class="language-py">3. Submit the pipeline as above.
-Note however that <code class="highlighter-rouge">environment_type=LOOPBACK</code> is only intended for local testing.
-See <a href="/roadmap/portability/#sdk-harness-config">here</a> for details.</span></p>
+Note however that <code class="highlighter-rouge">environment_type=LOOPBACK</code> is only intended for local testing.</span></p>
 
 <p><span class="language-py">
-(Note that, depending on your cluster setup, you may need to change the <code class="highlighter-rouge">environment_type</code> option.
-See <a href="/roadmap/portability/#sdk-harness-config">here</a> for details.)
+Depending on your cluster setup, you may need to change the <code class="highlighter-rouge">environment_type</code> option.
+See <a href="/documentation/runtime/sdk-harness-config/">here</a> for details.
 </span></p>
 
 <h2 id="pipeline-options-for-the-spark-runner">Pipeline options for the Spark Runner</h2>
