@@ -31,14 +31,14 @@ from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 
+from apache_beam.transforms import core
+from apache_beam.transforms import ptransform
+from apache_beam.transforms import trigger
 from apache_beam.transforms.core import WatermarkEstimatorProvider
+from apache_beam.transforms.window import Sessions
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
-from apache_beam.transforms import ptransform
-from apache_beam.transforms import core
-from apache_beam.transforms.window import Sessions
-from apache_beam.transforms import trigger
 
 if TYPE_CHECKING:
   from apache_beam.io.iobase import RestrictionProgress
@@ -249,6 +249,7 @@ class NoOpWatermarkEstimatorProvider(WatermarkEstimatorProvider):
 
     return _NoOpWatermarkEstimator()
 
+
 class DeduplicationByUniqueId(ptransform.PTransform):
   """A Transform that perform deduplication based on the unique id.
 
@@ -257,7 +258,7 @@ class DeduplicationByUniqueId(ptransform.PTransform):
   By default, the deduplication will be performed with Session windows. The
   default size of Session is one day.
   """
-  def __init__(self, session_size=24*60*60):
+  def __init__(self, session_size=24 * 60 * 60):
     self._session_size = session_size
 
   class OutputValueWithOriginalWindowing(core.ParDo):
@@ -268,9 +269,8 @@ class DeduplicationByUniqueId(ptransform.PTransform):
 
     def __init__(self, original_windowing):
       self.windowing = original_windowing
-      super(
-          DeduplicationByUniqueId.OutputValueWithOriginalWindowing,
-          self).__init__(self._DropUniqueId())
+      super(DeduplicationByUniqueId.OutputValueWithOriginalWindowing,
+            self).__init__(self._DropUniqueId())
 
     def get_windowing(self, unused_inputs):
       return self.windowing
@@ -293,21 +293,23 @@ class DeduplicationByUniqueId(ptransform.PTransform):
       return accumulator[0]
 
   class KeepValueWindowingInfo(core.DoFn):
-      def process(self,
-          kv,
-          ts=core.DoFn.TimestampParam,
-          window=core.DoFn.WindowParam,
-          paneinfo=core.DoFn.PaneInfoParam):
-        id, value = kv
-        yield (id, WindowedValue(value, ts, [window], paneinfo))
+    def process(
+        self,
+        kv,
+        ts=core.DoFn.TimestampParam,
+        window=core.DoFn.WindowParam,
+        paneinfo=core.DoFn.PaneInfoParam):
+      id, value = kv
+      yield (id, WindowedValue(value, ts, [window], paneinfo))
 
   def expand(self, pcoll):
     windowing = pcoll.windowing
-    return (pcoll
-            | core.ParDo(self.KeepValueWindowingInfo())
-            | core.WindowInto(
-                Sessions(self._session_size),
-                trigger=trigger.AfterCount(1),
-                accumulation_mode=trigger.AccumulationMode.DISCARDING)
-            | core.CombinePerKey(self._DeduplicationCombineFn())
-            | self.OutputValueWithOriginalWindowing(windowing))
+    return (
+        pcoll
+        | core.ParDo(self.KeepValueWindowingInfo())
+        | core.WindowInto(
+            Sessions(self._session_size),
+            trigger=trigger.AfterCount(1),
+            accumulation_mode=trigger.AccumulationMode.DISCARDING)
+        | core.CombinePerKey(self._DeduplicationCombineFn())
+        | self.OutputValueWithOriginalWindowing(windowing))
