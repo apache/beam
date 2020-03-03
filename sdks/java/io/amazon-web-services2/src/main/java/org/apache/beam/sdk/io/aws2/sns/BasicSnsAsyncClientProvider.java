@@ -23,16 +23,16 @@ import java.net.URI;
 import javax.annotation.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.sns.SnsClient;
-import software.amazon.awssdk.services.sns.SnsClientBuilder;
+import software.amazon.awssdk.services.sns.SnsAsyncClient;
+import software.amazon.awssdk.services.sns.SnsAsyncClientBuilder;
 
-/** Basic implementation of {@link SnsClientProvider} used by default in {@link SnsIO}. */
-class BasicSnsClientProvider implements SnsClientProvider {
+/** Basic implementation of {@link SnsAsyncClientProvider} used by default in {@link SnsIO}. */
+class BasicSnsAsyncClientProvider implements SnsAsyncClientProvider {
   private final AwsCredentialsProvider awsCredentialsProvider;
   private final String region;
   @Nullable private final URI serviceEndpoint;
 
-  BasicSnsClientProvider(
+  BasicSnsAsyncClientProvider(
       AwsCredentialsProvider awsCredentialsProvider, String region, @Nullable URI serviceEndpoint) {
     checkArgument(awsCredentialsProvider != null, "awsCredentialsProvider can not be null");
     checkArgument(region != null, "region can not be null");
@@ -42,9 +42,11 @@ class BasicSnsClientProvider implements SnsClientProvider {
   }
 
   @Override
-  public SnsClient getSnsClient() {
-    SnsClientBuilder builder =
-        SnsClient.builder().credentialsProvider(awsCredentialsProvider).region(Region.of(region));
+  public SnsAsyncClient getSnsAsyncClient() {
+    SnsAsyncClientBuilder builder =
+        SnsAsyncClient.builder()
+            .credentialsProvider(awsCredentialsProvider)
+            .region(Region.of(region));
 
     if (serviceEndpoint != null) {
       builder.endpointOverride(serviceEndpoint);

@@ -17,15 +17,22 @@
  */
 package org.apache.beam.sdk.io.aws2.sns;
 
-import java.io.Serializable;
-import software.amazon.awssdk.services.sns.SnsClient;
+import com.google.auto.service.AutoService;
+import java.util.List;
+import org.apache.beam.sdk.coders.CoderProvider;
+import org.apache.beam.sdk.coders.CoderProviderRegistrar;
+import org.apache.beam.sdk.coders.CoderProviders;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import software.amazon.awssdk.services.sns.model.PublishResponse;
 
-/**
- * Provides instances of SNS client.
- *
- * <p>Please note, that any instance of {@link SnsClientProvider} must be {@link Serializable} to
- * ensure it can be sent to worker machines.
- */
-public interface SnsClientProvider extends Serializable {
-  SnsClient getSnsClient();
+/** A {@link CoderProviderRegistrar} for standard types used with {@link SnsIO}. */
+@AutoService(CoderProviderRegistrar.class)
+public class SnsCoderProviderRegistrar implements CoderProviderRegistrar {
+  @Override
+  public List<CoderProvider> getCoderProviders() {
+    return ImmutableList.of(
+        CoderProviders.forCoder(
+            TypeDescriptor.of(PublishResponse.class), PublishResponseCoder.of()));
+  }
 }

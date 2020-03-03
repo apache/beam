@@ -20,44 +20,34 @@ package org.apache.beam.sdk.io.aws2.sns;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** Custom Coder for WrappedSnsResponse. */
-class WrappedSnsResponseCoder<T> extends StructuredCoder<WrappedSnsResponse<T>> {
-  private static final VarIntCoder STATUS_CODE_CODER = VarIntCoder.of();
-  private static final StringUtf8Coder STATUS_TEXT_CODER = StringUtf8Coder.of();
-  private static final SerializableCoder<SnsPublishStatus> PUBLISH_STATUS_CODER =
-      SerializableCoder.of(SnsPublishStatus.class);
-  private static final StringUtf8Coder ERROR_MESSAGE_CODER = StringUtf8Coder.of();
+class SnsResponseCoder<T> extends StructuredCoder<SnsResponse<T>> {
 
   private final Coder<T> elementCoder;
+  private static final VarIntCoder STATUS_CODE_CODER = VarIntCoder.of();
+  private static final StringUtf8Coder STATUS_TEXT_CODER = StringUtf8Coder.of();
 
-  private WrappedSnsResponseCoder(Coder<T> elementCoder) {
+  public SnsResponseCoder(Coder<T> elementCoder) {
     this.elementCoder = elementCoder;
   }
 
-  /**
-   * Creates a WrappedSnsResponseCoder.
-   *
-   * @param elementCoder Coder for element.
-   */
-  public static <T> WrappedSnsResponseCoder<T> of(Coder<T> elementCoder) {
-    return new WrappedSnsResponseCoder<>(elementCoder);
+  static <T> SnsResponseCoder<T> of(Coder<T> elementCoder) {
+    return new SnsResponseCoder<>(elementCoder);
   }
 
   @Override
-  public void encode(WrappedSnsResponse<T> value, OutputStream outStream)
-      throws CoderException, IOException {
-    final T element = value.element();
+  public void encode(SnsResponse<T> value, OutputStream outStream) throws IOException {
+    T element = value.element();
     elementCoder.encode(element, outStream);
 
     OptionalInt statusCode = value.statusCode();
@@ -75,22 +65,11 @@ class WrappedSnsResponseCoder<T> extends StructuredCoder<WrappedSnsResponse<T>> 
     } else {
       BooleanCoder.of().encode(Boolean.FALSE, outStream);
     }
-
-    SnsPublishStatus status = value.status();
-    PUBLISH_STATUS_CODER.encode(status, outStream);
-
-    Optional<Throwable> exception = value.exception();
-    if (exception.isPresent()) {
-      BooleanCoder.of().encode(Boolean.TRUE, outStream);
-      ERROR_MESSAGE_CODER.encode(exception.get().getMessage(), outStream);
-    } else {
-      BooleanCoder.of().encode(Boolean.FALSE, outStream);
-    }
   }
 
   @Override
-  public WrappedSnsResponse<T> decode(InputStream inStream) throws CoderException, IOException {
-    final T element = elementCoder.decode(inStream);
+  public SnsResponse<T> decode(InputStream inStream) throws IOException {
+    T element = elementCoder.decode(inStream);
 
     OptionalInt statusCode = OptionalInt.empty();
     if (BooleanCoder.of().decode(inStream)) {
@@ -101,19 +80,11 @@ class WrappedSnsResponseCoder<T> extends StructuredCoder<WrappedSnsResponse<T>> 
     if (BooleanCoder.of().decode(inStream)) {
       statusText = Optional.of(STATUS_TEXT_CODER.decode(inStream));
     }
-
-    SnsPublishStatus status = PUBLISH_STATUS_CODER.decode(inStream);
-
-    Optional<Throwable> error = Optional.empty();
-    if (BooleanCoder.of().decode(inStream)) {
-      error = Optional.of(new Throwable(ERROR_MESSAGE_CODER.decode(inStream)));
-    }
-
-    return WrappedSnsResponse.create(element, statusCode, statusText, status, error);
+    return SnsResponse.create(element, statusCode, statusText);
   }
 
   @Override
-  public java.util.List<? extends Coder<?>> getCoderArguments() {
+  public List<? extends Coder<?>> getCoderArguments() {
     return ImmutableList.of(elementCoder);
   }
 

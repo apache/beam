@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.aws2.sns;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -32,7 +33,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -53,13 +53,13 @@ public class SnsIOWriteTest implements Serializable {
     String testMessage2 = "test2";
     String testMessage3 = "test3";
 
-    PCollection<WrappedSnsResponse<String>> result =
+    PCollection<SnsResponse<String>> result =
         pipeline
             .apply(
                 Create.of(testMessage1, testMessage2, testMessage3).withCoder(StringUtf8Coder.of()))
             .apply(
-                SnsIO.<String>write()
-                    .withElementCoder(StringUtf8Coder.of())
+                SnsIO.<String>writeAsync()
+                    .withCoder(StringUtf8Coder.of())
                     .withPublishRequestFn(createPublishRequestFn())
                     .withSnsClientProvider(
                         () -> MockSnsAsyncClient.withStatusCode(SUCCESS_STATUS_CODE)));
@@ -69,8 +69,8 @@ public class SnsIOWriteTest implements Serializable {
             (responses) -> {
               ImmutableSet<String> messagesInResponse =
                   StreamSupport.stream(responses.spliterator(), false)
-                      .filter(response -> response.status().isSuccessful())
-                      .map(WrappedSnsResponse::element)
+                      .filter(response -> response.statusCode().getAsInt() == SUCCESS_STATUS_CODE)
+                      .map(SnsResponse::element)
                       .collect(ImmutableSet.toImmutableSet());
 
               Set<String> originalMessages =
@@ -90,12 +90,12 @@ public class SnsIOWriteTest implements Serializable {
     String testMessage1 = "test1";
     String testMessage2 = "test2";
 
-    PCollection<WrappedSnsResponse<String>> result =
+    PCollection<SnsResponse<String>> result =
         pipeline
             .apply(Create.of(testMessage1, testMessage2).withCoder(StringUtf8Coder.of()))
             .apply(
-                SnsIO.<String>write()
-                    .withElementCoder(StringUtf8Coder.of())
+                SnsIO.<String>writeAsync()
+                    .withCoder(StringUtf8Coder.of())
                     .withPublishRequestFn(createPublishRequestFn())
                     .withSnsClientProvider(
                         () -> MockSnsAsyncClient.withStatusCode(FAILURE_STATUS_CODE)));
@@ -105,41 +105,8 @@ public class SnsIOWriteTest implements Serializable {
             (responses) -> {
               ImmutableSet<String> messagesInResponse =
                   StreamSupport.stream(responses.spliterator(), false)
-                      .filter(response -> !response.status().isSuccessful())
-                      .map(WrappedSnsResponse::element)
-                      .collect(ImmutableSet.toImmutableSet());
-
-              Set<String> originalMessages = Sets.newHashSet(testMessage1, testMessage2);
-              Sets.SetView<String> difference =
-                  Sets.difference(messagesInResponse, originalMessages);
-
-              assertEquals(2, messagesInResponse.size());
-              assertEquals(0, difference.size());
-              return null;
-            });
-    pipeline.run().waitUntilFinish();
-  }
-
-  @Test
-  public void shouldReturnResponseOnPublishFailureWithException() {
-    String testMessage1 = "test1";
-    String testMessage2 = "test2";
-    PCollection<WrappedSnsResponse<String>> result =
-        pipeline
-            .apply(Create.of(testMessage2, testMessage1).withCoder(StringUtf8Coder.of()))
-            .apply(
-                SnsIO.<String>write()
-                    .withElementCoder(StringUtf8Coder.of())
-                    .withPublishRequestFn(createPublishRequestFn())
-                    .withSnsClientProvider(MockSnsAsyncExceptionClient::create));
-
-    PAssert.that(result)
-        .satisfies(
-            (responses) -> {
-              ImmutableSet<String> messagesInResponse =
-                  StreamSupport.stream(responses.spliterator(), false)
-                      .filter(response -> !response.status().isSuccessful())
-                      .map(WrappedSnsResponse::element)
+                      .filter(response -> response.statusCode().getAsInt() != SUCCESS_STATUS_CODE)
+                      .map(SnsResponse::element)
                       .collect(ImmutableSet.toImmutableSet());
 
               Set<String> originalMessages = Sets.newHashSet(testMessage1, testMessage2);
@@ -161,15 +128,15 @@ public class SnsIOWriteTest implements Serializable {
     pipeline
         .apply(Create.of(testMessage1))
         .apply(
-            SnsIO.<String>write()
-                .withElementCoder(StringUtf8Coder.of())
+            SnsIO.<String>writeAsync()
+                .withCoder(StringUtf8Coder.of())
                 .withPublishRequestFn(createPublishRequestFn())
-                .withSnsClientProvider(() -> MockSnsAsyncClient.withStatusCode(FAILURE_STATUS_CODE))
-                .withThrowOnError(true));
+                .withSnsClientProvider(
+                    () -> MockSnsAsyncClient.withStatusCode(FAILURE_STATUS_CODE)));
     try {
       pipeline.run().waitUntilFinish();
     } catch (final Pipeline.PipelineExecutionException e) {
-      Assert.assertEquals(IOException.class, e.getCause().getClass());
+      assertThrows(IOException.class, () -> e.getCause().getClass());
     }
   }
 
@@ -181,15 +148,14 @@ public class SnsIOWriteTest implements Serializable {
     pipeline
         .apply(Create.of(testMessage1))
         .apply(
-            SnsIO.<String>write()
-                .withElementCoder(StringUtf8Coder.of())
+            SnsIO.<String>writeAsync()
+                .withCoder(StringUtf8Coder.of())
                 .withPublishRequestFn(createPublishRequestFn())
-                .withSnsClientProvider(MockSnsAsyncExceptionClient::create)
-                .withThrowOnError(true));
+                .withSnsClientProvider(MockSnsAsyncExceptionClient::create));
     try {
       pipeline.run().waitUntilFinish();
     } catch (final Pipeline.PipelineExecutionException e) {
-      Assert.assertEquals(IOException.class, e.getCause().getClass());
+      assertThrows(IOException.class, () -> e.getCause().getClass());
     }
   }
 
