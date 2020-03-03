@@ -33,7 +33,6 @@ import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark.NoopCheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.Impulse;
@@ -203,7 +202,8 @@ public class Read {
 
       if (ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
           && !ExperimentalOptions.hasExperiment(
-              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")) {
+              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")
+          && !source.requiresDeduping()) {
         // We don't use Create here since Create is defined as a BoundedSource and using it would
         // cause an infinite expansion loop. We can reconsider this if Create is implemented
         // directly as a SplittableDoFn.
@@ -222,12 +222,13 @@ public class Read {
                         new UnboundedSourceAsSDFWrapperFn<>(
                             (Coder<CheckpointMark>) source.getCheckpointMarkCoder())))
                 .setCoder(ValueWithRecordIdCoder.of(source.getOutputCoder()));
-        if (source.requiresDeduping()) {
-          outputWithIds.apply(
-              Distinct.<ValueWithRecordId<T>, byte[]>withRepresentativeValueFn(
-                      element -> element.getId())
-                  .withRepresentativeType(TypeDescriptor.of(byte[].class)));
-        }
+        // TODO(BEAM-2939): Add support for deduplication.
+        // if (source.requiresDeduping()) {
+        //   outputWithIds.apply(
+        //       Distinct.<ValueWithRecordId<T>, byte[]>withRepresentativeValueFn(
+        //               element -> element.getId())
+        //           .withRepresentativeType(TypeDescriptor.of(byte[].class)));
+        // }
         return outputWithIds.apply(ParDo.of(new StripIdsDoFn<>()));
       }
 
@@ -431,11 +432,10 @@ public class Read {
    * the checkpoint mark is {@code null} or the {@link NoopCheckpointMark} since it does not
    * maintain any state.
    */
-  // TODO: Support reporting the watermark, currently the watermark never advances.
   @UnboundedPerElement
   static class UnboundedSourceAsSDFWrapperFn<OutputT, CheckpointT extends CheckpointMark>
       extends DoFn<UnboundedSource<OutputT, CheckpointT>, ValueWithRecordId<OutputT>> {
-
+    private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceAsSDFWrapperFn.class);
     private static final int DEFAULT_DESIRED_NUM_SPLITS = 20;
     private static final int DEFAULT_BUNDLE_FINALIZATION_LIMIT_MINS = 10;
     private final Coder<CheckpointT> restrictionCoder;
@@ -514,6 +514,7 @@ public class Read {
 
     @ProcessElement
     public ProcessContinuation processElement(
+        ProcessContext context,
         RestrictionTracker<
                 KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>, UnboundedSourceValue[]>
             tracker,
@@ -524,6 +525,7 @@ public class Read {
       while (tracker.tryClaim(out)) {
         receiver.outputWithTimestamp(
             new ValueWithRecordId<>(out[0].getValue(), out[0].getId()), out[0].getTimestamp());
+        context.updateWatermark(out[0].getWatermark());
       }
 
       // Add the checkpoint mark to be finalized if the checkpoint mark isn't trivial.
@@ -553,9 +555,9 @@ public class Read {
     }
 
     /**
-     * A named tuple representing all the values we need to pass between the {@link UnboundedReader}
-     * and the {@link org.apache.beam.sdk.transforms.DoFn.ProcessElement @ProcessElement} method of
-     * the splittable DoFn.
+     * A POJO representing all the values we need to pass between the {@link UnboundedReader} and
+     * the {@link org.apache.beam.sdk.transforms.DoFn.ProcessElement @ProcessElement} method of the
+     * splittable DoFn.
      */
     @AutoValue
     abstract static class UnboundedSourceValue<T> {
@@ -665,7 +667,6 @@ public class Read {
         extends RestrictionTracker<
             KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>,
             UnboundedSourceValue<OutputT>[]> {
-
       private final KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> initialRestriction;
       private final PipelineOptions pipelineOptions;
       private UnboundedSource.UnboundedReader<OutputT> currentReader;
@@ -733,6 +734,17 @@ public class Read {
             }
           }
           throw new RuntimeException(e);
+        }
+      }
+
+      @Override
+      protected void finalize() throws Throwable {
+        if (currentReader != null) {
+          try {
+            currentReader.close();
+          } catch (IOException e) {
+            LOG.error("Failed to close UnboundedReader due to failure processing bundle.", e);
+          }
         }
       }
 
