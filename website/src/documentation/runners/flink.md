@@ -322,7 +322,7 @@ To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-
 
 <span class="language-py">3. Submit the pipeline as above.
 Note however that `environment_type=LOOPBACK` is only intended for local testing.
-See [here]({{ site.baseurl }}/roadmap/portability/#sdk-harness-config) for details.
+See [here]({{ site.baseurl }}/documentation/runtime/sdk-harness-config/) for details.
 </span>
 
 <span class="language-py">Steps 2 and 3 can be automated in Python by using the `FlinkRunner`,
