@@ -150,7 +150,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
 
 def loadTest = { scope, triggeringContext ->
   Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
-  String pythonHarnessImageTag = publisher.getFullImageName('python2.7_sdk')
+  String pythonHarnessImageTag = publisher.getFullImageName('beam_python2.7_sdk')
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   def numberOfWorkers = 5
