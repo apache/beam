@@ -32,7 +32,6 @@ from apache_beam.testing.util import TestWindowedValue
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import equal_to_per_window
-from apache_beam.testing.util import is_at_least_n_duplicates_of
 from apache_beam.testing.util import is_empty
 from apache_beam.testing.util import is_not_empty
 from apache_beam.transforms import trigger
@@ -250,28 +249,6 @@ class UtilTest(unittest.TestCase):
                     equal_to_per_window(expected),
                     reify_windows=True)
 
-  def test_assert_that_passes_is_at_least_n_duplicates_of_case1(self):
-    with TestPipeline() as p:
-      assert_that(p | Create([5, 5, 5]), is_at_least_n_duplicates_of(3, 5))
-
-  def test_assert_that_passes_is_at_least_n_duplicates_of_case2(self):
-    with TestPipeline() as p:
-      assert_that(p | Create([5, 5, 5, 5]),
-          is_at_least_n_duplicates_of(3, 5))
-
-  def test_assert_that_passes_empty_is_at_least_n_duplicates_of(self):
-    with TestPipeline() as p:
-      assert_that(p | Create([]), is_at_least_n_duplicates_of(0, 5))
-
-  def test_assert_that_fails_is_at_least_n_duplicates_of_case1(self):
-    with self.assertRaises(Exception):
-      with TestPipeline() as p:
-        assert_that(p | Create([5, 5, 5, 7]), equal_to([3, 5]))
-
-  def test_assert_that_fails_is_at_least_n_duplicates_of_case2(self):
-    with self.assertRaises(Exception):
-      with TestPipeline() as p:
-        assert_that(p | Create([5, 5]), equal_to([3, 5]))
 
 if __name__ == '__main__':
   unittest.main()
