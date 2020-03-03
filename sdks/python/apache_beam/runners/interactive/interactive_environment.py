@@ -35,6 +35,7 @@ import apache_beam as beam
 from apache_beam.runners import runner
 from apache_beam.utils.interactive_utils import is_in_ipython
 from apache_beam.utils.interactive_utils import is_in_notebook
+from apache_beam.utils.interactive_utils import register_ipython_log_handler
 
 # Interactive Beam user flow is data-centric rather than pipeline-centric, so
 # there is only one global interactive environment instance that manages
@@ -138,6 +139,8 @@ class InteractiveEnvironment(object):
       _LOGGER.warning(
           'You have limited Interactive Beam features since your '
           'ipython kernel is not connected any notebook frontend.')
+    if self._is_in_notebook:
+      register_ipython_log_handler()
 
   @property
   def options(self):
