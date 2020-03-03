@@ -505,10 +505,7 @@ class CombineTest(unittest.TestCase):
           label='smaller_than_fifteen')
       assert_that(fifteen, is_not_empty(), label='fifteen')
       assert_that(
-          greater_than_fifteen,
-          is_empty(),
-          label='greater_than_fifteen')
-
+          greater_than_fifteen, is_empty(), label='greater_than_fifteen')
 
   def test_MeanCombineFn_combine(self):
     with TestPipeline() as p:
