@@ -607,6 +607,10 @@ public abstract class Row implements Serializable {
       return this;
     }
 
+    public Builder attachValues(Object... values) {
+      return attachValues(Arrays.asList(values));
+    }
+
     public Builder withFieldValueGetters(
         Factory<List<FieldValueGetter>> fieldValueGetterFactory, Object getterTarget) {
       this.fieldValueGetterFactory = fieldValueGetterFactory;

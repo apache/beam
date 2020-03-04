@@ -27,7 +27,9 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.utils.RowSelector;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
+import org.apache.beam.sdk.schemas.utils.SelectHelpers.RowSelectorContainer;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -495,18 +497,20 @@ public class Group {
     }
 
     class ToKv extends PTransform<PCollection<InputT>, PCollection<KV<Row, Iterable<Row>>>> {
+      private RowSelector rowSelector;
+
       @Override
       public PCollection<KV<Row, Iterable<Row>>> expand(PCollection<InputT> input) {
         Schema schema = input.getSchema();
         FieldAccessDescriptor resolved = getFieldAccessDescriptor().resolve(schema);
+        rowSelector = new RowSelectorContainer(schema, resolved, true);
         Schema keySchema = getKeySchema(schema);
 
         return input
             .apply("toRow", Convert.toRows())
             .apply(
                 "selectKeys",
-                WithKeys.of((Row e) -> SelectHelpers.selectRow(e, resolved, schema, keySchema))
-                    .withKeyType(TypeDescriptors.rows()))
+                WithKeys.of((Row e) -> rowSelector.select(e)).withKeyType(TypeDescriptors.rows()))
             .setCoder(KvCoder.of(SchemaCoder.of(keySchema), SchemaCoder.of(schema)))
             .apply(GroupByKey.create());
       }
