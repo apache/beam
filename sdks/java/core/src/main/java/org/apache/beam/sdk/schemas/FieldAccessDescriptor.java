@@ -208,54 +208,54 @@ public abstract class FieldAccessDescriptor implements Serializable {
   }
 
   public static FieldAccessDescriptor withFieldNames(
-          FieldAccessDescriptor baseDescriptor, String... fieldNames) {
+      FieldAccessDescriptor baseDescriptor, String... fieldNames) {
     return withFieldNames(baseDescriptor, Arrays.asList(fieldNames));
   }
 
   public static FieldAccessDescriptor withFieldNames(
-          FieldAccessDescriptor baseDescriptor, Iterable<String> fieldNames) {
+      FieldAccessDescriptor baseDescriptor, Iterable<String> fieldNames) {
     if (baseDescriptor.getFieldsAccessed().isEmpty()
-            && baseDescriptor.getNestedFieldsAccessed().isEmpty()) {
+        && baseDescriptor.getNestedFieldsAccessed().isEmpty()) {
       return withFieldNames(fieldNames);
     }
     if (!baseDescriptor.getFieldsAccessed().isEmpty()) {
       checkArgument(baseDescriptor.getNestedFieldsAccessed().isEmpty());
       FieldDescriptor fieldDescriptor =
-              Iterables.getOnlyElement(baseDescriptor.getFieldsAccessed());
+          Iterables.getOnlyElement(baseDescriptor.getFieldsAccessed());
       return FieldAccessDescriptor.create()
-              .withNestedField(fieldDescriptor, FieldAccessDescriptor.withFieldNames(fieldNames));
+          .withNestedField(fieldDescriptor, FieldAccessDescriptor.withFieldNames(fieldNames));
     } else {
       checkArgument(baseDescriptor.getFieldsAccessed().isEmpty());
       Map.Entry<FieldDescriptor, FieldAccessDescriptor> entry =
-              Iterables.getOnlyElement(baseDescriptor.getNestedFieldsAccessed().entrySet());
+          Iterables.getOnlyElement(baseDescriptor.getNestedFieldsAccessed().entrySet());
       return FieldAccessDescriptor.create()
-              .withNestedField(entry.getKey(), withFieldNames(entry.getValue(), fieldNames));
+          .withNestedField(entry.getKey(), withFieldNames(entry.getValue(), fieldNames));
     }
   }
 
   public static FieldAccessDescriptor withFieldIds(
-          FieldAccessDescriptor baseDescriptor, Integer... fieldIds) {
+      FieldAccessDescriptor baseDescriptor, Integer... fieldIds) {
     return withFieldIds(baseDescriptor, Arrays.asList(fieldIds));
   }
 
   public static FieldAccessDescriptor withFieldIds(
-          FieldAccessDescriptor baseDescriptor, Iterable<Integer> fieldIds) {
+      FieldAccessDescriptor baseDescriptor, Iterable<Integer> fieldIds) {
     if (baseDescriptor.getFieldsAccessed().isEmpty()
-            && baseDescriptor.getNestedFieldsAccessed().isEmpty()) {
+        && baseDescriptor.getNestedFieldsAccessed().isEmpty()) {
       return withFieldIds(fieldIds);
     }
     if (!baseDescriptor.getFieldsAccessed().isEmpty()) {
       checkArgument(baseDescriptor.getNestedFieldsAccessed().isEmpty());
       FieldDescriptor fieldDescriptor =
-              Iterables.getOnlyElement(baseDescriptor.getFieldsAccessed());
+          Iterables.getOnlyElement(baseDescriptor.getFieldsAccessed());
       return FieldAccessDescriptor.create()
-              .withNestedField(fieldDescriptor, FieldAccessDescriptor.withFieldIds(fieldIds));
+          .withNestedField(fieldDescriptor, FieldAccessDescriptor.withFieldIds(fieldIds));
     } else {
       checkArgument(baseDescriptor.getFieldsAccessed().isEmpty());
       Map.Entry<FieldDescriptor, FieldAccessDescriptor> entry =
-              Iterables.getOnlyElement(baseDescriptor.getNestedFieldsAccessed().entrySet());
+          Iterables.getOnlyElement(baseDescriptor.getNestedFieldsAccessed().entrySet());
       return FieldAccessDescriptor.create()
-              .withNestedField(entry.getKey(), withFieldIds(entry.getValue(), fieldIds));
+          .withNestedField(entry.getKey(), withFieldIds(entry.getValue(), fieldIds));
     }
   }
 

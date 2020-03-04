@@ -555,9 +555,9 @@ public class Schema implements Serializable {
 
     /** Returns optional extra metadata. */
     @SuppressWarnings("mutable")
-    protected abstract Map<String, ByteArrayWrapper> getMetadata();
+    abstract Map<String, ByteArrayWrapper> getMetadata();
 
-    abstract FieldType.Builder toBuilder();
+    public abstract FieldType.Builder toBuilder();
 
     public boolean isLogicalType(String logicalTypeIdentifier) {
       return getTypeName().isLogicalType()
@@ -704,6 +704,11 @@ public class Schema implements Serializable {
     /** Returns a copy of the descriptor with metadata set for the given key. */
     public FieldType withMetadata(String key, String metadata) {
       return withMetadata(key, metadata.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public Map<String, byte[]> getAllMetadata() {
+      return getMetadata().entrySet().stream()
+          .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().array));
     }
 
     @Nullable
