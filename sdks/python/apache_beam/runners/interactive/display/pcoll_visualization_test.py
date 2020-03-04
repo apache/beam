@@ -23,6 +23,8 @@ from __future__ import absolute_import
 import sys
 import unittest
 
+import pytz
+
 import apache_beam as beam
 from apache_beam.runners import runner
 from apache_beam.runners.interactive import interactive_beam as ib
@@ -67,6 +69,7 @@ class PCollectionVisualizationTest(unittest.TestCase):
     self._pcoll = self._p | 'Create' >> beam.Create(range(5))
     ib.watch(self)
     self._p.run()
+    ib.options.display_timezone = pytz.timezone('US/Pacific')
 
   def test_raise_error_for_non_pcoll_input(self):
     class Foo(object):

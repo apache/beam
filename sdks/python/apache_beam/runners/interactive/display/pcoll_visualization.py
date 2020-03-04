@@ -23,6 +23,7 @@ Only works with Python 3.5+.
 # pytype: skip-file
 
 from __future__ import absolute_import
+from __future__ import division
 
 import base64
 import datetime
@@ -464,8 +465,6 @@ def windows_formatter(windows):
         else:
           duration += '{}s'.format(seconds)
 
-      options = ie.current_env().options
-      to_tz = options.display_timezone
       start = event_time_formatter(w.start.micros)
 
       result.append('{} ({})'.format(start, duration))
