@@ -27,20 +27,15 @@ import static org.junit.Assert.assertTrue;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils.RowFieldMatcherIterableFieldAnyOrder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -593,100 +588,6 @@ public class GroupTest implements Serializable {
     PAssert.that(aggregations).satisfies(actual -> containsKvRows(expected, actual));
 
     pipeline.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testAggregateLogicalType() {
-    EnumerationType enum_ = EnumerationType.create("ONE", "TWO", "THREE");
-    FieldType arrayOfEnum = FieldType.array(FieldType.logicalType(enum_));
-
-    Schema inputSchema =
-        Schema.builder().addStringField("f0").addLogicalTypeField("f1", enum_).build();
-
-    Schema outputKeySchema = Schema.of(Schema.Field.of("f0", FieldType.STRING));
-    Schema outputValueSchema = Schema.of(Schema.Field.of("f1", arrayOfEnum));
-
-    Schema outputSchema =
-        Schema.builder()
-            .addRowField("key", outputKeySchema)
-            .addRowField("value", outputValueSchema)
-            .build();
-
-    List<Row> input =
-        ImmutableList.of(
-            Row.withSchema(inputSchema).addValues("0", enum_.valueOf("ONE")).build(),
-            Row.withSchema(inputSchema).addValues("0", enum_.valueOf("TWO")).build(),
-            Row.withSchema(inputSchema).addValues("0", enum_.valueOf("THREE")).build());
-
-    List<Row> expected =
-        ImmutableList.of(
-            Row.withSchema(outputSchema)
-                .addValue(Row.withSchema(outputKeySchema).addValue("0").build())
-                .addValue(
-                    Row.withSchema(outputValueSchema)
-                        .addValue(
-                            ImmutableList.of(
-                                enum_.valueOf("ONE"), enum_.valueOf("TWO"), enum_.valueOf("THREE")))
-                        .build())
-                .build());
-
-    ConcatenateAndSort concatenateAndSort = new ConcatenateAndSort();
-
-    PCollection<Row> output =
-        pipeline
-            .apply(Create.of(input).withRowSchema(inputSchema))
-            .apply(
-                Group.<Row>byFieldNames("f0")
-                    .aggregateField("f1", concatenateAndSort, Schema.Field.of("f1", arrayOfEnum)));
-
-    PAssert.that(output).containsInAnyOrder(expected);
-
-    pipeline.run();
-  }
-
-  private static class ConcatenateAndSort
-      extends CombineFn<
-          EnumerationType.Value, List<EnumerationType.Value>, List<EnumerationType.Value>> {
-    @Override
-    public List<EnumerationType.Value> createAccumulator() {
-      return new ArrayList<>();
-    }
-
-    @Override
-    public List<EnumerationType.Value> addInput(
-        List<EnumerationType.Value> accumulator, EnumerationType.Value input) {
-      accumulator.add(input);
-      return accumulator;
-    }
-
-    @Override
-    public List<EnumerationType.Value> mergeAccumulators(
-        Iterable<List<EnumerationType.Value>> accumulators) {
-      List<EnumerationType.Value> result = createAccumulator();
-      for (List<EnumerationType.Value> accumulator : accumulators) {
-        result.addAll(accumulator);
-      }
-      return result;
-    }
-
-    @Override
-    public List<EnumerationType.Value> extractOutput(List<EnumerationType.Value> accumulator) {
-      accumulator.sort(Comparator.comparing(EnumerationType.Value::getValue));
-      return accumulator;
-    }
-
-    @Override
-    public Coder<List<EnumerationType.Value>> getAccumulatorCoder(
-        CoderRegistry registry, Coder<EnumerationType.Value> inputCoder) {
-      return ListCoder.of(inputCoder);
-    }
-
-    @Override
-    public Coder<List<EnumerationType.Value>> getDefaultOutputCoder(
-        CoderRegistry registry, Coder<EnumerationType.Value> inputCoder) {
-      return ListCoder.of(inputCoder);
-    }
   }
 
   @Test

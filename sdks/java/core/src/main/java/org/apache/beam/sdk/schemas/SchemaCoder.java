@@ -134,9 +134,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
                 coderForFieldType(fieldType.getMapKeyType()),
                 coderForFieldType(fieldType.getMapValueType()));
       case LOGICAL_TYPE:
-        return LogicalTypeCoder.of(
-            fieldType.getLogicalType(),
-            coderForFieldType(fieldType.getLogicalType().getBaseType()));
+        return coderForFieldType(fieldType.getLogicalType().getBaseType());
       default:
         return (Coder<T>) CODER_MAP.get(fieldType.getTypeName());
     }

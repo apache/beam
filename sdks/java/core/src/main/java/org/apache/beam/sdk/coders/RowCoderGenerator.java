@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.schemas.LogicalTypeCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -102,8 +101,6 @@ public abstract class RowCoderGenerator {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
   private static final ForLoadedType CODER_TYPE = new ForLoadedType(Coder.class);
   private static final ForLoadedType LIST_CODER_TYPE = new ForLoadedType(ListCoder.class);
-  private static final ForLoadedType LOGICAL_TYPE_CODER_TYPE =
-      new ForLoadedType(LogicalTypeCoder.class);
   private static final ForLoadedType ITERABLE_CODER_TYPE = new ForLoadedType(IterableCoder.class);
   private static final ForLoadedType MAP_CODER_TYPE = new ForLoadedType(MapCoder.class);
   private static final BitSetCoder NULL_LIST_CODER = BitSetCoder.of();
@@ -374,13 +371,13 @@ public abstract class RowCoderGenerator {
 
   private static StackManipulation getCoder(Schema.FieldType fieldType) {
     if (TypeName.LOGICAL_TYPE.equals(fieldType.getTypeName())) {
-      return logicalTypeCoder(
-          fieldType.getLogicalType(), getCoder(fieldType.getLogicalType().getBaseType()));
+      return getCoder(fieldType.getLogicalType().getBaseType());
     } else if (TypeName.ARRAY.equals(fieldType.getTypeName())) {
       return listCoder(fieldType.getCollectionElementType());
     } else if (TypeName.ITERABLE.equals(fieldType.getTypeName())) {
       return iterableCoder(fieldType.getCollectionElementType());
-    } else if (TypeName.MAP.equals(fieldType.getTypeName())) {;
+    }
+    if (TypeName.MAP.equals(fieldType.getTypeName())) {;
       return mapCoder(fieldType.getMapKeyType(), fieldType.getMapValueType());
     } else if (TypeName.ROW.equals(fieldType.getTypeName())) {
       checkState(fieldType.getRowSchema().getUUID() != null);
@@ -402,20 +399,6 @@ public abstract class RowCoderGenerator {
 
       return primitiveCoder;
     }
-  }
-
-  private static StackManipulation logicalTypeCoder(
-      Schema.LogicalType logicalType, StackManipulation baseCoder) {
-    throw new UnsupportedOperationException("not implemented");
-
-    // TODO find a way to create StackManipulation for Schema.LogicalType
-
-    // return new Compound(
-    //        logicalType,
-    //        baseCoder,
-    //        MethodInvocation.invoke(
-    //
-    // LOGICAL_TYPE_CODER_TYPE.getDeclaredMethods().filter(ElementMatchers.named("of")).getOnly()));
   }
 
   private static StackManipulation listCoder(Schema.FieldType fieldType) {
