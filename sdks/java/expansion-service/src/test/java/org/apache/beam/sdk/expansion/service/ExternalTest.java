@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.construction;
+package org.apache.beam.sdk.expansion.service;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -26,7 +26,7 @@ import java.io.Serializable;
 import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.expansion.ExpansionService;
+import org.apache.beam.runners.core.construction.External;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
