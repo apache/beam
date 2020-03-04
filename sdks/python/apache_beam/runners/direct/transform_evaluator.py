@@ -57,7 +57,9 @@ from apache_beam.runners.direct.util import KeyedWorkItem
 from apache_beam.runners.direct.util import TransformResult
 from apache_beam.runners.direct.watermark_manager import WatermarkManager
 from apache_beam.testing.test_stream import ElementEvent
+from apache_beam.testing.test_stream import PairWithTiming
 from apache_beam.testing.test_stream import ProcessingTimeEvent
+from apache_beam.testing.test_stream import TimingInfo
 from apache_beam.testing.test_stream import WatermarkEvent
 from apache_beam.transforms import core
 from apache_beam.transforms.trigger import InMemoryUnmergedState
@@ -110,6 +112,7 @@ class TransformEvaluatorRegistry(object):
         _TestStream: _TestStreamEvaluator,
         ProcessElements: _ProcessElementsEvaluator,
         _WatermarkController: _WatermarkControllerEvaluator,
+        PairWithTiming: _PairWithTimingEvaluator,
     }  # type: Dict[Type[core.PTransform], Type[_TransformEvaluator]]
     self._evaluators.update(self._test_evaluators_overrides)
     self._root_bundle_providers = {
@@ -420,8 +423,12 @@ class _WatermarkControllerEvaluator(_TransformEvaluator):
       main_output = list(self._outputs)[0]
       bundle = self._evaluation_context.create_bundle(main_output)
       for tv in event.timestamped_values:
-        bundle.output(
-            GlobalWindows.windowed_value(tv.value, timestamp=tv.timestamp))
+        # Unreify the value into the correct window.
+        try:
+          bundle.output(WindowedValue(**tv.value))
+        except TypeError:
+          bundle.output(
+              GlobalWindows.windowed_value(tv.value, timestamp=tv.timestamp))
       self.bundles.append(bundle)
 
   def finish_bundle(self):
@@ -429,6 +436,45 @@ class _WatermarkControllerEvaluator(_TransformEvaluator):
     # to control the output watermark.
     return TransformResult(
         self, self.bundles, [], None, {None: self._watermark})
+
+
+class _PairWithTimingEvaluator(_TransformEvaluator):
+  """TransformEvaluator for the PairWithTiming transform.
+
+  This transform takes an element as an input and outputs
+  KV(element, `TimingInfo`). Where the `TimingInfo` contains both the
+  processing time timestamp and watermark.
+  """
+  def __init__(
+      self,
+      evaluation_context,
+      applied_ptransform,
+      input_committed_bundle,
+      side_inputs):
+    assert not side_inputs
+    super(_PairWithTimingEvaluator, self).__init__(
+        evaluation_context,
+        applied_ptransform,
+        input_committed_bundle,
+        side_inputs)
+
+  def start_bundle(self):
+    main_output = list(self._outputs)[0]
+    self.bundle = self._evaluation_context.create_bundle(main_output)
+
+    watermark_manager = self._evaluation_context._watermark_manager
+    watermarks = watermark_manager.get_watermarks(self._applied_ptransform)
+
+    output_watermark = watermarks.output_watermark
+    now = Timestamp(seconds=watermark_manager._clock.time())
+    self.timing_info = TimingInfo(now, output_watermark)
+
+  def process_element(self, element):
+    element.value = (element.value, self.timing_info)
+    self.bundle.output(element)
+
+  def finish_bundle(self):
+    return TransformResult(self, [self.bundle], [], None, {})
 
 
 class _TestStreamEvaluator(_TransformEvaluator):
@@ -448,12 +494,12 @@ class _TestStreamEvaluator(_TransformEvaluator):
       input_committed_bundle,
       side_inputs):
     assert not side_inputs
-    self.test_stream = applied_ptransform.transform
     super(_TestStreamEvaluator, self).__init__(
         evaluation_context,
         applied_ptransform,
         input_committed_bundle,
         side_inputs)
+    self.test_stream = applied_ptransform.transform
 
   def start_bundle(self):
     self.current_index = 0
@@ -470,7 +516,20 @@ class _TestStreamEvaluator(_TransformEvaluator):
     # We can either have the _TestStream or the _WatermarkController to emit
     # the elements. We chose to emit in the _WatermarkController so that the
     # element is emitted at the correct watermark value.
-    for event in self.test_stream.events(self.current_index):
+
+    # Set up the correct watermark holds in the Watermark controllers and the
+    # TestStream so that the watermarks will not automatically advance to +inf
+    # when elements start streaming. This can happen multiple times in the first
+    # bundle, but the operations are idempotent and adding state to keep track
+    # of this would add unnecessary code complexity.
+    events = []
+    if self.watermark == MIN_TIMESTAMP:
+      for event in self.test_stream._set_up(self.test_stream.output_tags):
+        events.append(event)
+
+    events += [e for e in self.test_stream.events(self.current_index)]
+
+    for event in events:
       if isinstance(event, (ElementEvent, WatermarkEvent)):
         # The WATERMARK_CONTROL_TAG is used to hold the _TestStream's
         # watermark to -inf, then +inf-1, then +inf. This watermark progression
