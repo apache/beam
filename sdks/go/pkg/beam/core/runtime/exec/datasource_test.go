@@ -202,7 +202,7 @@ func TestDataSource_Iterators(t *testing.T) {
 				t.Errorf("DataSource => %#v, want %#v", extractValues(got...), extractValues(want...))
 			}
 
-			// We're using small ints, so do some quick math to validate.
+			// We're using integers that encode to 1 byte, so do some quick math to validate.
 			sizeOfSmallInt := 1
 			snap := quickTestSnapshot(source, int64(len(test.keys)))
 			snap.pcol.SizeSum = int64(len(test.keys) * (1 + len(test.vals)) * sizeOfSmallInt)
