@@ -17,4 +17,4 @@
  */
 
 /** Classes used to expand cross-language transforms. */
-package org.apache.beam.runners.core.construction.expansion;
+package org.apache.beam.sdk.expansion.service;
