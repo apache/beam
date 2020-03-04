@@ -471,8 +471,8 @@ class BeamJarExpansionService(JavaJarExpansionService):
   """An expansion service based on an Beam Java Jar file.
 
   Attempts to use a locally-build copy of the jar based on the gradle target,
-  if it exists, otherwise attempts to download it (with caching) from the
-  apache maven repository.
+  if it exists, otherwise attempts to download and cache the released artifact
+  corresponding to this version of Beam from the apache maven repository.
   """
   def __init__(self, gradle_target, extra_args=None, gradle_appendix=None):
     path_to_jar = subprocess_server.JavaJarServer.path_to_beam_jar(
