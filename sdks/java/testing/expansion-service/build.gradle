@@ -48,6 +48,7 @@ task buildTestExpansionServiceJar(type: ShadowJar) {
             'Main-Class': 'org.apache.beam.sdk.expansion.service.ExpansionService'
     )
   }
+  exclude 'META-INF/*.RSA', 'META-INF/*.SF','META-INF/*.DSA'
   from { project.configurations.testRuntime.collect { it.isDirectory() ? it : zipTree(it) }}
   from sourceSets.main.output
   from sourceSets.test.output
