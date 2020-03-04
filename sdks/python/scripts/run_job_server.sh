@@ -16,8 +16,6 @@
 #    limitations under the License.
 #
 
-function flock() { echo flock; }
-
 read -r -d '' USAGE <<END
 Usage: run_job_server.sh (start|stop) [options]
 Options:
@@ -70,7 +68,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 FILE_BASE="beam-job-server"
-if [ -n "$GROUP_ID" ]; then
+if [ -v GROUP_ID ]; then
   FILE_BASE="$FILE_BASE-$GROUP_ID"
 fi
 
