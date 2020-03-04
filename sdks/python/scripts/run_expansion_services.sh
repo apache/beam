@@ -16,6 +16,8 @@
 #    limitations under the License.
 #
 
+function flock() { echo flock; }
+
 read -r -d '' USAGE <<END
 Usage: run_expansion_services.sh (start|stop) [options]
 Options:
@@ -77,7 +79,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 FILE_BASE="beam-expansion-service"
-if [ -v GROUP_ID ]; then
+if [ -n "$GROUP_ID" ]; then
   FILE_BASE="$FILE_BASE-$GROUP_ID"
 fi
 
