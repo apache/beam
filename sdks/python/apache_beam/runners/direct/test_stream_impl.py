@@ -136,6 +136,7 @@ class _TestStream(PTransform):
     self.coder = coder
     self._raw_events = events
     self._events = self._add_watermark_advancements(output_tags, events)
+    self.output_tags = output_tags
 
   def _watermark_starts(self, output_tags):
     """Sentinel values to hold the watermark of outputs to -inf.
