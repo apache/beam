@@ -345,8 +345,18 @@ class PCollectionVisualization(object):
         'title': str(column)
     } for column in data.columns]
     format_window_info_in_dataframe(data)
+    # Convert the dataframe into rows, each row looks like
+    # [column_1_val, column_2_val, ...].
     rows = data.applymap(lambda x: str(x)).to_dict('split')['data']
+    # Convert each row into dict where keys are column index in the datatable
+    # to be rendered and values are data from the dataframe. Column index 0 is
+    # left out to hold the int index (not part of the data) from dataframe.
+    # Each row becomes: {1: column_1_val, 2: column_2_val, ...}.
     rows = [{k + 1: v for k, v in enumerate(row)} for row in rows]
+    # Add the dataframe int index (used as default ordering column) to datatable
+    # column index 0 (will be rendered as the first column).
+    # Each row becomes:
+    # {1: column_1_val, 2: column_2_val, ..., 0: int_index_in_dataframe}.
     for k, row in enumerate(rows):
       row[0] = k
     script = _DATAFRAME_SCRIPT_TEMPLATE.format(
