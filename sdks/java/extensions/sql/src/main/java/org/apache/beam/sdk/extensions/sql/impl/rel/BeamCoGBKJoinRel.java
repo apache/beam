@@ -26,11 +26,8 @@ import org.apache.beam.sdk.extensions.sql.impl.transform.BeamJoinTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.transforms.Join.FieldsEqual;
 import org.apache.beam.sdk.schemas.transforms.Select;
-import org.apache.beam.sdk.transforms.DoFn.FieldAccess;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -39,7 +36,6 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
@@ -98,14 +94,18 @@ public class BeamCoGBKJoinRel extends BeamJoinRel {
       Schema leftSchema = CalciteUtils.toSchema(left.getRowType());
       Schema rightSchema = CalciteUtils.toSchema(right.getRowType());
 
-      PCollection<Row> leftRows = pinput.get(0)
+      PCollection<Row> leftRows =
+          pinput
+              .get(0)
               .apply(
-                      "left_TimestampCombiner",
-                      Window.<Row>configure().withTimestampCombiner(TimestampCombiner.EARLIEST));
-      PCollection<Row> rightRows = pinput.get(1)
+                  "left_TimestampCombiner",
+                  Window.<Row>configure().withTimestampCombiner(TimestampCombiner.EARLIEST));
+      PCollection<Row> rightRows =
+          pinput
+              .get(1)
               .apply(
-                      "right_TimestampCombiner",
-                      Window.<Row>configure().withTimestampCombiner(TimestampCombiner.EARLIEST));
+                  "right_TimestampCombiner",
+                  Window.<Row>configure().withTimestampCombiner(TimestampCombiner.EARLIEST));
 
       // extract the join fields
       List<Pair<RexNode, RexNode>> pairs = extractJoinRexNodes(condition);
@@ -113,9 +113,9 @@ public class BeamCoGBKJoinRel extends BeamJoinRel {
       int leftRowColumnCount = leftRelNode.getRowType().getFieldCount();
 
       FieldAccessDescriptor leftKeyFields =
-              BeamJoinTransforms.getJoinColumns(true, pairs, 0, leftSchema);
+          BeamJoinTransforms.getJoinColumns(true, pairs, 0, leftSchema);
       FieldAccessDescriptor rightKeyFields =
-              BeamJoinTransforms.getJoinColumns(false, pairs, leftRowColumnCount, rightSchema);
+          BeamJoinTransforms.getJoinColumns(false, pairs, leftRowColumnCount, rightSchema);
 
       WindowFn leftWinFn = leftRows.getWindowingStrategy().getWindowFn();
       WindowFn rightWinFn = rightRows.getWindowingStrategy().getWindowFn();
@@ -165,29 +165,37 @@ public class BeamCoGBKJoinRel extends BeamJoinRel {
 
     switch (joinType) {
       case LEFT:
-        joinedRows = leftRows.apply(
+        joinedRows =
+            leftRows.apply(
                 org.apache.beam.sdk.schemas.transforms.Join.<Row, Row>leftOuterJoin(rightRows)
-                .on(FieldsEqual.left(leftKeys).right(rightKeys)));
+                    .on(FieldsEqual.left(leftKeys).right(rightKeys)));
         break;
       case RIGHT:
-        joinedRows = leftRows.apply(
+        joinedRows =
+            leftRows.apply(
                 org.apache.beam.sdk.schemas.transforms.Join.<Row, Row>rightOuterJoin(rightRows)
-                        .on(FieldsEqual.left(leftKeys).right(rightKeys)));
+                    .on(FieldsEqual.left(leftKeys).right(rightKeys)));
         break;
       case FULL:
-        joinedRows = leftRows.apply(
+        joinedRows =
+            leftRows.apply(
                 org.apache.beam.sdk.schemas.transforms.Join.<Row, Row>fullOuterJoin(rightRows)
-                        .on(FieldsEqual.left(leftKeys).right(rightKeys)));
+                    .on(FieldsEqual.left(leftKeys).right(rightKeys)));
         break;
       case INNER:
       default:
-        joinedRows = leftRows.apply(
+        joinedRows =
+            leftRows.apply(
                 org.apache.beam.sdk.schemas.transforms.Join.<Row, Row>innerJoin(rightRows)
-                        .on(FieldsEqual.left(leftKeys).right(rightKeys)));
+                    .on(FieldsEqual.left(leftKeys).right(rightKeys)));
     }
-    return joinedRows.apply(Select.fieldNames(
-            org.apache.beam.sdk.schemas.transforms.Join.LHS_TAG + ".*",
-            org.apache.beam.sdk.schemas.transforms.Join.RHS_TAG + ".*"));
+
+    // Flatten the lhs and rhs fields into a single row.
+    return joinedRows.apply(
+        Select.<Row>fieldNames(
+                org.apache.beam.sdk.schemas.transforms.Join.LHS_TAG + ".*",
+                org.apache.beam.sdk.schemas.transforms.Join.RHS_TAG + ".*")
+            .withOutputSchema(CalciteUtils.toSchema(getRowType())));
   }
 
   @Override
