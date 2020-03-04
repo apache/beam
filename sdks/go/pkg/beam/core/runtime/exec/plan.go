@@ -166,7 +166,10 @@ type PlanSnapshot struct {
 	PCols  []PCollectionSnapshot
 }
 
-// Progress returns a snapshot of progress of the plan, and associated metrics.
+// Progress returns a snapshot of progress of the plan, and associated metrics. 
+// The retuend boolean indicates whether the plan includes a DataSource, which is
+// important for handling legacy metrics. This boolean will be removed once
+// we no longer return legacy metrics.
 func (p *Plan) Progress() (PlanSnapshot, bool) {
 	pcolSnaps := make([]PCollectionSnapshot, 0, len(p.pcols)+1) // include space for the datasource pcollection.
 	for _, pcol := range p.pcols {
