@@ -26,14 +26,13 @@ applyPythonNature()
 // Required to setup a Python 3 virtualenv.
 pythonVersion = '3.5'
 
-// TODO(BEAM-3713): Migrate to -pytest env variant.
 toxTask "testPython35", "py35"
 test.dependsOn testPython35
 
-toxTask "testPy35Gcp", "py35-gcp-pytest"
+toxTask "testPy35Gcp", "py35-gcp"
 test.dependsOn testPy35Gcp
 
-toxTask "testPy35Cython", "py35-cython-pytest"
+toxTask "testPy35Cython", "py35-cython"
 test.dependsOn testPy35Cython
 
 // TODO(BEAM-8954): Remove this once tox uses isolated builds.
