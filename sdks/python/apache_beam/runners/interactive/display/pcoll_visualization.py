@@ -76,7 +76,7 @@ _DIVE_SCRIPT_TEMPLATE = """
             try {{
               document.querySelector("#{display_id}").data = {jsonstr};
             }} catch (e) {{
-              console.log("#{display_id} is not rendered yet.");
+              // NOOP when the user has cleared the output from the notebook.
             }}"""
 _DIVE_HTML_TEMPLATE = _CSS + """
             <script src="https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.3.3/webcomponents-lite.js"></script>
@@ -89,7 +89,7 @@ _OVERVIEW_SCRIPT_TEMPLATE = """
               try {{
                 document.querySelector("#{display_id}").protoInput = "{protostr}";
               }} catch (e) {{
-                console.log("#{display_id} is not rendered yet.");
+                // NOOP when the user has cleared the output from the notebook.
               }}"""
 _OVERVIEW_HTML_TEMPLATE = _CSS + """
             <script src="https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.3.3/webcomponents-lite.js"></script>
@@ -99,6 +99,7 @@ _OVERVIEW_HTML_TEMPLATE = _CSS + """
               document.querySelector("#{display_id}").protoInput = "{protostr}";
             </script>"""
 _DATATABLE_INITIALIZATION_CONFIG = """
+            bAutoWidth: false,
             columns: {columns},
             destroy: true,
             responsive: true,
