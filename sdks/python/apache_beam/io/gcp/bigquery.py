@@ -644,6 +644,8 @@ class _CustomBigQuerySource(BoundedSource):
           self.table_reference.tableId)
       return int(table.numBytes)
     else:
+      if isinstance(self.query, ValueProvider):
+        self.query = self.query.get()
       job = bq._start_query_job(
           self.project,
           self.query,
@@ -660,8 +662,6 @@ class _CustomBigQuerySource(BoundedSource):
       bq = bigquery_tools.BigQueryWrapper()
 
       if self.query is not None:
-        if isinstance(self.query, ValueProvider):
-          self.query = self.query.get()
         self._setup_temporary_dataset(bq)
         self.table_reference = self._execute_query(bq)
 
