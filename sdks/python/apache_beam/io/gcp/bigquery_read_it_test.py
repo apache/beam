@@ -36,6 +36,7 @@ from nose.plugins.attrib import attr
 import apache_beam as beam
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -160,6 +161,15 @@ class ReadTests(BigQueryReadIntegrationTests):
       result = (
           p | 'read' >> beam.io._ReadFromBigQuery(
               query=self.query, use_standard_sql=True, project=self.project))
+      assert_that(result, equal_to(self.TABLE_DATA))
+
+  @attr('IT')
+  def test_valueprovider_query_string(self):
+    query = StaticValueProvider(str, self.query)
+    with beam.Pipeline(argv=self.args) as p:
+      result = (
+          p | 'read' >> beam.io._ReadFromBigQuery(
+              query=query, use_standard_sql=True, project=self.project))
       assert_that(result, equal_to(self.TABLE_DATA))
 
 

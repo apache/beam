@@ -660,6 +660,8 @@ class _CustomBigQuerySource(BoundedSource):
       bq = bigquery_tools.BigQueryWrapper()
 
       if self.query is not None:
+        if isinstance(self.query, ValueProvider):
+          self.query = self.query.get()
         self._setup_temporary_dataset(bq)
         self.table_reference = self._execute_query(bq)
 
@@ -672,7 +674,6 @@ class _CustomBigQuerySource(BoundedSource):
               True,
               self.coder(schema)) for metadata in metadata_list
       ]
-
       if self.query is not None:
         bq.clean_up_temporary_dataset(self.project)
 
@@ -1572,8 +1573,8 @@ class _ReadFromBigQuery(PTransform):
       :data:`None` if the table reference is specified entirely by the table
       argument.
     project (str): The ID of the project containing this table.
-    query (str): A query to be used instead of arguments table, dataset, and
-      project.
+    query (str, ValueProvider): A query to be used instead of arguments
+      table, dataset, and project.
     validate (bool): If :data:`True`, various checks will be done when source
       gets initialized (e.g., is table present?). This should be
       :data:`True` for most scenarios in order to catch errors as early as
