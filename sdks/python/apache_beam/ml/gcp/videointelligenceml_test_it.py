@@ -52,7 +52,8 @@ def extract_entities_descriptions(response):
 @unittest.skipIf(
     AnnotateVideoWithContext is None, 'GCP dependencies are not installed')
 class VideoIntelligenceMlTestIT(unittest.TestCase):
-  VIDEO_PATH = 'gs://cloudmleap/video/next/gbikes_dinosaur.mp4'
+  VIDEO_PATH = 'gs://apache-beam-samples/advanced_analytics/video/' \
+               'gbikes_dinosaur.mp4'
 
   def test_label_detection_with_video_context(self):
     with TestPipeline(is_integration_test=True) as p:
