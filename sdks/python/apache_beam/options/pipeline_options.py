@@ -1075,6 +1075,22 @@ class FlinkRunnerOptions(PipelineOptions):
         ' directly, rather than starting up a job server.'
         ' Only applies when flink_master is set to a'
         ' cluster address.  Requires Python 3.6+.')
+    parser.add_argument(
+        '--parallelism',
+        default=-1,
+        type=int,
+        help='The degree of parallelism to be used when distributing '
+             'operations onto workers. If the parallelism is not set, the '
+             'configured Flink default is used, or 1 if none can be found.'
+    )
+    parser.add_argument(
+        '--execution_mode_for_batch',
+        default='PIPELINED',
+        help='Flink mode for data exchange of batch pipelines. '
+             'Reference org.apache.flink.api.common.ExecutionMode. '
+             'Set this to BATCH_FORCED if pipelines get blocked, see '
+             'https://issues.apache.org/jira/browse/FLINK-10672'
+    )
 
 
 class SparkRunnerOptions(PipelineOptions):
