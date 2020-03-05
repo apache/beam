@@ -21,9 +21,8 @@
 
 from __future__ import absolute_import
 
-import sys
-
 import logging
+import sys
 import unittest
 
 from apache_beam.runners.interactive import interactive_environment as ie
@@ -66,7 +65,7 @@ class InteractiveUtilsTest(unittest.TestCase):
     # handler IPythonLogHandler which is set to NOTSET. The effect will be
     # everything >= info level will be logged through IPython.core.display to
     # all frontends connected to current kernel.
-    dummy_logger = logging.getLogger('apache_beam.runners.interactive.dummy')
+    dummy_logger = logging.getLogger('apache_beam.runners.interactive.dummy1')
     dummy_logger.info('info')
     mock_emit.assert_called_once()
     dummy_logger.debug('debug')
@@ -78,7 +77,7 @@ class InteractiveUtilsTest(unittest.TestCase):
     # When a child logger's logging level is configured to something that is not
     # NOTSET, it takes back the logging control from the interactive "root"
     # logger by not propagating anything.
-    dummy_logger = logging.getLogger('apache_beam.runners.interactive.dummy')
+    dummy_logger = logging.getLogger('apache_beam.runners.interactive.dummy2')
     dummy_logger.setLevel(logging.DEBUG)
     mock_emit.assert_not_called()
     dummy_logger.debug('debug')
