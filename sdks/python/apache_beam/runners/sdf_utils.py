@@ -300,7 +300,7 @@ class DeduplicationByUniqueId(ptransform.PTransform):
         window=core.DoFn.WindowParam,
         paneinfo=core.DoFn.PaneInfoParam):
       id, value = kv
-      yield (id, WindowedValue(value, ts, [window], paneinfo))
+      yield ((id, window), WindowedValue(value, ts, [window], paneinfo))
 
   def expand(self, pcoll):
     windowing = pcoll.windowing

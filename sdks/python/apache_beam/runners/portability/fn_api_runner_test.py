@@ -67,6 +67,7 @@ from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 from apache_beam.utils import timestamp
+from apache_beam.utils.windowed_value import WindowedValue
 
 if statesampler.FAST_SAMPLER:
   DEFAULT_SAMPLING_PERIOD_MS = statesampler.DEFAULT_SAMPLING_PERIOD_MS
@@ -546,15 +547,25 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_deduplication_by_id(self):
     with self.create_pipeline() as p:
+      # res = (
+      #     p
+      #     | beam.Create([
+      #         window.TimestampedValue(('id_1', 'value_1'), 1),
+      #         window.TimestampedValue(('id_1', 'value_1'), 2),
+      #         window.TimestampedValue(('id_1', 'value_1'), 5),
+      #         window.TimestampedValue(('id_1', 'value_1'), 100),
+      #         window.TimestampedValue(('id_2', 'value_2'), 101)
+      #     ])
+      #     | DeduplicationByUniqueId(10))
       res = (
           p
           | beam.Create([
-              window.TimestampedValue(('id_1', 'value_1'), 1),
-              window.TimestampedValue(('id_1', 'value_1'), 2),
-              window.TimestampedValue(('id_1', 'value_1'), 5),
-              window.TimestampedValue(('id_1', 'value_1'), 100),
-              window.TimestampedValue(('id_2', 'value_2'), 101)
-          ])
+          WindowedValue(('id_1', 'value_1'), 1, [window.IntervalWindow(1, 10)]),
+          WindowedValue(('id_1', 'value_1'), 2, [window.IntervalWindow(2, 12)]),
+          WindowedValue(('id_1', 'value_1'), 5, [window.IntervalWindow(5, 15)]),
+          WindowedValue(('id_1', 'value_1'), 100, [window.IntervalWindow(100, 110)]),
+          WindowedValue(('id_2', 'value_2'), 101, [window.IntervalWindow(101, 111)])
+      ])
           | DeduplicationByUniqueId(10))
       assert_that(res, equal_to(['value_1', 'value_1', 'value_2']))
 
