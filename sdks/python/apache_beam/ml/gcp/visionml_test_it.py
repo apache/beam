@@ -46,7 +46,9 @@ def extract(response):
 @unittest.skipIf(vision is None, 'GCP dependencies are not installed')
 class VisionMlTestIT(unittest.TestCase):
   def test_text_detection_with_language_hint(self):
-    IMAGES_TO_ANNOTATE = ['gs://cloud-samples-data/vision/ocr/sign.jpg']
+    IMAGES_TO_ANNOTATE = [
+        'gs://apache-beam-samples/advanced_analytics/vision/sign.jpg'
+    ]
     IMAGE_CONTEXT = [vision.types.ImageContext(language_hints=['en'])]
 
     with TestPipeline(is_integration_test=True) as p:
