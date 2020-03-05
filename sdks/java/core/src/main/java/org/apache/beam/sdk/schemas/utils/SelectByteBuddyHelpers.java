@@ -71,7 +71,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
-public class SelectByteBuddyHelpers {
+class SelectByteBuddyHelpers {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
   private static final String SELECT_SCHEMA_FIELD_NAME = "OUTPUTSCHEMA";
 
@@ -141,7 +141,7 @@ public class SelectByteBuddyHelpers {
   private static final Map<SchemaAndDescriptor, RowSelector> CACHED_SELECTORS =
       Maps.newConcurrentMap();
 
-  public static RowSelector getRowSelector(
+  static RowSelector getRowSelector(
       Schema inputSchema, FieldAccessDescriptor fieldAccessDescriptor) {
     return CACHED_SELECTORS.computeIfAbsent(
         SchemaAndDescriptor.of(inputSchema, fieldAccessDescriptor),
@@ -238,7 +238,7 @@ public class SelectByteBuddyHelpers {
       this.arraySize = arraySize;
     }
 
-    public StackManipulation createArray() {
+    StackManipulation createArray() {
       return new StackManipulation() {
         @Override
         public boolean isValid() {
@@ -256,15 +256,15 @@ public class SelectByteBuddyHelpers {
       };
     }
 
-    public StackManipulation append(StackManipulation valueToWrite) {
+    StackManipulation append(StackManipulation valueToWrite) {
       return store(currentArrayField++, valueToWrite);
     }
 
-    public int reserveSlot() {
+    int reserveSlot() {
       return currentArrayField++;
     }
 
-    public StackManipulation store(int arrayIndexToWrite, StackManipulation valueToWrite) {
+    StackManipulation store(int arrayIndexToWrite, StackManipulation valueToWrite) {
       Preconditions.checkArgument(arrayIndexToWrite < arraySize);
       return new StackManipulation() {
         @Override
