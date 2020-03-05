@@ -29,7 +29,7 @@ limitations under the License.
 <br>
 
 Estimates the number of distinct elements in a data stream using the
-[HyperLogLog++ algorithm](http://static.googleusercontent.com/media/research.google.com/en/us/pubs/archive/40671.pdf).
+[HyperLogLog++ algorithm](https://static.googleusercontent.com/media/research.google.com/en/us/pubs/archive/40671.pdf).
 The respective transforms to create and merge sketches, and to extract from them, are:
 
 * `HllCount.Init` aggregates inputs into HLL++ sketches.

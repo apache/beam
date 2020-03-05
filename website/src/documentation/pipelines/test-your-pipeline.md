@@ -49,7 +49,7 @@ The code in your pipeline's `DoFn` functions runs often, and often across multip
 
 The Beam SDK for Java provides a convenient way to test an individual `DoFn` called [DoFnTester](https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/DoFnTesterTest.java), which is included in the SDK `Transforms` package.
 
-`DoFnTester`uses the [JUnit](http://junit.org) framework. To use `DoFnTester`, you'll need to do the following:
+`DoFnTester`uses the [JUnit](https://junit.org) framework. To use `DoFnTester`, you'll need to do the following:
 
 1.  Create a `DoFnTester`. You'll need to pass an instance of the `DoFn` you want to test to the static factory method for `DoFnTester`.
 2.  Create one or more main test inputs of the appropriate type for your `DoFn`. If your `DoFn` takes side inputs and/or produces [multiple outputs]({{ site.baseurl }}/documentation/programming-guide#additional-outputs), you should also create the side inputs and the output tags.
