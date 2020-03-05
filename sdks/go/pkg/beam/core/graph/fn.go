@@ -209,18 +209,19 @@ func (f *DoFn) RestrictionT() *reflect.Type {
 // a KV or not based on the other signatures (unless we're more loose about which
 // sideinputs are present). Bind should respect that.
 
-// The following constants prefixed with "Main" represent possible numbers of
-// DoFn main inputs for DoFn construction and validation. Any value not defined
-// here is an invalid number of main inputs.
+type mainInputs int
+
+// The following constants prefixed with "Main" represent valid numbers of DoFn
+// main inputs for DoFn construction and validation.
 const (
-	MainUnknown = -1 // The number of main inputs is unknown for DoFn validation.
-	MainSingle  = 1  // The number of main inputs for single value elements.
-	MainKv      = 2  // The number of main inputs for KV elements.
+	MainUnknown mainInputs = -1 // Number of inputs is unknown for DoFn validation.
+	MainSingle  mainInputs = 1  // Number of inputs for single value elements.
+	MainKv      mainInputs = 2  // Number of inputs for KV elements.
 )
 
 // config stores the optional configuration parameters to NewDoFn.
 type config struct {
-	numMainIn int
+	numMainIn mainInputs
 }
 
 func defaultConfig() *config {
@@ -231,12 +232,11 @@ func defaultConfig() *config {
 
 // NumMainInputs is an optional config to NewDoFn which specifies the number
 // of main inputs to the DoFn being created, allowing for more complete
-// validation. Valid inputs to this function are the constants defined in this
-// package with the "Main" prefix.
+// validation. Valid inputs are the package constants of type mainInputs.
 //
 // Example usage:
 //   graph.NewDoFn(fn, graph.NumMainInputs(graph.MainKv))
-func NumMainInputs(num int) func(*config) {
+func NumMainInputs(num mainInputs) func(*config) {
 	return func(cfg *config) {
 		cfg.numMainIn = num
 	}
@@ -256,25 +256,12 @@ func NewDoFn(fn interface{}, options ...func(*config)) (*DoFn, error) {
 }
 
 // AsDoFn converts a Fn to a DoFn, if possible. numMainIn specifies how many
-// main inputs are expected in the DoFn's method signatures. Valid values are
-// -1 (unknown), 1 (single elements), or 2 (KVs). If the value is unknown then
+// main inputs are expected in the DoFn's method signatures. Valid inputs are
+// the package constants of type mainInputs. If that number is MainUnknown then
 // validation is done by best effort and may miss some edge cases.
-func AsDoFn(fn *Fn, numMainIn int) (*DoFn, error) {
+func AsDoFn(fn *Fn, numMainIn mainInputs) (*DoFn, error) {
 	addContext := func(err error, fn *Fn) error {
 		return errors.WithContextf(err, "graph.AsDoFn: for Fn named %v", fn.Name())
-	}
-
-	// Validate numMainIn. This check should match this method's comment.
-	//if numMainIn != MainUnknown &&
-	//	numMainIn != MainSingle &&
-	//	numMainIn != MainKv {
-	switch numMainIn {
-	case MainUnknown, MainSingle, MainKv: // Valid.
-	default: // Invalid.
-		err := errors.Errorf("invalid number of main inputs given. "+
-			"Got: %v, Want: One of the following: %v",
-			processElementName, []int{MainUnknown, MainSingle, MainKv})
-		return nil, addContext(err, fn)
 	}
 
 	if fn.methods == nil {
@@ -381,7 +368,7 @@ func AsDoFn(fn *Fn, numMainIn int) (*DoFn, error) {
 
 // validateMainInputs checks that a method has the given number of main inputs
 // and that main inputs are before any side inputs.
-func validateMainInputs(fn *Fn, method *funcx.Fn, methodName string, numMainIn int) error {
+func validateMainInputs(fn *Fn, method *funcx.Fn, methodName string, numMainIn mainInputs) error {
 	if numMainIn == MainUnknown {
 		numMainIn = MainSingle // If unknown, validate for minimum number of inputs.
 	}
@@ -395,7 +382,7 @@ func validateMainInputs(fn *Fn, method *funcx.Fn, methodName string, numMainIn i
 			methodName, fn.Name())
 		return err
 	}
-	if num < numMainIn {
+	if num < int(numMainIn) {
 		err := errors.Errorf("%v method has too few main inputs", methodName)
 		err = errors.SetTopLevelMsgf(err,
 			"Method %v in DoFn %v does not have enough main inputs. "+
@@ -407,7 +394,7 @@ func validateMainInputs(fn *Fn, method *funcx.Fn, methodName string, numMainIn i
 	// Check that the first numMainIn inputs are not side inputs (Iters or
 	// ReIters). We aren't able to catch singleton side inputs here since
 	// they're indistinguishable from main inputs.
-	mainInputs := method.Param[pos : pos+numMainIn]
+	mainInputs := method.Param[pos : pos+int(numMainIn)]
 	for i, p := range mainInputs {
 		if p.Kind != funcx.FnValue {
 			err := errors.Errorf("expected main input parameter but found "+
@@ -477,13 +464,13 @@ func validateEmits(processFnEmits []funcx.FnParam, method *funcx.Fn, methodName 
 // in the signature for ProcessElement, and performs validation to check that the side inputs
 // match. This function should only be used to validate methods that are expected to have matching
 // side inputs to ProcessElement.
-func validateSideInputs(processFnInputs []funcx.FnParam, method *funcx.Fn, methodName string, numMainIn int) error {
+func validateSideInputs(processFnInputs []funcx.FnParam, method *funcx.Fn, methodName string, numMainIn mainInputs) error {
 	if numMainIn == MainUnknown {
 		return validateSideInputsNumUnknown(processFnInputs, method, methodName)
 	}
 
 	numProcessIn := len(processFnInputs)
-	numSideIn := numProcessIn - numMainIn
+	numSideIn := numProcessIn - int(numMainIn)
 	posMethodIn, numMethodIn, ok := method.Inputs()
 
 	// Handle cases where method has no inputs.
@@ -539,7 +526,7 @@ func validateSideInputsNumUnknown(processFnInputs []funcx.FnParam, method *funcx
 
 	// Handle cases where method has no inputs.
 	if !ok {
-		if numProcessIn <= MainKv {
+		if numProcessIn <= int(MainKv) {
 			return nil // We're good, possible for there to be no side inputs.
 		}
 		err := errors.Errorf("side inputs expected in method %v", methodName)
@@ -551,8 +538,8 @@ func validateSideInputsNumUnknown(processFnInputs []funcx.FnParam, method *funcx
 
 	// Error if number of side inputs doesn't match any of the possible numbers of side inputs,
 	// defined below.
-	numSideInSingle := numProcessIn - MainSingle
-	numSideInKv := numProcessIn - MainKv
+	numSideInSingle := numProcessIn - int(MainSingle)
+	numSideInKv := numProcessIn - int(MainKv)
 	if numMethodIn != numSideInSingle && numMethodIn != numSideInKv {
 		err := errors.Errorf("number of side inputs in method %v does not match method %v: got %d, expected either %d or %d",
 			methodName, processElementName, numMethodIn, numSideInSingle, numSideInKv)

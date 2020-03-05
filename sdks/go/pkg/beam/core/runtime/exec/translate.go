@@ -375,9 +375,9 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				if err != nil {
 					return nil, err
 				}
-				mainIn := 1
+				mainIn := graph.MainSingle
 				if coder.IsKV(ec) {
-					mainIn = 2
+					mainIn = graph.MainKv
 				}
 
 				n := &ParDo{UID: b.idgen.New(), Inbound: in, Out: out}

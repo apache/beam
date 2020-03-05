@@ -27,7 +27,7 @@ func TestNewDoFn(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		tests := []struct {
 			dfn  interface{}
-			main int // Number of main inputs.
+			main mainInputs
 		}{
 			{dfn: func(string) int { return 0 }, main: MainSingle},
 			{dfn: func(string, int) int { return 0 }, main: MainKv},
@@ -112,7 +112,7 @@ func TestNewDoFn(t *testing.T) {
 	t.Run("invalidWithKnownKvs", func(t *testing.T) {
 		tests := []struct {
 			dfn  interface{}
-			main int // Number of main inputs.
+			main mainInputs
 		}{
 			{dfn: func(int) int { return 0 }, main: MainKv}, // Not enough inputs.
 			{dfn: func(int, func(*int) bool, int) int { // Side input before all main inputs.
