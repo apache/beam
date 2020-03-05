@@ -27,6 +27,9 @@ repositories {
   maven {
     url "https://artifactory.corp.linkedin.com:8083/artifactory/DDS/"
   }
+  maven {
+    url "file://" + System.getProperty("user.home") + "/local-repo"
+  }
 }
 
 applyJavaNature(
