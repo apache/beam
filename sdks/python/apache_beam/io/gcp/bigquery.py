@@ -644,8 +644,6 @@ class _CustomBigQuerySource(BoundedSource):
           self.table_reference.tableId)
       return int(table.numBytes)
     else:
-      if isinstance(self.query, ValueProvider):
-        self.query = self.query.get()
       job = bq._start_query_job(
           self.project,
           self.query,
@@ -1599,7 +1597,8 @@ class _ReadFromBigQuery(PTransform):
       a :class:`~apache_beam.options.value_provider.ValueProvider`. If
       :data:`None`, then the temp_location parameter is used.
    """
-  def __init__(self, gcs_location=None, validate=False, *args, **kwargs):
+  def __init__(
+      self, gcs_location=None, validate=False, query=None, *args, **kwargs):
     if gcs_location:
       if not isinstance(gcs_location, (str, unicode, ValueProvider)):
         raise TypeError(
@@ -1609,7 +1608,19 @@ class _ReadFromBigQuery(PTransform):
 
       if isinstance(gcs_location, (str, unicode)):
         gcs_location = StaticValueProvider(str, gcs_location)
+
+    if query:
+      if not isinstance(query, (str, unicode, ValueProvider)):
+        raise TypeError(
+            '%s: query must be of type string'
+            ' or ValueProvider; got %r instead' %
+            (self.__class__.__name__, type(query)))
+
+      if isinstance(query, (str, unicode)):
+        query = StaticValueProvider(str, query)
+
     self.gcs_location = gcs_location
+    self.query = query
     self.validate = validate
 
     self._args = args
@@ -1656,12 +1667,17 @@ class _ReadFromBigQuery(PTransform):
     temp_location = pcoll.pipeline.options.view_as(
         GoogleCloudOptions).temp_location
     gcs_location = self._get_destination_uri(temp_location)
+    if self.query is not None:
+      query = self.query.get()
+    else:
+      query = None
 
     return (
         pcoll
         | beam.io.Read(
             _CustomBigQuerySource(
                 gcs_location=gcs_location,
+                query=query,
                 validate=self.validate,
                 *self._args,
                 **self._kwargs))
