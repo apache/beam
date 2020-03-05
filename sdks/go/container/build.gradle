@@ -45,6 +45,11 @@ golang {
   }
 }
 
+task copyDependencyLicenses(type: Copy) {
+  from file("${project.rootProject.projectDir}/licenses/java")
+  into "build/target/dependencies"
+}
+
 docker {
   name containerImageName(
           name: "go_sdk",
@@ -54,3 +59,4 @@ docker {
 }
 // Ensure that making the docker image builds any required artifacts
 dockerPrepare.dependsOn goBuild
+dockerPrepare.dependsOn copyDependencyLicenses

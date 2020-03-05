@@ -27,4 +27,7 @@ RUN apt-get update && \
 
 ADD target/linux_amd64/boot /opt/apache/beam/
 
+# copy licenses for third party dependencies
+COPY target/dependencies /opt/apache/beam/dependencies
+
 ENTRYPOINT ["/opt/apache/beam/boot"]
