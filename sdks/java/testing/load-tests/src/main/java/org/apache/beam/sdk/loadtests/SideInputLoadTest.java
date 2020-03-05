@@ -89,7 +89,7 @@ public class SideInputLoadTest extends LoadTest<SideInputLoadTest.Options> {
         performTestWithIterable(input, syntheticStep);
         break;
       case HASHMAP:
-        performTestWithHashMap(input, syntheticStep);
+        performTestWithMap(input, syntheticStep);
         break;
       case LIST:
         performTestWithList(input, syntheticStep);
@@ -100,16 +100,16 @@ public class SideInputLoadTest extends LoadTest<SideInputLoadTest.Options> {
   private void performTestWithList(
       PCollection<KV<byte[], byte[]>> input, Optional<SyntheticStep> syntheticStep) {
     applyStepIfPresent(input, "Synthetic step", syntheticStep);
-    PCollectionView<List<KV<byte[], byte[]>>> sideInput = input.apply(View.asList());
+    PCollectionView<List<KV<byte[], byte[]>>> sideInput = applyWindowingIfPresent(input).apply(View.asList());
     input
         .apply(ParDo.of(new SideInputTestWithList(sideInput)).withSideInputs(sideInput))
         .apply("Collect end time metrics", ParDo.of(runtimeMonitor));
   }
 
-  private void performTestWithHashMap(
+  private void performTestWithMap(
       PCollection<KV<byte[], byte[]>> input, Optional<SyntheticStep> syntheticStep) {
     applyStepIfPresent(input, "Synthetic step", syntheticStep);
-    PCollectionView<Map<byte[], byte[]>> sideInput = input.apply(View.asMap());
+    PCollectionView<Map<byte[], byte[]>> sideInput = applyWindowingIfPresent(input).apply(View.asMap());
     input
         .apply(ParDo.of(new SideInputTestWithHashMap(sideInput)).withSideInputs(sideInput))
         .apply("Collect end time metrics", ParDo.of(runtimeMonitor));
@@ -119,19 +119,20 @@ public class SideInputLoadTest extends LoadTest<SideInputLoadTest.Options> {
       PCollection<KV<byte[], byte[]>> input, Optional<SyntheticStep> syntheticStep) {
     applyStepIfPresent(input, "Synthetic step", syntheticStep);
     PCollectionView<Iterable<KV<byte[], byte[]>>> sideInput;
-    if (options.getWindowCount() != 0) {
-      long windowDurationMilis = sourceOptions.numRecords / options.getWindowCount();
-      sideInput =
-          input
-              .apply(Window.into(FixedWindows.of(Duration.millis(windowDurationMilis))))
-              .apply(View.asIterable());
-    } else {
-      sideInput = input.apply(View.asIterable());
-    }
-
+    sideInput = applyWindowingIfPresent(input).apply(View.asIterable());
     input
         .apply(ParDo.of(new SideInputTestWithIterable(sideInput)).withSideInputs(sideInput))
         .apply("Collect end time metrics", ParDo.of(runtimeMonitor));
+  }
+
+  private PCollection<KV<byte[], byte[]>> applyWindowingIfPresent(PCollection<KV<byte[], byte[]>> input) {
+    PCollection<KV<byte[], byte[]>> windowedInput = input;
+    if (options.getWindowCount() != 0) {
+      long windowDurationMilis = sourceOptions.numRecords / options.getWindowCount();
+      windowedInput = input
+          .apply(Window.into(FixedWindows.of(Duration.millis(windowDurationMilis))));
+    }
+    return windowedInput;
   }
 
   private static class AddTimestamps extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> {
