@@ -196,9 +196,9 @@ class JavaJarServer(SubprocessServer):
     else:
       cached_jar = os.path.join(cls.JAR_CACHE, os.path.basename(url))
       if os.path.exists(cached_jar):
-        _LOGGER.warning('Using cached job server jar from %s' % url)
+        _LOGGER.info('Using cached job server jar from %s' % url)
       else:
-        _LOGGER.warning('Downloading job server jar from %s' % url)
+        _LOGGER.info('Downloading job server jar from %s' % url)
         if not os.path.exists(cls.JAR_CACHE):
           os.makedirs(cls.JAR_CACHE)
           # TODO: Clean up this cache according to some policy.
