@@ -28,6 +28,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.nio.charset.StandardCharsets;
 import javax.annotation.Nullable;
 
 /**
@@ -79,7 +80,7 @@ public class RabbitMqMessage implements Serializable {
             if (value instanceof LongString) {
               LongString longString = (LongString) value;
               byte[] bytes = longString.getBytes();
-              String s = new String(bytes, "UTF-8");
+              String s = new String(bytes, StandardCharsets.UTF_8);
               value = s;
             } else {
               throw new RuntimeException(String.format("no transformation defined for %s", value));
