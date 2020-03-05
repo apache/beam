@@ -1592,8 +1592,8 @@ class _ReadFromBigQuery(PTransform):
       query results. The default value is :data:`True`.
     kms_key (str): Experimental. Optional Cloud KMS key name for use when
       creating new temporary tables.
-    gcs_location (str): The name of the Google Cloud Storage bucket where
-      the extracted table should be written as a string or
+    gcs_location (str, ValueProvider): The name of the Google Cloud Storage
+      bucket where the extracted table should be written as a string or
       a :class:`~apache_beam.options.value_provider.ValueProvider`. If
       :data:`None`, then the temp_location parameter is used.
    """
