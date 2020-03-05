@@ -103,6 +103,8 @@ def _extract_pipeline_of_pvalueish(pvalueish):
   return None
 
 
+# TODO(BEAM-8335): Move this function and the IPythonLogHandler to a util class
+# under interactive package when streaming cache changes are merged.
 def register_ipython_log_handler():
   """Adds the IPython handler to a dummy parent logger (named
   'apache_beam.runners.interactive') of all interactive modules' loggers so that
