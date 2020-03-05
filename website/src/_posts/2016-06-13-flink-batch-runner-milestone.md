@@ -20,7 +20,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-We recently achieved a major milestone by adding support for windowing to the [Apache Flink](http://flink.apache.org) Batch runner. In this post we would like to explain what this means for users of Apache Beam and highlight some of the implementation details.
+We recently achieved a major milestone by adding support for windowing to the [Apache Flink](https://flink.apache.org) Batch runner. In this post we would like to explain what this means for users of Apache Beam and highlight some of the implementation details.
 
 <!--more-->
 

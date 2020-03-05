@@ -45,4 +45,4 @@ Find download links and information on the latest Beam releases, including versi
 
 #### [Support]({{ site.baseurl }}/get-started/support)
 
-Find resources, such as mailing lists and issue tracking, to help you use Beam. Ask questions and discuss topics via [Stack Overflow](http://stackoverflow.com/questions/tagged/apache-beam) or on Beam's [Slack Channel](http://apachebeam.slack.com).
+Find resources, such as mailing lists and issue tracking, to help you use Beam. Ask questions and discuss topics via [Stack Overflow](https://stackoverflow.com/questions/tagged/apache-beam) or on Beam's [Slack Channel](https://apachebeam.slack.com).

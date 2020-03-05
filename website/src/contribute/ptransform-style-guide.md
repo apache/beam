@@ -86,7 +86,7 @@ Do not:
 * **Do not expose** tuning knobs, such as batch sizes, connection pool sizes, unless it's impossible to automatically supply or compute a good-enough value (i.e., unless you can imagine a reasonable person reporting a bug about the absence of this knob).
 * When developing a connector to a library that has many parameters, **do not mirror each parameter** of the underlying library - if necessary, reuse the underlying library's configuration class and let user supply a whole instance. Example: `JdbcIO`.
 *Exception 1:* if some parameters of the underlying library interact with Beam semantics non-trivially, then expose them. E.g. when developing a connector to a pub/sub system that has a "delivery guarantee" parameter for publishers, expose the parameter but prohibit values incompatible with the Beam model (at-most-once and exactly-once).
-*Exception 2:* if the underlying library's configuration class is cumbersome to use - e.g. does not declare a stable API, exposes problematic transitive dependencies, or does not obey [semantic versioning](http://semver.org/) - in this case, it is better to wrap it and expose a cleaner and more stable API to users of the transform.
+*Exception 2:* if the underlying library's configuration class is cumbersome to use - e.g. does not declare a stable API, exposes problematic transitive dependencies, or does not obey [semantic versioning](https://semver.org/) - in this case, it is better to wrap it and expose a cleaner and more stable API to users of the transform.
 
 ### Error handling
 
@@ -177,7 +177,7 @@ Data processing is tricky, full of corner cases, and difficult to debug, because
     * Third-party APIs providing wildly inaccurate information
     * Leaks of `Closeable`/`AutoCloseable` resources in failure cases
     * Common corner cases when developing sources: complicated arithmetic in `BoundedSource.split` (e.g. splitting key or offset ranges), iteration over empty data sources or composite data sources that have some empty components.
-* Mock out the interactions with third-party systems, or better, use ["fake"](http://martinfowler.com/articles/mocksArentStubs.html) implementations when available. Make sure that the mocked-out interactions are representative of all interesting cases of the actual behavior of these systems.
+* Mock out the interactions with third-party systems, or better, use ["fake"](https://martinfowler.com/articles/mocksArentStubs.html) implementations when available. Make sure that the mocked-out interactions are representative of all interesting cases of the actual behavior of these systems.
 * To unit test `DoFn`s, `CombineFn`s, and `BoundedSource`s, consider using `DoFnTester`, `CombineFnTester`, and `SourceTestUtils` respectively which can exercise the code in non-trivial ways to flesh out potential bugs.
 * For transforms that work over unbounded collections, test their behavior in the presence of late or out-of-order data using `TestStream`.
 * Tests must pass 100% of the time, including in hostile, CPU- or network-constrained environments (continuous integration servers). Never put timing-dependent code (e.g. sleeps) into tests. Experience shows that no reasonable amount of sleeping is enough - code can be suspended for more than several seconds.
@@ -201,10 +201,10 @@ Do not:
 
 Do:
 
-* Generally, follow the rules of [semantic versioning](http://semver.org/).
+* Generally, follow the rules of [semantic versioning](https://semver.org/).
 * If the API of the transform is not yet stable, annotate it as `@Experimental` (Java) or `@experimental` ([Python](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.utils.annotations.html)).
 * If the API deprecated, annotate it as `@Deprecated` (Java) or `@deprecated` ([Python](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.utils.annotations.html)).
-* Pay attention to the stability and versioning of third-party classes exposed by the transform's API: if they are unstable or improperly versioned (do not obey [semantic versioning](http://semver.org/)), it is better to wrap them in your own classes.
+* Pay attention to the stability and versioning of third-party classes exposed by the transform's API: if they are unstable or improperly versioned (do not obey [semantic versioning](https://semver.org/)), it is better to wrap them in your own classes.
 
 Do not:
 
