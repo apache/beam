@@ -34,7 +34,7 @@ batch/streaming model:
 
 The main functionality of Beam SQL is the `SELECT` statement. This is how you
 query and join data. The operations supported are a subset of
-[Apache Calcite SQL](http://calcite.apache.org/docs/reference.html#grammar).
+[Apache Calcite SQL](https://calcite.apache.org/docs/reference.html#grammar).
 
 ## SQL Syntax
 
@@ -713,4 +713,4 @@ Table subqueries do not have implicit aliases.
 > created and
 > [shared by Google](https://developers.google.com/terms/site-policies)
 > and used according to terms described in the [Creative Commons 3.0
-> Attribution License](http://creativecommons.org/licenses/by/3.0/).
+> Attribution License](https://creativecommons.org/licenses/by/3.0/).

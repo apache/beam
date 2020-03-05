@@ -75,7 +75,7 @@ sure it is the same as ours.
 
 ## API stability
 
-Apache Beam uses [semantic versioning](http://semver.org/). Version numbers use
+Apache Beam uses [semantic versioning](https://semver.org/). Version numbers use
 the form `major.minor.incremental` and are incremented as follows:
 
 * major version for incompatible API changes

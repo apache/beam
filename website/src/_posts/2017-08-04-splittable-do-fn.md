@@ -155,7 +155,7 @@ the Source API, and ended up, surprisingly, addressing the limitations of
 
 ## Enter Splittable DoFn
 
-[Splittable DoFn](http://s.apache.org/splittable-do-fn) (SDF) is a
+[Splittable DoFn](https://s.apache.org/splittable-do-fn) (SDF) is a
 generalization of `DoFn` that gives it the core capabilities of `Source` while
 retaining `DoFn`'s syntax, flexibility, modularity, and ease of coding.  As a
 result, it becomes possible to develop more powerful IO connectors than before,
@@ -288,7 +288,7 @@ an element/restriction pair.
 An overwhelming majority of `DoFn`s found in user pipelines do not need to be
 made splittable: SDF is an advanced, powerful API, primarily targeting authors
 of new IO connectors *(though it has interesting non-IO applications as well:
-see [Non-IO examples](http://s.apache.org/splittable-do-fn#heading=h.5cep9s8k4fxv))*.
+see [Non-IO examples](https://s.apache.org/splittable-do-fn#heading=h.5cep9s8k4fxv))*.
 
 ### Execution of a restriction and data consistency
 
@@ -319,7 +319,7 @@ data block, otherwise, it terminates.
     width="400">
 
 For more details, see [Restrictions, blocks and
-positions](http://s.apache.org/splittable-do-fn#heading=h.vjs7pzbb7kw) in the
+positions](https://s.apache.org/splittable-do-fn#heading=h.vjs7pzbb7kw) in the
 design proposal document.
 
 ### Code example
@@ -328,7 +328,7 @@ Let us look at some examples of SDF code. The examples use the Beam Java SDK,
 which [represents splittable
 `DoFn`s](https://github.com/apache/beam/blob/f7e8f886c91ea9d0b51e00331eeb4484e2f6e000/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/DoFn.java#L527)
 as part of the flexible [annotation-based
-`DoFn`](http://s.apache.org/a-new-dofn) machinery, and the [proposed SDF syntax
+`DoFn`](https://s.apache.org/a-new-dofn) machinery, and the [proposed SDF syntax
 for Python](https://s.apache.org/splittable-do-fn-python).
 
 * A splittable `DoFn` is a `DoFn` - no new base class needed. Any SDF derives
@@ -491,8 +491,8 @@ cases.
 
 To enable more flexible use cases for IOs currently based on the Source API, we
 will change them to use SDF. This transition is [pioneered by
-TextIO](http://s.apache.org/textio-sdf) and involves temporarily [executing SDF
-via the Source API](http://s.apache.org/sdf-via-source) to support runners
+TextIO](https://s.apache.org/textio-sdf) and involves temporarily [executing SDF
+via the Source API](https://s.apache.org/sdf-via-source) to support runners
 lacking the ability to run SDF directly.
 
 In addition to enabling new IOs, work on SDF has influenced our thinking about
@@ -503,9 +503,9 @@ not batch/streaming agnostic (the `Source` API). This led us to consider use
 cases that cannot be described as purely batch or streaming (for example,
 ingesting a large amount of historical data and carrying on with more data
 arriving in real time) and to develop a [unified notion of "progress" and
-"backlog"](http://s.apache.org/beam-fn-api-progress-reporting).
+"backlog"](https://s.apache.org/beam-fn-api-progress-reporting).
 
-* The [Fn API](http://s.apache.org/beam-fn-api) - the foundation of Beam's
+* The [Fn API](https://s.apache.org/beam-fn-api) - the foundation of Beam's
 future support for cross-language pipelines - uses SDF as *the only* concept
 representing data ingestion.
 
