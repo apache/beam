@@ -39,13 +39,13 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.spark.api.java.function.FlatMapFunction;
+import org.apache.spark.api.java.function.FlatMapGroupsFunction;
 import org.joda.time.Instant;
 
 /** A FlatMap function that groups by windows in batch mode using {@link ReduceFnRunner}. */
 public class GroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends BoundedWindow>
-    implements FlatMapFunction<
-        KV<K, Iterable<WindowedValue<InputT>>>, WindowedValue<KV<K, Iterable<InputT>>>> {
+    implements FlatMapGroupsFunction<
+        K, WindowedValue<KV<K, InputT>>, WindowedValue<KV<K, Iterable<InputT>>>> {
 
   private final WindowingStrategy<?, W> windowingStrategy;
   private final StateInternalsFactory<K> stateInternalsFactory;
@@ -65,9 +65,17 @@ public class GroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends BoundedWind
 
   @Override
   public Iterator<WindowedValue<KV<K, Iterable<InputT>>>> call(
-      KV<K, Iterable<WindowedValue<InputT>>> kv) throws Exception {
-    K key = kv.getKey();
-    Iterable<WindowedValue<InputT>> values = kv.getValue();
+      K key, Iterator<WindowedValue<KV<K, InputT>>> iterator) throws Exception {
+
+    // we have to materialize the Iterator because ReduceFnRunner.processElements expects
+    // to have all elements to merge the windows between each other.
+    // possible OOM even though the spark framework spills to disk if a given group is too large to
+    // fit in memory.
+    ArrayList<WindowedValue<InputT>> values = new ArrayList<>();
+    while (iterator.hasNext()) {
+      WindowedValue<KV<K, InputT>> wv = iterator.next();
+      values.add(wv.withValue(wv.getValue().getValue()));
+    }
 
     // ------ based on GroupAlsoByWindowsViaOutputBufferDoFn ------//
 
