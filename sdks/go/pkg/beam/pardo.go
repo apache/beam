@@ -37,8 +37,11 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 		return nil, addParDoCtx(err, s)
 	}
 
-	isKv := typex.IsKV(col.Type())
-	fn, err := graph.NewDoFnKv(dofn, isKv)
+	num := graph.MainSingle
+	if typex.IsKV(col.Type()) {
+		num = graph.MainKv
+	}
+	fn, err := graph.NewDoFn(dofn, graph.NumMainInputs(num))
 	if err != nil {
 		return nil, addParDoCtx(err, s)
 	}

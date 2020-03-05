@@ -27,21 +27,21 @@ func TestNewDoFn(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		tests := []struct {
 			dfn  interface{}
-			isKv bool
+			main int // Number of main inputs.
 		}{
-			{dfn: func(string) int { return 0 }, isKv: false},
-			{dfn: func(string, int) int { return 0 }, isKv: true},
+			{dfn: func(string) int { return 0 }, main: MainSingle},
+			{dfn: func(string, int) int { return 0 }, main: MainKv},
 			{dfn: func(context.Context, typex.Window, typex.EventTime, reflect.Type, string, int, func(*int) bool, func() func(*int) bool, func(int)) (typex.EventTime, int, error) {
 				return 0, 0, nil
-			}, isKv: true},
-			{dfn: &GoodDoFn{}, isKv: false},
-			{dfn: &GoodDoFnOmittedMethods{}, isKv: false},
-			{dfn: &GoodDoFnEmits{}, isKv: false},
-			{dfn: &GoodDoFnSideInputs{}, isKv: false},
-			{dfn: &GoodDoFnKvSideInputs{}, isKv: true},
-			{dfn: &GoodDoFnKvNoSideInputs{}, isKv: true},
-			{dfn: &GoodDoFnAllExtras{}, isKv: true},
-			{dfn: &GoodDoFnUnexportedExtraMethod{}, isKv: false},
+			}, main: MainKv},
+			{dfn: &GoodDoFn{}, main: MainSingle},
+			{dfn: &GoodDoFnOmittedMethods{}, main: MainSingle},
+			{dfn: &GoodDoFnEmits{}, main: MainSingle},
+			{dfn: &GoodDoFnSideInputs{}, main: MainSingle},
+			{dfn: &GoodDoFnKvSideInputs{}, main: MainKv},
+			{dfn: &GoodDoFnKvNoSideInputs{}, main: MainKv},
+			{dfn: &GoodDoFnAllExtras{}, main: MainKv},
+			{dfn: &GoodDoFnUnexportedExtraMethod{}, main: MainSingle},
 		}
 
 		for _, test := range tests {
@@ -50,8 +50,8 @@ func TestNewDoFn(t *testing.T) {
 				if _, err := NewDoFn(test.dfn); err != nil {
 					t.Fatalf("NewDoFn failed: %v", err)
 				}
-				if _, err := NewDoFnKv(test.dfn, test.isKv); err != nil {
-					t.Fatalf("NewDoFnKv(%v) failed: %v", test.isKv, err)
+				if _, err := NewDoFn(test.dfn, NumMainInputs(test.main)); err != nil {
+					t.Fatalf("NewDoFn(NumMainInputs(%v)) failed: %v", test.main, err)
 				}
 			})
 		}
@@ -94,15 +94,15 @@ func TestNewDoFn(t *testing.T) {
 				// If validation fails with unknown main inputs, then it should
 				// always fail for any known number of main inputs, so test them
 				// all. Error messages won't necessarily match.
-				if cfn, err := NewDoFnKv(test.dfn, false); err != nil {
-					t.Logf("NewDoFnKv failed as expected:\n%v", err)
+				if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainSingle)); err != nil {
+					t.Logf("NewDoFn failed as expected:\n%v", err)
 				} else {
-					t.Errorf("NewDoFnKv(%v, false) = %v, want failure", cfn.Name(), cfn)
+					t.Errorf("NewDoFn(%v, NumMainInputs(MainSingle)) = %v, want failure", cfn.Name(), cfn)
 				}
-				if cfn, err := NewDoFnKv(test.dfn, true); err != nil {
-					t.Logf("NewDoFnKv failed as expected:\n%v", err)
+				if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainKv)); err != nil {
+					t.Logf("NewDoFn failed as expected:\n%v", err)
 				} else {
-					t.Errorf("NewDoFnKv(%v, true) = %v, want failure", cfn.Name(), cfn)
+					t.Errorf("NewDoFn(%v, NumMainInputs(MainKv)) = %v, want failure", cfn.Name(), cfn)
 				}
 			})
 		}
@@ -112,14 +112,14 @@ func TestNewDoFn(t *testing.T) {
 	t.Run("invalidWithKnownKvs", func(t *testing.T) {
 		tests := []struct {
 			dfn  interface{}
-			isKv bool
+			main int // Number of main inputs.
 		}{
-			{dfn: func(int) int { return 0 }, isKv: true}, // Not enough inputs.
+			{dfn: func(int) int { return 0 }, main: MainKv}, // Not enough inputs.
 			{dfn: func(int, func(*int) bool, int) int { // Side input before all main inputs.
 				return 0
-			}, isKv: true},
-			{dfn: &BadDoFnAmbiguousMainInput{}, isKv: true},
-			{dfn: &BadDoFnAmbiguousSideInput{}, isKv: false},
+			}, main: MainKv},
+			{dfn: &BadDoFnAmbiguousMainInput{}, main: MainKv},
+			{dfn: &BadDoFnAmbiguousSideInput{}, main: MainSingle},
 		}
 		for _, test := range tests {
 			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
@@ -129,10 +129,10 @@ func TestNewDoFn(t *testing.T) {
 				if _, err := NewDoFn(test.dfn); err != nil {
 					t.Fatalf("NewDoFn failed: %v", err)
 				}
-				if cfn, err := NewDoFnKv(test.dfn, test.isKv); err != nil {
-					t.Logf("NewDoFnKv failed as expected:\n%v", err)
+				if cfn, err := NewDoFn(test.dfn, NumMainInputs(test.main)); err != nil {
+					t.Logf("NewDoFn failed as expected:\n%v", err)
 				} else {
-					t.Errorf("NewDoFnKv(%v, %v) = %v, want failure", cfn.Name(), test.isKv, cfn)
+					t.Errorf("NewDoFn(%v, NumMainInputs(%v)) = %v, want failure", cfn.Name(), test.main, cfn)
 				}
 			})
 		}
