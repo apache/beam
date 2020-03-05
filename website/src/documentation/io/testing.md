@@ -394,7 +394,7 @@ Guidelines for creating a Beam data store Kubernetes script:
     *   You should prefer images in this order:
         1.  An image provided by the creator of the data source/sink (if they officially maintain it). For Apache projects, this would be the official Apache repository.
         1.  Official Docker images, because they have security fixes and guaranteed maintenance.
-        1.  Non-official Docker images, or images from other providers that have good maintainers (e.g. [quay.io](http://quay.io/)).
+        1.  Non-official Docker images, or images from other providers that have good maintainers (e.g. [quay.io](https://quay.io/)).
 
 #### Jenkins jobs {#jenkins-jobs}
 

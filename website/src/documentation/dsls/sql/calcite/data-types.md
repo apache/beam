@@ -23,7 +23,7 @@ limitations under the License.
 
 Beam SQL supports standard SQL scalar data types as well as extensions
 including arrays, maps, and nested rows. This page documents supported
-[Apache Calcite data types](http://calcite.apache.org/docs/reference.html#data-types) supported by Beam Calcite SQL.
+[Apache Calcite data types](https://calcite.apache.org/docs/reference.html#data-types) supported by Beam Calcite SQL.
 
 In Java, these types are mapped to Java types large enough to hold the
 full range of values.

@@ -1046,4 +1046,4 @@ nested comment that renders the query invalid.
 > Portions of this page are modifications based on work created and
 > [shared by Google](https://developers.google.com/terms/site-policies)
 > and used according to terms described in the [Creative Commons 3.0
-> Attribution License](http://creativecommons.org/licenses/by/3.0/).
+> Attribution License](https://creativecommons.org/licenses/by/3.0/).

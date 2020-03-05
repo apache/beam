@@ -152,7 +152,7 @@ __NOTE__: When generating the key, please make sure you choose the key type as _
 
 #### Access to Apache Nexus repository
 
-Configure access to the [Apache Nexus repository](http://repository.apache.org/), which enables final deployment of releases to the Maven Central Repository.
+Configure access to the [Apache Nexus repository](https://repository.apache.org/), which enables final deployment of releases to the Maven Central Repository.
 
 1. You log in with your Apache account.
 1. Confirm you have appropriate access by finding `org.apache.beam` under `Staging Profiles`.
@@ -182,7 +182,7 @@ In order to make yourself have right permission to stage java artifacts in Apach
 please submit your GPG public key into [MIT PGP Public Key Server](http://pgp.mit.edu:11371/).
 
 If MIT doesn't work for you (it probably won't, it's slow, returns 502 a lot, Nexus might error out not being able to find the keys),
-use a keyserver at `ubuntu.com` instead: http://keyserver.ubuntu.com/.
+use a keyserver at `ubuntu.com` instead: https://keyserver.ubuntu.com/.
 
 #### Website development setup
 
