@@ -239,15 +239,15 @@ limitations under the License.
 -->
 <h1 id="using-the-apache-spark-runner">Using the Apache Spark Runner</h1>
 
-<p>The Apache Spark Runner can be used to execute Beam pipelines using <a href="http://spark.apache.org/">Apache Spark</a>.
+<p>The Apache Spark Runner can be used to execute Beam pipelines using <a href="https://spark.apache.org/">Apache Spark</a>.
 The Spark Runner can execute Spark pipelines just like a native Spark application; deploying a self-contained application for local mode, running on Spark’s Standalone RM, or using YARN or Mesos.</p>
 
 <p>The Spark Runner executes Beam pipelines on top of Apache Spark, providing:</p>
 
 <ul>
   <li>Batch and streaming (and combined) pipelines.</li>
-  <li>The same fault-tolerance <a href="http://spark.apache.org/docs/latest/streaming-programming-guide.html#fault-tolerance-semantics">guarantees</a> as provided by RDDs and DStreams.</li>
-  <li>The same <a href="http://spark.apache.org/docs/latest/security.html">security</a> features Spark provides.</li>
+  <li>The same fault-tolerance <a href="https://spark.apache.org/docs/latest/streaming-programming-guide.html#fault-tolerance-semantics">guarantees</a> as provided by RDDs and DStreams.</li>
+  <li>The same <a href="https://spark.apache.org/docs/latest/security.html">security</a> features Spark provides.</li>
   <li>Built-in metrics reporting using Spark’s metrics system, which reports Beam Aggregators as well.</li>
   <li>Native support for Beam side-inputs via spark’s Broadcast variables.</li>
 </ul>
@@ -431,7 +431,7 @@ provided with the Spark master address.
 <h3 id="running-on-a-pre-deployed-spark-cluster">Running on a pre-deployed Spark cluster</h3>
 
 <p>Deploying your Beam pipeline on a cluster that already has a Spark deployment (Spark classes are available in container classpath) does not require any additional dependencies.
-For more details on the different deployment modes see: <a href="http://spark.apache.org/docs/latest/spark-standalone.html">Standalone</a>, <a href="http://spark.apache.org/docs/latest/running-on-yarn.html">YARN</a>, or <a href="http://spark.apache.org/docs/latest/running-on-mesos.html">Mesos</a>.</p>
+For more details on the different deployment modes see: <a href="https://spark.apache.org/docs/latest/spark-standalone.html">Standalone</a>, <a href="https://spark.apache.org/docs/latest/running-on-yarn.html">YARN</a>, or <a href="http://spark.apache.org/docs/latest/running-on-mesos.html">Mesos</a>.</p>
 
 <p><span class="language-py">1. Start a Spark cluster which exposes the master on port 7077 by default.</span></p>
 
@@ -563,15 +563,15 @@ See <a href="/documentation/runtime/sdk-harness-config/">here</a> for details.
 <p>When submitting a Spark application to cluster, it is common (and recommended) to use the <code>spark-submit</code> script that is provided with the spark installation.
 The <code>PipelineOptions</code> described above are not to replace <code>spark-submit</code>, but to complement it.
 Passing any of the above mentioned options could be done as one of the <code>application-arguments</code>, and setting <code>--master</code> takes precedence.
-For more on how to generally use <code>spark-submit</code> checkout Spark <a href="http://spark.apache.org/docs/latest/submitting-applications.html#launching-applications-with-spark-submit">documentation</a>.</p>
+For more on how to generally use <code>spark-submit</code> checkout Spark <a href="https://spark.apache.org/docs/latest/submitting-applications.html#launching-applications-with-spark-submit">documentation</a>.</p>
 
 <h3 id="monitoring-your-job">Monitoring your job</h3>
 
-<p>You can monitor a running Spark job using the Spark <a href="http://spark.apache.org/docs/latest/monitoring.html#web-interfaces">Web Interfaces</a>. By default, this is available at port <code class="highlighter-rouge">4040</code> on the driver node. If you run Spark on your local machine that would be <code class="highlighter-rouge">http://localhost:4040</code>.
-Spark also has a history server to <a href="http://spark.apache.org/docs/latest/monitoring.html#viewing-after-the-fact">view after the fact</a>.
+<p>You can monitor a running Spark job using the Spark <a href="https://spark.apache.org/docs/latest/monitoring.html#web-interfaces">Web Interfaces</a>. By default, this is available at port <code class="highlighter-rouge">4040</code> on the driver node. If you run Spark on your local machine that would be <code class="highlighter-rouge">http://localhost:4040</code>.
+Spark also has a history server to <a href="https://spark.apache.org/docs/latest/monitoring.html#viewing-after-the-fact">view after the fact</a>.
 <span class="language-java">
-Metrics are also available via <a href="http://spark.apache.org/docs/latest/monitoring.html#rest-api">REST API</a>.
-Spark provides a <a href="http://spark.apache.org/docs/latest/monitoring.html#metrics">metrics system</a> that allows reporting Spark metrics to a variety of Sinks. The Spark runner reports user-defined Beam Aggregators using this same metrics system and currently supports <code>GraphiteSink</code> and <code>CSVSink</code>, and providing support for additional Sinks supported by Spark is easy and straight-forward.
+Metrics are also available via <a href="https://spark.apache.org/docs/latest/monitoring.html#rest-api">REST API</a>.
+Spark provides a <a href="https://spark.apache.org/docs/latest/monitoring.html#metrics">metrics system</a> that allows reporting Spark metrics to a variety of Sinks. The Spark runner reports user-defined Beam Aggregators using this same metrics system and currently supports <code>GraphiteSink</code> and <code>CSVSink</code>, and providing support for additional Sinks supported by Spark is easy and straight-forward.
 </span>
 <span class="language-py">Spark metrics are not yet supported on the portable runner.</span></p>
 

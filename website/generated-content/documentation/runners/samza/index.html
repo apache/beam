@@ -231,7 +231,7 @@ limitations under the License.
 
 <h1 id="using-the-apache-samza-runner">Using the Apache Samza Runner</h1>
 
-<p>The Apache Samza Runner can be used to execute Beam pipelines using <a href="http://samza.apache.org/">Apache Samza</a>. The Samza Runner executes Beam pipeline in a Samza application and can run locally. The application can further be built into a .tgz file, and deployed to a YARN cluster or Samza standalone cluster with Zookeeper.</p>
+<p>The Apache Samza Runner can be used to execute Beam pipelines using <a href="https://samza.apache.org/">Apache Samza</a>. The Samza Runner executes Beam pipeline in a Samza application and can run locally. The application can further be built into a .tgz file, and deployed to a YARN cluster or Samza standalone cluster with Zookeeper.</p>
 
 <p>The Samza Runner and Samza are suitable for large scale, stateful streaming jobs, and provide:</p>
 
@@ -369,7 +369,7 @@ job.default.system=${job_default_system}
 
 <h2 id="monitoring-your-job">Monitoring your job</h2>
 
-<p>You can monitor your pipeline job using metrics emitted from both Beam and Samza, e.g. Beam source metrics such as <code class="highlighter-rouge">elements_read</code> and <code class="highlighter-rouge">backlog_elements</code>, and Samza job metrics such as <code class="highlighter-rouge">job-healthy</code> and <code class="highlighter-rouge">process-envelopes</code>. A complete list of Samza metrics is in <a href="https://samza.apache.org/learn/documentation/latest/container/metrics-table.html">Samza Metrics Reference</a>. You can view your job’s metrics via JMX in development, and send the metrics to graphing system such as <a href="http://graphiteapp.org/">Graphite</a>. For more details, please see <a href="https://samza.apache.org/learn/documentation/latest/container/metrics.html">Samza Metrics</a>.</p>
+<p>You can monitor your pipeline job using metrics emitted from both Beam and Samza, e.g. Beam source metrics such as <code class="highlighter-rouge">elements_read</code> and <code class="highlighter-rouge">backlog_elements</code>, and Samza job metrics such as <code class="highlighter-rouge">job-healthy</code> and <code class="highlighter-rouge">process-envelopes</code>. A complete list of Samza metrics is in <a href="https://samza.apache.org/learn/documentation/latest/container/metrics-table.html">Samza Metrics Reference</a>. You can view your job’s metrics via JMX in development, and send the metrics to graphing system such as <a href="https://graphiteapp.org/">Graphite</a>. For more details, please see <a href="https://samza.apache.org/learn/documentation/latest/container/metrics.html">Samza Metrics</a>.</p>
 
 <p>For a running Samza YARN job, you can use YARN web UI to monitor the job status and check logs.</p>
 

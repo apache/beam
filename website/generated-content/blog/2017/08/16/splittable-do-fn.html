@@ -334,7 +334,7 @@ the Source API, and ended up, surprisingly, addressing the limitations of
 
 <h2 id="enter-splittable-dofn">Enter Splittable DoFn</h2>
 
-<p><a href="http://s.apache.org/splittable-do-fn">Splittable DoFn</a> (SDF) is a
+<p><a href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a> (SDF) is a
 generalization of <code class="highlighter-rouge">DoFn</code> that gives it the core capabilities of <code class="highlighter-rouge">Source</code> while
 retaining <code class="highlighter-rouge">DoFn</code>’s syntax, flexibility, modularity, and ease of coding.  As a
 result, it becomes possible to develop more powerful IO connectors than before,
@@ -472,7 +472,7 @@ an element/restriction pair.</p>
 <p>An overwhelming majority of <code class="highlighter-rouge">DoFn</code>s found in user pipelines do not need to be
 made splittable: SDF is an advanced, powerful API, primarily targeting authors
 of new IO connectors <em>(though it has interesting non-IO applications as well:
-see <a href="http://s.apache.org/splittable-do-fn#heading=h.5cep9s8k4fxv">Non-IO examples</a>)</em>.</p>
+see <a href="https://s.apache.org/splittable-do-fn#heading=h.5cep9s8k4fxv">Non-IO examples</a>)</em>.</p>
 
 <h3 id="execution-of-a-restriction-and-data-consistency">Execution of a restriction and data consistency</h3>
 
@@ -499,7 +499,7 @@ data block, otherwise, it terminates.</p>
 
 <p><img class="center-block" src="/images/blog/splittable-do-fn/blocks.png" alt="Processing a restriction by claiming blocks inside it" width="400" /></p>
 
-<p>For more details, see <a href="http://s.apache.org/splittable-do-fn#heading=h.vjs7pzbb7kw">Restrictions, blocks and
+<p>For more details, see <a href="https://s.apache.org/splittable-do-fn#heading=h.vjs7pzbb7kw">Restrictions, blocks and
 positions</a> in the
 design proposal document.</p>
 
@@ -508,7 +508,7 @@ design proposal document.</p>
 <p>Let us look at some examples of SDF code. The examples use the Beam Java SDK,
 which <a href="https://github.com/apache/beam/blob/f7e8f886c91ea9d0b51e00331eeb4484e2f6e000/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/DoFn.java#L527">represents splittable
 <code class="highlighter-rouge">DoFn</code>s</a>
-as part of the flexible <a href="http://s.apache.org/a-new-dofn">annotation-based
+as part of the flexible <a href="https://s.apache.org/a-new-dofn">annotation-based
 <code class="highlighter-rouge">DoFn</code></a> machinery, and the <a href="https://s.apache.org/splittable-do-fn-python">proposed SDF syntax
 for Python</a>.</p>
 
@@ -673,8 +673,8 @@ These utility transforms are also independently useful for “power user” use
 cases.</p>
 
 <p>To enable more flexible use cases for IOs currently based on the Source API, we
-will change them to use SDF. This transition is <a href="http://s.apache.org/textio-sdf">pioneered by
-TextIO</a> and involves temporarily <a href="http://s.apache.org/sdf-via-source">executing SDF
+will change them to use SDF. This transition is <a href="https://s.apache.org/textio-sdf">pioneered by
+TextIO</a> and involves temporarily <a href="https://s.apache.org/sdf-via-source">executing SDF
 via the Source API</a> to support runners
 lacking the ability to run SDF directly.</p>
 
@@ -687,11 +687,11 @@ other parts of the Beam programming model:</p>
 not batch/streaming agnostic (the <code class="highlighter-rouge">Source</code> API). This led us to consider use
 cases that cannot be described as purely batch or streaming (for example,
 ingesting a large amount of historical data and carrying on with more data
-arriving in real time) and to develop a <a href="http://s.apache.org/beam-fn-api-progress-reporting">unified notion of “progress” and
+arriving in real time) and to develop a <a href="https://s.apache.org/beam-fn-api-progress-reporting">unified notion of “progress” and
 “backlog”</a>.</p>
   </li>
   <li>
-    <p>The <a href="http://s.apache.org/beam-fn-api">Fn API</a> - the foundation of Beam’s
+    <p>The <a href="https://s.apache.org/beam-fn-api">Fn API</a> - the foundation of Beam’s
 future support for cross-language pipelines - uses SDF as <em>the only</em> concept
 representing data ingestion.</p>
   </li>
