@@ -29,8 +29,8 @@ import base64
 import datetime
 import logging
 from datetime import timedelta
-from dateutil import tz
 
+from dateutil import tz
 from pandas.io.json import json_normalize
 
 from apache_beam import pvalue
