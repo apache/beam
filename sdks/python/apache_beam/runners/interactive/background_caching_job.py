@@ -260,7 +260,6 @@ def is_source_to_cache_changed(
   # change by default.
   if is_changed and update_cached_source_signature:
     if ie.current_env().options.enable_capture_replay:
-      # TODO(BEAM-8335): display rather than logging when is_in_notebook.
       if not recorded_signature:
         _LOGGER.info(
             'Interactive Beam has detected you have unbounded sources '
