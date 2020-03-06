@@ -25,7 +25,11 @@ import (
 	"github.com/golang/protobuf/ptypes"
 )
 
-func monitoring(p *exec.Plan, store *metrics.Store) (*fnpb.Metrics, []*ppb.MonitoringInfo) {
+func monitoring(p *exec.Plan) (*fnpb.Metrics, []*ppb.MonitoringInfo) {
+	store := p.Store()
+	if store == nil {
+		return nil, nil
+	}
 	// Get the legacy style metrics.
 	transforms := make(map[string]*fnpb.Metrics_PTransform)
 	metrics.Extractor{
@@ -110,44 +114,27 @@ func monitoring(p *exec.Plan, store *metrics.Store) (*fnpb.Metrics, []*ppb.Monit
 	}.ExtractFrom(store)
 
 	// Get the execution monitoring information from the bundle plan.
-	snapshot, hasSource := p.Progress()
-	if hasSource {
+	if snapshot, ok := p.Progress(); ok {
 		// Legacy version.
-		transforms[snapshot.Source.ID] = &fnpb.Metrics_PTransform{
+		transforms[snapshot.ID] = &fnpb.Metrics_PTransform{
 			ProcessedElements: &fnpb.Metrics_PTransform_ProcessedElements{
 				Measured: &fnpb.Metrics_PTransform_Measured{
 					OutputElementCounts: map[string]int64{
-						snapshot.Source.Name: snapshot.Source.Count,
+						snapshot.Name: snapshot.Count,
 					},
 				},
 			},
 		}
-	}
-
-	// Monitoring info version.
-	for _, pcol := range snapshot.PCols {
+		// Monitoring info version.
 		monitoringInfo = append(monitoringInfo,
 			&ppb.MonitoringInfo{
 				Urn:  "beam:metric:element_count:v1",
 				Type: "beam:metrics:sum_int_64",
 				Labels: map[string]string{
-					"PCOLLECTION": pcol.ID,
+					"PCOLLECTION": snapshot.PID,
 				},
-				Data: int64Counter(pcol.ElementCount),
+				Data: int64Counter(snapshot.Count),
 			})
-
-		// Skip pcollections without size
-		if pcol.SizeCount != 0 {
-			monitoringInfo = append(monitoringInfo,
-				&ppb.MonitoringInfo{
-					Urn:  "beam:metric:sampled_byte_size:v1",
-					Type: "beam:metrics:distribution_int_64",
-					Labels: map[string]string{
-						"PCOLLECTION": pcol.ID,
-					},
-					Data: int64Distribution(pcol.SizeCount, pcol.SizeSum, pcol.SizeMin, pcol.SizeMax),
-				})
-		}
 	}
 
 	return &fnpb.Metrics{

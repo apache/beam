@@ -17,7 +17,6 @@ package exec
 
 import (
 	"fmt"
-	"math/rand"
 	"strconv"
 	"strings"
 
@@ -78,16 +77,12 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 		for key, pid := range transform.GetOutputs() {
 			u.SID = StreamID{PtransformID: id, Port: port}
 			u.Name = key
+			u.outputPID = pid
 
 			u.Out, err = b.makePCollection(pid)
 			if err != nil {
 				return nil, err
 			}
-			// Elide the PCollection Node for DataSources.
-			// DataSources can get byte samples directly, and can handle CoGBKs.
-			u.PCol = *u.Out.(*PCollection)
-			u.Out = u.PCol.Out
-			b.units = b.units[:len(b.units)-1]
 		}
 
 		b.units = append(b.units, u)
@@ -103,8 +98,8 @@ type builder struct {
 	succ map[string][]linkID // PCollectionID -> []linkID
 
 	windowing map[string]*window.WindowingStrategy
-	nodes     map[string]*PCollection // PCollectionID -> Node (cache)
-	links     map[linkID]Node         // linkID -> Node (cache)
+	nodes     map[string]Node // PCollectionID -> Node (cache)
+	links     map[linkID]Node // linkID -> Node (cache)
 
 	units []Unit // result
 	idgen *GenID
@@ -146,7 +141,7 @@ func newBuilder(desc *fnpb.ProcessBundleDescriptor) (*builder, error) {
 		succ: succ,
 
 		windowing: make(map[string]*window.WindowingStrategy),
-		nodes:     make(map[string]*PCollection),
+		nodes:     make(map[string]Node),
 		links:     make(map[linkID]Node),
 
 		idgen: &GenID{},
@@ -263,7 +258,7 @@ func (b *builder) makeCoderForPCollection(id string) (*coder.Coder, *coder.Windo
 	return c, wc, nil
 }
 
-func (b *builder) makePCollection(id string) (*PCollection, error) {
+func (b *builder) makePCollection(id string) (Node, error) {
 	if n, exists := b.nodes[id]; exists {
 		return n, nil
 	}
@@ -278,11 +273,8 @@ func (b *builder) makePCollection(id string) (*PCollection, error) {
 		u = &Discard{UID: b.idgen.New()}
 
 	case 1:
-		out, err := b.makeLink(id, list[0])
-		if err != nil {
-			return nil, err
-		}
-		return b.newPCollectionNode(id, out)
+		return b.makeLink(id, list[0])
+
 	default:
 		// Multiplex.
 
@@ -299,16 +291,7 @@ func (b *builder) makePCollection(id string) (*PCollection, error) {
 		b.units = append(b.units, u)
 		u = &Flatten{UID: b.idgen.New(), N: count, Out: u}
 	}
-	b.units = append(b.units, u)
-	return b.newPCollectionNode(id, u)
-}
 
-func (b *builder) newPCollectionNode(id string, out Node) (*PCollection, error) {
-	ec, _, err := b.makeCoderForPCollection(id)
-	if err != nil {
-		return nil, err
-	}
-	u := &PCollection{UID: b.idgen.New(), Out: out, PColID: id, Coder: ec, Seed: rand.Int63()}
 	b.nodes[id] = u
 	b.units = append(b.units, u)
 	return u, nil
