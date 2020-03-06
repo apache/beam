@@ -37,6 +37,7 @@ dependencies {
 task copyDockerfileDependencies(type: Copy) {
   from configurations.sdkSourceTarball
   from file("../base_image_requirements.txt")
+  from file("../license_scripts")
   into "build/target"
   if(configurations.sdkSourceTarball.isEmpty()) {
       throw new StopExecutionException();
@@ -62,7 +63,6 @@ docker {
   files "../Dockerfile", "./build"
   buildArgs(['py_version': "3.7"])
 }
-
 
 dockerPrepare.dependsOn copyLauncherDependencies
 dockerPrepare.dependsOn copyDockerfileDependencies
