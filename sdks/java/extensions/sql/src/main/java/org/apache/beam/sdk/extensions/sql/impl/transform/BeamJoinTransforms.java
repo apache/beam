@@ -86,8 +86,8 @@ public class BeamJoinTransforms {
   /** As the method name suggests: combine two rows into one wide row. */
   private static Row combineTwoRowsIntoOneHelper(Row leftRow, Row rightRow, Schema ouputSchema) {
     return Row.withSchema(ouputSchema)
-        .addValues(leftRow.getValues())
-        .addValues(rightRow.getValues())
+        .addValues(leftRow.getBaseValues())
+        .addValues(rightRow.getBaseValues())
         .build();
   }
 
@@ -170,7 +170,9 @@ public class BeamJoinTransforms {
 
                     private Row extractJoinSubRow(Row factRow) {
                       List<Object> joinSubsetValues =
-                          factJoinIdx.stream().map(factRow::getValue).collect(toList());
+                          factJoinIdx.stream()
+                              .map(i -> factRow.getBaseValue(i, Object.class))
+                              .collect(toList());
 
                       return Row.withSchema(joinSubsetType).addValues(joinSubsetValues).build();
                     }

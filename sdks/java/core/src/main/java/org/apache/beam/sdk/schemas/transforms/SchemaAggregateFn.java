@@ -31,6 +31,7 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.FieldTypeDescriptors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.utils.RowSelector;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
@@ -42,6 +43,7 @@ import org.apache.beam.sdk.transforms.CombineFns.ComposedCombineFn;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
 /** This is the builder used by {@link Group} to build up a composed {@link CombineFn}. */
@@ -59,6 +61,7 @@ class SchemaAggregateFn {
     // Represents an aggregation of one or more fields.
     static class FieldAggregation<FieldT, AccumT, OutputT> implements Serializable {
       FieldAccessDescriptor fieldsToAggregate;
+      private final boolean aggregateBaseValues;
       // The specification of the output field.
       private final Field outputField;
       // The combine function.
@@ -76,11 +79,13 @@ class SchemaAggregateFn {
 
       FieldAggregation(
           FieldAccessDescriptor fieldsToAggregate,
+          boolean aggregateBaseValues,
           Field outputField,
           CombineFn<FieldT, AccumT, OutputT> fn,
           TupleTag<Object> combineTag) {
         this(
             fieldsToAggregate,
+            aggregateBaseValues,
             outputField,
             fn,
             combineTag,
@@ -90,13 +95,18 @@ class SchemaAggregateFn {
 
       FieldAggregation(
           FieldAccessDescriptor fieldsToAggregate,
+          boolean aggregateBaseValues,
           Field outputField,
           CombineFn<FieldT, AccumT, OutputT> fn,
           TupleTag<Object> combineTag,
           Schema aggregationSchema,
           @Nullable Schema inputSchema) {
+        this.aggregateBaseValues = aggregateBaseValues;
         if (inputSchema != null) {
           this.fieldsToAggregate = fieldsToAggregate.resolve(inputSchema);
+          if (aggregateBaseValues) {
+            Preconditions.checkArgument(fieldsToAggregate.referencesSingleField());
+          }
           this.inputSubSchema = SelectHelpers.getOutputSchema(inputSchema, this.fieldsToAggregate);
           this.flattenedFieldAccessDescriptor =
               SelectHelpers.allLeavesDescriptor(inputSubSchema, SelectHelpers.CONCAT_FIELD_NAMES);
@@ -120,7 +130,13 @@ class SchemaAggregateFn {
       // is known, resolve will be called with the proper schema.
       FieldAggregation<FieldT, AccumT, OutputT> resolve(Schema schema) {
         return new FieldAggregation<>(
-            fieldsToAggregate, outputField, fn, combineTag, aggregationSchema, schema);
+            fieldsToAggregate,
+            aggregateBaseValues,
+            outputField,
+            fn,
+            combineTag,
+            aggregationSchema,
+            schema);
       }
     }
 
@@ -160,10 +176,17 @@ class SchemaAggregateFn {
         SimpleFunction<Row, ?> extractFunction;
         Coder extractOutputCoder;
         if (fieldAggregation.fieldsToAggregate.referencesSingleField()) {
-          extractFunction = new ExtractSingleFieldFunction(inputSchema, fieldAggregation);
-          extractOutputCoder =
-              SchemaCoder.coderForFieldType(
-                  fieldAggregation.flattenedInputSubSchema.getField(0).getType());
+          extractFunction =
+              new ExtractSingleFieldFunction(
+                  inputSchema, fieldAggregation.aggregateBaseValues, fieldAggregation);
+
+          FieldType fieldType = fieldAggregation.flattenedInputSubSchema.getField(0).getType();
+          if (fieldAggregation.aggregateBaseValues) {
+            while (fieldType.getTypeName().isLogicalType()) {
+              fieldType = fieldType.getLogicalType().getBaseType();
+            }
+          }
+          extractOutputCoder = SchemaCoder.coderForFieldType(fieldType);
         } else {
           extractFunction = new ExtractFieldsFunction(inputSchema, fieldAggregation);
           extractOutputCoder = SchemaCoder.of(fieldAggregation.inputSubSchema);
@@ -196,10 +219,12 @@ class SchemaAggregateFn {
     /** Aggregate all values of a set of fields into an output field. */
     <CombineInputT, AccumT, CombineOutputT> Inner aggregateFields(
         FieldAccessDescriptor fieldsToAggregate,
+        boolean aggregateBaseValues,
         CombineFn<CombineInputT, AccumT, CombineOutputT> fn,
         String outputFieldName) {
       return aggregateFields(
           fieldsToAggregate,
+          aggregateBaseValues,
           fn,
           Field.of(outputFieldName, FieldTypeDescriptors.fieldTypeForJavaType(fn.getOutputType())));
     }
@@ -207,12 +232,14 @@ class SchemaAggregateFn {
     /** Aggregate all values of a set of fields into an output field. */
     <CombineInputT, AccumT, CombineOutputT> Inner aggregateFields(
         FieldAccessDescriptor fieldsToAggregate,
+        boolean aggregateBaseValues,
         CombineFn<CombineInputT, AccumT, CombineOutputT> fn,
         Field outputField) {
       List<FieldAggregation> fieldAggregations = getFieldAggregations();
       TupleTag<Object> combineTag = new TupleTag<>(Integer.toString(fieldAggregations.size()));
       FieldAggregation fieldAggregation =
-          new FieldAggregation<>(fieldsToAggregate, outputField, fn, combineTag);
+          new FieldAggregation<>(
+              fieldsToAggregate, aggregateBaseValues, outputField, fn, combineTag);
       fieldAggregations.add(fieldAggregation);
 
       return toBuilder()
@@ -232,12 +259,15 @@ class SchemaAggregateFn {
     /** Extract a single field from an input {@link Row}. */
     private static class ExtractSingleFieldFunction<OutputT> extends SimpleFunction<Row, OutputT> {
       private final RowSelector rowSelector;
+      private final boolean extractBaseValue;
       @Nullable private final RowSelector flatteningSelector;
       private final FieldAggregation fieldAggregation;
 
-      private ExtractSingleFieldFunction(Schema inputSchema, FieldAggregation fieldAggregation) {
+      private ExtractSingleFieldFunction(
+          Schema inputSchema, boolean extractBaseValue, FieldAggregation fieldAggregation) {
         rowSelector =
             new RowSelectorContainer(inputSchema, fieldAggregation.fieldsToAggregate, true);
+        this.extractBaseValue = extractBaseValue;
         flatteningSelector =
             fieldAggregation.needsFlattening
                 ? new RowSelectorContainer(
@@ -253,6 +283,10 @@ class SchemaAggregateFn {
         Row selected = rowSelector.select(row);
         if (fieldAggregation.needsFlattening) {
           selected = flatteningSelector.select(selected);
+        }
+        if (extractBaseValue
+            && selected.getSchema().getField(0).getType().getTypeName().isLogicalType()) {
+          return (OutputT) selected.getBaseValue(0, Object.class);
         }
         return selected.getValue(0);
       }

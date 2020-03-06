@@ -130,10 +130,11 @@ public class RowWithGetters extends Row {
         OneOfType oneOfType = type.getLogicalType(OneOfType.class);
         OneOfType.Value oneOfValue = (OneOfType.Value) fieldValue;
         Object convertedOneOfField =
-            getValue(oneOfValue.getFieldType(), oneOfValue.getValue(), null);
-        return (T)
-            oneOfType.toBaseType(
-                oneOfType.createValue(oneOfValue.getCaseType(), convertedOneOfField));
+            getValue(oneOfType.getFieldType(oneOfValue), oneOfValue.getValue(), null);
+        return (T) oneOfType.createValue(oneOfValue.getCaseType(), convertedOneOfField);
+      } else if (type.getTypeName().isLogicalType()) {
+        // Getters are assumed to return the base type.
+        return (T) type.getLogicalType().toInputType(fieldValue);
       }
       return (T) fieldValue;
     }

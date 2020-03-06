@@ -345,8 +345,8 @@ public class BeamSortRel extends Sort implements BeamRelNode {
             case VARCHAR:
             case DATE:
             case TIMESTAMP:
-              Comparable v1 = (Comparable) row1.getValue(fieldIndex);
-              Comparable v2 = (Comparable) row2.getValue(fieldIndex);
+              Comparable v1 = row1.getBaseValue(fieldIndex, Comparable.class);
+              Comparable v2 = row2.getBaseValue(fieldIndex, Comparable.class);
               fieldRet = v1.compareTo(v2);
               break;
             default:
