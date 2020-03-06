@@ -203,6 +203,7 @@ if [[ -z $PIPELINE_OPTS ]]; then
   # See: https://github.com/hamcrest/PyHamcrest/issues/131.
   echo "pyhamcrest!=1.10.0,<2.0.0" > postcommit_requirements.txt
   echo "mock<3.0.0" >> postcommit_requirements.txt
+  echo "parameterized>=0.7.1,<0.8.0" >> postcommit_requirements.txt
 
   # Options used to run testing pipeline on Cloud Dataflow Service. Also used for
   # running on DirectRunner (some options ignored).
