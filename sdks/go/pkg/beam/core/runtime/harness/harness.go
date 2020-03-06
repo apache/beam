@@ -23,7 +23,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -83,12 +82,11 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	}()
 
 	ctrl := &control{
-		plans:    make(map[bundleDescriptorID]*exec.Plan),
-		active:   make(map[instructionID]*exec.Plan),
-		metStore: make(map[instructionID]*metrics.Store),
-		failed:   make(map[instructionID]error),
-		data:     &DataChannelManager{},
-		state:    &StateChannelManager{},
+		plans:  make(map[bundleDescriptorID]*exec.Plan),
+		active: make(map[instructionID]*exec.Plan),
+		failed: make(map[instructionID]error),
+		data:   &DataChannelManager{},
+		state:  &StateChannelManager{},
 	}
 
 	// gRPC requires all readers of a stream be the same goroutine, so this goroutine
@@ -144,8 +142,6 @@ type control struct {
 	// plans that are actively being executed.
 	// a plan can only be in one of these maps at any time.
 	active map[instructionID]*exec.Plan // protected by mu
-	// metric stores for active plans.
-	metStore map[instructionID]*metrics.Store // protected by mu
 	// plans that have failed during execution
 	failed map[instructionID]error // protected by mu
 	mu     sync.Mutex
@@ -196,10 +192,6 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		// since a plan can't be run concurrently.
 		c.active[instID] = plan
 		delete(c.plans, bdID)
-		// Get the user metrics store for this bundle.
-		ctx = metrics.SetBundleID(ctx, string(instID))
-		store := metrics.GetStore(ctx)
-		c.metStore[instID] = store
 		c.mu.Unlock()
 
 		if !ok {
@@ -212,7 +204,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		data.Close()
 		state.Close()
 
-		mets, mons := monitoring(plan, store)
+		mets, mons := monitoring(plan)
 		// Move the plan back to the candidate state
 		c.mu.Lock()
 		// Mark the instruction as failed.
@@ -221,7 +213,6 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		}
 		c.plans[bdID] = plan
 		delete(c.active, instID)
-		delete(c.metStore, instID)
 		c.mu.Unlock()
 
 		if err != nil {
@@ -245,7 +236,6 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		ref := instructionID(msg.GetInstructionId())
 		c.mu.Lock()
 		plan, ok := c.active[ref]
-		store, _ := c.metStore[ref]
 		err := c.failed[ref]
 		c.mu.Unlock()
 		if err != nil {
@@ -255,7 +245,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			return fail(ctx, instID, "failed to return progress: instruction %v not active", ref)
 		}
 
-		mets, mons := monitoring(plan, store)
+		mets, mons := monitoring(plan)
 
 		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
