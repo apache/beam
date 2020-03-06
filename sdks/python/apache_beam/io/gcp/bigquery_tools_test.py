@@ -21,15 +21,19 @@ from __future__ import absolute_import
 
 import datetime
 import decimal
+import io
 import json
 import logging
+import math
 import re
 import time
 import unittest
 
+import fastavro
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import,ungrouped-imports
 import mock
+import pytz
 from future.utils import iteritems
 
 import apache_beam as beam
@@ -37,6 +41,8 @@ from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery_test import HttpError
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
+from apache_beam.io.gcp.bigquery_tools import AvroRowWriter
+from apache_beam.io.gcp.bigquery_tools import JsonRowWriter
 from apache_beam.io.gcp.bigquery_tools import RowAsDictJsonCoder
 from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
 from apache_beam.io.gcp.internal.clients import bigquery
@@ -743,6 +749,67 @@ class TestRowAsDictJsonCoder(unittest.TestCase):
 
   def test_invalid_json_neg_inf(self):
     self.json_compliance_exception(float('-inf'))
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestJsonRowWriter(unittest.TestCase):
+  def test_write_row(self):
+    rows = [
+        {
+            'name': 'beam', 'game': 'dream'
+        },
+        {
+            'name': 'team', 'game': 'cream'
+        },
+    ]
+
+    with io.BytesIO() as buf:
+      # Mock close() so we can access the buffer contents
+      # after JsonRowWriter is closed.
+      with mock.patch.object(buf, 'close') as mock_close:
+        writer = JsonRowWriter(buf)
+        for row in rows:
+          writer.write(row)
+        writer.close()
+
+        mock_close.assert_called_once()
+
+      buf.seek(0)
+      read_rows = [
+          json.loads(row)
+          for row in buf.getvalue().strip().decode('utf-8').split('\n')
+      ]
+
+    self.assertEqual(read_rows, rows)
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestAvroRowWriter(unittest.TestCase):
+  def test_write_row(self):
+    schema = bigquery.TableSchema(
+        fields=[
+            bigquery.TableFieldSchema(name='stamp', type='TIMESTAMP'),
+            bigquery.TableFieldSchema(
+                name='number', type='FLOAT', mode='REQUIRED'),
+        ])
+    stamp = datetime.datetime(2020, 2, 25, 12, 0, 0, tzinfo=pytz.utc)
+
+    with io.BytesIO() as buf:
+      # Mock close() so we can access the buffer contents
+      # after AvroRowWriter is closed.
+      with mock.patch.object(buf, 'close') as mock_close:
+        writer = AvroRowWriter(buf, schema)
+        writer.write({'stamp': stamp, 'number': float('NaN')})
+        writer.close()
+
+        mock_close.assert_called_once()
+
+      buf.seek(0)
+      records = [r for r in fastavro.reader(buf)]
+
+    self.assertEqual(len(records), 1)
+    self.assertTrue(math.isnan(records[0]['number']))
+    self.assertEqual(records[0]['stamp'], stamp)
 
 
 if __name__ == '__main__':
