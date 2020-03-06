@@ -23,7 +23,9 @@ from __future__ import absolute_import
 
 import re
 from builtins import object
+from typing import TYPE_CHECKING
 from typing import BinaryIO  # pylint: disable=unused-import
+from typing import Optional
 
 from past.builtins import unicode
 
@@ -31,6 +33,9 @@ from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileSystem
 from apache_beam.options.value_provider import RuntimeValueProvider
+
+if TYPE_CHECKING:
+  from apache_beam.options.pipeline_options import PipelineOptions
 
 # All filesystem implements should be added here as
 # best effort imports. We don't want to force loading
@@ -69,10 +74,12 @@ class FileSystems(object):
   """
   URI_SCHEMA_PATTERN = re.compile('(?P<scheme>[a-zA-Z][-a-zA-Z0-9+.]*)://.*')
 
-  _pipeline_options = None
+  _pipeline_options = None  # type: Optional[PipelineOptions]
 
   @classmethod
   def set_options(cls, pipeline_options):
+    # type: (PipelineOptions) -> None
+
     """Set filesystem options.
 
     Args:

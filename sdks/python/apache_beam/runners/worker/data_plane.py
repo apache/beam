@@ -18,6 +18,7 @@
 """Implementation of ``DataChannel``s to communicate across the data plane."""
 
 # pytype: skip-file
+# mypy: disallow-untyped-defs
 
 from __future__ import absolute_import
 from __future__ import division
@@ -33,12 +34,14 @@ import time
 from builtins import object
 from builtins import range
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import Callable
 from typing import DefaultDict
 from typing import Dict
 from typing import Iterable
 from typing import Iterator
 from typing import List
+from typing import Mapping
 from typing import Optional
 from typing import Set
 from typing import Tuple
@@ -81,7 +84,11 @@ _DEFAULT_TIME_FLUSH_THRESHOLD_MS = 0  # disable time-based flush by default
 
 class ClosableOutputStream(OutputStream):
   """A Outputstream for use with CoderImpls that has a close() method."""
-  def __init__(self, close_callback=None):
+  def __init__(
+      self,
+      close_callback=None  # type: Optional[Optional[Callable[[bytes], None]]]
+  ):
+    # type: (...) -> None
     super(ClosableOutputStream, self).__init__()
     self._close_callback = close_callback
 
@@ -91,7 +98,10 @@ class ClosableOutputStream(OutputStream):
       self._close_callback(self.get())
 
   @staticmethod
-  def create(close_callback, flush_callback, data_buffer_time_limit_ms):
+  def create(close_callback,  # type: Optional[Optional[Callable[[bytes], None]]]
+             flush_callback,  # type: Optional[Optional[Callable[[bytes], None]]]
+             data_buffer_time_limit_ms  # type: int
+            ):
     # type: (...) -> SizeBasedBufferingClosableOutputStream
     if data_buffer_time_limit_ms > 0:
       return TimeBasedBufferingClosableOutputStream(
@@ -107,19 +117,22 @@ class SizeBasedBufferingClosableOutputStream(ClosableOutputStream):
   """A size-based buffering OutputStream."""
 
   def __init__(self,
-               close_callback=None,  # type: Optional[Callable[[bytes], None]]
-               flush_callback=None,  # type: Optional[Callable[[bytes], None]]
-               size_flush_threshold=_DEFAULT_SIZE_FLUSH_THRESHOLD):
+               close_callback=None,  # type: Optional[Optional[Callable[[bytes], None]]]
+               flush_callback=None,  # type: Optional[Optional[Callable[[bytes], None]]]
+               size_flush_threshold=_DEFAULT_SIZE_FLUSH_THRESHOLD  # type: int
+              ):
     super(SizeBasedBufferingClosableOutputStream, self).__init__(close_callback)
     self._flush_callback = flush_callback
     self._size_flush_threshold = size_flush_threshold
 
   # This must be called explicitly to avoid flushing partial elements.
   def maybe_flush(self):
+    # type: () -> None
     if self.size() > self._size_flush_threshold:
       self.flush()
 
   def flush(self):
+    # type: () -> None
     if self._flush_callback:
       self._flush_callback(self.get())
       self._clear()
@@ -128,12 +141,16 @@ class SizeBasedBufferingClosableOutputStream(ClosableOutputStream):
 class TimeBasedBufferingClosableOutputStream(
     SizeBasedBufferingClosableOutputStream):
   """A buffering OutputStream with both time-based and size-based."""
+  _periodic_flusher = None  # type: Optional[PeriodicThread]
+
   def __init__(
       self,
-      close_callback=None,
-      flush_callback=None,
-      size_flush_threshold=_DEFAULT_SIZE_FLUSH_THRESHOLD,
-      time_flush_threshold_ms=_DEFAULT_TIME_FLUSH_THRESHOLD_MS):
+      close_callback=None,  # type: Optional[Optional[Callable[[bytes], None]]]
+      flush_callback=None,  # type: Optional[Optional[Callable[[bytes], None]]]
+      size_flush_threshold=_DEFAULT_SIZE_FLUSH_THRESHOLD,  # type: int
+      time_flush_threshold_ms=_DEFAULT_TIME_FLUSH_THRESHOLD_MS  # type: int
+  ):
+    # type: (...) -> None
     super(TimeBasedBufferingClosableOutputStream,
           self).__init__(close_callback, flush_callback, size_flush_threshold)
     assert time_flush_threshold_ms > 0
@@ -144,10 +161,12 @@ class TimeBasedBufferingClosableOutputStream(
     self._schedule_periodic_flush()
 
   def flush(self):
+    # type: () -> None
     with self._flush_lock:
       super(TimeBasedBufferingClosableOutputStream, self).flush()
 
   def close(self):
+    # type: () -> None
     with self._schedule_lock:
       self._closed = True
       if self._periodic_flusher:
@@ -156,7 +175,9 @@ class TimeBasedBufferingClosableOutputStream(
     super(TimeBasedBufferingClosableOutputStream, self).close()
 
   def _schedule_periodic_flush(self):
+    # type: () -> None
     def _flush():
+      # type: () -> None
       with self._schedule_lock:
         if not self._closed:
           self.flush()
@@ -169,7 +190,13 @@ class TimeBasedBufferingClosableOutputStream(
 
 class PeriodicThread(threading.Thread):
   """Call a function periodically with the specified number of seconds"""
-  def __init__(self, interval, function, args=None, kwargs=None):
+  def __init__(self,
+               interval,  # type: float
+               function,  # type: Callable
+               args=None,  # type: Optional[Iterable]
+               kwargs=None  # type: Optional[Mapping[str, Any]]
+              ):
+    # type: (...) -> None
     threading.Thread.__init__(self)
     self._interval = interval
     self._function = function
@@ -178,12 +205,15 @@ class PeriodicThread(threading.Thread):
     self._finished = threading.Event()
 
   def run(self):
+    # type: () -> None
     next_call = time.time() + self._interval
     while not self._finished.wait(next_call - time.time()):
       next_call = next_call + self._interval
       self._function(*self._args, **self._kwargs)
 
   def cancel(self):
+    # type: () -> None
+
     """Stop the thread if it hasn't finished yet."""
     self._finished.set()
 
@@ -291,7 +321,7 @@ class InMemoryDataChannel(DataChannel):
   The inverse() method returns the other side of a instance.
   """
   def __init__(self, inverse=None, data_buffer_time_limit_ms=0):
-    # type: (Optional[InMemoryDataChannel], Optional[int]) -> None
+    # type: (Optional[InMemoryDataChannel], int) -> None
     self._inputs = []  # type: List[DataOrTimers]
     self._data_buffer_time_limit_ms = data_buffer_time_limit_ms
     self._inverse = inverse or InMemoryDataChannel(
@@ -346,6 +376,7 @@ class InMemoryDataChannel(DataChannel):
   def output_stream(self, instruction_id, transform_id):
     # type: (str, str) -> ClosableOutputStream
     def add_to_inverse_output(data):
+      # type: (bytes) -> None
       self._inverse._inputs.append(  # pylint: disable=protected-access
           beam_fn_api_pb2.Elements.Data(
               instruction_id=instruction_id,
@@ -358,6 +389,7 @@ class InMemoryDataChannel(DataChannel):
         self._data_buffer_time_limit_ms)
 
   def close(self):
+    # type: () -> None
     pass
 
 
@@ -367,7 +399,7 @@ class _GrpcDataChannel(DataChannel):
   _WRITES_FINISHED = object()
 
   def __init__(self, data_buffer_time_limit_ms=0):
-    # type: (Optional[int]) -> None
+    # type: (int) -> None
     self._data_buffer_time_limit_ms = data_buffer_time_limit_ms
     self._to_send = queue.Queue()  # type: queue.Queue[DataOrTimers]
     self._received = collections.defaultdict(
@@ -380,10 +412,12 @@ class _GrpcDataChannel(DataChannel):
     self._exc_info = None  # type: Optional[OptExcInfo]
 
   def close(self):
-    self._to_send.put(self._WRITES_FINISHED)
+    # type: () -> None
+    self._to_send.put(self._WRITES_FINISHED)  # type: ignore[arg-type]
     self._closed = True
 
   def wait(self, timeout=None):
+    # type: (Optional[int]) -> None
     self._reads_finished.wait(timeout)
 
   def _receiving_queue(self, instruction_id):
@@ -553,7 +587,7 @@ class GrpcClientDataChannel(_GrpcDataChannel):
 
   def __init__(self,
                data_stub,  # type: beam_fn_api_pb2_grpc.BeamFnDataStub
-               data_buffer_time_limit_ms=0  # type: Optional[int]
+               data_buffer_time_limit_ms=0  # type: int
                ):
     # type: (...) -> None
     super(GrpcClientDataChannel, self).__init__(data_buffer_time_limit_ms)
@@ -564,7 +598,7 @@ class BeamFnDataServicer(beam_fn_api_pb2_grpc.BeamFnDataServicer):
   """Implementation of BeamFnDataServicer for any number of clients"""
   def __init__(
       self,
-      data_buffer_time_limit_ms=0  # type: Optional[int]
+      data_buffer_time_limit_ms=0  # type: int
   ):
     self._lock = threading.Lock()
     self._connections_by_worker_id = collections.defaultdict(
@@ -578,7 +612,7 @@ class BeamFnDataServicer(beam_fn_api_pb2_grpc.BeamFnDataServicer):
 
   def Data(self,
            elements_iterator,  # type: Iterable[beam_fn_api_pb2.Elements]
-           context
+           context  # type: Any
           ):
     # type: (...) -> Iterator[beam_fn_api_pb2.Elements]
     worker_id = dict(context.invocation_metadata())['worker_id']
@@ -613,9 +647,9 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
   """
 
   def __init__(self,
-               credentials=None,
+               credentials=None,  # type: Any
                worker_id=None,  # type: Optional[str]
-               data_buffer_time_limit_ms=0  # type: Optional[int]
+               data_buffer_time_limit_ms=0  # type: int
                ):
     # type: (...) -> None
     self._data_channel_cache = {}  # type: Dict[str, GrpcClientDataChannel]

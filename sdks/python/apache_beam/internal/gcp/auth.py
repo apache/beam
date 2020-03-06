@@ -24,6 +24,7 @@ from __future__ import absolute_import
 import logging
 import socket
 import threading
+from typing import Optional
 
 from oauth2client.client import GoogleCredentials
 
@@ -40,7 +41,7 @@ is_running_in_gce = False
 
 # When we are running in GCE, this value is set based on worker startup
 # information.
-executing_project = None
+executing_project = None  # type: Optional[str]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -91,7 +92,7 @@ def get_service_credentials():
 class _Credentials(object):
   _credentials_lock = threading.Lock()
   _credentials_init = False
-  _credentials = None
+  _credentials = None  # type: Optional[_GceAssertionCredentials]
 
   @classmethod
   def get_service_credentials(cls):
@@ -117,6 +118,7 @@ class _Credentials(object):
 
   @staticmethod
   def _get_service_credentials():
+    # type: () -> Optional[_GceAssertionCredentials]
     if is_running_in_gce:
       # We are currently running as a GCE taskrunner worker.
       return _GceAssertionCredentials(user_agent='beam-python-sdk/1.0')

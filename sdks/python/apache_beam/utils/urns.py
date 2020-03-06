@@ -47,6 +47,7 @@ if TYPE_CHECKING:
   from apache_beam.runners.pipeline_context import PipelineContext
 
 T = TypeVar('T')
+RunnerApiFnT = TypeVar('RunnerApiFnT', bound='RunnerApiFn')
 ConstructorFn = Callable[[Union['message.Message', bytes], 'PipelineContext'],
                          Any]
 
@@ -177,7 +178,7 @@ class RunnerApiFn(object):
 
   @classmethod
   def from_runner_api(cls, fn_proto, context):
-    # type: (beam_runner_api_pb2.FunctionSpec, PipelineContext) -> Any
+    # type: (Type[RunnerApiFnT], beam_runner_api_pb2.FunctionSpec, PipelineContext) -> RunnerApiFnT
 
     """Converts from an FunctionSpec to a Fn object.
 

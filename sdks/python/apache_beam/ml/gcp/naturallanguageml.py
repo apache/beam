@@ -17,6 +17,7 @@
 
 from __future__ import absolute_import
 
+from typing import Dict
 from typing import Mapping
 from typing import Optional
 from typing import Sequence
@@ -74,7 +75,9 @@ class Document(object):
   def to_dict(document):
     # type: (Document) -> Mapping[str, Optional[str]]
     if document.from_gcs:
-      dict_repr = {'gcs_content_uri': document.content}
+      dict_repr = {
+          'gcs_content_uri': document.content
+      }  # type: Dict[str, Optional[str]]
     else:
       dict_repr = {'content': document.content}
     dict_repr.update({

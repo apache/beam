@@ -116,6 +116,7 @@ class _PipelineContextMap(object):
     return self._id_to_proto
 
   def get_proto_from_id(self, id):
+    # type: (str) -> message.Message
     return self.get_id_to_proto_map()[id]
 
   def put_proto(self, id, proto, ignore_duplicates=False):

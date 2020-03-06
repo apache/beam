@@ -30,6 +30,13 @@ from __future__ import absolute_import
 
 import inspect
 from builtins import object
+from typing import TYPE_CHECKING
+from typing import FrozenSet
+from typing import Iterable
+from typing import Optional
+from typing import Set
+from typing import Type
+from typing import Union
 
 from apache_beam.metrics import cells
 from apache_beam.metrics.execution import MetricUpdater
@@ -38,6 +45,9 @@ from apache_beam.metrics.metricbase import Distribution
 from apache_beam.metrics.metricbase import Gauge
 from apache_beam.metrics.metricbase import MetricName
 
+if TYPE_CHECKING:
+  from apache_beam.metrics.execution import MetricKey
+
 __all__ = ['Metrics', 'MetricsFilter']
 
 
@@ -45,6 +55,7 @@ class Metrics(object):
   """Lets users create/access metric objects during pipeline execution."""
   @staticmethod
   def get_namespace(namespace):
+    # type: (Union[Type, str]) -> str
     if inspect.isclass(namespace):
       return '{}.{}'.format(namespace.__module__, namespace.__name__)
     elif isinstance(namespace, str):
@@ -54,6 +65,8 @@ class Metrics(object):
 
   @staticmethod
   def counter(namespace, name):
+    # type: (Union[Type, str], str) -> Metrics.DelegatingCounter
+
     """Obtains or creates a Counter metric.
 
     Args:
@@ -68,6 +81,8 @@ class Metrics(object):
 
   @staticmethod
   def distribution(namespace, name):
+    # type: (Union[Type, str], str) -> Metrics.DelegatingDistribution
+
     """Obtains or creates a Distribution metric.
 
     Distribution metrics are restricted to integer-only distributions.
@@ -84,6 +99,8 @@ class Metrics(object):
 
   @staticmethod
   def gauge(namespace, name):
+    # type: (Union[Type, str], str) -> Metrics.DelegatingGauge
+
     """Obtains or creates a Gauge metric.
 
     Gauge metrics are restricted to integer-only values.
@@ -127,6 +144,7 @@ class MetricResults(object):
 
   @staticmethod
   def _matches_name(filter, metric_key):
+    # type: (MetricsFilter, MetricKey) -> bool
     if not filter.names and not filter.namespaces:
       return True
 
@@ -156,6 +174,7 @@ class MetricResults(object):
 
   @staticmethod
   def _matches_scope(filter, metric_key):
+    # type: (MetricsFilter, MetricKey) -> bool
     if not filter.steps:
       return True
 
@@ -167,6 +186,7 @@ class MetricResults(object):
 
   @staticmethod
   def matches(filter, metric_key):
+    # type: (Optional[MetricsFilter], MetricKey) -> bool
     if filter is None:
       return True
 
@@ -204,26 +224,31 @@ class MetricsFilter(object):
   to implement matching logic by themselves.
   """
   def __init__(self):
-    self._names = set()
-    self._namespaces = set()
-    self._steps = set()
+    self._names = set()  # type: Set[str]
+    self._namespaces = set()  # type: Set[str]
+    self._steps = set()  # type: Set[str]
 
   @property
   def steps(self):
+    # type: () -> FrozenSet[str]
     return frozenset(self._steps)
 
   @property
   def names(self):
+    # type: () -> FrozenSet[str]
     return frozenset(self._names)
 
   @property
   def namespaces(self):
+    # type: () -> FrozenSet[str]
     return frozenset(self._namespaces)
 
   def with_name(self, name):
+    # type: (str) -> MetricsFilter
     return self.with_names([name])
 
   def with_names(self, names):
+    # type: (Iterable[str]) -> MetricsFilter
     if isinstance(names, str):
       raise ValueError('Names must be a collection, not a string')
 
@@ -231,9 +256,11 @@ class MetricsFilter(object):
     return self
 
   def with_namespace(self, namespace):
+    # type: (Union[Type, str]) -> MetricsFilter
     return self.with_namespaces([namespace])
 
   def with_namespaces(self, namespaces):
+    # type: (Iterable[Union[Type, str]]) -> MetricsFilter
     if isinstance(namespaces, str):
       raise ValueError('Namespaces must be an iterable, not a string')
 
@@ -241,9 +268,11 @@ class MetricsFilter(object):
     return self
 
   def with_step(self, step):
+    # type: (str) -> MetricsFilter
     return self.with_steps([step])
 
   def with_steps(self, steps):
+    # type: (Iterable[str]) -> MetricsFilter
     if isinstance(steps, str):
       raise ValueError('Steps must be an iterable, not a string')
 

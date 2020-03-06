@@ -69,6 +69,7 @@ from typing import Set
 from typing import Tuple
 from typing import Type
 from typing import Union
+from typing import cast
 
 from future.utils import with_metaclass
 from past.builtins import unicode
@@ -427,7 +428,8 @@ class Pipeline(object):
 
         if replace_input:
           new_input = [
-              input if not input in output_map else output_map[input]
+              input if not input in output_map else cast(
+                  Union[pvalue.PBegin, pvalue.PCollection], output_map[input])
               for input in transform_node.inputs
           ]
           input_replacements[transform_node] = new_input
@@ -436,7 +438,8 @@ class Pipeline(object):
           new_side_inputs = []
           for side_input in transform_node.side_inputs:
             if side_input.pvalue in output_map:
-              side_input.pvalue = output_map[side_input.pvalue]
+              side_input.pvalue = cast(
+                  pvalue.PCollection, output_map[side_input.pvalue])
               new_side_inputs.append(side_input)
             else:
               new_side_inputs.append(side_input)

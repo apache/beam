@@ -110,12 +110,15 @@ class PValue(object):
       self._windowing = windowing
 
   def __str__(self):
+    # type: () -> str
     return self._str_internal()
 
   def __repr__(self):
+    # type: () -> str
     return '<%s at %s>' % (self._str_internal(), hex(id(self)))
 
   def _str_internal(self):
+    # type: () -> str
     return "%s[%s.%s]" % (
         self.__class__.__name__,
         self.producer.full_label if self.producer else None,
@@ -258,12 +261,15 @@ class DoOutputsTuple(object):
     self._pcolls = {}  # type: Dict[Optional[str], PCollection]
 
   def __str__(self):
+    # type: () -> str
     return '<%s>' % self._str_internal()
 
   def __repr__(self):
+    # type: () -> str
     return '<%s at %s>' % (self._str_internal(), hex(id(self)))
 
   def _str_internal(self):
+    # type: () -> str
     return '%s main_tag=%s tags=%s transform=%s' % (
         self.__class__.__name__, self._main_tag, self._tags, self._transform)
 
@@ -360,6 +366,8 @@ class AsSideInput(object):
         pcoll.windowing.windowfn)
 
   def _view_options(self):
+    # type: () -> Dict[str, Any]
+
     """Internal options corresponding to specific view.
 
     Intended for internal use by runner implementations.
@@ -409,6 +417,7 @@ class AsSideInput(object):
     raise NotImplementedError
 
   def requires_keyed_input(self):
+    # type: () -> bool
     return False
 
 
@@ -423,6 +432,7 @@ class _UnpickledSideInput(AsSideInput):
     return options['data'].view_fn(it)
 
   def _view_options(self):
+    # type: () -> Dict[str, Any]
     return {
         'data': self._data,
         # For non-fn-api runners.
@@ -496,6 +506,7 @@ class AsSingleton(AsSideInput):
     return 'AsSingleton(%s)' % self.pvalue
 
   def _view_options(self):
+    # type: () -> Dict[str, Any]
     base = super(AsSingleton, self)._view_options()
     if self.default_value != AsSingleton._NO_DEFAULT:
       return dict(base, default=self.default_value)
@@ -532,6 +543,7 @@ class AsIter(AsSideInput):
   former behavor.
   """
   def __repr__(self):
+    # type: () -> str
     return 'AsIter(%s)' % self.pvalue
 
   @staticmethod

@@ -29,7 +29,11 @@ from __future__ import division
 import threading
 import time
 from builtins import object
+from typing import TYPE_CHECKING
 from typing import Optional
+
+if TYPE_CHECKING:
+  from apache_beam.metrics.metricbase import MetricName
 
 try:
   import cython
@@ -60,6 +64,12 @@ class MetricCell(object):
     raise NotImplementedError
 
   def get_cumulative(self):
+    raise NotImplementedError
+
+  def to_runner_api_monitoring_info(self, name, transform_id):
+    raise NotImplementedError
+
+  def reset(self):
     raise NotImplementedError
 
   def __reduce__(self):

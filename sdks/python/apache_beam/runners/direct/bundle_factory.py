@@ -18,19 +18,29 @@
 """A factory that creates UncommittedBundles."""
 
 # pytype: skip-file
+# mypy: disallow-untyped-defs
 
 from __future__ import absolute_import
 
 from builtins import object
+from typing import TYPE_CHECKING
+from typing import Any
 from typing import Iterable
 from typing import Iterator
 from typing import List
+from typing import Optional
+from typing import Tuple
 from typing import Union
 from typing import cast
 
 from apache_beam import pvalue
 from apache_beam.runners import common
 from apache_beam.utils.windowed_value import WindowedValue
+
+if TYPE_CHECKING:
+  from apache_beam.transforms.window import BoundedWindow
+  from apache_beam.utils.timestamp import Timestamp
+  from apache_beam.utils.windowed_value import PaneInfo
 
 
 class BundleFactory(object):
@@ -95,22 +105,27 @@ class _Bundle(common.Receiver):
       # now windowed_values equals to [windowed_value, another_windowed_value]
     """
     def __init__(self, initial_windowed_value):
+      # type: (WindowedValue) -> None
       self._initial_windowed_value = initial_windowed_value
-      self._appended_values = []
+      self._appended_values = []  # type: List[Any]
 
     @property
     def timestamp(self):
+      # type: () -> Timestamp
       return self._initial_windowed_value.timestamp
 
     @property
     def windows(self):
+      # type: () -> Tuple[BoundedWindow, ...]
       return self._initial_windowed_value.windows
 
     @property
     def pane_info(self):
+      # type: () -> PaneInfo
       return self._initial_windowed_value.pane_info
 
     def add_value(self, value):
+      # type: (Any) -> None
       self._appended_values.append(value)
 
     def windowed_values(self):
@@ -129,7 +144,7 @@ class _Bundle(common.Receiver):
     ]  # type: List[Union[WindowedValue, _Bundle._StackedWindowedValues]]
     self._stacked = stacked
     self._committed = False
-    self._tag = None  # optional tag information for this bundle
+    self._tag = None  # type: Optional[str]  # optional tag information for this bundle
 
   def get_elements_iterable(self, make_copy=False):
     # type: (bool) -> Iterable[WindowedValue]
@@ -152,6 +167,7 @@ class _Bundle(common.Receiver):
       return list(elements)
 
     def iterable_stacked_or_elements(elements):
+      # type: (Iterable[Union[WindowedValue, _Bundle._StackedWindowedValues]]) -> Iterator[WindowedValue]
       for e in elements:
         if isinstance(e, _Bundle._StackedWindowedValues):
           for w in e.windowed_values():
@@ -165,23 +181,30 @@ class _Bundle(common.Receiver):
     return [e for e in iterable_stacked_or_elements(self._elements)]
 
   def has_elements(self):
+    # type: () -> int
     return len(self._elements) > 0
 
   @property
   def tag(self):
+    # type: () -> Optional[str]
     return self._tag
 
   @tag.setter
   def tag(self, value):
+    # type: (str) -> None
     assert not self._tag
     self._tag = value
 
   @property
   def pcollection(self):
+    # type: () -> Union[pvalue.PBegin, pvalue.PCollection]
+
     """PCollection that the elements of this UncommittedBundle belong to."""
     return self._pcollection
 
   def add(self, element):
+    # type: (WindowedValue) -> None
+
     """Outputs an element to this bundle.
 
     Args:
@@ -204,6 +227,7 @@ class _Bundle(common.Receiver):
       self._elements.append(element)
 
   def output(self, element):
+    # type: (WindowedValue) -> None
     self.add(element)
 
   def receive(self, element):
@@ -211,6 +235,8 @@ class _Bundle(common.Receiver):
     self.add(element)
 
   def commit(self, synchronized_processing_time):
+    # type: (Optional[float]) -> None
+
     """Commits this bundle.
 
     Uncommitted bundle will become committed (immutable) after this call.
@@ -221,5 +247,8 @@ class _Bundle(common.Receiver):
     """
     assert not self._committed
     self._committed = True
-    self._elements = tuple(self._elements)
+    # typing: overriding list with an immutable tuple is fine here.
+    # add() already asserts that _committed is false, but this adds extra
+    # protection.
+    self._elements = tuple(self._elements)  # type: ignore[assignment]
     self._synchronized_processing_time = synchronized_processing_time

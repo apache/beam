@@ -282,7 +282,7 @@ def parse_string_payload(input_byte):
   }
 
 
-server = None
+server = None  # type: ignore[var-annotated]
 
 
 def cleanup(unused_signum, unused_frame):

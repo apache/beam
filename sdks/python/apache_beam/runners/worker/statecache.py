@@ -23,13 +23,17 @@ from __future__ import absolute_import
 import collections
 import logging
 import threading
+from typing import TYPE_CHECKING
 from typing import Callable
-from typing import DefaultDict
 from typing import Hashable
+from typing import List
 from typing import Set
 from typing import TypeVar
 
 from apache_beam.metrics import monitoring_infos
+
+if TYPE_CHECKING:
+  from apache_beam.portability.api import metrics_pb2
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,15 +48,17 @@ class Metrics(object):
   PREFIX = "beam:metric:statecache:"
 
   def __init__(self):
+    # type: () -> None
     self._context = threading.local()
 
   def initialize(self):
+    # type: () -> None
+
     """Needs to be called once per thread to initialize the local metrics cache.
     """
     if hasattr(self._context, 'metrics'):
       return  # Already initialized
-    self._context.metrics = collections.defaultdict(
-        int)  # type: DefaultDict[Hashable, int]
+    self._context.metrics = collections.defaultdict(int)
 
   def count(self, name):
     # type: (str) -> None
@@ -64,6 +70,8 @@ class Metrics(object):
     self._context.metrics[hit_miss_name] += 1
 
   def get_monitoring_infos(self, cache_size, cache_capacity):
+    # type: (int, int) -> List[metrics_pb2.MonitoringInfo]
+
     """Returns the metrics scoped to the current bundle."""
     metrics = self._context.metrics
     if len(metrics) == 0:
@@ -151,6 +159,7 @@ class StateCache(object):
   TODO Memory-based caching: https://issues.apache.org/jira/browse/BEAM-8297
   """
   def __init__(self, max_entries):
+    # type: (int) -> None
     _LOGGER.info('Creating state cache with size %s', max_entries)
     self._missing = None
     self._cache = self.LRUCache(max_entries, self._missing)
@@ -203,19 +212,25 @@ class StateCache(object):
       self._cache.evict((state_key, cache_token))
 
   def evict_all(self):
+    # type: () -> None
     with self._lock:
       self._cache.evict_all()
 
   def initialize_metrics(self):
+    # type: () -> None
     self._metrics.initialize()
 
   def is_cache_enabled(self):
+    # type: () -> bool
     return self._cache._max_entries > 0
 
   def size(self):
+    # type: () -> int
     return len(self._cache)
 
   def get_monitoring_infos(self):
+    # type: () -> List[metrics_pb2.MonitoringInfo]
+
     """Retrieves the monitoring infos and resets the counters."""
     with self._lock:
       size = len(self._cache)

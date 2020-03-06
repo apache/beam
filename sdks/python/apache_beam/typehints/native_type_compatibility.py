@@ -168,9 +168,9 @@ def is_new_type(typ):
 
 
 try:
-  _ForwardRef = typing.ForwardRef  # Python 3.7+
+  _ForwardRef = typing.ForwardRef  # type: ignore[attr-defined] # Python 3.7+
 except AttributeError:
-  _ForwardRef = typing._ForwardRef
+  _ForwardRef = typing._ForwardRef  # type: ignore[attr-defined]
 
 
 def is_forward_ref(typ):

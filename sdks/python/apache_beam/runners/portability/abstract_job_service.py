@@ -29,9 +29,12 @@ from builtins import object
 from concurrent import futures
 from typing import TYPE_CHECKING
 from typing import Dict
+from typing import Generic
+from typing import Iterable
 from typing import Iterator
 from typing import Optional
 from typing import Tuple
+from typing import TypeVar
 from typing import Union
 
 import grpc
@@ -49,12 +52,22 @@ if TYPE_CHECKING:
   from google.protobuf import struct_pb2  # pylint: disable=ungrouped-imports
   from apache_beam.portability.api import beam_runner_api_pb2
 
+AbstractBeamJobT = TypeVar('AbstractBeamJobT', bound='AbstractBeamJob')
+
 _LOGGER = logging.getLogger(__name__)
 
-StateEvent = Tuple[int, Union[timestamp_pb2.Timestamp, Timestamp]]
+T = TypeVar('T')
+StateEvent = Tuple['beam_job_api_pb2.JobState.Enum',
+                   Union[timestamp_pb2.Timestamp, Timestamp]]
+StateStream = Iterator[StateEvent]
+MessageStream = Iterator[Union[StateEvent,
+                               Optional[beam_job_api_pb2.JobMessage]]]
 
 
-def make_state_event(state, timestamp):
+def make_state_event(state,  # type: beam_job_api_pb2.JobState.Enum
+                     timestamp  # type: Union[Timestamp, timestamp_pb2.Timestamp]
+                    ):
+  # type: (...) -> beam_job_api_pb2.JobStateEvent
   if isinstance(timestamp, Timestamp):
     proto_timestamp = timestamp.to_proto()
   elif isinstance(timestamp, timestamp_pb2.Timestamp):
@@ -68,13 +81,14 @@ def make_state_event(state, timestamp):
   return beam_job_api_pb2.JobStateEvent(state=state, timestamp=proto_timestamp)
 
 
-class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
+class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer,
+                                 Generic[AbstractBeamJobT]):
   """Manages one or more pipelines, possibly concurrently.
   Experimental: No backward compatibility guaranteed.
   Servicer for the Beam Job API.
   """
   def __init__(self):
-    self._jobs = {}  # type: Dict[str, AbstractBeamJob]
+    self._jobs = {}  # type: Dict[str, AbstractBeamJobT]
 
   def create_beam_job(self,
                       preparation_id,  # stype: str
@@ -82,7 +96,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
                       pipeline,  # type: beam_runner_api_pb2.Pipeline
                       options  # type: struct_pb2.Struct
                      ):
-    # type: (...) -> AbstractBeamJob
+    # type: (...) -> AbstractBeamJobT
 
     """Returns an instance of AbstractBeamJob specific to this servicer."""
     raise NotImplementedError(type(self))
@@ -224,24 +238,30 @@ class AbstractBeamJob(object):
     raise NotImplementedError(self)
 
   def get_state_stream(self):
-    # type: () -> Iterator[StateEvent]
+    # type: () -> StateStream
     raise NotImplementedError(self)
 
   def get_message_stream(self):
-    # type: () -> Iterator[Union[StateEvent, Optional[beam_job_api_pb2.JobMessage]]]
+    # type: () -> MessageStream
     raise NotImplementedError(self)
 
   @property
   def state(self):
+    # type: () -> beam_job_api_pb2.JobState.Enum
+
     """Get the latest state enum."""
     return self.get_state()[0]
 
   def get_state(self):
+    # type: () -> StateEvent
+
     """Get a tuple of the latest state and its timestamp."""
     # this is safe: initial state is set in __init__
     return self._state_history[-1]
 
   def set_state(self, new_state):
+    # type: (beam_job_api_pb2.JobState.Enum) -> Optional[Timestamp]
+
     """Set the latest state as an int enum and update the state history.
 
     :param new_state: int
@@ -257,6 +277,8 @@ class AbstractBeamJob(object):
       return None
 
   def with_state_history(self, state_stream):
+    # type: (Iterable[T]) -> Iterator[Union[T, StateEvent]]
+
     """Utility to prepend recorded state history to an active state stream"""
     return itertools.chain(self._state_history[:], state_stream)
 
@@ -266,6 +288,7 @@ class AbstractBeamJob(object):
 
   @staticmethod
   def is_terminal_state(state):
+    # type: (beam_job_api_pb2.JobState.Enum) -> bool
     from apache_beam.runners.portability import portable_runner
     return state in portable_runner.TERMINAL_STATES
 

@@ -20,6 +20,9 @@
 from __future__ import absolute_import
 
 import logging
+from typing import Any
+from typing import Dict
+from typing import Tuple
 
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
@@ -27,8 +30,14 @@ from apache_beam.metrics.metric import MetricName
 
 _LOGGER = logging.getLogger(__name__)
 
+MonitoringInfosGroups = Tuple[Dict[MetricKey, Any],
+                              Dict[MetricKey, Any],
+                              Dict[MetricKey, Any]]
+
 
 def from_monitoring_infos(monitoring_info_list, user_metrics_only=False):
+  # type: (...) -> MonitoringInfosGroups
+
   """Groups MonitoringInfo objects into counters, distributions and gauges.
 
   Args:

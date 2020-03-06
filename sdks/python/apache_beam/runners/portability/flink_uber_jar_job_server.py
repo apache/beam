@@ -28,6 +28,9 @@ import tempfile
 import time
 import urllib
 import zipfile
+from typing import TYPE_CHECKING
+from typing import Optional
+from typing import Tuple
 
 import requests
 from google.protobuf import json_format
@@ -37,10 +40,14 @@ from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.runners.portability import abstract_job_service
 from apache_beam.runners.portability import job_server
 
+if TYPE_CHECKING:
+  from apache_beam.utils.timestamp import Timestamp
+
 _LOGGER = logging.getLogger(__name__)
 
 
-class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
+class FlinkUberJarJobServer(
+    abstract_job_service.AbstractJobServiceServicer['FlinkBeamJob']):
   """A Job server which submits a self-contained Jar to a Flink cluster.
 
   The jar contains the Beam pipeline definition, dependencies, and
@@ -86,6 +93,7 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
     return '.'.join(full_version.split('.')[:2])
 
   def create_beam_job(self, job_id, job_name, pipeline, options):
+    # type: (...) -> FlinkBeamJob
     return FlinkBeamJob(
         self._master_url,
         self.executable_jar(),
@@ -168,6 +176,7 @@ class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
     _LOGGER.info('Started Flink job as %s' % self._flink_job_id)
 
   def cancel(self):
+    # type: () -> None
     self.post('v1/%s/stop' % self._flink_job_id, expected_status=202)
     self.delete_jar()
 
@@ -181,6 +190,8 @@ class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
             'Error deleting jar %s' % self._flink_jar_id, exc_info=True)
 
   def _get_state(self):
+    # type: () -> Tuple[beam_job_api_pb2.JobState.Enum, Optional[Timestamp]]
+
     """Query flink to get the current state.
 
     :return: tuple of int and Timestamp or None
@@ -211,6 +222,7 @@ class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
     return beam_state, self.set_state(beam_state)
 
   def get_state(self):
+    # type: () -> abstract_job_service.StateEvent
     state, timestamp = self._get_state()
     if timestamp is None:
       # state has not changed since it was last checked: use previous timestamp
@@ -219,6 +231,7 @@ class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
       return state, timestamp
 
   def get_state_stream(self):
+    # type: () -> abstract_job_service.StateStream
     def _state_iter():
       sleep_secs = 1.0
       while True:
@@ -232,6 +245,7 @@ class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
         break
 
   def get_message_stream(self):
+    # type: () -> abstract_job_service.MessageStream
     for state, timestamp in self.get_state_stream():
       if self.is_terminal_state(state):
         response = self.get('v1/jobs/%s/exceptions' % self._flink_job_id)

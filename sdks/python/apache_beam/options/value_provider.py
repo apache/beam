@@ -25,6 +25,9 @@ from __future__ import absolute_import
 
 from builtins import object
 from functools import wraps
+from typing import Any
+from typing import Dict
+from typing import Optional
 from typing import Set
 
 from apache_beam import error
@@ -39,6 +42,7 @@ __all__ = [
 
 class ValueProvider(object):
   def is_accessible(self):
+    # type: () -> bool
     raise NotImplementedError(
         'ValueProvider.is_accessible implemented in derived classes')
 
@@ -53,6 +57,7 @@ class StaticValueProvider(ValueProvider):
     self.value = value_type(value)
 
   def is_accessible(self):
+    # type: () -> bool
     return True
 
   def get(self):
@@ -78,7 +83,7 @@ class StaticValueProvider(ValueProvider):
 
 
 class RuntimeValueProvider(ValueProvider):
-  runtime_options = None
+  runtime_options = None  # type: Optional[Dict[str, Any]]
   experiments = set()  # type: Set[str]
 
   def __init__(self, option_name, value_type, default_value):
@@ -87,6 +92,7 @@ class RuntimeValueProvider(ValueProvider):
     self.value_type = value_type
 
   def is_accessible(self):
+    # type: () -> bool
     return RuntimeValueProvider.runtime_options is not None
 
   @classmethod
@@ -110,6 +116,7 @@ class RuntimeValueProvider(ValueProvider):
 
   @classmethod
   def set_runtime_options(cls, pipeline_options):
+    # type: (Optional[Dict[str, Any]]) -> None
     RuntimeValueProvider.runtime_options = pipeline_options
     RuntimeValueProvider.experiments = RuntimeValueProvider.get_value(
         'experiments', set, set())

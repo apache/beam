@@ -20,6 +20,8 @@
 from __future__ import absolute_import
 
 import unittest
+from typing import Any
+from typing import List
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -65,7 +67,7 @@ class DoFnSignatureTest(unittest.TestCase):
 
 class DoFnProcessTest(unittest.TestCase):
   # pylint: disable=expression-not-assigned
-  all_records = None
+  all_records = None  # type: List[Any]
 
   def setUp(self):
     DoFnProcessTest.all_records = []

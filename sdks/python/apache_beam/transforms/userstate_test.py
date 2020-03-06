@@ -21,6 +21,8 @@
 from __future__ import absolute_import
 
 import unittest
+from typing import Any
+from typing import List
 
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
@@ -354,7 +356,7 @@ class InterfaceTest(unittest.TestCase):
 
 class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
   # pylint: disable=expression-not-assigned
-  all_records = None
+  all_records = None  # type: List[Any]
 
   def setUp(self):
     # Use state on the TestCase class, since other references would be pickled

@@ -84,6 +84,7 @@ if TYPE_CHECKING:
   from apache_beam.runners.worker import data_plane
   from apache_beam.runners.worker import sdk_worker
   from apache_beam.transforms import window
+  from apache_beam.transforms.core import Windowing
   from apache_beam.utils import windowed_value
 
 # This module is experimental. No backwards-compatibility guarantees.
@@ -116,10 +117,10 @@ class RunnerIOOperation(operations.Operation):
 
   def __init__(self,
                name_context,  # type: Union[str, common.NameContext]
-               step_name,
+               step_name,  # type: Any
                consumers,  # type: Mapping[Any, Iterable[operations.Operation]]
-               counter_factory,
-               state_sampler,
+               counter_factory,  # type: counters.CounterFactory
+               state_sampler,  # type: statesampler.StateSampler
                windowed_coder,  # type: coders.Coder
                transform_id,  # type: str
                data_channel  # type: data_plane.DataChannel
@@ -164,8 +165,8 @@ class DataInputOperation(RunnerIOOperation):
                operation_name,  # type: Union[str, common.NameContext]
                step_name,
                consumers,  # type: Mapping[Any, Iterable[operations.Operation]]
-               counter_factory,
-               state_sampler,
+               counter_factory,  # type: counters.CounterFactory
+               state_sampler,  # type: statesampler.StateSampler
                windowed_coder,  # type: coders.Coder
                transform_id,
                data_channel  # type: data_plane.GrpcClientDataChannel
@@ -577,6 +578,7 @@ class OutputTimer(object):
     self._timer_coder_impl = timer_coder_impl
 
   def set(self, ts):
+    # type: (timestamp.TimestampTypes) -> None
     ts = timestamp.Timestamp.of(ts)
     timer = userstate.Timer(
         user_key=self._key,
@@ -662,6 +664,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
         self._timers_info[timer_spec.name].output_stream)
 
   def get_state(self, *args):
+    # type: (*Any) -> userstate.AccumulatingRuntimeState
     state_handle = self._all_states.get(args)
     if state_handle is None:
       state_handle = self._all_states[args] = self._create_state(*args)
@@ -945,7 +948,7 @@ class BundleProcessor(object):
     return any(op.needs_finalization() for op in self.ops.values())
 
   def try_split(self, bundle_split_request):
-    # type: (...) -> beam_fn_api_pb2.ProcessBundleSplitResponse
+    # type: (beam_fn_api_pb2.ProcessBundleSplitRequest) -> beam_fn_api_pb2.ProcessBundleSplitResponse
     split_response = beam_fn_api_pb2.ProcessBundleSplitResponse()
     with self.splitting_lock:
       for op in self.ops.values():
@@ -1053,7 +1056,7 @@ class BundleProcessor(object):
 class ExecutionContext(object):
   def __init__(self):
     self.delayed_applications = [
-    ]  # type: List[Tuple[operations.DoOperation, common.SplitResultType]]
+    ]  # type: List[Tuple[operations.DoOperation, common.SplitResultResidual]]
 
 
 class BeamTransformFactory(object):
@@ -1061,7 +1064,7 @@ class BeamTransformFactory(object):
   def __init__(self,
                descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
                data_channel_factory,  # type: data_plane.DataChannelFactory
-               counter_factory,
+               counter_factory,  # type: counters.CounterFactory
                state_sampler,  # type: statesampler.StateSampler
                state_handler  # type: sdk_worker.CachingStateHandler
               ):
@@ -1137,7 +1140,7 @@ class BeamTransformFactory(object):
           json.loads(coder_proto.spec.payload.decode('utf-8')))
 
   def get_windowed_coder(self, pcoll_id):
-    # type: (str) -> coders.Coder
+    # type: (str) -> WindowedValueCoder
     coder = self.get_coder(self.descriptor.pcollections[pcoll_id].coder_id)
     # TODO(robertwb): Remove this condition once all runners are consistent.
     if not isinstance(coder, WindowedValueCoder):
@@ -1173,6 +1176,7 @@ class BeamTransformFactory(object):
     return only_element(list(self.get_input_coders(transform_proto).values()))
 
   def get_input_windowing(self, transform_proto):
+    # type: (beam_runner_api_pb2.PTransform) -> Windowing
     pcoll_id = only_element(transform_proto.inputs.values())
     windowing_strategy_id = self.descriptor.pcollections[
         pcoll_id].windowing_strategy_id
@@ -1182,9 +1186,10 @@ class BeamTransformFactory(object):
   @staticmethod
   def augment_oldstyle_op(
       op,  # type: OperationT
-      step_name,
-      consumers,
-      tag_list=None):
+      step_name,  # type: str
+      consumers,  # type: Mapping[str, Iterable[operations.Operation]]
+      tag_list=None  # type: Optional[List[str]]
+  ):
     # type: (...) -> OperationT
     op.step_name = step_name
     for tag, op_consumers in consumers.items():
@@ -1477,16 +1482,17 @@ def _create_pardo_operation(
 
   if pardo_proto and (pardo_proto.timer_family_specs or pardo_proto.state_specs
                       or pardo_proto.restriction_coder_id):
-    main_input_coder = None  # type: Optional[WindowedValueCoder]
+    found_input_coder = None
     for tag, pcoll_id in transform_proto.inputs.items():
       if tag in pardo_proto.side_inputs:
         pass
       else:
         # Must be the main input
-        assert main_input_coder is None
+        assert found_input_coder is None
         main_input_tag = tag
-        main_input_coder = factory.get_windowed_coder(pcoll_id)
-    assert main_input_coder is not None
+        found_input_coder = factory.get_windowed_coder(pcoll_id)
+    assert found_input_coder is not None
+    main_input_coder = found_input_coder
 
     if pardo_proto.timer_family_specs or pardo_proto.state_specs:
       user_state_context = FnApiUserStateContext(

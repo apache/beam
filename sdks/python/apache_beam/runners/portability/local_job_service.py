@@ -30,8 +30,12 @@ import time
 import traceback
 from builtins import object
 from typing import TYPE_CHECKING
+from typing import Iterable
+from typing import Iterator
 from typing import List
 from typing import Optional
+from typing import TypeVar
+from typing import Union
 
 import grpc
 from google.protobuf import text_format  # type: ignore # not in typeshed
@@ -53,16 +57,21 @@ from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 if TYPE_CHECKING:
   from google.protobuf import struct_pb2  # pylint: disable=ungrouped-imports
   from apache_beam.portability.api import beam_runner_api_pb2
+  from apache_beam.portability.api import metrics_pb2
 
 _LOGGER = logging.getLogger(__name__)
 
+T = TypeVar('T')
+
 
 def _iter_queue(q):
+  # type: (queue.Queue[T]) -> Iterator[T]
   while True:
     yield q.get(block=True)
 
 
-class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
+class LocalJobServicer(
+    abstract_job_service.AbstractJobServiceServicer['BeamJob']):
   """Manages one or more pipelines, possibly concurrently.
     Experimental: No backward compatibility guaranteed.
     Servicer for the Beam Job API.
@@ -162,11 +171,13 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
       shutil.rmtree(self._staging_dir, ignore_errors=True)
 
   def GetJobMetrics(self, request, context=None):
+    # type: (...) -> beam_job_api_pb2.GetJobMetricsResponse
     if request.job_id not in self._jobs:
       raise LookupError("Job {} does not exist".format(request.job_id))
 
     result = self._jobs[request.job_id].result
-    monitoring_info_list = []
+    assert result is not None
+    monitoring_info_list = []  # type: List[metrics_pb2.MonitoringInfo]
     for mi in result._monitoring_infos_by_stage.values():
       monitoring_info_list.extend(mi)
 
@@ -246,12 +257,16 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     self._provision_info = provision_info
     self._artifact_staging_endpoint = artifact_staging_endpoint
     self._artifact_service = artifact_service
-    self._state_queues = []  # type: List[queue.Queue]
-    self._log_queues = []  # type: List[queue.Queue]
+    self._state_queues = [
+    ]  # type: List[queue.Queue[abstract_job_service.StateEvent]]
+    self._log_queues = [
+    ]  # type: List[queue.Queue[beam_job_api_pb2.JobMessage]]
     self.daemon = True
-    self.result = None
+    self.result = None  # type: Optional[fn_runner.RunnerResult]
 
   def set_state(self, new_state):
+    # type: (beam_job_api_pb2.JobState.Enum) -> None
+
     """Set the latest state as an int enum and notify consumers"""
     timestamp = super(BeamJob, self).set_state(new_state)
     if timestamp is not None:
@@ -266,6 +281,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     return self._artifact_staging_endpoint
 
   def run(self):
+    # type: () -> None
     self.set_state(beam_job_api_pb2.JobState.STARTING)
     self._run_thread = threading.Thread(target=self._run_job)
     self._run_thread.start()
@@ -300,14 +316,17 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
       pass  # TODO(BEAM-9577): Require this once all SDKs support it.
 
   def cancel(self):
+    # type: () -> None
     if not self.is_terminal_state(self.state):
       self.set_state(beam_job_api_pb2.JobState.CANCELLING)
       # TODO(robertwb): Actually cancel...
       self.set_state(beam_job_api_pb2.JobState.CANCELLED)
 
   def get_state_stream(self):
+    # type: () -> abstract_job_service.StateStream
     # Register for any new state changes.
-    state_queue = queue.Queue()
+    state_queue = queue.Queue(
+    )  # type: queue.Queue[abstract_job_service.StateEvent]
     self._state_queues.append(state_queue)
 
     for state, timestamp in self.with_state_history(_iter_queue(state_queue)):
@@ -316,10 +335,12 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
         break
 
   def get_message_stream(self):
+    # type: () -> abstract_job_service.MessageStream
     # Register for any new messages.
-    log_queue = queue.Queue()
-    self._log_queues.append(log_queue)
-    self._state_queues.append(log_queue)
+    log_queue = queue.Queue(
+    )  # type: queue.Queue[Union[abstract_job_service.StateEvent, beam_job_api_pb2.JobMessage]]
+    self._log_queues.append(log_queue)  # type: ignore[arg-type]
+    self._state_queues.append(log_queue)  # type: ignore[arg-type]
 
     for msg in self.with_state_history(_iter_queue(log_queue)):
       if isinstance(msg, tuple):
@@ -356,6 +377,7 @@ class JobLogHandler(logging.Handler):
   }
 
   def __init__(self, log_queues):
+    # type: (Iterable[queue.Queue[beam_job_api_pb2.JobMessage]]) -> None
     super(JobLogHandler, self).__init__()
     self._last_id = 0
     self._logged_thread = None

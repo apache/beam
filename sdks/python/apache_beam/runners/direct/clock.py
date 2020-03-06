@@ -41,6 +41,7 @@ class Clock(object):
 
 class RealClock(object):
   def time(self):
+    # type: () -> float
     return time.time()
 
 
@@ -50,6 +51,7 @@ class TestClock(object):
     self._current_time = current_time if current_time else Timestamp()
 
   def time(self):
+    # type: () -> float
     return float(self._current_time)
 
   def advance_time(self, advance_by):

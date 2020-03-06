@@ -49,6 +49,8 @@ class MetricName(object):
   between multiple metrics of the same name.
   """
   def __init__(self, namespace, name):
+    # type: (str, str) -> None
+
     """Initializes ``MetricName``.
 
     Args:

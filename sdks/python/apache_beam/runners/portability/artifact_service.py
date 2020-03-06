@@ -35,8 +35,13 @@ import threading
 import typing
 import zipfile
 from io import BytesIO
+from typing import Any
 from typing import Callable
+from typing import Dict
 from typing import Iterator
+from typing import List
+from typing import Optional
+from typing import Tuple
 
 import grpc
 from future.moves.urllib.request import urlopen
@@ -328,7 +333,7 @@ class ArtifactRetrievalService(
 
   def __init__(
       self,
-      file_reader,  # type: Callable[[str], BinaryIO],
+      file_reader,  # type: Callable[[str], BinaryIO]
       chunk_size=None,
   ):
     self._file_reader = file_reader
@@ -372,7 +377,8 @@ class ArtifactStagingService(
       file_writer,  # type: Callable[[str, Optional[str]], Tuple[BinaryIO, str]]
     ):
     self._lock = threading.Lock()
-    self._jobs_to_stage = {}
+    self._jobs_to_stage = {
+    }  # type: Dict[str, Tuple[Dict[Any, List[beam_runner_api_pb2.ArtifactInformation]], threading.Event]]
     self._file_writer = file_writer
 
   def register_job(
@@ -387,6 +393,7 @@ class ArtifactStagingService(
           dict(dependency_sets), threading.Event())
 
   def resolved_deps(self, staging_token, timeout=None):
+    # type: (str, Optional[float]) -> Dict[Any, List[beam_runner_api_pb2.ArtifactInformation]]
     with self._lock:
       dependency_sets, event = self._jobs_to_stage[staging_token]
     try:

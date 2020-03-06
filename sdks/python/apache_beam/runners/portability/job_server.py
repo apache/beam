@@ -24,6 +24,7 @@ import shutil
 import signal
 import tempfile
 import threading
+from typing import Union
 
 import grpc
 
@@ -33,14 +34,21 @@ from apache_beam.runners.portability import local_job_service
 from apache_beam.utils import subprocess_server
 from apache_beam.version import __version__ as beam_version
 
+JobServiceType = Union[beam_job_api_pb2_grpc.JobServiceStub,
+                       beam_job_api_pb2_grpc.JobServiceServicer]
+
 
 class JobServer(object):
   def start(self):
+    # type: () -> JobServiceType
+
     """Starts this JobServer, returning a grpc service to which to submit jobs.
     """
     raise NotImplementedError(type(self))
 
   def stop(self):
+    # type: () -> None
+
     """Stops this job server."""
     raise NotImplementedError(type(self))
 

@@ -37,6 +37,7 @@ from typing import Sequence
 from typing import Tuple
 from typing import Type
 from typing import TypeVar
+from typing import Union
 from typing import overload
 
 import google.protobuf.wrappers_pb2
@@ -227,7 +228,7 @@ class Coder(object):
     return cls()
 
   def is_kv_coder(self):
-    # () -> bool
+    # type: () -> bool
     return False
 
   def key_coder(self):
@@ -353,7 +354,7 @@ class Coder(object):
 
   @classmethod
   def from_runner_api(cls, coder_proto, context):
-    # type: (Type[CoderT], beam_runner_api_pb2.Coder, PipelineContext) -> CoderT
+    # type: (Type[CoderT], beam_runner_api_pb2.Coder, PipelineContext) -> Union[CoderT, ExternalCoder]
 
     """Converts from an FunctionSpec to a Fn object.
 
@@ -388,8 +389,11 @@ class Coder(object):
     """Register a coder that's completely defined by its urn and its
     component(s), if any, which are passed to construct the instance.
     """
-    cls.to_runner_api_parameter = (
-        lambda self, unused_context: (urn, None, self._get_component_coders()))
+    setattr(
+        cls,
+        'to_runner_api_parameter',
+        lambda self,
+        unused_context: (urn, None, self._get_component_coders()))
 
     # pylint: disable=unused-variable
     @Coder.register_urn(urn, None)

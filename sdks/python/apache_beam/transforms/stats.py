@@ -28,6 +28,8 @@ import math
 import sys
 import typing
 from builtins import round
+from typing import Any
+from typing import List
 
 from apache_beam import coders
 from apache_beam import typehints
@@ -354,10 +356,11 @@ class _QuantileState(object):
   """
   Compact summarization of a collection on which quantiles can be estimated.
   """
-  min_val = None  # Holds smallest item in the list
-  max_val = None  # Holds largest item in the list
+  min_val = None  # type: Any  # Holds smallest item in the list
+  max_val = None  # type: Any  # Holds largest item in the list
 
   def __init__(self, buffer_size, num_buffers, unbuffered_elements, buffers):
+    # type: (int, int, List[Any], List[_QuantileBuffer]) -> None
     self.buffer_size = buffer_size
     self.num_buffers = num_buffers
     self.buffers = buffers
@@ -425,7 +428,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
   # non-optimal. The impact is logarithmic with respect to this value, so this
   # default should be fine for most uses.
   _MAX_NUM_ELEMENTS = 1e9
-  _qs = None  # Refers to the _QuantileState
+  _qs = None  # type: _QuantileState
 
   def __init__(
       self, num_quantiles, buffer_size, num_buffers, key=None, reverse=False):
@@ -451,7 +454,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
   @classmethod
   def create(
       cls,
-      num_quantiles,
+      num_quantiles,  # type: int
       epsilon=None,
       max_num_elements=None,
       key=None,
@@ -494,6 +497,8 @@ class ApproximateQuantilesCombineFn(CombineFn):
         reverse=reverse)
 
   def _add_unbuffered(self, qs, elem):
+    # type: (_QuantileState, Any) -> None
+
     """
     Add a new buffer to the unbuffered list, creating a new buffer and
     collapsing if needed.
@@ -532,6 +537,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
     return _QuantileBuffer(new_elements, new_level, new_weight)
 
   def _collapse_if_needed(self, qs):
+    # type: (_QuantileState) -> None
     while len(qs.buffers) > self._num_buffers:
       toCollapse = []
       toCollapse.append(heapq.heappop(qs.buffers))

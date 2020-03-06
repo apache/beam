@@ -16,6 +16,7 @@
 #
 
 # pytype: skip-file
+# mypy: disallow-untyped-defs
 
 from __future__ import absolute_import
 from __future__ import division
@@ -28,9 +29,14 @@ import threading
 import time
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import Iterable
 from typing import Iterator
+from typing import List
 from typing import Optional
 from typing import Tuple
+from typing import cast
 
 import grpc
 
@@ -57,8 +63,12 @@ from apache_beam.transforms import environments
 
 if TYPE_CHECKING:
   from google.protobuf import struct_pb2  # pylint: disable=ungrouped-imports
+  from apache_beam.options.pipeline_options import _BeamArgumentParser
   from apache_beam.options.pipeline_options import PipelineOptions
+  from apache_beam.metrics.execution import MetricKey
+  from apache_beam.metrics.metric import MetricsFilter
   from apache_beam.pipeline import Pipeline
+  from apache_beam.runners.portability import abstract_job_service
 
 __all__ = ['PortableRunner']
 
@@ -92,14 +102,21 @@ class JobServiceHandle(object):
   - stage
   - run
   """
-  def __init__(self, job_service, options, retain_unknown_options=False):
-    self.job_service = job_service
+  def __init__(self,
+               job_service,  # type: job_server.JobServiceType
+               options,  # type: PipelineOptions
+               retain_unknown_options=False,  # type: bool
+              ):
+    # sadly, the typing for gRPC stubs is not accurate and generates a bunch
+    # of spurious errors.
+    self.job_service = cast(
+        'abstract_job_service.AbstractJobServiceServicer', job_service)
     self.options = options
     self.timeout = options.view_as(PortableOptions).job_server_timeout
     self._retain_unknown_options = retain_unknown_options
 
   def submit(self, proto_pipeline):
-    # type: (beam_runner_api_pb2.Pipeline) -> Tuple[str, Iterator[beam_job_api_pb2.JobStateEvent], Iterator[beam_job_api_pb2.JobMessagesResponse]]
+    # type: (beam_runner_api_pb2.Pipeline) -> Tuple[str, Iterator[beam_job_api_pb2.JobMessagesResponse], Iterator[beam_job_api_pb2.JobStateEvent]]
 
     """
     Submit and run the pipeline defined by `proto_pipeline`.
@@ -121,6 +138,7 @@ class JobServiceHandle(object):
     # fetch runner options from job service
     # retries in case the channel is not ready
     def send_options_request(max_retries=5):
+      # type: (int) -> Any
       num_retries = 0
       while True:
         try:
@@ -141,6 +159,7 @@ class JobServiceHandle(object):
     options_response = send_options_request()
 
     def add_runner_options(parser):
+      # type: (_BeamArgumentParser) -> None
       for option in options_response.options:
         try:
           # no default values - we don't want runner options
@@ -177,19 +196,21 @@ class JobServiceHandle(object):
             pipeline_options=self.get_pipeline_options()),
         timeout=self.timeout)
 
-  def stage(self, pipeline, artifact_staging_endpoint, staging_session_token):
-    # type: (...) -> Optional[Any]
+  def stage(
+      self, proto_pipeline, artifact_staging_endpoint, staging_session_token):
+    # type: (beam_runner_api_pb2.Pipeline, str, str) -> Optional[Any]
 
     """Stage artifacts"""
     if artifact_staging_endpoint:
       channel = grpc.insecure_channel(artifact_staging_endpoint)
       try:
-        return self._stage_via_portable_service(channel, staging_session_token)
+        self._stage_via_portable_service(channel, staging_session_token)
+        return None
       except grpc.RpcError as exn:
         if exn.code() == grpc.StatusCode.UNIMPLEMENTED:
           # This job server doesn't yet support the new protocol.
           return self._stage_via_legacy_service(
-              pipeline, channel, staging_session_token)
+              proto_pipeline, channel, staging_session_token)
         else:
           raise
     else:
@@ -197,6 +218,7 @@ class JobServiceHandle(object):
 
   def _stage_via_portable_service(
       self, artifact_staging_channel, staging_session_token):
+    # type: (Any, str) -> None
     artifact_service.offer_artifacts(
         beam_artifact_api_pb2_grpc.ArtifactStagingServiceStub(
             channel=artifact_staging_channel),
@@ -206,6 +228,7 @@ class JobServiceHandle(object):
 
   def _stage_via_legacy_service(
       self, pipeline, artifact_staging_channel, staging_session_token):
+    # type: (beam_runner_api_pb2.Pipeline, Any, str) -> Any
     stager = portable_stager.PortableStager(
         artifact_staging_channel, staging_session_token)
     resources = []
@@ -225,7 +248,7 @@ class JobServiceHandle(object):
     return stager.commit_manifest()
 
   def run(self, preparation_id, retrieval_token):
-    # type: (str, str) -> Tuple[str, Iterator[beam_job_api_pb2.JobStateEvent], Iterator[beam_job_api_pb2.JobMessagesResponse]]
+    # type: (str, Optional[str]) -> Tuple[str, Iterator[beam_job_api_pb2.JobMessagesResponse], Iterator[beam_job_api_pb2.JobStateEvent]]
 
     """Run the job"""
     try:
@@ -240,7 +263,7 @@ class JobServiceHandle(object):
           timeout=self.timeout)
     except Exception:
       # TODO(BEAM-6442): Unify preparation_id and job_id for all runners.
-      state_stream = message_stream = None
+      state_stream = message_stream = None  # type: ignore[assignment]
 
     # Run the job and wait for a result, we don't set a timeout here because
     # it may take a long time for a job to complete and streaming
@@ -268,6 +291,7 @@ class PortableRunner(runner.PipelineRunner):
     running and managing the job lies with the job service used.
   """
   def __init__(self):
+    # type: () -> None
     self._dockerized_job_server = None  # type: Optional[job_server.JobServer]
 
   @staticmethod
@@ -298,12 +322,14 @@ class PortableRunner(runner.PipelineRunner):
     return env_class.from_options(portable_options)
 
   def default_job_server(self, options):
+    # type: (PipelineOptions) -> job_server.JobServer
     raise NotImplementedError(
         'You must specify a --job_endpoint when using --runner=PortableRunner. '
         'Alternatively, you may specify which portable runner you intend to '
         'use, such as --runner=FlinkRunner or --runner=SparkRunner.')
 
   def create_job_service_handle(self, job_service, options):
+    # type: (job_server.JobServiceType, PipelineOptions) -> JobServiceHandle
     return JobServiceHandle(job_service, options)
 
   def create_job_service(self, options):
@@ -315,7 +341,7 @@ class PortableRunner(runner.PipelineRunner):
     job_endpoint = options.view_as(PortableOptions).job_endpoint
     if job_endpoint:
       if job_endpoint == 'embed':
-        server = job_server.EmbeddedJobServer()
+        server = job_server.EmbeddedJobServer()  # type: job_server.JobServer
       else:
         job_server_timeout = options.view_as(PortableOptions).job_server_timeout
         server = job_server.ExternalJobServer(job_endpoint, job_server_timeout)
@@ -439,12 +465,17 @@ class PortableRunner(runner.PipelineRunner):
 
 class PortableMetrics(metric.MetricResults):
   def __init__(self, job_metrics_response):
+    # type: (beam_job_api_pb2.GetJobMetricsResponse) -> None
     metrics = job_metrics_response.metrics
     self.attempted = portable_metrics.from_monitoring_infos(metrics.attempted)
     self.committed = portable_metrics.from_monitoring_infos(metrics.committed)
 
   @staticmethod
-  def _combine(committed, attempted, filter):
+  def _combine(committed,  # type: Dict[MetricKey, Any]
+               attempted,  # type: Dict[MetricKey, Any]
+               filter  # type: Optional[MetricsFilter]
+              ):
+    # type: (...) -> List[MetricResult]
     all_keys = set(committed.keys()) | set(attempted.keys())
     return [
         MetricResult(key, committed.get(key), attempted.get(key))
@@ -452,6 +483,7 @@ class PortableMetrics(metric.MetricResults):
     ]
 
   def query(self, filter=None):
+    # type: (Optional[MetricsFilter]) -> Dict[str, List[MetricResult]]
     counters, distributions, gauges = [
         self._combine(x, y, filter)
         for x, y in zip(self.committed, self.attempted)
@@ -467,22 +499,27 @@ class PortableMetrics(metric.MetricResults):
 class PipelineResult(runner.PipelineResult):
   def __init__(
       self,
-      job_service,
-      job_id,
-      message_stream,
-      state_stream,
-      cleanup_callbacks=()):
+      job_service,  # type: job_server.JobServiceType
+      job_id,  # type: str
+      message_stream,  # type: Iterable[beam_job_api_pb2.JobMessagesResponse]
+      state_stream,  # type: Iterable[beam_job_api_pb2.JobStateEvent]
+      cleanup_callbacks=()  # type: Iterable[Callable[[], Any]]
+  ):
     super(PipelineResult, self).__init__(beam_job_api_pb2.JobState.UNSPECIFIED)
-    self._job_service = job_service
+    # sadly, the typing for gRPC stubs is not accurate and generates a bunch
+    # of spurious errors.
+    self._job_service = cast(
+        'abstract_job_service.AbstractJobServiceServicer', job_service)
     self._job_id = job_id
-    self._messages = []
+    self._messages = []  # type: List[beam_job_api_pb2.JobMessagesResponse]
     self._message_stream = message_stream
     self._state_stream = state_stream
     self._cleanup_callbacks = cleanup_callbacks
-    self._metrics = None
-    self._runtime_exception = None
+    self._metrics = None  # type: Optional[PortableMetrics]
+    self._runtime_exception = None  # type: Optional[Exception]
 
   def cancel(self):
+    # type: () -> None
     try:
       self._job_service.Cancel(
           beam_job_api_pb2.CancelJobRequest(job_id=self._job_id))
@@ -491,6 +528,7 @@ class PipelineResult(runner.PipelineResult):
 
   @property
   def state(self):
+    # type: () -> str
     runner_api_state = self._job_service.GetState(
         beam_job_api_pb2.GetJobStateRequest(job_id=self._job_id)).state
     self._state = self._runner_api_state_to_pipeline_state(runner_api_state)
@@ -498,24 +536,29 @@ class PipelineResult(runner.PipelineResult):
 
   @staticmethod
   def _runner_api_state_to_pipeline_state(runner_api_state):
+    # type: (int) -> str
     return getattr(
         runner.PipelineState,
         beam_job_api_pb2.JobState.Enum.Name(runner_api_state))
 
   @staticmethod
   def _pipeline_state_to_runner_api_state(pipeline_state):
+    # type: (str) -> beam_job_api_pb2.JobState.Enum
     return beam_job_api_pb2.JobState.Enum.Value(pipeline_state)
 
   def metrics(self):
+    # type: () -> PortableMetrics
     if not self._metrics:
-
-      job_metrics_response = self._job_service.GetJobMetrics(
+      # AbstractJobServiceServicer does not override GetJobMetrics, so it falls
+      # through to the bad gRPC stubs
+      job_metrics_response = self._job_service.GetJobMetrics(  # type: ignore[call-arg]
           beam_job_api_pb2.GetJobMetricsRequest(job_id=self._job_id))
 
       self._metrics = PortableMetrics(job_metrics_response)
     return self._metrics
 
   def _last_error_message(self):
+    # type: () -> str
     # Filter only messages with the "message_response" and error messages.
     messages = [
         m.message_response for m in self._messages
@@ -531,12 +574,15 @@ class PipelineResult(runner.PipelineResult):
       return 'unknown error'
 
   def wait_until_finish(self, duration=None):
+    # type: (Optional[int]) -> str
+
     """
     :param duration: The maximum time in milliseconds to wait for the result of
     the execution. If None or zero, will wait until the pipeline finishes.
     :return: The result of the pipeline, i.e. PipelineResult.
     """
     def read_messages():
+      # type: () -> None
       previous_state = -1
       for message in self._message_stream:
         if message.HasField('message_response'):
@@ -578,6 +624,7 @@ class PipelineResult(runner.PipelineResult):
     return self._state
 
   def _observe_state(self, message_thread):
+    # type: (threading.Thread) -> None
     try:
       for state_response in self._state_stream:
         self._state = self._runner_api_state_to_pipeline_state(
@@ -596,6 +643,8 @@ class PipelineResult(runner.PipelineResult):
       self._cleanup()
 
   def _cleanup(self, on_exit=False):
+    # type: (bool) -> None
+
     if on_exit and self._cleanup_callbacks:
       _LOGGER.info(
           'Running cleanup on exit. If your pipeline should continue running, '

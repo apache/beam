@@ -40,6 +40,7 @@ from typing import Hashable
 from typing import Iterable
 from typing import Iterator
 from typing import List
+from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
@@ -383,6 +384,8 @@ class Operation(object):
     return all_monitoring_infos
 
   def user_monitoring_infos(self, transform_id):
+    # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+
     """Returns the user MonitoringInfos collected by this operation."""
     return self.metrics_container.to_runner_api_monitoring_infos(transform_id)
 
@@ -474,8 +477,8 @@ class ImpulseReadOperation(Operation):
       name_context,  # type: Union[str, common.NameContext]
       counter_factory,
       state_sampler,  # type: StateSampler
-      consumers,
-      source,
+      consumers,  # type: Mapping[Any, List[Operation]]
+      source,  # type: iobase.BoundedSource
       output_coder):
     super(ImpulseReadOperation,
           self).__init__(name_context, None, counter_factory, state_sampler)

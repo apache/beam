@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
 from typing import Tuple
 from typing import Type
 
@@ -888,7 +889,7 @@ class _ParDoEvaluator(_TransformEvaluator):
 class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
   """TransformEvaluator for _GroupByKeyOnly transform."""
 
-  MAX_ELEMENT_PER_BUNDLE = None
+  MAX_ELEMENT_PER_BUNDLE = None  # type: Optional[int]
   ELEMENTS_TAG = _ListStateTag('elements')
   COMPLETION_TAG = _CombiningValueStateTag('completed', any)
 
@@ -992,7 +993,7 @@ class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
   mode execution, we emit each bundle as it comes to the next transform.
   """
 
-  MAX_ELEMENT_PER_BUNDLE = None
+  MAX_ELEMENT_PER_BUNDLE = None  # type: Optional[int]
 
   def __init__(
       self,
@@ -1191,7 +1192,7 @@ class _ProcessElementsEvaluator(_TransformEvaluator):
 
   # Maximum number of elements that will be produced by a Splittable DoFn before
   # a checkpoint is requested by the runner.
-  DEFAULT_MAX_NUM_OUTPUTS = None
+  DEFAULT_MAX_NUM_OUTPUTS = None  # type: Optional[int]
   # Maximum duration a Splittable DoFn will process an element before a
   # checkpoint is requested by the runner.
   DEFAULT_MAX_DURATION = 1
