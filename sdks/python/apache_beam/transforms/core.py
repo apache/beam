@@ -1360,9 +1360,8 @@ class ParDo(PTransformWithSideInputs):
           common_urns.requirements.REQUIRES_STATEFUL_PROCESSING.urn)
     from apache_beam.runners.common import DoFnSignature
     sig = DoFnSignature(self.fn)
-    is_splittable = sig.is_splittable_dofn()
-    if is_splittable:
-      restriction_coder = sig.get_restriction_coder()
+    restriction_coder = sig.get_restriction_coder()
+    if restriction_coder:
       restriction_coder_id = context.coders.get_id(
           restriction_coder)  # type: typing.Optional[str]
       context.add_requirement(

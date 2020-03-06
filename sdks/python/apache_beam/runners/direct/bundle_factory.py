@@ -214,17 +214,19 @@ class _Bundle(common.Receiver):
     if not self._stacked:
       self._elements.append(element)
       return
-    if (self._elements and
-        (isinstance(self._elements[-1],
-                    (WindowedValue, _Bundle._StackedWindowedValues))) and
-        self._elements[-1].timestamp == element.timestamp and
-        self._elements[-1].windows == element.windows and
-        self._elements[-1].pane_info == element.pane_info):
-      if isinstance(self._elements[-1], WindowedValue):
-        self._elements[-1] = _Bundle._StackedWindowedValues(self._elements[-1])
-      self._elements[-1].add_value(element.value)
-    else:
-      self._elements.append(element)
+    if self._elements:
+      primary = self._elements[-1]
+      if ((isinstance(primary,
+                      (WindowedValue, _Bundle._StackedWindowedValues))) and
+          primary.timestamp == element.timestamp and
+          primary.windows == element.windows and
+          primary.pane_info == element.pane_info):
+        if isinstance(primary, WindowedValue):
+          self._elements[-1] = primary = _Bundle._StackedWindowedValues(primary)
+        primary.add_value(element.value)
+        return
+
+    self._elements.append(element)
 
   def output(self, element):
     # type: (WindowedValue) -> None

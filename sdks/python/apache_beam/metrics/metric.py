@@ -28,7 +28,6 @@ and displayed as part of their pipeline execution.
 
 from __future__ import absolute_import
 
-import inspect
 from builtins import object
 from typing import TYPE_CHECKING
 from typing import FrozenSet
@@ -56,7 +55,7 @@ class Metrics(object):
   @staticmethod
   def get_namespace(namespace):
     # type: (Union[Type, str]) -> str
-    if inspect.isclass(namespace):
+    if isinstance(namespace, type):
       return '{}.{}'.format(namespace.__module__, namespace.__name__)
     elif isinstance(namespace, str):
       return namespace
