@@ -124,6 +124,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String SIDE_INPUT_PARAMETER_METHOD = "sideInput";
   public static final String TIMER_FAMILY_PARAMETER_METHOD = "timerFamily";
   public static final String TIMER_ID_PARAMETER_METHOD = "timerId";
+  public static final String KEY_PARAMETER_METHOD = "key";
 
   /**
    * Returns a {@link ByteBuddyDoFnInvokerFactory} shared with all other invocations, so that its
@@ -914,6 +915,14 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                 MethodInvocation.invoke(
                     getExtraContextFactoryMethodDescription(
                         TIMER_ID_PARAMETER_METHOD, DoFn.class)));
+          }
+
+          @Override
+          public StackManipulation dispatch(DoFnSignature.Parameter.KeyParameter p) {
+            return new StackManipulation.Compound(
+                pushDelegate,
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(KEY_PARAMETER_METHOD, DoFn.class)));
           }
         });
   }

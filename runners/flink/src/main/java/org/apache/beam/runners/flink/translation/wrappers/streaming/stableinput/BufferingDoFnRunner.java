@@ -116,9 +116,10 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
   }
 
   @Override
-  public void onTimer(
+  public <KeyT> void onTimer(
       String timerId,
       String timerFamilyId,
+      KeyT Key,
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,

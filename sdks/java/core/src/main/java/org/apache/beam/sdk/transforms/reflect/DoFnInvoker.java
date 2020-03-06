@@ -202,6 +202,8 @@ public interface DoFnInvoker<InputT, OutputT> {
     TimerMap timerFamily(String tagId);
 
     String timerId(DoFn<InputT, OutputT> doFn);
+
+    String key(DoFn<InputT, OutputT> doFn);
   }
 
   /**
@@ -343,6 +345,12 @@ public interface DoFnInvoker<InputT, OutputT> {
           String.format("BundleFinalizer unsupported in %s", getErrorContext()));
     }
 
+    @Override
+    public String key(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format("Key unsupported in %s", getErrorContext()));
+    }
+
     /**
      * Return a human readable representation of the current call context to be used during error
      * reporting.
@@ -466,6 +474,11 @@ public interface DoFnInvoker<InputT, OutputT> {
     @Override
     public String timerId(DoFn<InputT, OutputT> doFn) {
       return delegate.timerId(doFn);
+    }
+
+    @Override
+    public String key(DoFn<InputT, OutputT> doFn) {
+      return delegate.key(doFn);
     }
 
     @Override

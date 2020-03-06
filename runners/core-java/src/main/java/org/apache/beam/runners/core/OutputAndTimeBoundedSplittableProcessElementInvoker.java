@@ -238,6 +238,12 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
                 throw new UnsupportedOperationException(
                     "Access to timerFamily not supported in Splittable DoFn");
               }
+
+              @Override
+              public String key(DoFn<InputT, OutputT> doFn) {
+                throw new UnsupportedOperationException(
+                    "Access to key not supported in Splittable DoFn");
+              }
             });
     processContext.cancelScheduledCheckpoint();
     @Nullable KV<RestrictionT, Instant> residual = processContext.getTakenCheckpoint();

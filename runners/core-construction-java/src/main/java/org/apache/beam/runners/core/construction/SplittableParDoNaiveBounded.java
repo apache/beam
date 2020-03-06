@@ -302,6 +302,11 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public String key(DoFn<InputT, OutputT> doFn) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
       public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
         return new OutputReceiver<OutputT>() {
           @Override

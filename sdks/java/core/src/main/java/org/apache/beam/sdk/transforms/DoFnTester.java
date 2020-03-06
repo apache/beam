@@ -336,6 +336,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
               throw new UnsupportedOperationException(
                   "DoFnTester doesn't support bundleFinalizer yet");
             }
+
+            @Override
+            public String key(DoFn<InputT, OutputT> doFn) {
+              throw new UnsupportedOperationException("DoFnTester doesn't support key yet");
+            }
           });
     } catch (UserCodeException e) {
       unwrapUserCodeException(e);

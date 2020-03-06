@@ -187,9 +187,10 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   }
 
   @Override
-  public void onTimer(
+  public <KeyT> void onTimer(
       String timerId,
       String timerFamilyId,
+      KeyT key,
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
@@ -213,8 +214,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         throw new IllegalArgumentException(String.format("Unknown time domain: %s", timeDomain));
     }
 
-    OnTimerArgumentProvider argumentProvider =
-        new OnTimerArgumentProvider(timerId, window, timestamp, effectiveTimestamp, timeDomain);
+    OnTimerArgumentProvider<KeyT> argumentProvider =
+        new OnTimerArgumentProvider<KeyT>(
+            timerId, key, window, timestamp, effectiveTimestamp, timeDomain);
     invoker.invokeOnTimer(timerId, timerFamilyId, argumentProvider);
   }
 
@@ -388,6 +390,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public String key(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("Cannot access key outside of @OnTimer methods.");
+    }
+
+    @Override
     public TimerMap timerFamily(String tagId) {
       throw new UnsupportedOperationException(
           "Cannot access timer family outside of @ProcessElement and @OnTimer methods");
@@ -475,6 +482,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public String timerId(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access timerId as parameter outside of @OnTimer method.");
+    }
+
+    @Override
+    public String key(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access key as parameter outside of @OnTimer method.");
     }
 
     @Override
@@ -721,6 +734,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public String key(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access key as parameter outside of @OnTimer method.");
+    }
+
+    @Override
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access time domain outside of @ProcessTimer method.");
@@ -816,13 +835,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
    * A concrete implementation of {@link DoFnInvoker.ArgumentProvider} used for running a {@link
    * DoFn} on a timer.
    */
-  private class OnTimerArgumentProvider extends DoFn<InputT, OutputT>.OnTimerContext
+  private class OnTimerArgumentProvider<KeyT> extends DoFn<InputT, OutputT>.OnTimerContext
       implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
     private final BoundedWindow window;
     private final Instant fireTimestamp;
     private final Instant timestamp;
     private final TimeDomain timeDomain;
     private final String timerId;
+    private final KeyT key;
 
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
     private @Nullable StateNamespace namespace;
@@ -853,6 +873,23 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       this.fireTimestamp = fireTimestamp;
       this.timestamp = timestamp;
       this.timeDomain = timeDomain;
+      this.key = null;
+    }
+
+    private OnTimerArgumentProvider(
+        String timerId,
+        KeyT key,
+        BoundedWindow window,
+        Instant fireTimestamp,
+        Instant timestamp,
+        TimeDomain timeDomain) {
+      fn.super();
+      this.timerId = timerId;
+      this.window = window;
+      this.fireTimestamp = fireTimestamp;
+      this.timestamp = timestamp;
+      this.timeDomain = timeDomain;
+      this.key = key;
     }
 
     @Override
@@ -1038,6 +1075,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public BundleFinalizer bundleFinalizer() {
       throw new UnsupportedOperationException(
           "Bundle finalization is not supported in non-portable pipelines.");
+    }
+
+    @Override
+    public String key(DoFn<InputT, OutputT> doFn) {
+      return key.toString();
     }
   }
 

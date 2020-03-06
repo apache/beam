@@ -150,7 +150,8 @@ public class DoFnSignatures {
           Parameter.TimerParameter.class,
           Parameter.StateParameter.class,
           Parameter.TimerFamilyParameter.class,
-          Parameter.TimerIdParameter.class);
+          Parameter.TimerIdParameter.class,
+          Parameter.KeyParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_ON_TIMER_FAMILY_PARAMETERS =
@@ -1120,6 +1121,11 @@ public class DoFnSignatures {
           rawType.equals(Instant.class),
           "@Timestamp argument must have type org.joda.time.Instant.");
       return Parameter.timestampParameter();
+    } else if (hasKeyAnnotation(param.getAnnotations())) {
+      /*methodErrors.checkArgument(
+      rawType.equals(Instant.class),
+      "@Timestamp argument must have type org.joda.time.Instant.");*/
+      return Parameter.keyParameter();
     } else if (rawType.equals(TimeDomain.class)) {
       return Parameter.timeDomainParameter();
     } else if (hasSideInputAnnotation(param.getAnnotations())) {
@@ -1354,6 +1360,10 @@ public class DoFnSignatures {
 
   private static boolean hasTimestampAnnotation(List<Annotation> annotations) {
     return annotations.stream().anyMatch(a -> a.annotationType().equals(DoFn.Timestamp.class));
+  }
+
+  private static boolean hasKeyAnnotation(List<Annotation> annotations) {
+    return annotations.stream().anyMatch(a -> a.annotationType().equals(DoFn.Key.class));
   }
 
   private static boolean hasSideInputAnnotation(List<Annotation> annotations) {

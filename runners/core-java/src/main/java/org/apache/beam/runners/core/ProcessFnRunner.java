@@ -82,9 +82,10 @@ public class ProcessFnRunner<InputT, OutputT, RestrictionT>
   }
 
   @Override
-  public void onTimer(
+  public <K> void onTimer(
       String timerId,
       String timerFamilyId,
+      K key,
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,

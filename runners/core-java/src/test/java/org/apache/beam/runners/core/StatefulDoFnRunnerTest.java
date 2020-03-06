@@ -391,6 +391,7 @@ public class StatefulDoFnRunnerTest {
       toTrigger.onTimer(
           timer.getTimerId(),
           timer.getTimerFamilyId(),
+          "",
           window,
           timer.getTimestamp(),
           timer.getOutputTimestamp(),
