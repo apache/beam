@@ -18,6 +18,7 @@
 """iobase.RangeTracker implementations provided with Apache Beam.
 """
 # pytype: skip-file
+# mypy: disallow-untyped-defs
 
 from __future__ import absolute_import
 from __future__ import division
@@ -27,6 +28,11 @@ import logging
 import math
 import threading
 from builtins import zip
+from typing import Callable
+from typing import Tuple
+from typing import Optional
+from typing import Union
+from typing import cast
 
 from past.builtins import long
 
@@ -42,7 +48,7 @@ __all__ = [
 _LOGGER = logging.getLogger(__name__)
 
 
-class OffsetRangeTracker(iobase.RangeTracker):
+class OffsetRangeTracker(iobase.RangeTracker[int]):
   """A 'RangeTracker' for non-negative positions of type 'long'."""
 
   # Offset corresponding to infinity. This can only be used as the upper-bound
@@ -53,6 +59,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
   OFFSET_INFINITY = float('inf')
 
   def __init__(self, start, end):
+    # type: (int, int) -> None
     super(OffsetRangeTracker, self).__init__()
 
     if start is None:
@@ -74,20 +81,25 @@ class OffsetRangeTracker(iobase.RangeTracker):
     self._lock = threading.Lock()
 
     self._split_points_seen = 0
-    self._split_points_unclaimed_callback = None
+    self._split_points_unclaimed_callback = None  # type: Optional[Callable[[int], int]]
 
   def start_position(self):
+    # type: () -> int
     return self._start_offset
 
   def stop_position(self):
+    # type: () -> int
     return self._stop_offset
 
   @property
   def last_record_start(self):
+    # type: () -> int
     return self._last_record_start
 
   @property
   def last_attempted_record_start(self):
+    # type: () -> int
+
     """Return current value of last_attempted_record_start.
 
     last_attempted_record_start records a valid position that tried to be
@@ -97,6 +109,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
     return self._last_attempted_record_start
 
   def _validate_record_start(self, record_start, split_point):
+    # type: (int, bool) -> None
     # This function must only be called under the lock self.lock.
     if not self._lock.locked():
       raise ValueError(
@@ -120,6 +133,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
           record_start)
 
   def try_claim(self, record_start):
+    # type: (int) -> bool
     with self._lock:
       # Attempted claim should be monotonous.
       if record_start <= self._last_attempted_record_start:
@@ -137,11 +151,13 @@ class OffsetRangeTracker(iobase.RangeTracker):
       return True
 
   def set_current_position(self, record_start):
+    # type: (int) -> None
     with self._lock:
       self._validate_record_start(record_start, False)
       self._last_record_start = record_start
 
   def try_split(self, split_offset):
+    # type: (int) -> Optional[Tuple[int, float]]
     assert isinstance(split_offset, (int, long))
     with self._lock:
       if self._stop_offset == OffsetRangeTracker.OFFSET_INFINITY:
@@ -149,25 +165,25 @@ class OffsetRangeTracker(iobase.RangeTracker):
             'refusing to split %r at %d: stop position unspecified',
             self,
             split_offset)
-        return
+        return None
       if self._last_record_start == -1:
         _LOGGER.debug(
             'Refusing to split %r at %d: unstarted', self, split_offset)
-        return
+        return None
 
       if split_offset <= self._last_record_start:
         _LOGGER.debug(
             'Refusing to split %r at %d: already past proposed stop offset',
             self,
             split_offset)
-        return
+        return None
       if (split_offset < self.start_position() or
           split_offset >= self.stop_position()):
         _LOGGER.debug(
             'Refusing to split %r at %d: proposed split position out of range',
             self,
             split_offset)
-        return
+        return None
 
       _LOGGER.debug('Agreeing to split %r at %d', self, split_offset)
 
@@ -179,6 +195,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
       return self._stop_offset, split_fraction
 
   def fraction_consumed(self):
+    # type: () -> float
     with self._lock:
       # self.last_record_start may become larger than self.end_offset when
       # reading the records since any record that starts before the first 'split
@@ -190,10 +207,12 @@ class OffsetRangeTracker(iobase.RangeTracker):
           self._last_record_start, self.start_position(), self.stop_position())
 
   def position_to_fraction(self, pos, start, stop):
+    # type: (int, int, int) -> float
     fraction = 1.0 * (pos - start) / (stop - start) if start != stop else 0.0
     return max(0.0, min(1.0, fraction))
 
   def position_at_fraction(self, fraction):
+    # type: (float) -> int
     if self.stop_position() == OffsetRangeTracker.OFFSET_INFINITY:
       raise Exception(
           'get_position_for_fraction_consumed is not applicable for an '
@@ -204,6 +223,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
             (self.stop_position() - self.start_position())))
 
   def split_points(self):
+    # type: ()-> Tuple[int, int]
     with self._lock:
       split_points_consumed = (
           0 if self._split_points_seen == 0 else self._split_points_seen - 1)
@@ -219,10 +239,11 @@ class OffsetRangeTracker(iobase.RangeTracker):
       return (split_points_consumed, split_points_remaining)
 
   def set_split_points_unclaimed_callback(self, callback):
+    # type: (Callable[[int], int]) -> None
     self._split_points_unclaimed_callback = callback
 
 
-class OrderedPositionRangeTracker(iobase.RangeTracker):
+class OrderedPositionRangeTracker(iobase.RangeTracker[iobase.PositionT]):
   """
   An abstract base class for range trackers whose positions are comparable.
 
@@ -233,19 +254,25 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
   UNSTARTED = object()
 
   def __init__(self, start_position=None, stop_position=None):
+    # type: (Optional[iobase.PositionT], Optional[iobase.PositionT]) -> None
     self._start_position = start_position
     self._stop_position = stop_position
     self._lock = threading.Lock()
-    self._last_claim = self.UNSTARTED
+    # the return on investment for properly typing this is low. cast it.
+    self._last_claim = cast(iobase.PositionT, self.UNSTARTED)
 
   def start_position(self):
+    # type: () -> Optional[iobase.PositionT]
     return self._start_position
 
   def stop_position(self):
+    # type: () -> Optional[iobase.PositionT]
     with self._lock:
       return self._stop_position
 
   def try_claim(self, position):
+    # type: (iobase.PositionT) -> bool
+
     with self._lock:
       if self._last_claim is not self.UNSTARTED and position < self._last_claim:
         raise ValueError(
@@ -263,10 +290,13 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
         return False
 
   def position_at_fraction(self, fraction):
+    # type: (float) -> Optional[iobase.PositionT]
     return self.fraction_to_position(
         fraction, self._start_position, self._stop_position)
 
   def try_split(self, position):
+    # type: (iobase.PositionT) -> Optional[Tuple[iobase.PositionT, float]]
+
     with self._lock:
       if ((self._stop_position is not None and position >= self._stop_position)
           or (self._start_position is not None and
@@ -283,20 +313,28 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
         return None
 
   def fraction_consumed(self):
+    # type: () -> float
     if self._last_claim is self.UNSTARTED:
       return 0
     else:
       return self.position_to_fraction(
           self._last_claim, self._start_position, self._stop_position)
 
+  @classmethod
+  def position_to_fraction(cls, key, start=None, end=None):
+    # type: (iobase.PositionT, Optional[iobase.PositionT], Optional[iobase.PositionT]) -> float
+    raise NotImplementedError
+
   def fraction_to_position(self, fraction, start, end):
+    # type: (float, Optional[iobase.PositionT], Optional[iobase.PositionT]) -> Optional[iobase.PositionT]
+
     """
     Converts a fraction between 0 and 1 to a position between start and end.
     """
     raise NotImplementedError
 
 
-class UnsplittableRangeTracker(iobase.RangeTracker):
+class UnsplittableRangeTracker(iobase.RangeTracker[iobase.PositionT]):
   """A RangeTracker that always ignores split requests.
 
   This can be used to make a given
@@ -305,6 +343,8 @@ class UnsplittableRangeTracker(iobase.RangeTracker):
   to the given :class:`~apache_beam.io.iobase.RangeTracker`.
   """
   def __init__(self, range_tracker):
+    # type: (iobase.RangeTracker[iobase.PositionT]) -> None
+
     """Initializes UnsplittableRangeTracker.
 
     Args:
@@ -316,41 +356,52 @@ class UnsplittableRangeTracker(iobase.RangeTracker):
     self._range_tracker = range_tracker
 
   def start_position(self):
+    # type: () -> Optional[iobase.PositionT]
     return self._range_tracker.start_position()
 
   def stop_position(self):
+    # type: () -> Optional[iobase.PositionT]
     return self._range_tracker.stop_position()
 
   def position_at_fraction(self, fraction):
+    # type: (float) -> Optional[iobase.PositionT]
     return self._range_tracker.position_at_fraction(fraction)
 
   def try_claim(self, position):
+    # type: (iobase.PositionT) -> bool
     return self._range_tracker.try_claim(position)
 
   def try_split(self, position):
+    # type: (iobase.PositionT) -> None
     return None
 
   def set_current_position(self, position):
+    # type: (iobase.PositionT) -> None
     self._range_tracker.set_current_position(position)
 
   def fraction_consumed(self):
+    # type: () -> float
     return self._range_tracker.fraction_consumed()
 
   def split_points(self):
+    # type: ()-> Tuple[int, int]
     # An unsplittable range only contains a single split point.
     return (0, 1)
 
   def set_split_points_unclaimed_callback(self, callback):
+    # type: (Callable[[int], int]) -> None
     self._range_tracker.set_split_points_unclaimed_callback(callback)
 
 
-class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
+class LexicographicKeyRangeTracker(OrderedPositionRangeTracker[bytes]):
   """
   A range tracker that tracks progress through a lexicographically
   ordered keyspace of strings.
   """
   @classmethod
   def fraction_to_position(cls, fraction, start=None, end=None):
+    # type: (float, Optional[bytes], Optional[bytes]) -> Optional[bytes]
+
     """
     Linearly interpolates a key that is lexicographically
     fraction of the way between start and end.
@@ -389,6 +440,8 @@ class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
 
   @classmethod
   def position_to_fraction(cls, key, start=None, end=None):
+    # type: (bytes, Optional[bytes], Optional[bytes]) -> float
+
     """
     Returns the fraction of keys in the range [start, end) that
     are less than the given key.
@@ -409,6 +462,8 @@ class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
 
   @staticmethod
   def _bytestring_to_int(s, prec):
+    # type: (bytes, int) -> int
+
     """
     Returns int(256**prec * f) where f is the fraction
     represented by interpreting '.' + s as a base-256
@@ -420,12 +475,16 @@ class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
       s += b'\0' * (prec - len(s))
     else:
       s = s[:prec]
-    return int(codecs.encode(s, 'hex'), 16)
+    # typing: this will be fixed in the next version of mypy
+    return int(codecs.encode(s, 'hex'), 16)  # type: ignore
 
   @staticmethod
   def _bytestring_from_int(i, prec):
+    # type: (int, int) -> bytes
+
     """
     Inverse of _bytestring_to_int.
     """
     h = '%x' % i
-    return codecs.decode('0' * (2 * prec - len(h)) + h, 'hex')
+    # typing: this will be fixed in the next version of mypy
+    return codecs.decode('0' * (2 * prec - len(h)) + h, 'hex')  # type: ignore

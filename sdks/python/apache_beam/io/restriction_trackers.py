@@ -22,6 +22,8 @@ from __future__ import absolute_import
 from __future__ import division
 
 from builtins import object
+from typing import Iterator
+from typing import Optional
 from typing import Tuple
 
 from apache_beam.io.iobase import RestrictionProgress
@@ -31,6 +33,7 @@ from apache_beam.io.range_trackers import OffsetRangeTracker
 
 class OffsetRange(object):
   def __init__(self, start, stop):
+    # type: (int, int) -> None
     if start > stop:
       raise ValueError(
           'Start offset must be not be larger than the stop offset. '
@@ -52,6 +55,7 @@ class OffsetRange(object):
     return hash((type(self), self.start, self.stop))
 
   def split(self, desired_num_offsets_per_split, min_num_offsets_per_split=1):
+    # type: (...) -> Iterator[OffsetRange]
     current_split_start = self.start
     max_split_size = max(
         desired_num_offsets_per_split, min_num_offsets_per_split)
@@ -72,9 +76,11 @@ class OffsetRange(object):
     return OffsetRange(self.start, split_pos), OffsetRange(split_pos, self.stop)
 
   def new_tracker(self):
+    # type: () -> OffsetRangeTracker
     return OffsetRangeTracker(self.start, self.stop)
 
   def size(self):
+    # type: () -> int
     return self.stop - self.start
 
 
@@ -87,8 +93,8 @@ class OffsetRestrictionTracker(RestrictionTracker):
     # type: (OffsetRange) -> None
     assert isinstance(offset_range, OffsetRange)
     self._range = offset_range
-    self._current_position = None
-    self._last_claim_attempt = None
+    self._current_position = None  # type: Optional[int]
+    self._last_claim_attempt = None  # type: Optional[int]
     self._checkpointed = False
 
   def check_done(self):
@@ -101,6 +107,7 @@ class OffsetRestrictionTracker(RestrictionTracker):
               self._range.stop))
 
   def current_restriction(self):
+    # type: () -> OffsetRange
     return self._range
 
   def current_progress(self):
@@ -117,9 +124,11 @@ class OffsetRestrictionTracker(RestrictionTracker):
     return RestrictionProgress(fraction=fraction)
 
   def start_position(self):
+    # type: () -> int
     return self._range.start
 
   def stop_position(self):
+    # type: () -> int
     return self._range.stop
 
   def try_claim(self, position):
