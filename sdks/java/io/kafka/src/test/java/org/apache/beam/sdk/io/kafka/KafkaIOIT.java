@@ -34,6 +34,7 @@ import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedSource;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.testing.PAssert;
@@ -110,6 +111,10 @@ public class KafkaIOIT {
         .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
         .apply("Write to Kafka", writeToKafka());
 
+    ExperimentalOptions.addExperiment(
+        readPipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
+    ExperimentalOptions.addExperiment(
+        readPipeline.getOptions().as(ExperimentalOptions.class), "use_unified_worker");
     PCollection<String> hashcode =
         readPipeline
             .apply("Read from Kafka", readFromKafka())
