@@ -32,13 +32,33 @@ List<String> packagesToRelocate = [
         "com.google.common",
         "com.google.thirdparty",
         "com.google.protobuf",
+        "com.google.inject",
+        "com.google.gson",
         "com.fasterxml",
         "com.yahoo",
         "org.apache.calcite",
         "org.apache.commons",
         "org.apache.http",
+        "org.apache.tool",
         "org.pentaho",
-        "org.yaml"
+        "org.yaml",
+        "org.testng",
+        "antlr",
+        "org.antlr",
+        "org.objenesis",
+        "org.eclipse.jetty",
+        "com.beust",
+        "org.codehaus",
+        "net.minidev",
+        "net.sf",
+        "org.objectweb",
+        "org.easymock",
+        "org.json",
+        "com.jayway.jsonpath",
+        "org.aopalliance",
+        "org.apiguardian.api",
+        "org.slf4j",
+        "javax"
 ]
 
 vendorJava(
@@ -51,8 +71,6 @@ vendorJava(
                 "com.google.code.gson:gson:2.8.6",
                 "org.json:json:20190722",
                 "org.apache.ant:ant:1.9.2",
-                "com.jayway.jsonpath:json-path:2.4.0",
-                "org.apache.tapestry:tapestry-json:5.4.3",
 
                 "org.easymock:easymock:3.3.1",
                 "org.antlr:stringtemplate:3.2.1",
@@ -65,11 +83,11 @@ vendorJava(
                 "org.eclipse.jetty:jetty-jmx:9.4.27.v20200227"
         ],
         runtimeDependencies: [
-                "com.google.errorprone:error_prone_annotations:2.3.3",
                 "commons-logging:commons-logging:1.2",
                 "org.antlr:antlr-runtime:3.1.2",
                 "org.apache.logging.log4j:log4j-api:2.6.2",
-                "org.slf4j:slf4j-api:1.7.21"
+                "org.slf4j:slf4j-api:1.7.21",
+                "com.jayway.jsonpath:json-path:2.4.0",
         ],
         testDependencies: [
                 "junit:junit:4.12"
@@ -82,6 +100,10 @@ vendorJava(
                 "org/apache/log/**",
                 "org/apache/log4j/**",
                 "org/apache/logging/log4j/**",
+                "junit/**",
+                "org/junit/**",
+                "com/google/errorprone/**",
+                "module-info.class"
         ],
         groupId: group,
         artifactId: "beam-vendor-calcite-1_22_0",
