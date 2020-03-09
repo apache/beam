@@ -26,9 +26,13 @@ from itertools import chain
 import numpy as np
 from past.builtins import unicode
 
+import apache_beam as beam
 from apache_beam.coders import RowCoder
 from apache_beam.coders.typecoders import registry as coders_registry
 from apache_beam.portability.api import schema_pb2
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.typehints.schemas import typing_to_runner_api
 
 Person = typing.NamedTuple(
@@ -164,6 +168,18 @@ class RowCoderTest(unittest.TestCase):
     self.assertEqual(
         New(None, "baz", None),
         new_coder.decode(old_coder.encode(Old(None, "baz"))))
+
+  def test_row_coder_in_pipeine(self):
+    with TestPipeline() as p:
+      res = (
+          p
+          | beam.Create(range(3))
+          | beam.Map(lambda i: Person(name='person%d' % i, age=i, address=None, aliases=())).with_output_types(Person))
+      assert_that(res, equal_to([
+          Person(name='person0', age=0, address=None, aliases=()),
+          Person(name='person1', age=1, address=None, aliases=()),
+          Person(name='person2', age=2, address=None, aliases=())
+      ]))
 
 
 if __name__ == "__main__":
