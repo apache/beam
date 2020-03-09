@@ -17,6 +17,13 @@
 # under the License.
 #
 
-content:
-- Adding Timestamp
-- Fixed Time Window
+type: edu
+files:
+- name: task.py
+  visible: true
+  placeholders:
+  - offset: 2074
+    length: 85
+    placeholder_text: TODO()
+- name: tests.py
+  visible: false
