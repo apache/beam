@@ -35,6 +35,7 @@ from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import named_tuple_to_schema
+from apache_beam.utils import proto_utils
 
 __all__ = ["RowCoder"]
 
@@ -80,12 +81,17 @@ class RowCoder(FastCoder):
 
   @staticmethod
   @Coder.register_urn(common_urns.coders.ROW.urn, schema_pb2.Schema)
-  def from_runner_api_parameter(payload, components, unused_context):
-    return RowCoder(payload)
+  def from_runner_api_parameter(schema, components, unused_context):
+    return RowCoder(schema)
 
   @staticmethod
   def from_type_hint(named_tuple_type, registry):
     return RowCoder(named_tuple_to_schema(named_tuple_type))
+
+  @staticmethod
+  def from_payload(payload):
+    # type: (bytes) -> RowCoder
+    return RowCoder(proto_utils.parse_Bytes(payload, schema_pb2.Schema))
 
   @staticmethod
   def coder_from_type(field_type):
@@ -106,6 +112,11 @@ class RowCoder(FastCoder):
     raise ValueError(
         "Encountered a type that is not currently supported by RowCoder: %s" %
         field_type)
+
+  def __reduce__(self):
+    # when pickling, use bytes representation of the schema. schema_pb2.Schema
+    # objects cannot be pickled.
+    return (RowCoder.from_payload, (self.schema.SerializeToString(), ))
 
 
 class RowCoderImpl(StreamCoderImpl):
