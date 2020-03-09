@@ -251,6 +251,7 @@ from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.io.avroio import _create_avro_source as create_avro_source
 from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery_tools
@@ -258,7 +259,6 @@ from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.iobase import BoundedSource
 from apache_beam.io.iobase import RangeTracker
 from apache_beam.io.iobase import SourceBundle
-from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -701,13 +701,9 @@ class _CustomBigQuerySource(BoundedSource):
 
       schema, metadata_list = self._export_files(bq)
       self.split_result = [
-          TextSource(
-              metadata.path,
-              0,
-              CompressionTypes.UNCOMPRESSED,
-              True,
-              self.coder(schema)) for metadata in metadata_list
-      ]
+          create_avro_source(metadata.path, 0, True)
+          for metadata in metadata_list]
+
       if self.query is not None:
         bq.clean_up_temporary_dataset(self._get_project())
 
@@ -758,7 +754,7 @@ class _CustomBigQuerySource(BoundedSource):
     job_ref = bq.perform_extract_job([self.gcs_location],
                                      job_id,
                                      self.table_reference,
-                                     bigquery_tools.FileFormat.JSON,
+                                     bigquery_tools.FileFormat.AVRO,
                                      project=self._get_project(),
                                      include_header=False,
                                      job_labels=self.bigquery_job_labels)
