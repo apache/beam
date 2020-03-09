@@ -68,7 +68,7 @@ vendorJava(
                 "org.apache.calcite.avatica:avatica-core:$avatica_version",
                 library.java.protobuf_java,
                 library.java.slf4j_api,
-                
+
                 "cglib:cglib:3.3.0",
                 "com.google.code.gson:gson:2.8.6",
                 "javax.servlet:javax.servlet-api:3.0.1",
@@ -76,7 +76,6 @@ vendorJava(
                 "org.antlr:stringtemplate:3.2.1",
                 "org.apache.ant:ant:1.9.2",
                 "org.codehaus.jettison:jettison:1.4.0",
-                "org.easymock:easymock:3.3.1",
                 "org.easymock:easymock:4.1",
                 "org.eclipse.jetty:jetty-jmx:9.4.27.v20200227",
                 "org.json:json:20190722",
@@ -90,7 +89,7 @@ vendorJava(
                 "org.slf4j:slf4j-api:1.7.21",
         ],
         testDependencies: [
-                "junit:junit:4.12"
+                "junit:junit:4.12",
 
         ],
         relocations: packagesToRelocate.collectEntries {
@@ -104,6 +103,7 @@ vendorJava(
                 "org/apache/log4j/**",
                 "org/apache/logging/log4j/**",
                 "org/junit/**",
+                "org/slf4j/**",
         ],
         groupId: group,
         artifactId: "beam-vendor-calcite-1_22_0",
