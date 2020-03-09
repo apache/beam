@@ -26,6 +26,7 @@ from typing import Union
 from apache_beam import pvalue
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
+from apache_beam.dataframe import schemas
 from apache_beam.dataframe import transforms
 
 if TYPE_CHECKING:
@@ -36,7 +37,7 @@ if TYPE_CHECKING:
 # TODO: Or should this be called as_dataframe?
 def to_dataframe(
     pcoll,  # type: pvalue.PCollection
-    proxy,  # type: pandas.core.generic.NDFrame
+    proxy=None,  # type: pandas.core.generic.NDFrame
 ):
   # type: (...) -> frame_base.DeferredFrame
 
@@ -52,6 +53,11 @@ def to_dataframe(
 
   A proxy object must be given if the schema for the PCollection is not known.
   """
+  if proxy is None:
+    # If no proxy is given, assume this is an element-wise schema-aware
+    # PCollection that needs to be batched.
+    proxy = schemas.generate_proxy(pcoll.element_type)
+    pcoll = pcoll | 'BatchElements' >> schemas.BatchRowsAsDataFrame()
   return frame_base.DeferredFrame.wrap(
       expressions.PlaceholderExpression(proxy, pcoll))
 

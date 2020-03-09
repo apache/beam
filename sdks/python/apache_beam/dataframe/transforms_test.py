@@ -18,14 +18,59 @@ from __future__ import absolute_import
 from __future__ import division
 
 import unittest
+import typing
 
 import pandas as pd
 
 import apache_beam as beam
+from apache_beam import coders
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import transforms
 from apache_beam.testing.util import assert_that
+
+from past.builtins import unicode
+
+
+def sort_by_value_and_drop_index(df):
+  if isinstance(df, pd.DataFrame):
+    sorted_df = df.sort_values(by=list(df.columns))
+  else:
+    sorted_df = df.sort_values()
+  return sorted_df.reset_index(drop=True)
+
+
+def check_correct(expected, actual, check_index=False):
+  if actual is None:
+    raise AssertionError('Empty frame but expected: \n\n%s' % (expected))
+  if isinstance(expected, pd.core.generic.NDFrame):
+    sorted_actual = sort_by_value_and_drop_index(actual)
+    sorted_expected = sort_by_value_and_drop_index(expected)
+    if not sorted_actual.equals(sorted_expected):
+      raise AssertionError(
+          'Dataframes not equal: \n\n%s\n\n%s' %
+          (sorted_actual, sorted_expected))
+  else:
+    if actual != expected:
+      raise AssertionError('Scalars not equal: %s != %s' % (actual, expected))
+
+
+def concat(parts):
+  if len(parts) > 1:
+    return pd.concat(parts)
+  elif len(parts) == 1:
+    return parts[0]
+  else:
+    return None
+
+
+def df_equal_to(expected):
+  return lambda actual: check_correct(expected, concat(actual))
+
+
+AnimalSpeed = typing.NamedTuple(
+    'AnimalSpeed', [('Animal', unicode), ('Speed', int)])
+coders.registry.register_coder(AnimalSpeed, coders.RowCoder)
 
 
 class TransformTest(unittest.TestCase):
@@ -38,36 +83,14 @@ class TransformTest(unittest.TestCase):
     actual_deferred = func(input_deferred)._expr.evaluate_at(
         expressions.Session({input_placeholder: input}))
 
-    def concat(parts):
-      if len(parts) > 1:
-        return pd.concat(parts)
-      elif len(parts) == 1:
-        return parts[0]
-      else:
-        return None
-
-    def check_correct(actual):
-      if actual is None:
-        raise AssertionError('Empty frame but expected: \n\n%s' % (expected))
-      if isinstance(expected, pd.core.generic.NDFrame):
-        sorted_actual = actual.sort_index()
-        sorted_expected = expected.sort_index()
-        if not sorted_actual.equals(sorted_expected):
-          raise AssertionError(
-              'Dataframes not equal: \n\n%s\n\n%s' %
-              (sorted_actual, sorted_expected))
-      else:
-        if actual != expected:
-          raise AssertionError(
-              'Scalars not equal: %s != %s' % (actual, expected))
-
-    check_correct(actual_deferred)
+    check_correct(expected, actual_deferred)
 
     with beam.Pipeline() as p:
       input_pcoll = p | beam.Create([input[::2], input[1::2]])
       output_pcoll = input_pcoll | transforms.DataframeTransform(
           func, proxy=empty)
-      assert_that(output_pcoll, lambda actual: check_correct(concat(actual)))
+      assert_that(
+          output_pcoll, lambda actual: check_correct(expected, concat(actual)))
 
   def test_identity(self):
     df = pd.DataFrame({
@@ -95,7 +118,6 @@ class TransformTest(unittest.TestCase):
     self.run_scenario(
         df, lambda df: df.set_index('Animal').filter(regex='F.*', axis='index'))
 
-  def test_aggregate(self):
     with expressions.allow_non_parallel_operations():
       a = pd.DataFrame({'col': [1, 2, 3]})
       self.run_scenario(a, lambda a: a.agg(sum))
@@ -111,6 +133,64 @@ class TransformTest(unittest.TestCase):
       df = pd.DataFrame({'key': ['a', 'a', 'b'], 'val': [1, 2, 6]})
       self.run_scenario(
           df, lambda df: df.groupby('key').sum().val / df.val.agg(sum))
+
+  def test_batching_named_tuple_input(self):
+    with beam.Pipeline() as p:
+      result = (
+          p | beam.Create([
+              AnimalSpeed('Aardvark', 5),
+              AnimalSpeed('Ant', 2),
+              AnimalSpeed('Elephant', 35),
+              AnimalSpeed('Zebra', 40)
+          ]).with_output_types(AnimalSpeed)
+          | transforms.DataframeTransform(lambda df: df.filter(regex='A.*')))
+
+      assert_that(
+          result,
+          df_equal_to(
+              pd.DataFrame({'Animal': ['Aardvark', 'Ant', 'Elephant',
+                                       'Zebra']})))
+
+  def test_batching_beam_row_input(self):
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | beam.Create([(u'Falcon', 380.), (u'Falcon', 370.), (u'Parrot', 24.),
+                         (u'Parrot', 26.)])
+          | beam.Map(lambda tpl: beam.Row(Animal=tpl[0], Speed=tpl[1]))
+          |
+          transforms.DataframeTransform(lambda df: df.groupby('Animal').mean()))
+
+      assert_that(
+          result,
+          df_equal_to(
+              pd.DataFrame({
+                  'Animal': ['Falcon', 'Parrot'], 'Speed': [375., 25.]
+              }).set_index('Animal')))
+
+  def test_batching_unsupported_nested_schema_raises(self):
+    Nested = typing.NamedTuple(
+        'Nested', [('id', int), ('animal_speed', AnimalSpeed)])
+    coders.registry.register_coder(Nested, coders.RowCoder)
+
+    with beam.Pipeline() as p:
+      nested_schema_pc = (
+          p | beam.Create([Nested(1, AnimalSpeed('Aardvark', 5))
+                           ]).with_output_types(Nested))
+      with self.assertRaisesRegex(TypeError, 'animal_speed'):
+        nested_schema_pc | transforms.DataframeTransform(  # pylint: disable=expression-not-assigned
+            lambda df: df.filter(items=['id']))
+
+  def test_batching_unsupported_array_schema_raises(self):
+    Array = typing.NamedTuple(
+        'Array', [('id', int), ('business_numbers', typing.Sequence[int])])
+    coders.registry.register_coder(Array, coders.RowCoder)
+
+    with beam.Pipeline() as p:
+      array_schema_pc = (p | beam.Create([Array(1, [7, 8, 9])]))
+      with self.assertRaisesRegex(TypeError, 'business_numbers'):
+        array_schema_pc | transforms.DataframeTransform(  # pylint: disable=expression-not-assigned
+            lambda df: df.filter(items=['id']))
 
   def test_input_output_polymorphism(self):
     one_series = pd.Series([1])

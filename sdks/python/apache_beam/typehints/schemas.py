@@ -57,6 +57,7 @@ import numpy as np
 from past.builtins import unicode
 
 from apache_beam.portability.api import schema_pb2
+from apache_beam.typehints import row_type
 from apache_beam.typehints.native_type_compatibility import _get_args
 from apache_beam.typehints.native_type_compatibility import _match_is_exactly_mapping
 from apache_beam.typehints.native_type_compatibility import _match_is_named_tuple
@@ -129,6 +130,12 @@ def named_fields_to_schema(names_and_types):
           for (name, type) in names_and_types
       ],
       id=str(uuid4()))
+
+
+def named_fields_from_schema(
+    schema):  # (schema_pb2.Schema) -> typing.List[typing.Tuple[unicode, type]]
+  return [(field.name, typing_from_runner_api(field.type))
+          for field in schema.fields]
 
 
 def typing_to_runner_api(type_):
@@ -251,3 +258,23 @@ def named_tuple_from_schema(schema):
 
 def named_tuple_to_schema(named_tuple):
   return typing_to_runner_api(named_tuple).row_type.schema
+
+
+def schema_from_element_type(element_type):  # (type) -> schema_pb2.Schema
+  """Get a schema for the given PCollection element_type.
+
+  Returns schema as a list of (name, python_type) tuples"""
+  if isinstance(element_type, row_type.RowTypeConstraint):
+    # TODO: Make sure beam.Row generated schemas are registered and de-duped
+    return named_fields_to_schema(element_type._fields)
+  elif _match_is_named_tuple(element_type):
+    return named_tuple_to_schema(element_type)
+  else:
+    raise TypeError(
+        "Attempted to determine schema for unsupported type '%s'" %
+        element_type)
+
+
+def named_fields_from_element_type(
+    element_type):  # (type) -> typing.List[typing.Tuple[unicode, type]]
+  return named_fields_from_schema(schema_from_element_type(element_type))

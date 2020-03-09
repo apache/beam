@@ -52,7 +52,7 @@ class DataframeTransform(transforms.PTransform):
   passed to the callable as positional arguments, or a dictionary of
   PCollections, in which case they will be passed as keyword arguments.
   """
-  def __init__(self, func, proxy):
+  def __init__(self, func, proxy=None):
     self._func = func
     self._proxy = proxy
 
@@ -62,7 +62,10 @@ class DataframeTransform(transforms.PTransform):
 
     # Convert inputs to a flat dict.
     input_dict = _flatten(input_pcolls)  # type: Dict[Any, PCollection]
-    proxies = _flatten(self._proxy)
+    proxies = _flatten(self._proxy) if self._proxy is not None else {
+        tag: None
+        for tag in input_dict.keys()
+    }
     input_frames = {
         k: convert.to_dataframe(pc, proxies[k])
         for k, pc in input_dict.items()
