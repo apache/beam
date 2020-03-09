@@ -18,6 +18,7 @@ import datetime
 import time
 
 import apache_beam as beam
+from apache_beam.transforms import window
 
 from log_elements import LogElements
 
@@ -36,7 +37,7 @@ class AddTimestampDoFn(beam.DoFn):
 
     def process(self, element, **kwargs):
         unix_timestamp = time.mktime(element.date.timetuple())
-        yield beam.window.TimestampedValue(element, unix_timestamp)
+        yield window.TimestampedValue(element, unix_timestamp)
 
 
 p = beam.Pipeline()
