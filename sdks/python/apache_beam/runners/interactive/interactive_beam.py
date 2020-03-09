@@ -33,13 +33,14 @@ this module in your notebook or application code.
 
 from __future__ import absolute_import
 
-import re
+import warnings
 
 import apache_beam as beam
 from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
 from apache_beam.runners.interactive import pipeline_fragment as pf
+from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize
 from apache_beam.runners.interactive.options import interactive_options
 
@@ -86,9 +87,60 @@ class Options(interactive_options.InteractiveOptions):
       # The next PCollection evaluation will capture fresh data from sources,
       # and the data captured will be replayed until another eviction.
     """
+    assert value.total_seconds() > 0, 'Duration must be a positive value.'
     self.capture_control._capture_duration = value
 
   # TODO(BEAM-8335): add capture_size options when they are supported.
+
+  @property
+  def display_timestamp_format(self):
+    """The format in which timestamps are displayed.
+
+    Default is '%Y-%m-%d %H:%M:%S.%f%z', e.g. 2020-02-01 15:05:06.000015-08:00.
+    """
+    return self._display_timestamp_format
+
+  @display_timestamp_format.setter
+  def display_timestamp_format(self, value):
+    """Sets the format in which timestamps are displayed.
+
+    Default is '%Y-%m-%d %H:%M:%S.%f%z', e.g. 2020-02-01 15:05:06.000015-08:00.
+
+    Example::
+
+      # Sets the format to not display the timezone or microseconds.
+      interactive_beam.options.display_timestamp_format = %Y-%m-%d %H:%M:%S'
+    """
+    self._display_timestamp_format = value
+
+  @property
+  def display_timezone(self):
+    """The timezone in which timestamps are displayed.
+
+    Defaults to local timezone.
+    """
+    return self._display_timezone
+
+  @display_timezone.setter
+  def display_timezone(self, value):
+    """Sets the timezone (datetime.tzinfo) in which timestamps are displayed.
+
+    Defaults to local timezone.
+
+    Example::
+
+      # Imports the timezone library.
+      from pytz import timezone
+
+      # Will display all timestamps in the US/Eastern time zone.
+      tz = timezone('US/Eastern')
+
+      # You can also use dateutil.tz to get a timezone.
+      tz = dateutil.tz.gettz('US/Eastern')
+
+      interactive_beam.options.capture_size = tz
+    """
+    self._display_timezone = value
 
 
 # Users can set options to guide how Interactive Beam works.
@@ -98,6 +150,7 @@ class Options(interactive_options.InteractiveOptions):
 # ib.options.enable_capture_replay = False/True
 # ib.options.capture_duration = timedelta(seconds=60)
 # ib.options.capturable_sources.add(SourceClass)
+# Check the docstrings for detailed usages.
 options = Options()
 
 
@@ -140,17 +193,30 @@ def watch(watchable):
 
     Then you can use::
 
-      visualize(init_pcoll)
+      show(init_pcoll)
 
     To visualize data from init_pcoll once the pipeline is executed.
   """
   ie.current_env().watch(watchable)
 
 
-def show(*pcolls):
-  """Visualizes given PCollections in an interactive exploratory way if used
-  within a notebook, or prints a heading sampled data if used within an ipython
-  shell. Noop if used in a non-interactive environment.
+# TODO(BEAM-8288): Change the signature of this function to
+# `show(*pcolls, include_window_info=False, visualize_data=False)` once Python 2
+# is completely deprecated from Beam.
+def show(*pcolls, **configs):
+  """Shows given PCollections in an interactive exploratory way if used within
+  a notebook, or prints a heading sampled data if used within an ipython shell.
+  Noop if used in a non-interactive environment.
+
+  There are 2 configurations:
+
+    #. include_window_info=<True/False>. If True, windowing information of the
+       data will be visualized too. Default is false.
+    #. visualize_data=<True/False>. By default, the visualization contains data
+       tables rendering data from given pcolls separately as if they are
+       converted into dataframes. If visualize_data is True, there will be a
+       more dive-in widget and statistically overview widget of the data.
+       Otherwise, those 2 data visualization widgets will not be displayed.
 
   Ad hoc builds a pipeline fragment including only transforms that are
   necessary to produce data for given PCollections pcolls, runs the pipeline
@@ -196,6 +262,15 @@ def show(*pcolls):
         '{} belongs to a different user-defined pipeline ({}) than that of'
         ' other PCollections ({}).'.format(
             pcoll, pcoll.pipeline, user_pipeline))
+  # TODO(BEAM-8288): Remove below pops and assertion once Python 2 is
+  # deprecated from Beam.
+  include_window_info = configs.pop('include_window_info', False)
+  visualize_data = configs.pop('visualize_data', False)
+  # This assertion is to protect the backward compatibility for function
+  # signature change after Python 2 deprecation.
+  assert not configs, (
+      'The only configs supported are include_window_info and '
+      'visualize_data.')
   runner = user_pipeline.runner
   if isinstance(runner, ir.InteractiveRunner):
     runner = runner._underlying_runner
@@ -211,20 +286,31 @@ def show(*pcolls):
         watched_pcollections.add(val)
   for pcoll in pcolls:
     if pcoll not in watched_pcollections:
-      watch({re.sub(r'[\[\]\(\)]', '_', str(pcoll)): pcoll})
+      watch({'anonymous_pcollection_{}'.format(id(pcoll)): pcoll})
 
+  if ie.current_env().is_in_ipython:
+    warnings.filterwarnings(
+        'ignore',
+        'options is deprecated since First stable release. References to '
+        '<pipeline>.options will not be supported',
+        category=DeprecationWarning)
   # Attempt to run background caching job since we have the reference to the
   # user-defined pipeline.
-  bcj.attempt_to_run_background_caching_job(runner, user_pipeline)
+  bcj.attempt_to_run_background_caching_job(
+      runner, user_pipeline, user_pipeline.options)
 
   # Build a pipeline fragment for the PCollections and run it.
-  result = pf.PipelineFragment(list(pcolls)).run()
+  result = pf.PipelineFragment(list(pcolls), user_pipeline.options).run()
   ie.current_env().set_pipeline_result(user_pipeline, result)
 
   # If in notebook, dynamic plotting as computation goes.
   if ie.current_env().is_in_notebook:
     for pcoll in pcolls:
-      visualize(pcoll, dynamic_plotting_interval=1)
+      visualize(
+          pcoll,
+          dynamic_plotting_interval=1,
+          include_window_info=include_window_info,
+          display_facets=visualize_data)
 
   # Invoke wait_until_finish to ensure the blocking nature of this API without
   # relying on the run to be blocking.
@@ -233,13 +319,19 @@ def show(*pcolls):
   # If just in ipython shell, plotting once when the computation is completed.
   if ie.current_env().is_in_ipython and not ie.current_env().is_in_notebook:
     for pcoll in pcolls:
-      visualize(pcoll)
+      visualize(pcoll, include_window_info=include_window_info)
 
   # If the pipeline execution is successful at this stage, mark the computation
   # completeness for the given PCollections so that when further `show`
   # invocation occurs, Interactive Beam wouldn't need to re-compute them.
   if result.state is beam.runners.runner.PipelineState.DONE:
     ie.current_env().mark_pcollection_computed(pcolls)
+
+
+def show_graph(pipeline):
+  """Shows the current pipeline shape of a given Beam pipeline as a DAG.
+  """
+  pipeline_graph.PipelineGraph(pipeline).display_graph()
 
 
 def evict_captured_data():

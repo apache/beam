@@ -37,6 +37,7 @@ from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as inst
 from apache_beam.runners.interactive import background_caching_job
 from apache_beam.runners.interactive.display import pipeline_graph
+from apache_beam.runners.interactive.options import capture_control
 
 # size of PCollection samples cached.
 SAMPLE_SIZE = 8
@@ -55,7 +56,7 @@ class InteractiveRunner(runners.PipelineRunner):
       cache_dir=None,
       cache_format='text',
       render_option=None,
-      skip_display=False,
+      skip_display=True,
       force_compute=True,
       blocking=True):
     """Constructor of InteractiveRunner.
@@ -141,6 +142,8 @@ class InteractiveRunner(runners.PipelineRunner):
     return self._underlying_runner.apply(transform, pvalueish, options)
 
   def run_pipeline(self, pipeline, options):
+    if not ie.current_env().options.enable_capture_replay:
+      capture_control.evict_captured_data()
     if self._force_compute:
       ie.current_env().evict_computed_pcollections()
 
@@ -202,6 +205,10 @@ class PipelineResult(beam.runners.runner.PipelineResult):
     super(PipelineResult, self).__init__(underlying_result.state)
     self._underlying_result = underlying_result
     self._pipeline_instrument = pipeline_instrument
+
+  @property
+  def state(self):
+    return self._underlying_result.state
 
   def wait_until_finish(self):
     self._underlying_result.wait_until_finish()
