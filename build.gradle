@@ -335,3 +335,27 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
     }
   }
 }
+
+if (project.hasProperty('runWithJava11')) {
+  allprojects {
+    plugins.withId('java') {
+
+      java {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+      }
+
+      tasks.withType(JavaCompile) {
+        options.with {
+          fork = true
+          forkOptions.javaHome = java8Home as File
+        }
+      }
+
+      test {
+        useJUnitPlatform()
+        executable = "${java11Home}/bin/java"
+      }
+    }
+  }
+}
