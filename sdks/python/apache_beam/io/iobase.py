@@ -41,12 +41,14 @@ import uuid
 from builtins import object
 from builtins import range
 from typing import TYPE_CHECKING
+from typing import Callable
 from typing import Generic
 from typing import Iterator
 from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 from typing import TypeVar
+from typing import Union
 
 from typing_extensions import Protocol
 
@@ -64,6 +66,7 @@ from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.utils import timestamp
 from apache_beam.utils import urns
+from apache_beam.utils.sentinel import Sentinel
 from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
@@ -81,6 +84,8 @@ __all__ = [
 ]
 
 _LOGGER = logging.getLogger(__name__)
+
+SplitPointsUnclaimedCallback = Callable[[int], Union[int, Sentinel]]
 
 
 class Position(Protocol):
@@ -380,7 +385,7 @@ class RangeTracker(Generic[PositionT]):
   the current reader and by a reader of the task starting at 43).
   """
 
-  SPLIT_POINTS_UNKNOWN = object()
+  SPLIT_POINTS_UNKNOWN = Sentinel.sentinel
 
   def start_position(self):
     # type: () -> Optional[PositionT]
@@ -627,6 +632,8 @@ class RangeTracker(Generic[PositionT]):
         RangeTracker.SPLIT_POINTS_UNKNOWN, RangeTracker.SPLIT_POINTS_UNKNOWN)
 
   def set_split_points_unclaimed_callback(self, callback):
+    # type: (SplitPointsUnclaimedCallback) -> None
+
     """Sets a callback for determining the unclaimed number of split points.
 
     By invoking this function, a ``BoundedSource`` can set a callback function

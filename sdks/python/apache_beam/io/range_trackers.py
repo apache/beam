@@ -29,14 +29,15 @@ import math
 import threading
 from builtins import zip
 from typing import Callable
-from typing import Tuple
 from typing import Optional
+from typing import Tuple
 from typing import Union
 from typing import cast
 
 from past.builtins import long
 
 from apache_beam.io import iobase
+from apache_beam.utils.sentinel import Sentinel  # pylint: disable=unused-import
 
 __all__ = [
     'OffsetRangeTracker',
@@ -81,7 +82,7 @@ class OffsetRangeTracker(iobase.RangeTracker[int]):
     self._lock = threading.Lock()
 
     self._split_points_seen = 0
-    self._split_points_unclaimed_callback = None  # type: Optional[Callable[[int], int]]
+    self._split_points_unclaimed_callback = None  # type: Optional[iobase.SplitPointsUnclaimedCallback]
 
   def start_position(self):
     # type: () -> int
@@ -223,7 +224,7 @@ class OffsetRangeTracker(iobase.RangeTracker[int]):
             (self.stop_position() - self.start_position())))
 
   def split_points(self):
-    # type: ()-> Tuple[int, int]
+    # type: ()-> Tuple[int, Union[int, Sentinel]]
     with self._lock:
       split_points_consumed = (
           0 if self._split_points_seen == 0 else self._split_points_seen - 1)
@@ -231,15 +232,13 @@ class OffsetRangeTracker(iobase.RangeTracker[int]):
           self._split_points_unclaimed_callback(self.stop_position())
           if self._split_points_unclaimed_callback else
           iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
-      split_points_remaining = (
-          iobase.RangeTracker.SPLIT_POINTS_UNKNOWN
-          if split_points_unclaimed == iobase.RangeTracker.SPLIT_POINTS_UNKNOWN
-          else (split_points_unclaimed + 1))
-
-      return (split_points_consumed, split_points_remaining)
+      if split_points_unclaimed is iobase.RangeTracker.SPLIT_POINTS_UNKNOWN:
+        return (split_points_consumed, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
+      else:
+        return (split_points_consumed, split_points_unclaimed + 1)
 
   def set_split_points_unclaimed_callback(self, callback):
-    # type: (Callable[[int], int]) -> None
+    # type: (iobase.SplitPointsUnclaimedCallback) -> None
     self._split_points_unclaimed_callback = callback
 
 
