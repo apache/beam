@@ -152,6 +152,9 @@ public class TestPubsubSignal implements TestRule {
       if (resultTopicPath != null) {
         pubsub.deleteTopic(resultTopicPath);
       }
+      if (startTopicPath != null) {
+        pubsub.deleteTopic(startTopicPath);
+      }
     } finally {
       pubsub.close();
       pubsub = null;
