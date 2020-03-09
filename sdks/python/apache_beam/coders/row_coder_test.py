@@ -29,6 +29,7 @@ from past.builtins import unicode
 import apache_beam as beam
 from apache_beam.coders import RowCoder
 from apache_beam.coders.typecoders import registry as coders_registry
+from apache_beam.internal import pickler
 from apache_beam.portability.api import schema_pb2
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
@@ -48,8 +49,9 @@ coders_registry.register_coder(Person, RowCoder)
 
 
 class RowCoderTest(unittest.TestCase):
+  TEST_CASE = Person("Jon Snow", 23, None, ["crow", "wildling"])
   TEST_CASES = [
-      Person("Jon Snow", 23, None, ["crow", "wildling"]),
+      TEST_CASE,
       Person("Daenerys Targaryen", 25, "Westeros", ["Mother of Dragons"]),
       Person("Michael Bluth", 30, None, [])
   ]
@@ -169,17 +171,20 @@ class RowCoderTest(unittest.TestCase):
         New(None, "baz", None),
         new_coder.decode(old_coder.encode(Old(None, "baz"))))
 
+  def test_row_coder_picklable(self):
+    # occasionally coders can get pickled, RowCoder should be able to handle it
+    coder = coders_registry.get_coder(Person)
+    roundtripped = pickler.loads(pickler.dumps(coder))
+
+    self.assertEqual(roundtripped, coder)
+
   def test_row_coder_in_pipeine(self):
     with TestPipeline() as p:
       res = (
           p
-          | beam.Create(range(3))
-          | beam.Map(lambda i: Person(name='person%d' % i, age=i, address=None, aliases=())).with_output_types(Person))
-      assert_that(res, equal_to([
-          Person(name='person0', age=0, address=None, aliases=()),
-          Person(name='person1', age=1, address=None, aliases=()),
-          Person(name='person2', age=2, address=None, aliases=())
-      ]))
+          | beam.Create(self.TEST_CASES)
+          | beam.Filter(lambda person: person.name == "Jon Snow"))
+      assert_that(res, equal_to([self.TEST_CASE]))
 
 
 if __name__ == "__main__":
