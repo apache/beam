@@ -69,7 +69,8 @@ class RowCoder(FastCoder):
   def as_cloud_object(self, coders_context=None):
     raise NotImplementedError("as_cloud_object not supported for RowCoder")
 
-  __hash__ = None  # type: ignore[assignment]
+  def __hash__(self):
+    return hash(self.schema.SerializeToString())
 
   def __eq__(self, other):
     return type(self) == type(other) and self.schema == other.schema
