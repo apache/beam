@@ -24,6 +24,8 @@ For internal use only; no backwards-compatibility guarantees.
 
 from __future__ import absolute_import
 
+from dateutil import tz
+
 from apache_beam.runners.interactive.options import capture_control
 
 
@@ -32,10 +34,14 @@ class InteractiveOptions(object):
   Interactive Beam works."""
   def __init__(self):
     self._capture_control = capture_control.CaptureControl()
+    self._display_timestamp_format = '%Y-%m-%d %H:%M:%S.%f%z'
+    self._display_timezone = tz.tzlocal()
 
   def __repr__(self):
-    return 'With current interactive_beam.options: {}'.format(
-        self._capture_control)
+    options_str = '\n'.join(
+        '{} = {}'.format(k, getattr(self, k)) for k in dir(self)
+        if k[0] != '_' and k != 'capture_control')
+    return 'interactive_beam.options:\n{}'.format(options_str)
 
   @property
   def capture_control(self):
