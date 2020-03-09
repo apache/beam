@@ -819,22 +819,23 @@ class SdfProcessSizedElements(DoOperation):
                     self).monitoring_infos(transform_id)
       current_element_progress = self.current_element_progress()
       if current_element_progress:
-        if current_element_progress.completed_work():
-          completed = current_element_progress.completed_work()
-          remaining = current_element_progress.remaining_work()
+        if current_element_progress.completed_work:
+          completed = current_element_progress.completed_work
+          remaining = current_element_progress.remaining_work
         else:
-          completed = current_element_progress.fraction_completed()
-          remaining = current_element_progress.fraction_remaining()
-
+          completed = current_element_progress.fraction_completed
+          remaining = current_element_progress.fraction_remaining
+        assert completed is not None
+        assert remaining is not None
         completed_mi = metrics_pb2.MonitoringInfo(
             urn=monitoring_infos.WORK_COMPLETED_URN,
-            type=monitoring_infos.LATEST_DOUBLES_URN,
+            type=monitoring_infos.LATEST_DOUBLES_TYPE,
             labels=monitoring_infos.create_labels(ptransform=transform_id),
             payload=coders.FloatCoder().get_impl().encode_nested(completed),
             timestamp=monitoring_infos.to_timestamp_proto(time.time()))
         remaining_mi = metrics_pb2.MonitoringInfo(
             urn=monitoring_infos.WORK_REMAINING_URN,
-            type=monitoring_infos.LATEST_DOUBLES_URN,
+            type=monitoring_infos.LATEST_DOUBLES_TYPE,
             labels=monitoring_infos.create_labels(ptransform=transform_id),
             payload=coders.FloatCoder().get_impl().encode_nested(remaining),
             timestamp=monitoring_infos.to_timestamp_proto(time.time()))
