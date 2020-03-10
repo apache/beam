@@ -252,7 +252,6 @@ from apache_beam import pvalue
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.avroio import _create_avro_source as create_avro_source
-from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery
@@ -699,10 +698,11 @@ class _CustomBigQuerySource(BoundedSource):
         self._setup_temporary_dataset(bq)
         self.table_reference = self._execute_query(bq)
 
-      schema, metadata_list = self._export_files(bq)
+      unused_schema, metadata_list = self._export_files(bq)
       self.split_result = [
           create_avro_source(metadata.path, 0, True)
-          for metadata in metadata_list]
+          for metadata in metadata_list
+      ]
 
       if self.query is not None:
         bq.clean_up_temporary_dataset(self._get_project())
@@ -757,7 +757,8 @@ class _CustomBigQuerySource(BoundedSource):
                                      bigquery_tools.FileFormat.AVRO,
                                      project=self._get_project(),
                                      include_header=False,
-                                     job_labels=self.bigquery_job_labels)
+                                     job_labels=self.bigquery_job_labels,
+                                     use_avro_logical_types=True)
     bq.wait_for_bq_job(job_ref)
     metadata_list = FileSystems.match([self.gcs_location])[0].metadata_list
 

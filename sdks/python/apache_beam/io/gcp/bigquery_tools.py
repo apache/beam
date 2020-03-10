@@ -720,6 +720,7 @@ class BigQueryWrapper(object):
       project=None,
       include_header=True,
       compression=ExportCompression.NONE,
+      use_avro_logical_types=False,
       job_labels=None):
     """Starts a job to export data from BigQuery.
 
@@ -738,6 +739,7 @@ class BigQueryWrapper(object):
                     printHeader=include_header,
                     destinationFormat=destination_format,
                     compression=compression,
+                    useAvroLogicalTypes=use_avro_logical_types,
                 ),
                 labels=_build_job_labels(job_labels),
             ),
