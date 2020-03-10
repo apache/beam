@@ -33,6 +33,7 @@ import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark.NoopCheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.Deduplicate;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.Impulse;
@@ -202,8 +203,7 @@ public class Read {
 
       if (ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
           && !ExperimentalOptions.hasExperiment(
-              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")
-          && !source.requiresDeduping()) {
+              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")) {
         // We don't use Create here since Create is defined as a BoundedSource and using it would
         // cause an infinite expansion loop. We can reconsider this if Create is implemented
         // directly as a SplittableDoFn.
@@ -222,13 +222,13 @@ public class Read {
                         new UnboundedSourceAsSDFWrapperFn<>(
                             (Coder<CheckpointMark>) source.getCheckpointMarkCoder())))
                 .setCoder(ValueWithRecordIdCoder.of(source.getOutputCoder()));
-        // TODO(BEAM-2939): Add support for deduplication.
-        // if (source.requiresDeduping()) {
-        //   outputWithIds.apply(
-        //       Distinct.<ValueWithRecordId<T>, byte[]>withRepresentativeValueFn(
-        //               element -> element.getId())
-        //           .withRepresentativeType(TypeDescriptor.of(byte[].class)));
-        // }
+
+        if (source.requiresDeduping()) {
+          outputWithIds.apply(
+              Deduplicate.<ValueWithRecordId<T>, byte[]>withRepresentativeValueFn(
+                      element -> element.getId())
+                  .withRepresentativeType(TypeDescriptor.of(byte[].class)));
+        }
         return outputWithIds.apply(ParDo.of(new StripIdsDoFn<>()));
       }
 
