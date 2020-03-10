@@ -158,7 +158,7 @@ public class BigQueryReadWriteIT implements Serializable {
   }
 
   @Test
-  public void testSQLRead() throws IOException {
+  public void testSQLRead_withExport() throws IOException {
     bigQueryTestingTypes.insertRows(
         SOURCE_SCHEMA_TWO,
         row(
@@ -194,7 +194,13 @@ public class BigQueryReadWriteIT implements Serializable {
             + "TYPE 'bigquery' \n"
             + "LOCATION '"
             + bigQueryTestingTypes.tableSpec()
-            + "'";
+            + "'"
+            + "TBLPROPERTIES "
+            + "'{ "
+            + METHOD_PROPERTY
+            + ": \""
+            + Method.EXPORT.toString()
+            + "\" }'";
     sqlEnv.executeDdl(createTableStatement);
 
     String selectTableStatement = "SELECT * FROM TEST";
