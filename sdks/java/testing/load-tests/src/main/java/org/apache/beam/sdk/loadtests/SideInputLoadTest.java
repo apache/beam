@@ -100,7 +100,8 @@ public class SideInputLoadTest extends LoadTest<SideInputLoadTest.Options> {
   private void performTestWithList(
       PCollection<KV<byte[], byte[]>> input, Optional<SyntheticStep> syntheticStep) {
     applyStepIfPresent(input, "Synthetic step", syntheticStep);
-    PCollectionView<List<KV<byte[], byte[]>>> sideInput = applyWindowingIfPresent(input).apply(View.asList());
+    PCollectionView<List<KV<byte[], byte[]>>> sideInput =
+        applyWindowingIfPresent(input).apply(View.asList());
     input
         .apply(ParDo.of(new SideInputTestWithList(sideInput)).withSideInputs(sideInput))
         .apply("Collect end time metrics", ParDo.of(runtimeMonitor));
@@ -109,7 +110,8 @@ public class SideInputLoadTest extends LoadTest<SideInputLoadTest.Options> {
   private void performTestWithMap(
       PCollection<KV<byte[], byte[]>> input, Optional<SyntheticStep> syntheticStep) {
     applyStepIfPresent(input, "Synthetic step", syntheticStep);
-    PCollectionView<Map<byte[], byte[]>> sideInput = applyWindowingIfPresent(input).apply(View.asMap());
+    PCollectionView<Map<byte[], byte[]>> sideInput =
+        applyWindowingIfPresent(input).apply(View.asMap());
     input
         .apply(ParDo.of(new SideInputTestWithHashMap(sideInput)).withSideInputs(sideInput))
         .apply("Collect end time metrics", ParDo.of(runtimeMonitor));
@@ -125,12 +127,13 @@ public class SideInputLoadTest extends LoadTest<SideInputLoadTest.Options> {
         .apply("Collect end time metrics", ParDo.of(runtimeMonitor));
   }
 
-  private PCollection<KV<byte[], byte[]>> applyWindowingIfPresent(PCollection<KV<byte[], byte[]>> input) {
+  private PCollection<KV<byte[], byte[]>> applyWindowingIfPresent(
+      PCollection<KV<byte[], byte[]>> input) {
     PCollection<KV<byte[], byte[]>> windowedInput = input;
     if (options.getWindowCount() != 0) {
       long windowDurationMilis = sourceOptions.numRecords / options.getWindowCount();
-      windowedInput = input
-          .apply(Window.into(FixedWindows.of(Duration.millis(windowDurationMilis))));
+      windowedInput =
+          input.apply(Window.into(FixedWindows.of(Duration.millis(windowDurationMilis))));
     }
     return windowedInput;
   }
