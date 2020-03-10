@@ -49,7 +49,7 @@ task buildTestExpansionServiceJar(type: ShadowJar) {
     )
   }
   exclude 'META-INF/*.RSA', 'META-INF/*.SF','META-INF/*.DSA'
-  from { project.configurations.testRuntime.collect { it.isDirectory() ? it : zipTree(it) }}
+  from { project.configurations.testRuntime.collect { it.isDirectory() ? it : zipTree(it) }} { exclude 'META-INF/*.RSA', 'META-INF/*.SF', 'META-INF/*.DSA' }
   from sourceSets.main.output
   from sourceSets.test.output
 }
