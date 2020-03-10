@@ -17,16 +17,16 @@
 # under the License.
 #
 
-title: Beam Katas - Python
-language: English
-summary: "This course provides a series of katas to get familiar with Apache Beam.\
-  \ \n\nApache Beam website – https://beam.apache.org/"
-programming_language: Python
-programming_language_version: 3.7
-content:
-- Introduction
-- Core Transforms
-- Common Transforms
-- IO
-- Windowing
-- Examples
+type: edu
+files:
+- name: task.py
+  visible: true
+  placeholders:
+  - offset: 1211
+    length: 163
+    placeholder_text: TODO()
+  - offset: 1740
+    length: 30
+    placeholder_text: TODO()
+- name: tests.py
+  visible: false
