@@ -1122,9 +1122,22 @@ public class DoFnSignatures {
           "@Timestamp argument must have type org.joda.time.Instant.");
       return Parameter.timestampParameter();
     } else if (hasKeyAnnotation(param.getAnnotations())) {
-      /*methodErrors.checkArgument(
-      rawType.equals(Instant.class),
-      "@Timestamp argument must have type org.joda.time.Instant.");*/
+      /*try{
+        Field tokenField = inputT.getClass().getSuperclass().getDeclaredField("token");
+        tokenField.setAccessible(true);
+        TypeToken t = (TypeToken) tokenField.get(inputT);
+        Types.ParameterizedTypeImpl p = ((ParameterizedTypeImpl) t.getType());
+        Field listField = p.getClass().getDeclaredField("argumentsList");
+        listField.setAccessible(true);
+        List<?> data= (List<?>) listField.get(p);
+        data.get(0).equals(Integer.class);
+      }
+      catch (Exception ex){
+
+      }*/
+      // TODO: need to check type of KeyCoder of KV pair
+      methodErrors.checkArgument(
+          rawType.equals(String.class), "@Key argument must have type String.");
       return Parameter.keyParameter();
     } else if (rawType.equals(TimeDomain.class)) {
       return Parameter.timeDomainParameter();
