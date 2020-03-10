@@ -19,7 +19,9 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLabel;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
@@ -491,6 +493,49 @@ public class ParDoTest implements Serializable {
       DisplayData displayData = DisplayData.from(parDo);
       assertThat(displayData, includesDisplayDataFor("fn", fn));
       assertThat(displayData, hasDisplayItem("fn", fn.getClass()));
+    }
+
+    private static class SerializableClass implements Serializable {}
+
+    @Test
+    public void testStatefulDoFnDisplayData() {
+      DoFn<KV<String, String>, String> fn =
+          new DoFn<KV<String, String>, String>() {
+            @StateId("int")
+            final StateSpec<ValueState<Integer>> intState = StateSpecs.value();
+
+            @StateId("map")
+            final StateSpec<MapState<String, SerializableClass>> mapState = StateSpecs.map();
+
+            @ProcessElement
+            public void proccessElement(ProcessContext c) {}
+          };
+
+      SingleOutput<KV<String, String>, String> parDo = ParDo.of(fn);
+
+      // Use the parDo in a pipeline to cause state coders to be inferred.
+      pipeline.apply(Create.of(KV.of("input", "value"))).apply(parDo);
+
+      DisplayData displayData = DisplayData.from(parDo);
+      assertThat(
+          displayData,
+          hasDisplayItem(
+              allOf(
+                  hasKey("state_int"),
+                  hasType(DisplayData.Type.STRING),
+                  hasValue("ValueState<VarIntCoder>"),
+                  hasLabel("State \"int\""))));
+      assertThat(
+          displayData,
+          hasDisplayItem(
+              allOf(
+                  hasKey("state_map"),
+                  hasType(DisplayData.Type.STRING),
+                  hasValue(
+                      "MapState<StringUtf8Coder, "
+                          + "SerializableCoder(org.apache.beam.sdk.transforms.ParDoTest"
+                          + "$BasicTests$SerializableClass)>"),
+                  hasLabel("State \"map\""))));
     }
 
     @Test

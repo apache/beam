@@ -514,9 +514,11 @@ class _BundleFinalizerParam(_DoFnParam):
         _LOGGER.warning("Got exception from finalization call: %s", e)
 
   def has_callbacks(self):
+    # type: () -> bool
     return len(self._callbacks) > 0
 
   def reset(self):
+    # type: () -> None
     del self._callbacks[:]
 
 
@@ -2169,9 +2171,11 @@ class GroupByKey(PTransform):
       reify_output_type = typehints.KV[
           key_type, typehints.WindowedValue[value_type]]  # type: ignore[misc]
       gbk_input_type = (
-          typehints.KV[key_type,
-                       typehints.Iterable[typehints.WindowedValue[value_type]]]
-      )  # type: ignore[misc]
+          typehints.
+          KV[key_type,
+             typehints.Iterable[
+                 typehints.WindowedValue[  # type: ignore[misc]
+                     value_type]]])
       gbk_output_type = typehints.KV[key_type, typehints.Iterable[value_type]]
 
       # pylint: disable=bad-continuation
@@ -2305,8 +2309,8 @@ class Windowing(object):
   def __init__(self,
                windowfn,  # type: WindowFn
                triggerfn=None,  # type: typing.Optional[TriggerFn]
-               accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode]
-               timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime]
+               accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum]
+               timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime.Enum]
                allowed_lateness=0, # type: typing.Union[int, float]
                ):
     """Class representing the window strategy.

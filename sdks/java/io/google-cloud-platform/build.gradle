@@ -29,6 +29,7 @@ ext.summary = "IO library to read and write Google Cloud Platform systems from B
 
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":sdks:java:expansion-service")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile project(":sdks:java:extensions:protobuf")
   compile library.java.avro

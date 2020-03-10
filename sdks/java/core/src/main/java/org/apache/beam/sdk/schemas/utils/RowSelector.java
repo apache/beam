@@ -15,6 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.schemas.utils;
 
-/** Classes used to expand cross-language transforms. */
-package org.apache.beam.runners.core.construction.expansion;
+import org.apache.beam.sdk.values.Row;
+
+/** A selector interface for extracting fields from a row. * */
+public interface RowSelector {
+  Row select(Row input);
+}

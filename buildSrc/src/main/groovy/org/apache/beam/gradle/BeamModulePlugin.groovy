@@ -306,7 +306,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.20.0'
+    project.version = '2.21.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -372,7 +372,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def aws_java_sdk_version = "1.11.718"
     def aws_java_sdk2_version = "2.10.61"
     def cassandra_driver_version = "3.8.0"
-    def classgraph_version = "4.8.56"
+    def classgraph_version = "4.8.65"
     def gax_version = "1.53.0"
     def generated_grpc_ga_version = "1.83.0"
     def google_auth_version = "0.19.0"
@@ -450,7 +450,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
         google_api_common                           : "com.google.api:api-common:1.8.1",
-        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20190917-$google_clients_version",
+        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20191211-$google_clients_version",
         google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20191003-$google_clients_version",
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20191206-$google_clients_version",
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20190927-$google_clients_version",
@@ -458,7 +458,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20191011-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials:$google_auth_version",
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http:$google_auth_version",
-        google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery:1.103.0",
+        google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery:1.108.0",
         google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage:0.120.1-beta",
         google_cloud_bigtable_client_core           : "com.google.cloud.bigtable:bigtable-client-core:1.13.0",
         google_cloud_core                           : "com.google.cloud:google-cloud-core:$google_cloud_core_version",
@@ -537,8 +537,8 @@ class BeamModulePlugin implements Plugin<Project> {
         spark_sql                                   : "org.apache.spark:spark-sql_2.11:$spark_version",
         spark_streaming                             : "org.apache.spark:spark-streaming_2.11:$spark_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:3.1.4",
-        vendored_bytebuddy_1_9_3                    : "org.apache.beam:beam-vendor-bytebuddy-1_9_3:0.1",
-        vendored_grpc_1_26_0                        : "org.apache.beam:beam-vendor-grpc-1_26_0:0.2",
+        vendored_bytebuddy_1_10_8                   : "org.apache.beam:beam-vendor-bytebuddy-1_10_8:0.1",
+        vendored_grpc_1_26_0                        : "org.apache.beam:beam-vendor-grpc-1_26_0:0.3",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
         vendored_calcite_1_20_0                     : "org.apache.beam:beam-vendor-calcite-1_20_0:0.1",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",

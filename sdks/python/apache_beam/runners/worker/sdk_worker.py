@@ -88,7 +88,7 @@ class SdkHarness(object):
                # time-based data buffering is disabled by default
                data_buffer_time_limit_ms=0,
                profiler_factory=None,  # type: Optional[Callable[..., Profile]]
-               status_address=None,  # type: Optional[str, unicode]
+               status_address=None,  # type: Optional[str]
                ):
     self._alive = True
     self._worker_index = 0
@@ -122,7 +122,8 @@ class SdkHarness(object):
     if status_address:
       try:
         self._status_handler = FnApiWorkerStatusHandler(
-            status_address, self._bundle_processor_cache)
+            status_address, self._bundle_processor_cache
+        )  # type: Optional[FnApiWorkerStatusHandler]
       except Exception:
         traceback_string = traceback.format_exc()
         _LOGGER.warning(
@@ -580,8 +581,7 @@ class StateHandler(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
     raise NotImplementedError(type(self))
 
 
-class StateHandlerFactory(with_metaclass(abc.ABCMeta,
-                                         object)):  # type: ignore[misc]
+class StateHandlerFactory(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
   """An abstract factory for creating ``DataChannel``."""
   @abc.abstractmethod
   def create_state_handler(self, api_service_descriptor):

@@ -40,7 +40,7 @@ from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipytho
 try:
   from unittest.mock import patch
 except ImportError:
-  from mock import patch
+  from mock import patch  # type: ignore[misc]
 
 
 def print_with_message(msg):

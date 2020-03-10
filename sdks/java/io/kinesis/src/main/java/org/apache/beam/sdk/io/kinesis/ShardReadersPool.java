@@ -75,6 +75,7 @@ class ShardReadersPool {
 
   private final SimplifiedKinesisClient kinesis;
   private final WatermarkPolicyFactory watermarkPolicyFactory;
+  private final RateLimitPolicyFactory rateLimitPolicyFactory;
   private final KinesisReaderCheckpoint initialCheckpoint;
   private final int queueCapacityPerShard;
   private final AtomicBoolean poolOpened = new AtomicBoolean(true);
@@ -83,10 +84,12 @@ class ShardReadersPool {
       SimplifiedKinesisClient kinesis,
       KinesisReaderCheckpoint initialCheckpoint,
       WatermarkPolicyFactory watermarkPolicyFactory,
+      RateLimitPolicyFactory rateLimitPolicyFactory,
       int queueCapacityPerShard) {
     this.kinesis = kinesis;
     this.initialCheckpoint = initialCheckpoint;
     this.watermarkPolicyFactory = watermarkPolicyFactory;
+    this.rateLimitPolicyFactory = rateLimitPolicyFactory;
     this.queueCapacityPerShard = queueCapacityPerShard;
     this.executorService = Executors.newCachedThreadPool();
     this.numberOfRecordsInAQueueByShard = new ConcurrentHashMap<>();
@@ -115,11 +118,12 @@ class ShardReadersPool {
   void startReadingShards(Iterable<ShardRecordsIterator> shardRecordsIterators) {
     for (final ShardRecordsIterator recordsIterator : shardRecordsIterators) {
       numberOfRecordsInAQueueByShard.put(recordsIterator.getShardId(), new AtomicInteger());
-      executorService.submit(() -> readLoop(recordsIterator));
+      executorService.submit(
+          () -> readLoop(recordsIterator, rateLimitPolicyFactory.getRateLimitPolicy()));
     }
   }
 
-  private void readLoop(ShardRecordsIterator shardRecordsIterator) {
+  private void readLoop(ShardRecordsIterator shardRecordsIterator, RateLimitPolicy rateLimiter) {
     while (poolOpened.get()) {
       try {
         List<KinesisRecord> kinesisRecords;
@@ -143,10 +147,20 @@ class ShardReadersPool {
           recordsQueue.put(kinesisRecord);
           numberOfRecordsInAQueueByShard.get(kinesisRecord.getShardId()).incrementAndGet();
         }
+        rateLimiter.onSuccess(kinesisRecords);
+      } catch (KinesisClientThrottledException e) {
+        try {
+          rateLimiter.onThrottle(e);
+        } catch (InterruptedException ex) {
+          LOG.warn("Thread was interrupted, finishing the read loop", ex);
+          Thread.currentThread().interrupt();
+          break;
+        }
       } catch (TransientKinesisException e) {
         LOG.warn("Transient exception occurred.", e);
       } catch (InterruptedException e) {
         LOG.warn("Thread was interrupted, finishing the read loop", e);
+        Thread.currentThread().interrupt();
         break;
       } catch (Throwable e) {
         LOG.error("Unexpected exception occurred", e);

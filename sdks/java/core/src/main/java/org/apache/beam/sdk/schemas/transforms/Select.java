@@ -27,9 +27,10 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.utils.RowSelector;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
+import org.apache.beam.sdk.schemas.utils.SelectHelpers.RowSelectorContainer;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.FieldAccess;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -114,9 +115,10 @@ public class Select {
   }
 
   private static class SelectDoFn<T> extends DoFn<T, Row> {
-    private FieldAccessDescriptor fieldAccessDescriptor;
-    private Schema inputSchema;
-    private Schema outputSchema;
+    private final FieldAccessDescriptor fieldAccessDescriptor;
+    private final Schema inputSchema;
+    private final Schema outputSchema;
+    RowSelector rowSelector;
 
     // TODO: This should be the same as resolved so that Beam knows which fields
     // are being accessed. Currently Beam only supports wildcard descriptors.
@@ -129,11 +131,12 @@ public class Select {
       this.fieldAccessDescriptor = fieldAccessDescriptor;
       this.inputSchema = inputSchema;
       this.outputSchema = outputSchema;
+      this.rowSelector = new RowSelectorContainer(inputSchema, fieldAccessDescriptor, true);
     }
 
     @ProcessElement
     public void process(@FieldAccess("selectFields") @Element Row row, OutputReceiver<Row> r) {
-      r.output(SelectHelpers.selectRow(row, fieldAccessDescriptor, inputSchema, outputSchema));
+      r.output(rowSelector.select(row));
     }
   }
 

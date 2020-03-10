@@ -47,7 +47,10 @@ class TestStreamServiceController(TestStreamServiceServicer):
 
   def stop(self):
     self._server.stop(0)
-    self._server.wait_for_termination()
+    # This was introduced in grpcio 1.24 and might be gone in the future. Keep
+    # this check in case the runtime is on a older, current or future grpcio.
+    if hasattr(self._server, 'wait_for_termination'):
+      self._server.wait_for_termination()
 
   def Events(self, request, context):
     """Streams back all of the events from the streaming cache."""

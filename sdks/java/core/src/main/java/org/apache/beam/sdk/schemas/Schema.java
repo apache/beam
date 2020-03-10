@@ -818,9 +818,6 @@ public class Schema implements Serializable {
       if (!getTypeName().equals(other.getTypeName())) {
         return false;
       }
-      if (!Objects.equals(getMetadata(), other.getMetadata())) {
-        return false;
-      }
 
       switch (getTypeName()) {
         case ROW:

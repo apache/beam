@@ -119,10 +119,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     String containerImage = dockerPayload.getContainerImage();
     // TODO: https://issues.apache.org/jira/browse/BEAM-4148 The default service address will not
     // work for Docker for Mac.
-    String loggingEndpoint = loggingServiceServer.getApiServiceDescriptor().getUrl();
-    String artifactEndpoint = retrievalServiceServer.getApiServiceDescriptor().getUrl();
     String provisionEndpoint = provisioningServiceServer.getApiServiceDescriptor().getUrl();
-    String controlEndpoint = controlServiceServer.getApiServiceDescriptor().getUrl();
 
     ImmutableList.Builder<String> dockerOptsBuilder =
         ImmutableList.<String>builder()
@@ -143,10 +140,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     ImmutableList.Builder<String> argsBuilder =
         ImmutableList.<String>builder()
             .add(String.format("--id=%s", workerId))
-            .add(String.format("--logging_endpoint=%s", loggingEndpoint))
-            .add(String.format("--artifact_endpoint=%s", artifactEndpoint))
-            .add(String.format("--provision_endpoint=%s", provisionEndpoint))
-            .add(String.format("--control_endpoint=%s", controlEndpoint));
+            .add(String.format("--provision_endpoint=%s", provisionEndpoint));
     if (semiPersistDir != null) {
       argsBuilder.add(String.format("--semi_persist_dir=%s", semiPersistDir));
     }

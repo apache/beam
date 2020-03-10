@@ -153,9 +153,14 @@ echo "After PR created, you need to comment phrases listed in description in the
 
 if [[ ! -z `which hub` ]]; then
   git checkout -b ${WORKING_BRANCH} origin/${RELEASE_BRANCH} --quiet
-  touch empty_file.json
-  git add .
-  git commit -m "Add empty file in order to create a test PR" --quiet
+  # The version change is needed for Dataflow python batch tests.
+  # Without changing to dev version, the dataflow pipeline will fail because of non-existed worker containers.
+  # Note that dataflow worker containers should be built after RC has been built.
+  sed -i -e "s/${RELEASE_VER}/${RELEASE_VER}.dev/g" sdks/python/apache_beam/version.py
+  sed -i -e "s/sdk_version=${RELEASE_VER}/sdk_version=${RELEASE_VER}.dev/g" gradle.properties
+  git add sdks/python/apache_beam/version.py
+  git add gradle.properties
+  git commit -m "Changed version.py and gradle.properties to python dev version to create a test PR" --quiet
   git push -f ${GITHUB_USERNAME} --quiet
 
   trigger_phrases=$(IFS=$'\n'; echo "${JOB_TRIGGER_PHRASES[*]}")

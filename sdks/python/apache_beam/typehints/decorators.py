@@ -99,6 +99,7 @@ from builtins import zip
 from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import Iterable
 from typing import List
 from typing import NamedTuple
 from typing import Optional
@@ -253,20 +254,20 @@ class IOTypeHints(NamedTuple(
 
   @classmethod
   def _make_origin(cls, bases, tb=True, msg=()):
-    # type: (List[IOTypeHints], bool, List[str]) -> List[str]
+    # type: (List[IOTypeHints], bool, Iterable[str]) -> List[str]
     if msg:
-      res = msg
+      res = list(msg)
     else:
       res = []
     if tb:
       # Omit this method and the IOTypeHints method that called it.
       num_frames_skip = 2
-      tb = traceback.format_stack(limit=cls.traceback_limit +
-                                  num_frames_skip)[:-num_frames_skip]
+      tbs = traceback.format_stack(limit=cls.traceback_limit +
+                                   num_frames_skip)[:-num_frames_skip]
       # tb is a list of strings in the form of 'File ...\n[code]\n'. Split into
       # single lines and flatten.
       res += list(
-          itertools.chain.from_iterable(s.strip().split('\n') for s in tb))
+          itertools.chain.from_iterable(s.strip().split('\n') for s in tbs))
 
     bases = [base for base in bases if base.origin]
     if bases:

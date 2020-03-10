@@ -1336,6 +1336,7 @@ class RestrictionProgress(object):
       return float(self._remaining) / self.total_work
 
   def with_completed(self, completed):
+    # type: (int) -> RestrictionProgress
     return RestrictionProgress(
         fraction=self._fraction, remaining=self._remaining, completed=completed)
 
@@ -1488,6 +1489,9 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
     class SDFBoundedSourceDoFn(core.DoFn):
       def __init__(self, read_source):
         self.source = read_source
+
+      def display_data(self):
+        return {'source': self.source, 'source_type': str(type(self.source))}
 
       def process(
           self,

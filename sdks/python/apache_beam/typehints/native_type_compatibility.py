@@ -159,12 +159,22 @@ def _match_is_union(user_type):
   return False
 
 
-def is_Any(typ):
+def is_any(typ):
   return typ is typing.Any
 
 
 def is_new_type(typ):
   return hasattr(typ, '__supertype__')
+
+
+try:
+  _ForwardRef = typing.ForwardRef  # Python 3.7+
+except AttributeError:
+  _ForwardRef = typing._ForwardRef
+
+
+def is_forward_ref(typ):
+  return isinstance(typ, _ForwardRef)
 
 
 # Mapping from typing.TypeVar/typehints.TypeVariable ids to an object of the
@@ -209,7 +219,9 @@ def convert_to_beam_type(typ):
   type_map = [
       # TODO(BEAM-9355): Currently unsupported.
       _TypeMapEntry(match=is_new_type, arity=0, beam_type=typehints.Any),
-      _TypeMapEntry(match=is_Any, arity=0, beam_type=typehints.Any),
+      # TODO(BEAM-8487): Currently unsupported.
+      _TypeMapEntry(match=is_forward_ref, arity=0, beam_type=typehints.Any),
+      _TypeMapEntry(match=is_any, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(
           match=_match_issubclass(typing.Dict),
           arity=2,

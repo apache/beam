@@ -64,7 +64,7 @@ __all__ = [
 
 T = TypeVar('T')
 EnvironmentT = TypeVar('EnvironmentT', bound='Environment')
-ConstructorFn = Callable[[Optional[Any], 'PipelineContext'], Any]
+ConstructorFn = Callable[[Optional[Any], Iterable[str], 'PipelineContext'], Any]
 
 
 def looks_like_json(s):
@@ -173,7 +173,7 @@ class Environment(object):
 
   @classmethod
   def from_runner_api(cls,
-                      proto,  # type: Optional[beam_runner_api_pb2.FunctionSpec]
+                      proto,  # type: Optional[beam_runner_api_pb2.Environment]
                       context  # type: PipelineContext
                      ):
     # type: (...) -> Optional[Environment]

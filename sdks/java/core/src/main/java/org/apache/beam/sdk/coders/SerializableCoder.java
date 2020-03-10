@@ -224,6 +224,11 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
     return typeDescriptor;
   }
 
+  @Override
+  public String toString() {
+    return "SerializableCoder(" + type.getName() + ")";
+  }
+
   // This coder inherits isRegisterByteSizeObserverCheap,
   // getEncodedElementByteSize and registerByteSizeObserver
   // from StructuredCoder. Looks like we cannot do much better

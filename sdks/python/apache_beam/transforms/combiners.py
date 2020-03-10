@@ -425,7 +425,7 @@ class _MergeTopPerBundle(core.DoFn):
       yield [wrapper.value for wrapper in reversed(heapc)]
 
     else:
-      heap = []  # type: List[T]
+      heap = []
       for bundle in bundles:
         if not heap:
           heap = bundle
