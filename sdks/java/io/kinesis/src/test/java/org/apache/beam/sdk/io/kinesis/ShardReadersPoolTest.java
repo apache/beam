@@ -22,7 +22,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.same;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
@@ -324,10 +323,11 @@ public class ShardReadersPoolTest {
       }
     }
 
-    verify(customRateLimitPolicy).onThrottle(same(e));
-    verify(customRateLimitPolicy).onSuccess(eq(ImmutableList.of(a, b)));
-    verify(customRateLimitPolicy).onSuccess(eq(singletonList(c)));
-    verify(customRateLimitPolicy).onSuccess(eq(singletonList(d)));
-    verify(customRateLimitPolicy, atLeastOnce()).onSuccess(eq(Collections.emptyList()));
+    verify(customRateLimitPolicy, timeout(TIMEOUT_IN_MILLIS)).onThrottle(same(e));
+    verify(customRateLimitPolicy, timeout(TIMEOUT_IN_MILLIS)).onSuccess(eq(ImmutableList.of(a, b)));
+    verify(customRateLimitPolicy, timeout(TIMEOUT_IN_MILLIS)).onSuccess(eq(singletonList(c)));
+    verify(customRateLimitPolicy, timeout(TIMEOUT_IN_MILLIS)).onSuccess(eq(singletonList(d)));
+    verify(customRateLimitPolicy, timeout(TIMEOUT_IN_MILLIS).atLeastOnce())
+        .onSuccess(eq(Collections.emptyList()));
   }
 }
