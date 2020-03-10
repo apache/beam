@@ -38,6 +38,8 @@ from apache_beam.testing.test_stream import ProcessingTimeEvent
 from apache_beam.testing.test_stream import ReverseTestStream
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.test_stream import WatermarkEvent
+from apache_beam.testing.test_stream import WindowedValueHolder
+from apache_beam.testing.test_stream_service import TestStreamServiceController
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import equal_to_per_window
@@ -305,16 +307,15 @@ class TestStreamTest(unittest.TestCase):
           ]))
 
   def test_windowed_values_interpreted_correctly(self):
-    windowed_value_args = {
-        'value': 'a',
-        'timestamp': Timestamp(5),
-        'windows': [beam.window.IntervalWindow(5, 10)],
-        'pane_info': PaneInfo(True, True, PaneInfoTiming.ON_TIME, 0, 0)
-    }
+    windowed_value = WindowedValueHolder(
+        WindowedValue(
+            'a',
+            Timestamp(5), [beam.window.IntervalWindow(5, 10)],
+            PaneInfo(True, True, PaneInfoTiming.ON_TIME, 0, 0)))
     test_stream = (TestStream()
                    .advance_processing_time(10)
                    .advance_watermark_to(10)
-                   .add_elements([windowed_value_args])
+                   .add_elements([windowed_value])
                    .advance_watermark_to_infinity())  # yapf: disable
 
     class RecordFn(beam.DoFn):
@@ -491,20 +492,23 @@ class TestStreamTest(unittest.TestCase):
 
   def test_basic_execution_sideinputs(self):
     options = PipelineOptions()
+    options.view_as(DebugOptions).add_experiment(
+        'passthrough_pcollection_output_ids')
     options.view_as(StandardOptions).streaming = True
     with TestPipeline(options=options) as p:
 
-      main_stream = (
-          p
-          | 'main TestStream' >>
-          TestStream().advance_watermark_to(10).add_elements(['e']))
-      side_stream = (
-          p
-          | 'side TestStream' >> TestStream().add_elements([
-              window.TimestampedValue(2, 2)
-          ]).add_elements([window.TimestampedValue(1, 1)]).add_elements([
-              window.TimestampedValue(7, 7)
-          ]).add_elements([window.TimestampedValue(4, 4)]))
+      test_stream = (p | TestStream()
+          .advance_watermark_to(0, tag='side')
+          .advance_watermark_to(10, tag='main')
+          .add_elements(['e'], tag='main')
+          .add_elements([window.TimestampedValue(2, 2)], tag='side')
+          .add_elements([window.TimestampedValue(1, 1)], tag='side')
+          .add_elements([window.TimestampedValue(7, 7)], tag='side')
+          .add_elements([window.TimestampedValue(4, 4)], tag='side')
+          ) # yapf: disable
+
+      main_stream = test_stream['main']
+      side_stream = test_stream['side']
 
       class RecordFn(beam.DoFn):
         def process(
@@ -564,22 +568,30 @@ class TestStreamTest(unittest.TestCase):
 
   def test_basic_execution_sideinputs_fixed_windows(self):
     options = PipelineOptions()
+    options.view_as(DebugOptions).add_experiment(
+        'passthrough_pcollection_output_ids')
     options.view_as(StandardOptions).streaming = True
     p = TestPipeline(options=options)
 
+    test_stream = (p | TestStream()
+        .advance_watermark_to(12, tag='side')
+        .add_elements([window.TimestampedValue('s1', 10)], tag='side')
+        .advance_watermark_to(20, tag='side')
+        .add_elements([window.TimestampedValue('s2', 20)], tag='side')
+
+        .advance_watermark_to(9, tag='main')
+        .add_elements(['a1', 'a2', 'a3', 'a4'], tag='main')
+        .add_elements(['b'], tag='main')
+        .advance_watermark_to(18, tag='main')
+        .add_elements('c', tag='main')
+        ) # yapf: disable
+
     main_stream = (
-        p
-        |
-        'main TestStream' >> TestStream().advance_watermark_to(9).add_elements([
-            'a1', 'a2', 'a3', 'a4'
-        ]).add_elements(['b']).advance_watermark_to(18).add_elements('c')
+        test_stream['main']
         | 'main windowInto' >> beam.WindowInto(window.FixedWindows(1)))
+
     side_stream = (
-        p
-        |
-        'side TestStream' >> TestStream().advance_watermark_to(12).add_elements(
-            [window.TimestampedValue('s1', 10)]).advance_watermark_to(
-                20).add_elements([window.TimestampedValue('s2', 20)])
+        test_stream['side']
         | 'side windowInto' >> beam.WindowInto(window.FixedWindows(3)))
 
     class RecordFn(beam.DoFn):
@@ -663,6 +675,64 @@ class TestStreamTest(unittest.TestCase):
     self.assertSetEqual(
         test_stream.output_tags, roundtrip_test_stream.output_tags)
     self.assertEqual(test_stream.coder, roundtrip_test_stream.coder)
+
+  def test_basic_execution_with_service(self):
+    """Tests that the TestStream can correctly read from an RPC service.
+    """
+    coder = beam.coders.FastPrimitivesCoder()
+
+    test_stream_events = (TestStream(coder=coder)
+        .advance_watermark_to(10000)
+        .add_elements(['a', 'b', 'c'])
+        .advance_watermark_to(20000)
+        .add_elements(['d'])
+        .add_elements(['e'])
+        .advance_processing_time(10)
+        .advance_watermark_to(300000)
+        .add_elements([TimestampedValue('late', 12000)])
+        .add_elements([TimestampedValue('last', 310000)])
+        .advance_watermark_to_infinity())._events  # yapf: disable
+
+    test_stream_proto_events = [
+        e.to_runner_api(coder) for e in test_stream_events
+    ]
+
+    class InMemoryEventReader:
+      def read_multiple(self, unused_keys):
+        for e in test_stream_proto_events:
+          yield e
+
+    service = TestStreamServiceController(reader=InMemoryEventReader())
+    service.start()
+
+    test_stream = TestStream(coder=coder, endpoint=service.endpoint)
+
+    class RecordFn(beam.DoFn):
+      def process(
+          self,
+          element=beam.DoFn.ElementParam,
+          timestamp=beam.DoFn.TimestampParam):
+        yield (element, timestamp)
+
+    options = StandardOptions(streaming=True)
+
+    p = TestPipeline(options=options)
+    my_record_fn = RecordFn()
+    records = p | test_stream | beam.ParDo(my_record_fn)
+
+    assert_that(
+        records,
+        equal_to([
+            ('a', timestamp.Timestamp(10)),
+            ('b', timestamp.Timestamp(10)),
+            ('c', timestamp.Timestamp(10)),
+            ('d', timestamp.Timestamp(20)),
+            ('e', timestamp.Timestamp(20)),
+            ('late', timestamp.Timestamp(12)),
+            ('last', timestamp.Timestamp(310)),
+        ]))
+
+    p.run()
 
 
 class ReverseTestStreamTest(unittest.TestCase):
