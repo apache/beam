@@ -247,7 +247,7 @@ limitations under the License.
 
 <h2 id="samza-runner-prerequisites-and-setup">Samza Runner prerequisites and setup</h2>
 
-<p>The Samza Runner is built on Samza version greater than 0.14.1.</p>
+<p>The Samza Runner is built on Samza version greater than 1.0.</p>
 
 <h3 id="specify-your-dependency">Specify your dependency</h3>
 
@@ -320,6 +320,8 @@ job.default.system=${job_default_system}
 
 <p>The config file will be passed in by setting the command line arg <code class="highlighter-rouge">--configFilePath=/path/to/config.properties</code>. With that, you can run your main class of Beam pipeline in a Yarn Resource Manager, and the Samza Runner will submit a Yarn job under the hood.</p>
 
+<p>Check out our <a href="https://github.com/apache/samza-beam-examples">Samza Beam example from Github</a></p>
+
 <h2 id="pipeline-options-for-the-samza-runner">Pipeline options for the Samza Runner</h2>
 
 <p>When executing your pipeline with the Samza Runner, you can use the following pipeline options.</p>
@@ -341,9 +343,24 @@ job.default.system=${job_default_system}
   <td><code>empty</code>, i.e. use local execution.</td>
 </tr>
 <tr>
+  <td><code>configFactory</code></td>
+  <td>The factory to read config file from config file path.</td>
+  <td><code>PropertiesConfigFactory</code>, reading configs as a property file.</td>
+</tr>
+<tr>
   <td><code>configOverride</code></td>
   <td>The config override to set programmatically.</td>
   <td><code>empty</code>, i.e. use config file or local execution.</td>
+</tr>
+<tr>
+  <td><code>jobInstance</code></td>
+  <td>The instance name of the job.</td>
+  <td><code>1</code></td>
+</tr>
+<tr>
+  <td><code>samzaExecutionEnvironment</code></td>
+  <td>Samza application execution environment. See <code>SamzaExecutionEnvironment</code> for more details.</td>
+  <td><code>LOCAL</code></td>
 </tr>
 <tr>
   <td><code>watermarkInterval</code></td>
@@ -364,6 +381,26 @@ job.default.system=${job_default_system}
   <td><code>storeBatchGetSize</code></td>
   <td>The batch get size limit for the state store.</td>
   <td><code>10000</code></td>
+</tr>
+<tr>
+  <td><code>enableMetrics</code></td>
+  <td>Enable/disable Beam metrics in Samza Runne.</td>
+  <td><code>true</code></td>
+</tr>
+<tr>
+  <td><code>stateDurable</code></td>
+  <td>The config for state to be durable.</td>
+  <td><code>false</code></td>
+</tr>
+<tr>
+  <td><code>maxBundleSize</code></td>
+  <td>The maximum number of elements in a bundle.</td>
+  <td><code>1</code> (by default the auto bundling is disabled)</td>
+</tr>
+<tr>
+  <td><code>maxBundleTimeMs</code></td>
+  <td>The maximum time to wait before finalising a bundle (in milliseconds)..</td>
+  <td><code>1000</code></td>
 </tr>
 </table>
 
