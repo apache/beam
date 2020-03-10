@@ -143,7 +143,7 @@ class MemoryReporter(object):
     mr.report_once()
   """
   def __init__(self, interval_second=60.0):
-    # guppy might not have installed.
+    # guppy might not be installed.
     # Python 2.7: https://pypi.org/project/guppy/0.1.10
     # Python 3.x: https://pypi.org/project/guppy3/3.0.9
     # The reporter can be set up only when guppy is installed (and guppy cannot
