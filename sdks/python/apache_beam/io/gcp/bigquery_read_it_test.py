@@ -23,6 +23,7 @@
 from __future__ import absolute_import
 
 import base64
+import datetime
 import logging
 import random
 import time
@@ -68,6 +69,16 @@ def skip(runners):
     return wrapped
 
   return inner
+
+
+def datetime_to_utc(element):
+  for k, v in element.items():
+    if isinstance(v, datetime.datetime) and v.tzinfo:
+      # For datetime objects, we'll
+      offset = v.utcoffset()
+      utc_dt = (v - offset).strftime('%Y-%m-%d %H:%M:%S.%f UTC')
+      element[k] = utc_dt
+  return element
 
 
 class BigQueryReadIntegrationTests(unittest.TestCase):
@@ -265,8 +276,10 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
   def test_native_source(self):
     with beam.Pipeline(argv=self.args) as p:
       result = (
-          p | 'read' >> beam.io.Read(
-              beam.io.BigQuerySource(query=self.query, use_standard_sql=True)))
+          p
+          | 'read' >> beam.io.Read(
+              beam.io.BigQuerySource(query=self.query, use_standard_sql=True))
+          | beam.Map(datetime_to_utc))
       assert_that(result, equal_to(self.get_expected_data()))
 
   @attr('IT')
@@ -278,6 +291,7 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
               use_standard_sql=True,
               project=self.project,
               bigquery_job_labels={'launcher': 'apache_beam_tests'}))
+          | beam.Map(datetime_to_utc))
       assert_that(result, equal_to(self.get_expected_data()))
 
 
