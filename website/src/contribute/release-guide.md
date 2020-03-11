@@ -711,7 +711,7 @@ done
 * Build Flink job server images and push to DockerHub.
 
 ```
-FLINK_VER=("1.7" "1.8" "1.9")
+FLINK_VER=("1.7" "1.8" "1.9" "1.10")
 for ver in "${FLINK_VER[@]}"; do
   ./gradlew ":runners:flink:${ver}:job-server-container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
 done
@@ -1034,7 +1034,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
   ```
   Flink Local Runner
   ```
-  ./gradlew :runners:flink:1.9:runQuickstartJavaFlinkLocal \
+  ./gradlew :runners:flink:1.10:runQuickstartJavaFlinkLocal \
   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
   -Pver=${RELEASE_VERSION}
   ```
