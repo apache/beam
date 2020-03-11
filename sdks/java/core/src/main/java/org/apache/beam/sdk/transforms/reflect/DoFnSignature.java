@@ -469,8 +469,6 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_PipelineOptionsParameter();
     private static final BundleFinalizerParameter BUNDLE_FINALIZER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_BundleFinalizerParameter();
-    private static final KeyParameter KEY_PARAMETER =
-        new AutoValue_DoFnSignature_Parameter_KeyParameter();
 
     /** Returns a {@link ProcessContextParameter}. */
     public static ProcessContextParameter processContext() {
@@ -513,10 +511,6 @@ public abstract class DoFnSignature {
       return TIMER_ID_PARAMETER;
     }
 
-    public static KeyParameter keyParameter() {
-      return KEY_PARAMETER;
-    }
-
     public static SideInputParameter sideInputParameter(
         TypeDescriptor<?> elementT, String sideInputId) {
       return new AutoValue_DoFnSignature_Parameter_SideInputParameter.Builder()
@@ -549,6 +543,11 @@ public abstract class DoFnSignature {
     /** Returns a {@link WindowParameter}. */
     public static WindowParameter boundedWindow(TypeDescriptor<? extends BoundedWindow> windowT) {
       return new AutoValue_DoFnSignature_Parameter_WindowParameter(windowT);
+    }
+
+    /** Returns a {@link KeyParameter}. */
+    public static KeyParameter keyT(TypeDescriptor<?> keyT) {
+      return new AutoValue_DoFnSignature_Parameter_KeyParameter(keyT);
     }
 
     /** Returns a {@link PipelineOptionsParameter}. */
@@ -685,6 +684,8 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class KeyParameter extends Parameter {
       KeyParameter() {}
+
+      public abstract TypeDescriptor<?> keyT();
     }
 
     /**

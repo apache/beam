@@ -920,9 +920,8 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
           @Override
           public StackManipulation dispatch(DoFnSignature.Parameter.KeyParameter p) {
             return new StackManipulation.Compound(
-                pushDelegate,
-                MethodInvocation.invoke(
-                    getExtraContextFactoryMethodDescription(KEY_PARAMETER_METHOD, DoFn.class)));
+                simpleExtraContextParameter(KEY_PARAMETER_METHOD),
+                TypeCasting.to(new TypeDescription.ForLoadedType(p.keyT().getRawType())));
           }
         });
   }

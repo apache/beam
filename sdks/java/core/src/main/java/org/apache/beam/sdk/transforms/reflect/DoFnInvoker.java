@@ -148,6 +148,8 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a reference to the input element. */
     InputT element(DoFn<InputT, OutputT> doFn);
 
+    Object key();
+
     /** Provide a reference to the input sideInput with the specified tag. */
     Object sideInput(String tagId);
 
@@ -202,8 +204,6 @@ public interface DoFnInvoker<InputT, OutputT> {
     TimerMap timerFamily(String tagId);
 
     String timerId(DoFn<InputT, OutputT> doFn);
-
-    String key(DoFn<InputT, OutputT> doFn);
   }
 
   /**
@@ -222,6 +222,12 @@ public interface DoFnInvoker<InputT, OutputT> {
     public InputT element(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format("Element unsupported in %s", getErrorContext()));
+    }
+
+    @Override
+    public Object key() {
+      throw new UnsupportedOperationException(
+          "Cannot access key as parameter outside of @OnTimer method.");
     }
 
     @Override
@@ -345,12 +351,6 @@ public interface DoFnInvoker<InputT, OutputT> {
           String.format("BundleFinalizer unsupported in %s", getErrorContext()));
     }
 
-    @Override
-    public String key(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          String.format("Key unsupported in %s", getErrorContext()));
-    }
-
     /**
      * Return a human readable representation of the current call context to be used during error
      * reporting.
@@ -409,6 +409,11 @@ public interface DoFnInvoker<InputT, OutputT> {
     @Override
     public InputT element(DoFn<InputT, OutputT> doFn) {
       return delegate.element(doFn);
+    }
+
+    @Override
+    public Object key() {
+      return delegate.key();
     }
 
     @Override
@@ -474,11 +479,6 @@ public interface DoFnInvoker<InputT, OutputT> {
     @Override
     public String timerId(DoFn<InputT, OutputT> doFn) {
       return delegate.timerId(doFn);
-    }
-
-    @Override
-    public String key(DoFn<InputT, OutputT> doFn) {
-      return delegate.key(doFn);
     }
 
     @Override

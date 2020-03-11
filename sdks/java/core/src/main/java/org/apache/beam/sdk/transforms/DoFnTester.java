@@ -258,6 +258,12 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
+            public Object key() {
+              throw new UnsupportedOperationException(
+                  "Cannot access key as parameter outside of @OnTimer method.");
+            }
+
+            @Override
             public InputT sideInput(String sideInputTag) {
               throw new UnsupportedOperationException("SideInputs are not supported by DoFnTester");
             }
@@ -335,11 +341,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             public BundleFinalizer bundleFinalizer() {
               throw new UnsupportedOperationException(
                   "DoFnTester doesn't support bundleFinalizer yet");
-            }
-
-            @Override
-            public String key(DoFn<InputT, OutputT> doFn) {
-              throw new UnsupportedOperationException("DoFnTester doesn't support key yet");
             }
           });
     } catch (UserCodeException e) {

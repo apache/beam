@@ -1046,6 +1046,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     }
 
     @Override
+    public Object key() {
+      throw new UnsupportedOperationException(
+          "Cannot access key as parameter outside of @OnTimer method.");
+    }
+
+    @Override
     public Object sideInput(String tagId) {
       return sideInput(sideInputMapping.get(tagId));
     }
@@ -1065,12 +1071,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     public String timerId(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access timerId as parameter outside of @OnTimer method.");
-    }
-
-    @Override
-    public String key(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access key as parameter outside of @OnTimer method.");
     }
 
     @Override

@@ -4887,8 +4887,8 @@ public class ParDoTest implements Serializable {
     public void testKeyInOnTimer() throws Exception {
       final String timerId = "foo";
 
-      DoFn<KV<Integer, Integer>, Integer> fn =
-          new DoFn<KV<Integer, Integer>, Integer>() {
+      DoFn<KV<String, Integer>, Integer> fn =
+          new DoFn<KV<String, Integer>, Integer>() {
 
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
@@ -4904,12 +4904,12 @@ public class ParDoTest implements Serializable {
             }
           };
 
-      TestStream<KV<Integer, Integer>> stream =
-          TestStream.create(KvCoder.of(VarIntCoder.of(), VarIntCoder.of()))
-              .addElements(KV.of(1, 37))
-              .addElements(KV.of(1, 34))
-              .addElements(KV.of(1, 33))
-              .addElements(KV.of(2, 3))
+      TestStream<KV<String, Integer>> stream =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+              .addElements(KV.of("1", 37))
+              .addElements(KV.of("1", 34))
+              .addElements(KV.of("1", 33))
+              .addElements(KV.of("2", 3))
               .advanceWatermarkTo(new Instant(3))
               .advanceWatermarkToInfinity();
 

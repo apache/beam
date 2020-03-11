@@ -277,6 +277,11 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public Object key() {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
       public Object sideInput(String tagId) {
         throw new UnsupportedOperationException();
       }
@@ -298,11 +303,6 @@ public class SplittableParDoNaiveBounded {
 
       @Override
       public String timerId(DoFn<InputT, OutputT> doFn) {
-        throw new UnsupportedOperationException();
-      }
-
-      @Override
-      public String key(DoFn<InputT, OutputT> doFn) {
         throw new UnsupportedOperationException();
       }
 

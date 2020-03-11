@@ -129,6 +129,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               }
 
               @Override
+              public Object key() {
+                throw new UnsupportedOperationException("Not supported in SplittableDoFn");
+              }
+
+              @Override
               public Object sideInput(String tagId) {
                 throw new UnsupportedOperationException("Not supported in SplittableDoFn");
               }
@@ -237,12 +242,6 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               public TimerMap timerFamily(String tagId) {
                 throw new UnsupportedOperationException(
                     "Access to timerFamily not supported in Splittable DoFn");
-              }
-
-              @Override
-              public String key(DoFn<InputT, OutputT> doFn) {
-                throw new UnsupportedOperationException(
-                    "Access to key not supported in Splittable DoFn");
               }
             });
     processContext.cancelScheduledCheckpoint();

@@ -314,6 +314,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public Object key() {
+      throw new UnsupportedOperationException("Cannot access key outside of @OnTimer method.");
+    }
+
+    @Override
     public InputT sideInput(String tagId) {
       throw new UnsupportedOperationException(
           "SideInput parameters are not supported outside of @ProcessElement method.");
@@ -390,11 +395,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public String key(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException("Cannot access key outside of @OnTimer methods.");
-    }
-
-    @Override
     public TimerMap timerFamily(String tagId) {
       throw new UnsupportedOperationException(
           "Cannot access timer family outside of @ProcessElement and @OnTimer methods");
@@ -461,6 +461,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public Object key() {
+      throw new UnsupportedOperationException("Cannot access key outside of @OnTimer method.");
+    }
+
+    @Override
     public InputT sideInput(String tagId) {
       throw new UnsupportedOperationException(
           "Cannot access sideInput outside of @ProcessElement method.");
@@ -482,12 +487,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public String timerId(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access timerId as parameter outside of @OnTimer method.");
-    }
-
-    @Override
-    public String key(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access key as parameter outside of @OnTimer method.");
     }
 
     @Override
@@ -712,6 +711,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public Object key() {
+      throw new UnsupportedOperationException(
+          "Cannot access key as parameter outside of @OnTimer method.");
+    }
+
+    @Override
     public Object sideInput(String tagId) {
       return sideInput(sideInputMapping.get(tagId));
     }
@@ -731,12 +736,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public String timerId(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access timerId as parameter outside of @OnTimer method.");
-    }
-
-    @Override
-    public String key(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access key as parameter outside of @OnTimer method.");
     }
 
     @Override
@@ -935,6 +934,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public Object key() {
+      return key;
+    }
+
+    @Override
     public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("ProcessContext parameters are not supported.");
     }
@@ -1075,11 +1079,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public BundleFinalizer bundleFinalizer() {
       throw new UnsupportedOperationException(
           "Bundle finalization is not supported in non-portable pipelines.");
-    }
-
-    @Override
-    public String key(DoFn<InputT, OutputT> doFn) {
-      return key.toString();
     }
   }
 
