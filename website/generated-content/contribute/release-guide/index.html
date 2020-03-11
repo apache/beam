@@ -1246,7 +1246,7 @@ done
   <li>Build Flink job server images and push to DockerHub.</li>
 </ul>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>FLINK_VER=("1.7" "1.8" "1.9")
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>FLINK_VER=("1.7" "1.8" "1.9" "1.10")
 for ver in "${FLINK_VER[@]}"; do
   ./gradlew ":runners:flink:${ver}:job-server-container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
 done
@@ -1600,7 +1600,7 @@ Thanks everyone!
 -Pver=${RELEASE_VERSION}
 </code></pre></div>    </div>
     <p>Flink Local Runner</p>
-    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :runners:flink:1.9:runQuickstartJavaFlinkLocal \
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :runners:flink:1.10:runQuickstartJavaFlinkLocal \
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
 -Pver=${RELEASE_VERSION}
 </code></pre></div>    </div>

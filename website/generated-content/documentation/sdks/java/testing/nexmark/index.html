@@ -498,7 +498,7 @@ to this, the necessary dependencies must be configured.</p>
 
 -P nexmark.runner
 The Gradle project name of the runner, such as ":runners:direct-java" or
-":runners:flink:1.9. The project names can be found in the root
+":runners:flink:1.10. The project names can be found in the root
     `settings.gradle`.
 </code></pre></div></div>
 
@@ -931,7 +931,7 @@ configure logging.</p>
 <p>Batch Mode:</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
-    -Pnexmark.runner=":runners:flink:1.9" \
+    -Pnexmark.runner=":runners:flink:1.10" \
     -Pnexmark.args="
         --runner=FlinkRunner
         --suite=SMOKE
@@ -945,7 +945,7 @@ configure logging.</p>
 <p>Streaming Mode:</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
-    -Pnexmark.runner=":runners:flink:1.9" \
+    -Pnexmark.runner=":runners:flink:1.10" \
     -Pnexmark.args="
         --runner=FlinkRunner
         --suite=SMOKE
