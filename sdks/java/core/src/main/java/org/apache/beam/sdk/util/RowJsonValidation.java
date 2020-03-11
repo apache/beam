@@ -68,7 +68,7 @@ class RowJsonValidation {
     }
 
     if (!SUPPORTED_TYPES.contains(fieldTypeName)) {
-      throw new RowJson.RowJsonDeserializer.UnsupportedRowJsonException(
+      throw new RowJson.UnsupportedRowJsonException(
           fieldTypeName.name()
               + " is not supported when converting JSON objects to Rows. "
               + "Supported types are: "

@@ -271,18 +271,6 @@ public class RowJson {
         return new AutoValue_RowJson_RowJsonDeserializer_FieldValue(name, type, jsonValue);
       }
     }
-
-    /** Gets thrown when Row parsing fails for any reason. */
-    public static class UnsupportedRowJsonException extends RuntimeException {
-
-      UnsupportedRowJsonException(String message, Throwable reason) {
-        super(message, reason);
-      }
-
-      UnsupportedRowJsonException(String message) {
-        super(message);
-      }
-    }
   }
 
   /** Jackson serializer for converting {@link Row Rows} to JSON. */
@@ -369,6 +357,18 @@ public class RowJson {
         default:
           throw new IllegalArgumentException("Unsupported field type: " + type);
       }
+    }
+  }
+
+  /** Gets thrown when Row parsing or serialization fails for any reason. */
+  public static class UnsupportedRowJsonException extends RuntimeException {
+
+    UnsupportedRowJsonException(String message, Throwable reason) {
+      super(message, reason);
+    }
+
+    UnsupportedRowJsonException(String message) {
+      super(message);
     }
   }
 }

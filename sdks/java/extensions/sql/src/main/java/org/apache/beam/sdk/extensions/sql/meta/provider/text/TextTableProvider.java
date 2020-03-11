@@ -45,7 +45,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ToJson;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
-import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer.UnsupportedRowJsonException;
+import org.apache.beam.sdk.util.RowJson.UnsupportedRowJsonException;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
