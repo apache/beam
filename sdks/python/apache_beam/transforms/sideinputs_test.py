@@ -27,8 +27,6 @@ import unittest
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
-from apache_beam.options.pipeline_options import DebugOptions
-from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
@@ -349,11 +347,10 @@ class SideInputsTest(unittest.TestCase):
     # This flag is only necessary when using the multi-output TestStream b/c
     # it relies on using the PCollection output tags as the PCollection output
     # ids.
-    options = StandardOptions(streaming=True)
-    options.view_as(DebugOptions).add_experiment(
-        'passthrough_pcollection_output_ids')
-
-    p = TestPipeline(options=options)
+    p = TestPipeline(
+        additional_pipeline_args=[
+            '--experiments=' + 'passthrough_pcollection_output_ids'
+        ])
 
     test_stream = (
         p
