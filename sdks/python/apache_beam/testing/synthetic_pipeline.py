@@ -422,6 +422,7 @@ class SyntheticSource(iobase.BoundedSource):
   def random_bytes(length, generator):
     """Return random bytes."""
     n = length // 8 + 1
+    # pylint: disable=map-builtin-not-iterating
     return struct.pack(
         '{}Q'.format(n),
         *map(generator.getrandbits, itertools.repeat(64, n)))[:length]
