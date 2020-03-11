@@ -700,7 +700,7 @@ class _CustomBigQuerySource(BoundedSource):
 
       unused_schema, metadata_list = self._export_files(bq)
       self.split_result = [
-          create_avro_source(metadata.path, 0, True)
+          create_avro_source(metadata.path, 0, True, use_fastavro=True)
           for metadata in metadata_list
       ]
 

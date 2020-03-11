@@ -73,6 +73,10 @@ def skip(runners):
 
 def datetime_to_utc(element):
   for k, v in element.items():
+    if isinstance(v, datetime.time):
+      element[k] = str(v)
+    if isinstance(v, datetime.date):
+      element[k] = str(v)
     if isinstance(v, datetime.datetime) and v.tzinfo:
       # For datetime objects, we'll
       offset = v.utcoffset()
@@ -253,7 +257,7 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
     expected_row = {
         'float': 0.33,
         'numeric': Decimal('10'),
-        'bytes': base64.b64encode(b'\xab\xac'),
+        'bytes': b'\xab\xac',
         'date': '3000-12-31',
         'time': '23:59:59',
         'datetime': '2018-12-31T12:44:31',
