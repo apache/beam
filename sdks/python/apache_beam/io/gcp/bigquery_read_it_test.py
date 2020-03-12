@@ -253,11 +253,12 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
     cls.bigquery_client.insert_rows(
         cls.project, cls.dataset_id, table_name, table_data)
 
-  def get_expected_data(self):
+  def get_expected_data(self, native=True):
+    byts = b'\xab\xac'
     expected_row = {
         'float': 0.33,
         'numeric': Decimal('10'),
-        'bytes': b'\xab\xac',
+        'bytes': base64.b64encode(byts) if native else byts,
         'date': '3000-12-31',
         'time': '23:59:59',
         'datetime': '2018-12-31T12:44:31',
@@ -282,8 +283,7 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
       result = (
           p
           | 'read' >> beam.io.Read(
-              beam.io.BigQuerySource(query=self.query, use_standard_sql=True))
-          | beam.Map(datetime_to_utc))
+              beam.io.BigQuerySource(query=self.query, use_standard_sql=True)))
       assert_that(result, equal_to(self.get_expected_data()))
 
   @attr('IT')
@@ -296,7 +296,7 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
               project=self.project,
               bigquery_job_labels={'launcher': 'apache_beam_tests'}))
           | beam.Map(datetime_to_utc))
-      assert_that(result, equal_to(self.get_expected_data()))
+      assert_that(result, equal_to(self.get_expected_data(native=False)))
 
 
 if __name__ == '__main__':
