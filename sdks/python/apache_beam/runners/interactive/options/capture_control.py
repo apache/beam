@@ -44,15 +44,13 @@ class CaptureControl(object):
         ReadFromPubSub,
     }
     self._capture_duration = timedelta(seconds=5)
-    self._capture_size = 1e9
+    self._capture_size_limit = 1e9
 
-  def is_capture_size_reached(self):
-    """Determines if the capture size has been reached."""
+  def is_capture_size_limit_reached(self):
+    """Determines if the capture size limit has been reached."""
     cache_manager = ie.current_env().cache_manager()
-    # TODO(BEAM-8335): implement the capture_size attribute when streaming_cache
-    # implements cache_manager.
     if hasattr(cache_manager, 'capture_size'):
-      return cache_manager.capture_size >= self._capture_size
+      return cache_manager.capture_size >= self._capture_size_limit
     return False
 
 

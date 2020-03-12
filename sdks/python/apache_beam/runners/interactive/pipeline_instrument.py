@@ -329,7 +329,9 @@ class PipelineInstrument(object):
     if self.has_unbounded_sources:
       for source in self._unbounded_sources:
         self._write_cache(
-            self._background_caching_pipeline, source.outputs[None])
+            self._background_caching_pipeline,
+            source.outputs[None],
+            is_capture=True)
 
     # TODO(BEAM-7760): prune sub graphs that doesn't need to be executed.
 
@@ -369,7 +371,7 @@ class PipelineInstrument(object):
     v = PreprocessVisitor(self)
     self._pipeline.visit(v)
 
-  def _write_cache(self, pipeline, pcoll):
+  def _write_cache(self, pipeline, pcoll, is_capture=False):
     """Caches a cacheable PCollection.
 
     For the given PCollection, by appending sub transform part that materialize
@@ -390,7 +392,8 @@ class PipelineInstrument(object):
     # Only need to write when the cache with expected key doesn't exist.
     if not self._cache_manager.exists('full', key):
       label = '{}{}'.format(WRITE_CACHE, key)
-      _ = pcoll | label >> cache.WriteCache(self._cache_manager, key)
+      _ = pcoll | label >> cache.WriteCache(
+          self._cache_manager, key, is_capture=is_capture)
 
   def _read_cache(self, pipeline, pcoll):
     """Reads a cached pvalue.
