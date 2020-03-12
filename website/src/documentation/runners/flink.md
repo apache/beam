@@ -84,8 +84,8 @@ Flink [Setup Quickstart](https://ci.apache.org/projects/flink/flink-docs-stable/
 ## Version Compatibility
 
 The Flink cluster version has to match the minor version used by the FlinkRunner.
-The minor version is the first two numbers in the version string, e.g. in `1.7.0` the
-minor version is `1.7`.
+The minor version is the first two numbers in the version string, e.g. in `1.8.0` the
+minor version is `1.8`.
 
 We try to track the latest version of Apache Flink at the time of the Beam release.
 A Flink version is supported by Beam for the time it is supported by the Flink community.
@@ -103,7 +103,7 @@ To find out which version of Flink is compatible with Beam please see the table 
   <th>Artifact Id</th>
 </tr>
 <tr>
-  <td rowspan="3">2.20.0</td>
+  <td rowspan="3">2.21.0</td>
   <td>1.10.x</td>
   <td>beam-runners-flink-1.10</td>
 </tr>
@@ -116,11 +116,7 @@ To find out which version of Flink is compatible with Beam please see the table 
   <td>beam-runners-flink-1.8</td>
 </tr>
 <tr>
-  <td>1.7.x</td>
-  <td>beam-runners-flink-1.7</td>
-</tr>
-<tr>
-  <td rowspan="3">2.17.0-2.19.0</td>
+  <td rowspan="3">2.17.0-2.20.0</td>
   <td>1.9.x</td>
   <td>beam-runners-flink-1.9</td>
 </tr>
