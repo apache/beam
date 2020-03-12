@@ -49,11 +49,14 @@ import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.schemas.Factory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -90,34 +93,33 @@ public class RowJson {
 
   static void verifyFieldTypeSupported(Field field) {
     FieldType fieldType = field.getType();
-    verifyFieldTypeSupported(fieldType);
+    verifyFieldTypeSupported(fieldType, field::getName);
   }
 
-  static void verifyFieldTypeSupported(FieldType fieldType) {
+  static void verifyFieldTypeSupported(FieldType fieldType, Supplier<String> fieldName) {
     TypeName fieldTypeName = fieldType.getTypeName();
 
     if (fieldTypeName.isCompositeType()) {
       Schema rowFieldSchema = fieldType.getRowSchema();
-      rowFieldSchema.getFields().forEach(RowJson::verifyFieldTypeSupported);
+      rowFieldSchema.getFields().forEach((field) -> {
+        verifyFieldTypeSupported(field.getType(), () -> fieldName.get() + "." + field.getName());
+      });
       return;
     }
 
     if (fieldTypeName.isCollectionType()) {
-      verifyFieldTypeSupported(fieldType.getCollectionElementType());
+      verifyFieldTypeSupported(fieldType.getCollectionElementType(), () -> fieldName.get() + "[]");
       return;
     }
 
     if (fieldTypeName.isLogicalType()) {
-      verifyFieldTypeSupported(fieldType.getLogicalType().getBaseType());
+      verifyFieldTypeSupported(fieldType.getLogicalType().getBaseType(), fieldName);
       return;
     }
 
     if (!SUPPORTED_TYPES.contains(fieldTypeName)) {
-      throw new UnsupportedRowJsonException(
-          fieldTypeName.name()
-              + " is not supported when converting JSON objects to Rows. "
-              + "Supported types are: "
-              + SUPPORTED_TYPES.toString());
+      throw new UnsupportedRowJsonException(String.format("Type %s in field '%s' is not supported when converting between JSON objects and Rows. Supported typed are: %s",
+              fieldTypeName.name(), fieldName.get(), SUPPORTED_TYPES.toString()));
     }
   }
 

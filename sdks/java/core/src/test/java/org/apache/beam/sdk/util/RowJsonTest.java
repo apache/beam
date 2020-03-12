@@ -335,7 +335,9 @@ public class RowJsonTest {
       Schema schema = Schema.builder().addDateTimeField("f_dateTime").build();
 
       thrown.expect(UnsupportedRowJsonException.class);
-      thrown.expectMessage("DATETIME is not supported");
+      thrown.expectMessage("DATETIME");
+      thrown.expectMessage("f_dateTime");
+      thrown.expectMessage("not supported");
 
       RowJson.RowJsonDeserializer.forSchema(schema);
     }
@@ -345,7 +347,9 @@ public class RowJsonTest {
       Schema schema = Schema.builder().addArrayField("f_dateTimeArray", FieldType.DATETIME).build();
 
       thrown.expect(UnsupportedRowJsonException.class);
-      thrown.expectMessage("DATETIME is not supported");
+      thrown.expectMessage("DATETIME");
+      thrown.expectMessage("f_dateTimeArray[]");
+      thrown.expectMessage("not supported");
 
       RowJson.RowJsonDeserializer.forSchema(schema);
     }
@@ -358,7 +362,9 @@ public class RowJsonTest {
       Schema schema = Schema.builder().addRowField("f_nestedRow", nestedSchema).build();
 
       thrown.expect(UnsupportedRowJsonException.class);
-      thrown.expectMessage("DATETIME is not supported");
+      thrown.expectMessage("DATETIME");
+      thrown.expectMessage("f_nestedRow.f_dateTimeArray[]");
+      thrown.expectMessage("not supported");
 
       RowJson.RowJsonDeserializer.forSchema(schema);
     }
