@@ -150,11 +150,11 @@ class InteractiveRunnerTest(unittest.TestCase):
     ib.watch(locals())
     result = p.run()
     self.assertTrue(init in ie.current_env().computed_pcollections)
-    self.assertEqual([0, 1, 2, 3, 4], result.get(init))
+    self.assertEqual([0, 1, 2, 3, 4], list(result.get(init)))
     self.assertTrue(square in ie.current_env().computed_pcollections)
-    self.assertEqual([0, 1, 4, 9, 16], result.get(square))
+    self.assertEqual([0, 1, 4, 9, 16], list(result.get(square)))
     self.assertTrue(cube in ie.current_env().computed_pcollections)
-    self.assertEqual([0, 1, 8, 27, 64], result.get(cube))
+    self.assertEqual([0, 1, 8, 27, 64], list(result.get(cube)))
 
 
 if __name__ == '__main__':
