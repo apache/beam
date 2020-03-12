@@ -115,7 +115,7 @@ class PipelineFragmentTest(unittest.TestCase):
 
     ib.watch(locals())
     result = pf.PipelineFragment([square]).run()
-    self.assertEqual([0, 1, 4, 9, 16], result.get(square))
+    self.assertEqual([0, 1, 4, 9, 16], list(result.get(square)))
 
 
 if __name__ == '__main__':
