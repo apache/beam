@@ -122,7 +122,8 @@ class MutltiTransform(ptransform.PTransform):
     return TEST_MULTI_URN, None
 
   @staticmethod
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return MutltiTransform()
 
 

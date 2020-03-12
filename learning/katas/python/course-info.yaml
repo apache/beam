@@ -28,4 +28,5 @@ content:
 - Core Transforms
 - Common Transforms
 - IO
+- Windowing
 - Examples

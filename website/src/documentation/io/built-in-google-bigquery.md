@@ -807,7 +807,7 @@ directory.
   that has a mean temp smaller than the derived global mean.
 
 * [JoinExamples](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/JoinExamples.java)
-  reads a sample of the [GDELT "world event"](http://goo.gl/OB6oin) from
+  reads a sample of the [GDELT "world event"](https://goo.gl/OB6oin) from
   BigQuery and joins the event `action` country code against a table that maps
   country codes to country names.
 

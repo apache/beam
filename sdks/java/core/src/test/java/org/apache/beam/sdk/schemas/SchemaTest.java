@@ -237,6 +237,22 @@ public class SchemaTest {
   }
 
   @Test
+  public void testFieldsWithDifferentMetadataAreEquivalent() {
+    Field foo = Field.of("foo", FieldType.STRING);
+    Field fooWithMetadata = Field.of("foo", FieldType.STRING.withMetadata("key", "value"));
+
+    Schema schema1 = Schema.builder().addField(foo).build();
+    Schema schema2 = Schema.builder().addField(foo).build();
+    assertEquals(schema1, schema2);
+    assertTrue(schema1.equivalent(schema2));
+
+    schema1 = Schema.builder().addField(foo).build();
+    schema2 = Schema.builder().addField(fooWithMetadata).build();
+    assertNotEquals(schema1, schema2);
+    assertTrue(schema1.equivalent(schema2));
+  }
+
+  @Test
   public void testNestedNotEquivalent() {
     Schema nestedSchema1 = Schema.builder().addInt64Field("foo").build();
     Schema nestedSchema2 = Schema.builder().addStringField("foo").build();

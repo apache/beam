@@ -53,7 +53,7 @@ public class TikaIOTest implements Serializable {
           + "in most known formats.\n\n\n\n\n\n\n";
 
   private static final String ODT_FILE =
-      "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+      "\n\n\n\n\n\n\n"
           + "Combining\nApache Beam\nand\nApache Tika\ncan help to ingest\nthe content from the"
           + " files\nin most known formats.\n";
 

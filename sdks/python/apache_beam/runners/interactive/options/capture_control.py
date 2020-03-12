@@ -46,13 +46,6 @@ class CaptureControl(object):
     self._capture_duration = timedelta(seconds=5)
     self._capture_size = 1e9
 
-  def __repr__(self):
-    # TODO(BEAM-8335): add capture_size in the format once it's supported.
-    return (
-        'A segment of data will be recorded for {} seconds, for all {} typed'
-        ' sources in the pipeline.'.format(
-            self._capture_duration.total_seconds(), self._capturable_sources))
-
   def is_capture_size_reached(self):
     """Determines if the capture size has been reached."""
     cache_manager = ie.current_env().cache_manager()
@@ -68,7 +61,6 @@ def evict_captured_data():
   Interactive Beam. In future PCollection evaluation/visualization and pipeline
   runs, Interactive Beam will capture fresh data."""
   if ie.current_env().options.enable_capture_replay:
-    # TODO(BEAM-8335): display rather than logging when is_in_notebook.
     _LOGGER.info(
         'You have requested Interactive Beam to evict all captured '
         'data that could be deterministically replayed among multiple '

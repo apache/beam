@@ -66,7 +66,7 @@ You can find more info on the [website](https://beamsummit.org) and read about t
 
 We strongly encourage you to get involved again this year! You can participate in the following ways for the upcoming summit in Europe:
 
-🎫 If you want to secure your ticket to attend the Beam Summit Europe 2019, check our [event page](http://beam-summit-europe.eventbrite.com).
+🎫 If you want to secure your ticket to attend the Beam Summit Europe 2019, check our [event page](https://beam-summit-europe.eventbrite.com).
 
 💸 If you want to make the Summit even **more** awesome, check out our [sponsor booklet](https://drive.google.com/file/d/1R3vvOHihQbpuzF2aaSV8WYg9YHRmJwxS/view)!
 

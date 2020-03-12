@@ -267,14 +267,14 @@ class BackgroundCachingJobTest(unittest.TestCase):
 
   def test_determine_a_test_stream_service_running(self):
     pipeline = _build_an_empty_stream_pipeline()
-    test_stream_service = TestStreamServiceController(events=iter([]))
+    test_stream_service = TestStreamServiceController(reader=None)
     ie.current_env().set_test_stream_service_controller(
         pipeline, test_stream_service)
     self.assertTrue(bcj.is_a_test_stream_service_running(pipeline))
 
   def test_stop_a_running_test_stream_service(self):
     pipeline = _build_an_empty_stream_pipeline()
-    test_stream_service = TestStreamServiceController(events=iter([]))
+    test_stream_service = TestStreamServiceController(reader=None)
     test_stream_service.start()
     ie.current_env().set_test_stream_service_controller(
         pipeline, test_stream_service)
