@@ -1035,6 +1035,7 @@ class PubSubBigQueryIT(unittest.TestCase):
       _ = mesages | WriteToBigQuery(
           self.output_table,
           schema=self.SCHEMA,
+          temp_file_format=bigquery_tools.FileFormat.JSON,
           method=method,
           triggering_frequency=triggering_frequency)
 
