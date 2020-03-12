@@ -571,7 +571,7 @@ class DataflowApplicationClient(object):
       raise RuntimeError('The --temp_location option must be specified.')
 
     resource_stager = _LegacyDataflowStager(self)
-    _, resources = resource_stager.stage_job_resources(
+    _, resources = resource_stager.create_and_stage_job_resources(
         options,
         temp_dir=tempfile.mkdtemp(),
         staging_location=google_cloud_options.staging_location)

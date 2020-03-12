@@ -22,6 +22,7 @@
 from __future__ import absolute_import
 
 from apache_beam.portability.api.beam_runner_api_pb2_urns import BeamConstants
+from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardArtifacts
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardCoders
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardEnvironments
 from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardProtocols
@@ -47,6 +48,8 @@ coders = StandardCoders.Enum
 constants = BeamConstants.Constants
 
 environments = StandardEnvironments.Environments
+artifact_types = StandardArtifacts.Types
+artifact_roles = StandardArtifacts.Roles
 
 global_windows = GlobalWindowsPayload.Enum.PROPERTIES
 fixed_windows = FixedWindowsPayload.Enum.PROPERTIES
