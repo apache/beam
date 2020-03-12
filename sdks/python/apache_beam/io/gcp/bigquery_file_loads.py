@@ -739,8 +739,9 @@ class BigQueryBatchFileLoads(beam.PTransform):
             file_prefix_pcv,
             *self.schema_side_inputs))
 
-    # We flatten both PCollection paths, and reify. We do this due to some
-    # trickiness with coder-setting on Flatten-GBK boundaries.
+    # TODO(BEAM-9494): Remove the identity transform. We flatten both PCollection paths
+    # and use an identity function to work around a flatten optimization issue where the wrong
+    # coder is being used.
     all_destination_file_pairs_pc = (
         (destination_files_kv_pc, more_destination_files_kv_pc)
         | "DestinationFilesUnion" >> beam.Flatten()
