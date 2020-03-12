@@ -4917,5 +4917,45 @@ public class ParDoTest implements Serializable {
       PAssert.that(output).containsInAnyOrder(1, 2);
       pipeline.run();
     }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+    })
+    public void testKeyInOnTimerWithWrongKeyType() throws Exception {
+
+      thrown.expect(IllegalArgumentException.class);
+      thrown.expectMessage("@Key argument is expected to be type of");
+      thrown.expectMessage(", but found ");
+
+      final String timerId = "foo";
+
+      DoFn<KV<String, Integer>, Integer> fn =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
+              timer.set(new Instant(1));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(@Key Integer key, OutputReceiver<Integer> r) {}
+          };
+
+      TestStream<KV<String, Integer>> stream =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+              .addElements(KV.of("1", 37))
+              .addElements(KV.of("1", 34))
+              .addElements(KV.of("1", 33))
+              .addElements(KV.of("2", 3))
+              .advanceWatermarkTo(new Instant(3))
+              .advanceWatermarkToInfinity();
+
+      pipeline.apply(stream).apply(ParDo.of(fn));
+    }
   }
 }
