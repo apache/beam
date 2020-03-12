@@ -22,7 +22,7 @@ import com.google.auto.value.AutoValue;
 import java.math.BigDecimal;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer.UnsupportedRowJsonException;
+import org.apache.beam.sdk.util.RowJson.UnsupportedRowJsonException;
 
 /**
  * Contains utilities for extracting primitive values from JSON nodes.
