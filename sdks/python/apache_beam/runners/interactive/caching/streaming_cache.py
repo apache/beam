@@ -84,7 +84,7 @@ class StreamingCacheSink(beam.PTransform):
     """Returns the space usage in bytes of the sink."""
     try:
       return os.stat(self._path).st_size
-    except:
+    except Exception:
       _LOGGER.debug(
           'Failed to calculate cache size for file %s, the file might have not '
           'been created yet. Return 0. %s',
