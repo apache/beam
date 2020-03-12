@@ -28,7 +28,9 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -88,7 +90,7 @@ public class SideInputLoadTest extends LoadTest<SideInputLoadTest.Options> {
       case ITERABLE:
         performTestWithIterable(input, syntheticStep);
         break;
-      case HASHMAP:
+      case MAP:
         performTestWithMap(input, syntheticStep);
         break;
       case LIST:
@@ -112,8 +114,19 @@ public class SideInputLoadTest extends LoadTest<SideInputLoadTest.Options> {
     applyStepIfPresent(input, "Synthetic step", syntheticStep);
     PCollectionView<Map<byte[], byte[]>> sideInput =
         applyWindowingIfPresent(input).apply(View.asMap());
+    PCollectionView<List<byte[]>> randomKeys =
+        pipeline
+            .apply(Create.of(0))
+            .apply(
+                ParDo.of(new GetRandomKeyList(sideInput, options.getAccessPercentage()))
+                    .withSideInputs(sideInput))
+            .apply(Flatten.iterables())
+            .apply(View.asList());
+
     input
-        .apply(ParDo.of(new SideInputTestWithHashMap(sideInput)).withSideInputs(sideInput))
+        .apply(
+            ParDo.of(new SideInputTestWithMap(sideInput, randomKeys))
+                .withSideInputs(sideInput, randomKeys))
         .apply("Collect end time metrics", ParDo.of(runtimeMonitor));
   }
 
@@ -130,7 +143,7 @@ public class SideInputLoadTest extends LoadTest<SideInputLoadTest.Options> {
   private PCollection<KV<byte[], byte[]>> applyWindowingIfPresent(
       PCollection<KV<byte[], byte[]>> input) {
     PCollection<KV<byte[], byte[]>> windowedInput = input;
-    if (options.getWindowCount() != 0) {
+    if (options.getWindowCount() != 1) {
       long windowDurationMilis = sourceOptions.numRecords / options.getWindowCount();
       windowedInput =
           input.apply(Window.into(FixedWindows.of(Duration.millis(windowDurationMilis))));
@@ -168,25 +181,50 @@ public class SideInputLoadTest extends LoadTest<SideInputLoadTest.Options> {
     }
   }
 
-  private class SideInputTestWithHashMap extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> {
+  private static class SideInputTestWithMap extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> {
 
     private final PCollectionView<Map<byte[], byte[]>> sideInput;
+    private final PCollectionView<List<byte[]>> randomKeyList;
 
-    public SideInputTestWithHashMap(PCollectionView<Map<byte[], byte[]>> sideInput) {
+    public SideInputTestWithMap(
+        PCollectionView<Map<byte[], byte[]>> sideInput,
+        PCollectionView<List<byte[]>> randomKeyList) {
       this.sideInput = sideInput;
+      this.randomKeyList = randomKeyList;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) {
       Map<byte[], byte[]> si = c.sideInput(sideInput);
-      // access Map elements according to options - % of random access
-      ArrayList<byte[]> keyList = new ArrayList<>(si.keySet());
-      int size = keyList.size();
-      int elementCount = size / options.getAccessPercentage() * 100;
-      Random gen = new Random();
-      for (int i = 0; i < elementCount; i++) {
-        byte[] value = si.get(keyList.get(gen.nextInt(elementCount)));
+      List<byte[]> keys = c.sideInput(randomKeyList);
+      for (byte[] key : keys) {
+        byte[] value = si.get(key);
       }
+    }
+  }
+
+  private static class GetRandomKeyList extends DoFn<Integer, List<byte[]>> {
+
+    private final int keyPercentage;
+    private PCollectionView<Map<byte[], byte[]>> sideInput;
+
+    public GetRandomKeyList(PCollectionView<Map<byte[], byte[]>> sideInput, int keyPercentage) {
+      this.sideInput = sideInput;
+      this.keyPercentage = keyPercentage;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      Map<byte[], byte[]> kvs = c.sideInput(sideInput);
+      ArrayList<byte[]> keySet = new ArrayList<>(kvs.keySet());
+      int keyCount = keySet.size() * keyPercentage / 100;
+      Random r = new Random();
+      int limit = keySet.size();
+      ArrayList<byte[]> chosenKeys = new ArrayList<>();
+      for (int i = 0; i < keyCount; i++) {
+        chosenKeys.add(keySet.get(r.nextInt(limit)));
+      }
+      c.output(chosenKeys);
     }
   }
 
@@ -216,7 +254,7 @@ public class SideInputLoadTest extends LoadTest<SideInputLoadTest.Options> {
 
   public enum SideInputMaterializationType {
     ITERABLE,
-    HASHMAP,
+    MAP,
     LIST;
   }
 
