@@ -700,9 +700,13 @@ class BigQueryBatchFileLoads(beam.PTransform):
             WriteGroupedRecordsToFile(coder=self.coder),
             file_prefix=file_prefix_pcv))
 
+    # TODO(BEAM-9494): Remove the identity transform. We flatten both
+    # PCollection paths and use an identity function to work around a
+    # flatten optimization issue where the wrong coder is being used.
     all_destination_file_pairs_pc = (
         (destination_files_kv_pc, more_destination_files_kv_pc)
-        | "DestinationFilesUnion" >> beam.Flatten())
+        | "DestinationFilesUnion" >> beam.Flatten()
+        | "IdentityWorkaround" >> beam.Map(lambda x: x))
 
     if self.is_streaming_pipeline:
       # Apply the user's trigger back before we start triggering load jobs
