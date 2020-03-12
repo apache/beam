@@ -69,7 +69,7 @@ def assert_pipeline_proto_equal(
 def assert_pipeline_proto_contain_top_level_transform(
     test_case, pipeline_proto, transform_label):
   """Asserts the top level transforms contain a transform with the given
-     transform label."""
+   transform label."""
   _assert_pipeline_proto_contains_top_level_transform(
       test_case, pipeline_proto, transform_label, True)
 
@@ -77,7 +77,7 @@ def assert_pipeline_proto_contain_top_level_transform(
 def assert_pipeline_proto_not_contain_top_level_transform(
     test_case, pipeline_proto, transform_label):
   """Asserts the top level transforms do not contain a transform with the given
-     transform label."""
+   transform label."""
   _assert_pipeline_proto_contains_top_level_transform(
       test_case, pipeline_proto, transform_label, False)
 

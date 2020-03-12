@@ -204,6 +204,9 @@ class PipelineFragment(object):
       def enter_composite_transform(self, transform_node):
         if isinstance(transform_node.transform, TestStream):
           return
+        if isinstance(transform_node.transform, TestStream):
+          return
+
         pruned_parts = list(transform_node.parts)
         for part in transform_node.parts:
           if part not in necessary_transforms:

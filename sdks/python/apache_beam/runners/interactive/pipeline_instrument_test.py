@@ -26,7 +26,6 @@ import unittest
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.pipeline import PipelineVisitor
-from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
@@ -307,7 +306,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
   def test_instrument_example_unbounded_pipeline_to_read_cache(self):
     """Tests that the instrumenter works for a single unbounded source.
-        """
+    """
     # Create a new interactive environment to make the test idempotent.
     ie.new_env(cache_manager=streaming_cache.StreamingCache(cache_dir=None))
 
@@ -328,7 +327,7 @@ class PipelineInstrumentTest(unittest.TestCase):
       if not isinstance(pcoll, beam.pvalue.PCollection):
         continue
       cache_key = cache_key_of(name, pcoll)
-      self._mock_write_cache([TestStreamPayload()], cache_key)
+      self._mock_write_cache([b''], cache_key)
 
     # Instrument the original pipeline to create the pipeline the user will see.
     instrumenter = instr.build_pipeline_instrument(p_original)
@@ -467,9 +466,9 @@ class PipelineInstrumentTest(unittest.TestCase):
   def test_instrument_mixed_streaming_batch(self):
     """Tests caching for both batch and streaming sources in the same pipeline.
 
-        This ensures that cached bounded and unbounded sources are read from the
-        TestStream.
-        """
+    This ensures that cached bounded and unbounded sources are read from the
+    TestStream.
+    """
     # Create a new interactive environment to make the test idempotent.
     ie.new_env(cache_manager=streaming_cache.StreamingCache(cache_dir=None))
 
@@ -492,8 +491,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     def cache_key_of(name, pcoll):
       return name + '_' + str(id(pcoll)) + '_' + str(id(pcoll.producer))
 
-    self._mock_write_cache([TestStreamPayload()],
-                           cache_key_of('source_2', source_2))
+    self._mock_write_cache([b''], cache_key_of('source_2', source_2))
     ie.current_env().mark_pcollection_computed([source_2])
 
     # Instrument the original pipeline to create the pipeline the user will see.
@@ -552,7 +550,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
   def test_instrument_example_unbounded_pipeline_direct_from_source(self):
     """Tests that the it caches PCollections from a source.
-        """
+    """
     # Create a new interactive environment to make the test idempotent.
     ie.new_env(cache_manager=streaming_cache.StreamingCache(cache_dir=None))
 
@@ -618,7 +616,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
   def test_instrument_example_unbounded_pipeline_to_read_cache_not_cached(self):
     """Tests that the instrumenter works when the PCollection is not cached.
-        """
+    """
     # Create a new interactive environment to make the test idempotent.
     ie.new_env(cache_manager=streaming_cache.StreamingCache(cache_dir=None))
 
@@ -689,7 +687,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
   def test_instrument_example_unbounded_pipeline_to_multiple_read_cache(self):
     """Tests that the instrumenter works for multiple unbounded sources.
-        """
+    """
     # Create a new interactive environment to make the test idempotent.
     ie.new_env(cache_manager=streaming_cache.StreamingCache(cache_dir=None))
 
@@ -714,7 +712,7 @@ class PipelineInstrumentTest(unittest.TestCase):
       if not isinstance(pcoll, beam.pvalue.PCollection):
         continue
       cache_key = cache_key_of(name, pcoll)
-      self._mock_write_cache([TestStreamPayload()], cache_key)
+      self._mock_write_cache([b''], cache_key)
 
     # Instrument the original pipeline to create the pipeline the user will see.
     instrumenter = instr.build_pipeline_instrument(p_original)
