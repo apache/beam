@@ -711,7 +711,7 @@ done
 * Build Flink job server images and push to DockerHub.
 
 ```
-FLINK_VER=("1.7" "1.8" "1.9" "1.10")
+FLINK_VER=("1.8" "1.9" "1.10")
 for ver in "${FLINK_VER[@]}"; do
   ./gradlew ":runners:flink:${ver}:job-server-container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
 done
