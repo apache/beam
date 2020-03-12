@@ -84,7 +84,7 @@ class StreamingCacheSink(beam.PTransform):
     """Returns the space usage in bytes of the sink."""
     try:
       return os.stat(self._path).st_size
-    except Exception:
+    except OSError:
       _LOGGER.debug(
           'Failed to calculate cache size for file %s, the file might have not '
           'been created yet. Return 0. %s',
@@ -104,7 +104,7 @@ class StreamingCacheSink(beam.PTransform):
         self._coder = coder
 
         # Try and make the given path.
-        Path(os.path.dirname(full_path)).mkdir(exist_ok=True)
+        Path(os.path.dirname(full_path)).mkdir(parents=True, exist_ok=True)
 
       def start_bundle(self):
         # Open the file for 'append-mode' and writing 'bytes'.
@@ -303,7 +303,11 @@ class StreamingCache(CacheManager):
       os.makedirs(directory)
     with open(filepath, 'ab') as f:
       for v in values:
-        f.write(self._default_pcoder.encode(v.SerializeToString()) + b'\n')
+        if isinstance(v, (TestStreamFileHeader, TestStreamFileRecord)):
+          val = v.SerializeToString()
+        else:
+          val = v
+        f.write(self._default_pcoder.encode(val) + b'\n')
 
   def source(self, *labels):
     """Returns the StreamingCacheManager source.

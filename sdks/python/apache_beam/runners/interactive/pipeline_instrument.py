@@ -229,7 +229,7 @@ class PipelineInstrument(object):
     # Create the pipeline_proto to read all the components from. It will later
     # create a new pipeline proto from the cut out components.
     pipeline_proto, context = pipeline.to_runner_api(
-      return_context=True, use_fake_coders=False)
+        return_context=True, use_fake_coders=False)
 
     # Get all the root transforms. The caching transforms will be subtransforms
     # of one of these roots.
@@ -433,6 +433,7 @@ class PipelineInstrument(object):
           cacheable_input in unbounded_source_pcolls)
     # Replace/wire inputs w/ cached PCollections from ReadCache transforms.
     self._replace_with_cached_inputs(self._pipeline)
+
     # Write cache for all cacheables.
     for _, cacheable in self.cacheables.items():
       self._write_cache(

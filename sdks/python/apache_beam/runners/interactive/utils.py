@@ -26,10 +26,10 @@ from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 
 
 def to_element_list(
-        reader, # type: Generator[Union[TestStreamPayload.Event, WindowedValueHolder]]
-        coder, # type: Coder
-        include_window_info # type: bool
-):
+    reader, # type: Generator[Union[TestStreamPayload.Event, WindowedValueHolder]]
+    coder, # type: Coder
+    include_window_info # type: bool
+    ):
   # type: (...) -> List[WindowedValue]
 
   """Returns an iterator that properly decodes the elements from the reader.
