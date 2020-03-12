@@ -745,7 +745,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
     all_destination_file_pairs_pc = (
         (destination_files_kv_pc, more_destination_files_kv_pc)
         | "DestinationFilesUnion" >> beam.Flatten()
-        | "ReifyInputs" >> beam.Map(lambda x: x))
+        | "IdentityWorkaround" >> beam.Map(lambda x: x))
 
     if self.is_streaming_pipeline:
       # Apply the user's trigger back before we start triggering load jobs
