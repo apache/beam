@@ -24,9 +24,6 @@ import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSetOperatorsTransfo
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.CoGroup;
 import org.apache.beam.sdk.schemas.transforms.CoGroup.By;
-import org.apache.beam.sdk.schemas.transforms.Group;
-import org.apache.beam.sdk.schemas.transforms.Select;
-import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -89,35 +86,20 @@ public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCo
               + rightWindow);
     }
 
-    // Preaggregating counts is faster _if_ we expect duplicates in the PCollection, as otherwise we
-    // are shuffling all the duplicates just to count them in SetOperatorFilteringDoFn. However for
-    // a PCollection
-    // with no duplicates, this is slower.
-    final String numRowsField = "numRows";
-    PCollection<Row> leftRowsAggregated =
-        leftRows
-            .apply(
-                "countLeftUniqueElements",
-                Group.<Row>byFieldNames("*").aggregateField("*", Count.combineFn(), numRowsField))
-            .apply("partialFlattenLHS", Select.fieldNames("key", "value.numRows"));
-    PCollection<Row> rightRowsAggregated =
-        rightRows
-            .apply(
-                "countRightUniqueElements",
-                Group.<Row>byFieldNames("*").aggregateField("*", Count.combineFn(), numRowsField))
-            .apply("partialFlattenRHS", Select.fieldNames("key", "value.numRows"));
-
+    // TODO: We may want to preaggregate the counts first using Group instead of calling CoGroup and
+    // measuring the
+    // iterable size. If on average there are duplicates in the input, this will be faster.
     final String lhsTag = "lhs";
     final String rhsTag = "rhs";
     PCollection<Row> joined =
-        PCollectionTuple.of(lhsTag, leftRowsAggregated, rhsTag, rightRowsAggregated)
-            .apply("CoGroup", CoGroup.join(By.fieldNames("key.*")));
+        PCollectionTuple.of(lhsTag, leftRows, rhsTag, rightRows)
+            .apply("CoGroup", CoGroup.join(By.fieldNames("*")));
     return joined
         .apply(
             "FilterResults",
             ParDo.of(
                 new BeamSetOperatorsTransforms.SetOperatorFilteringDoFn(
-                    lhsTag, rhsTag, numRowsField, opType, all)))
+                    lhsTag, rhsTag, opType, all)))
         .setRowSchema(joined.getSchema().getField("key").getType().getRowSchema());
   }
 }

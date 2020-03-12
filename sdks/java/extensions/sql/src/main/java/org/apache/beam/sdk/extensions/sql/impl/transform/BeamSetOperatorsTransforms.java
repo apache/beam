@@ -38,20 +38,14 @@ public abstract class BeamSetOperatorsTransforms {
   public static class SetOperatorFilteringDoFn extends DoFn<Row, Row> {
     private final String leftTag;
     private final String rightTag;
-    private final String numRowsField;
     private final BeamSetOperatorRelBase.OpType opType;
     // ALL?
     private final boolean all;
 
     public SetOperatorFilteringDoFn(
-        String leftTag,
-        String rightTag,
-        String numRowsField,
-        BeamSetOperatorRelBase.OpType opType,
-        boolean all) {
+        String leftTag, String rightTag, BeamSetOperatorRelBase.OpType opType, boolean all) {
       this.leftTag = leftTag;
       this.rightTag = rightTag;
-      this.numRowsField = numRowsField;
       this.opType = opType;
       this.all = all;
     }
@@ -62,12 +56,10 @@ public abstract class BeamSetOperatorsTransforms {
       long numLeftRows = 0;
       long numRightRows = 0;
       if (!Iterables.isEmpty(element.<Row>getIterable(leftTag))) {
-        numLeftRows =
-            Iterables.getOnlyElement(element.<Row>getIterable(leftTag)).getInt64(numRowsField);
+        numLeftRows = Iterables.size(element.<Row>getIterable(leftTag));
       }
       if (!Iterables.isEmpty(element.<Row>getIterable(rightTag))) {
-        numRightRows =
-            Iterables.getOnlyElement(element.<Row>getIterable(rightTag)).getInt64(numRowsField);
+        numRightRows = Iterables.size(element.<Row>getIterable(rightTag));
       }
 
       switch (opType) {
