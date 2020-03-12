@@ -90,7 +90,22 @@ class Options(interactive_options.InteractiveOptions):
     assert value.total_seconds() > 0, 'Duration must be a positive value.'
     self.capture_control._capture_duration = value
 
-  # TODO(BEAM-8335): add capture_size options when they are supported.
+  @property
+  def capture_size_limit(self):
+    """The data capture of sources ends as soon as the size (in bytes) of data
+    captured from capturable sources reaches the limit."""
+    return self.capture_control._capture_size_limit
+
+  @capture_size_limit.setter
+  def capture_size_limit(self, value):
+    """Sets the capture size in bytes.
+
+    Example::
+
+      # Sets the capture size limit to 1GB.
+      interactive_beam.options.capture_size_limit = 1e9
+    """
+    self.capture_control._capture_size_limit = value
 
   @property
   def display_timestamp_format(self):
