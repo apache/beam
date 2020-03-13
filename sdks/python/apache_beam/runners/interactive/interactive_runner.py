@@ -38,6 +38,7 @@ from apache_beam.runners.interactive import pipeline_instrument as inst
 from apache_beam.runners.interactive import background_caching_job
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.options import capture_control
+from apache_beam.runners.interactive.utils import to_element_list
 
 # size of PCollection samples cached.
 SAMPLE_SIZE = 8
@@ -213,11 +214,24 @@ class PipelineResult(beam.runners.runner.PipelineResult):
   def wait_until_finish(self):
     self._underlying_result.wait_until_finish()
 
-  def get(self, pcoll):
+  def get(self, pcoll, include_window_info=False):
+    """Materializes the PCollection into a list.
+    If include_window_info is True, then returns the elements as
+    WindowedValues. Otherwise, return the element as itself.
+    """
+    return list(self.read(pcoll, include_window_info))
+
+  def read(self, pcoll, include_window_info=False):
+    """Reads the PCollection one element at a time from cache.
+    If include_window_info is True, then returns the elements as
+    WindowedValues. Otherwise, return the element as itself.
+    """
     key = self._pipeline_instrument.cache_key(pcoll)
-    if ie.current_env().cache_manager().exists('full', key):
-      pcoll_list, _ = ie.current_env().cache_manager().read('full', key)
-      return pcoll_list
+    cache_manager = ie.current_env().cache_manager()
+    if cache_manager.exists('full', key):
+      coder = cache_manager.load_pcoder('full', key)
+      reader, _ = cache_manager.read('full', key)
+      return to_element_list(reader, coder, include_window_info)
     else:
       raise ValueError('PCollection not available, please run the pipeline.')
 
