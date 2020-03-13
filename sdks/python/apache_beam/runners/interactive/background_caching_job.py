@@ -56,7 +56,7 @@ class BackgroundCachingJob(object):
   """A simple abstraction that controls necessary components of a timed and
   space limited background caching job.
 
-  A background caching job successfully complete source data capture in 2
+  A background caching job successfully completes source data capture in 2
   conditions:
 
     #. The job is finite and runs into DONE state;

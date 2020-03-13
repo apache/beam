@@ -106,7 +106,8 @@ class _ExpandableTestStream(PTransform):
         | _TestStream(
             self.test_stream.output_tags,
             events=self.test_stream._events,
-            coder=self.test_stream.coder)
+            coder=self.test_stream.coder,
+            endpoint=self.test_stream._endpoint)
         | 'TestStream Multiplexer' >> ParDo(mux).with_outputs())
 
     # Apply a way to control the watermark per output. It is necessary to
