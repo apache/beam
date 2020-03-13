@@ -166,6 +166,12 @@ def is_background_caching_job_needed(user_pipeline):
   # If this is True, we can invalidate a previous done/running job if there is
   # one.
   cache_changed = is_source_to_cache_changed(user_pipeline)
+  # When capture replay is disabled, cache is always needed for capturable
+  # sources (if any).
+  if need_cache and not ie.current_env().options.enable_capture_replay:
+    from apache_beam.runners.interactive.options import capture_control
+    capture_control.evict_captured_data()
+    return True
   return (
       need_cache and
       # Checks if it's the first time running a job from the pipeline.
