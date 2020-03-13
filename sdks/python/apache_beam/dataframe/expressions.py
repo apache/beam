@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import absolute_import
+
 from typing import Any
 from typing import Callable
 from typing import Iterable
@@ -27,8 +29,8 @@ class Session(object):
   The bindings typically include required placeholders, but may be any
   intermediate expression as well.
   """
-  def __init__(self, bindings={}):
-    self._bindings = dict(bindings)
+  def __init__(self, bindings=None):
+    self._bindings = dict(bindings or {})
 
   def evaluate(self, expr):  # type: (Expression) -> Any
     if expr not in self._bindings:
@@ -95,13 +97,13 @@ class PlaceholderExpression(Expression):
       self,  # type: PlaceholderExpression
       proxy  # type: T
   ):
-    super(PlaceholderExpression, self).__init__('placeholder', proxy)
     """Initialize a placeholder expression.
 
     Args:
       proxy: A proxy object with the type expected to be bound to this
         expression. Used for type checking at pipeline construction time.
     """
+    super(PlaceholderExpression, self).__init__('placeholder', proxy)
 
   def args(self):
     return ()

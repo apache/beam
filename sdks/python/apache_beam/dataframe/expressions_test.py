@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import absolute_import
+
 import unittest
 
 from apache_beam.dataframe import expressions
@@ -50,3 +52,7 @@ class ExpressionTest(unittest.TestCase):
     b = expressions.PlaceholderExpression('s')
     with self.assertRaises(TypeError):
       expressions.ComputedExpression('add', lambda a, b: a + b, [a, b])
+
+
+if __name__ == '__main__':
+  unittest.main()
