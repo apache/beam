@@ -854,7 +854,8 @@ class DataflowRunner(PipelineRunner):
     if common_urns.primitives.PAR_DO.urn == urn:
       self.run_ParDo(transform_node, options)
     else:
-      NotImplementedError(urn)
+      raise NotImplementedError(
+          '%s uses unsupported URN: %s' % (transform_node.full_label, urn))
 
   def run_ParDo(self, transform_node, options):
     transform = transform_node.transform
