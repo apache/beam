@@ -22,8 +22,36 @@ from __future__ import absolute_import
 
 import pandas as pd
 
+from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+
+
+def to_element_list(
+        reader, # type: Generator[Union[TestStreamPayload.Event, WindowedValueHolder]]
+        coder, # type: Coder
+        include_window_info # type: bool
+):
+  # type: (...) -> List[WindowedValue]
+
+  """Returns an iterator that properly decodes the elements from the reader.
+  """
+
+  for e in reader:
+    if isinstance(e, TestStreamPayload.Event):
+      if (e.HasField('watermark_event') or e.HasField('processing_time_event')):
+        continue
+      else:
+        for tv in e.element_event.elements:
+          decoded = coder.decode(tv.encoded_element)
+          yield (
+              decoded.windowed_value
+              if include_window_info else decoded.windowed_value.value)
+    else:
+      yield e.windowed_value if include_window_info else e.windowed_value.value
+
 
 def elements_to_df(elements, include_window_info=False):
+  # type: (List[WindowedValue], bool) -> DataFrame
+
   """Parses the given elements into a Dataframe.
 
   If the elements are a list of WindowedValues, then it will break out the

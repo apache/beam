@@ -47,6 +47,7 @@ import time
 import apache_beam as beam
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.caching import streaming_cache
+from apache_beam.runners.interactive.options import capture_control
 from apache_beam.runners.runner import PipelineState
 
 _LOGGER = logging.getLogger(__name__)
@@ -166,6 +167,11 @@ def is_background_caching_job_needed(user_pipeline):
   # If this is True, we can invalidate a previous done/running job if there is
   # one.
   cache_changed = is_source_to_cache_changed(user_pipeline)
+  # When capture replay is disabled, cache is always needed for capturable
+  # sources (if any).
+  if need_cache and not ie.current_env().options.enable_capture_replay:
+    capture_control.evict_captured_data()
+    return True
   return (
       need_cache and
       # Checks if it's the first time running a job from the pipeline.
