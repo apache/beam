@@ -42,6 +42,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.BaseArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
@@ -414,6 +415,17 @@ public class SplittableParDoNaiveBounded {
       @Override
       public void updateWatermark(Instant watermark) {
         // Ignore watermark updates
+      }
+
+      @Override
+      public Object watermarkEstimatorState() {
+        throw new UnsupportedOperationException(
+            "@WatermarkEstimatorState parameters are not supported.");
+      }
+
+      @Override
+      public WatermarkEstimator<?> watermarkEstimator() {
+        throw new UnsupportedOperationException("WatermarkEstimator parameters are not supported.");
       }
 
       // ----------- Unsupported methods --------------------
