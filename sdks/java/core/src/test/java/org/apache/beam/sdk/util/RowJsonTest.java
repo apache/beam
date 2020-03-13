@@ -370,6 +370,23 @@ public class RowJsonTest {
     }
 
     @Test
+    public void testDeserializerThrowsForMultipleUnsupportedFieldTypes() throws Exception {
+      Schema schema =
+          Schema.builder()
+              .addInt32Field("f_int32")
+              .addDateTimeField("f_dateTime")
+              .addArrayField("f_dateTimeArray", FieldType.DATETIME)
+              .build();
+
+      thrown.expect(UnsupportedRowJsonException.class);
+      thrown.expectMessage("f_dateTime=DATETIME");
+      thrown.expectMessage("f_dateTimeArray[]=DATETIME");
+      thrown.expectMessage("not supported");
+
+      RowJson.RowJsonDeserializer.forSchema(schema);
+    }
+
+    @Test
     public void testSupportedBooleanConversions() throws Exception {
       testSupportedConversion(FieldType.BOOLEAN, BOOLEAN_TRUE_STRING, BOOLEAN_TRUE_VALUE);
     }

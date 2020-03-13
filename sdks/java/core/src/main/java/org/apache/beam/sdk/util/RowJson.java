@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.util;
 
-import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.BOOLEAN;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.BYTE;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.DECIMAL;
@@ -37,6 +36,7 @@ import static org.apache.beam.sdk.util.RowJsonValueExtractors.longValueExtractor
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.shortValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.stringValueExtractor;
 import static org.apache.beam.sdk.values.Row.toRow;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.toImmutableList;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
@@ -49,20 +49,18 @@ import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.schemas.Factory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.util.RowJsonValueExtractors.ValueExtractor;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
@@ -87,40 +85,75 @@ public class RowJson {
   private static final ImmutableSet<TypeName> SUPPORTED_TYPES =
       ImmutableSet.of(BYTE, INT16, INT32, INT64, FLOAT, DOUBLE, BOOLEAN, STRING, DECIMAL);
 
+  /**
+   * Throws {@link UnsupportedRowJsonException} if {@code schema} contains an unsupported field type
+   */
   public static void verifySchemaSupported(Schema schema) {
-    schema.getFields().forEach(RowJson::verifyFieldTypeSupported);
+    ImmutableList<UnsupportedField> unsupportedFields = findUnsupportedFields(schema);
+    if (!unsupportedFields.isEmpty()) {
+      throw new UnsupportedRowJsonException(
+          String.format(
+              "Field type%s %s not supported when converting between JSON and Rows. Supported types are: %s",
+              unsupportedFields.size() > 1 ? "s" : "",
+              unsupportedFields.toString(),
+              SUPPORTED_TYPES.toString()));
+    }
   }
 
-  static void verifyFieldTypeSupported(Field field) {
+  private static class UnsupportedField {
+    final String descriptor;
+    final TypeName typeName;
+
+    UnsupportedField(String descriptor, TypeName typeName) {
+      this.descriptor = descriptor;
+      this.typeName = typeName;
+    }
+
+    @Override
+    public String toString() {
+      return this.descriptor + "=" + this.typeName;
+    }
+  }
+
+  private static ImmutableList<UnsupportedField> findUnsupportedFields(Schema schema) {
+    return schema.getFields().stream()
+        .flatMap((field) -> findUnsupportedFields(field).stream())
+        .collect(toImmutableList());
+  }
+
+  private static ImmutableList<UnsupportedField> findUnsupportedFields(Field field) {
     FieldType fieldType = field.getType();
-    verifyFieldTypeSupported(fieldType, field::getName);
+    return findUnsupportedFields(fieldType, field.getName());
   }
 
-  static void verifyFieldTypeSupported(FieldType fieldType, Supplier<String> fieldName) {
+  private static ImmutableList<UnsupportedField> findUnsupportedFields(
+      FieldType fieldType, String fieldName) {
     TypeName fieldTypeName = fieldType.getTypeName();
 
     if (fieldTypeName.isCompositeType()) {
       Schema rowFieldSchema = fieldType.getRowSchema();
-      rowFieldSchema.getFields().forEach((field) -> {
-        verifyFieldTypeSupported(field.getType(), () -> fieldName.get() + "." + field.getName());
-      });
-      return;
+
+      return rowFieldSchema.getFields().stream()
+          .flatMap(
+              (field) ->
+                  findUnsupportedFields(field.getType(), fieldName + "." + field.getName())
+                      .stream())
+          .collect(toImmutableList());
     }
 
     if (fieldTypeName.isCollectionType()) {
-      verifyFieldTypeSupported(fieldType.getCollectionElementType(), () -> fieldName.get() + "[]");
-      return;
+      return findUnsupportedFields(fieldType.getCollectionElementType(), fieldName + "[]");
     }
 
     if (fieldTypeName.isLogicalType()) {
-      verifyFieldTypeSupported(fieldType.getLogicalType().getBaseType(), fieldName);
-      return;
+      return findUnsupportedFields(fieldType.getLogicalType().getBaseType(), fieldName);
     }
 
     if (!SUPPORTED_TYPES.contains(fieldTypeName)) {
-      throw new UnsupportedRowJsonException(String.format("Type %s in field '%s' is not supported when converting between JSON objects and Rows. Supported typed are: %s",
-              fieldTypeName.name(), fieldName.get(), SUPPORTED_TYPES.toString()));
+      return ImmutableList.of(new UnsupportedField(fieldName, fieldTypeName));
     }
+
+    return ImmutableList.of();
   }
 
   /** Jackson deserializer for parsing JSON into {@link Row Rows}. */
@@ -232,7 +265,7 @@ public class RowJson {
                           arrayFieldValue.name() + "[]",
                           arrayFieldValue.arrayElementType(),
                           jsonArrayElement)))
-          .collect(toList());
+          .collect(toImmutableList());
     }
 
     private static Object extractJsonPrimitiveValue(FieldValue fieldValue) {
