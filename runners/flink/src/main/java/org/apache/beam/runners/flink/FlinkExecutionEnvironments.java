@@ -39,6 +39,7 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup;
+import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -166,12 +167,13 @@ public class FlinkExecutionEnvironments {
         savepointRestoreSettings = SavepointRestoreSettings.none();
       }
       flinkStreamEnv =
-          new BeamFlinkRemoteStreamEnvironment(
+          new RemoteStreamEnvironment(
               hostAndPort.getHost(),
               hostAndPort.getPort(),
               flinkConfiguration,
-              savepointRestoreSettings,
-              filesToStage.toArray(new String[filesToStage.size()]));
+              filesToStage.toArray(new String[filesToStage.size()]),
+              null,
+              savepointRestoreSettings);
       LOG.info("Using Flink Master URL {}:{}.", hostAndPort.getHost(), hostAndPort.getPort());
     }
 
