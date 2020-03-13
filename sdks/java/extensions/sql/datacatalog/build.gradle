@@ -23,6 +23,7 @@ plugins { id 'org.apache.beam.module' }
 applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.sql.datacatalog')
 
 dependencies {
+  compile platform(library.java.google_cloud_platform_libraries_bom)
   compile(library.java.google_cloud_datacatalog_v1beta1) {
     exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
   }
