@@ -612,11 +612,14 @@ public class ExpressionConverter {
                     TypeUtils.toSimpleRelDataType(kind, rexBuilder()));
         break;
       case TYPE_DOUBLE:
+        double val = value.getDoubleValue();
+        if (Double.isInfinite(val) || Double.isNaN(val)) {
+          throw new UnsupportedOperationException("Does not support Infinite or NaN literals.");
+        }
         ret =
             rexBuilder()
                 .makeApproxLiteral(
-                    new BigDecimal(value.getDoubleValue()),
-                    TypeUtils.toSimpleRelDataType(kind, rexBuilder()));
+                    new BigDecimal(val), TypeUtils.toSimpleRelDataType(kind, rexBuilder()));
         break;
       case TYPE_STRING:
         // has to allow CAST because Calcite create CHAR type first and does a CAST to VARCHAR.
