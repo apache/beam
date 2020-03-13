@@ -2735,6 +2735,28 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testUNNESTParameters() {
+    String sql = "SELECT * FROM UNNEST(@p0);";
+    ImmutableMap<String, Value> params =
+        ImmutableMap.of(
+            "p0",
+            Value.createArrayValue(
+                TypeFactory.createArrayType(TypeFactory.createSimpleType(TypeKind.TYPE_STRING)),
+                ImmutableList.of(Value.createStringValue("foo"), Value.createStringValue("bar"))));
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    Schema schema = Schema.builder().addStringField("str_field").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues("foo").build(),
+            Row.withSchema(schema).addValues("bar").build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testNamedUNNESTLiteral() {
     String sql = "SELECT *, T1 FROM UNNEST(ARRAY<STRING>['foo', 'bar']) AS T1";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
