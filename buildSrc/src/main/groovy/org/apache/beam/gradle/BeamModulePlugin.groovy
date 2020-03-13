@@ -378,7 +378,6 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_auth_version = "0.19.0"
     def google_clients_version = "1.30.3"
     def google_cloud_bigdataoss_version = "2.0.0"
-    def google_cloud_core_version = "1.92.2"
     def google_cloud_spanner_version = "1.49.1"
     def google_cloud_datacatalog_version = "0.32.1"
     def google_http_clients_version = "1.34.0"
@@ -461,11 +460,12 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery:1.108.0",
         google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage:0.125.0-beta",
         google_cloud_bigtable_client_core           : "com.google.cloud.bigtable:bigtable-client-core:1.13.0",
-        google_cloud_core                           : "com.google.cloud:google-cloud-core:$google_cloud_core_version",
-        google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc:$google_cloud_core_version",
+        google_cloud_core                           : "com.google.cloud:google-cloud-core",
+        google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc",
         google_cloud_datacatalog_v1beta1            : "com.google.cloud:google-cloud-datacatalog:$google_cloud_datacatalog_version",
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
         google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:1.6.3",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:4.2.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version",
         google_http_client                          : "com.google.http-client:google-http-client:$google_http_clients_version",
         google_http_client_jackson                  : "com.google.http-client:google-http-client-jackson:1.29.2",
@@ -1274,7 +1274,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // has different dependencies than our project.
         if (config.getName() != "errorprone" && !inDependencyUpdates) {
           config.resolutionStrategy {
-            force project.library.java.values()
+            force project.library.java.values().findAll { it.split(':').size() > 2 }
           }
         }
       }
