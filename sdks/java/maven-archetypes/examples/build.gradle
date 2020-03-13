@@ -70,6 +70,5 @@ sourceSets {
 }
 
 dependencies {
-  compile platform(library.java.google_cloud_platform_libraries_bom)
   compile project(":examples:java")
 }
