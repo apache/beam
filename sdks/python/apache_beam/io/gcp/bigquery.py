@@ -265,6 +265,7 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
+from apache_beam.options.value_provider import check_accessible
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
@@ -622,6 +623,8 @@ class _CustomBigQuerySource(BoundedSource):
       self.query = None
       self.use_legacy_sql = True
     else:
+      if isinstance(query, (str, unicode)):
+        query = StaticValueProvider(str, query)
       self.query = query
       # TODO(BEAM-1082): Change the internal flag to be standard_sql
       self.use_legacy_sql = not use_standard_sql
@@ -635,11 +638,7 @@ class _CustomBigQuerySource(BoundedSource):
     self.kms_key = kms_key
     self.split_result = None
 
-  def evaluate_query_valueprovider(self):
-    if isinstance(self.query, ValueProvider):
-      return self.query.get()
-    return self.query
-
+  @check_accessible(['query'])
   def estimate_size(self):
     bq = bigquery_tools.BigQueryWrapper()
     if self.table_reference is not None:
@@ -649,10 +648,9 @@ class _CustomBigQuerySource(BoundedSource):
           self.table_reference.tableId)
       return int(table.numBytes)
     else:
-      query = self.evaluate_query_valueprovider()
       job = bq._start_query_job(
           self.project,
-          query,
+          self.query.get(),
           self.use_legacy_sql,
           self.flatten_results,
           job_id=uuid.uuid4().hex,
@@ -698,17 +696,17 @@ class _CustomBigQuerySource(BoundedSource):
   def read(self, range_tracker):
     raise NotImplementedError('BigQuery source must be split before being read')
 
+  @check_accessible(['query'])
   def _setup_temporary_dataset(self, bq):
-    query = self.evaluate_query_valueprovider()
     location = bq.get_query_location(
-        self.project, query, self.use_legacy_sql)
+        self.project, self.query.get(), self.use_legacy_sql)
     bq.create_temporary_dataset(self.project, location)
 
+  @check_accessible(['query'])
   def _execute_query(self, bq):
-    query = self.evaluate_query_valueprovider()
     job = bq._start_query_job(
         self.project,
-        query,
+        self.query.get(),
         self.use_legacy_sql,
         self.flatten_results,
         job_id=uuid.uuid4().hex,
@@ -1556,8 +1554,7 @@ class _ReadFromBigQuery(PTransform):
       a :class:`~apache_beam.options.value_provider.ValueProvider`. If
       :data:`None`, then the temp_location parameter is used.
    """
-  def __init__(
-      self, gcs_location=None, validate=False, *args, **kwargs):
+  def __init__(self, gcs_location=None, validate=False, *args, **kwargs):
     if gcs_location:
       if not isinstance(gcs_location, (str, unicode, ValueProvider)):
         raise TypeError(
