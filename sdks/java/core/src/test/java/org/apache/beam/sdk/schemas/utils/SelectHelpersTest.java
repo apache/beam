@@ -18,9 +18,11 @@
 package org.apache.beam.sdk.schemas.utils;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -560,5 +562,132 @@ public class SelectHelpersTest {
                     ImmutableList.of("first", "first"), ImmutableList.of("first", "first")))
             .build();
     assertEquals(expected, out);
+  }
+
+  static final Schema NESTED_NULLABLE_SCHEMA =
+      Schema.builder()
+          .addNullableField("nested", FieldType.row(FLAT_SCHEMA))
+          .addNullableField("nestedArray", FieldType.array(FieldType.row(FLAT_SCHEMA)))
+          .addNullableField(
+              "nestedMap", FieldType.map(FieldType.STRING, FieldType.row(FLAT_SCHEMA)))
+          .build();
+  static final Row NESTED_NULLABLE_ROW = Row.nullRow(NESTED_NULLABLE_SCHEMA);
+
+  @Test
+  public void testNullableSchema() {
+    FieldAccessDescriptor fieldAccessDescriptor1 =
+        FieldAccessDescriptor.withFieldNames("nested.field1").resolve(NESTED_NULLABLE_SCHEMA);
+    Schema schema1 = SelectHelpers.getOutputSchema(NESTED_NULLABLE_SCHEMA, fieldAccessDescriptor1);
+    Schema expectedSchema1 = Schema.builder().addNullableField("field1", FieldType.STRING).build();
+    assertEquals(expectedSchema1, schema1);
+
+    FieldAccessDescriptor fieldAccessDescriptor2 =
+        FieldAccessDescriptor.withFieldNames("nested.*").resolve(NESTED_NULLABLE_SCHEMA);
+    Schema schema2 = SelectHelpers.getOutputSchema(NESTED_NULLABLE_SCHEMA, fieldAccessDescriptor2);
+    Schema expectedSchema2 =
+        Schema.builder()
+            .addNullableField("field1", FieldType.STRING)
+            .addNullableField("field2", FieldType.INT32)
+            .addNullableField("field3", FieldType.DOUBLE)
+            .addNullableField("field_extra", FieldType.STRING)
+            .build();
+    assertEquals(expectedSchema2, schema2);
+  }
+
+  @Test
+  public void testNullableSchemaArray() {
+    FieldAccessDescriptor fieldAccessDescriptor1 =
+        FieldAccessDescriptor.withFieldNames("nestedArray.field1").resolve(NESTED_NULLABLE_SCHEMA);
+    Schema schema1 = SelectHelpers.getOutputSchema(NESTED_NULLABLE_SCHEMA, fieldAccessDescriptor1);
+    Schema expectedSchema1 =
+        Schema.builder().addNullableField("field1", FieldType.array(FieldType.STRING)).build();
+    assertEquals(expectedSchema1, schema1);
+
+    FieldAccessDescriptor fieldAccessDescriptor2 =
+        FieldAccessDescriptor.withFieldNames("nestedArray.*").resolve(NESTED_NULLABLE_SCHEMA);
+    Schema schema2 = SelectHelpers.getOutputSchema(NESTED_NULLABLE_SCHEMA, fieldAccessDescriptor2);
+    Schema expectedSchema2 =
+        Schema.builder()
+            .addNullableField("field1", FieldType.array(FieldType.STRING))
+            .addNullableField("field2", FieldType.array(FieldType.INT32))
+            .addNullableField("field3", FieldType.array(FieldType.DOUBLE))
+            .addNullableField("field_extra", FieldType.array(FieldType.STRING))
+            .build();
+    assertEquals(expectedSchema2, schema2);
+  }
+
+  @Test
+  public void testNullableSchemaMap() {
+    FieldAccessDescriptor fieldAccessDescriptor1 =
+        FieldAccessDescriptor.withFieldNames("nestedMap.field1").resolve(NESTED_NULLABLE_SCHEMA);
+    Schema schema1 = SelectHelpers.getOutputSchema(NESTED_NULLABLE_SCHEMA, fieldAccessDescriptor1);
+    Schema expectedSchema1 =
+        Schema.builder()
+            .addNullableField("field1", FieldType.map(FieldType.STRING, FieldType.STRING))
+            .build();
+    assertEquals(expectedSchema1, schema1);
+
+    FieldAccessDescriptor fieldAccessDescriptor2 =
+        FieldAccessDescriptor.withFieldNames("nestedMap.*").resolve(NESTED_NULLABLE_SCHEMA);
+    Schema schema2 = SelectHelpers.getOutputSchema(NESTED_NULLABLE_SCHEMA, fieldAccessDescriptor2);
+    Schema expectedSchema2 =
+        Schema.builder()
+            .addNullableField("field1", FieldType.map(FieldType.STRING, FieldType.STRING))
+            .addNullableField("field2", FieldType.map(FieldType.STRING, FieldType.INT32))
+            .addNullableField("field3", FieldType.map(FieldType.STRING, FieldType.DOUBLE))
+            .addNullableField("field_extra", FieldType.map(FieldType.STRING, FieldType.STRING))
+            .build();
+    assertEquals(expectedSchema2, schema2);
+  }
+
+  @Test
+  public void testSelectNullableNestedRow() {
+    FieldAccessDescriptor fieldAccessDescriptor1 =
+        FieldAccessDescriptor.withFieldNames("nested.field1").resolve(NESTED_NULLABLE_SCHEMA);
+    Row out1 =
+        selectRow(
+            NESTED_NULLABLE_SCHEMA, fieldAccessDescriptor1, Row.nullRow(NESTED_NULLABLE_SCHEMA));
+    assertNull(out1.getValue(0));
+
+    FieldAccessDescriptor fieldAccessDescriptor2 =
+        FieldAccessDescriptor.withFieldNames("nested.*").resolve(NESTED_NULLABLE_SCHEMA);
+    Row out2 =
+        selectRow(
+            NESTED_NULLABLE_SCHEMA, fieldAccessDescriptor2, Row.nullRow(NESTED_NULLABLE_SCHEMA));
+    assertEquals(Collections.nCopies(4, null), out2.getValues());
+  }
+
+  @Test
+  public void testSelectNullableNestedRowArray() {
+    FieldAccessDescriptor fieldAccessDescriptor1 =
+        FieldAccessDescriptor.withFieldNames("nestedArray.field1").resolve(NESTED_NULLABLE_SCHEMA);
+    Row out1 =
+        selectRow(
+            NESTED_NULLABLE_SCHEMA, fieldAccessDescriptor1, Row.nullRow(NESTED_NULLABLE_SCHEMA));
+    assertNull(out1.getValue(0));
+
+    FieldAccessDescriptor fieldAccessDescriptor2 =
+        FieldAccessDescriptor.withFieldNames("nestedArray.*").resolve(NESTED_NULLABLE_SCHEMA);
+    Row out2 =
+        selectRow(
+            NESTED_NULLABLE_SCHEMA, fieldAccessDescriptor2, Row.nullRow(NESTED_NULLABLE_SCHEMA));
+    assertEquals(Collections.nCopies(4, null), out2.getValues());
+  }
+
+  @Test
+  public void testSelectNullableNestedRowMap() {
+    FieldAccessDescriptor fieldAccessDescriptor1 =
+        FieldAccessDescriptor.withFieldNames("nestedMap.field1").resolve(NESTED_NULLABLE_SCHEMA);
+    Row out1 =
+        selectRow(
+            NESTED_NULLABLE_SCHEMA, fieldAccessDescriptor1, Row.nullRow(NESTED_NULLABLE_SCHEMA));
+    assertNull(out1.getValue(0));
+
+    FieldAccessDescriptor fieldAccessDescriptor2 =
+        FieldAccessDescriptor.withFieldNames("nestedMap.*").resolve(NESTED_NULLABLE_SCHEMA);
+    Row out2 =
+        selectRow(
+            NESTED_NULLABLE_SCHEMA, fieldAccessDescriptor2, Row.nullRow(NESTED_NULLABLE_SCHEMA));
+    assertEquals(Collections.nCopies(4, null), out2.getValues());
   }
 }
