@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import absolute_import
+
 import inspect
 
 import pandas as pd
@@ -52,15 +54,19 @@ def name_and_func(method):
     return method.__name__, method
 
 
-def _elementwise_method(func, name=None, restrictions={}, inplace=False):
+def _elementwise_method(func, name=None, restrictions=None, inplace=False):
   if name is None:
     name, func = name_and_func(func)
+  if restrictions is None:
+    restrictions = {}
   return _elementwise_function(func, name, restrictions)
 
 
-def _elementwise_function(func, name=None, restrictions={}, inplace=False):
+def _elementwise_function(func, name=None, restrictions=None, inplace=False):
   if name is None:
     name = func.__name__
+  if restrictions is None:
+    restrictions = {}
 
   def wrapper(*args, **kwargs):
     for key, values in restrictions.items():
@@ -68,6 +74,7 @@ def _elementwise_function(func, name=None, restrictions={}, inplace=False):
         value = kwargs[key]
       else:
         try:
+          # pylint: disable=deprecated-method
           ix = inspect.getargspec(func).args.index(key)
         except ValueError:
           # TODO: fix for delegation?

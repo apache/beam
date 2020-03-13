@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import absolute_import
+
 import unittest
 
 import numpy as np
@@ -21,7 +23,6 @@ import pandas as pd
 
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
-from apache_beam.dataframe import frames
 
 
 class DeferredFrameTest(unittest.TestCase):
@@ -77,3 +78,7 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.loc[:dates[3]], df)
     self._run_test(lambda df: df.loc[df.A > 10], df)
     self._run_test(lambda df: df.loc[lambda df: df.A > 10], df)
+
+
+if __name__ == '__main__':
+  unittest.main()

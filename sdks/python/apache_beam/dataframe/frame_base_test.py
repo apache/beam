@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import absolute_import
+
 import unittest
 
 import pandas as pd
@@ -38,3 +40,7 @@ class FrameBaseTest(unittest.TestCase):
     self.assertTrue(sub(1, x)._expr.evaluate_at(session).equals(1 - a))
     self.assertTrue(sub(x, b)._expr.evaluate_at(session).equals(a - b))
     self.assertTrue(sub(a, y)._expr.evaluate_at(session).equals(a - b))
+
+
+if __name__ == '__main__':
+  unittest.main()

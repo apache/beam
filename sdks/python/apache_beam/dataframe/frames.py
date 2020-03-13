@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import absolute_import
+
 import pandas as pd
 
 from apache_beam.dataframe import expressions
@@ -84,8 +86,6 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   def set_index(self, keys, **kwargs):
     if isinstance(keys, str):
       keys = [keys]
-    else:
-      keys = keys
     if not set(keys).issubset(self._expr.proxy().columns):
       raise NotImplementedError(keys)
     return self._elementwise(
@@ -152,10 +152,12 @@ def _unliftable_agg(meth):
 
   return wrapper
 
+LIFTABLE_AGGREGATIONS = ['all', 'any', 'max', 'min', 'prod', 'size', 'sum']
+UNLIFTABLE_AGGREGATIONS = ['mean', 'median', 'std', 'var']
 
-for meth in ['all', 'any', 'max', 'min', 'prod', 'size', 'sum']:
+for meth in LIFTABLE_AGGREGATIONS:
   setattr(DeferredGroupBy, meth, _liftable_agg(meth))
-for meth in ['mean', 'median', 'std', 'var']:
+for meth in UNLIFTABLE_AGGREGATIONS:
   setattr(DeferredGroupBy, meth, _unliftable_agg(meth))
 
 
