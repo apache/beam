@@ -555,11 +555,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
-    public void updateWatermark(Instant watermark) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
     public PipelineOptions getPipelineOptions() {
       return options;
     }
