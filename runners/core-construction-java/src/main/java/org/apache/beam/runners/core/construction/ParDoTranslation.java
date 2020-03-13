@@ -62,6 +62,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.ViewFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
@@ -202,9 +203,12 @@ public class ParDoTranslation {
     final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
     final String restrictionCoderId;
     if (signature.processElement().isSplittable()) {
-      final Coder<?> restrictionCoder =
-          DoFnInvokers.invokerFor(doFn).invokeGetRestrictionCoder(pipeline.getCoderRegistry());
-      restrictionCoderId = components.registerCoder(restrictionCoder);
+      DoFnInvoker<?, ?> doFnInvoker = DoFnInvokers.invokerFor(doFn);
+      final Coder<?> restrictionAndWatermarkStateCoder =
+          KvCoder.of(
+              doFnInvoker.invokeGetRestrictionCoder(pipeline.getCoderRegistry()),
+              doFnInvoker.invokeGetWatermarkEstimatorStateCoder(pipeline.getCoderRegistry()));
+      restrictionCoderId = components.registerCoder(restrictionAndWatermarkStateCoder);
     } else {
       restrictionCoderId = "";
     }

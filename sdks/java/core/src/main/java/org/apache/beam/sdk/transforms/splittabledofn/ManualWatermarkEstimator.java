@@ -24,7 +24,8 @@ import org.joda.time.Instant;
 
 /**
  * A {@link WatermarkEstimator} which is controlled manually from within a {@link DoFn}. The {@link
- * DoFn} must invoke {@link #setWatermark} to advance the watermark.
+ * DoFn} must invoke {@link #setWatermark} to advance the watermark. See {@link
+ * WatermarkEstimators.Manual} for a concrete implementation.
  */
 @Experimental(Kind.SPLITTABLE_DO_FN)
 public interface ManualWatermarkEstimator<WatermarkEstimatorStateT>
