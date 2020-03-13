@@ -96,8 +96,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
   private static final IdGenerator factoryIdGenerator = IdGenerators.incrementingLongs();
 
   private final String factoryId = factoryIdGenerator.getId();
-  private final ImmutableList<LoadingCache<Environment, WrappedSdkHarnessClient>> environmentCaches;
-  private final ImmutableList<Lock> environmentCacheLocks;
+  private final ImmutableList<EnvironmentCacheAndLock> environmentCaches;
   private final AtomicInteger stageBundleFactoryCount = new AtomicInteger();
   private final Map<String, EnvironmentFactory.Provider> environmentFactoryProviderMap;
   private final ExecutorService executor;
@@ -105,8 +104,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
   private final IdGenerator stageIdGenerator;
   private final int environmentExpirationMillis;
   private final Semaphore availableCachesSemaphore;
-  private final LinkedBlockingDeque<LoadingCache<Environment, WrappedSdkHarnessClient>>
-      availableCaches;
+  private final LinkedBlockingDeque<EnvironmentCacheAndLock> availableCaches;
   private final boolean loadBalanceBundles;
   /** Clients which were evicted due to environment expiration but still had pending references. */
   private final Set<WrappedSdkHarnessClient> evictedActiveClients;
@@ -143,7 +141,6 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     this.stageIdGenerator = () -> factoryId + "-" + stageIdSuffixGenerator.getId();
     this.environmentExpirationMillis = getEnvironmentExpirationMillis(jobInfo);
     this.loadBalanceBundles = shouldLoadBalanceBundles(jobInfo);
-    this.environmentCacheLocks = createEnvironmentCacheLocks(getMaxEnvironmentClients(jobInfo));
     this.environmentCaches =
         createEnvironmentCaches(
             serverFactory -> createServerInfo(jobInfo, serverFactory),
@@ -165,7 +162,6 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     this.stageIdGenerator = stageIdGenerator;
     this.environmentExpirationMillis = getEnvironmentExpirationMillis(jobInfo);
     this.loadBalanceBundles = shouldLoadBalanceBundles(jobInfo);
-    this.environmentCacheLocks = createEnvironmentCacheLocks(getMaxEnvironmentClients(jobInfo));
     this.environmentCaches =
         createEnvironmentCaches(serverFactory -> serverInfo, getMaxEnvironmentClients(jobInfo));
     this.availableCachesSemaphore = new Semaphore(environmentCaches.size(), true);
@@ -173,9 +169,22 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     this.evictedActiveClients = Sets.newConcurrentHashSet();
   }
 
-  private ImmutableList<Lock> createEnvironmentCacheLocks(int count) {
-    ImmutableList.Builder<Lock> locksForCaches = ImmutableList.builder();
+  private static class EnvironmentCacheAndLock {
+    final Lock lock;
+    final LoadingCache<Environment, WrappedSdkHarnessClient> cache;
+
+    EnvironmentCacheAndLock(LoadingCache<Environment, WrappedSdkHarnessClient> cache, Lock lock) {
+      this.lock = lock;
+      this.cache = cache;
+    }
+  }
+
+  private ImmutableList<EnvironmentCacheAndLock> createEnvironmentCaches(
+      ThrowingFunction<ServerFactory, ServerInfo> serverInfoCreator, int count) {
+
+    ImmutableList.Builder<EnvironmentCacheAndLock> caches = ImmutableList.builder();
     for (int i = 0; i < count; i++) {
+
       final Lock refLock;
       if (environmentExpirationMillis > 0) {
         // The lock ensures there is no race condition between expiring an environment and a client
@@ -184,19 +193,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       } else {
         refLock = NoopLock.get();
       }
-      locksForCaches.add(refLock);
-    }
-    return locksForCaches.build();
-  }
 
-  private ImmutableList<LoadingCache<Environment, WrappedSdkHarnessClient>> createEnvironmentCaches(
-      ThrowingFunction<ServerFactory, ServerInfo> serverInfoCreator, int count) {
-
-    ImmutableList.Builder<LoadingCache<Environment, WrappedSdkHarnessClient>> caches =
-        ImmutableList.builder();
-    for (int i = 0; i < count; i++) {
-
-      final Lock refLock = environmentCacheLocks.get(i);
       CacheBuilder<Environment, WrappedSdkHarnessClient> cacheBuilder =
           CacheBuilder.newBuilder()
               .removalListener(
@@ -225,7 +222,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         cacheBuilder.expireAfterWrite(environmentExpirationMillis, TimeUnit.MILLISECONDS);
       }
 
-      caches.add(
+      LoadingCache<Environment, WrappedSdkHarnessClient> cache =
           cacheBuilder.build(
               new CacheLoader<Environment, WrappedSdkHarnessClient>() {
                 @Override
@@ -245,7 +242,9 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                   return WrappedSdkHarnessClient.wrapping(
                       environmentFactory.createEnvironment(environment), serverInfo);
                 }
-              }));
+              });
+
+      caches.add(new EnvironmentCacheAndLock(cache, refLock));
     }
     return caches.build();
   }
@@ -304,12 +303,12 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     // during shutdown. It is not visually appealing but unless it can be written more
     // defensively, there is no reason to change it.
     Exception exception = null;
-    for (LoadingCache<Environment, WrappedSdkHarnessClient> environmentCache : environmentCaches) {
+    for (EnvironmentCacheAndLock environmentCache : environmentCaches) {
       try {
         // Clear the cache. This closes all active environments.
         // note this may cause open calls to be cancelled by the peer
-        environmentCache.invalidateAll();
-        environmentCache.cleanUp();
+        environmentCache.cache.invalidateAll();
+        environmentCache.cache.cleanUp();
       } catch (Exception e) {
         if (exception != null) {
           exception.addSuppressed(e);
@@ -417,7 +416,10 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       this.executableStage = executableStage;
       this.environmentIndex = stageBundleFactoryCount.getAndIncrement() % environmentCaches.size();
       WrappedSdkHarnessClient client =
-          environmentCaches.get(environmentIndex).getUnchecked(executableStage.getEnvironment());
+          environmentCaches
+              .get(environmentIndex)
+              .cache
+              .getUnchecked(executableStage.getEnvironment());
       this.currentClient = prepare(client, executableStage);
       this.preparedClients.put(client, currentClient);
     }
@@ -431,7 +433,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       // TODO: Consider having BundleProcessor#newBundle take in an OutputReceiverFactory rather
       // than constructing the receiver map here. Every bundle factory will need this.
 
-      final LoadingCache<Environment, WrappedSdkHarnessClient> currentCache;
+      final EnvironmentCacheAndLock currentCache;
       final WrappedSdkHarnessClient client;
       if (loadBalanceBundles) {
         // The semaphore is used to ensure fairness, i.e. first stop first go.
@@ -440,13 +442,12 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         currentCache = availableCaches.take();
         // Lock because the environment expiration can remove the ref for the client
         // which would close the underlying environment before we can ref it.
-        Lock refLock = environmentCacheLocks.get(environmentIndex);
         try {
-          refLock.lock();
-          client = currentCache.getUnchecked(executableStage.getEnvironment());
+          currentCache.lock.lock();
+          client = currentCache.cache.getUnchecked(executableStage.getEnvironment());
           client.ref();
         } finally {
-          refLock.unlock();
+          currentCache.lock.unlock();
         }
 
         currentClient = preparedClients.get(client);
@@ -459,15 +460,14 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
       } else {
         currentCache = environmentCaches.get(environmentIndex);
-        Lock refLock = environmentCacheLocks.get(environmentIndex);
         // Lock because the environment expiration can remove the ref for the client which would
         // close the underlying environment before we can ref it.
         try {
-          refLock.lock();
-          client = currentCache.getUnchecked(executableStage.getEnvironment());
+          currentCache.lock.lock();
+          client = currentCache.cache.getUnchecked(executableStage.getEnvironment());
           client.ref();
         } finally {
-          refLock.unlock();
+          currentCache.lock.unlock();
         }
 
         if (currentClient.wrappedClient != client) {
