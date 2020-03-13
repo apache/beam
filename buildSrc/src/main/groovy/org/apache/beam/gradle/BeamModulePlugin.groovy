@@ -1272,7 +1272,9 @@ class BeamModulePlugin implements Plugin<Project> {
         // has different dependencies than our project.
         if (config.getName() != "errorprone" && !inDependencyUpdates) {
           config.resolutionStrategy {
-            force project.library.java.values().findAll { it.split(':').size() > 2 }
+            // Filtering versionless coordinates that depend on BOM
+            def librariesWithVersion = project.library.java.values().findAll { it.split(':').size() > 2 }
+            force librariesWithVersion
           }
         }
       }
