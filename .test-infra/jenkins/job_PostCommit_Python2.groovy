@@ -27,7 +27,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python2', 'Run Python 2 Post
   previousNames('/beam_PostCommit_Python_Verify/')
 
   // Set common parameters.
-  commonJobProperties.setTopLevelMainJobProperties(delegate)
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 300)
 
   publishers {
     archiveJunit('**/nosetests*.xml')
