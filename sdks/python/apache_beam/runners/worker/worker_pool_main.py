@@ -113,7 +113,7 @@ class BeamFnExternalWorkerPoolServicer(
             'SdkHarness('
             '"%s",'
             'worker_id="%s",'
-            'state_cache_size=%d'
+            'state_cache_size=%d,'
             'data_buffer_time_limit_ms=%d'
             ')'
             '.run()' % (
