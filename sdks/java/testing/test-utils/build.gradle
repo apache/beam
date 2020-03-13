@@ -39,3 +39,14 @@ dependencies {
   testCompile library.java.hamcrest_library
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadowTest")
 }
+
+task verifyJavaVersion(type: Test) {
+  filter {
+    includeTestsMatching 'org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyCodeIsCompiledWithJava8'
+    includeTestsMatching 'org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyTestCodeIsCompiledWithJava8'
+    includeTestsMatching 'org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyRunningJVMVersionIs11'
+  }
+  doLast {
+    println 'Java verified'
+  }
+}

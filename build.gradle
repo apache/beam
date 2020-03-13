@@ -352,10 +352,17 @@ if (project.hasProperty('runWithJava11')) {
         }
       }
 
-      test {
-        useJUnitPlatform()
+      tasks.withType(Test) {
+        useJUnit()
         executable = "${java11Home}/bin/java"
       }
+    }
+  }
+  project.javaPreCommitPortabilityApi.dependsOn ':sdks:java:testing:test-utils:verifyJavaVersion'
+} else {
+  allprojects {
+    tasks.withType(Test) {
+      exclude '**/JvmVerification.class'
     }
   }
 }
