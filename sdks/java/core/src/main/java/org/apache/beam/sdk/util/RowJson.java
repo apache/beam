@@ -86,7 +86,8 @@ public class RowJson {
       ImmutableSet.of(BYTE, INT16, INT32, INT64, FLOAT, DOUBLE, BOOLEAN, STRING, DECIMAL);
 
   /**
-   * Throws {@link UnsupportedRowJsonException} if {@code schema} contains an unsupported field type.
+   * Throws {@link UnsupportedRowJsonException} if {@code schema} contains an unsupported field
+   * type.
    */
   public static void verifySchemaSupported(Schema schema) {
     ImmutableList<UnsupportedField> unsupportedFields = findUnsupportedFields(schema);
