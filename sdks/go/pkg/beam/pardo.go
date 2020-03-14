@@ -53,7 +53,8 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 
 	var rc *coder.Coder
 	if fn.IsSplittable() {
-		rc, err = inferCoder(typex.New(*fn.RestrictionT()))
+		sdf := (*graph.SplittableDoFn)(fn)
+		rc, err = inferCoder(typex.New(sdf.RestrictionT()))
 		if err != nil {
 			return nil, addParDoCtx(err, s)
 		}
