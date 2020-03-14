@@ -189,6 +189,20 @@ def is_background_caching_job_needed(user_pipeline):
           cache_changed))
 
 
+def is_cache_complete(pipeline_id):
+  # type: (str) -> bool
+
+  """Returns True if the backgrond cache for the given pipeline is done.
+  """
+  user_pipeline = ie.current_env().pipeline_id_to_pipeline(pipeline_id)
+  job = ie.current_env().get_background_caching_job(user_pipeline)
+  is_done = job and job.is_done()
+  cache_changed = is_source_to_cache_changed(
+      user_pipeline, update_cached_source_signature=False)
+
+  return is_done and not cache_changed
+
+
 def has_source_to_cache(user_pipeline):
   """Determines if a user-defined pipeline contains any source that need to be
   cached. If so, also immediately wrap current cache manager held by current
@@ -208,14 +222,6 @@ def has_source_to_cache(user_pipeline):
   if has_cache:
     if not isinstance(ie.current_env().cache_manager(),
                       streaming_cache.StreamingCache):
-      # Wrap the cache manager into a streaming cache manager. Note this
-      # does not invalidate the current cache manager.
-      def is_cache_complete():
-        job = ie.current_env().get_background_caching_job(user_pipeline)
-        is_done = job and job.is_done()
-        cache_changed = is_source_to_cache_changed(
-            user_pipeline, update_cached_source_signature=False)
-        return is_done and not cache_changed
 
       ie.current_env().set_cache_manager(
           streaming_cache.StreamingCache(
