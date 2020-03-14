@@ -94,7 +94,9 @@ class SubprocessServer(object):
             _LOGGER.info(line)
             line = self._process.stdout.readline()
 
-        threading.Thread(target=log_stdout).start()
+        t = threading.Thread(target=log_stdout)
+        t.daemon = True
+        t.start()
         wait_secs = .1
         channel = grpc.insecure_channel(endpoint)
         channel_ready = grpc.channel_ready_future(channel)
