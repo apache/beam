@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
 import static java.util.stream.Collectors.toList;
-import static org.apache.beam.sdk.values.Row.toRow;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,8 +31,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
@@ -73,57 +70,6 @@ public class BeamJoinTransforms {
             FieldAccessDescriptor.withFieldIds(fieldAccessDescriptor, indexes.get(i));
       }
       return fieldAccessDescriptor;
-    }
-  }
-
-  /** A {@code SimpleFunction} to extract join fields from the specified row. */
-  public static class ExtractJoinFields extends SimpleFunction<Row, KV<Row, Row>> {
-    private final List<SerializableRexNode> joinColumns;
-    private final Schema schema;
-    private int leftRowColumnCount;
-
-    public ExtractJoinFields(
-        boolean isLeft,
-        List<Pair<RexNode, RexNode>> joinColumns,
-        Schema schema,
-        int leftRowColumnCount) {
-      this.joinColumns =
-          joinColumns.stream()
-              .map(pair -> SerializableRexNode.builder(isLeft ? pair.left : pair.right).build())
-              .collect(toList());
-      this.schema = schema;
-      this.leftRowColumnCount = leftRowColumnCount;
-    }
-
-    @Override
-    public KV<Row, Row> apply(Row input) {
-      Row row =
-          joinColumns.stream()
-              .map(v -> getValue(v, input, leftRowColumnCount))
-              .collect(toRow(schema));
-      return KV.of(row, input);
-    }
-
-    @SuppressWarnings("unused")
-    private Schema.Field toField(Schema schema, Integer fieldIndex) {
-      Schema.Field original = schema.getField(fieldIndex);
-      return original.withName("c" + fieldIndex);
-    }
-
-    private Object getValue(
-        SerializableRexNode serializableRexNode, Row input, int leftRowColumnCount) {
-      if (serializableRexNode instanceof SerializableRexInputRef) {
-        return input.getValue(
-            ((SerializableRexInputRef) serializableRexNode).getIndex() - leftRowColumnCount);
-      } else { // It can only be SerializableFieldAccess.
-        List<Integer> indexes = ((SerializableRexFieldAccess) serializableRexNode).getIndexes();
-        // retrieve row based on the first column reference.
-        Row rowField = input.getValue(indexes.get(0) - leftRowColumnCount);
-        for (int i = 1; i < indexes.size() - 1; i++) {
-          rowField = rowField.getRow(indexes.get(i));
-        }
-        return rowField.getValue(indexes.get(indexes.size() - 1));
-      }
     }
   }
 

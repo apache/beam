@@ -27,12 +27,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
@@ -142,8 +140,6 @@ public abstract class FieldAccessDescriptor implements Serializable {
     abstract Builder setNestedFieldsAccessed(
         Map<FieldDescriptor, FieldAccessDescriptor> nestedFieldsAccessedById);
 
-    abstract Builder setFieldInsertionOrder(boolean insertionOrder);
-
     abstract FieldAccessDescriptor build();
   }
 
@@ -154,14 +150,11 @@ public abstract class FieldAccessDescriptor implements Serializable {
 
   public abstract Map<FieldDescriptor, FieldAccessDescriptor> getNestedFieldsAccessed();
 
-  public abstract boolean getFieldInsertionOrder();
-
   abstract Builder toBuilder();
 
   static Builder builder() {
     return new AutoValue_FieldAccessDescriptor.Builder()
         .setAllFields(false)
-        .setFieldInsertionOrder(false)
         .setFieldsAccessed(Collections.emptyList())
         .setNestedFieldsAccessed(Collections.emptyMap());
   }
@@ -413,14 +406,6 @@ public abstract class FieldAccessDescriptor implements Serializable {
   }
 
   /**
-   * By default, fields are sorted by name. If this is set, they will instead be sorted by insertion
-   * order. All sorting happens in the {@link #resolve(Schema)} method.
-   */
-  public FieldAccessDescriptor withOrderByFieldInsertionOrder() {
-    return toBuilder().setFieldInsertionOrder(true).build();
-  }
-
-  /**
    * Return the field ids accessed. Should not be called until after {@link #resolve} is called.
    * Iteration order is consistent with {@link #getFieldsAccessed}.
    */
@@ -514,23 +499,11 @@ public abstract class FieldAccessDescriptor implements Serializable {
       field = fillInMissingQualifiers(field, schema);
       fields.add(field);
     }
-
-    if (!getFieldInsertionOrder()) {
-      // Re-order fields based on field ID, rather than keeping them in insertion order
-      Collections.sort(fields, Comparator.comparing(FieldDescriptor::getFieldId));
-    }
     return fields;
   }
 
   private Map<FieldDescriptor, FieldAccessDescriptor> resolveNestedFieldsAccessed(Schema schema) {
-    Map<FieldDescriptor, FieldAccessDescriptor> nestedFields;
-    if (getFieldInsertionOrder()) {
-      nestedFields = Maps.newLinkedHashMap();
-    } else {
-      Function<FieldDescriptor, Integer> extract =
-          (Function<FieldDescriptor, Integer> & Serializable) FieldDescriptor::getFieldId;
-      nestedFields = Maps.newTreeMap(Comparator.comparing(extract));
-    }
+    Map<FieldDescriptor, FieldAccessDescriptor> nestedFields = Maps.newLinkedHashMap();
 
     for (Map.Entry<FieldDescriptor, FieldAccessDescriptor> entry :
         getNestedFieldsAccessed().entrySet()) {
