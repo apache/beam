@@ -45,10 +45,10 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.parser.FieldAccessDescriptorParser;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.LinkedListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
@@ -299,9 +299,10 @@ public abstract class FieldAccessDescriptor implements Serializable {
   // This should generally be used only on resolved descriptors.
   public static FieldAccessDescriptor union(
       Iterable<FieldAccessDescriptor> fieldAccessDescriptors) {
+    // Use linked sets and maps to ensure that we union fields in the order specified.
     Set<FieldDescriptor> fieldsAccessed = Sets.newLinkedHashSet();
     Multimap<FieldDescriptor, FieldAccessDescriptor> nestedFieldsAccessed =
-        ArrayListMultimap.create();
+        LinkedListMultimap.create();
     for (FieldAccessDescriptor fieldAccessDescriptor : fieldAccessDescriptors) {
       if (fieldAccessDescriptor.getAllFields()) {
         // If one of the descriptors is a wildcard, we can short circuit and return a wildcard.
@@ -406,10 +407,8 @@ public abstract class FieldAccessDescriptor implements Serializable {
   public FieldAccessDescriptor withNestedField(
       FieldDescriptor field, FieldAccessDescriptor fieldAccess) {
     Map<FieldDescriptor, FieldAccessDescriptor> newNestedFieldAccess =
-        ImmutableMap.<FieldDescriptor, FieldAccessDescriptor>builder()
-            .putAll(getNestedFieldsAccessed())
-            .put(field, fieldAccess)
-            .build();
+        Maps.newLinkedHashMap(getNestedFieldsAccessed());
+    newNestedFieldAccess.put(field, fieldAccess);
     return toBuilder().setNestedFieldsAccessed(newNestedFieldAccess).build();
   }
 

@@ -270,7 +270,9 @@ public class Schema implements Serializable {
     Schema other = (Schema) o;
     // If both schemas have a UUID set, we can simply compare the UUIDs.
     if (uuid != null && other.uuid != null) {
-      return Objects.equals(uuid, other.uuid);
+      if (Objects.equals(uuid, other.uuid)) {
+        return true;
+      }
     }
     return Objects.equals(fieldIndices, other.fieldIndices)
         && Objects.equals(getFields(), other.getFields());

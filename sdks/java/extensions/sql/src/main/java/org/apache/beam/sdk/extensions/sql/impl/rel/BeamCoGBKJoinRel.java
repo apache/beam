@@ -91,8 +91,8 @@ public class BeamCoGBKJoinRel extends BeamJoinRel {
 
     @Override
     public PCollection<Row> expand(PCollectionList<Row> pinput) {
-      Schema leftSchema = CalciteUtils.toSchema(left.getRowType());
-      Schema rightSchema = CalciteUtils.toSchema(right.getRowType());
+      Schema leftSchema = pinput.get(0).getSchema();
+      Schema rightSchema = pinput.get(1).getSchema();
 
       PCollection<Row> leftRows =
           pinput
@@ -109,8 +109,7 @@ public class BeamCoGBKJoinRel extends BeamJoinRel {
 
       // extract the join fields
       List<Pair<RexNode, RexNode>> pairs = extractJoinRexNodes(condition);
-      BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
-      int leftRowColumnCount = leftRelNode.getRowType().getFieldCount();
+      int leftRowColumnCount = BeamSqlRelUtils.getBeamRelInput(left).getRowType().getFieldCount();
 
       FieldAccessDescriptor leftKeyFields =
           BeamJoinTransforms.getJoinColumns(true, pairs, 0, leftSchema);

@@ -42,13 +42,14 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -217,6 +218,8 @@ public class CoGroup {
 
     abstract boolean getOptionalParticipation();
 
+    abstract boolean getSideInput();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -224,6 +227,8 @@ public class CoGroup {
       abstract Builder setFieldAccessDescriptor(FieldAccessDescriptor fieldAccessDescriptor);
 
       abstract Builder setOptionalParticipation(boolean optionalParticipation);
+
+      abstract Builder setSideInput(boolean sideInput);
 
       abstract By build();
     }
@@ -243,6 +248,7 @@ public class CoGroup {
       return new AutoValue_CoGroup_By.Builder()
           .setFieldAccessDescriptor(fieldAccessDescriptor)
           .setOptionalParticipation(false)
+          .setSideInput(false)
           .build();
     }
 
@@ -254,6 +260,10 @@ public class CoGroup {
      */
     public By withOptionalParticipation() {
       return toBuilder().setOptionalParticipation(true).build();
+    }
+
+    public By withSideInput() {
+      return toBuilder().setSideInput(true).build();
     }
   }
 
@@ -288,6 +298,12 @@ public class CoGroup {
           ? allInputsJoinArgs.getOptionalParticipation()
           : joinArgsMap.get(tag).getOptionalParticipation();
     }
+
+    private boolean getSideInputSource(String tag) {
+      return (allInputsJoinArgs != null)
+          ? allInputsJoinArgs.getSideInput()
+          : joinArgsMap.get(tag).getSideInput();
+    }
   }
 
   /**
@@ -312,6 +328,7 @@ public class CoGroup {
   // Contains summary information needed for implementing the join.
   private static class JoinInformation {
     private final KeyedPCollectionTuple<Row> keyedPCollectionTuple;
+    private final Map<String, PCollectionView<Map<Row, Iterable<Row>>>> sideInputs;
     private final Schema keySchema;
     private final Map<String, Schema> componentSchemas;
     // Maps from index in sortedTags to the toRow function.
@@ -321,12 +338,14 @@ public class CoGroup {
 
     private JoinInformation(
         KeyedPCollectionTuple<Row> keyedPCollectionTuple,
+        Map<String, PCollectionView<Map<Row, Iterable<Row>>>> sideInputs,
         Schema keySchema,
         Map<String, Schema> componentSchemas,
         Map<Integer, SerializableFunction<Object, Row>> toRows,
         List<String> sortedTags,
         Map<Integer, String> tagToKeyedTag) {
       this.keyedPCollectionTuple = keyedPCollectionTuple;
+      this.sideInputs = sideInputs;
       this.keySchema = keySchema;
       this.componentSchemas = componentSchemas;
       this.toRows = toRows;
@@ -335,7 +354,9 @@ public class CoGroup {
     }
 
     private static JoinInformation from(
-        PCollectionTuple input, Function<String, FieldAccessDescriptor> getFieldAccessDescriptor) {
+        PCollectionTuple input,
+        Function<String, FieldAccessDescriptor> getFieldAccessDescriptor,
+        Function<String, Boolean> getIsSideInput) {
       KeyedPCollectionTuple<Row> keyedPCollectionTuple =
           KeyedPCollectionTuple.empty(input.getPipeline());
 
@@ -350,6 +371,7 @@ public class CoGroup {
       TreeMap<String, Schema> componentSchemas = Maps.newTreeMap();
       Map<Integer, SerializableFunction<Object, Row>> toRows = Maps.newHashMap();
 
+      Map<String, PCollectionView<Map<Row, Iterable<Row>>>> sideInputs = Maps.newHashMap();
       Map<Integer, String> tagToKeyedTag = Maps.newHashMap();
       Schema keySchema = null;
       for (Map.Entry<TupleTag<?>, PCollection<?>> entry : input.getAll().entrySet()) {
@@ -384,10 +406,21 @@ public class CoGroup {
         tagToKeyedTag.put(tagIndex, keyedTag);
         PCollection<KV<Row, Row>> keyedPCollection =
             extractKey(pc, schema, keySchema, resolved, tag);
-        keyedPCollectionTuple = keyedPCollectionTuple.and(keyedTag, keyedPCollection);
+        if (getIsSideInput.apply(tag)) {
+          sideInputs.put(
+              keyedTag, keyedPCollection.apply("computeSideInputView", View.asMultimap()));
+        } else {
+          keyedPCollectionTuple = keyedPCollectionTuple.and(keyedTag, keyedPCollection);
+        }
       }
       return new JoinInformation(
-          keyedPCollectionTuple, keySchema, componentSchemas, toRows, sortedTags, tagToKeyedTag);
+          keyedPCollectionTuple,
+          sideInputs,
+          keySchema,
+          componentSchemas,
+          toRows,
+          sortedTags,
+          tagToKeyedTag);
     }
 
     private static <T> PCollection<KV<Row, Row>> extractKey(
@@ -474,12 +507,15 @@ public class CoGroup {
       verify(input, joinArgs);
 
       JoinInformation joinInformation =
-          JoinInformation.from(input, joinArgs::getFieldAccessDescriptor);
+          JoinInformation.from(
+              input, joinArgs::getFieldAccessDescriptor, joinArgs::getSideInputSource);
       ConvertToRow convertToRow = new ConvertToRow(joinInformation, keyFieldName);
       return joinInformation
           .keyedPCollectionTuple
           .apply("CoGroupByKey", CoGroupByKey.create())
-          .apply("ConvertToRow", ParDo.of(convertToRow))
+          .apply(
+              "ConvertToRow",
+              ParDo.of(convertToRow).withSideInputs(joinInformation.sideInputs.values()))
           .setRowSchema(convertToRow.getOutputSchema());
     }
 
@@ -488,6 +524,7 @@ public class CoGroup {
       private final List<String> sortedTags;
       private final Map<Integer, String> tagToKeyedTag;
       private final Map<Integer, SerializableFunction<Object, Row>> toRows;
+      private final Map<String, PCollectionView<Map<Row, Iterable<Row>>>> sideInputs;
 
       private final Schema outputSchema;
 
@@ -495,6 +532,7 @@ public class CoGroup {
         this.sortedTags = joinInformation.sortedTags;
         this.tagToKeyedTag = joinInformation.tagToKeyedTag;
         this.toRows = joinInformation.toRows;
+        this.sideInputs = joinInformation.sideInputs;
         Schema.Builder schemaBuilder =
             Schema.builder().addRowField(keyFieldName, joinInformation.keySchema);
         for (Map.Entry<String, Schema> entry : joinInformation.componentSchemas.entrySet()) {
@@ -536,7 +574,8 @@ public class CoGroup {
       }
 
       @ProcessElement
-      public void process(@Element KV<Row, CoGbkResult> kv, OutputReceiver<Row> o) {
+      public void process(
+          @Element KV<Row, CoGbkResult> kv, ProcessContext c, OutputReceiver<Row> o) {
         Row key = kv.getKey();
         CoGbkResult result = kv.getValue();
         List<Object> fields = Lists.newArrayListWithCapacity(sortedTags.size() + 1);
@@ -544,7 +583,10 @@ public class CoGroup {
         for (int i = 0; i < sortedTags.size(); ++i) {
           String tupleTag = tagToKeyedTag.get(i);
           SerializableFunction<Object, Row> toRow = toRows.get(i);
-          fields.add(new Result(result.getAll(tupleTag), toRow));
+
+          Map<Row, Iterable<Row>> sideView = c.sideInput(sideInputs.get(tupleTag));
+          Iterable<Row> rows = (sideView != null) ? sideView.get(key) : result.getAll(tupleTag);
+          fields.add(new Result(rows, toRow));
         }
         Row row = Row.withSchema(outputSchema).attachValues(fields).build();
         o.output(row);
@@ -592,55 +634,69 @@ public class CoGroup {
       verify(input, joinArgs);
 
       JoinInformation joinInformation =
-          JoinInformation.from(input, joinArgs::getFieldAccessDescriptor);
+          JoinInformation.from(
+              input, joinArgs::getFieldAccessDescriptor, joinArgs::getSideInputSource);
 
       Schema joinedSchema = getOutputSchema(joinInformation);
 
       return joinInformation
           .keyedPCollectionTuple
           .apply("CoGroupByKey", CoGroupByKey.create())
-          .apply("Values", Values.create())
           .apply(
-              "ExpandToRow",
+              "ExpandToRows",
               ParDo.of(
-                  new ExpandToRows(
-                      joinInformation.sortedTags,
-                      joinInformation.toRows,
-                      joinedSchema,
-                      joinInformation.tagToKeyedTag)))
+                      new ExpandToRows(
+                          joinInformation.sortedTags,
+                          joinInformation.toRows,
+                          joinInformation.sideInputs,
+                          joinedSchema,
+                          joinInformation.tagToKeyedTag))
+                  .withSideInputs(joinInformation.sideInputs.values()))
           .setRowSchema(joinedSchema);
     }
 
     /** A DoFn that expands the result of a CoGroupByKey into the cross product. */
-    private class ExpandToRows extends DoFn<CoGbkResult, Row> {
+    private class ExpandToRows extends DoFn<KV<Row, CoGbkResult>, Row> {
       private final List<String> sortedTags;
       private final Map<Integer, SerializableFunction<Object, Row>> toRows;
+      private final Map<String, PCollectionView<Map<Row, Iterable<Row>>>> sideInputs;
       private final Schema outputSchema;
       private final Map<Integer, String> tagToKeyedTag;
 
       public ExpandToRows(
           List<String> sortedTags,
           Map<Integer, SerializableFunction<Object, Row>> toRows,
+          Map<String, PCollectionView<Map<Row, Iterable<Row>>>> sideInputs,
           Schema outputSchema,
           Map<Integer, String> tagToKeyedTag) {
         this.sortedTags = sortedTags;
         this.toRows = toRows;
+        this.sideInputs = sideInputs;
         this.outputSchema = outputSchema;
         this.tagToKeyedTag = tagToKeyedTag;
       }
 
       @ProcessElement
-      public void process(@Element CoGbkResult gbkResult, OutputReceiver<Row> o) {
-        List<Iterable> allIterables = extractIterables(gbkResult);
+      public void process(
+          @Element KV<Row, CoGbkResult> gbkResult, ProcessContext c, OutputReceiver<Row> o) {
+        List<Iterable<Row>> allIterables =
+            extractIterables(gbkResult.getKey(), gbkResult.getValue(), c);
         List<Row> accumulatedRows = Lists.newArrayListWithCapacity(sortedTags.size());
         crossProduct(0, accumulatedRows, allIterables, o);
       }
 
-      private List<Iterable> extractIterables(CoGbkResult gbkResult) {
-        List<Iterable> iterables = Lists.newArrayListWithCapacity(sortedTags.size());
+      private List<Iterable<Row>> extractIterables(
+          Row key, CoGbkResult gbkResult, ProcessContext c) {
+        List<Iterable<Row>> iterables = Lists.newArrayListWithCapacity(sortedTags.size());
         for (int i = 0; i < sortedTags.size(); ++i) {
           String tag = sortedTags.get(i);
-          Iterable items = gbkResult.getAll(tagToKeyedTag.get(i));
+          String keyedTag = tagToKeyedTag.get(i);
+          PCollectionView<Map<Row, Iterable<Row>>> sideView = sideInputs.get(keyedTag);
+          Iterable<Row> items =
+              (sideView != null) ? c.sideInput(sideView).get(key) : gbkResult.getAll(keyedTag);
+          if (items == null) {
+            items = () -> Collections.emptyIterator();
+          }
           if (!items.iterator().hasNext() && joinArgs.getOptionalParticipation(tag)) {
             // If this tag has optional participation, then empty should participate as a
             // single null.
@@ -654,7 +710,7 @@ public class CoGroup {
       private void crossProduct(
           int tagIndex,
           List<Row> accumulatedRows,
-          List<Iterable> iterables,
+          List<Iterable<Row>> iterables,
           OutputReceiver<Row> o) {
         if (tagIndex >= sortedTags.size()) {
           return;
@@ -673,7 +729,7 @@ public class CoGroup {
           int tagIndex,
           List<Row> accumulatedRows,
           Row newRow,
-          List<Iterable> iterables,
+          List<Iterable<Row>> iterables,
           OutputReceiver<Row> o) {
         boolean atBottom = tagIndex == sortedTags.size() - 1;
         accumulatedRows.add(newRow);
@@ -686,7 +742,7 @@ public class CoGroup {
         accumulatedRows.remove(accumulatedRows.size() - 1);
       }
 
-      private Row buildOutputRow(List rows) {
+      private Row buildOutputRow(List<Row> rows) {
         return Row.withSchema(outputSchema).attachValues(Lists.newArrayList(rows)).build();
       }
     }

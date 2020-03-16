@@ -30,12 +30,9 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
-<<<<<<< HEAD
-import org.apache.beam.sdk.schemas.utils.RowSelector;
-=======
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
->>>>>>> finish join
+import org.apache.beam.sdk.schemas.utils.RowSelector;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers.RowSelectorContainer;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -111,7 +108,7 @@ public class Select {
    */
   public static <T> Fields<T> fieldAccess(FieldAccessDescriptor fieldAccessDescriptor) {
     return new AutoValue_Select_Fields.Builder<T>()
-        .setFieldAccessDescriptor(fieldAccessDescriptor)
+        .setFieldAccessDescriptor(fieldAccessDescriptor.withOrderByFieldInsertionOrder())
         .build();
   }
 
@@ -205,13 +202,11 @@ public class Select {
         Schema inferredSchema = SelectHelpers.getOutputSchema(inputSchema, resolved);
         Preconditions.checkArgument(
             outputSchema.typesEqual(inferredSchema),
-            "Types not equal. type1: "
+            "Types not equal. provided output schema: "
                 + outputSchema
-                + " type2: "
+                + " Schema inferred from select: "
                 + inferredSchema
-                + " from input type:"
-                + inputSchema
-                + " from true input type: "
+                + " from input type: "
                 + input.getSchema());
       }
       return input
