@@ -1283,7 +1283,7 @@ public class DoFnSignatures {
           rawType.equals(Instant.class),
           "@Timestamp argument must have type org.joda.time.Instant.");
       return Parameter.timestampParameter();
-    } else if (hasKeyAnnotation(param.getAnnotations())) {
+    } else if (hasAnnotation(DoFn.Key.class, param.getAnnotations())) {
       Type keyType = ((ParameterizedType) inputT.getType()).getActualTypeArguments()[0];
       methodErrors.checkArgument(
           keyType.equals(rawType),
