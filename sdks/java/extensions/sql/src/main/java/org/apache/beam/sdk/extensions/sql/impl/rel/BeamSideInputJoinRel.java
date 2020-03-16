@@ -168,19 +168,23 @@ public class BeamSideInputJoinRel extends BeamJoinRel {
     FieldAccessDescriptor realRightKeyFields = swapped ? leftKeyFields : rightKeyFields;
 
     PCollection<Row> joined;
-    if (realJoinType == JoinRelType.INNER) {
+    switch (realJoinType) {
+      case INNER:
       joined =
           realLeftRows.apply(
               org.apache.beam.sdk.schemas.transforms.Join.<Row, Row>innerBroadcastJoin(
                       realRightRows)
                   .on(FieldsEqual.left(realLeftKeyFields).right(realRightKeyFields)));
-    } else if (realJoinType == JoinRelType.LEFT) {
+      break;
+      case LEFT:
       joined =
           realLeftRows.apply(
               org.apache.beam.sdk.schemas.transforms.Join.<Row, Row>leftOuterBroadcastJoin(
                       realRightRows)
                   .on(FieldsEqual.left(realLeftKeyFields).right(realRightKeyFields)));
-    } else {
+      break;
+      case RIGHT:
+      default:
       joined =
           realLeftRows.apply(
               org.apache.beam.sdk.schemas.transforms.Join.<Row, Row>rightOuterBroadcastJoin(
