@@ -185,11 +185,14 @@ public class FileSystems {
     MatchResult matchResult = Iterables.getOnlyElement(matches);
     if (matchResult.status() == Status.NOT_FOUND) {
       throw new FileNotFoundException(String.format("File spec %s not found", spec));
-    } else if (matchResult.status() != Status.OK) {
-      throw new IOException(
-          String.format("Error matching file spec %s: status %s", spec, matchResult.status()));
     } else {
-      List<Metadata> metadata = matchResult.metadata();
+      List<Metadata> metadata;
+      try {
+        metadata = matchResult.metadata();
+      } catch (IOException e) {
+        throw new IOException(
+                String.format("Error matching file spec %s: status %s", spec, matchResult.status()), e);
+      }
       if (metadata.size() != 1) {
         throw new IOException(
             String.format(
