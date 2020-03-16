@@ -15,23 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink;
+package org.apache.beam.sdk.transforms.splittabledofn;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.joda.time.Instant;
 
 /**
- * Remote stream environment that having the same constructor signature as the
- * BeamFlinkRemoteStreamEnvironment in the lower verison runners.
+ * A {@link WatermarkEstimator} that observes the timestamps of all records output from a {@link
+ * DoFn}.
  */
-public class BeamFlinkRemoteStreamEnvironment extends RemoteStreamEnvironment {
-  public BeamFlinkRemoteStreamEnvironment(
-      String host,
-      int port,
-      Configuration clientConfiguration,
-      SavepointRestoreSettings restoreSettings,
-      String... jarFiles) {
-    super(host, port, clientConfiguration, jarFiles, null, restoreSettings);
-  }
+@Experimental(Kind.SPLITTABLE_DO_FN)
+public interface TimestampObservingWatermarkEstimator<WatermarkEstimatorStateT>
+    extends WatermarkEstimator<WatermarkEstimatorStateT> {
+
+  /**
+   * Update watermark estimate with latest output timestamp. This is called with the timestamp of
+   * every element output from the DoFn.
+   */
+  void observeTimestamp(Instant timestamp);
 }

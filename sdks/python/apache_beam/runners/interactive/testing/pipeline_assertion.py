@@ -30,11 +30,11 @@ mutates user code within transforms in pipelines.
 def assert_pipeline_equal(test_case, expected_pipeline, actual_pipeline):
   """Asserts the equivalence between two given apache_beam.Pipeline instances.
 
-  Args:
-    test_case: (unittest.TestCase) the unittest testcase where it asserts.
-    expected_pipeline: (Pipeline) the pipeline instance expected.
-    actual_pipeline: (Pipeline) the actual pipeline instance to be asserted.
-  """
+    Args:
+      test_case: (unittest.TestCase) the unittest testcase where it asserts.
+      expected_pipeline: (Pipeline) the pipeline instance expected.
+      actual_pipeline: (Pipeline) the actual pipeline instance to be asserted.
+    """
   expected_pipeline_proto = expected_pipeline.to_runner_api(
       use_fake_coders=True)
   actual_pipeline_proto = actual_pipeline.to_runner_api(use_fake_coders=True)
@@ -64,6 +64,34 @@ def assert_pipeline_proto_equal(
       actual_pipeline_proto.root_transform_ids[0],
       expected_pipeline_proto,
       expected_pipeline_proto.root_transform_ids[0])
+
+
+def assert_pipeline_proto_contain_top_level_transform(
+    test_case, pipeline_proto, transform_label):
+  """Asserts the top level transforms contain a transform with the given
+   transform label."""
+  _assert_pipeline_proto_contains_top_level_transform(
+      test_case, pipeline_proto, transform_label, True)
+
+
+def assert_pipeline_proto_not_contain_top_level_transform(
+    test_case, pipeline_proto, transform_label):
+  """Asserts the top level transforms do not contain a transform with the given
+   transform label."""
+  _assert_pipeline_proto_contains_top_level_transform(
+      test_case, pipeline_proto, transform_label, False)
+
+
+def _assert_pipeline_proto_contains_top_level_transform(
+    test_case, pipeline_proto, transform_label, contain):
+  top_level_transform_labels = pipeline_proto.components.transforms[
+      pipeline_proto.root_transform_ids[0]].subtransforms
+  test_case.assertEqual(
+      contain,
+      any([
+          transform_label in top_level_transform_label
+          for top_level_transform_label in top_level_transform_labels
+      ]))
 
 
 def _assert_transform_equal(

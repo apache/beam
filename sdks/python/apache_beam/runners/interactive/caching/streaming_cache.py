@@ -19,10 +19,12 @@
 
 from __future__ import absolute_import
 
+import logging
 import os
 import shutil
 import tempfile
 import time
+import traceback
 from collections import OrderedDict
 
 import apache_beam as beam
@@ -39,6 +41,8 @@ try:
   from pathlib import Path
 except ImportError:
   from pathlib2 import Path  # python 2 backport
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class StreamingCacheSink(beam.PTransform):
@@ -75,6 +79,19 @@ class StreamingCacheSink(beam.PTransform):
     """Returns the path the sink leads to."""
     return self._path
 
+  @property
+  def size_in_bytes(self):
+    """Returns the space usage in bytes of the sink."""
+    try:
+      return os.stat(self._path).st_size
+    except OSError:
+      _LOGGER.debug(
+          'Failed to calculate cache size for file %s, the file might have not '
+          'been created yet. Return 0. %s',
+          self._path,
+          traceback.format_exc())
+      return 0
+
   def expand(self, pcoll):
     class StreamingWriteToText(beam.DoFn):
       """DoFn that performs the writing.
@@ -87,7 +104,7 @@ class StreamingCacheSink(beam.PTransform):
         self._coder = coder
 
         # Try and make the given path.
-        Path(os.path.dirname(full_path)).mkdir(exist_ok=True)
+        Path(os.path.dirname(full_path)).mkdir(parents=True, exist_ok=True)
 
       def start_bundle(self):
         # Open the file for 'append-mode' and writing 'bytes'.
@@ -230,6 +247,18 @@ class StreamingCache(CacheManager):
     self._saved_pcoders = {}
     self._default_pcoder = SafeFastPrimitivesCoder()
 
+    # The sinks to capture data from capturable sources.
+    # Dict([str, StreamingCacheSink])
+    self._capture_sinks = {}
+
+  @property
+  def capture_size(self):
+    return sum([sink.size_in_bytes for _, sink in self._capture_sinks.items()])
+
+  @property
+  def capture_paths(self):
+    return list(self._capture_sinks.keys())
+
   def exists(self, *labels):
     path = os.path.join(self._cache_dir, *labels)
     return os.path.exists(path)
@@ -274,7 +303,11 @@ class StreamingCache(CacheManager):
       os.makedirs(directory)
     with open(filepath, 'ab') as f:
       for v in values:
-        f.write(self._default_pcoder.encode(v.SerializeToString()) + b'\n')
+        if isinstance(v, (TestStreamFileHeader, TestStreamFileRecord)):
+          val = v.SerializeToString()
+        else:
+          val = v
+        f.write(self._default_pcoder.encode(val) + b'\n')
 
   def source(self, *labels):
     """Returns the StreamingCacheManager source.
@@ -284,7 +317,7 @@ class StreamingCache(CacheManager):
     """
     return beam.Impulse()
 
-  def sink(self, labels):
+  def sink(self, labels, is_capture=False):
     """Returns a StreamingCacheSink to write elements to file.
 
     Note that this is assumed to only work in the DirectRunner as the underlying
@@ -293,7 +326,10 @@ class StreamingCache(CacheManager):
     """
     filename = labels[-1]
     cache_dir = os.path.join(self._cache_dir, *labels[:-1])
-    return StreamingCacheSink(cache_dir, filename, self._sample_resolution_sec)
+    sink = StreamingCacheSink(cache_dir, filename, self._sample_resolution_sec)
+    if is_capture:
+      self._capture_sinks[sink.path] = sink
+    return sink
 
   def save_pcoder(self, pcoder, *labels):
     self._saved_pcoders[os.path.join(*labels)] = pcoder

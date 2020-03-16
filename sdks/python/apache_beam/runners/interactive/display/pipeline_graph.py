@@ -121,6 +121,7 @@ class PipelineGraph(object):
     return self._get_graph().to_string()
 
   def display_graph(self):
+    """Displays the graph generated."""
     rendered_graph = self._renderer.render_pipeline_graph(self)
     if ie.current_env().is_in_notebook:
       try:

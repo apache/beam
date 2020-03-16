@@ -72,6 +72,7 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
       # Prepare the job.
       prepare_response = plan.prepare(beam_runner_api_pb2.Pipeline())
       retrieval_token = plan.stage(
+          beam_runner_api_pb2.Pipeline(),
           prepare_response.artifact_staging_endpoint.url,
           prepare_response.staging_session_token)
 

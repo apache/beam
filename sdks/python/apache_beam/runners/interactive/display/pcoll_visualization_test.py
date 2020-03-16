@@ -63,13 +63,13 @@ class PCollectionVisualizationTest(unittest.TestCase):
     # Generally test the logic where notebook is connected to the assumed
     # ipython kernel by forcefully setting notebook check to True.
     ie.current_env()._is_in_notebook = True
+    ib.options.display_timezone = pytz.timezone('US/Pacific')
 
     self._p = beam.Pipeline(ir.InteractiveRunner())
     # pylint: disable=range-builtin-not-iterating
     self._pcoll = self._p | 'Create' >> beam.Create(range(5))
     ib.watch(self)
     self._p.run()
-    ib.options.display_timezone = pytz.timezone('US/Pacific')
 
   def test_raise_error_for_non_pcoll_input(self):
     class Foo(object):
@@ -177,9 +177,16 @@ class PCollectionVisualizationTest(unittest.TestCase):
         '2020-03-02 15:14:54.000000-0800 (2h 31m 46s)',
         pv.windows_formatter([iw]))
 
-  def pane_info_formatter(self):
-    PaneInfo(is_last=True, timing=PaneInfoTiming.EARLY)
-    self.assertEqual('Pane Final EARLY')
+  def test_pane_info_formatter(self):
+    self.assertEqual(
+        'Pane 0: Final Early',
+        pv.pane_info_formatter(
+            PaneInfo(
+                is_first=False,
+                is_last=True,
+                timing=PaneInfoTiming.EARLY,
+                index=0,
+                nonspeculative_index=0)))
 
 
 if __name__ == '__main__':
