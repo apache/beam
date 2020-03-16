@@ -48,6 +48,10 @@ import org.apache.beam.sdk.values.PDone;
  * entire HL7v2 store (or stores) {@link HL7v2IO#readHL7v2Store(String)} - Bounded: based on reading
  * an HL7v2 store with a filter
  *
+ * Note, due to the flexibility of this Read transform, this  must output a dead letter queue.
+ * This handles the scenario where the the PTransform that populates a PCollection of message IDs
+ * contains message IDs that do not exist in the HL7v2 stores.
+ *
  * <p>Example:
  *
  * <pre>{@code
@@ -299,6 +303,7 @@ public class HL7v2IO {
        * href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/ingest></a>
        */
       INGEST,
+      BATCH_IMPORT
     }
 
     /** The type Builder. */
@@ -373,8 +378,8 @@ public class HL7v2IO {
     void writeMessages(ProcessContext context) throws IOException {
       Message msg = context.element();
       // TODO could insert some lineage hook here?
-      // TODO add case for Batch import API method.
       switch (writeMethod) {
+        case BATCH_IMPORT: throw new UnsupportedOperationException("The Batch import API is not avaiable yet");
         case INGEST:
         default:
           client.ingestHL7v2Message(hl7v2Store, msg);

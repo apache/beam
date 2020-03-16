@@ -74,6 +74,7 @@ import org.slf4j.LoggerFactory;
  * </pre>
  */
 public class FetchHL7v2Message extends PTransform<PCollection<String>, PCollectionTuple> {
+  // TODO: this should migrate to use the batch API once available
 
   /** The tag for the main output of HL7v2 Messages. */
   public static final TupleTag<FailsafeElement<String, Message>> OUT =

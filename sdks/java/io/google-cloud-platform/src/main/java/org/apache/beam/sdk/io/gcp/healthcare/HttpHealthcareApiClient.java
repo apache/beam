@@ -33,6 +33,7 @@ import com.google.api.services.healthcare.v1alpha2.model.IngestMessageRequest;
 import com.google.api.services.healthcare.v1alpha2.model.IngestMessageResponse;
 import com.google.api.services.healthcare.v1alpha2.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1alpha2.model.Message;
+import com.google.api.services.healthcare.v1alpha2.model.SearchResourcesRequest;
 import java.io.IOException;
 import java.io.Serializable;
 import java.text.ParseException;
@@ -178,6 +179,18 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
         .hl7V2Stores()
         .messages()
         .ingest(hl7v2Store, ingestMessageRequest)
+        .execute();
+  }
+
+  @Override
+  public HttpBody fhirSearch(String fhirStore, SearchResourcesRequest query) throws IOException{
+    return client
+        .projects()
+        .locations()
+        .datasets()
+        .fhirStores()
+        .fhir()
+        .search(fhirStore, query)
         .execute();
   }
 

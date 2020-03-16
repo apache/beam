@@ -38,6 +38,10 @@ class HL7v2MessageGetFn extends DoFn<String, FailsafeElement<String, Message>> {
   private final Counter successfulHL7v2MessageGets =
       Metrics.counter(HL7v2MessageGetFn.class, "successfulHL7v2MessageGets");
   private HealthcareApiClient client;
+  /* TODO should we inject a throttler class as a dependency?
+   * Possibly We could also provide a throttler class to throttle a specific bundle to make a
+   * configurable QPS limit of ingest requests.
+   */
   private transient AdaptiveThrottler throttler;
 
   /** Instantiates a new Hl 7 v 2 message get fn. */
