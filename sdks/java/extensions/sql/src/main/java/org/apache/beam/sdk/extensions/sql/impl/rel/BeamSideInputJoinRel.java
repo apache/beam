@@ -17,19 +17,19 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import java.util.Map;
+import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamJoinTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.transforms.Join.FieldsEqual;
+import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
@@ -38,6 +38,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Correl
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Join;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.JoinRelType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Pair;
 
 /**
  * A {@code BeamJoinRel} which does sideinput Join
@@ -117,65 +118,81 @@ public class BeamSideInputJoinRel extends BeamJoinRel {
 
     @Override
     public PCollection<Row> expand(PCollectionList<Row> pinput) {
-      Schema leftSchema = CalciteUtils.toSchema(left.getRowType());
-      Schema rightSchema = CalciteUtils.toSchema(right.getRowType());
+      Schema leftSchema = pinput.get(0).getSchema();
+      Schema rightSchema = pinput.get(1).getSchema();
+      PCollection<Row> leftRows =
+          pinput
+              .get(0)
+              .apply(
+                  "left_TimestampCombiner",
+                  Window.<Row>configure().withTimestampCombiner(TimestampCombiner.EARLIEST));
+      PCollection<Row> rightRows =
+          pinput
+              .get(1)
+              .apply(
+                  "right_TimestampCombiner",
+                  Window.<Row>configure().withTimestampCombiner(TimestampCombiner.EARLIEST));
 
-      PCollectionList<KV<Row, Row>> keyedInputs = pinput.apply(new ExtractJoinKeys());
+      // extract the join fields
+      List<Pair<RexNode, RexNode>> pairs = extractJoinRexNodes(condition);
+      int leftRowColumnCount = BeamSqlRelUtils.getBeamRelInput(left).getRowType().getFieldCount();
+      FieldAccessDescriptor leftKeyFields =
+          BeamJoinTransforms.getJoinColumns(true, pairs, 0, leftSchema);
+      FieldAccessDescriptor rightKeyFields =
+          BeamJoinTransforms.getJoinColumns(false, pairs, leftRowColumnCount, rightSchema);
 
-      PCollection<KV<Row, Row>> extractedLeftRows = keyedInputs.get(0);
-      PCollection<KV<Row, Row>> extractedRightRows = keyedInputs.get(1);
-
-      return sideInputJoin(extractedLeftRows, extractedRightRows, leftSchema, rightSchema);
+      return sideInputJoin(leftRows, rightRows, leftKeyFields, rightKeyFields);
     }
   }
 
   public PCollection<Row> sideInputJoin(
-      PCollection<KV<Row, Row>> extractedLeftRows,
-      PCollection<KV<Row, Row>> extractedRightRows,
-      Schema leftSchema,
-      Schema rightSchema) {
+      PCollection<Row> leftRows,
+      PCollection<Row> rightRows,
+      FieldAccessDescriptor leftKeyFields,
+      FieldAccessDescriptor rightKeyFields) {
     // we always make the Unbounded table on the left to do the sideInput join
     // (will convert the result accordingly before return)
-    boolean swapped = (extractedLeftRows.isBounded() == PCollection.IsBounded.BOUNDED);
-    JoinRelType realJoinType =
-        (swapped && joinType != JoinRelType.INNER) ? JoinRelType.LEFT : joinType;
-
-    PCollection<KV<Row, Row>> realLeftRows = swapped ? extractedRightRows : extractedLeftRows;
-    PCollection<KV<Row, Row>> realRightRows = swapped ? extractedLeftRows : extractedRightRows;
-
-    Row realRightNullRow;
-    if (swapped) {
-      Schema leftNullSchema = buildNullSchema(leftSchema);
-
-      realRightRows = BeamJoinRel.setValueCoder(realRightRows, SchemaCoder.of(leftNullSchema));
-      realRightNullRow = Row.nullRow(leftNullSchema);
-    } else {
-      Schema rightNullSchema = buildNullSchema(rightSchema);
-
-      realRightRows = BeamJoinRel.setValueCoder(realRightRows, SchemaCoder.of(rightNullSchema));
-      realRightNullRow = Row.nullRow(rightNullSchema);
+    boolean swapped = (leftRows.isBounded() == PCollection.IsBounded.BOUNDED);
+    JoinRelType realJoinType = joinType;
+    if (swapped && joinType != JoinRelType.INNER) {
+      if (realJoinType == JoinRelType.LEFT) {
+        realJoinType = JoinRelType.RIGHT;
+      } else {
+        realJoinType = JoinRelType.LEFT;
+      }
     }
 
-    // swapped still need to pass down because, we need to swap the result back.
-    return sideInputJoinHelper(
-        realJoinType, realLeftRows, realRightRows, realRightNullRow, swapped);
-  }
+    PCollection<Row> realLeftRows = swapped ? rightRows : leftRows;
+    PCollection<Row> realRightRows = swapped ? leftRows : rightRows;
+    FieldAccessDescriptor realLeftKeyFields = swapped ? rightKeyFields : leftKeyFields;
+    FieldAccessDescriptor realRightKeyFields = swapped ? leftKeyFields : rightKeyFields;
 
-  private PCollection<Row> sideInputJoinHelper(
-      JoinRelType joinType,
-      PCollection<KV<Row, Row>> leftRows,
-      PCollection<KV<Row, Row>> rightRows,
-      Row rightNullRow,
-      boolean swapped) {
-    final PCollectionView<Map<Row, Iterable<Row>>> rowsView = rightRows.apply(View.asMultimap());
-
+    PCollection<Row> joined;
+    if (realJoinType == JoinRelType.INNER) {
+      joined =
+          realLeftRows.apply(
+              org.apache.beam.sdk.schemas.transforms.Join.<Row, Row>innerBroadcastJoin(
+                      realRightRows)
+                  .on(FieldsEqual.left(realLeftKeyFields).right(realRightKeyFields)));
+    } else if (realJoinType == JoinRelType.LEFT) {
+      joined =
+          realLeftRows.apply(
+              org.apache.beam.sdk.schemas.transforms.Join.<Row, Row>leftOuterBroadcastJoin(
+                      realRightRows)
+                  .on(FieldsEqual.left(realLeftKeyFields).right(realRightKeyFields)));
+    } else {
+      joined =
+          realLeftRows.apply(
+              org.apache.beam.sdk.schemas.transforms.Join.<Row, Row>rightOuterBroadcastJoin(
+                      realRightRows)
+                  .on(FieldsEqual.left(realLeftKeyFields).right(realRightKeyFields)));
+    }
     Schema schema = CalciteUtils.toSchema(getRowType());
-    return leftRows
-        .apply(
-            ParDo.of(
-                    new BeamJoinTransforms.SideInputJoinDoFn(
-                        joinType, rightNullRow, rowsView, swapped, schema))
-                .withSideInputs(rowsView))
-        .setRowSchema(schema);
+
+    PCollection<Row> selected =
+        (!swapped)
+            ? joined.apply(Select.<Row>fieldNames("lhs.*", "rhs.*").withOutputSchema(schema))
+            : joined.apply(Select.<Row>fieldNames("rhs.*", "lhs.*").withOutputSchema(schema));
+    return selected;
   }
 }
