@@ -299,7 +299,6 @@ public class FieldAccessDescriptorTest {
   public void testFieldInsertionOrdering() {
     FieldAccessDescriptor fieldAccessDescriptor =
         FieldAccessDescriptor.withFieldNames("field3", "field2", "field1", "field0")
-            .withOrderByFieldInsertionOrder()
             .resolve(SIMPLE_SCHEMA);
 
     assertEquals(ImmutableList.of(3, 2, 1, 0), fieldAccessDescriptor.fieldIdsAccessed());

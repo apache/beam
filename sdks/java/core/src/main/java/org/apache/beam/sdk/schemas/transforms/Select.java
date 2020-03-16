@@ -108,7 +108,7 @@ public class Select {
    */
   public static <T> Fields<T> fieldAccess(FieldAccessDescriptor fieldAccessDescriptor) {
     return new AutoValue_Select_Fields.Builder<T>()
-        .setFieldAccessDescriptor(fieldAccessDescriptor.withOrderByFieldInsertionOrder())
+        .setFieldAccessDescriptor(fieldAccessDescriptor)
         .build();
   }
 

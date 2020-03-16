@@ -431,7 +431,7 @@ public class SelectHelpers {
   public static FieldAccessDescriptor allLeavesDescriptor(
       Schema schema, SerializableFunction<List<String>, String> nameFn) {
     List<String> nameComponents = Lists.newArrayList();
-    Map<String, String> fieldsSelected = Maps.newHashMap();
+    Map<String, String> fieldsSelected = Maps.newLinkedHashMap();
     allLeafFields(schema, nameComponents, nameFn, fieldsSelected);
     return FieldAccessDescriptor.withFieldNamesAs(fieldsSelected).resolve(schema);
   }

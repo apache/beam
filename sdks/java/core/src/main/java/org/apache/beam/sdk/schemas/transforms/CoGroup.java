@@ -389,8 +389,7 @@ public class CoGroup {
         // Otherwise, if different field names are specified for different PCollections, they
         // might not match up.
         // The key schema contains the field names from the first PCollection specified.
-        FieldAccessDescriptor resolved =
-            fieldAccessDescriptor.withOrderByFieldInsertionOrder().resolve(schema);
+        FieldAccessDescriptor resolved = fieldAccessDescriptor.resolve(schema);
         Schema currentKeySchema = SelectHelpers.getOutputSchema(schema, resolved);
         if (keySchema == null) {
           keySchema = currentKeySchema;
@@ -583,9 +582,9 @@ public class CoGroup {
         for (int i = 0; i < sortedTags.size(); ++i) {
           String tupleTag = tagToKeyedTag.get(i);
           SerializableFunction<Object, Row> toRow = toRows.get(i);
-
-          Map<Row, Iterable<Row>> sideView = c.sideInput(sideInputs.get(tupleTag));
-          Iterable<Row> rows = (sideView != null) ? sideView.get(key) : result.getAll(tupleTag);
+          PCollectionView<Map<Row, Iterable<Row>>> sideView = sideInputs.get(tupleTag);
+          Iterable<Row> rows =
+              (sideView != null) ? c.sideInput(sideView).get(key) : result.getAll(tupleTag);
           fields.add(new Result(rows, toRow));
         }
         Row row = Row.withSchema(outputSchema).attachValues(fields).build();
