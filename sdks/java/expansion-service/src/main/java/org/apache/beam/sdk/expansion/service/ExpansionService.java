@@ -61,6 +61,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Converter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
@@ -391,8 +392,11 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
       responseObserver.onNext(expand(request));
       responseObserver.onCompleted();
     } catch (RuntimeException exn) {
-      responseObserver.onError(exn);
-      throw exn;
+      responseObserver.onNext(
+          ExpansionApi.ExpansionResponse.newBuilder()
+              .setError(Throwables.getStackTraceAsString(exn))
+              .build());
+      responseObserver.onCompleted();
     }
   }
 
@@ -404,7 +408,11 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   public static void main(String[] args) throws Exception {
     int port = Integer.parseInt(args[0]);
     System.out.println("Starting expansion service at localhost:" + port);
-    Server server = ServerBuilder.forPort(port).addService(new ExpansionService()).build();
+    ExpansionService service = new ExpansionService();
+    for (Map.Entry<String, TransformProvider> entry : service.registeredTransforms.entrySet()) {
+      System.out.println("\t" + entry.getKey() + ": " + entry.getValue());
+    }
+    Server server = ServerBuilder.forPort(port).addService(service).build();
     server.start();
     server.awaitTermination();
   }
