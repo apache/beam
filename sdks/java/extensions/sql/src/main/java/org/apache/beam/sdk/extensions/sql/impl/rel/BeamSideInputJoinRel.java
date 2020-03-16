@@ -170,26 +170,26 @@ public class BeamSideInputJoinRel extends BeamJoinRel {
     PCollection<Row> joined;
     switch (realJoinType) {
       case INNER:
-      joined =
-          realLeftRows.apply(
-              org.apache.beam.sdk.schemas.transforms.Join.<Row, Row>innerBroadcastJoin(
-                      realRightRows)
-                  .on(FieldsEqual.left(realLeftKeyFields).right(realRightKeyFields)));
-      break;
+        joined =
+            realLeftRows.apply(
+                org.apache.beam.sdk.schemas.transforms.Join.<Row, Row>innerBroadcastJoin(
+                        realRightRows)
+                    .on(FieldsEqual.left(realLeftKeyFields).right(realRightKeyFields)));
+        break;
       case LEFT:
-      joined =
-          realLeftRows.apply(
-              org.apache.beam.sdk.schemas.transforms.Join.<Row, Row>leftOuterBroadcastJoin(
-                      realRightRows)
-                  .on(FieldsEqual.left(realLeftKeyFields).right(realRightKeyFields)));
-      break;
+        joined =
+            realLeftRows.apply(
+                org.apache.beam.sdk.schemas.transforms.Join.<Row, Row>leftOuterBroadcastJoin(
+                        realRightRows)
+                    .on(FieldsEqual.left(realLeftKeyFields).right(realRightKeyFields)));
+        break;
       case RIGHT:
       default:
-      joined =
-          realLeftRows.apply(
-              org.apache.beam.sdk.schemas.transforms.Join.<Row, Row>rightOuterBroadcastJoin(
-                      realRightRows)
-                  .on(FieldsEqual.left(realLeftKeyFields).right(realRightKeyFields)));
+        joined =
+            realLeftRows.apply(
+                org.apache.beam.sdk.schemas.transforms.Join.<Row, Row>rightOuterBroadcastJoin(
+                        realRightRows)
+                    .on(FieldsEqual.left(realLeftKeyFields).right(realRightKeyFields)));
     }
     Schema schema = CalciteUtils.toSchema(getRowType());
 
