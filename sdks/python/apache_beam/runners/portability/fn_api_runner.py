@@ -2012,7 +2012,6 @@ class WorkerHandlerManager(object):
         self._cached_handlers[environment_id].append(worker_handler)
         self._workers_by_id[worker_handler.worker_id] = worker_handler
         worker_handler.start_worker()
-    _LOGGER.error("created %s workers %s", num_workers, self._workers_by_id)
     return self._cached_handlers[environment_id][:num_workers]
 
   def close_all(self):
@@ -2030,7 +2029,6 @@ class WorkerHandlerManager(object):
       self._grpc_server = None
 
   def get_worker(self, worker_id):
-    _LOGGER.error(self._workers_by_id)
     return self._workers_by_id[worker_id]
 
 
