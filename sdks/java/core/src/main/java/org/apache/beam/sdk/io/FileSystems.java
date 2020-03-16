@@ -191,7 +191,7 @@ public class FileSystems {
         metadata = matchResult.metadata();
       } catch (IOException e) {
         throw new IOException(
-                String.format("Error matching file spec %s: status %s", spec, matchResult.status()), e);
+            String.format("Error matching file spec %s: status %s", spec, matchResult.status()), e);
       }
       if (metadata.size() != 1) {
         throw new IOException(
