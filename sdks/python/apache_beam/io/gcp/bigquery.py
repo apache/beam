@@ -1114,12 +1114,19 @@ class BigQueryWriteFn(DoFn):
           insert_ids=insert_ids,
           skip_invalid_rows=True)
 
-      if not passed:
-        _LOGGER.info("There were errors inserting to BigQuery: %s", errors)
       failed_rows = [rows[entry.index] for entry in errors]
       should_retry = any(
           bigquery_tools.RetryStrategy.should_retry(
               self._retry_strategy, entry.errors[0].reason) for entry in errors)
+      if not passed:
+        message = (
+            'There were errors inserting to BigQuery. Will{} retry. '
+            'Errors were {}'.format(("" if should_retry else " not"), errors))
+        if should_retry:
+          _LOGGER.warning(message)
+        else:
+          _LOGGER.error(message)
+
       rows = failed_rows
 
       if not should_retry:

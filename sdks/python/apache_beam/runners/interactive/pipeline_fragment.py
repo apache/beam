@@ -23,6 +23,7 @@ from __future__ import absolute_import
 
 import apache_beam as beam
 from apache_beam.pipeline import PipelineVisitor
+from apache_beam.testing.test_stream import TestStream
 
 
 class PipelineFragment(object):
@@ -201,6 +202,11 @@ class PipelineFragment(object):
       self, runner_pipeline, necessary_transforms):
     class PruneVisitor(PipelineVisitor):
       def enter_composite_transform(self, transform_node):
+        if isinstance(transform_node.transform, TestStream):
+          return
+        if isinstance(transform_node.transform, TestStream):
+          return
+
         pruned_parts = list(transform_node.parts)
         for part in transform_node.parts:
           if part not in necessary_transforms:

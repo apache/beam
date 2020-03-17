@@ -114,7 +114,8 @@ class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
     argv = self.test_pipeline.get_full_options_as_args(**extra_opts)
     return dataflow_exercise_streaming_metrics_pipeline.run(argv)
 
-  @attr('IT', 'ValidatesRunner')
+  # Need not run streaming test in batch mode.
+  @attr('IT', 'ValidatesRunner', 'sickbay-batch')
   def test_streaming_pipeline_returns_expected_user_metrics_fnapi_it(self):
     """
     Runs streaming Dataflow job and verifies that user metrics are reported
@@ -133,15 +134,6 @@ class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
             labels={
                 "output_user_name": "generate_metrics-out0",
                 "original_name": "generate_metrics-out0-ElementCount"
-            },
-            attempted=len(MESSAGES_TO_PUBLISH),
-            committed=len(MESSAGES_TO_PUBLISH),
-        ),
-        MetricResultMatcher(
-            name='ElementCount',
-            labels={
-                "output_user_name": "ReadFromPubSub/Read-out0",
-                "original_name": "ReadFromPubSub/Read-out0-ElementCount"
             },
             attempted=len(MESSAGES_TO_PUBLISH),
             committed=len(MESSAGES_TO_PUBLISH),

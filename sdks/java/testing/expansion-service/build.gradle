@@ -48,13 +48,13 @@ task buildTestExpansionServiceJar(type: ShadowJar) {
             'Main-Class': 'org.apache.beam.sdk.expansion.service.ExpansionService'
     )
   }
-          exclude "META-INF/INDEX.LIST"
-          exclude "META-INF/*.SF"
-          exclude "META-INF/*.DSA"
-          exclude "META-INF/*.RSA"
-configurations = [
-            project.configurations.testRuntime
-          ]
+  exclude "META-INF/INDEX.LIST"
+  exclude "META-INF/*.SF"
+  exclude "META-INF/*.DSA"
+  exclude "META-INF/*.RSA"
+  configurations = [
+    project.configurations.testRuntime
+  ]
   from sourceSets.main.output
   from sourceSets.test.output
 }

@@ -33,9 +33,9 @@ import sys
 
 import apache_beam as beam
 from apache_beam.runners import runner
+from apache_beam.runners.interactive.utils import register_ipython_log_handler
 from apache_beam.utils.interactive_utils import is_in_ipython
 from apache_beam.utils.interactive_utils import is_in_notebook
-from apache_beam.utils.interactive_utils import register_ipython_log_handler
 
 # Interactive Beam user flow is data-centric rather than pipeline-centric, so
 # there is only one global interactive environment instance that manages
@@ -169,7 +169,6 @@ class InteractiveEnvironment(object):
     # Check if [interactive] dependencies are installed.
     try:
       import IPython  # pylint: disable=unused-import
-      import jsons  # pylint: disable=unused-import
       import timeloop  # pylint: disable=unused-import
       from facets_overview.generic_feature_statistics_generator import GenericFeatureStatisticsGenerator  # pylint: disable=unused-import
       self._is_interactive_ready = True

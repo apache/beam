@@ -51,26 +51,34 @@ class CacheManager(object):
   derivation.
   """
   def exists(self, *labels):
+    # type (*str) -> bool
+
     """Returns if the PCollection cache exists."""
     raise NotImplementedError
 
   def is_latest_version(self, version, *labels):
+    # type (str, *str) -> bool
+
     """Returns if the given version number is the latest."""
     return version == self._latest_version(*labels)
 
   def _latest_version(self, *labels):
+    # type (*str) -> str
+
     """Returns the latest version number of the PCollection cache."""
     raise NotImplementedError
 
   def read(self, *labels):
+    # type (*str) -> Tuple[str, Generator[Any]]
+
     """Return the PCollection as a list as well as the version number.
 
     Args:
       *labels: List of labels for PCollection instance.
 
     Returns:
-      Tuple[List[Any], int]: A tuple containing a list of items in the
-        PCollection and the version number.
+      A tuple containing an iterator for the items in the PCollection and the
+        version number.
 
     It is possible that the version numbers from read() and_latest_version()
     are different. This usually means that the cache's been evicted (thus
@@ -79,15 +87,32 @@ class CacheManager(object):
     """
     raise NotImplementedError
 
-  def source(self, *labels):
-    """Returns a beam.io.Source that reads the PCollection cache."""
+  def write(self, value, *labels):
+    # type (Any, *str) -> None
+
+    """Writes the value to the given cache.
+
+    Args:
+      value: An encodable (with corresponding PCoder) value
+      *labels: List of labels for PCollection instance
+    """
     raise NotImplementedError
 
-  def sink(self, *labels):
-    """Returns a beam.io.Sink that writes the PCollection cache."""
+  def source(self, *labels):
+    # type (*str) -> ptransform.PTransform
+
+    """Returns a PTransform that reads the PCollection cache."""
+    raise NotImplementedError
+
+  def sink(self, labels, is_capture=False):
+    # type (*str, bool) -> ptransform.PTransform
+
+    """Returns a PTransform that writes the PCollection cache."""
     raise NotImplementedError
 
   def save_pcoder(self, pcoder, *labels):
+    # type (coders.Coder, *str) -> None
+
     """Saves pcoder for given PCollection.
 
     Correct reading of PCollection from Cache requires PCoder to be known.
@@ -103,10 +128,14 @@ class CacheManager(object):
     raise NotImplementedError
 
   def load_pcoder(self, *labels):
+    # type (*str) -> coders.Coder
+
     """Returns previously saved PCoder for reading and writing PCollection."""
     raise NotImplementedError
 
   def cleanup(self):
+    # type () -> None
+
     """Cleans up all the PCollection caches."""
     raise NotImplementedError
 
@@ -167,22 +196,34 @@ class FileBasedCacheManager(CacheManager):
         self._saved_pcoders[self._path(*labels)])
 
   def read(self, *labels):
+    # Return an iterator to an empty list if it doesn't exist.
     if not self.exists(*labels):
-      return [], -1
+      return iter([]), -1
 
-    source = self.source(*labels)
+    # Otherwise, return a generator to the cached PCollection.
+    source = self.source(*labels)._source
     range_tracker = source.get_range_tracker(None, None)
-    result = list(source.read(range_tracker))
+    reader = source.read(range_tracker)
     version = self._latest_version(*labels)
-    return result, version
+    return reader, version
+
+  def write(self, values, *labels):
+    sink = self.sink(labels)._sink
+    path = self._path(*labels)
+
+    init_result = sink.initialize_write()
+    writer = sink.open_writer(init_result, path)
+    for v in values:
+      writer.write(v)
+    writer.close()
 
   def source(self, *labels):
     return self._reader_class(
-        self._glob_path(*labels), coder=self.load_pcoder(*labels))._source
+        self._glob_path(*labels), coder=self.load_pcoder(*labels))
 
-  def sink(self, *labels):
+  def sink(self, labels, is_capture=False):
     return self._writer_class(
-        self._path(*labels), coder=self.load_pcoder(*labels))._sink
+        self._path(*labels), coder=self.load_pcoder(*labels))
 
   def cleanup(self):
     if filesystems.FileSystems.exists(self._cache_dir):
@@ -229,17 +270,23 @@ class ReadCache(beam.PTransform):
 
   def expand(self, pbegin):
     # pylint: disable=expression-not-assigned
-    return pbegin | 'Read' >> beam.io.Read(
-        self._cache_manager.source('full', self._label))
+    return pbegin | 'Read' >> self._cache_manager.source('full', self._label)
 
 
 class WriteCache(beam.PTransform):
   """A PTransform that writes the PCollections to the cache."""
-  def __init__(self, cache_manager, label, sample=False, sample_size=0):
+  def __init__(
+      self,
+      cache_manager,
+      label,
+      sample=False,
+      sample_size=0,
+      is_capture=False):
     self._cache_manager = cache_manager
     self._label = label
     self._sample = sample
     self._sample_size = sample_size
+    self._is_capture = is_capture
 
   def expand(self, pcoll):
     prefix = 'sample' if self._sample else 'full'
@@ -255,8 +302,8 @@ class WriteCache(beam.PTransform):
           combiners.Sample.FixedSizeGlobally(self._sample_size)
           | beam.FlatMap(lambda sample: sample))
     # pylint: disable=expression-not-assigned
-    return pcoll | 'Write' >> beam.io.Write(
-        self._cache_manager.sink(prefix, self._label))
+    return pcoll | 'Write' >> self._cache_manager.sink(
+        (prefix, self._label), is_capture=self._is_capture)
 
 
 class SafeFastPrimitivesCoder(coders.Coder):

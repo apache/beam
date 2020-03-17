@@ -37,7 +37,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Flink',
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':runners:flink:1.9:validatesRunner')
+      tasks(':runners:flink:1.10:validatesRunner')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }

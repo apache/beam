@@ -374,7 +374,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def cassandra_driver_version = "3.8.0"
     def classgraph_version = "4.8.65"
     def gax_version = "1.54.0"
-    def generated_grpc_ga_version = "1.83.0"
+    def generated_grpc_ga_version = "1.85.1"
     def google_auth_version = "0.19.0"
     def google_clients_version = "1.30.3"
     def google_cloud_bigdataoss_version = "2.0.0"
@@ -1339,7 +1339,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         if (runner?.equalsIgnoreCase('flink')) {
-          testRuntime it.project(path: ":runners:flink:1.9", configuration: 'testRuntime')
+          testRuntime it.project(path: ":runners:flink:1.10", configuration: 'testRuntime')
         }
 
         if (runner?.equalsIgnoreCase('spark')) {
@@ -1961,8 +1961,8 @@ class BeamModulePlugin implements Plugin<Project> {
         project.task('portableWordCount' + (runner.equals("PortableRunner") ? "" : runner) + (isStreaming ? 'Streaming' : 'Batch')) {
           dependsOn = ['installGcpTest']
           mustRunAfter = [
-            ':runners:flink:1.9:job-server-container:docker',
-            ':runners:flink:1.9:job-server:shadowJar',
+            ':runners:flink:1.10:job-server-container:docker',
+            ':runners:flink:1.10:job-server:shadowJar',
             ':runners:spark:job-server:shadowJar',
             ':sdks:python:container:py2:docker',
             ':sdks:python:container:py35:docker',
@@ -1978,7 +1978,7 @@ class BeamModulePlugin implements Plugin<Project> {
               "--parallelism=2",
               "--shutdown_sources_on_final_watermark",
               "--sdk_worker_parallelism=1",
-              "--flink_job_server_jar=${project.project(':runners:flink:1.9:job-server').shadowJar.archivePath}",
+              "--flink_job_server_jar=${project.project(':runners:flink:1.10:job-server').shadowJar.archivePath}",
               "--spark_job_server_jar=${project.project(':runners:spark:job-server').shadowJar.archivePath}",
             ]
             if (isStreaming)

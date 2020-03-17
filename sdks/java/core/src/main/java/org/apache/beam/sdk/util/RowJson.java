@@ -61,6 +61,7 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.util.RowJsonValueExtractors.ValueExtractor;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /**
  * Jackson serializer and deserializer for {@link Row Rows}.
@@ -80,6 +81,46 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  */
 @Experimental(Kind.SCHEMAS)
 public class RowJson {
+  private static final ImmutableSet<TypeName> SUPPORTED_TYPES =
+      ImmutableSet.of(BYTE, INT16, INT32, INT64, FLOAT, DOUBLE, BOOLEAN, STRING, DECIMAL);
+
+  public static void verifySchemaSupported(Schema schema) {
+    schema.getFields().forEach(RowJson::verifyFieldTypeSupported);
+  }
+
+  static void verifyFieldTypeSupported(Field field) {
+    FieldType fieldType = field.getType();
+    verifyFieldTypeSupported(fieldType);
+  }
+
+  static void verifyFieldTypeSupported(FieldType fieldType) {
+    TypeName fieldTypeName = fieldType.getTypeName();
+
+    if (fieldTypeName.isCompositeType()) {
+      Schema rowFieldSchema = fieldType.getRowSchema();
+      rowFieldSchema.getFields().forEach(RowJson::verifyFieldTypeSupported);
+      return;
+    }
+
+    if (fieldTypeName.isCollectionType()) {
+      verifyFieldTypeSupported(fieldType.getCollectionElementType());
+      return;
+    }
+
+    if (fieldTypeName.isLogicalType()) {
+      verifyFieldTypeSupported(fieldType.getLogicalType().getBaseType());
+      return;
+    }
+
+    if (!SUPPORTED_TYPES.contains(fieldTypeName)) {
+      throw new UnsupportedRowJsonException(
+          fieldTypeName.name()
+              + " is not supported when converting JSON objects to Rows. "
+              + "Supported types are: "
+              + SUPPORTED_TYPES.toString());
+    }
+  }
+
   /** Jackson deserializer for parsing JSON into {@link Row Rows}. */
   public static class RowJsonDeserializer extends StdDeserializer<Row> {
 
@@ -102,7 +143,7 @@ public class RowJson {
 
     /** Creates a deserializer for a {@link Row} {@link Schema}. */
     public static RowJsonDeserializer forSchema(Schema schema) {
-      schema.getFields().forEach(RowJsonValidation::verifyFieldTypeSupported);
+      verifySchemaSupported(schema);
       return new RowJsonDeserializer(schema);
     }
 
@@ -271,18 +312,6 @@ public class RowJson {
         return new AutoValue_RowJson_RowJsonDeserializer_FieldValue(name, type, jsonValue);
       }
     }
-
-    /** Gets thrown when Row parsing fails for any reason. */
-    public static class UnsupportedRowJsonException extends RuntimeException {
-
-      UnsupportedRowJsonException(String message, Throwable reason) {
-        super(message, reason);
-      }
-
-      UnsupportedRowJsonException(String message) {
-        super(message);
-      }
-    }
   }
 
   /** Jackson serializer for converting {@link Row Rows} to JSON. */
@@ -292,7 +321,7 @@ public class RowJson {
 
     /** Creates a serializer for a {@link Row} {@link Schema}. */
     public static RowJsonSerializer forSchema(Schema schema) {
-      schema.getFields().forEach(RowJsonValidation::verifyFieldTypeSupported);
+      verifySchemaSupported(schema);
       return new RowJsonSerializer(schema);
     }
 
@@ -369,6 +398,18 @@ public class RowJson {
         default:
           throw new IllegalArgumentException("Unsupported field type: " + type);
       }
+    }
+  }
+
+  /** Gets thrown when Row parsing or serialization fails for any reason. */
+  public static class UnsupportedRowJsonException extends RuntimeException {
+
+    UnsupportedRowJsonException(String message, Throwable reason) {
+      super(message, reason);
+    }
+
+    UnsupportedRowJsonException(String message) {
+      super(message);
     }
   }
 }

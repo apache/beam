@@ -227,7 +227,7 @@ public interface MyOptions extends PipelineOptions {
     void setInput(String input);
 
     @Description("Output for the pipeline")
-    @Default.String("gs://my-bucket/input")
+    @Default.String("gs://my-bucket/output")
     String getOutput();
     void setOutput(String output);
 }
