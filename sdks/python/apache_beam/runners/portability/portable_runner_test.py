@@ -42,6 +42,7 @@ from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
+from apache_beam.runners.portability.fn_api_runner import fn_runner_test
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability.fn_api_runner import fn_runner_test
 from apache_beam.runners.portability.local_job_service import LocalJobServicer

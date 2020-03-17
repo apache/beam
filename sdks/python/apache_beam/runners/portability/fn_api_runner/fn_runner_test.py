@@ -94,6 +94,9 @@ def has_urn_and_labels(mi, urn, labels):
 
 
 class FnApiRunnerTest(unittest.TestCase):
+  def setUp(self):
+    logging.getLogger().setLevel(logging.WARN)
+
   def create_pipeline(self):
     return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
 

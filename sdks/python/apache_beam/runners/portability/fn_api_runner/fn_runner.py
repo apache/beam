@@ -107,7 +107,6 @@ if TYPE_CHECKING:
   from apache_beam.pipeline import Pipeline
   from apache_beam.coders.coder_impl import CoderImpl
   from apache_beam.portability.api import metrics_pb2
-  from apache_beam.runners.portability.fn_api_runner_execution import _GroupingBuffer
 
 T = TypeVar('T')
 ConstructorFn = Callable[[
@@ -552,7 +551,7 @@ class FnApiRunner(runner.PipelineRunner):
 
   @staticmethod
   def _enqueue_all_initial_inputs(
-      stages,  # type: List[fn_api_runner_transforms.Stage]
+      stages,  # type: List[transforms.Stage]
       input_queue_manager,  # type: _ProcessingQueueManager
       execution_context  # type: PipelineExecutionContext
   ):
@@ -563,7 +562,7 @@ class FnApiRunner(runner.PipelineRunner):
       ready_to_schedule = True
       for transform in stage.transforms:
         if (transform.spec.urn == bundle_processor.DATA_INPUT_URN and
-            transform.spec.payload == fn_api_runner_transforms.IMPULSE_BUFFER):
+            transform.spec.payload == transforms.IMPULSE_BUFFER):
           # If a transform is a DATA_INPUT or DATA_OUTPUT transform, it will
           # receive data from / deliver data to the runner.
           # For data input transforms, they only have one input.
@@ -578,7 +577,7 @@ class FnApiRunner(runner.PipelineRunner):
           # this is an empty PCollection to be consumed by the runner.
           if not producer:
             data_inputs[transform.unique_name] = _ListBuffer(BytesCoder().get_impl())
-        elif transform.spec.urn in fn_api_runner_transforms.PAR_DO_URNS:
+        elif transform.spec.urn in transforms.PAR_DO_URNS:
           payload = proto_utils.parse_Bytes(
               transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
           if payload.side_inputs:
@@ -725,7 +724,7 @@ class FnApiRunner(runner.PipelineRunner):
   def _update_watermarks(
       self,
       execution_context,  # type: PipelineExecutionContext
-      stage,  # type: fn_api_runner_transforms.Stage
+      stage,  # type: transforms.Stage
       input_bundles,  # type: Dict[str, bytes]
       output_bundles,  # type: List[Tuple[bytes, List[bytes]]]
       deferred_inputs  # type: Dict[str, bytes]
