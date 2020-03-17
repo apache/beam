@@ -21,7 +21,10 @@ package org.apache.beam.gradle
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import org.gradle.api.attributes.Attribute
+
 import java.util.concurrent.atomic.AtomicInteger
+import org.gradle.api.attributes.AttributeContainer
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -375,6 +378,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def classgraph_version = "4.8.65"
     def google_clients_version = "1.30.3"
     def google_cloud_bigdataoss_version = "2.0.0"
+    def google_cloud_libraries_bom_version = "4.2.0"
     def google_cloud_spanner_version = "1.49.1"
     // Try to be consistent with gRPC version in google_cloud_platform_libraries_bom
     def grpc_version = "1.27.2"
@@ -461,7 +465,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_datacatalog_v1beta1            : "com.google.cloud:google-cloud-datacatalog",
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
         google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:1.6.3",
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:4.2.0",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:$google_cloud_libraries_bom_version",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner",
         // google-http-client's version is explicitly declared for sdks/java/maven-archetypes/examples
         // This version should be in line with the one in com.google.cloud:libraries-bom.
@@ -1156,8 +1160,19 @@ class BeamModulePlugin implements Plugin<Project> {
                 }
 
                 def dependenciesNode = root.appendNode('dependencies')
+                def boms = []
+                def needsGcpLibrariesBom = false; // When version is omitted, the pom.xml needs a BOM.
+
+                // From PlatformSupport.COMPONENT_CATEGORY (Gradle's internal API)
+                def componentCategory = Attribute.of('org.gradle.component.category', java.lang.String.class);
                 def generateDependenciesFromConfiguration = { param ->
                   project.configurations."${param.configuration}".allDependencies.each {
+                    AttributeContainer attributes = it.getAttributes()
+                    if (attributes.getAttribute(componentCategory) == 'platform') {
+                      boms.add(it);
+                      return
+                    }
+
                     def dependencyNode = dependenciesNode.appendNode('dependency')
                     def appendClassifier = { dep ->
                       dep.artifacts.each { art ->
@@ -1176,7 +1191,9 @@ class BeamModulePlugin implements Plugin<Project> {
                     } else {
                       dependencyNode.appendNode('groupId', it.group)
                       dependencyNode.appendNode('artifactId', it.name)
-                      dependencyNode.appendNode('version', it.version)
+                      if (it.version != null) {
+                        dependencyNode.appendNode('version', it.version)
+                      }
                       dependencyNode.appendNode('scope', param.scope)
                       appendClassifier(it)
                     }
@@ -1206,6 +1223,17 @@ class BeamModulePlugin implements Plugin<Project> {
                         configuration: (configuration.shadowClosure ? 'shadow' : 'compile'), scope: 'compile')
                 generateDependenciesFromConfiguration(configuration: 'provided', scope: 'provided')
 
+                if (!boms.isEmpty()) {
+                  def dependencyManagementNode = root.appendNode('dependencyManagement')
+                  def dependencyManagementDependencies = dependencyManagementNode.appendNode('dependencies')
+                  boms.each {
+                    def dependencyNode = dependencyManagementDependencies.appendNode('dependency')
+                    dependencyNode.appendNode('groupId', it.group)
+                    dependencyNode.appendNode('artifactId', it.name)
+                    dependencyNode.appendNode('version', it.version)
+                    dependencyNode.appendNode('scope', 'import')
+                  }
+                }
                 // NB: This must come after asNode() logic, as it seems asNode()
                 // removes XML comments.
                 // TODO: Load this from file?
