@@ -33,6 +33,7 @@ this module in your notebook or application code.
 
 from __future__ import absolute_import
 
+import logging
 import warnings
 
 import apache_beam as beam
@@ -46,6 +47,8 @@ from apache_beam.runners.interactive.display.pcoll_visualization import visualiz
 from apache_beam.runners.interactive.options import interactive_options
 from apache_beam.runners.interactive.utils import elements_to_df
 from apache_beam.runners.interactive.utils import to_element_list
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class Options(interactive_options.InteractiveOptions):
@@ -223,11 +226,16 @@ def watch(watchable):
 # `show(*pcolls, include_window_info=False, visualize_data=False)` once Python 2
 # is completely deprecated from Beam.
 def show(*pcolls, **configs):
+  # type: (*Union[Dict[Any, PCollection], Iterable[PCollection], PCollection], **bool) -> None
+
   """Shows given PCollections in an interactive exploratory way if used within
   a notebook, or prints a heading sampled data if used within an ipython shell.
   Noop if used in a non-interactive environment.
 
-  There are 2 configurations:
+  The given *pcolls can be dictionary of PCollections (as values), or iterable
+  of PCollections or plain PCollection values.
+
+  There are 2 boolean configurations:
 
     #. include_window_info=<True/False>. If True, windowing information of the
        data will be visualized too. Default is false.
@@ -276,6 +284,21 @@ def show(*pcolls, **configs):
       # PCollection `square` and PCollection `cube`, then visualizes them.
       show(square, cube)
   """
+  flatten_pcolls = []
+  for pcoll_container in pcolls:
+    if isinstance(pcoll_container, dict):
+      flatten_pcolls.extend(pcoll_container.values())
+    elif isinstance(pcoll_container, beam.pvalue.PCollection):
+      flatten_pcolls.append(pcoll_container)
+    else:
+      try:
+        flatten_pcolls.extend(iter(pcoll_container))
+      except TypeError:
+        _LOGGER.warning(
+            'The given pcoll %s is not a dict, an iterable or a PCollection.',
+            pcoll_container)
+        return
+  pcolls = flatten_pcolls
   assert len(pcolls) > 0, (
       'Need at least 1 PCollection to show data visualization.')
   for pcoll in pcolls:
