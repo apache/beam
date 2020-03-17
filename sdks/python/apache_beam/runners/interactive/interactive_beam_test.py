@@ -148,7 +148,7 @@ class InteractiveBeamTest(unittest.TestCase):
     ie.current_env().mark_pcollection_computed([pcoll])
     ie.current_env()._is_in_ipython = True
     ie.current_env()._is_in_notebook = True
-    ib.show(SomeRandomClass(pcoll))
+    self.assertRaises(ValueError, ib.show, SomeRandomClass(pcoll))
     mocked_visualize.assert_not_called()
 
 

@@ -33,7 +33,6 @@ this module in your notebook or application code.
 
 from __future__ import absolute_import
 
-import logging
 import warnings
 
 import apache_beam as beam
@@ -47,8 +46,6 @@ from apache_beam.runners.interactive.display.pcoll_visualization import visualiz
 from apache_beam.runners.interactive.options import interactive_options
 from apache_beam.runners.interactive.utils import elements_to_df
 from apache_beam.runners.interactive.utils import to_element_list
-
-_LOGGER = logging.getLogger(__name__)
 
 
 class Options(interactive_options.InteractiveOptions):
@@ -294,10 +291,9 @@ def show(*pcolls, **configs):
       try:
         flatten_pcolls.extend(iter(pcoll_container))
       except TypeError:
-        _LOGGER.warning(
-            'The given pcoll %s is not a dict, an iterable or a PCollection.',
+        raise ValueError(
+            'The given pcoll %s is not a dict, an iterable or a PCollection.' %
             pcoll_container)
-        return
   pcolls = flatten_pcolls
   assert len(pcolls) > 0, (
       'Need at least 1 PCollection to show data visualization.')
