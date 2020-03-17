@@ -304,8 +304,7 @@ class _ProcessingQueueManager(object):
         existing_inputs = self._keyed_elements[key][1]
         for pcoll in incoming_inputs:
           if incoming_inputs[pcoll] and pcoll in existing_inputs:
-            for elm in incoming_inputs[pcoll]:
-              existing_inputs[pcoll].append(elm)
+            existing_inputs[pcoll].extend(incoming_inputs[pcoll])
           elif incoming_inputs[pcoll]:
             existing_inputs[pcoll] = incoming_inputs[pcoll]
       else:

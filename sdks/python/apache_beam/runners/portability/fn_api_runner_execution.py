@@ -84,6 +84,11 @@ class _ListBuffer(PartitionableBuffer):
       raise RuntimeError('ListBuffer append after read.')
     self._inputs.append(element)
 
+  def extend(self, input_buffer):
+    # type: (_ListBuffer) -> None
+    for value in input_buffer:
+      self.append(value)
+
   def partition(self, n):
     # type: (int) -> List[List[bytes]]
     if self.cleared:
