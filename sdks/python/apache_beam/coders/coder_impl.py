@@ -1049,7 +1049,7 @@ class PaneInfoCoderImpl(StreamCoderImpl):
     base = windowed_value._BYTE_TO_PANE_INFO[encoded_first_byte & 0xF]
     assert base is not None
     encoding_type = encoded_first_byte >> 4
-    if encoding_type == PaneInfoEncoding_FIRST:
+    if encoding_type == PaneInfoEncoding.FIRST:
       return base
     elif encoding_type == PaneInfoEncoding.ONE_INDEX:
       index = in_stream.read_var_int64()

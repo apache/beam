@@ -124,9 +124,11 @@ BundleProcessResult = Tuple[beam_fn_api_pb2.InstructionResponse,
 
 # This module is experimental. No backwards-compatibility guarantees.
 
-ENCODED_IMPULSE_VALUE = beam.coders.WindowedValueCoder(
+IMPULSE_VALUE_CODER_IMPL = beam.coders.WindowedValueCoder(
     beam.coders.BytesCoder(),
-    beam.coders.coders.GlobalWindowCoder()).get_impl().encode_nested(
+    beam.coders.coders.GlobalWindowCoder()).get_impl()
+
+ENCODED_IMPULSE_VALUE = IMPULSE_VALUE_CODER_IMPL.encode_nested(
         beam.transforms.window.GlobalWindows.windowed_value(b''))
 
 # State caching is enabled in the fn_api_runner for testing, except for one
@@ -568,7 +570,8 @@ class FnApiRunner(runner.PipelineRunner):
           # For data input transforms, they only have one input.
           # We map the transform name to a buffer containing the
           # encoded input.
-          data_inputs[transform.unique_name] = _ListBuffer(BytesCoder().get_impl())
+          data_inputs[transform.unique_name] = _ListBuffer(
+              IMPULSE_VALUE_CODER_IMPL)
           data_inputs[transform.unique_name].append(ENCODED_IMPULSE_VALUE)
         elif transform.spec.urn == bundle_processor.DATA_INPUT_URN:
           _, pcoll_name = split_buffer_id(transform.spec.payload)
@@ -576,7 +579,8 @@ class FnApiRunner(runner.PipelineRunner):
           # If there isn't any producer for this PCollection, then
           # this is an empty PCollection to be consumed by the runner.
           if not producer:
-            data_inputs[transform.unique_name] = _ListBuffer(BytesCoder().get_impl())
+            data_inputs[transform.unique_name] = _ListBuffer(
+                IMPULSE_VALUE_CODER_IMPL)
         elif transform.spec.urn in transforms.PAR_DO_URNS:
           payload = proto_utils.parse_Bytes(
               transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
