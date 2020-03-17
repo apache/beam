@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING
 from typing import Callable
 from typing import Iterator
 from typing import List
+
 from typing_extensions import Protocol
 
 from apache_beam import coders
@@ -322,8 +323,6 @@ def make_input_buffer_fetcher(
       if buffer_id not in pcoll_buffers:
         pcoll_buffers[buffer_id] = _ListBuffer(
             coder_impl=coder_getter(transform_id))
-      return pcoll_buffers[buffer_id]
-
       return pcoll_buffers[buffer_id]
     elif kind == 'group':
       # This is a grouping write, create a grouping buffer if needed.

@@ -78,9 +78,9 @@ from apache_beam.runners.pipeline_context import PipelineContext
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability.fn_api_runner import translations
-from apache_beam.runners.portability.fn_api_runner.execution import PipelineExecutionContext
 from apache_beam.runners.portability.fn_api_runner.execution import Buffer
 from apache_beam.runners.portability.fn_api_runner.execution import PartitionableBuffer
+from apache_beam.runners.portability.fn_api_runner.execution import PipelineExecutionContext
 from apache_beam.runners.portability.fn_api_runner.execution import _ListBuffer
 from apache_beam.runners.portability.fn_api_runner.execution import add_residuals_and_channel_splits_to_deferred_inputs
 from apache_beam.runners.portability.fn_api_runner.execution import get_input_operation_name
@@ -107,6 +107,7 @@ if TYPE_CHECKING:
   from apache_beam.pipeline import Pipeline
   from apache_beam.coders.coder_impl import CoderImpl
   from apache_beam.portability.api import metrics_pb2
+  from apache_beam.runners.portability.fn_api_runner.execution import PartitionableBuffer
 
 T = TypeVar('T')
 ConstructorFn = Callable[[
@@ -637,7 +638,7 @@ class FnApiRunner(runner.PipelineRunner):
             if transform_name in next_ready_elements:
               continue
             # Empty-filling the data input.
-            next_ready_elements[transform_name] = _ListBuffer(BytesCoder())  # TODO(pabloem): THIS LIST BUFFER HAS NO CODER.
+            next_ready_elements[transform_name] = _ListBuffer(BytesCoder())
           endpoints_for_execution = (next_ready_elements, data_output)
 
           logging.info('Executing bundle for stage %s', stage.name)
@@ -780,7 +781,7 @@ class FnApiRunner(runner.PipelineRunner):
                                                    timestamp.MAX_TIMESTAMP)
 
     output_bundles_with_target_watermarks = []
-    single_timer_per_window_key = None  # TODO(pabloem): THIS LIST BUFFER HAS NO CODER OR ANYTHNING.
+    single_timer_per_window_key = None
 
     # Starting with timers, as they affect input PCollections, and therefore
     # the input watermark of the current stage.
