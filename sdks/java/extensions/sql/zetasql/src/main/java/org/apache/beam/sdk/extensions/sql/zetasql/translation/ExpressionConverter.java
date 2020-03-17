@@ -657,17 +657,18 @@ public class ExpressionConverter {
   }
 
   private RexNode convertArrayValueToRexNode(ArrayType arrayType, Value value) {
+    // TODO: should the nullable be false for a array?
+    RelDataType outputType = TypeUtils.toArrayRelDataType(rexBuilder(), arrayType, false);
+
     if (value.isNull()) {
-      // TODO: should the nullable be false for a array?
-      return rexBuilder()
-          .makeNullLiteral(TypeUtils.toArrayRelDataType(rexBuilder(), arrayType, false));
+      return rexBuilder().makeNullLiteral(outputType);
     }
 
     List<RexNode> operands = new ArrayList<>();
     for (Value v : value.getElementList()) {
       operands.add(convertValueToRexNode(arrayType.getElementType(), v));
     }
-    return rexBuilder().makeCall(SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR, operands);
+    return rexBuilder().makeCall(outputType, SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR, operands);
   }
 
   private RexNode convertStructValueToRexNode(StructType structType, Value value) {
