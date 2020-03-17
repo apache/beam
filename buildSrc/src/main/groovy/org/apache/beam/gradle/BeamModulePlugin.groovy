@@ -376,6 +376,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_clients_version = "1.30.3"
     def google_cloud_bigdataoss_version = "2.0.0"
     def google_cloud_spanner_version = "1.49.1"
+    // Try to be consistent with gRPC version in google_cloud_platform_libraries_bom
     def grpc_version = "1.27.2"
     def guava_version = "25.1-jre"
     def hadoop_version = "2.8.5"
@@ -471,15 +472,13 @@ class BeamModulePlugin implements Plugin<Project> {
         google_oauth_client                         : "com.google.oauth-client:google-oauth-client:$google_clients_version",
         google_oauth_client_java6                   : "com.google.oauth-client:google-oauth-client-java6:$google_clients_version",
         grpc_all                                    : "io.grpc:grpc-all:$grpc_version",
-        grpc_auth                                   : "io.grpc:grpc-auth:$grpc_version",
-        grpc_core                                   : "io.grpc:grpc-core:$grpc_version",
-        grpc_context                                : "io.grpc:grpc-context:$grpc_version",
+        grpc_auth                                   : "io.grpc:grpc-auth",
+        grpc_core                                   : "io.grpc:grpc-core",
+        grpc_context                                : "io.grpc:grpc-context",
         grpc_google_cloud_pubsub_v1                 : "com.google.api.grpc:grpc-google-cloud-pubsub-v1",
-        grpc_grpclb                                 : "io.grpc:grpc-grpclb:$grpc_version",
-        grpc_protobuf                               : "io.grpc:grpc-protobuf:$grpc_version",
-        grpc_protobuf_lite                          : "io.grpc:grpc-protobuf-lite:$grpc_version",
-        grpc_netty                                  : "io.grpc:grpc-netty:$grpc_version",
-        grpc_stub                                   : "io.grpc:grpc-stub:$grpc_version",
+        grpc_grpclb                                 : "io.grpc:grpc-grpclb",
+        grpc_netty                                  : "io.grpc:grpc-netty",
+        grpc_stub                                   : "io.grpc:grpc-stub",
         guava                                       : "com.google.guava:guava:$guava_version",
         guava_testlib                               : "com.google.guava:guava-testlib:$guava_version",
         hadoop_client                               : "org.apache.hadoop:hadoop-client:$hadoop_version",
