@@ -32,16 +32,13 @@ import org.slf4j.LoggerFactory;
 /** DoFn for fetching messages from the HL7v2 store with error handling. */
 class HL7v2MessageGetFn extends DoFn<String, FailsafeElement<String, Message>> {
 
+  private Counter failedMessageReads = Metrics.counter(HL7v2MessageGetFn.class, "failed-message-reads");
   private static final Logger LOG = LoggerFactory.getLogger(HL7v2MessageGetFn.class);
   private final Counter throttledSeconds =
       Metrics.counter(HL7v2MessageGetFn.class, "cumulativeThrottlingSeconds");
   private final Counter successfulHL7v2MessageGets =
       Metrics.counter(HL7v2MessageGetFn.class, "successfulHL7v2MessageGets");
   private HealthcareApiClient client;
-  /* TODO should we inject a throttler class as a dependency?
-   * Possibly We could also provide a throttler class to throttle a specific bundle to make a
-   * configurable QPS limit of ingest requests.
-   */
   private transient AdaptiveThrottler throttler;
 
   /** Instantiates a new Hl 7 v 2 message get fn. */
@@ -80,6 +77,7 @@ class HL7v2MessageGetFn extends DoFn<String, FailsafeElement<String, Message>> {
     try {
       context.output(FailsafeElement.of(msgId, fetchMessage(this.client, msgId)));
     } catch (Exception e) {
+      failedMessageReads.inc();
       LOG.warn(
           String.format(
               "Error fetching HL7v2 message with ID %s writing to Dead Letter "

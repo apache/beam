@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -84,6 +86,7 @@ import org.apache.beam.sdk.values.PDone;
  * </pre>
  */
 public class HL7v2IO {
+  // TODO add metrics for failed records.
 
   private static Read.Builder read(PTransform<PBegin, PCollection<String>> messageIDTransform) {
     Read.Builder builder = new AutoValue_HL7v2IO_Read.Builder();
@@ -340,6 +343,7 @@ public class HL7v2IO {
     // TODO when the healthcare API releases a bulk import method this should use that to improve
     // throughput.
 
+    private Counter failedMessageWrites = Metrics.counter(WriteHL7v2Fn.class, "failed-hl7v2-message-writes");
     /** The HL7v2 store. */
     private final String hl7v2Store;
     /** The Write method. */
@@ -375,14 +379,19 @@ public class HL7v2IO {
      * @throws IOException the io exception
      */
     @ProcessElement
-    void writeMessages(ProcessContext context) throws IOException {
+    void writeMessages(ProcessContext context) {
+      // TODO add error output.
       Message msg = context.element();
       // TODO could insert some lineage hook here?
       switch (writeMethod) {
         case BATCH_IMPORT: throw new UnsupportedOperationException("The Batch import API is not avaiable yet");
         case INGEST:
         default:
-          client.ingestHL7v2Message(hl7v2Store, msg);
+          try {
+            client.ingestHL7v2Message(hl7v2Store, msg);
+          } catch (IOException e) {
+            failedMessageWrites.inc();
+          }
       }
     }
   }
