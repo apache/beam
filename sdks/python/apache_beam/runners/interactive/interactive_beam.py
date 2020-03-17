@@ -229,7 +229,7 @@ def show(*pcolls, **configs):
   a notebook, or prints a heading sampled data if used within an ipython shell.
   Noop if used in a non-interactive environment.
 
-  The given *pcolls can be dictionary of PCollections (as values), or iterable
+  The given pcolls can be dictionary of PCollections (as values), or iterable
   of PCollections or plain PCollection values.
 
   There are 2 boolean configurations:
