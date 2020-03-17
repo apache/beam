@@ -167,9 +167,10 @@ class FnApiRunnerTest(unittest.TestCase):
       main = p | 'main' >> beam.Create(['a', 'b', 'c'])
       side = p | 'side' >> beam.Create(['x', 'y'])
       res = main | beam.FlatMap(cross_product, beam.pvalue.AsList(side))
-      assert_that(res,
-                  equal_to([('a', 'x'), ('b', 'x'), ('c', 'x'),
-                            ('a', 'y'), ('b', 'y'), ('c', 'y')]))
+      assert_that(
+          res,
+          equal_to([('a', 'x'), ('b', 'x'), ('c', 'x'), ('a', 'y'), ('b', 'y'),
+                    ('c', 'y')]))
 
   def test_pardo_windowed_side_inputs(self):
     with self.create_pipeline() as p:
@@ -272,6 +273,7 @@ class FnApiRunnerTest(unittest.TestCase):
     def cross_product(elem, sides):
       for side in sides:
         yield elem, side
+
     with self.create_pipeline() as p:
       pcoll = p | beam.Create(['a', 'b'])
       derived = ((pcoll, ) | beam.Flatten()
@@ -558,28 +560,26 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_group_by_key(self):
     with self.create_pipeline() as p:
-      pc1 = p | 'c1' >> beam.Create([('a', 1), ('a', 2), ('b', 3),
-                                     ('c', 1), ('c', 2), ('d', 3)])
-      res = (pc1
-             | beam.GroupByKey()
-             | beam.Map(lambda k_vs: (k_vs[0], sorted(k_vs[1]))))
-      assert_that(res, equal_to([('a', [1, 2]),
-                                 ('b', [3]),
-                                 ('c', [1, 2]),
-                                 ('d', [3])]))
+      pc1 = p | 'c1' >> beam.Create([('a', 1), ('a', 2), ('b', 3), ('c', 1),
+                                     ('c', 2), ('d', 3)])
+      res = (
+          pc1
+          | beam.GroupByKey()
+          | beam.Map(lambda k_vs: (k_vs[0], sorted(k_vs[1]))))
+      assert_that(
+          res, equal_to([('a', [1, 2]), ('b', [3]), ('c', [1, 2]), ('d', [3])]))
 
   def test_flatten_and_gbk(self):
     with self.create_pipeline() as p:
       pc1 = p | 'c1' >> beam.Create([('a', 1), ('a', 2), ('b', 3)])
       pc2 = p | 'c2' >> beam.Create([('c', 1), ('c', 2), ('d', 3)])
       pcboth = (pc1, pc2) | beam.Flatten()
-      res = (pcboth
-             | beam.GroupByKey()
-             | beam.Map(lambda k_vs: (k_vs[0], sorted(k_vs[1]))))
-      assert_that(res, equal_to([('a', [1, 2]),
-                                 ('b', [3]),
-                                 ('c', [1, 2]),
-                                 ('d', [3])]))
+      res = (
+          pcboth
+          | beam.GroupByKey()
+          | beam.Map(lambda k_vs: (k_vs[0], sorted(k_vs[1]))))
+      assert_that(
+          res, equal_to([('a', [1, 2]), ('b', [3]), ('c', [1, 2]), ('d', [3])]))
 
   # Runners may special case the Reshuffle transform urn.
   def test_reshuffle(self):
@@ -594,10 +594,10 @@ class FnApiRunnerTest(unittest.TestCase):
         additional = [ord('d')]
       else:
         additional = ['d']
-      res = (p | 'a' >> beam.Create(['a']),
-             p | 'bc' >> beam.Create(['b', 'c']),
-             p | 'd' >> beam.Create(additional)
-            ) | beam.Flatten()
+      res = (
+          p | 'a' >> beam.Create(['a']),
+          p | 'bc' >> beam.Create(['b', 'c']),
+          p | 'd' >> beam.Create(additional)) | beam.Flatten()
       assert_that(res, equal_to(['a', 'b', 'c'] + additional))
 
   def test_flatten_same_pcollections(self, with_transcoding=True):

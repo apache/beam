@@ -130,7 +130,7 @@ IMPULSE_VALUE_CODER_IMPL = beam.coders.WindowedValueCoder(
     beam.coders.coders.GlobalWindowCoder()).get_impl()
 
 ENCODED_IMPULSE_VALUE = IMPULSE_VALUE_CODER_IMPL.encode_nested(
-        beam.transforms.window.GlobalWindows.windowed_value(b''))
+    beam.transforms.window.GlobalWindows.windowed_value(b''))
 
 # State caching is enabled in the fn_api_runner for testing, except for one
 # test which runs without state caching (FnApiRunnerTestWithDisabledCaching).
@@ -323,12 +323,10 @@ class _ProcessingQueueManager(object):
       return len(self._q)
 
     def __repr__(self):
-      return '<%s at 0x%x>' % (str(self),
-                               id(self))
+      return '<%s at 0x%x>' % (str(self), id(self))
 
     def __str__(self):
-      return '<%s %s>' % (self.__class__.__name__,
-                          list(self._q))
+      return '<%s %s>' % (self.__class__.__name__, list(self._q))
 
   def __init__(self):
     self.watermark_pending_inputs = _ProcessingQueueManager.KeyedQueue()
@@ -559,6 +557,7 @@ class FnApiRunner(runner.PipelineRunner):
       execution_context  # type: PipelineExecutionContext
   ):
     # type: (...) -> None
+
     """Put all initial inputs to the pipeline in the input queue."""
     for stage in stages:
       data_inputs = {}
@@ -591,12 +590,12 @@ class FnApiRunner(runner.PipelineRunner):
             ready_to_schedule = False
       if data_inputs and ready_to_schedule:
         # We push the data inputs, along with the name of the consuming stage.
-        logging.debug('Scheduling stage for execution. Stage name: %s',
-                      stage.name)
+        logging.debug(
+            'Scheduling stage for execution. Stage name: %s', stage.name)
         input_queue_manager.ready_inputs.enque((stage.name, data_inputs))
       elif data_inputs and not ready_to_schedule:
-        logging.debug('Enqueuing stage pending watermark. Stage name: %s',
-                      stage.name)
+        logging.debug(
+            'Enqueuing stage pending watermark. Stage name: %s', stage.name)
         input_queue_manager.watermark_pending_inputs.enque(
             ((stage.name, timestamp.MAX_TIMESTAMP), data_inputs))
 
@@ -605,6 +604,7 @@ class FnApiRunner(runner.PipelineRunner):
                  stages  # type: List[translations.Stage]
                 ):
     # type: (...) -> RunnerResult
+
     """Run a list of topologically-sorted stages in batch mode.
 
     Args:
@@ -618,11 +618,10 @@ class FnApiRunner(runner.PipelineRunner):
     monitoring_infos_by_stage = {}
     metrics_by_stage = {}
 
-    execution_context = PipelineExecutionContext(stage_context.components,
-                                                 stages)
-    self._enqueue_all_initial_inputs(stages,
-                                     input_queue_manager,
-                                     execution_context)
+    execution_context = PipelineExecutionContext(
+        stage_context.components, stages)
+    self._enqueue_all_initial_inputs(
+        stages, input_queue_manager, execution_context)
     try:
       with self.maybe_profile():
         while len(input_queue_manager.ready_inputs) > 0:
@@ -651,18 +650,18 @@ class FnApiRunner(runner.PipelineRunner):
               pcoll_buffers,
               stage_context.safe_coders,
               endpoints_for_execution)
-          self._merge_metrics_from_stage_execution(monitoring_infos_by_stage,
-                                                   metrics_by_stage,
-                                                   stage_results, stage.name)
+          self._merge_metrics_from_stage_execution(
+              monitoring_infos_by_stage,
+              metrics_by_stage,
+              stage_results,
+              stage.name)
 
           output_bundles_with_timestamps = self._update_watermarks(
-              execution_context, stage, data_input, output_bundles,
+              execution_context,
+              stage,
+              data_input,
+              output_bundles,
               deferred_inputs)
-
-          for k, v in deferred_inputs.items():
-            # TODO(pabloem, MUST): SOMEHOW ENQUEUE THE DEFERRED INPUTS.
-            #  this is not a nice way.
-            input_queue_manager.ready_inputs.enque((stage.name, {k: v}))
 
           self._process_output_bundles(execution_context,
                                        output_bundles_with_timestamps,
@@ -674,10 +673,12 @@ class FnApiRunner(runner.PipelineRunner):
       worker_handler_manager.close_all()
 
     if len(input_queue_manager.watermark_pending_inputs) > 0:
-      raise RuntimeError('There are bundles pending processing that can not '
-                         'be scheduled because the watermark is stuck. '
-                         'This represents an error in Apache Beam.'
-                         '\n\t%s', input_queue_manager.watermark_pending_inputs)
+      raise RuntimeError(
+          'There are bundles pending processing that can not '
+          'be scheduled because the watermark is stuck. '
+          'This represents an error in Apache Beam.'
+          '\n\t%s',
+          input_queue_manager.watermark_pending_inputs)
     return RunnerResult(
         runner.PipelineState.DONE, monitoring_infos_by_stage, metrics_by_stage)
 
@@ -702,6 +703,7 @@ class FnApiRunner(runner.PipelineRunner):
   @staticmethod
   def _schedule_newly_ready_bundles(execution_context, input_queue_manager):
     # type: (PipelineExecutionContext, _ProcessingQueueManager) -> None
+
     """Inspect watermark pending bundles, and schedule ready ones.
 
     This function should be called after the watermarks have been recalculated.
@@ -720,7 +722,9 @@ class FnApiRunner(runner.PipelineRunner):
             'Unable to enqueue bundle for stage %s'
             '\n\tStage input watermark: %s'
             '\n\tBundle scheduled watermark: %s',
-            stage_name, stage_watermark, bundle_watermark)
+            stage_name,
+            stage_watermark,
+            bundle_watermark)
         requed_inputs.append(((stage_name, bundle_watermark), inputs))
 
     for elm in requed_inputs:
@@ -735,6 +739,7 @@ class FnApiRunner(runner.PipelineRunner):
       deferred_inputs  # type: Dict[str, bytes]
   ):
     # type: (...) -> List[Tuple[Tuple[timestam.Timestamp, bytes], List[bytes]]]
+
     """Update the watermarks after execution of a bundle.
 
     It also recomputes the output bundle list to contain consumer and target
@@ -753,18 +758,20 @@ class FnApiRunner(runner.PipelineRunner):
         # This should also hold back the watermarks for all downstream
         # PCollections.
         kind, pcoll_name = split_buffer_id(buffer_id)
-        logging.debug('Setting watermark due to deferred inputs '
-                      'from PCollection: %s', pcoll_name)
-        execution_context.update_pcoll_watermark(pcoll_name,
-                                                 timestamp.MIN_TIMESTAMP)
+        logging.debug(
+            'Setting watermark due to deferred inputs '
+            'from PCollection: %s',
+            pcoll_name)
+        execution_context.update_pcoll_watermark(
+            pcoll_name, timestamp.MIN_TIMESTAMP)
         continue
 
       if buffer_id == translations.IMPULSE_BUFFER:
         pcoll_name = '%s%s' % (stage.name,
                                translations.IMPULSE_BUFFER)
         # An impulse-typed input immediately moves to +inf
-        execution_context.update_pcoll_watermark(pcoll_name,
-                                                 timestamp.MAX_TIMESTAMP)
+        execution_context.update_pcoll_watermark(
+            pcoll_name, timestamp.MAX_TIMESTAMP)
         continue
       else:
         kind, pcoll_name = split_buffer_id(buffer_id)
@@ -777,8 +784,8 @@ class FnApiRunner(runner.PipelineRunner):
           continue
         else:
           # TODO(pabloem, MUST): We'll have to handle this better on streaming
-          execution_context.update_pcoll_watermark(pcoll_name,
-                                                   timestamp.MAX_TIMESTAMP)
+          execution_context.update_pcoll_watermark(
+              pcoll_name, timestamp.MAX_TIMESTAMP)
 
     output_bundles_with_target_watermarks = []
     single_timer_per_window_key = None
@@ -807,8 +814,8 @@ class FnApiRunner(runner.PipelineRunner):
                   input_stream, True)
               timer_timestamp = windowed_key_timer.timestamp
               # TODO(pabloem, MUST): What to do about multiple windows?
-              key_window_pair = (windowed_key_timer.windows[0],
-                                 windowed_key_timer.value[0])
+              key_window_pair = (
+                  windowed_key_timer.windows[0], windowed_key_timer.value[0])
               timer_data_per_key_window[key_window_pair] = windowed_key_timer
               watermark_hold = min(watermark_hold, timer_timestamp)
 
@@ -822,10 +829,9 @@ class FnApiRunner(runner.PipelineRunner):
           #   watermark for this pcollection? This should be handled by SDK?
         # We update the written and read collections' watermarks.
         read_pcoll_name = timer_written_pcoll_to_read_pcoll_map[pcoll_name]
-        execution_context.update_pcoll_watermark(read_pcoll_name,
-                                                 watermark_hold)
-        execution_context.update_pcoll_watermark(pcoll_name,
-                                                 watermark_hold)
+        execution_context.update_pcoll_watermark(
+            read_pcoll_name, watermark_hold)
+        execution_context.update_pcoll_watermark(pcoll_name, watermark_hold)
         output_bundles_with_target_watermarks.append(
             ((watermark_hold, buffer_id), single_timer_per_window_key))
 
@@ -838,11 +844,18 @@ class FnApiRunner(runner.PipelineRunner):
     return output_bundles_with_target_watermarks
 
   @staticmethod
-  def _process_output_bundles(execution_context,
-                              output_bundles,
-                              input_queue_manager):
+  def _process_output_bundles(
+      deferred_inputs,
+      stage,
+      execution_context,
+      output_bundles,
+      input_queue_manager):
     """TODO(pabloem)"""
     logging.debug('Processing output bundles: %s', output_bundles)
+    # Enqueueing all deferred inputs for execution.
+    for k, v in deferred_inputs.items():
+      input_queue_manager.ready_inputs.enque((stage.name, {k: v}))
+
     for (bundle_watermark, buffer_id), data in output_bundles:
       consumer_stages = execution_context.get_consuming_stages(buffer_id)
       consumer_transforms = execution_context.get_consuming_transforms(
@@ -858,10 +871,13 @@ class FnApiRunner(runner.PipelineRunner):
         # Empty timer collections should not be rescheduled.
         continue
 
-      consuming_stage_names = [stage.name if stage else None
-                               for stage in consumer_stages]
-      consuming_transform_names = [transform.unique_name if transform else None
-                                   for transform in consumer_transforms]
+      consuming_stage_names = [
+          stage.name if stage else None for stage in consumer_stages
+      ]
+      consuming_transform_names = [
+          transform.unique_name if transform else None
+          for transform in consumer_transforms
+      ]
 
       # In this case, `data` may be an empty buffer, but we still schedule it
       # for execution (unless it's a timer pcollection) because otherwise the
@@ -875,14 +891,19 @@ class FnApiRunner(runner.PipelineRunner):
             consuming_stage_name)
         stage_input_watermark = stage_watermark_mgr.input_watermark()
         if stage_input_watermark >= bundle_watermark:
-          logging.debug('Enqueuing bundle output after execution, '
-                        'to be consumed by stage: %s', consuming_stage_name)
+          logging.debug(
+              'Enqueuing bundle output after execution, '
+              'to be consumed by stage: %s',
+              consuming_stage_name)
           input_queue_manager.ready_inputs.enque(
-              (consuming_stage_name, {consuming_transform_name: data}))
+              (consuming_stage_name, {
+                  consuming_transform_name: data
+              }))
         else:
           input_queue_manager.watermark_pending_inputs.enque(
-              ((consuming_stage_name, bundle_watermark),
-               {consuming_transform_name: data}))
+              ((consuming_stage_name, bundle_watermark), {
+                  consuming_transform_name: data
+              }))
 
   def _run_bundle_multiple_times_for_testing(
       self,
@@ -917,14 +938,15 @@ class FnApiRunner(runner.PipelineRunner):
       finally:
         worker_handler.state.restore()
 
-  def _execute_bundle(self,
-                      execution_context,
-                      worker_handler_factory,
-                      pipeline_components,
-                      stage,
-                      pcoll_buffers,
-                      safe_coders,
-                      stage_endpoints):
+  def _execute_bundle(
+      self,
+      execution_context,
+      worker_handler_factory,
+      pipeline_components,
+      stage,
+      pcoll_buffers,
+      safe_coders,
+      stage_endpoints):
     """Run an individual stage.
 
     Args:
@@ -958,9 +980,8 @@ class FnApiRunner(runner.PipelineRunner):
 
     _LOGGER.info('Running %s', stage.name)
     input_bundle, data_output = stage_endpoints
-    self._update_transform_spec_with_data_spec(stage,
-                                               pipeline_components,
-                                               data_api_service_descriptor)
+    self._update_transform_spec_with_data_spec(
+        stage, pipeline_components, data_api_service_descriptor)
 
     process_bundle_descriptor = beam_fn_api_pb2.ProcessBundleDescriptor(
         id=self._next_uid(),
@@ -981,9 +1002,8 @@ class FnApiRunner(runner.PipelineRunner):
 
     # Change cache token across bundle repeats
     cache_token_generator = FnApiRunner.get_cache_token_generator(static=False)
-    input_coder_getter = make_input_coder_getter(pipeline_context,
-                                                 process_bundle_descriptor,
-                                                 safe_coders)
+    input_coder_getter = make_input_coder_getter(
+        pipeline_context, process_bundle_descriptor, safe_coders)
 
     self._run_bundle_multiple_times_for_testing(
         worker_handler_list,
@@ -995,11 +1015,12 @@ class FnApiRunner(runner.PipelineRunner):
 
     bundle_manager = ParallelBundleManager(
         worker_handler_list,
-        make_input_buffer_fetcher(pipeline_context,
-                                  pcoll_buffers,
-                                  pipeline_components,
-                                  safe_coders,
-                                  input_coder_getter),
+        make_input_buffer_fetcher(
+            pipeline_context,
+            pcoll_buffers,
+            pipeline_components,
+            safe_coders,
+            input_coder_getter),
         input_coder_getter,
         process_bundle_descriptor,
         self._progress_frequency,
@@ -1010,12 +1031,13 @@ class FnApiRunner(runner.PipelineRunner):
 
     for si in stage.downstream_side_inputs:
       side_input_infos = execution_context.get_side_input_infos(si)
-      store_side_inputs_in_state(worker_handler,
-                                 pipeline_context,
-                                 pipeline_components,
-                                 side_input_infos,
-                                 pcoll_buffers,
-                                 safe_coders)
+      store_side_inputs_in_state(
+          worker_handler,
+          pipeline_context,
+          pipeline_components,
+          side_input_infos,
+          pcoll_buffers,
+          safe_coders)
 
     output_bundles = []
     for _, buffer_id in data_output.items():
@@ -1046,14 +1068,15 @@ class FnApiRunner(runner.PipelineRunner):
     return result, output_bundles, deferred_inputs
 
   @staticmethod
-  def _collect_deferred_inputs(pipeline_context,
-                               process_bundle_descriptor,
-                               safe_coders,
-                               last_result,
-                               splits,
-                               last_input,
-                               input_coder_getter):
-    deferred_inputs = {} # type: MutableMapping[str, PartitionableBuffer]
+  def _collect_deferred_inputs(
+      pipeline_context,
+      process_bundle_descriptor,
+      safe_coders,
+      last_result,
+      splits,
+      last_input,
+      input_coder_getter):
+    deferred_inputs = {}  # type: MutableMapping[str, PartitionableBuffer]
 
     # Queue any process-initiated delayed bundle applications.
     for delayed_application in last_result.process_bundle.residual_roots:
@@ -1077,9 +1100,8 @@ class FnApiRunner(runner.PipelineRunner):
     return deferred_inputs
 
   @staticmethod
-  def _update_transform_spec_with_data_spec(stage,
-                                            pipeline_components,
-                                            data_api_service_descriptor):
+  def _update_transform_spec_with_data_spec(
+      stage, pipeline_components, data_api_service_descriptor):
     """Annotate a transform's with the data endpoint URL, and coder ID."""
     for transform in stage.transforms:
       if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
@@ -1087,11 +1109,11 @@ class FnApiRunner(runner.PipelineRunner):
         # If a transform is a DATA_INPUT or DATA_OUTPUT transform, it will
         # receive data from / deliver data to the runner.
         if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
-          coder_id = pipeline_components.pcollections[
-              only_element(transform.outputs.values())].coder_id
+          coder_id = pipeline_components.pcollections[only_element(
+              transform.outputs.values())].coder_id
         elif transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
-          coder_id = pipeline_components.pcollections[
-              only_element(transform.inputs.values())].coder_id
+          coder_id = pipeline_components.pcollections[only_element(
+              transform.inputs.values())].coder_id
         else:
           raise NotImplementedError
         data_spec = beam_fn_api_pb2.RemoteGrpcPort(coder_id=coder_id)
@@ -2160,8 +2182,9 @@ class BundleManager(object):
     # elements. If those bundles should be consumed by an operation downstream,
     # they will be added to the processing queues.
     output_data = []
-    with ProgressRequester(
-        self._worker_handler, process_bundle_id, self._progress_frequency):
+    with ProgressRequester(self._worker_handler,
+                           process_bundle_id,
+                           self._progress_frequency):
 
       if split_manager:
         split_results = self._generate_splits_for_testing(

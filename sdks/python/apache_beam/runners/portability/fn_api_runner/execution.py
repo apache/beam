@@ -54,6 +54,7 @@ if TYPE_CHECKING:
 
 # TODO(pabloem): Add Pydoc to methods in this file.
 
+
 class Buffer(Protocol):
   def __iter__(self):
     # type: () -> Iterator[bytes]
@@ -68,6 +69,7 @@ class PartitionableBuffer(Buffer, Protocol):
   def partition(self, n):
     # type: (int) -> List[List[bytes]]
     pass
+
 
 class _ListBuffer(PartitionableBuffer):
   """Used to support parititioning of a list."""
@@ -139,7 +141,8 @@ class _GroupingBuffer(PartitionableBuffer):
     self._key_coder = pre_grouped_coder.key_coder()
     self._pre_grouped_coder = pre_grouped_coder
     self._post_grouped_coder = post_grouped_coder
-    self._table = collections.defaultdict(list)  # type: Optional[DefaultDict[bytes, List[Any]]]
+    self._table = collections.defaultdict(
+        list)  # type: Optional[DefaultDict[bytes, List[Any]]]
     self._windowing = windowing
     self._grouped_output = None  # type: Optional[List[List[bytes]]]
 
@@ -157,8 +160,8 @@ class _GroupingBuffer(PartitionableBuffer):
       windowed_key_value = coder_impl.decode_from_stream(input_stream, True)
       key, value = windowed_key_value.value
       self._table[key_coder_impl.encode(key)].append(
-          value if is_trivial_windowing
-          else windowed_key_value.with_value(value))
+          value if is_trivial_windowing else windowed_key_value.
+          with_value(value))
 
   def extend(self, input_buffer):
     # type: (_GroupingBuffer) -> None
@@ -167,6 +170,7 @@ class _GroupingBuffer(PartitionableBuffer):
 
   def partition(self, n):
     # type: (int) -> List[List[bytes]]
+
     """ It is used to partition _GroupingBuffer to N parts. Once it is
     partitioned, it would not be re-partitioned with different N. Re-partition
     is not supported now.
@@ -216,6 +220,7 @@ class _GroupingBuffer(PartitionableBuffer):
 
   def __iter__(self):
     # type: () -> Iterator[bytes]
+
     """ Since partition() returns a list of lists, add this __iter__ to return
     a list to simplify code when we need to iterate through ALL elements of
     _GroupingBuffer.
@@ -240,21 +245,20 @@ class _WindowGroupingBuffer(object):
     elif access_pattern.urn == common_urns.side_inputs.MULTIMAP.urn:
       self._kv_extractor = lambda value: value
       self._key_coder = coder.wrapped_value_coder.key_coder()
-      self._value_coder = (
-          coder.wrapped_value_coder.value_coder())
+      self._value_coder = (coder.wrapped_value_coder.value_coder())
     else:
-      raise ValueError(
-          "Unknown access pattern: '%s'" % access_pattern.urn)
+      raise ValueError("Unknown access pattern: '%s'" % access_pattern.urn)
     self._windowed_value_coder = coder
     self._window_coder = coder.window_coder
-    self._values_by_window = collections.defaultdict(list)  # type: DefaultDict[Tuple[str, BoundedWindow], List[Any]]
+    self._values_by_window = collections.defaultdict(
+        list)  # type: DefaultDict[Tuple[str, BoundedWindow], List[Any]]
 
   def append(self, elements_data):
     # type: (bytes) -> None
     input_stream = create_InputStream(elements_data)
     while input_stream.size() > 0:
-      windowed_value = self._windowed_value_coder.get_impl(
-      ).decode_from_stream(input_stream, True)
+      windowed_value = self._windowed_value_coder.get_impl().decode_from_stream(
+          input_stream, True)
       key, value = self._kv_extractor(windowed_value.value)
       for window in windowed_value.windows:
         self._values_by_window[key, window].append(value)
@@ -283,12 +287,12 @@ def make_iterable_state_write(worker_handler):
             runner=beam_fn_api_pb2.StateKey.Runner(key=token)),
         out.get())
     return token
+
   return iterable_state_write
 
 
-def make_input_coder_getter(pipeline_context,
-                            process_bundle_descriptor,
-                            safe_coders):
+def make_input_coder_getter(
+    pipeline_context, process_bundle_descriptor, safe_coders):
   def input_coder_getter_impl(transform_id):
     # type: (str) -> CoderImpl
     coder_id = beam_fn_api_pb2.RemoteGrpcPort.FromString(
@@ -299,6 +303,7 @@ def make_input_coder_getter(pipeline_context,
       return pipeline_context.coders[safe_coders[coder_id]].get_impl()
     else:
       return pipeline_context.coders[coder_id].get_impl()
+
   return input_coder_getter_impl
 
 
@@ -310,6 +315,7 @@ def make_input_buffer_fetcher(
     coder_getter, # type: Callable[[str], CoderImpl]
 ):
   # type: (...) -> Callable
+
   """Returns a callable to fetch the buffer containing a PCollection to input
      to a PTransform.
 
@@ -328,8 +334,7 @@ def make_input_buffer_fetcher(
       # This is a grouping write, create a grouping buffer if needed.
       if buffer_id not in pcoll_buffers:
         original_gbk_transform = name
-        transform_proto = pipeline_components.transforms[
-            original_gbk_transform]
+        transform_proto = pipeline_components.transforms[original_gbk_transform]
         input_pcoll = only_element(list(transform_proto.inputs.values()))
         output_pcoll = only_element(list(transform_proto.outputs.values()))
         pre_gbk_coder = pipeline_context.coders[safe_coders[
@@ -337,8 +342,8 @@ def make_input_buffer_fetcher(
         post_gbk_coder = pipeline_context.coders[safe_coders[
             pipeline_components.pcollections[output_pcoll].coder_id]]
         windowing_strategy = pipeline_context.windowing_strategies[
-            pipeline_components.pcollections[
-                output_pcoll].windowing_strategy_id]
+            pipeline_components.pcollections[output_pcoll].
+            windowing_strategy_id]
         pcoll_buffers[buffer_id] = _GroupingBuffer(
             pre_gbk_coder, post_gbk_coder, windowing_strategy)
     else:
@@ -346,22 +351,22 @@ def make_input_buffer_fetcher(
       # but special side input writes may go here.
       raise NotImplementedError(buffer_id)
     return pcoll_buffers[buffer_id]
+
   return buffer_fetcher
 
 
-def get_input_operation_name(
-    process_bundle_descriptor, transform_id, input_id):
+def get_input_operation_name(process_bundle_descriptor, transform_id, input_id):
   # type: (beam_fn_api_pb2.ProcessBundleDescriptor, str, str) -> str
+
   """Returns a callable to find the ID of the data input operation that
   feeds an input PCollection to a PTransform. """
-  input_pcoll = process_bundle_descriptor.transforms[
-      transform_id].inputs[input_id]
+  input_pcoll = process_bundle_descriptor.transforms[transform_id].inputs[
+      input_id]
   for read_id, proto in process_bundle_descriptor.transforms.items():
-    if (proto.spec.urn == bundle_processor.DATA_INPUT_URN
-        and input_pcoll in proto.outputs.values()):
+    if (proto.spec.urn == bundle_processor.DATA_INPUT_URN and
+        input_pcoll in proto.outputs.values()):
       return read_id
-  raise RuntimeError(
-      'No IO transform feeds %s' % transform_id)
+  raise RuntimeError('No IO transform feeds %s' % transform_id)
 
 
 def store_side_inputs_in_state(
@@ -377,8 +382,7 @@ def store_side_inputs_in_state(
         pipeline_components.pcollections[pcoll_id].coder_id]]
     elements_by_window = _WindowGroupingBuffer(si, value_coder)
     if buffer_id not in pcoll_buffers:
-      pcoll_buffers[buffer_id] = _ListBuffer(
-          coder_impl=value_coder.get_impl())
+      pcoll_buffers[buffer_id] = _ListBuffer(coder_impl=value_coder.get_impl())
     for element_data in pcoll_buffers[buffer_id]:
       elements_by_window.append(element_data)
 
@@ -386,9 +390,7 @@ def store_side_inputs_in_state(
       for _, window, elements_data in elements_by_window.encoded_items():
         state_key = beam_fn_api_pb2.StateKey(
             iterable_side_input=beam_fn_api_pb2.StateKey.IterableSideInput(
-                transform_id=transform_id,
-                side_input_id=tag,
-                window=window))
+                transform_id=transform_id, side_input_id=tag, window=window))
         worker_handler.state.append_raw(state_key, elements_data)
     elif si.urn == common_urns.side_inputs.MULTIMAP.urn:
       for key, window, elements_data in elements_by_window.encoded_items():
@@ -402,8 +404,11 @@ def store_side_inputs_in_state(
 
 
 def add_residuals_and_channel_splits_to_deferred_inputs(
-    process_bundle_descriptor, splits, get_input_coder_callable,
-    last_sent, deferred_inputs):
+    process_bundle_descriptor,
+    splits,
+    get_input_coder_callable,
+    last_sent,
+    deferred_inputs):
   prev_stops = {}
   for split in splits:
     for delayed_application in split.residual_roots:
@@ -437,8 +442,8 @@ def add_residuals_and_channel_splits_to_deferred_inputs(
           coder_impl.decode_all(
               b''.join(last_sent[channel_split.transform_id])))
       residual_elements = all_elements[
-          channel_split.first_residual_element : prev_stops.get(
-              channel_split.transform_id, len(all_elements)) + 1]
+          channel_split.first_residual_element:prev_stops.
+          get(channel_split.transform_id, len(all_elements)) + 1]
       if residual_elements:
         if channel_split.transform_id not in deferred_inputs:
           coder_impl = get_input_coder_callable(channel_split.transform_id)
@@ -453,9 +458,7 @@ def add_residuals_and_channel_splits_to_deferred_inputs(
 SideInputInfo = collections.namedtuple(
     'SideInputInfo', ['consumer', 'tag', 'buffer_id', 'access_pattern'])
 
-
-StageInfo = collections.namedtuple(
-    'StageInfo', ['stage', 'inputs', 'outputs'])
+StageInfo = collections.namedtuple('StageInfo', ['stage', 'inputs', 'outputs'])
 
 
 class _WatermarkManager(object):
@@ -463,7 +466,6 @@ class _WatermarkManager(object):
 
   It works by constructing an internal graph representation of the pipeline,
   and keeping track of dependencies."""
-
   class WatermarkNode(object):
     def __init__(self, name):
       self.name = name
@@ -490,7 +492,6 @@ class _WatermarkManager(object):
         return self.upstream_watermark()
 
   class StageNode(WatermarkNode):
-
     def __init__(self, name):
       super(_WatermarkManager.StageNode, self).__init__(name)
       # We keep separate inputs and side inputs because side inputs
@@ -512,8 +513,7 @@ class _WatermarkManager(object):
       w = min(i.upstream_watermark() for i in self.inputs)
 
       if self.side_inputs:
-        w = min(w,
-                min(i.upstream_watermark() for i in self.side_inputs))
+        w = min(w, min(i.upstream_watermark() for i in self.side_inputs))
       return w
 
   def __init__(self, stages, execution_context):
@@ -548,8 +548,8 @@ class _WatermarkManager(object):
           s)
       for si_name, _ in side_inputs:
         if si_name not in self._watermarks_by_name:
-          self._watermarks_by_name[
-              si_name] = _WatermarkManager.PCollectionNode(si_name)
+          self._watermarks_by_name[si_name] = _WatermarkManager.PCollectionNode(
+              si_name)
         stage_node.side_inputs.add(self._watermarks_by_name[si_name])
 
   def get_node(self, name):
@@ -567,23 +567,27 @@ class _WatermarkManager(object):
 
 class PipelineExecutionContext(object):
   """A set of utilities for the FnApiRunner."""
-
   def __init__(self, pipeline_components, stages):
     self.pipeline_components = pipeline_components
     self._stages = stages
     self.endpoints_per_stage = {
-        s.name: self._extract_stage_endpoints(s) for s in stages}
+        s.name: self._extract_stage_endpoints(s)
+        for s in stages
+    }
 
     self._consuming_stages_per_input_buffer_id = {
         k: [subv[0] for subv in v]
-        for k, v in self._compute_pcoll_consumer_per_buffer_id(stages).items()}
+        for k,
+        v in self._compute_pcoll_consumer_per_buffer_id(stages).items()
+    }
 
     self._consuming_transforms_per_input_buffer_id = {
         k: [subv[1] for subv in v]
-        for k, v in self._compute_pcoll_consumer_per_buffer_id(stages).items()}
+        for k,
+        v in self._compute_pcoll_consumer_per_buffer_id(stages).items()
+    }
 
-    self.pcoll_producers = self._compute_producer_per_pcollection_name(
-        stages)
+    self.pcoll_producers = self._compute_producer_per_pcollection_name(stages)
 
     self.pcoll_to_side_input_info = self._compute_side_input_to_consumer_map(
         stages)
@@ -601,8 +605,7 @@ class PipelineExecutionContext(object):
 
   def get_consuming_transforms(self, buffer_id):
     # type: (str) -> List[beam_runner_api_pb2.PTransform]
-    return self._consuming_transforms_per_input_buffer_id.get(
-        buffer_id, None)
+    return self._consuming_transforms_per_input_buffer_id.get(buffer_id, None)
 
   def update_pcoll_watermark(self, pcoll_name, watermark):
     # type: (str, timestamp.Timestamp) -> None
@@ -610,14 +613,14 @@ class PipelineExecutionContext(object):
         'Updating watermark to %s for PCollection: %s', watermark, pcoll_name)
     self.watermark_manager.set_watermark(pcoll_name, watermark)
     if watermark != self.watermark_manager.get_watermark(pcoll_name):
-      logging.debug('Due to upstream holds, watermark could not be '
-                    'updated to value desired. Set to: %s',
-                    self.watermark_manager.get_watermark(pcoll_name))
+      logging.debug(
+          'Due to upstream holds, watermark could not be '
+          'updated to value desired. Set to: %s',
+          self.watermark_manager.get_watermark(pcoll_name))
 
   @staticmethod
-  def _compute_producer_per_pcollection_name(
-      stages  # type: List[Stage]
-  ):
+  def _compute_producer_per_pcollection_name(stages  # type: List[Stage]
+                                             ):
     # type: (...) -> Dict[str, str]
     pcollection_name_to_producer = {}
     for s in stages:
@@ -638,14 +641,13 @@ class PipelineExecutionContext(object):
           _, output_pcoll = split_buffer_id(t.spec.payload)
           pcollection_name_to_producer[output_pcoll] = t.unique_name
 
-
     return pcollection_name_to_producer
 
   @staticmethod
-  def _compute_pcoll_consumer_per_buffer_id(
-      stages  # type: List[Stage]
-  ):
+  def _compute_pcoll_consumer_per_buffer_id(stages  # type: List[Stage]
+                                            ):
     # type: (...) -> Dict[bytes, List[Tuple(Stage, PTransform)]]
+
     """Computes the stages that consume a PCollection as main input.
 
     This means either data-input operations, or timer pcollections. It does NOT
@@ -663,7 +665,7 @@ class PipelineExecutionContext(object):
             result[t.spec.payload].append((s, t))
 
     for s in stages:
-      transforms_per_unique_name = {t.unique_name:t for t in s.transforms}
+      transforms_per_unique_name = {t.unique_name: t for t in s.transforms}
       for input_id, timer_pcoll in s.timer_pcollections:
         # We do not need to review known_consumers for timer PCollections
         # because they are always only consumed by a single transform.
@@ -675,9 +677,11 @@ class PipelineExecutionContext(object):
 
   @staticmethod
   def _compute_side_input_to_consumer_map(stages):
-    pcoll_side_input_info_pairs = itertools.chain(*[
-        PipelineExecutionContext._get_data_side_input_per_pcoll_id(s)
-        for s in stages])
+    pcoll_side_input_info_pairs = itertools.chain(
+        *[
+            PipelineExecutionContext._get_data_side_input_per_pcoll_id(s)
+            for s in stages
+        ])
     result = {}
     for pcoll_name, side_input_info in pcoll_side_input_info_pairs:
       if pcoll_name not in result:
@@ -699,8 +703,8 @@ class PipelineExecutionContext(object):
     # type: (Stage) -> StageInfo
     result_inputs = set()
     result_outputs = set()
-    side_input_infos = (PipelineExecutionContext
-                        ._get_data_side_input_per_pcoll_id(stage))
+    side_input_infos = (
+        PipelineExecutionContext._get_data_side_input_per_pcoll_id(stage))
     main_inputs, outputs = (PipelineExecutionContext
                             ._extract_stage_endpoints(stage))
 
