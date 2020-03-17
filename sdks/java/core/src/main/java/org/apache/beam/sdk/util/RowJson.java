@@ -123,8 +123,7 @@ public class RowJson {
   }
 
   private static ImmutableList<UnsupportedField> findUnsupportedFields(Field field) {
-    FieldType fieldType = field.getType();
-    return findUnsupportedFields(fieldType, field.getName());
+    return findUnsupportedFields(field.getType(), field.getName());
   }
 
   private static ImmutableList<UnsupportedField> findUnsupportedFields(
@@ -132,9 +131,7 @@ public class RowJson {
     TypeName fieldTypeName = fieldType.getTypeName();
 
     if (fieldTypeName.isCompositeType()) {
-      Schema rowFieldSchema = fieldType.getRowSchema();
-
-      return rowFieldSchema.getFields().stream()
+      return fieldType.getRowSchema().getFields().stream()
           .flatMap(
               (field) ->
                   findUnsupportedFields(field.getType(), fieldName + "." + field.getName())
