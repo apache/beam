@@ -570,7 +570,7 @@ class FnApiRunner(runner.PipelineRunner):
           # For data input transforms, they only have one input.
           # We map the transform name to a buffer containing the
           # encoded input.
-          data_inputs[transform.unique_name] = _ListBuffer(BytesCoder())
+          data_inputs[transform.unique_name] = _ListBuffer(BytesCoder().get_impl())
           data_inputs[transform.unique_name].append(ENCODED_IMPULSE_VALUE)
         elif transform.spec.urn == bundle_processor.DATA_INPUT_URN:
           _, pcoll_name = split_buffer_id(transform.spec.payload)
@@ -578,7 +578,7 @@ class FnApiRunner(runner.PipelineRunner):
           # If there isn't any producer for this PCollection, then
           # this is an empty PCollection to be consumed by the runner.
           if not producer:
-            data_inputs[transform.unique_name] = _ListBuffer(BytesCoder())
+            data_inputs[transform.unique_name] = _ListBuffer(BytesCoder().get_impl())
         elif transform.spec.urn in fn_api_runner_transforms.PAR_DO_URNS:
           payload = proto_utils.parse_Bytes(
               transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
