@@ -168,7 +168,6 @@ set -exuo pipefail
 sudo -u yarn -i \
 HADOOP_CONF_DIR=${HADOOP_CONF_DIR} \
   ${FLINK_INSTALL_DIR}/bin/yarn-session.sh \
-  -n "${num_taskmanagers}" \
   -s "${flink_taskmanager_slots}" \
   -jm "${flink_jobmanager_memory}" \
   -tm "${flink_taskmanager_memory}" \
