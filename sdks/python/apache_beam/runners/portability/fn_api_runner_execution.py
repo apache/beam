@@ -23,6 +23,7 @@ import collections
 import itertools
 import logging
 from typing import TYPE_CHECKING
+from typing import Callable
 from typing import Iterator
 from typing import List
 from typing_extensions import Protocol
@@ -69,9 +70,56 @@ class PartitionableBuffer(Buffer, Protocol):
 
 class _ListBuffer(PartitionableBuffer):
   """Used to support parititioning of a list."""
+  def __init__(self, coder_impl):
+    self._coder_impl = coder_impl
+    self._inputs = []  # type: List[bytes]
+    self._grouped_output = None
+    self.cleared = False
+
+  def append(self, element):
+    # type: (bytes) -> None
+    if self.cleared:
+      raise RuntimeError('Trying to append to a cleared ListBuffer.')
+    if self._grouped_output:
+      raise RuntimeError('ListBuffer append after read.')
+    self._inputs.append(element)
+
   def partition(self, n):
     # type: (int) -> List[List[bytes]]
-    return [self[k::n] for k in range(n)]
+    if self.cleared:
+      raise RuntimeError('Trying to partition a cleared ListBuffer.')
+    if len(self._inputs) >= n or len(self._inputs) == 0:
+      return [self._inputs[k::n] for k in range(n)]
+    else:
+      if not self._grouped_output:
+        output_stream_list = [create_OutputStream() for _ in range(n)]
+        idx = 0
+        for input in self._inputs:
+          input_stream = create_InputStream(input)
+          while input_stream.size() > 0:
+            decoded_value = self._coder_impl.decode_from_stream(
+                input_stream, True)
+            self._coder_impl.encode_to_stream(
+                decoded_value, output_stream_list[idx], True)
+            idx = (idx + 1) % n
+        self._grouped_output = [[output_stream.get()]
+                                for output_stream in output_stream_list]
+      return self._grouped_output
+
+  def __len__(self):
+    return len(self._inputs)
+
+  def __iter__(self):
+    # type: () -> Iterator[bytes]
+    if self.cleared:
+      raise RuntimeError('Trying to iterate through a cleared ListBuffer.')
+    return iter(self._inputs)
+
+  def clear(self):
+    # type: () -> None
+    self.cleared = True
+    self._inputs = []
+    self._grouped_output = None
 
 
 class _GroupingBuffer(PartitionableBuffer):
@@ -236,11 +284,15 @@ def make_input_coder_getter(pipeline_context,
                             process_bundle_descriptor,
                             safe_coders):
   def input_coder_getter_impl(transform_id):
-    return pipeline_context.coders[safe_coders[
-        beam_fn_api_pb2.RemoteGrpcPort.FromString(
-            process_bundle_descriptor.transforms[transform_id].spec.payload
-        ).coder_id
-    ]].get_impl()
+    # type: (str) -> CoderImpl
+    coder_id = beam_fn_api_pb2.RemoteGrpcPort.FromString(
+        process_bundle_descriptor.transforms[transform_id].spec.payload
+    ).coder_id
+    assert coder_id
+    if coder_id in safe_coders:
+      return pipeline_context.coders[safe_coders[coder_id]].get_impl()
+    else:
+      return pipeline_context.coders[coder_id].get_impl()
   return input_coder_getter_impl
 
 
@@ -248,7 +300,8 @@ def make_input_buffer_fetcher(
     pipeline_context,  # type: PipelineContext
     pcoll_buffers,  # type: Dict[str, Union[_ListBuffer, _GroupingBuffer]]
     pipeline_components,  # type: beam_runner_api_pb2.Components
-    safe_coders  # type: Dict[str, str]
+    safe_coders,  # type: Dict[str, str]
+    coder_getter, # type: Callable[[str], CoderImpl]
 ):
   # type: (...) -> Callable
   """Returns a callable to fetch the buffer containing a PCollection to input
@@ -257,12 +310,15 @@ def make_input_buffer_fetcher(
     For grouping-typed operations, we produce a ``_GroupingBuffer``. For
     others, we produce a ``_ListBuffer``.
   """
-  def buffer_fetcher(buffer_id):
-    # type: (str) -> Union[_ListBuffer, _GroupingBuffer]
+  def buffer_fetcher(buffer_id, transform_id):
+    # type: (bytes, str) -> PartitionableBuffer
     kind, name = split_buffer_id(buffer_id)
     if kind in ('materialize', 'timers'):
-      # If `buffer_id` is not a key in `pcoll_buffers`, it will be added by
-      # the `defaultdict`.
+      if buffer_id not in pcoll_buffers:
+        pcoll_buffers[buffer_id] = _ListBuffer(
+            coder_impl=coder_getter(transform_id))
+      return pcoll_buffers[buffer_id]
+
       return pcoll_buffers[buffer_id]
     elif kind == 'group':
       # This is a grouping write, create a grouping buffer if needed.
@@ -316,6 +372,9 @@ def store_side_inputs_in_state(
     value_coder = context.coders[safe_coders[
         pipeline_components.pcollections[pcoll_id].coder_id]]
     elements_by_window = _WindowGroupingBuffer(si, value_coder)
+    if buffer_id not in pcoll_buffers:
+      pcoll_buffers[buffer_id] = _ListBuffer(
+          coder_impl=value_coder.get_impl())
     for element_data in pcoll_buffers[buffer_id]:
       elements_by_window.append(element_data)
 
@@ -350,6 +409,9 @@ def add_residuals_and_channel_splits_to_deferred_inputs(
           delayed_application.application.transform_id,
           delayed_application.application.input_id)
 
+      if input_op_name not in deferred_inputs:
+        deferred_inputs[input_op_name] = _ListBuffer(
+            coder_impl=get_input_coder_callable(input_op_name))
       deferred_inputs[input_op_name].append(
           delayed_application.application.element)
     for channel_split in split.channel_splits:
@@ -374,6 +436,10 @@ def add_residuals_and_channel_splits_to_deferred_inputs(
           channel_split.first_residual_element : prev_stops.get(
               channel_split.transform_id, len(all_elements)) + 1]
       if residual_elements:
+        if channel_split.transform_id not in deferred_inputs:
+          coder_impl = get_input_coder_callable(channel_split.transform_id)
+          deferred_inputs[channel_split.transform_id] = _ListBuffer(
+              coder_impl=coder_impl)
         deferred_inputs[channel_split.transform_id].append(
             coder_impl.encode_all(residual_elements))
       prev_stops[

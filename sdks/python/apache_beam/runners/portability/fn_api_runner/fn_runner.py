@@ -55,6 +55,7 @@ from typing import overload
 import grpc
 
 import apache_beam as beam  # pylint: disable=ungrouped-imports
+from apache_beam.coders import BytesCoder
 from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.metrics import metric
@@ -303,7 +304,8 @@ class _ProcessingQueueManager(object):
         existing_inputs = self._keyed_elements[key][1]
         for pcoll in incoming_inputs:
           if incoming_inputs[pcoll] and pcoll in existing_inputs:
-            existing_inputs[pcoll].extend(incoming_inputs[pcoll])
+            for elm in incoming_inputs[pcoll]:
+              existing_inputs[pcoll].append(elm)
           elif incoming_inputs[pcoll]:
             existing_inputs[pcoll] = incoming_inputs[pcoll]
       else:
@@ -568,15 +570,15 @@ class FnApiRunner(runner.PipelineRunner):
           # For data input transforms, they only have one input.
           # We map the transform name to a buffer containing the
           # encoded input.
-          data_inputs[transform.unique_name] = _ListBuffer(
-              [ENCODED_IMPULSE_VALUE])
+          data_inputs[transform.unique_name] = _ListBuffer(BytesCoder())
+          data_inputs[transform.unique_name].append(ENCODED_IMPULSE_VALUE)
         elif transform.spec.urn == bundle_processor.DATA_INPUT_URN:
           _, pcoll_name = split_buffer_id(transform.spec.payload)
           producer = execution_context.pcoll_producers[pcoll_name]
           # If there isn't any producer for this PCollection, then
           # this is an empty PCollection to be consumed by the runner.
           if not producer:
-            data_inputs[transform.unique_name] = _ListBuffer([])
+            data_inputs[transform.unique_name] = _ListBuffer(BytesCoder())
         elif transform.spec.urn in fn_api_runner_transforms.PAR_DO_URNS:
           payload = proto_utils.parse_Bytes(
               transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
@@ -609,7 +611,7 @@ class FnApiRunner(runner.PipelineRunner):
     worker_handler_manager = WorkerHandlerManager(
         stage_context.components.environments, self._provision_info)
     input_queue_manager = _ProcessingQueueManager()
-    pcoll_buffers = collections.defaultdict(_ListBuffer)  # type: DefaultDict[bytes, PartitionableBuffer]
+    pcoll_buffers = {}  # type: Dict[bytes, PartitionableBuffer]
     monitoring_infos_by_stage = {}
     metrics_by_stage = {}
 
@@ -633,7 +635,7 @@ class FnApiRunner(runner.PipelineRunner):
             if transform_name in next_ready_elements:
               continue
             # Empty-filling the data input.
-            next_ready_elements[transform_name] = _ListBuffer()
+            next_ready_elements[transform_name] = _ListBuffer(BytesCoder())  # TODO(pabloem): THIS LIST BUFFER HAS NO CODER.
           endpoints_for_execution = (next_ready_elements, data_output)
 
           logging.info('Executing bundle for stage %s', stage.name)
@@ -776,20 +778,22 @@ class FnApiRunner(runner.PipelineRunner):
                                                    timestamp.MAX_TIMESTAMP)
 
     output_bundles_with_target_watermarks = []
+    single_timer_per_window_key = None  # TODO(pabloem): THIS LIST BUFFER HAS NO CODER OR ANYTHNING.
 
     # Starting with timers, as they affect input PCollections, and therefore
     # the input watermark of the current stage.
     for buffer_id, output_bytes in output_bundles:
       kind, pcoll_name = split_buffer_id(buffer_id)
       watermark_hold = timestamp.MAX_TIMESTAMP
-      single_timer_per_window_key = _ListBuffer()
       if kind == 'timers':
         # For timers, pcoll_name is the written PCollection.
-        if output_bytes:
+        if len(output_bytes) > 0:
           coder_id = execution_context.pipeline_components.pcollections[
               pcoll_name].coder_id
           windowed_timer_coder_impl = self.pipeline_context.coders[
               coder_id].get_impl()
+          single_timer_per_window_key = _ListBuffer(
+              coder_impl=windowed_timer_coder_impl)
 
           timer_data_per_key_window = {}
           # Keep only the "last" timer set per key and window.
@@ -813,7 +817,7 @@ class FnApiRunner(runner.PipelineRunner):
           # For batch, after nothing comes in from the timers, we're done.
           # TODO(pabloem, MUST): What if timers are set BEFORE the current
           #   watermark for this pcollection? This should be handled by SDK?
-        # We update the written and read collections' watermars.
+        # We update the written and read collections' watermarks.
         read_pcoll_name = timer_written_pcoll_to_read_pcoll_map[pcoll_name]
         execution_context.update_pcoll_watermark(read_pcoll_name,
                                                  watermark_hold)
@@ -974,15 +978,16 @@ class FnApiRunner(runner.PipelineRunner):
 
     # Change cache token across bundle repeats
     cache_token_generator = FnApiRunner.get_cache_token_generator(static=False)
+    input_coder_getter = make_input_coder_getter(pipeline_context,
+                                                 process_bundle_descriptor,
+                                                 safe_coders)
 
     self._run_bundle_multiple_times_for_testing(
         worker_handler_list,
         process_bundle_descriptor,
         input_bundle,
         data_output,
-        make_input_coder_getter(pipeline_context,
-                                process_bundle_descriptor,
-                                safe_coders),
+        input_coder_getter,
         cache_token_generator=cache_token_generator)
 
     bundle_manager = ParallelBundleManager(
@@ -990,10 +995,9 @@ class FnApiRunner(runner.PipelineRunner):
         make_input_buffer_fetcher(pipeline_context,
                                   pcoll_buffers,
                                   pipeline_components,
-                                  safe_coders),
-        make_input_coder_getter(pipeline_context,
-                                process_bundle_descriptor,
-                                safe_coders),
+                                  safe_coders,
+                                  input_coder_getter),
+        input_coder_getter,
         process_bundle_descriptor,
         self._progress_frequency,
         num_workers=self._num_workers,
@@ -1013,9 +1017,12 @@ class FnApiRunner(runner.PipelineRunner):
     output_bundles = []
     for _, buffer_id in data_output.items():
       # A buffer_id is a kind:pcollection string.
-      new_bundle = pcoll_buffers[buffer_id]
-      del pcoll_buffers[buffer_id]
-      output_bundles.append((buffer_id, new_bundle))
+      if buffer_id not in pcoll_buffers:
+        output_bundles.append((buffer_id, _ListBuffer(None)))
+      else:
+        new_bundle = pcoll_buffers[buffer_id]
+        del pcoll_buffers[buffer_id]
+        output_bundles.append((buffer_id, new_bundle))
     last_result = result
     last_sent = input_bundle
 
@@ -1025,7 +1032,8 @@ class FnApiRunner(runner.PipelineRunner):
         safe_coders,
         last_result,
         splits,
-        last_sent)  # type: DefaultDict[str, _ListBuffer]
+        last_sent,
+        input_coder_getter)  # type: DefaultDict[str, PartitionableBuffer]
 
     # TODO(pabloem, MUST): NOTE when working with deferred inputs:
     #  We cannot split deferred_input until we include residual_roots to
@@ -1040,8 +1048,9 @@ class FnApiRunner(runner.PipelineRunner):
                                safe_coders,
                                last_result,
                                splits,
-                               last_input):
-    deferred_inputs = collections.defaultdict(_ListBuffer)
+                               last_input,
+                               input_coder_getter):
+    deferred_inputs = {} # type: MutableMapping[str, PartitionableBuffer]
 
     # Queue any process-initiated delayed bundle applications.
     for delayed_application in last_result.process_bundle.residual_roots:
@@ -1049,6 +1058,9 @@ class FnApiRunner(runner.PipelineRunner):
           process_bundle_descriptor,
           delayed_application.application.transform_id,
           delayed_application.application.input_id)
+      if residual_root_op_name not in deferred_inputs:
+        deferred_inputs[residual_root_op_name] = _ListBuffer(
+            input_coder_getter(residual_root_op_name))
       deferred_inputs[residual_root_op_name].append(
           delayed_application.application.element)
 
@@ -1056,9 +1068,7 @@ class FnApiRunner(runner.PipelineRunner):
     add_residuals_and_channel_splits_to_deferred_inputs(
         process_bundle_descriptor,
         splits,
-        make_input_coder_getter(pipeline_context,
-                                process_bundle_descriptor,
-                                safe_coders),
+        input_coder_getter,
         last_input,
         deferred_inputs)
     return deferred_inputs
@@ -2163,7 +2173,8 @@ class BundleManager(object):
         if output.transform_id in expected_outputs:
           with BundleManager._lock:
             self._get_buffer(
-                expected_outputs[output.transform_id]).append(output.data)
+                expected_outputs[output.transform_id],
+                output.transform_id).append(output.data)
             output_data.append({output.transform_id: output.data})
 
       _LOGGER.debug('Wait for the bundle %s to finish.' % process_bundle_id)
