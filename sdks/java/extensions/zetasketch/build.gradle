@@ -33,6 +33,7 @@ dependencies {
     compile project(path: ":sdks:java:core", configuration: "shadow")
     compile "com.google.zetasketch:zetasketch:$zetasketch_version"
     testCompile library.java.junit
+    testCompile library.java.hamcrest_core
     testCompile project(":sdks:java:io:google-cloud-platform")
     testRuntimeOnly library.java.slf4j_simple
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
