@@ -1257,27 +1257,6 @@ class BeamModulePlugin implements Plugin<Project> {
         // on using the yyy-core package instead of the yyy-all package.
         exclude group: "org.hamcrest", module: "hamcrest-all"
       }
-
-      // Force usage of the libraries defined within our common set found in the root
-      // build.gradle instead of using Gradles default dependency resolution mechanism
-      // which chooses the latest version available.
-      //
-      // TODO: Figure out whether we should force all dependency conflict resolution
-      // to occur in the "shadow" and "shadowTest" configurations.
-      project.configurations.all { config ->
-        // When running beam_Dependency_Check, resolutionStrategy should not be used; otherwise
-        // gradle-versions-plugin does not report the latest versions of the dependencies.
-        def startTasks = project.gradle.startParameter.taskNames
-        def inDependencyUpdates = 'dependencyUpdates' in startTasks || 'runBeamDependencyCheck' in startTasks
-
-        // The "errorprone" configuration controls the classpath used by errorprone static analysis, which
-        // has different dependencies than our project.
-        if (config.getName() != "errorprone" && !inDependencyUpdates) {
-          config.resolutionStrategy {
-            force project.library.java.values()
-          }
-        }
-      }
     }
 
     // When applied in a module's build.gradle file, this closure provides task for running
