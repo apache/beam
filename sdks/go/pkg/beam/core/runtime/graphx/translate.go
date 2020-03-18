@@ -99,7 +99,7 @@ func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig
 // Options for marshalling a graph into a model pipeline.
 type Options struct {
 	// Environment used to run the user code.
-	Environment pb.Environment
+	Environment *pb.Environment
 }
 
 // Marshal converts a graph to a model pipeline.
@@ -495,7 +495,7 @@ func boolToBounded(bounded bool) pb.IsBounded_Enum {
 func (m *marshaller) addDefaultEnv() string {
 	const id = "go"
 	if _, exists := m.environments[id]; !exists {
-		m.environments[id] = &m.opt.Environment
+		m.environments[id] = m.opt.Environment
 	}
 	return id
 }
