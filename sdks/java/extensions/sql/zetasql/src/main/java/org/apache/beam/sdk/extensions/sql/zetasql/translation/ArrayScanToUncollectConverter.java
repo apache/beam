@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedArrayScan;
-import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedLiteral;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
@@ -42,7 +41,7 @@ class ArrayScanToUncollectConverter extends RelConverter<ResolvedArrayScan> {
   @Override
   public RelNode convert(ResolvedArrayScan zetaNode, List<RelNode> inputs) {
     RexNode arrayLiteralExpression =
-        getExpressionConverter().convertResolvedLiteral((ResolvedLiteral) zetaNode.getArrayExpr());
+        getExpressionConverter().convertRexNodeFromResolvedExpr(zetaNode.getArrayExpr());
 
     String fieldName =
         String.format(
