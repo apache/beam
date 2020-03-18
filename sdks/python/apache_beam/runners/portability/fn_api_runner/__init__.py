@@ -17,4 +17,3 @@
 
 from __future__ import absolute_import
 from apache_beam.runners.portability.fn_api_runner.fn_runner import FnApiRunner
-
