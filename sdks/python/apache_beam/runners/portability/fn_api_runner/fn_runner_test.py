@@ -100,7 +100,12 @@ class FnApiRunnerTest(unittest.TestCase):
   def test_assert_that(self):
     # TODO: figure out a way for fn_api_runner to parse and raise the
     # underlying exception.
-    with self.assertRaisesRegex(Exception, 'Failed assert'):
+    if sys.version_info < (3, 2):
+        assertRaisesRegex = self.assertRaisesRegexp
+    else:
+        assertRaisesRegex = self.assertRaisesRegex
+
+    with assertRaisesRegex(Exception, 'Failed assert'):
       with self.create_pipeline() as p:
         assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
 
