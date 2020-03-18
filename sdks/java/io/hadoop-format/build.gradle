@@ -97,6 +97,13 @@ dependencies {
   sparkRunner library.java.spark_core
 }
 
+configurations.all {
+  resolutionStrategy {
+    // Cassandra-all relies on certain version of Guava
+    force library.java.guava
+  }
+}
+
 // The cassandra.yaml file currently assumes "target/..." exists.
 // TODO: Update cassandra.yaml to inject new properties representing
 // the root path. Also migrate cassandra.yaml to use any open ports
