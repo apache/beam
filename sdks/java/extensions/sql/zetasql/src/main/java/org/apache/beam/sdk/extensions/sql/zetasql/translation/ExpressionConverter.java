@@ -786,7 +786,7 @@ public class ExpressionConverter {
           break;
         default:
           throw new UnsupportedOperationException(
-              "Only support TUMBLE, HOP AND SESSION functions right now.");
+              "Unsupported function: " + funName + ". Only support TUMBLE, HOP, and SESSION now.");
       }
     } else if ("ZetaSQL".equals(funGroup)) {
       if (op == null) {
