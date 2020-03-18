@@ -497,7 +497,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.PARAMETER)
-  public @interface Key {}
+  public @interface KeyId {}
 
   /** Annotation for specifying specific fields that are accessed in a Schema PCollection. */
   @Retention(RetentionPolicy.RUNTIME)
