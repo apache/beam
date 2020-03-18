@@ -386,6 +386,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
       pushbackDoFnRunner.onTimer(
           timerData.getTimerId(),
           timerData.getTimerFamilyId(),
+          "",
           window,
           timerData.getTimestamp(),
           timerData.getOutputTimestamp(),

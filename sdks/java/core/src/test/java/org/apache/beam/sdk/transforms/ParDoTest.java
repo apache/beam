@@ -4876,7 +4876,7 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  /** Tests to validate Key in OnTimer */
+  /** Tests to validate Key in OnTimer. */
   @RunWith(JUnit4.class)
   public static class KeyTests extends SharedTestBase implements Serializable {
 
