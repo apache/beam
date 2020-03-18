@@ -54,6 +54,16 @@ class LoadTestsBuilder {
     }.join(' ')
   }
 
+  static String parseOptions(Map<String, ?> options, SDK sdk) {
+    normalizeOptions(parseOptions(options), sdk)
+  }
+
+  static String normalizeOptions(String options, SDK sdk) {
+    if (sdk == SDK.PYTHON_37 || sdk == SDK.PYTHON) {
+      options.replace('--streaming=false', '').replace('--streaming=true', '--streaming')
+    }
+  }
+
   static String getBigQueryDataset(String baseName, TriggeringContext triggeringContext) {
     if (triggeringContext == TriggeringContext.PR) {
       return baseName + '_PRs'
@@ -66,7 +76,7 @@ class LoadTestsBuilder {
     context.tasks(getGradleTaskName(sdk))
     context.switches("-PloadTest.mainClass=\"${mainClass}\"")
     context.switches("-Prunner=${runner.getDependencyBySDK(sdk)}")
-    context.switches("-PloadTest.args=\"${parseOptions(options)}\"")
+    context.switches("-PloadTest.args=\"${parseOptions(options, sdk)}\"")
 
     if (sdk == SDK.PYTHON_37) {
       context.switches("-PpythonVersion=3.7")
