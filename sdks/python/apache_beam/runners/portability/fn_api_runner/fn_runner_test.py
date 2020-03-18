@@ -36,7 +36,6 @@ from builtins import range
 from typing import Dict
 
 # patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import hamcrest  # pylint: disable=ungrouped-imports
 from hamcrest.core.matcher import Matcher
 from hamcrest.core.string_description import StringDescription
@@ -52,7 +51,7 @@ from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.runners.portability import fn_api_runner
+from apache_beam.runners.portability.fn_api_runner import fn_api_runner
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
