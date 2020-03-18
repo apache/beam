@@ -218,6 +218,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
     doFnRunner.onTimer(
         timer.getTimerId(),
         timer.getTimerFamilyId(),
+        "",
         window,
         timer.getTimestamp(),
         timer.getOutputTimestamp(),

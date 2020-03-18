@@ -90,7 +90,8 @@ class BufferedElements {
 
     @Override
     public void processWith(DoFnRunner doFnRunner) {
-      doFnRunner.onTimer(timerId, timerFamilyId, window, timestamp, outputTimestamp, timeDomain);
+      doFnRunner.onTimer(
+          timerId, timerFamilyId, "", window, timestamp, outputTimestamp, timeDomain);
     }
 
     @Override
