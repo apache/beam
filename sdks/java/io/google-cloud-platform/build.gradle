@@ -91,6 +91,13 @@ dependencies {
   testRuntimeOnly library.java.slf4j_jdk14
 }
 
+configurations.all {
+  resolutionStrategy {
+    // GCS libraries in tests rely on certain version of dependecies
+    force library.java.guava, library.java.hamcrest_core
+  }
+}
+
 /**
  * These are integration tests with the real Pubsub service and the DirectRunner.
  */
