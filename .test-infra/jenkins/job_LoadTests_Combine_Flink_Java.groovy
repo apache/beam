@@ -17,7 +17,6 @@
  */
 
 
-import CommonJobProperties as commonJobProperties
 import CommonTestProperties
 import CronJobBuilder
 import LoadTestsBuilder as loadTestsBuilder
@@ -56,7 +55,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName, sdkHarnessImageTa
                   ]
           ],
             [
-                    title          : 'Load test: fanout 8 times with 2GB 10-byte records total on Flink in Portable mode',
+                    title          : 'Load test: fanout 8 times with 1GB 10-byte records total on Flink in Portable mode',
                     test           : 'org.apache.beam.sdk.loadtests.CombineLoadTest',
                     runner         : CommonTestProperties.Runner.PORTABLE,
                     pipelineOptions: [
@@ -68,7 +67,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName, sdkHarnessImageTa
                             bigQueryTable       : "java_portable_flink_${mode}_Combine_5",
                             sourceOptions       : """
                                                     {
-                                                      "numRecords": 25000000,
+                                                      "numRecords": 12500000,
                                                       "keySizeBytes": 1,
                                                       "valueSizeBytes": 9
                                                     }
@@ -120,23 +119,6 @@ def loadTest = { scope, triggeringContext, mode, isStreaming ->
         }
     }
     loadTestsBuilder.loadTests(scope, sdk, configurations, "Combine", mode)
-}
-
-
-def batchLoadTestJob = { scope, triggeringContext ->
-    def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
-    loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, commonLoadTestConfig('batch', false, datasetName), "Combine", "batch")
-}
-
-def streamingLoadTestJob = {scope, triggeringContext ->
-    scope.description('Runs Java Combine load tests on Portable runner on Flink in streaming mode')
-    commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
-
-    def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
-    for (testConfiguration in commonLoadTestConfig('streaming', true, datasetName)) {
-        testConfiguration.pipelineOptions << [inputWindowDurationSec: 1200]
-        loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.pipelineOptions, testConfiguration.test)
-    }
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Java_Combine_Portable_Flink_Batch', 'H 12 * * *', this) {
