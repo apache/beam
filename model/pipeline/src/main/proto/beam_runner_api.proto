@@ -457,10 +457,9 @@ message ParDoPayload {
   // be placed in the pipeline requirements.
   map<string, TimerFamilySpec> timer_family_specs = 9;
 
-  // Whether the DoFn is splittable
-  bool splittable = 6;
-
-  // (Required if splittable == true) Id of the restriction coder.
+  // (Optional) Only set when this ParDo contains a splittable DoFn.
+  // If this is set, the corresponding standard requirement should also
+  // be placed in the pipeline requirements.
   string restriction_coder_id = 7;
 
   // (Optional) Only set when this ParDo can request bundle finalization.
@@ -477,6 +476,8 @@ message ParDoPayload {
   // If this is set, the corresponding standard requirement should also
   // be placed in the pipeline requirements.
   bool requires_stable_input = 11;
+
+  reserved 6;
 }
 
 // Parameters that a UDF might require.
@@ -1264,7 +1265,6 @@ message Environment {
   // the URN does not require any arguments, this may be omitted.
   bytes payload = 3;
 
-
   // (Optional) Static display data for the environment. If there is none,
   // it may be omitted.
   repeated DisplayData display_data = 4;
@@ -1355,6 +1355,10 @@ message StandardRequirements {
     // This requirement indicates the requires_time_sorted_input field of ParDo
     // transform payloads must be inspected.
     REQUIRES_TIME_SORTED_INPUT = 3 [(beam_urn) = "beam:requirement:pardo:time_sorted_input:v1"];
+
+    // This requirement indicates the restriction_coder_id field of ParDo
+    // transform payloads must be inspected.
+    REQUIRES_SPLITTABLE_DOFN = 4 [(beam_urn) = "beam:requirement:pardo:splittable_dofn:v1"];
   }
 }
 

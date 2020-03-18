@@ -843,7 +843,7 @@ def expand_sdf(stages, context):
       pardo_payload = proto_utils.parse_Bytes(
           transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
 
-      if pardo_payload.splittable:
+      if pardo_payload.restriction_coder_id:
 
         def copy_like(protos, original, suffix='_copy', **kwargs):
           if isinstance(original, (str, unicode)):

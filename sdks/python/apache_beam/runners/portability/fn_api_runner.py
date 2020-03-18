@@ -515,6 +515,7 @@ class FnApiRunner(runner.PipelineRunner):
     return (
         common_urns.requirements.REQUIRES_STATEFUL_PROCESSING.urn,
         common_urns.requirements.REQUIRES_BUNDLE_FINALIZATION.urn,
+        common_urns.requirements.REQUIRES_SPLITTABLE_DOFN.urn,
     )
 
   def run_pipeline(self,
@@ -636,6 +637,9 @@ class FnApiRunner(runner.PipelineRunner):
         if payload.requires_time_sorted_input:
           expected_requirements.add(
               common_urns.requirements.REQUIRES_TIME_SORTED_INPUT.urn)
+        if payload.restriction_coder_id:
+          expected_requirements.add(
+              common_urns.requirements.REQUIRES_SPLITTABLE_DOFN.urn)
       else:
         for sub in transform.subtransforms:
           add_requirements(sub)
