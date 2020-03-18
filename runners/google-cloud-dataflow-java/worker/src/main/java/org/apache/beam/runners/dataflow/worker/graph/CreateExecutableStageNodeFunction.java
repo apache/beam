@@ -174,7 +174,7 @@ public class CreateExecutableStageNodeFunction
     String intervalWindowEncodingWindowingStrategyId =
         "generatedIntervalWindowEncodingWindowingStrategy" + idGenerator.getId();
 
-    SdkComponents sdkComponents = SdkComponents.create(pipeline.getComponents());
+    SdkComponents sdkComponents = SdkComponents.create(pipeline.getComponents(), null);
     try {
       registerWindowingStrategy(
           globalWindowingStrategyId,
