@@ -71,8 +71,7 @@ func goCapabilities() []string {
 	return append(capabilities, knownStandardCoders()...)
 }
 
-func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig func(context.Context) string) pb.Environment {
-	var environment pb.Environment
+func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig func(context.Context) string) *pb.Environment {
 	switch urn {
 	case "beam:env:process:v1":
 		// TODO Support process based SDK Harness.
@@ -87,13 +86,12 @@ func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig
 			panic(fmt.Sprintf(
 				"Failed to serialize Environment payload %v for config %v: %v", payload, config, err))
 		}
-		environment = pb.Environment{
+		return &pb.Environment{
 			Urn:          urn,
 			Payload:      serializedPayload,
 			Capabilities: goCapabilities(),
 		}
 	}
-	return environment
 }
 
 // TODO(herohde) 11/6/2017: move some of the configuration into the graph during construction.
