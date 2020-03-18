@@ -30,7 +30,6 @@ import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -203,12 +202,6 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
                   parDo.getSideInputs(),
                   doFnSchemaInformation,
                   newComponents);
-            }
-
-            @Override
-            public List<RunnerApi.Parameter> translateParameters() {
-              return ParDoTranslation.translateParameters(
-                  signature.processElement().extraParameters());
             }
 
             @Override

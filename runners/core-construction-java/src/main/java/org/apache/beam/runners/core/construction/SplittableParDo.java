@@ -29,7 +29,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Parameter;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.TimerFamilySpec;
@@ -374,12 +373,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
                       Collections.emptyMap(),
                       DoFnSchemaInformation.create(),
                       newComponents);
-                }
-
-                @Override
-                public List<Parameter> translateParameters() {
-                  return ParDoTranslation.translateParameters(
-                      signature.processElement().extraParameters());
                 }
 
                 @Override
