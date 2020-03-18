@@ -52,6 +52,7 @@ from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.portability import fn_api_runner
+from apache_beam.runners.portability.fn_api_runner import fn_runner
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
@@ -1353,7 +1354,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
     self.assertEqual([25, 15], seen_bundle_sizes)
 
   def run_split_pipeline(self, split_manager, elements, element_counter=None):
-    with fn_api_runner.split_manager('Identity', split_manager):
+    with fn_runner.split_manager('Identity', split_manager):
       with self.create_pipeline() as p:
         res = (
             p
@@ -1474,7 +1475,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
 
     expected = [(e, k) for e in elements for k in range(e)]
 
-    with fn_api_runner.split_manager('SDF', split_manager):
+    with fn_runner.split_manager('SDF', split_manager):
       with self.create_pipeline() as p:
         grouped = (
             p
