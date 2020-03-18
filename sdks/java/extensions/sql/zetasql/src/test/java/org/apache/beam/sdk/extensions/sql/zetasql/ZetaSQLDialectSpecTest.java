@@ -2757,6 +2757,22 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  @Ignore("BEAM-9515")
+  public void testUNNESTExpression() {
+    String sql = "SELECT * FROM UNNEST(ARRAY(SELECT Value FROM KeyValue));";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    Schema schema = Schema.builder().addStringField("str_field").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues("KeyValue234").build(),
+            Row.withSchema(schema).addValues("KeyValue235").build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testNamedUNNESTLiteral() {
     String sql = "SELECT *, T1 FROM UNNEST(ARRAY<STRING>['foo', 'bar']) AS T1";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
