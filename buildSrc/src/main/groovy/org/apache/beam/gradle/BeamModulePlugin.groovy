@@ -21,7 +21,6 @@ package org.apache.beam.gradle
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
-
 import java.util.concurrent.atomic.AtomicInteger
 import org.gradle.api.attributes.Attribute
 import org.gradle.api.attributes.AttributeContainer
