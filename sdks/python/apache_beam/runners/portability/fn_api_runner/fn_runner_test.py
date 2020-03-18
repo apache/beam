@@ -101,9 +101,9 @@ class FnApiRunnerTest(unittest.TestCase):
     # TODO: figure out a way for fn_api_runner to parse and raise the
     # underlying exception.
     if sys.version_info < (3, 2):
-        assertRaisesRegex = self.assertRaisesRegexp
+      assertRaisesRegex = self.assertRaisesRegexp
     else:
-        assertRaisesRegex = self.assertRaisesRegex
+      assertRaisesRegex = self.assertRaisesRegex
 
     with assertRaisesRegex(Exception, 'Failed assert'):
       with self.create_pipeline() as p:
