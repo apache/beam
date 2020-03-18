@@ -1230,6 +1230,7 @@ class BeamModulePlugin implements Plugin<Project> {
                     dependencyNode.appendNode('groupId', it.group)
                     dependencyNode.appendNode('artifactId', it.name)
                     dependencyNode.appendNode('version', it.version)
+                    dependencyNode.appendNode('type', 'pom')
                     dependencyNode.appendNode('scope', 'import')
                   }
                 }
