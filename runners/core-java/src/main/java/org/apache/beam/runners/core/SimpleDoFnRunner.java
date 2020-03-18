@@ -643,21 +643,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       }
       return namespace;
     }
-
-    private OnTimerArgumentProvider(
-        String timerId,
-        BoundedWindow window,
-        Instant fireTimestamp,
-        Instant timestamp,
-        TimeDomain timeDomain) {
-      fn.super();
-      this.timerId = timerId;
-      this.window = window;
-      this.fireTimestamp = fireTimestamp;
-      this.timestamp = timestamp;
-      this.timeDomain = timeDomain;
-      this.key = null;
-    }
+    
 
     private OnTimerArgumentProvider(
         String timerId,
