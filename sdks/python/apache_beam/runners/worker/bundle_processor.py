@@ -98,8 +98,8 @@ ConstructorFn = Callable[[
                          operations.Operation]
 OperationT = TypeVar('OperationT', bound=operations.Operation)
 
-DATA_INPUT_URN = 'beam:source:runner:0.1'
-DATA_OUTPUT_URN = 'beam:sink:runner:0.1'
+DATA_INPUT_URN = 'beam:runner:source:v1'
+DATA_OUTPUT_URN = 'beam:runner:sink:v1'
 IDENTITY_DOFN_URN = 'beam:dofn:identity:0.1'
 # TODO(vikasrk): Fix this once runner sends appropriate common_urns.
 OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN = 'beam:dofn:javasdk:0.1'
