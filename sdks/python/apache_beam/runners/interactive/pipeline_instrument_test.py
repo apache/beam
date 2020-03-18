@@ -798,6 +798,18 @@ class PipelineInstrumentTest(unittest.TestCase):
     assert_pipeline_proto_contain_top_level_transform(
         self, full_proto, 'Init Source')
 
+  def test_side_effect_pcoll_is_included(self):
+    pipeline_with_side_effect = beam.Pipeline(
+        interactive_runner.InteractiveRunner())
+    # Deliberately not assign the result to a variable to make it a
+    # "side effect" transform. Note we never watch anything from
+    # the pipeline defined locally either.
+    # pylint: disable=range-builtin-not-iterating,expression-not-assigned
+    pipeline_with_side_effect | 'Init Create' >> beam.Create(range(10))
+    pipeline_instrument = instr.build_pipeline_instrument(
+        pipeline_with_side_effect)
+    self.assertTrue(pipeline_instrument._extended_targets)
+
 
 if __name__ == '__main__':
   unittest.main()

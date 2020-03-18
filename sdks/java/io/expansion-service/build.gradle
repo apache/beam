@@ -16,37 +16,23 @@
  * limitations under the License.
  */
 
-/**
- * Unit tests for Python 2
- */
+apply plugin: 'org.apache.beam.module'
+apply plugin: 'application'
+mainClassName = "org.apache.beam.sdk.expansion.service.ExpansionService"
 
-plugins { id 'org.apache.beam.module' }
-applyPythonNature()
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.io.expansion.service',
+  exportJavadoc: false,
+  validateShadowJar: false,
+  shadowClosure: {},
+)
 
-task lint {}
-check.dependsOn lint
+description = "Apache Beam :: SDKs :: Java :: IO :: Expansion Service"
+ext.summary = "Expansion service serving several Java IOs"
 
-toxTask "lintPy27", "py27-lint"
-lint.dependsOn lintPy27
-
-toxTask "lintPy27_3", "py27-lint3"
-lint.dependsOn lintPy27_3
-
-toxTask "testPy2Cloud", "py27-cloud"
-test.dependsOn testPy2Cloud
-
-toxTask "testPython2", "py27"
-test.dependsOn testPython2
-
-toxTask "testPy2Cython", "py27-cython"
-test.dependsOn testPy2Cython
-
-// TODO(BEAM-8954): Remove this once tox uses isolated builds.
-testPy2Cython.mustRunAfter testPython2, testPy2Cloud
-
-toxTask "cover", "cover"
-
-task preCommitPy2() {
-  dependsOn "testPy2Cython"
-  dependsOn "testPy2Cloud"
+dependencies {
+  compile project(":sdks:java:expansion-service")
+  compile project(":sdks:java:io:kafka")
+  runtime library.java.kafka_clients
+  runtime library.java.slf4j_jdk14
 }

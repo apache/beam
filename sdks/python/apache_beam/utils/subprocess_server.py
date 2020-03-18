@@ -82,9 +82,21 @@ class SubprocessServer(object):
         port, = pick_port(None)
         cmd = [arg.replace('{{PORT}}', str(port)) for arg in self._cmd]
       endpoint = 'localhost:%s' % port
-      _LOGGER.warning("Starting service with %s", str(cmd).replace("',", "'"))
+      _LOGGER.info("Starting service with %s", str(cmd).replace("',", "'"))
       try:
-        self._process = subprocess.Popen(cmd)
+        self._process = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+        # Emit the output of this command as info level logging.
+        def log_stdout():
+          line = self._process.stdout.readline()
+          while line:
+            _LOGGER.info(line)
+            line = self._process.stdout.readline()
+
+        t = threading.Thread(target=log_stdout)
+        t.daemon = True
+        t.start()
         wait_secs = .1
         channel = grpc.insecure_channel(endpoint)
         channel_ready = grpc.channel_ready_future(channel)
@@ -149,17 +161,18 @@ class JavaJarServer(SubprocessServer):
       group_id,
       version,
       repository=APACHE_REPOSITORY,
-      classifier=None):
+      classifier=None,
+      appendix=None):
     return '/'.join([
         repository,
         group_id.replace('.', '/'),
         artifact_id,
         version,
-        cls.jar_name(artifact_id, version, classifier)
+        cls.jar_name(artifact_id, version, classifier, appendix)
     ])
 
   @classmethod
-  def path_to_beam_jar(cls, gradle_target, appendix=None):
+  def path_to_beam_jar(cls, gradle_target, appendix=None, version=beam_version):
     gradle_package = gradle_target.strip(':')[:gradle_target.rindex(':')]
     artifact_id = 'beam-' + gradle_package.replace(':', '-')
     project_root = os.path.sep.join(
@@ -171,13 +184,13 @@ class JavaJarServer(SubprocessServer):
         'libs',
         cls.jar_name(
             artifact_id,
-            beam_version.replace('.dev', ''),
+            version.replace('.dev', ''),
             classifier='SNAPSHOT',
             appendix=appendix))
     if os.path.exists(local_path):
       _LOGGER.info('Using pre-built snapshot at %s', local_path)
       return local_path
-    elif '.dev' in beam_version:
+    elif '.dev' in version:
       # TODO: Attempt to use nightly snapshots?
       raise RuntimeError(
           (
@@ -186,21 +199,27 @@ class JavaJarServer(SubprocessServer):
           (local_path, os.path.abspath(project_root), gradle_target))
     else:
       return cls.path_to_maven_jar(
-          artifact_id, cls.BEAM_GROUP_ID, beam_version, cls.APACHE_REPOSITORY)
+          artifact_id,
+          cls.BEAM_GROUP_ID,
+          version,
+          cls.APACHE_REPOSITORY,
+          appendix=appendix)
 
   @classmethod
-  def local_jar(cls, url):
+  def local_jar(cls, url, cache_dir=None):
+    if cache_dir is None:
+      cache_dir = cls.JAR_CACHE
     # TODO: Verify checksum?
     if os.path.exists(url):
       return url
     else:
-      cached_jar = os.path.join(cls.JAR_CACHE, os.path.basename(url))
+      cached_jar = os.path.join(cache_dir, os.path.basename(url))
       if os.path.exists(cached_jar):
         _LOGGER.info('Using cached job server jar from %s' % url)
       else:
         _LOGGER.info('Downloading job server jar from %s' % url)
-        if not os.path.exists(cls.JAR_CACHE):
-          os.makedirs(cls.JAR_CACHE)
+        if not os.path.exists(cache_dir):
+          os.makedirs(cache_dir)
           # TODO: Clean up this cache according to some policy.
         try:
           url_read = urlopen(url)

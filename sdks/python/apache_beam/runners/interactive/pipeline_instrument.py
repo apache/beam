@@ -403,6 +403,8 @@ class PipelineInstrument(object):
       self._pipeline
     """
     cacheable_inputs = set()
+    all_inputs = set()
+    all_outputs = set()
     unbounded_source_pcolls = set()
 
     class InstrumentVisitor(PipelineVisitor):
@@ -418,10 +420,16 @@ class PipelineInstrument(object):
                       tuple(ie.current_env().options.capturable_sources)):
           unbounded_source_pcolls.update(transform_node.outputs.values())
         cacheable_inputs.update(self._pin._cacheable_inputs(transform_node))
+        ins, outs = self._pin._all_inputs_outputs(transform_node)
+        all_inputs.update(ins)
+        all_outputs.update(outs)
 
     v = InstrumentVisitor(self)
     self._pipeline.visit(v)
 
+    # Every output PCollection that is never used as an input PCollection is
+    # considered as a side effect of the pipeline run and should be included.
+    self._extended_targets.update(all_outputs.difference(all_inputs))
     # Add the unbounded source pcollections to the cacheable inputs. This allows
     # for the caching of unbounded sources without a variable reference.
     cacheable_inputs.update(unbounded_source_pcolls)
@@ -719,6 +727,15 @@ class PipelineInstrument(object):
       if self._cacheable_key(in_pcoll) in self.cacheables:
         inputs.add(in_pcoll)
     return inputs
+
+  def _all_inputs_outputs(self, transform):
+    inputs = set()
+    outputs = set()
+    for in_pcoll in transform.inputs:
+      inputs.add(in_pcoll)
+    for _, out_pcoll in transform.outputs.items():
+      outputs.add(out_pcoll)
+    return inputs, outputs
 
   def _cacheable_key(self, pcoll):
     """Gets the key a cacheable PCollection is tracked within the instrument."""
