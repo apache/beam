@@ -4899,7 +4899,7 @@ public class ParDoTest implements Serializable {
             }
 
             @OnTimer(timerId)
-            public void onTimer(TimeDomain timeDomain, @Key String key, OutputReceiver<Integer> r) {
+            public void onTimer(@Key String key, OutputReceiver<Integer> r) {
               r.output(Integer.parseInt(key));
             }
           };
@@ -4907,8 +4907,6 @@ public class ParDoTest implements Serializable {
       TestStream<KV<String, Integer>> stream =
           TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
               .addElements(KV.of("1", 37))
-              .addElements(KV.of("1", 34))
-              .addElements(KV.of("1", 33))
               .addElements(KV.of("2", 3))
               .advanceWatermarkTo(new Instant(3))
               .advanceWatermarkToInfinity();
