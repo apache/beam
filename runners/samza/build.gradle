@@ -62,6 +62,7 @@ dependencies {
   compile library.java.commons_lang3
   compile library.java.args4j
   compile "javax.servlet:javax.servlet-api:3.1.0"
+  compile "io.dropwizard.metrics:metrics-core:3.1.2"
   compile "org.rocksdb:rocksdbjni:5.7.3"
   compile "org.apache.commons:commons-collections4:4.0"
 

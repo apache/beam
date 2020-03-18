@@ -23,8 +23,8 @@ import java.util.Map;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.samza.config.ConfigFactory;
-import org.apache.samza.config.factories.PropertiesConfigFactory;
+import org.apache.samza.config.ConfigLoaderFactory;
+import org.apache.samza.config.loaders.PropertiesConfigLoaderFactory;
 import org.apache.samza.metrics.MetricsReporter;
 
 /** Options which can be used to configure a Samza PortablePipelineRunner. */
@@ -38,10 +38,10 @@ public interface SamzaPipelineOptions extends PipelineOptions {
   void setConfigFilePath(String filePath);
 
   @Description("The factory to read config file from config file path.")
-  @Default.Class(PropertiesConfigFactory.class)
-  Class<? extends ConfigFactory> getConfigFactory();
+  @Default.Class(PropertiesConfigLoaderFactory.class)
+  Class<? extends ConfigLoaderFactory> getConfigLoaderFactory();
 
-  void setConfigFactory(Class<? extends ConfigFactory> configFactory);
+  void setConfigLoaderFactory(Class<? extends ConfigLoaderFactory> configLoaderFactory);
 
   @Description(
       "The config override to set programmatically. It will be applied on "
