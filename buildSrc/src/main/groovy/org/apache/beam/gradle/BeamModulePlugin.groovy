@@ -1257,6 +1257,24 @@ class BeamModulePlugin implements Plugin<Project> {
         // on using the yyy-core package instead of the yyy-all package.
         exclude group: "org.hamcrest", module: "hamcrest-all"
       }
+
+      // For tests, force usage of the libraries defined within our common set found in the root
+      // build.gradle instead of using Gradles default dependency resolution mechanism
+      // which chooses the latest version available.
+      //
+      // TODO: Figure out whether we should force all dependency conflict resolution
+      // to occur in the "shadowTest" configurations.
+      project.configurations.all { config ->
+        String configName = config.getName()
+        if (configName.toLowerCase().contains('test')) {
+          config.resolutionStrategy {
+            force project.library.java.junit,
+                    project.library.java.hamcrest_core,
+                    project.library.java.guava, // sdks:java:io:google-cloud-platform needs this
+                    project.library.java.jackson_databind // sdks:java:extensions:sql:hcatalog needs this
+          }
+        }
+      }
     }
 
     // When applied in a module's build.gradle file, this closure provides task for running

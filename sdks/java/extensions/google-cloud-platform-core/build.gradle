@@ -58,13 +58,6 @@ dependencies {
   testRuntimeOnly library.java.slf4j_jdk14
 }
 
-configurations.all {
-  resolutionStrategy {
-    // GCS libraries in tests rely on certain version of dependecies
-    force library.java.guava
-  }
-}
-
 // Note that no runner is specified here, so tests running under this task should not be running
 // pipelines.
 task integrationTestKms(type: Test) {
