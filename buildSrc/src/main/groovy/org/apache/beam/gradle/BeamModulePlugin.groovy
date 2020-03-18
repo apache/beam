@@ -379,8 +379,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_clients_version = "1.30.3"
     def google_cloud_bigdataoss_version = "2.0.0"
     def google_cloud_libraries_bom_version = "4.2.0"
-    def google_cloud_spanner_version = "1.49.1"
-    // Try to be consistent with gRPC version in google_cloud_platform_libraries_bom
+    // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
     def grpc_version = "1.27.2"
     def guava_version = "25.1-jre"
     def hadoop_version = "2.8.5"
@@ -525,7 +524,7 @@ class BeamModulePlugin implements Plugin<Project> {
         proto_google_cloud_bigtable_v2              : "com.google.api.grpc:proto-google-cloud-bigtable-v2:1.9.1",
         proto_google_cloud_datastore_v1             : "com.google.api.grpc:proto-google-cloud-datastore-v1:0.85.0",
         proto_google_cloud_pubsub_v1                : "com.google.api.grpc:proto-google-cloud-pubsub-v1",
-        proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1:$google_cloud_spanner_version",
+        proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1",
         proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos:$proto_google_common_protos_version",
         slf4j_api                                   : "org.slf4j:slf4j-api:1.7.25",
         slf4j_simple                                : "org.slf4j:slf4j-simple:1.7.25",
