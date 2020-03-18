@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import static junit.Assert.assertEquals;
+import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 import java.util.Arrays;

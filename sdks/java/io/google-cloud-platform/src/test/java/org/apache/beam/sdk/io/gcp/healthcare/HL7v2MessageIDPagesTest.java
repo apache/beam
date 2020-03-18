@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import static junit.framework.Assert.assertEquals;
+import static junit.framework.TestCase.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HL7v2MessageIDPages;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -37,7 +38,7 @@ public class HL7v2MessageIDPagesTest {
   private transient HttpHealthcareApiClient client;
 
   @Before
-  public void setUp() throws IOException {
+  public void setUp() {
     client = Mockito.mock(HttpHealthcareApiClient.class);
   }
 

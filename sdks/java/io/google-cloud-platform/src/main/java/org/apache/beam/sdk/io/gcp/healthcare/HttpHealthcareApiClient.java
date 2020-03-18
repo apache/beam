@@ -17,12 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.healthcare.v1alpha2.CloudHealthcare;
 import com.google.api.services.healthcare.v1alpha2.CloudHealthcare.Projects.Locations.Datasets.Hl7V2Stores.Messages;
 import com.google.api.services.healthcare.v1alpha2.CloudHealthcareScopes;
@@ -34,6 +31,8 @@ import com.google.api.services.healthcare.v1alpha2.model.IngestMessageResponse;
 import com.google.api.services.healthcare.v1alpha2.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1alpha2.model.Message;
 import com.google.api.services.healthcare.v1alpha2.model.SearchResourcesRequest;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
 import java.io.Serializable;
 import java.text.ParseException;
@@ -41,6 +40,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.stream.Stream;
@@ -55,9 +55,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
  * serializable in the HTTP client.
  */
 public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializable {
-
-  private static final JsonFactory JSON_FACTORY = new JacksonFactory();
-  private static final NetHttpTransport HTTP_TRANSPORT = new NetHttpTransport();
 
   private transient CloudHealthcare client;
 
@@ -183,7 +180,7 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
   }
 
   @Override
-  public HttpBody fhirSearch(String fhirStore, SearchResourcesRequest query) throws IOException{
+  public HttpBody fhirSearch(String fhirStore, SearchResourcesRequest query) throws IOException {
     return client
         .projects()
         .locations()
@@ -250,25 +247,136 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
     return client.projects().locations().datasets().fhirStores().fhir().read(resource).execute();
   }
 
-  // Use Application Default Credentials (ADC) to authenticate the requests
-  // For more information see https://cloud.google.com/docs/authentication/production
   private void initClient() throws IOException {
     // Use Application Default Credentials (ADC) to authenticate the requests
     // For more information see https://cloud.google.com/docs/authentication/production
-    GoogleCredential credential =
-        GoogleCredential.getApplicationDefault(HTTP_TRANSPORT, JSON_FACTORY)
+    GoogleCredentials credentials =
+        GoogleCredentials.getApplicationDefault()
             .createScoped(Collections.singleton(CloudHealthcareScopes.CLOUD_PLATFORM));
     // Create a HttpRequestInitializer, which will provide a baseline configuration to all requests.
-    HttpRequestInitializer requestInitializer =
-        request -> {
-          credential.initialize(request);
-          request.setConnectTimeout(60000); // 1 minute connect timeout
-          request.setReadTimeout(60000); // 1 minute read timeout
-          request.setNumberOfRetries(50);
-        };
+    HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credentials);
     client =
         new CloudHealthcare.Builder(new NetHttpTransport(), new GsonFactory(), requestInitializer)
-            .setApplicationName("Hl7PubSubRouter")
+            .setApplicationName("apache-beam-hl7-io")
             .build();
+  }
+
+  public static class HL7v2MessageIDPages implements Iterable<List<String>> {
+
+    private final String hl7v2Store;
+    private final String filter;
+    private transient HealthcareApiClient client;
+
+    /**
+     * Instantiates a new HL7v2 message id pages.
+     *
+     * @param client the client
+     * @param hl7v2Store the HL7v2 store
+     */
+    HL7v2MessageIDPages(HealthcareApiClient client, String hl7v2Store) {
+      this.client = client;
+      this.hl7v2Store = hl7v2Store;
+      this.filter = null;
+    }
+
+    /**
+     * Instantiates a new HL7v2 message id pages.
+     *
+     * @param client the client
+     * @param hl7v2Store the HL7v2 store
+     * @param filter the filter
+     */
+    HL7v2MessageIDPages(HealthcareApiClient client, String hl7v2Store, @Nullable String filter) {
+      this.client = client;
+      this.hl7v2Store = hl7v2Store;
+      this.filter = filter;
+    }
+
+    /**
+     * Make list request list messages response.
+     *
+     * @param client the client
+     * @param hl7v2Store the hl 7 v 2 store
+     * @param filter the filter
+     * @param pageToken the page token
+     * @return the list messages response
+     * @throws IOException the io exception
+     */
+    public static ListMessagesResponse makeListRequest(
+        HealthcareApiClient client,
+        String hl7v2Store,
+        @Nullable String filter,
+        @Nullable String pageToken)
+        throws IOException {
+      return client.makeHL7v2ListRequest(hl7v2Store, filter, pageToken);
+    }
+
+    @Override
+    public Iterator<List<String>> iterator() {
+      return new HL7v2MessageIDPagesIterator(this.client, this.hl7v2Store, this.filter);
+    }
+
+    /** The type Hl7v2 message id pages iterator. */
+    public static class HL7v2MessageIDPagesIterator implements Iterator<List<String>> {
+
+      private final String hl7v2Store;
+      private final String filter;
+      private HealthcareApiClient client;
+      private String pageToken;
+      private boolean isFirstRequest;
+
+      /**
+       * Instantiates a new Hl 7 v 2 message id pages iterator.
+       *
+       * @param client the client
+       * @param hl7v2Store the hl 7 v 2 store
+       * @param filter the filter
+       */
+      HL7v2MessageIDPagesIterator(
+          HealthcareApiClient client, String hl7v2Store, @Nullable String filter) {
+        this.client = client;
+        this.hl7v2Store = hl7v2Store;
+        this.filter = filter;
+        this.pageToken = null;
+        this.isFirstRequest = true;
+      }
+
+      @Override
+      public boolean hasNext() throws NoSuchElementException {
+        if (isFirstRequest) {
+          try {
+            List<String> msgs =
+                makeListRequest(client, hl7v2Store, filter, pageToken).getMessages();
+            if (msgs == null) {
+              return false;
+            } else {
+              return !msgs.isEmpty();
+            }
+          } catch (IOException e) {
+            throw new NoSuchElementException(
+                String.format(
+                    "Failed to list first page of HL7v2 messages from %s: %s",
+                    hl7v2Store, e.getMessage()));
+          }
+        }
+        return this.pageToken != null;
+      }
+
+      @Override
+      public List<String> next() throws NoSuchElementException {
+        try {
+          // TODO(jaketf): Parameterize page size for throughput parameterization?
+          ListMessagesResponse response = makeListRequest(client, hl7v2Store, filter, pageToken);
+          this.isFirstRequest = false;
+          this.pageToken = response.getNextPageToken();
+          return response.getMessages();
+        } catch (IOException e) {
+          this.pageToken = null;
+          throw new NoSuchElementException(
+              String.format(
+                  "Error listing HL7v2 Messages from %s: %s", hl7v2Store, e.getMessage()));
+        }
+      }
+    }
   }
 }
