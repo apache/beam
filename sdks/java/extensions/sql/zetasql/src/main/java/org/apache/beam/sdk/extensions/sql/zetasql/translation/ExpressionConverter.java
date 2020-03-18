@@ -513,6 +513,10 @@ public class ExpressionConverter {
     }
   }
 
+  public RexNode trueLiteral() {
+    return rexBuilder().makeLiteral(true);
+  }
+
   /** Convert a resolved literal to a RexNode. */
   public RexNode convertResolvedLiteral(ResolvedLiteral resolvedLiteral) {
     TypeKind kind = resolvedLiteral.getType().getKind();
