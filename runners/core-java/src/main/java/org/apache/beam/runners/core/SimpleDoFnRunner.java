@@ -643,7 +643,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       }
       return namespace;
     }
-    
 
     private OnTimerArgumentProvider(
         String timerId,
