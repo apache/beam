@@ -27,7 +27,7 @@ from __future__ import division
 import random
 from builtins import object
 
-from apache_beam.io.gcp.datastore.v1 import util
+from apache_beam.io.gcp.datastore.v1new import util
 
 
 class AdaptiveThrottler(object):

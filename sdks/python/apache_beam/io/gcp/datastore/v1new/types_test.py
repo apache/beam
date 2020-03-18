@@ -37,8 +37,7 @@ try:
   from apache_beam.io.gcp.datastore.v1new.types import Key
   from apache_beam.io.gcp.datastore.v1new.types import Query
   from apache_beam.options.value_provider import StaticValueProvider
-# TODO(BEAM-4543): Remove TypeError once googledatastore dependency is removed.
-except (ImportError, TypeError):
+except ImportError:
   client = None
 
 _LOGGER = logging.getLogger(__name__)

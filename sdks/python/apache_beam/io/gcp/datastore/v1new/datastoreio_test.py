@@ -34,8 +34,7 @@ from mock import ANY
 
 # Protect against environments where datastore library is not available.
 try:
-  from apache_beam.io.gcp.datastore.v1 import util
-  from apache_beam.io.gcp.datastore.v1new import helper
+  from apache_beam.io.gcp.datastore.v1new import helper, util
   from apache_beam.io.gcp.datastore.v1new import query_splitter
   from apache_beam.io.gcp.datastore.v1new import datastoreio
   from apache_beam.io.gcp.datastore.v1new.datastoreio import DeleteFromDatastore
@@ -47,13 +46,8 @@ try:
   from google.cloud.datastore import helpers
   from google.cloud.datastore import key
   from google.api_core import exceptions
-  # Keep this import last so it doesn't import conflicting pb2 modules.
-  from apache_beam.io.gcp.datastore.v1 import datastoreio_test  # pylint: disable=ungrouped-imports
-  DatastoreioTestBase = datastoreio_test.DatastoreioTest
-# TODO(BEAM-4543): Remove TypeError once googledatastore dependency is removed.
-except (ImportError, TypeError):
+except ImportError:
   client = None
-  DatastoreioTestBase = unittest.TestCase  # type: ignore
 
 
 class FakeMutation(object):
@@ -189,11 +183,11 @@ class MutateTest(unittest.TestCase):
 
 
 @unittest.skipIf(client is None, 'Datastore dependencies are not installed')
-class DatastoreioTest(DatastoreioTestBase):
-  """
-  NOTE: This test inherits test cases from DatastoreioTestBase.
-    Please prefer to add new test cases to v1/datastoreio_test if possible.
-  """
+class DatastoreioTest(unittest.TestCase):
+  _PROJECT = 'project'
+  _KIND = 'kind'
+  _NAMESPACE = 'namespace'
+
   def setUp(self):
     self._WRITE_BATCH_INITIAL_SIZE = util.WRITE_BATCH_INITIAL_SIZE
     self._mock_client = MagicMock()
@@ -208,9 +202,6 @@ class DatastoreioTest(DatastoreioTestBase):
         namespace=self._NAMESPACE,
         # Don't do any network requests.
         _http=MagicMock())
-
-  def get_timestamp(self):
-    return datetime.datetime(2019, 3, 14, 15, 9, 26, 535897)
 
   def test_SplitQueryFn_with_num_splits(self):
     with patch.object(helper, 'get_client', return_value=self._mock_client):
@@ -283,7 +274,7 @@ class DatastoreioTest(DatastoreioTestBase):
           self.assertEqual(expected_num_splits, len(split_queries))
           self.assertEqual(self._mock_query, split_queries[0])
 
-  def check_DatastoreWriteFn(self, num_entities, use_fixed_batch_size=False):
+  def check_DatastoreWriteFn(self, num_entities):
     """A helper function to test _DatastoreWriteFn."""
     with patch.object(helper, 'get_client', return_value=self._mock_client):
       entities = helper.create_entities(num_entities)
@@ -314,6 +305,25 @@ class DatastoreioTest(DatastoreioTestBase):
                            [e.key for e in expected_entities])
       batch_count = math.ceil(num_entities / util.WRITE_BATCH_MAX_SIZE)
       self.assertLessEqual(batch_count, commit_count[0])
+
+  def test_DatastoreWriteFn_with_empty_batch(self):
+    self.check_DatastoreWriteFn(0)
+
+  def test_DatastoreWriteFn_with_one_batch(self):
+    num_entities_to_write = self._WRITE_BATCH_INITIAL_SIZE * 1 - 50
+    self.check_DatastoreWriteFn(num_entities_to_write)
+
+  def test_DatastoreWriteFn_with_multiple_batches(self):
+    num_entities_to_write = self._WRITE_BATCH_INITIAL_SIZE * 3 + 50
+    self.check_DatastoreWriteFn(num_entities_to_write)
+
+  def test_DatastoreWriteFn_with_batch_size_exact_multiple(self):
+    num_entities_to_write = self._WRITE_BATCH_INITIAL_SIZE * 2
+    self.check_DatastoreWriteFn(num_entities_to_write)
+
+  def test_DatastoreWriteFn_with_dynamic_batch_sizes(self):
+    num_entities_to_write = self._WRITE_BATCH_INITIAL_SIZE * 3 + 50
+    self.check_DatastoreWriteFn(num_entities_to_write)
 
   def test_DatastoreWriteLargeEntities(self):
     """100*100kB entities gets split over two Commit RPCs."""
@@ -367,6 +377,19 @@ class DatastoreioTest(DatastoreioTestBase):
         call().fetch(limit=1),
     ])
 
+  def get_timestamp(self):
+    return datetime.datetime(2019, 3, 14, 15, 9, 26, 535897)
+
+  def test_get_estimated_size_bytes_without_namespace(self):
+    entity_bytes = 100
+    timestamp = self.get_timestamp()
+    self.check_estimated_size_bytes(entity_bytes, timestamp)
+
+  def test_get_estimated_size_bytes_with_namespace(self):
+    entity_bytes = 100
+    timestamp = self.get_timestamp()
+    self.check_estimated_size_bytes(entity_bytes, timestamp, self._NAMESPACE)
+
   def test_DatastoreDeleteFn(self):
     with patch.object(helper, 'get_client', return_value=self._mock_client):
       keys = [entity.key for entity in helper.create_entities(10)]
@@ -393,9 +416,6 @@ class DatastoreioTest(DatastoreioTestBase):
 
       self.assertListEqual(all_batch_keys, expected_keys)
 
-
-# Hide base class from collection by nose.
-del DatastoreioTestBase
 
 if __name__ == '__main__':
   unittest.main()

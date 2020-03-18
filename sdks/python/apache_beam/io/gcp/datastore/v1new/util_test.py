@@ -22,7 +22,7 @@ from __future__ import absolute_import
 
 import unittest
 
-from apache_beam.io.gcp.datastore.v1 import util
+from apache_beam.io.gcp.datastore.v1new import util
 
 
 class MovingSumTest(unittest.TestCase):
