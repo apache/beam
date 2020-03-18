@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
@@ -44,7 +45,7 @@ public class RehydratedComponents {
   private final Components components;
 
   /**
-   * This class may be used in the context of a pipeline or not. If not, then it cannot rehydrated
+   * This class may be used in the context of a pipeline or not. If not, then it cannot rehydrate
    * {@link PCollection PCollections}.
    */
   @Nullable private final Pipeline pipeline;
@@ -175,13 +176,14 @@ public class RehydratedComponents {
     return components;
   }
 
-  public SdkComponents getSdkComponents() {
+  public SdkComponents getSdkComponents(Collection<String> requirements) {
     return SdkComponents.create(
         components,
         Collections.emptyMap(),
         pCollections.asMap(),
         windowingStrategies.asMap(),
         coders.asMap(),
-        Collections.emptyMap());
+        Collections.emptyMap(),
+        requirements);
   }
 }
