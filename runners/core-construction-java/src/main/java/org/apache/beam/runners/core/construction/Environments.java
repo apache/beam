@@ -107,7 +107,11 @@ public class Environments {
           defaultEnvironment = createDockerEnvironment(config);
       }
     }
-    return defaultEnvironment.toBuilder().addAllDependencies(getArtifacts(options)).build();
+    return defaultEnvironment
+        .toBuilder()
+        .addAllDependencies(getArtifacts(options))
+        .addAllCapabilities(getJavaCapabilities())
+        .build();
   }
 
   public static Environment createDockerEnvironment(String dockerImageUrl) {
@@ -226,6 +230,10 @@ public class Environments {
       }
     }
     return filesToStage.build();
+  }
+
+  public static Set<String> getJavaCapabilities() {
+    return ModelCoders.urns();
   }
 
   private static File zipDirectory(File directory) throws IOException {
