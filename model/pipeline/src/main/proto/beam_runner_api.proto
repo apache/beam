@@ -433,11 +433,6 @@ message ParDoPayload {
   // (Required) The FunctionSpec of the DoFn.
   FunctionSpec do_fn = 1;
 
-  // (Required) Additional pieces of context the DoFn may require that
-  // are not otherwise represented in the payload.
-  // (may force runners to execute the ParDo differently)
-  repeated Parameter parameters = 2;
-
   // (Optional) A mapping of local input names to side inputs, describing
   // the expected access pattern.
   map<string, SideInput> side_inputs = 3;
@@ -477,33 +472,6 @@ message ParDoPayload {
   // If this is set, the corresponding standard requirement should also
   // be placed in the pipeline requirements.
   bool requires_stable_input = 11;
-}
-
-// Parameters that a UDF might require.
-//
-// The details of how a runner sends these parameters to the SDK harness
-// are the subject of the Fn API.
-//
-// The details of how an SDK harness delivers them to the UDF is entirely
-// up to the SDK. (for some SDKs there may be parameters that are not
-// represented here if the runner doesn't need to do anything)
-//
-// Here, the parameters are simply indicators to the runner that they
-// need to run the function a particular way.
-//
-// TODO: the evolution of the Fn API will influence what needs explicit
-// representation here
-message Parameter {
-  Type.Enum type = 1;
-
-  message Type {
-    enum Enum {
-      UNSPECIFIED = 0;
-      WINDOW = 1;
-      PIPELINE_OPTIONS = 2;
-      RESTRICTION_TRACKER = 3;
-    }
-  }
 }
 
 message StateSpec {
