@@ -56,9 +56,11 @@ import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.Watch.Growth.PollResult;
+import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.KV;
@@ -754,9 +756,19 @@ public class Watch {
       while (tracker.tryClaim(position)) {
         TimestampedValue<OutputT> value = c.element().getValue().get((int) position);
         c.outputWithTimestamp(KV.of(c.element().getKey(), value.getValue()), value.getTimestamp());
-        c.updateWatermark(value.getTimestamp());
         position += 1L;
       }
+    }
+
+    @GetInitialWatermarkEstimatorState
+    public Instant getInitialWatermarkEstimatorState(@Timestamp Instant currentElementTimestamp) {
+      return currentElementTimestamp;
+    }
+
+    @NewWatermarkEstimator
+    public WatermarkEstimators.MonotonicallyIncreasing newWatermarkEstimator(
+        @WatermarkEstimatorState Instant watermarkEstimatorState) {
+      return new WatermarkEstimators.MonotonicallyIncreasing(watermarkEstimatorState);
     }
 
     @GetInitialRestriction
@@ -806,10 +818,22 @@ public class Watch {
           };
     }
 
+    @GetInitialWatermarkEstimatorState
+    public Instant getInitialWatermarkEstimatorState(@Timestamp Instant currentElementTimestamp) {
+      return currentElementTimestamp;
+    }
+
+    @NewWatermarkEstimator
+    public WatermarkEstimators.Manual newWatermarkEstimator(
+        @WatermarkEstimatorState Instant watermarkEstimatorState) {
+      return new WatermarkEstimators.Manual(watermarkEstimatorState);
+    }
+
     @ProcessElement
     public ProcessContinuation process(
         ProcessContext c,
-        RestrictionTracker<GrowthState, KV<Growth.PollResult<OutputT>, TerminationStateT>> tracker)
+        RestrictionTracker<GrowthState, KV<Growth.PollResult<OutputT>, TerminationStateT>> tracker,
+        ManualWatermarkEstimator<Instant> watermarkEstimator)
         throws Exception {
 
       GrowthState currentRestriction = tracker.currentRestriction();
@@ -824,9 +848,7 @@ public class Watch {
                 priorPoll.getOutputs().size());
             c.output(KV.of(c.element(), priorPoll.getOutputs()));
           }
-          if (priorPoll.getWatermark() != null) {
-            c.updateWatermark(priorPoll.getWatermark());
-          }
+          watermarkEstimator.setWatermark(priorPoll.getWatermark());
         }
         return stop();
       }
@@ -868,7 +890,7 @@ public class Watch {
       }
 
       if (newResults.getWatermark() != null) {
-        c.updateWatermark(newResults.getWatermark());
+        watermarkEstimator.setWatermark(newResults.getWatermark());
       }
 
       Instant currentTime = Instant.now();

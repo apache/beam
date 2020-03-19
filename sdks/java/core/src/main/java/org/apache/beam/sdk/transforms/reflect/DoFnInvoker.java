@@ -112,13 +112,16 @@ public interface DoFnInvoker<InputT, OutputT> {
           ArgumentProvider<InputT, OutputT> arguments);
 
   /** Invoke the {@link DoFn.GetInitialWatermarkEstimatorState} method on the bound {@link DoFn}. */
-  Object invokeGetInitialWatermarkEstimatorState(ArgumentProvider<InputT, OutputT> arguments);
+  @SuppressWarnings("TypeParameterUnusedInFormals")
+  <WatermarkEstimatorStateT> WatermarkEstimatorStateT invokeGetInitialWatermarkEstimatorState(
+      ArgumentProvider<InputT, OutputT> arguments);
 
   /**
    * Invoke the {@link DoFn.GetWatermarkEstimatorStateCoder} method on the bound {@link DoFn}.
    * Called only during pipeline construction time.
    */
-  Coder<?> invokeGetWatermarkEstimatorStateCoder(CoderRegistry coderRegistry);
+  <WatermarkEstimatorStateT> Coder<WatermarkEstimatorStateT> invokeGetWatermarkEstimatorStateCoder(
+      CoderRegistry coderRegistry);
 
   /** Get the bound {@link DoFn}. */
   DoFn<InputT, OutputT> getFn();
