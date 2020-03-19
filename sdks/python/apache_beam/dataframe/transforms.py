@@ -22,6 +22,7 @@ import apache_beam as beam
 from apache_beam import transforms
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
+from apache_beam.dataframe import frames  # pylint: disable=unused-import
 
 
 class DataframeTransform(transforms.PTransform):
@@ -30,7 +31,7 @@ class DataframeTransform(transforms.PTransform):
 
   For example, if pcoll is a PCollection of dataframes, one could write::
 
-      pcoll | DataframeTransform(lambda df: df.group_by('key').sum())
+      pcoll | DataframeTransform(lambda df: df.group_by('key').sum(), proxy=...)
 
   To pass multiple PCollections, pass a tuple of PCollections wich will be
   passed to the callable as positional arguments, or a dictionary of
@@ -43,7 +44,7 @@ class DataframeTransform(transforms.PTransform):
   def expand(self, input_pcolls):
     def wrap_as_dict(values):
       if isinstance(values, dict):
-        return dict
+        return values
       elif isinstance(values, tuple):
         return dict(enumerate(values))
       else:
@@ -71,7 +72,8 @@ class DataframeTransform(transforms.PTransform):
     if isinstance(input_pcolls, dict):
       result_frames = self._func(**placeholders)
     elif isinstance(input_pcolls, tuple):
-      self._func(*(value for _, value in sorted(placeholders.items())))
+      result_frames = self._func(
+          *(value for _, value in sorted(placeholders.items())))
     else:
       result_frames = self._func(placeholders[None])
 
@@ -88,7 +90,7 @@ class DataframeTransform(transforms.PTransform):
     if isinstance(result_frames, dict):
       return result_pcolls
     elif isinstance(result_frames, tuple):
-      return tuple(*(value for _, value in sorted(result_pcolls.items())))
+      return tuple((value for _, value in sorted(result_pcolls.items())))
     else:
       return result_pcolls[None]
 
@@ -124,7 +126,7 @@ class DataframeTransform(transforms.PTransform):
         if self.stage.is_grouping:
           # Arrange such that partitioned_pcoll is properly partitioned.
           input_pcolls = {
-              k: pcoll | 'Flat%s' % k >> beam.FlatMap(_partition_by_index)
+              k: pcoll | 'Flat%s' % k >> beam.FlatMap(partition_by_index)
               for k,
               pcoll in pcolls.items()
           }
@@ -169,7 +171,7 @@ class DataframeTransform(transforms.PTransform):
       else:
         return False
 
-    def _partition_by_index(df, levels=None, parts=10):
+    def partition_by_index(df, levels=None, parts=10):
       if levels is None:
         levels = list(range(df.index.nlevels))
       elif isinstance(levels, (int, str)):
