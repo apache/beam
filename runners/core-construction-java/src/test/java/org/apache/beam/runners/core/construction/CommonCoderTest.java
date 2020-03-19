@@ -302,7 +302,8 @@ public class CommonCoderTest {
     } else if (s.equals(getUrn(StandardCoders.Enum.ROW))) {
       Schema schema;
       try {
-        schema = SchemaTranslation.fromProto(SchemaApi.Schema.parseFrom(coderSpec.getPayload()));
+        schema =
+            SchemaTranslation.schemaFromProto(SchemaApi.Schema.parseFrom(coderSpec.getPayload()));
       } catch (InvalidProtocolBufferException e) {
         throw new RuntimeException("Failed to parse schema payload for row coder", e);
       }
