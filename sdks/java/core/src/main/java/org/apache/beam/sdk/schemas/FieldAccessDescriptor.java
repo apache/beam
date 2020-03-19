@@ -192,6 +192,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
     return union(fields);
   }
 
+  /** Return a descriptor that accesses the specified fields, renaming those fields. */
   public static FieldAccessDescriptor withFieldNamesAs(Map<String, String> fieldNamesAs) {
     List<FieldAccessDescriptor> fields = Lists.newArrayListWithCapacity(fieldNamesAs.size());
     for (Map.Entry<String, String> entry : fieldNamesAs.entrySet()) {
@@ -200,15 +201,29 @@ public abstract class FieldAccessDescriptor implements Serializable {
     return union(fields);
   }
 
+  /**
+   * Return a descriptor that accesses the specified field names as nested subfields of the
+   * baseDescriptor.
+   *
+   * <p>This is only supported when baseDescriptor refers to a single field.
+   */
   public static FieldAccessDescriptor withFieldNames(
       FieldAccessDescriptor baseDescriptor, String... fieldNames) {
     return withFieldNames(baseDescriptor, Arrays.asList(fieldNames));
   }
 
+  /**
+   * Return a descriptor that accesses the specified field names as nested subfields of the
+   * baseDescriptor.
+   *
+   * <p>This is only supported when baseDescriptor refers to a single field.
+   */
   public static FieldAccessDescriptor withFieldNames(
       FieldAccessDescriptor baseDescriptor, Iterable<String> fieldNames) {
     if (baseDescriptor.getFieldsAccessed().isEmpty()
         && baseDescriptor.getNestedFieldsAccessed().isEmpty()) {
+      // If baseDescriptor is empty, this is no different than calling
+      // withFieldNames(Iterable<String>);
       return withFieldNames(fieldNames);
     }
     if (!baseDescriptor.getFieldsAccessed().isEmpty()) {
@@ -226,11 +241,23 @@ public abstract class FieldAccessDescriptor implements Serializable {
     }
   }
 
+  /**
+   * Return a descriptor that accesses the specified field ids as nested subfields of the
+   * baseDescriptor.
+   *
+   * <p>This is only supported when baseDescriptor refers to a single field.
+   */
   public static FieldAccessDescriptor withFieldIds(
       FieldAccessDescriptor baseDescriptor, Integer... fieldIds) {
     return withFieldIds(baseDescriptor, Arrays.asList(fieldIds));
   }
 
+  /**
+   * Return a descriptor that accesses the specified field ids as nested subfields of the
+   * baseDescriptor.
+   *
+   * <p>This is only supported when baseDescriptor refers to a single field.
+   */
   public static FieldAccessDescriptor withFieldIds(
       FieldAccessDescriptor baseDescriptor, Iterable<Integer> fieldIds) {
     if (baseDescriptor.getFieldsAccessed().isEmpty()
