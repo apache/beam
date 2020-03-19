@@ -33,7 +33,6 @@ from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileR
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive.cache_manager import CacheManager
 from apache_beam.runners.interactive.cache_manager import SafeFastPrimitivesCoder
-from apache_beam.runners.interactive.pipeline_instrument import CacheKey
 from apache_beam.testing.test_stream import OutputFormat
 from apache_beam.testing.test_stream import ReverseTestStream
 from apache_beam.utils import timestamp
@@ -155,6 +154,8 @@ class StreamingCacheSource:
     self._labels = labels
     self._is_cache_complete = (
         is_cache_complete if is_cache_complete else lambda _: True)
+
+    from apache_beam.runners.interactive.pipeline_instrument import CacheKey
     self._pipeline_id = CacheKey.from_str(labels[-1]).pipeline_id
 
   def _wait_until_file_exists(self, timeout_secs=30):
