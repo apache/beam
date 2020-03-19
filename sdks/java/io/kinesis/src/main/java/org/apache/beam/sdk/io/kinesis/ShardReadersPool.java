@@ -126,9 +126,21 @@ class ShardReadersPool {
   private void readLoop(ShardRecordsIterator shardRecordsIterator, RateLimitPolicy rateLimiter) {
     while (poolOpened.get()) {
       try {
-        List<KinesisRecord> kinesisRecords;
         try {
-          kinesisRecords = shardRecordsIterator.readNextBatch();
+          List<KinesisRecord> kinesisRecords = shardRecordsIterator.readNextBatch();
+          try {
+            for (KinesisRecord kinesisRecord : kinesisRecords) {
+              recordsQueue.put(kinesisRecord);
+              numberOfRecordsInAQueueByShard.get(kinesisRecord.getShardId()).incrementAndGet();
+            }
+          } finally {
+            // One of the paths into this finally block is recordsQueue.put() throwing
+            // InterruptedException so we should check the thread's interrupted status before
+            // calling onSuccess().
+            if (!Thread.currentThread().isInterrupted()) {
+              rateLimiter.onSuccess(kinesisRecords);
+            }
+          }
         } catch (KinesisShardClosedException e) {
           LOG.info(
               "Shard iterator for {} shard is closed, finishing the read loop",
@@ -143,11 +155,6 @@ class ShardReadersPool {
           readFromSuccessiveShards(shardRecordsIterator);
           break;
         }
-        for (KinesisRecord kinesisRecord : kinesisRecords) {
-          recordsQueue.put(kinesisRecord);
-          numberOfRecordsInAQueueByShard.get(kinesisRecord.getShardId()).incrementAndGet();
-        }
-        rateLimiter.onSuccess(kinesisRecords);
       } catch (KinesisClientThrottledException e) {
         try {
           rateLimiter.onThrottle(e);
