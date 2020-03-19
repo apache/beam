@@ -303,7 +303,7 @@ message ProcessBundleProgressRequest {
 // payload field with the bytes specified here.
 message ProcessBundleProgressMetadataRequest {
   // A list of ids for which the full MonitoringInfo is requested for.
-  repeated string id = 1;
+  repeated string monitoring_info_id = 1;
 }
 
 // DEPRECATED
