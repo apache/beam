@@ -60,6 +60,7 @@ public class TestPubsub implements TestRule {
   private static final String TOPIC_PREFIX = "integ-test-";
   private static final String NO_ID_ATTRIBUTE = null;
   private static final String NO_TIMESTAMP_ATTRIBUTE = null;
+  private static final Integer DEFAULT_ACK_DEADLINE_SECONDS = 60;
 
   private final TestPubsubOptions pipelineOptions;
 
@@ -121,7 +122,7 @@ public class TestPubsub implements TestRule {
         pubsub.createRandomSubscription(
             projectPathFromPath(String.format("projects/%s", pipelineOptions.getProject())),
             topicPath(),
-            10);
+            DEFAULT_ACK_DEADLINE_SECONDS);
   }
 
   private void tearDown() throws IOException {
