@@ -1272,6 +1272,7 @@ class BeamModulePlugin implements Plugin<Project> {
                     project.library.java.hamcrest_core,
                     project.library.java.guava, // sdks:java:io:google-cloud-platform needs this
                     project.library.java.jackson_databind // sdks:java:extensions:sql:hcatalog needs this
+                    project.library.java.google_api_client // google-api-client 1.30.8 unexpectedly depends on android annotation
           }
         }
       }
