@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""End-to-end test for the streaming wordcount example with debugging functionality."""
+"""End-to-end test for the streaming wordcount example with debug."""
 
 # pytype: skip-file
 
