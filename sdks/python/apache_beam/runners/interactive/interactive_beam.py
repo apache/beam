@@ -74,13 +74,13 @@ class Options(interactive_options.InteractiveOptions):
       _LOGGER.info(
           'Capture replay is enabled. When a PCollection is evaluated or the '
           'pipeline is executed, existing data captured from previous '
-          'computations will be replayed for replayability. If no capture is '
+          'computations will be replayed for consistent results. If no captured data is '
           'available, new data from capturable sources will be captured.')
     else:
       _LOGGER.info(
-          'You have disabled capture replay. The next time a PCollection is '
+          'Capture replay is disabled. The next time a PCollection is '
           'evaluated or the pipeline is executed, new data will always be '
-          'captured from capturable sources. You will not have replayability '
+          'consumed from sources in the pipeline. You will not have replayability '
           'until re-enabling this option.')
     self.capture_control._enable_capture_replay = value
 
@@ -91,7 +91,7 @@ class Options(interactive_options.InteractiveOptions):
     _ = ie.current_env()
     _LOGGER.info(
         'If you alter the capturable sources, to allow new data for the '
-        'altered sources being captured the next time a PCollection is '
+        'altered sources to be captured the next time a PCollection is '
         'evaluated or the pipeline is executed, please invoke '
         'evict_captured_data().')
     return self.capture_control._capturable_sources
@@ -122,7 +122,7 @@ class Options(interactive_options.InteractiveOptions):
       _ = ie.current_env()
       _LOGGER.info(
           'You have changed capture duration from %s seconds to %s seconds. '
-          'To allow new data being captured for the updated duration the next '
+          'To allow new data to be captured for the updated duration, the next '
           'time a PCollection is evaluated or the pipeline is executed, '
           'please invoke evict_captured_data().',
           self.capture_control._capture_duration.total_seconds(),
@@ -148,7 +148,7 @@ class Options(interactive_options.InteractiveOptions):
       _ = ie.current_env()
       _LOGGER.info(
           'You have changed capture size limit from %s bytes to %s bytes. To '
-          'allow new data being captured under the updated size limit the '
+          'allow new data to be captured under the updated size limit, the '
           'next time a PCollection is evaluated or the pipeline is executed, '
           'please invoke evict_captured_data().',
           self.capture_control._capture_size_limit,
