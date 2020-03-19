@@ -21,12 +21,20 @@
 from __future__ import absolute_import
 
 import importlib
+import sys
 import unittest
 
 import apache_beam as beam
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
+
+# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
+# unittest.mock module.
+try:
+  from unittest.mock import patch
+except ImportError:
+  from mock import patch
 
 # The module name is also a variable in module.
 _module_name = 'apache_beam.runners.interactive.interactive_beam_test'
@@ -96,6 +104,52 @@ class InteractiveBeamTest(unittest.TestCase):
     # The call of show marks pcoll computed.
     ib.show(pcoll)
     self.assertTrue(pcoll in ie.current_env().computed_pcollections)
+
+  @unittest.skipIf(
+      sys.version_info < (3, 6),
+      'The tests require at least Python 3.6 to work.')
+  @patch('apache_beam.runners.interactive.interactive_beam.visualize')
+  def test_show_handles_dict_of_pcolls(self, mocked_visualize):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    # pylint: disable=range-builtin-not-iterating
+    pcoll = p | 'Create' >> beam.Create(range(10))
+    ie.current_env().mark_pcollection_computed([pcoll])
+    ie.current_env()._is_in_ipython = True
+    ie.current_env()._is_in_notebook = True
+    ib.show({'pcoll': pcoll})
+    mocked_visualize.assert_called_once()
+
+  @unittest.skipIf(
+      sys.version_info < (3, 6),
+      'The tests require at least Python 3.6 to work.')
+  @patch('apache_beam.runners.interactive.interactive_beam.visualize')
+  def test_show_handles_iterable_of_pcolls(self, mocked_visualize):
+    p = beam.Pipeline(ir.InteractiveRunner())
+    # pylint: disable=range-builtin-not-iterating
+    pcoll = p | 'Create' >> beam.Create(range(10))
+    ie.current_env().mark_pcollection_computed([pcoll])
+    ie.current_env()._is_in_ipython = True
+    ie.current_env()._is_in_notebook = True
+    ib.show([pcoll])
+    mocked_visualize.assert_called_once()
+
+  @unittest.skipIf(
+      sys.version_info < (3, 6),
+      'The tests require at least Python 3.6 to work.')
+  @patch('apache_beam.runners.interactive.interactive_beam.visualize')
+  def test_show_noop_when_pcoll_container_is_invalid(self, mocked_visualize):
+    class SomeRandomClass:
+      def __init__(self, pcoll):
+        self._pcoll = pcoll
+
+    p = beam.Pipeline(ir.InteractiveRunner())
+    # pylint: disable=range-builtin-not-iterating
+    pcoll = p | 'Create' >> beam.Create(range(10))
+    ie.current_env().mark_pcollection_computed([pcoll])
+    ie.current_env()._is_in_ipython = True
+    ie.current_env()._is_in_notebook = True
+    self.assertRaises(ValueError, ib.show, SomeRandomClass(pcoll))
+    mocked_visualize.assert_not_called()
 
 
 if __name__ == '__main__':
