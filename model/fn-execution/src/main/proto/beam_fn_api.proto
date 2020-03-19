@@ -614,9 +614,11 @@ message Elements {
 
     // (Optional) Represents a logical byte stream of a timer. Encoded according
     // to the coder in the timer spec.
-    // An empty data block represents the end of stream for the given
-    // instruction and transform.
     bytes timer = 4;
+
+    // (Optional) Set this bit to indicate the this is the last data block
+    // for the given instruction and transform, ending the stream.
+    bool is_last = 5;
   }
 
 
