@@ -82,6 +82,53 @@ class TransformTest(unittest.TestCase):
     self.run_test(
         df, lambda df: df.set_index('Animal').filter(regex='F.*', axis='index'))
 
+  def test_input_output_polymorphism(self):
+    one_series = pd.Series([1])
+    two_series = pd.Series([2])
+    three_series = pd.Series([3])
+    proxy = one_series[:0]
+
+    def equal_to_series(expected):
+      def check(actual):
+        actual = pd.concat(actual)
+        if not expected.equals(actual):
+          raise AssertionError(
+              'Series not equal: \n%s\n%s\n' % (expected, actual))
+
+      return check
+
+    with beam.Pipeline() as p:
+      one = p | 'One' >> beam.Create([one_series])
+      two = p | 'Two' >> beam.Create([two_series])
+
+      assert_that(
+          one | 'PcollInPcollOut' >> transforms.DataframeTransform(
+              lambda x: 3 * x, proxy=proxy),
+          equal_to_series(three_series),
+          label='CheckPcollInPcollOut')
+
+      assert_that((one, two)
+                  | 'TupleIn' >> transforms.DataframeTransform(
+                      lambda x, y: (x + y), (proxy, proxy)),
+                  equal_to_series(three_series),
+                  label='CheckTupleIn')
+
+      assert_that(
+          dict(x=one, y=two)
+          | 'DictIn' >> transforms.DataframeTransform(
+              lambda x, y: (x + y), proxy=dict(x=proxy, y=proxy)),
+          equal_to_series(three_series),
+          label='CheckDictIn')
+
+      double, triple = one | 'TupleOut' >> transforms.DataframeTransform(
+              lambda x: (2*x, 3*x), proxy)
+      assert_that(double, equal_to_series(two_series), 'CheckTupleOut0')
+      assert_that(triple, equal_to_series(three_series), 'CheckTupleOut1')
+
+      res = one | 'DictOut' >> transforms.DataframeTransform(
+          lambda x: {'res': 3 * x}, proxy)
+      assert_that(res['res'], equal_to_series(three_series), 'CheckDictOut')
+
 
 if __name__ == '__main__':
   unittest.main()
