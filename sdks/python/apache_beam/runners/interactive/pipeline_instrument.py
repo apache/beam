@@ -63,6 +63,24 @@ class Cacheable:
         self.producer_version))
 
 
+# TODO: turn this into a dataclass object when we finally get off of Python2.
+class CacheKey:
+  def __init__(self, var, version, producer_version, pipeline_id):
+    self.var = var
+    self.version = version
+    self.producer_version = producer_version
+    self.pipeline_id = pipeline_id
+
+  @staticmethod
+  def from_str(r):
+    split = r.split('|')
+    return CacheKey(split[0], split[1], split[2], split[3])
+
+  def __repr__(self):
+    return '|'.join(
+        [self.var, self.version, self.producer_version, self.pipeline_id])
+
+
 class PipelineInstrument(object):
   """A pipeline instrument for pipeline to be executed by interactive runner.
 
@@ -786,12 +804,12 @@ class PipelineInstrument(object):
       else:
         user_pcoll = cacheable.pcoll
 
-      ret = '_'.join((
-          cacheable.var,
-          cacheable.version,
-          cacheable.producer_version,
-          str(id(user_pcoll.pipeline))))
-      return ret
+      return repr(
+          CacheKey(
+              cacheable.var,
+              cacheable.version,
+              cacheable.producer_version,
+              str(id(user_pcoll.pipeline))))
     return ''
 
   def cacheable_var_by_pcoll_id(self, pcoll_id):

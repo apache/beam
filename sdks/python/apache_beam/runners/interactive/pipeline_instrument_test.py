@@ -46,8 +46,12 @@ class PipelineInstrumentTest(unittest.TestCase):
     ie.new_env(cache_manager=InMemoryCache())
 
   def cache_key_of(self, name, pcoll):
-    return name + '_' + str(id(pcoll)) + '_' + str(id(
-        pcoll.producer)) + '_' + str(id(pcoll.pipeline))
+    return repr(
+        instr.CacheKey(
+            name,
+            str(id(pcoll)),
+            str(id(pcoll.producer)),
+            str(id(pcoll.pipeline))))
 
   def test_pcolls_to_pcoll_id(self):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
