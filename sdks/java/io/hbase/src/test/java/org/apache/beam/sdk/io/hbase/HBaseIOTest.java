@@ -549,11 +549,8 @@ public class HBaseIOTest {
   private PCollection<Result> applyRead(HBaseIO.Read read, boolean useSdf) {
     final String transformId = read.getTableId() + "_" + read.getKeyRange();
     return useSdf
-        ? p.apply(
-                "Create" + transformId, Create.of(HBaseQuery.of(read.getTableId(), read.getScan())))
-            .apply(
-                "ReadAll" + transformId,
-                HBaseIO.readAll().withConfiguration(read.getConfiguration()))
+        ? p.apply("Create" + transformId, Create.of(read))
+            .apply("ReadAll" + transformId, HBaseIO.readAll())
         : p.apply("Read" + transformId, read);
   }
 

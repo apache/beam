@@ -33,6 +33,7 @@ this module in your notebook or application code.
 
 from __future__ import absolute_import
 
+import logging
 import warnings
 
 import apache_beam as beam
@@ -46,6 +47,8 @@ from apache_beam.runners.interactive.display.pcoll_visualization import visualiz
 from apache_beam.runners.interactive.options import interactive_options
 from apache_beam.runners.interactive.utils import elements_to_df
 from apache_beam.runners.interactive.utils import to_element_list
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class Options(interactive_options.InteractiveOptions):
@@ -64,11 +67,34 @@ class Options(interactive_options.InteractiveOptions):
     and pipeline runs always use the same data captured; False - Disables
     capture of replayable source data so that following PCollection evaluation
     and pipeline runs always use new data from sources."""
+    # This makes sure the log handler is configured correctly in case the
+    # options are configured in an early stage.
+    _ = ie.current_env()
+    if value:
+      _LOGGER.info(
+          'Capture replay is enabled. When a PCollection is evaluated or the '
+          'pipeline is executed, existing data captured from previous '
+          'computations will be replayed for consistent results. If no '
+          'captured data is available, new data from capturable sources will '
+          'be captured.')
+    else:
+      _LOGGER.info(
+          'Capture replay is disabled. The next time a PCollection is '
+          'evaluated or the pipeline is executed, new data will always be '
+          'consumed from sources in the pipeline. You will not have '
+          'replayability until re-enabling this option.')
     self.capture_control._enable_capture_replay = value
 
   @property
   def capturable_sources(self):
-    """Interactive Beam automatically captures data from sources in this set."""
+    """Interactive Beam automatically captures data from sources in this set.
+    """
+    _ = ie.current_env()
+    _LOGGER.info(
+        'If you alter the capturable sources, to allow new data for the '
+        'altered sources to be captured the next time a PCollection is '
+        'evaluated or the pipeline is executed, please invoke '
+        'evict_captured_data().')
     return self.capture_control._capturable_sources
 
   @property
@@ -92,7 +118,17 @@ class Options(interactive_options.InteractiveOptions):
       interactive_beam.collect(some_pcoll)
     """
     assert value.total_seconds() > 0, 'Duration must be a positive value.'
-    self.capture_control._capture_duration = value
+    if self.capture_control._capture_duration.total_seconds(
+    ) != value.total_seconds():
+      _ = ie.current_env()
+      _LOGGER.info(
+          'You have changed capture duration from %s seconds to %s seconds. '
+          'To allow new data to be captured for the updated duration, the '
+          'next time a PCollection is evaluated or the pipeline is executed, '
+          'please invoke evict_captured_data().',
+          self.capture_control._capture_duration.total_seconds(),
+          value.total_seconds())
+      self.capture_control._capture_duration = value
 
   @property
   def capture_size_limit(self):
@@ -109,7 +145,16 @@ class Options(interactive_options.InteractiveOptions):
       # Sets the capture size limit to 1GB.
       interactive_beam.options.capture_size_limit = 1e9
     """
-    self.capture_control._capture_size_limit = value
+    if self.capture_control._capture_size_limit != value:
+      _ = ie.current_env()
+      _LOGGER.info(
+          'You have changed capture size limit from %s bytes to %s bytes. To '
+          'allow new data to be captured under the updated size limit, the '
+          'next time a PCollection is evaluated or the pipeline is executed, '
+          'please invoke evict_captured_data().',
+          self.capture_control._capture_size_limit,
+          value)
+      self.capture_control._capture_size_limit = value
 
   @property
   def display_timestamp_format(self):
@@ -223,11 +268,16 @@ def watch(watchable):
 # `show(*pcolls, include_window_info=False, visualize_data=False)` once Python 2
 # is completely deprecated from Beam.
 def show(*pcolls, **configs):
+  # type: (*Union[Dict[Any, PCollection], Iterable[PCollection], PCollection], **bool) -> None
+
   """Shows given PCollections in an interactive exploratory way if used within
   a notebook, or prints a heading sampled data if used within an ipython shell.
   Noop if used in a non-interactive environment.
 
-  There are 2 configurations:
+  The given pcolls can be dictionary of PCollections (as values), or iterable
+  of PCollections or plain PCollection values.
+
+  There are 2 boolean configurations:
 
     #. include_window_info=<True/False>. If True, windowing information of the
        data will be visualized too. Default is false.
@@ -276,6 +326,20 @@ def show(*pcolls, **configs):
       # PCollection `square` and PCollection `cube`, then visualizes them.
       show(square, cube)
   """
+  flatten_pcolls = []
+  for pcoll_container in pcolls:
+    if isinstance(pcoll_container, dict):
+      flatten_pcolls.extend(pcoll_container.values())
+    elif isinstance(pcoll_container, beam.pvalue.PCollection):
+      flatten_pcolls.append(pcoll_container)
+    else:
+      try:
+        flatten_pcolls.extend(iter(pcoll_container))
+      except TypeError:
+        raise ValueError(
+            'The given pcoll %s is not a dict, an iterable or a PCollection.' %
+            pcoll_container)
+  pcolls = flatten_pcolls
   assert len(pcolls) > 0, (
       'Need at least 1 PCollection to show data visualization.')
   for pcoll in pcolls:

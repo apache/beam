@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms.splittabledofn;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
 
 import org.apache.beam.sdk.testing.ResetDateTimeProvider;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -41,22 +40,19 @@ public class WatermarkEstimatorsTest {
     assertEquals(GlobalWindow.TIMESTAMP_MIN_VALUE, watermarkEstimator.currentWatermark());
     watermarkEstimator.setWatermark(GlobalWindow.TIMESTAMP_MIN_VALUE);
     watermarkEstimator.setWatermark(
-        watermarkEstimator.currentWatermark().plus(Duration.standardHours(1)));
+        GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(2)));
     assertEquals(
-        GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(1)),
+        GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(2)),
         watermarkEstimator.currentWatermark());
-    assertThrows(
-        "must be within bounds",
-        IllegalArgumentException.class,
-        () -> watermarkEstimator.setWatermark(GlobalWindow.TIMESTAMP_MIN_VALUE.minus(1)));
-    assertThrows(
-        "must be within bounds",
-        IllegalArgumentException.class,
-        () -> watermarkEstimator.setWatermark(GlobalWindow.TIMESTAMP_MAX_VALUE.plus(1)));
-    assertThrows(
-        "monotonically increasing",
-        IllegalArgumentException.class,
-        () -> watermarkEstimator.setWatermark(GlobalWindow.TIMESTAMP_MIN_VALUE));
+
+    // Make sure that even if the watermark goes backwards we report the "greatest" value we have
+    // reported so far.
+    watermarkEstimator.setWatermark(
+        GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(1)));
+    assertEquals(
+        GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(2)),
+        watermarkEstimator.currentWatermark());
+
     watermarkEstimator.setWatermark(GlobalWindow.TIMESTAMP_MAX_VALUE);
     assertEquals(GlobalWindow.TIMESTAMP_MAX_VALUE, watermarkEstimator.currentWatermark());
   }
@@ -88,14 +84,19 @@ public class WatermarkEstimatorsTest {
     assertEquals(GlobalWindow.TIMESTAMP_MIN_VALUE, watermarkEstimator.currentWatermark());
     watermarkEstimator.observeTimestamp(GlobalWindow.TIMESTAMP_MIN_VALUE);
     watermarkEstimator.observeTimestamp(
-        watermarkEstimator.currentWatermark().plus(Duration.standardHours(1)));
+        GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(2)));
     assertEquals(
-        GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(1)),
+        GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(2)),
         watermarkEstimator.currentWatermark());
-    assertThrows(
-        "monotonically increasing",
-        IllegalArgumentException.class,
-        () -> watermarkEstimator.observeTimestamp(GlobalWindow.TIMESTAMP_MIN_VALUE));
+
+    // Make sure that even if the watermark goes backwards we report the "greatest" value we have
+    // reported so far.
+    watermarkEstimator.observeTimestamp(
+        GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(1)));
+    assertEquals(
+        GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(2)),
+        watermarkEstimator.currentWatermark());
+
     watermarkEstimator.observeTimestamp(GlobalWindow.TIMESTAMP_MAX_VALUE);
     assertEquals(GlobalWindow.TIMESTAMP_MAX_VALUE, watermarkEstimator.currentWatermark());
   }

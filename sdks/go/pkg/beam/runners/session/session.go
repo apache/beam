@@ -180,11 +180,11 @@ func (c *controlServer) handleEntry(msg *session.Entry) {
 			for _, desc := range rr.GetProcessBundleDescriptor() {
 				for beamPort, t := range desc.GetTransforms() {
 					s := t.GetSpec()
-					if s.GetUrn() == "beam:source:runner:0.1" {
+					if s.GetUrn() == "beam:runner:source:v1" {
 						tcpPort := extractPortSpec(s)
 						c.establishDataChannel(beamPort, tcpPort)
 					}
-					if s.GetUrn() == "beam:sink:runner:0.1" {
+					if s.GetUrn() == "beam:runner:sink:v1" {
 						tcpPort := extractPortSpec(s)
 						c.establishDataChannel(beamPort, tcpPort)
 					}

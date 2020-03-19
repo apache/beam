@@ -103,7 +103,7 @@ class FileSystems(object):
         raise ValueError(
             'Unable to get filesystem from specified path, please use the '
             'correct path or ensure the required dependency is installed, '
-            'e.g., pip install apache_beam[gcp]. Path specified: %s' % path)
+            'e.g., pip install apache-beam[gcp]. Path specified: %s' % path)
       elif len(systems) == 1:
         # Pipeline options could come either from the Pipeline itself (using
         # direct runner), or via RuntimeValueProvider (other runners).

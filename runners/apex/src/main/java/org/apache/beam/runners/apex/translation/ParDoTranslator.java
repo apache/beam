@@ -138,12 +138,15 @@ class ParDoTranslator<InputT, OutputT>
     }
   }
 
-  static class SplittableProcessElementsTranslator<InputT, OutputT, RestrictionT, PositionT>
-      implements TransformTranslator<ProcessElements<InputT, OutputT, RestrictionT, PositionT>> {
+  static class SplittableProcessElementsTranslator<
+          InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
+      implements TransformTranslator<
+          ProcessElements<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>> {
 
     @Override
     public void translate(
-        ProcessElements<InputT, OutputT, RestrictionT, PositionT> transform,
+        ProcessElements<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
+            transform,
         TranslationContext context) {
 
       Map<TupleTag<?>, PValue> outputs = context.getOutputs();
