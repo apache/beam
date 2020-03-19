@@ -24,7 +24,7 @@ import org.joda.time.Instant;
 
 /**
  * A {@link WatermarkEstimator} which is used for estimating output watermarks of a splittable
- * {@link DoFn}.
+ * {@link DoFn}. See {@link WatermarkEstimators} for commonly used watermark estimators.
  */
 @Experimental(Kind.SPLITTABLE_DO_FN)
 public interface WatermarkEstimator<WatermarkEstimatorStateT> {

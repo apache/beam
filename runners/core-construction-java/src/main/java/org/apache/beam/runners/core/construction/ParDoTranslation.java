@@ -36,12 +36,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Parameter.Type;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput.Builder;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
@@ -62,12 +60,10 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.ViewFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -202,9 +198,12 @@ public class ParDoTranslation {
     final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
     final String restrictionCoderId;
     if (signature.processElement().isSplittable()) {
-      final Coder<?> restrictionCoder =
-          DoFnInvokers.invokerFor(doFn).invokeGetRestrictionCoder(pipeline.getCoderRegistry());
-      restrictionCoderId = components.registerCoder(restrictionCoder);
+      DoFnInvoker<?, ?> doFnInvoker = DoFnInvokers.invokerFor(doFn);
+      final Coder<?> restrictionAndWatermarkStateCoder =
+          KvCoder.of(
+              doFnInvoker.invokeGetRestrictionCoder(pipeline.getCoderRegistry()),
+              doFnInvoker.invokeGetWatermarkEstimatorStateCoder(pipeline.getCoderRegistry()));
+      restrictionCoderId = components.registerCoder(restrictionAndWatermarkStateCoder);
     } else {
       restrictionCoderId = "";
     }
@@ -219,12 +218,6 @@ public class ParDoTranslation {
                 parDo.getSideInputs(),
                 doFnSchemaInformation,
                 newComponents);
-          }
-
-          @Override
-          public List<RunnerApi.Parameter> translateParameters() {
-            return ParDoTranslation.translateParameters(
-                signature.processElement().extraParameters());
           }
 
           @Override
@@ -313,17 +306,6 @@ public class ParDoTranslation {
           }
         },
         components);
-  }
-
-  public static List<RunnerApi.Parameter> translateParameters(List<Parameter> params) {
-    List<RunnerApi.Parameter> parameters = new ArrayList<>();
-    for (Parameter parameter : params) {
-      RunnerApi.Parameter protoParameter = translateParameter(parameter);
-      if (protoParameter != null) {
-        parameters.add(protoParameter);
-      }
-    }
-    return parameters;
   }
 
   public static DoFn<?, ?> getDoFn(ParDoPayload payload) throws InvalidProtocolBufferException {
@@ -671,38 +653,6 @@ public class ParDoTranslation {
         SerializableUtils.deserializeFromByteArray(serializedFn, "Custom DoFn With Execution Info");
   }
 
-  /**
-   * Translates a Java DoFn parameter to a proto representation.
-   *
-   * <p>Returns {@code null} rather than crashing for parameters that are not yet supported, to
-   * allow legacy Java-based runners to perform a proto round-trip and afterwards use {@link
-   * DoFnSignatures} to analyze.
-   *
-   * <p>The proto definition for parameters is provisional and those parameters that are not needed
-   * for portability will be removed from the enum.
-   */
-  // Using nullability instead of optional because of shading
-  public static @Nullable RunnerApi.Parameter translateParameter(Parameter parameter) {
-    return parameter.match(
-        new Cases.WithDefault</* @Nullable in Java 8 */ RunnerApi.Parameter>() {
-          @Override
-          public RunnerApi.Parameter dispatch(WindowParameter p) {
-            return RunnerApi.Parameter.newBuilder().setType(Type.Enum.WINDOW).build();
-          }
-
-          @Override
-          public RunnerApi.Parameter dispatch(RestrictionTrackerParameter p) {
-            return RunnerApi.Parameter.newBuilder().setType(Type.Enum.RESTRICTION_TRACKER).build();
-          }
-
-          @Override
-          // Java 7 + findbugs limitation. The return type is nullable.
-          protected @Nullable RunnerApi.Parameter dispatchDefault(Parameter p) {
-            return null;
-          }
-        });
-  }
-
   public static Map<String, SideInput> translateSideInputs(
       List<PCollectionView<?>> views, SdkComponents components) {
     Map<String, SideInput> sideInputs = new HashMap<>();
@@ -767,8 +717,6 @@ public class ParDoTranslation {
   public interface ParDoLike {
     FunctionSpec translateDoFn(SdkComponents newComponents);
 
-    List<RunnerApi.Parameter> translateParameters();
-
     Map<String, RunnerApi.SideInput> translateSideInputs(SdkComponents components);
 
     Map<String, RunnerApi.StateSpec> translateStateSpecs(SdkComponents components)
@@ -792,7 +740,6 @@ public class ParDoTranslation {
 
     return ParDoPayload.newBuilder()
         .setDoFn(parDo.translateDoFn(components))
-        .addAllParameters(parDo.translateParameters())
         .putAllStateSpecs(parDo.translateStateSpecs(components))
         .putAllTimerSpecs(parDo.translateTimerSpecs(components))
         .putAllTimerFamilySpecs(parDo.translateTimerFamilySpecs(components))
