@@ -33,6 +33,7 @@ this module in your notebook or application code.
 
 from __future__ import absolute_import
 
+import logging
 import warnings
 
 import apache_beam as beam
@@ -46,6 +47,8 @@ from apache_beam.runners.interactive.display.pcoll_visualization import visualiz
 from apache_beam.runners.interactive.options import interactive_options
 from apache_beam.runners.interactive.utils import elements_to_df
 from apache_beam.runners.interactive.utils import to_element_list
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class Options(interactive_options.InteractiveOptions):
@@ -64,11 +67,34 @@ class Options(interactive_options.InteractiveOptions):
     and pipeline runs always use the same data captured; False - Disables
     capture of replayable source data so that following PCollection evaluation
     and pipeline runs always use new data from sources."""
+    # This makes sure the log handler is configured correctly in case the
+    # options are configured in an early stage.
+    _ = ie.current_env()
+    if value:
+      _LOGGER.info(
+          'Capture replay is enabled. When a PCollection is evaluated or the '
+          'pipeline is executed, existing data captured from previous '
+          'computations will be replayed for consistent results. If no '
+          'captured data is available, new data from capturable sources will '
+          'be captured.')
+    else:
+      _LOGGER.info(
+          'Capture replay is disabled. The next time a PCollection is '
+          'evaluated or the pipeline is executed, new data will always be '
+          'consumed from sources in the pipeline. You will not have '
+          'replayability until re-enabling this option.')
     self.capture_control._enable_capture_replay = value
 
   @property
   def capturable_sources(self):
-    """Interactive Beam automatically captures data from sources in this set."""
+    """Interactive Beam automatically captures data from sources in this set.
+    """
+    _ = ie.current_env()
+    _LOGGER.info(
+        'If you alter the capturable sources, to allow new data for the '
+        'altered sources to be captured the next time a PCollection is '
+        'evaluated or the pipeline is executed, please invoke '
+        'evict_captured_data().')
     return self.capture_control._capturable_sources
 
   @property
@@ -92,7 +118,17 @@ class Options(interactive_options.InteractiveOptions):
       interactive_beam.collect(some_pcoll)
     """
     assert value.total_seconds() > 0, 'Duration must be a positive value.'
-    self.capture_control._capture_duration = value
+    if self.capture_control._capture_duration.total_seconds(
+    ) != value.total_seconds():
+      _ = ie.current_env()
+      _LOGGER.info(
+          'You have changed capture duration from %s seconds to %s seconds. '
+          'To allow new data to be captured for the updated duration, the '
+          'next time a PCollection is evaluated or the pipeline is executed, '
+          'please invoke evict_captured_data().',
+          self.capture_control._capture_duration.total_seconds(),
+          value.total_seconds())
+      self.capture_control._capture_duration = value
 
   @property
   def capture_size_limit(self):
@@ -109,7 +145,16 @@ class Options(interactive_options.InteractiveOptions):
       # Sets the capture size limit to 1GB.
       interactive_beam.options.capture_size_limit = 1e9
     """
-    self.capture_control._capture_size_limit = value
+    if self.capture_control._capture_size_limit != value:
+      _ = ie.current_env()
+      _LOGGER.info(
+          'You have changed capture size limit from %s bytes to %s bytes. To '
+          'allow new data to be captured under the updated size limit, the '
+          'next time a PCollection is evaluated or the pipeline is executed, '
+          'please invoke evict_captured_data().',
+          self.capture_control._capture_size_limit,
+          value)
+      self.capture_control._capture_size_limit = value
 
   @property
   def display_timestamp_format(self):
