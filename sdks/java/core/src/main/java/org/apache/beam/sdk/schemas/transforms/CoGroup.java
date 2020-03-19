@@ -546,7 +546,7 @@ public class CoGroup {
       List<Object> fields = Lists.newArrayListWithCapacity(getIterables().size() + 1);
       fields.add(getKey());
       fields.addAll(getIterables());
-      o.output(Row.withSchema(outputSchema).attachValues().build());
+      o.output(Row.withSchema(outputSchema).attachValues(fields).build());
     }
 
     static Schema getExpandedOutputSchema(JoinInformation joinInformation, JoinArguments joinArgs) {
