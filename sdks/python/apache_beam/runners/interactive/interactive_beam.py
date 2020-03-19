@@ -74,14 +74,15 @@ class Options(interactive_options.InteractiveOptions):
       _LOGGER.info(
           'Capture replay is enabled. When a PCollection is evaluated or the '
           'pipeline is executed, existing data captured from previous '
-          'computations will be replayed for consistent results. If no captured data is '
-          'available, new data from capturable sources will be captured.')
+          'computations will be replayed for consistent results. If no '
+          'captured data is available, new data from capturable sources will '
+          'be captured.')
     else:
       _LOGGER.info(
           'Capture replay is disabled. The next time a PCollection is '
           'evaluated or the pipeline is executed, new data will always be '
-          'consumed from sources in the pipeline. You will not have replayability '
-          'until re-enabling this option.')
+          'consumed from sources in the pipeline. You will not have '
+          'replayability until re-enabling this option.')
     self.capture_control._enable_capture_replay = value
 
   @property
@@ -122,8 +123,8 @@ class Options(interactive_options.InteractiveOptions):
       _ = ie.current_env()
       _LOGGER.info(
           'You have changed capture duration from %s seconds to %s seconds. '
-          'To allow new data to be captured for the updated duration, the next '
-          'time a PCollection is evaluated or the pipeline is executed, '
+          'To allow new data to be captured for the updated duration, the '
+          'next time a PCollection is evaluated or the pipeline is executed, '
           'please invoke evict_captured_data().',
           self.capture_control._capture_duration.total_seconds(),
           value.total_seconds())
