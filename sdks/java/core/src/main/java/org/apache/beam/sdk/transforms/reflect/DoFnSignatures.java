@@ -1286,7 +1286,7 @@ public class DoFnSignatures {
     } else if (hasAnnotation(DoFn.KeyId.class, param.getAnnotations())) {
       Type keyType = ((ParameterizedType) inputT.getType()).getActualTypeArguments()[0];
       methodErrors.checkArgument(
-          keyType.equals(rawType),
+          TypeDescriptor.of(keyType).equals(paramT),
           "@Key argument is expected to be type of %s, but found %s.",
           keyType,
           rawType);
