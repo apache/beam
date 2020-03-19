@@ -43,6 +43,7 @@ import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -50,6 +51,7 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
@@ -283,11 +285,15 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
             @Override
             public String translateRestrictionCoderId(SdkComponents newComponents) {
               if (signature.processElement().isSplittable()) {
-                Coder<?> restrictionCoder =
-                    DoFnInvokers.invokerFor(doFn)
-                        .invokeGetRestrictionCoder(transform.getPipeline().getCoderRegistry());
+                DoFnInvoker<?, ?> doFnInvoker = DoFnInvokers.invokerFor(doFn);
+                final Coder<?> restrictionAndWatermarkStateCoder =
+                    KvCoder.of(
+                        doFnInvoker.invokeGetRestrictionCoder(
+                            transform.getPipeline().getCoderRegistry()),
+                        doFnInvoker.invokeGetWatermarkEstimatorStateCoder(
+                            transform.getPipeline().getCoderRegistry()));
                 try {
-                  return newComponents.registerCoder(restrictionCoder);
+                  return newComponents.registerCoder(restrictionAndWatermarkStateCoder);
                 } catch (IOException e) {
                   throw new IllegalStateException(
                       String.format(

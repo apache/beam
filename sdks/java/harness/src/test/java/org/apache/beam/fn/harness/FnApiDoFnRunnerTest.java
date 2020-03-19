@@ -84,8 +84,10 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -1044,13 +1046,15 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     @ProcessElement
     public ProcessContinuation processElement(
-        ProcessContext context, RestrictionTracker<OffsetRange, Long> tracker) {
+        ProcessContext context,
+        RestrictionTracker<OffsetRange, Long> tracker,
+        ManualWatermarkEstimator<Instant> watermarkEstimator) {
       int upperBound = Integer.parseInt(context.sideInput(singletonSideInput));
       for (int i = 0; i < upperBound; ++i) {
         if (tracker.tryClaim((long) i)) {
           context.outputWithTimestamp(
               context.element() + ":" + i, GlobalWindow.TIMESTAMP_MIN_VALUE.plus(i));
-          context.updateWatermark(GlobalWindow.TIMESTAMP_MIN_VALUE.plus(i));
+          watermarkEstimator.setWatermark(GlobalWindow.TIMESTAMP_MIN_VALUE.plus(i));
         }
       }
       if (tracker.currentRestriction().getTo() > upperBound) {
@@ -1074,6 +1078,17 @@ public class FnApiDoFnRunnerTest implements Serializable {
     public void splitRange(@Restriction OffsetRange range, OutputReceiver<OffsetRange> receiver) {
       receiver.output(new OffsetRange(range.getFrom(), (range.getFrom() + range.getTo()) / 2));
       receiver.output(new OffsetRange((range.getFrom() + range.getTo()) / 2, range.getTo()));
+    }
+
+    @GetInitialWatermarkEstimatorState
+    public Instant getInitialWatermarkEstimatorState() {
+      return GlobalWindow.TIMESTAMP_MIN_VALUE;
+    }
+
+    @NewWatermarkEstimator
+    public WatermarkEstimators.Manual newWatermarkEstimator(
+        @WatermarkEstimatorState Instant watermark) {
+      return new WatermarkEstimators.Manual(watermark);
     }
   }
 
@@ -1170,7 +1185,10 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     FnDataReceiver<WindowedValue<?>> mainInput =
         consumers.getMultiplexingConsumer(inputPCollectionId);
-    mainInput.accept(valueInGlobalWindow(KV.of(KV.of("5", new OffsetRange(0, 5)), 5.0)));
+    mainInput.accept(
+        valueInGlobalWindow(
+            KV.of(
+                KV.of("5", KV.of(new OffsetRange(0, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)), 5.0)));
     BundleApplication primaryRoot = Iterables.getOnlyElement(primarySplits);
     DelayedBundleApplication residualRoot = Iterables.getOnlyElement(residualSplits);
     assertEquals(ParDoTranslation.getMainInputName(pTransform), primaryRoot.getInputId());
@@ -1192,7 +1210,10 @@ public class FnApiDoFnRunnerTest implements Serializable {
     primarySplits.clear();
     residualSplits.clear();
 
-    mainInput.accept(valueInGlobalWindow(KV.of(KV.of("2", new OffsetRange(0, 2)), 2.0)));
+    mainInput.accept(
+        valueInGlobalWindow(
+            KV.of(
+                KV.of("2", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)), 2.0)));
     assertThat(
         mainOutputValues,
         contains(
@@ -1293,8 +1314,10 @@ public class FnApiDoFnRunnerTest implements Serializable {
     assertThat(
         mainOutputValues,
         contains(
-            valueInGlobalWindow(KV.of("5", new OffsetRange(0, 5))),
-            valueInGlobalWindow(KV.of("2", new OffsetRange(0, 2)))));
+            valueInGlobalWindow(
+                KV.of("5", KV.of(new OffsetRange(0, 5), GlobalWindow.TIMESTAMP_MIN_VALUE))),
+            valueInGlobalWindow(
+                KV.of("2", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)))));
     mainOutputValues.clear();
 
     Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
@@ -1378,15 +1401,31 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     FnDataReceiver<WindowedValue<?>> mainInput =
         consumers.getMultiplexingConsumer(inputPCollectionId);
-    mainInput.accept(valueInGlobalWindow(KV.of("5", new OffsetRange(0, 5))));
-    mainInput.accept(valueInGlobalWindow(KV.of("2", new OffsetRange(0, 2))));
+    mainInput.accept(
+        valueInGlobalWindow(
+            KV.of("5", KV.of(new OffsetRange(0, 5), GlobalWindow.TIMESTAMP_MIN_VALUE))));
+    mainInput.accept(
+        valueInGlobalWindow(
+            KV.of("2", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE))));
     assertThat(
         mainOutputValues,
         contains(
-            valueInGlobalWindow(KV.of(KV.of("5", new OffsetRange(0, 2)), 2.0)),
-            valueInGlobalWindow(KV.of(KV.of("5", new OffsetRange(2, 5)), 3.0)),
-            valueInGlobalWindow(KV.of(KV.of("2", new OffsetRange(0, 1)), 1.0)),
-            valueInGlobalWindow(KV.of(KV.of("2", new OffsetRange(1, 2)), 1.0))));
+            valueInGlobalWindow(
+                KV.of(
+                    KV.of("5", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
+                    2.0)),
+            valueInGlobalWindow(
+                KV.of(
+                    KV.of("5", KV.of(new OffsetRange(2, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)),
+                    3.0)),
+            valueInGlobalWindow(
+                KV.of(
+                    KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
+                    1.0)),
+            valueInGlobalWindow(
+                KV.of(
+                    KV.of("2", KV.of(new OffsetRange(1, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
+                    1.0))));
     mainOutputValues.clear();
 
     Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
