@@ -103,13 +103,13 @@ def loadTest = { scope, triggeringContext, mode, isStreaming ->
     flink.setUp([javaHarnessImageTag], numberOfWorkers, publisher.getFullImageName('beam_flink1.10_job_server'))
 
     def configurations = testScenarios.findAll { it.pipelineOptions?.sdkWorkerParallelism?.value == numberOfWorkers }
-    loadTestsBuilder.loadTests(scope, sdk, configurations, "Combine", mode)
     if (isStreaming) {
-        for (config in configurations) {
-            config.pipelineOptions << [inputWindowDurationSec: 1200]
-        }
+      for (config in configurations) {
+        config.pipelineOptions << [inputWindowDurationSec: 1200]
+      }
     }
-    numberOfWorkers = 5
+  loadTestsBuilder.loadTests(scope, sdk, configurations, "Combine", mode)
+  numberOfWorkers = 5
     flink.scaleCluster(numberOfWorkers)
 
     configurations = testScenarios.findAll { it.pipelineOptions?.sdkWorkerParallelism?.value == numberOfWorkers }
