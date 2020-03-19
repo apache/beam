@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.hbase;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -131,5 +132,11 @@ class HBaseUtils {
   static ByteKeyRange getByteKeyRange(Scan scan) {
     return ByteKeyRange.of(
         ByteKey.copyFrom(scan.getStartRow()), ByteKey.copyFrom(scan.getStopRow()));
+  }
+
+  static Scan newScanInRange(Scan scan, ByteKeyRange range) throws IOException {
+    return new Scan(scan)
+        .setStartRow(range.getStartKey().getBytes())
+        .setStopRow(range.getEndKey().getBytes());
   }
 }
