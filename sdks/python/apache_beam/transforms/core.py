@@ -1811,6 +1811,8 @@ class CombineGlobally(PTransform):
       return view
     else:
       if pcoll.windowing.windowfn != GlobalWindows():
+        # Remove the broken transform when running into value error.
+        pcoll.pipeline.transforms_stack.pop()
         raise ValueError(
             "Default values are not yet supported in CombineGlobally() if the "
             "output  PCollection is not windowed by GlobalWindows. "
