@@ -164,6 +164,11 @@ message ProcessBundleDescriptor {
   // data plane or if any of the transforms rely on user state or side inputs.
   org.apache.beam.model.pipeline.v1.ApiServiceDescriptor
       state_api_service_descriptor = 7;
+
+  // A descriptor describing the end point to use for Data API for user timers.
+  // Required if the ProcessBundleDescriptor contains any transforms that have user timers.
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor
+      timer_api_service_descriptor = 8;
 }
 
 // One of the applications specifying the scope of work for a bundle.
@@ -533,8 +538,35 @@ message Elements {
     bytes data = 3;
   }
 
-  // (Required) A list containing parts of logical byte streams.
+  // Represent the encoded user timer for a given instruction, transform and
+  // timer id.
+  message Timer {
+    // (Required) A reference to an active instruction request with the given
+    // instruction id.
+    string instruction_id = 1;
+
+    // (Required) A definition representing a consumer or producer of this data.
+    // If received by a harness, this represents the consumer within that
+    // harness that should consume these timers. If sent by a harness, this
+    // represents the producer of these timers.
+    string transform_id = 2;
+
+    // (Optional) The local timer name used to identify the associated timer specification.
+    string timer_id = 3;
+
+    // (Optional) Represents a logical byte stream of a timer. Encoded according
+    // to the coder in the timer spec.
+    // An empty data block represents the end of stream for the given
+    // instruction and transform.
+    bytes timer = 4;
+  }
+
+
+  // (Optional) A list containing parts of logical byte streams.
   repeated Data data = 1;
+
+  // (Optional)  A list of timer byte streams.
+  repeated Timer timer = 2;
 }
 
 // Stable
