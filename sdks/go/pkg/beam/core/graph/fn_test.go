@@ -65,6 +65,7 @@ func TestNewDoFn(t *testing.T) {
 			{dfn: func(func(*int) bool, int) int { // Side input before main input.
 				return 0
 			}},
+			{dfn: &BadDoFnHasRTracker{}},
 			// Validate emit parameters.
 			{dfn: &BadDoFnNoEmitsStartBundle{}},
 			{dfn: &BadDoFnMissingEmitsStartBundle{}},
@@ -171,10 +172,12 @@ func TestNewDoFnSdf(t *testing.T) {
 			{dfn: &BadSdfParamsCreateRest{}},
 			{dfn: &BadSdfParamsSplitRest{}},
 			{dfn: &BadSdfParamsRestSize{}},
+			{dfn: &BadSdfParamsCreateTracker{}},
 			// Validate return numbers.
 			{dfn: &BadSdfReturnsCreateRest{}},
 			{dfn: &BadSdfReturnsSplitRest{}},
 			{dfn: &BadSdfReturnsRestSize{}},
+			{dfn: &BadSdfReturnsCreateTracker{}},
 			// Validate element types consistent with ProcessElement.
 			{dfn: &BadSdfElementTCreateRest{}},
 			{dfn: &BadSdfElementTSplitRest{}},
@@ -183,8 +186,12 @@ func TestNewDoFnSdf(t *testing.T) {
 			{dfn: &BadSdfRestTSplitRestParam{}},
 			{dfn: &BadSdfRestTSplitRestReturn{}},
 			{dfn: &BadSdfRestTRestSize{}},
+			{dfn: &BadSdfRestTCreateTracker{}},
 			// Validate other types
 			{dfn: &BadSdfRestSizeReturn{}},
+			{dfn: &BadSdfCreateTrackerReturn{}},
+			{dfn: &BadSdfMismatchedRTracker{}},
+			{dfn: &BadSdfMissingRTracker{}},
 		}
 		for _, test := range tests {
 			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
@@ -404,7 +411,16 @@ func (fn *GoodDoFnUnexportedExtraMethod) unexportedFunction() {
 
 // Examples of incorrect DoFn signatures.
 // Embedding good DoFns avoids repetitive ProcessElement signatures when desired.
-// The immediately following examples are relating to emit parameter mismatches.
+
+type BadDoFnHasRTracker struct {
+	*GoodDoFn
+}
+
+func (fn *BadDoFnHasRTracker) ProcessElement(*RTrackerT, int) int {
+	return 0
+}
+
+// Examples of emit parameter mismatches.
 
 type BadDoFnNoEmitsStartBundle struct {
 	*GoodDoFnEmits
@@ -545,6 +561,23 @@ func (fn *BadDoFnAmbiguousSideInput) FinishBundle(bool) {
 // Examples of correct SplittableDoFn signatures
 
 type RestT struct{}
+type RTrackerT struct{}
+
+func (rt *RTrackerT) TryClaim(interface{}) bool {
+	return true
+}
+func (rt *RTrackerT) GetError() error {
+	return nil
+}
+func (rt *RTrackerT) TrySplit(fraction float64) (interface{}, error) {
+	return nil, nil
+}
+func (rt *RTrackerT) GetProgress() float64 {
+	return 0
+}
+func (rt *RTrackerT) IsDone() bool {
+	return true
+}
 
 type GoodSdf struct {
 	*GoodDoFn
@@ -562,7 +595,13 @@ func (fn *GoodSdf) RestrictionSize(int, RestT) float64 {
 	return 0
 }
 
-// TODO(BEAM-3301): Add ProcessElement impl. when restriction trackers are in.
+func (fn *GoodSdf) CreateTracker(RestT) *RTrackerT {
+	return &RTrackerT{}
+}
+
+func (fn *GoodSdf) ProcessElement(*RTrackerT, int) int {
+	return 0
+}
 
 type GoodSdfKv struct {
 	*GoodDoFnKv
@@ -580,7 +619,13 @@ func (fn *GoodSdfKv) RestrictionSize(int, int, RestT) float64 {
 	return 0
 }
 
-// TODO(BEAM-3301): Add ProcessElement impl. when restriction trackers are in.
+func (fn *GoodSdfKv) CreateTracker(RestT) *RTrackerT {
+	return &RTrackerT{}
+}
+
+func (fn *GoodSdfKv) ProcessElement(*RTrackerT, int, int) int {
+	return 0
+}
 
 // Examples of incorrect SDF signatures.
 // Examples with missing methods.
@@ -596,7 +641,7 @@ func (fn *BadSdfMissingMethods) CreateInitialRestriction(int) RestT {
 // Examples with incorrect numbers of parameters.
 
 type BadSdfParamsCreateRest struct {
-	*GoodDoFn
+	*GoodSdf
 }
 
 func (fn *BadSdfParamsCreateRest) CreateInitialRestriction(int, int) RestT {
@@ -604,7 +649,7 @@ func (fn *BadSdfParamsCreateRest) CreateInitialRestriction(int, int) RestT {
 }
 
 type BadSdfParamsSplitRest struct {
-	*GoodDoFn
+	*GoodSdf
 }
 
 func (fn *BadSdfParamsSplitRest) SplitRestriction(int, int, RestT) []RestT {
@@ -612,17 +657,25 @@ func (fn *BadSdfParamsSplitRest) SplitRestriction(int, int, RestT) []RestT {
 }
 
 type BadSdfParamsRestSize struct {
-	*GoodDoFn
+	*GoodSdf
 }
 
 func (fn *BadSdfParamsRestSize) RestrictionSize(int, int, RestT) float64 {
 	return 0
 }
 
+type BadSdfParamsCreateTracker struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfParamsCreateTracker) CreateTracker(int, RestT) *RTrackerT {
+	return &RTrackerT{}
+}
+
 // Examples with invalid numbers of return values.
 
 type BadSdfReturnsCreateRest struct {
-	*GoodDoFn
+	*GoodSdf
 }
 
 func (fn *BadSdfReturnsCreateRest) CreateInitialRestriction(int) (RestT, int) {
@@ -630,7 +683,7 @@ func (fn *BadSdfReturnsCreateRest) CreateInitialRestriction(int) (RestT, int) {
 }
 
 type BadSdfReturnsSplitRest struct {
-	*GoodDoFn
+	*GoodSdf
 }
 
 func (fn *BadSdfReturnsSplitRest) SplitRestriction(int, RestT) ([]RestT, int) {
@@ -638,17 +691,25 @@ func (fn *BadSdfReturnsSplitRest) SplitRestriction(int, RestT) ([]RestT, int) {
 }
 
 type BadSdfReturnsRestSize struct {
-	*GoodDoFn
+	*GoodSdf
 }
 
 func (fn *BadSdfReturnsRestSize) RestrictionSize(int, RestT) (float64, int) {
 	return 0, 0
 }
 
+type BadSdfReturnsCreateTracker struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfReturnsCreateTracker) CreateTracker(RestT) (*RTrackerT, int) {
+	return &RTrackerT{}, 0
+}
+
 // Examples with element types inconsistent with ProcessElement.
 
 type BadSdfElementTCreateRest struct {
-	*GoodDoFn
+	*GoodSdf
 }
 
 func (fn *BadSdfElementTCreateRest) CreateInitialRestriction(float32) RestT {
@@ -656,7 +717,7 @@ func (fn *BadSdfElementTCreateRest) CreateInitialRestriction(float32) RestT {
 }
 
 type BadSdfElementTSplitRest struct {
-	*GoodDoFn
+	*GoodSdf
 }
 
 func (fn *BadSdfElementTSplitRest) SplitRestriction(float32, RestT) []RestT {
@@ -664,7 +725,7 @@ func (fn *BadSdfElementTSplitRest) SplitRestriction(float32, RestT) []RestT {
 }
 
 type BadSdfElementTRestSize struct {
-	*GoodDoFn
+	*GoodSdf
 }
 
 func (fn *BadSdfElementTRestSize) RestrictionSize(float32, RestT) float64 {
@@ -676,7 +737,7 @@ func (fn *BadSdfElementTRestSize) RestrictionSize(float32, RestT) float64 {
 type BadRestT struct{}
 
 type BadSdfRestTSplitRestParam struct {
-	*GoodDoFn
+	*GoodSdf
 }
 
 func (fn *BadSdfRestTSplitRestParam) SplitRestriction(int, BadRestT) []RestT {
@@ -684,7 +745,7 @@ func (fn *BadSdfRestTSplitRestParam) SplitRestriction(int, BadRestT) []RestT {
 }
 
 type BadSdfRestTSplitRestReturn struct {
-	*GoodDoFn
+	*GoodSdf
 }
 
 func (fn *BadSdfRestTSplitRestReturn) SplitRestriction(int, RestT) []BadRestT {
@@ -692,20 +753,58 @@ func (fn *BadSdfRestTSplitRestReturn) SplitRestriction(int, RestT) []BadRestT {
 }
 
 type BadSdfRestTRestSize struct {
-	*GoodDoFn
+	*GoodSdf
 }
 
 func (fn *BadSdfRestTRestSize) RestrictionSize(int, BadRestT) float64 {
 	return 0
 }
 
+type BadSdfRestTCreateTracker struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfRestTCreateTracker) CreateTracker(BadRestT) *RTrackerT {
+	return &RTrackerT{}
+}
+
 // Examples of other type validation that needs to be done.
 
 type BadSdfRestSizeReturn struct {
-	*GoodDoFn
+	*GoodSdf
 }
 
 func (fn *BadSdfRestSizeReturn) BadSdfRestSizeReturn(int, RestT) int {
+	return 0
+}
+
+type BadRTrackerT struct{} // Fails to implement RTracker interface.
+
+type BadSdfCreateTrackerReturn struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfCreateTrackerReturn) CreateTracker(RestT) *BadRTrackerT {
+	return &BadRTrackerT{}
+}
+
+type BadSdfMissingRTracker struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfMissingRTracker) ProcessElement(int) int {
+	return 0
+}
+
+type OtherRTrackerT struct {
+	*RTrackerT
+}
+
+type BadSdfMismatchedRTracker struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfMismatchedRTracker) ProcessElement(*OtherRTrackerT, int) int {
 	return 0
 }
 
