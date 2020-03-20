@@ -4924,6 +4924,45 @@ public class ParDoTest implements Serializable {
       UsesTimersInParDo.class,
       UsesKey.class,
     })
+    public void testKeyInOnTimerWithGenericKey() throws Exception {
+      final String timerId = "foo";
+
+      DoFn<KV<KV<String, String>, Integer>, Integer> fn =
+          new DoFn<KV<KV<String, String>, Integer>, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
+              timer.set(new Instant(1));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(@KeyId KV<String, String> key, OutputReceiver<Integer> r) {
+              r.output(Integer.parseInt(key.getKey()));
+            }
+          };
+
+      TestStream<KV<KV<String, String>, Integer>> stream =
+          TestStream.create(
+                  KvCoder.of(
+                      KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()), VarIntCoder.of()))
+              .addElements(KV.of(KV.of("1", "1"), 37))
+              .addElements(KV.of(KV.of("1", "1"), 3))
+              .advanceWatermarkTo(new Instant(3))
+              .advanceWatermarkToInfinity();
+      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
+      PAssert.that(output).containsInAnyOrder(1);
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesKey.class,
+    })
     public void testKeyInOnTimerWithWrongKeyType() throws Exception {
 
       thrown.expect(IllegalArgumentException.class);
