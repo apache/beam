@@ -89,12 +89,6 @@ class Options(interactive_options.InteractiveOptions):
   def capturable_sources(self):
     """Interactive Beam automatically captures data from sources in this set.
     """
-    _ = ie.current_env()
-    _LOGGER.info(
-        'If you alter the capturable sources, to allow new data for the '
-        'altered sources to be captured the next time a PCollection is '
-        'evaluated or the pipeline is executed, please invoke '
-        'evict_captured_data().')
     return self.capture_control._capturable_sources
 
   @property
