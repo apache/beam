@@ -327,11 +327,9 @@ func AsDoFn(fn *Fn, numMainIn mainInputs) (*DoFn, error) {
 		return nil, addContext(err, fn)
 	}
 
-	// If numMainIn is unknown, we can try inferring it from the second input in ProcessElement.
-	// If there is none, or it's not a FnValue type, then we can safely infer that there's only
-	// one main input.
+	// If numMainIn is unknown, we can try inferring it from the number of inputs in ProcessElement.
 	pos, num, _ := processFn.Inputs()
-	if numMainIn == MainUnknown && (num == 1 || processFn.Param[pos+1].Kind != funcx.FnValue) {
+	if numMainIn == MainUnknown && num == 1 {
 		numMainIn = MainSingle
 	}
 
@@ -446,23 +444,16 @@ func validateMainInputs(fn *Fn, method *funcx.Fn, methodName string, numMainIn m
 		return err
 	}
 
-	// Check that the first numMainIn inputs are not side inputs (Iters or
-	// ReIters). We aren't able to catch singleton side inputs here since
-	// they're indistinguishable from main inputs.
-	mainInputs := method.Param[pos : pos+int(numMainIn)]
-	for i, p := range mainInputs {
-		if p.Kind != funcx.FnValue {
-			err := errors.Errorf("expected main input parameter but found "+
-				"side input parameter in position %v",
-				pos+i)
-			err = errors.SetTopLevelMsgf(err,
-				"Method %v in DoFn %v should have all main inputs before side inputs, "+
-					"but a side input (as Iter or ReIter) appears as parameter %v when a "+
-					"main input was expected.",
-				methodName, fn.Name(), pos+i)
-			err = errors.WithContextf(err, "method %v", methodName)
-			return err
-		}
+	// Check that the first input is not an Iter or ReIter (those aren't valid
+	// as the first main input).
+	first := method.Param[pos].Kind
+	if first != funcx.FnValue {
+		err := errors.New("first main input parameter must be a value type")
+		err = errors.SetTopLevelMsgf(err,
+			"Method %v of DoFns should always have the first input be a value type, "+
+				"but it has an Iter or ReIter first in DoFn %v.",
+			processElementName, fn.Name())
+		return errors.WithContextf(err, "method %v", processElementName)
 	}
 	return nil
 }

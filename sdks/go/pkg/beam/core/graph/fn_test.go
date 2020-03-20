@@ -115,7 +115,7 @@ func TestNewDoFn(t *testing.T) {
 			main mainInputs
 		}{
 			{dfn: func(int) int { return 0 }, main: MainKv}, // Not enough inputs.
-			{dfn: func(int, func(*int) bool, int) int { // Side input before all main inputs.
+			{dfn: func(int, func(int)) int { // Emit before all main inputs.
 				return 0
 			}, main: MainKv},
 			{dfn: &BadDoFnAmbiguousMainInput{}, main: MainKv},
