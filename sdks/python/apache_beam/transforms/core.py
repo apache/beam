@@ -37,6 +37,8 @@ from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.coders import typecoders
+from apache_beam.coders.coders import ElementTypeHolder
+from apache_beam.coders.coders import ExternalCoder
 from apache_beam.internal import pickler
 from apache_beam.internal import util
 from apache_beam.options.pipeline_options import TypeOptions
@@ -66,6 +68,7 @@ from apache_beam.typehints.decorators import with_input_types
 from apache_beam.typehints.decorators import with_output_types
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import is_consistent_with
+from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
 from apache_beam.utils.timestamp import Duration
 
@@ -371,7 +374,7 @@ def get_function_args_defaults(f):
   return args, defaults
 
 
-class RunnerAPIPTransformHolder(PTransform):
+class RunnerAPIPTransformHolder(ptransform.PTransform):
   """A `PTransform` that holds a runner API `PTransform` proto.
 
   This is used for transforms, for which corresponding objects
@@ -383,6 +386,10 @@ class RunnerAPIPTransformHolder(PTransform):
   def __init__(self, proto, context):
     self._proto = proto
     self._context = context
+
+    # For ParDos with side-inputs, this will be populated after this object is
+    # created.
+    self.side_inputs = []
 
   def proto(self):
     """Runner API payload for a `PTransform`"""
@@ -411,8 +418,17 @@ class RunnerAPIPTransformHolder(PTransform):
     return self._proto
 
   def get_restriction_coder(self):
-    # TODO(BEAM-7172): support external transforms that are SDFs.
-    return None
+    # For some runners, restriction coder ID has to be provided to correctly
+    # encode ParDo transforms that are SDF.
+    if common_urns.primitives.PAR_DO.urn == self._proto.urn:
+      par_do_payload = proto_utils.parse_Bytes(
+          self._proto.payload, beam_runner_api_pb2.ParDoPayload)
+      if par_do_payload.restriction_coder_id:
+        restriction_coder_proto = self._context.coders.get_id_to_proto_map()[
+            par_do_payload.restriction_coder_id]
+
+        return ExternalCoder(
+            ElementTypeHolder(restriction_coder_proto, self._context))
 
 
 class WatermarkEstimatorProvider(object):
@@ -1830,6 +1846,14 @@ class CombineGlobally(PTransform):
           pcoll.pipeline
           | 'DoOnce' >> Create([None])
           | 'InjectDefault' >> typed(Map(lambda _, s: s, view)))
+
+  @staticmethod
+  @PTransform.register_urn(
+      common_urns.composites.COMBINE_GLOBALLY.urn,
+      beam_runner_api_pb2.CombinePayload)
+  def from_runner_api_parameter(unused_ptransform, combine_payload, context):
+    return CombineGlobally(
+        CombineFn.from_runner_api(combine_payload.combine_fn, context))
 
 
 class CombinePerKey(PTransformWithSideInputs):

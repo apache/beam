@@ -30,6 +30,7 @@ from __future__ import absolute_import
 
 import collections
 import itertools
+import logging
 from builtins import hex
 from builtins import object
 from typing import TYPE_CHECKING
@@ -46,6 +47,7 @@ from past.builtins import unicode
 
 from apache_beam import coders
 from apache_beam import typehints
+from apache_beam.coders.coders import ElementTypeHolder
 from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
@@ -70,6 +72,8 @@ __all__ = [
 ]
 
 T = TypeVar('T')
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class PValue(object):
@@ -182,11 +186,32 @@ class PCollection(PValue, Generic[T]):
     """
     return PCollection(pcoll.pipeline, is_bounded=pcoll.is_bounded)
 
+  def _recursively_add_external_coders(
+      self, new_context, old_context, coder_proto):
+    for component_coder_id in coder_proto.component_coder_ids:
+      component_coder_proto = (
+          old_context.coders.get_id_to_proto_map()[component_coder_id])
+      new_context.coders.get_id_to_proto_map()[component_coder_id] = (
+          component_coder_proto)
+      self._recursively_add_external_coders(
+          new_context, old_context, component_coder_proto)
+
   def to_runner_api(self, context):
     # type: (PipelineContext) -> beam_runner_api_pb2.PCollection
+
+    if isinstance(self.element_type, ElementTypeHolder):
+      # This is potentially an coder in an external SDK that cannot be directly
+      # parsed in Python SDK.
+      coder_proto = self.element_type.coder
+      coder_id = context.coders.get_by_proto(coder_proto, deduplicate=True)
+      self._recursively_add_external_coders(
+          context, self.element_type.context, coder_proto)
+    else:
+      coder_id = context.coder_id_from_element_type(self.element_type)
+
     return beam_runner_api_pb2.PCollection(
         unique_name=self._unique_name(),
-        coder_id=context.coder_id_from_element_type(self.element_type),
+        coder_id=coder_id,
         is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
         if self.is_bounded else beam_runner_api_pb2.IsBounded.UNBOUNDED,
         windowing_strategy_id=context.windowing_strategies.get_id(
@@ -209,9 +234,20 @@ class PCollection(PValue, Generic[T]):
     # deserialization.  It will be populated soon after this call, in
     # Pipeline.from_runner_api(). This brief period is the only time that
     # PCollection.pipeline is allowed to be None.
+
+    try:
+      element_type = context.element_type_from_coder_id(proto.coder_id)
+    except KeyError as ext:
+      # This is potentially a coder from an external SDK that cannot be parsed
+      # locally in Python SDK.
+      _LOGGER.debug('Finding coder for proto %r failed with %r. Assuming '
+                    'this to be an external coder.', proto, ext)
+      coder = context.coders.get_id_to_proto_map()[proto.coder_id]
+      element_type = ElementTypeHolder(coder, context)
+
     return PCollection(
         None,  # type: ignore[arg-type]
-        element_type=context.element_type_from_coder_id(proto.coder_id),
+        element_type=element_type,
         windowing=context.windowing_strategies.get_by_id(
             proto.windowing_strategy_id),
         is_bounded=proto.is_bounded == beam_runner_api_pb2.IsBounded.BOUNDED)

@@ -52,6 +52,7 @@ from __future__ import absolute_import
 import abc
 import logging
 import os
+import re
 import shutil
 import tempfile
 from builtins import object
@@ -86,7 +87,7 @@ from apache_beam.transforms import ParDo
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.core import RunnerAPIPTransformHolder
 from apache_beam.transforms.sideinputs import get_sideinput_index
-#from apache_beam.transforms import external
+from apache_beam.transforms.sideinputs import SIDE_INPUT_REGEX
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
 from apache_beam.utils.annotations import deprecated
@@ -926,7 +927,8 @@ class AppliedPTransform(object):
                transform,  # type: Optional[ptransform.PTransform]
                full_label,  # type: str
                inputs,  # type: Optional[Sequence[Union[pvalue.PBegin, pvalue.PCollection]]]
-               environment_id=None  # type: Optional[str]
+               environment_id=None,  # type: Optional[str]
+               input_tags = None,
               ):
     # type: (...) -> None
     self.parent = parent
@@ -943,6 +945,7 @@ class AppliedPTransform(object):
     self.outputs = {}  # type: Dict[Union[str, int, None], pvalue.PValue]
     self.parts = []  # type: List[AppliedPTransform]
     self.environment_id = environment_id if environment_id else None  # type: Optional[str]
+    self.input_tags = input_tags or {}
 
   def __repr__(self):
     # type: () -> str
@@ -1107,6 +1110,9 @@ class AppliedPTransform(object):
         (transform_urn in Pipeline.sdk_transforms_with_environment())):
       environment_id = context.default_environment_id()
 
+    def _may_be_preserve_tag(new_tag, pc, tag_map):
+      return tag_map[pc] if pc in tag_map else new_tag
+
     return beam_runner_api_pb2.PTransform(
         unique_name=self.full_label,
         spec=transform_spec,
@@ -1115,7 +1121,7 @@ class AppliedPTransform(object):
             for part in self.parts
         ],
         inputs={
-            tag: context.pcollections.get_id(pc)
+            _may_be_preserve_tag(tag, pc, self.input_tags): context.pcollections.get_id(pc)
             for tag,
             pc in sorted(self.named_inputs().items())
         },
@@ -1132,30 +1138,79 @@ class AppliedPTransform(object):
   def from_runner_api(proto,  # type: beam_runner_api_pb2.PTransform
                       context  # type: PipelineContext
                      ):
+    side_input_tags = []
+    if common_urns.primitives.PAR_DO.urn == proto.spec.urn:
+      # Preserving side input tags.
+      from apache_beam.utils import proto_utils
+      from apache_beam.portability.api import beam_runner_api_pb2
+      payload = (
+          proto_utils.parse_Bytes(
+              proto.spec.payload, beam_runner_api_pb2.ParDoPayload))
+      for tag, si in payload.side_inputs.items():
+        side_input_tags.append(tag)
+
     # type: (...) -> AppliedPTransform
-    def is_side_input(tag):
-      # type: (str) -> bool
+    def is_python_side_input(tag):
       # As per named_inputs() above.
-      return tag.startswith('side')
+      return re.match(SIDE_INPUT_REGEX, tag)
+
+    all_input_tags = [tag for tag, id in proto.inputs.items()]
+
+    # All side inputs have to be available in input tags
+    python_indexed_side_inputs = False
+    for side_tag in side_input_tags:
+      if side_tag not in all_input_tags:
+        raise Exception(
+            'Side input tag %s is not available in list of input tags %r' %
+            (side_tag, all_input_tags))
+
+      # We process Python and external side inputs differently. We fail early
+      # here if we cannot decide which way to go.
+      if is_python_side_input(side_tag):
+        python_indexed_side_inputs = True
+      else:
+        if python_indexed_side_inputs:
+          raise Exception(
+              'Cannot process side inputs due to inconsistent sideinput '
+              'naming. If using an external transform consider re-naming side '
+              'inputs to not match Python indexed format %s' %
+              SIDE_INPUT_REGEX)
 
     main_inputs = [
         context.pcollections.get_by_id(id) for tag,
-        id in proto.inputs.items() if not is_side_input(tag)
+        id in proto.inputs.items() if tag not in side_input_tags
     ]
 
-    # Ordering is important here.
-    indexed_side_inputs = [
-        (get_sideinput_index(tag), context.pcollections.get_by_id(id)) for tag,
-        id in proto.inputs.items() if is_side_input(tag)
-    ]
-    side_inputs = [si for _, si in sorted(indexed_side_inputs)]
+    if python_indexed_side_inputs:
+      # Ordering is important here.
+      indexed_side_inputs = [
+          (get_sideinput_index(tag), context.pcollections.get_by_id(id))
+          for tag, id in proto.inputs.items() if tag in side_input_tags
+      ]
+      side_inputs = [si for _, si in sorted(indexed_side_inputs)]
+    else:
+      side_inputs = [
+          context.pcollections.get_by_id(id)
+          for tag, id in proto.inputs.items() if tag in side_input_tags]
+
+    input_tags = {
+        context.pcollections.get_by_id(id): tag
+        for tag, id in proto.inputs.items()}
+
     transform = ptransform.PTransform.from_runner_api(proto, context)
+    if isinstance(transform, RunnerAPIPTransformHolder):
+      # For external transforms that are ParDos, we have to set side-inputs
+      # manually.
+      transform.side_inputs = [pvalue.AsMultiMap(pc) for pc in side_inputs]
+
     result = AppliedPTransform(
         parent=None,
         transform=transform,
         full_label=proto.unique_name,
         inputs=main_inputs,
-        environment_id=proto.environment_id)
+        environment_id=proto.environment_id,
+        input_tags=input_tags)
+
     if result.transform and result.transform.side_inputs:
       for si, pcoll in zip(result.transform.side_inputs, side_inputs):
         si.pvalue = pcoll
