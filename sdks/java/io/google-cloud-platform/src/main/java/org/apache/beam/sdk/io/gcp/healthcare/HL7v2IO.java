@@ -21,7 +21,7 @@ import com.google.api.services.healthcare.v1alpha2.model.Message;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.text.ParseException;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
@@ -53,43 +53,31 @@ import org.slf4j.LoggerFactory;
  * href="https://cloud.google.com/healthcare/docs/concepts/hl7v2">Google Cloud Healthcare HL7v2 API.
  * </a>
  *
- * <p>Read HL7v2 Messages are fetched from the HL7v2 store based on the {@link PCollection} of of
- * message IDs {@link String}s produced by the {@link AutoValue_HL7v2IO_Read#getMessageIDTransform}
- * as {@link PCollectionTuple}*** containing an {@link HL7v2IO.Read#OUT} tag for successfully
- * fetched messages and a {@link HL7v2IO.Read#DEAD_LETTER} tag for message IDs that could not be
- * fetched.
+ * <p>Read HL7v2 Messages are fetched from the HL7v2 store based on the {@link PCollection} of
+ * message IDs {@link String}s as {@link HL7v2IO.Read.Result} where one can call {@link
+ * Read.Result#getMessages()} to retrived a {@link PCollection} containing the successfully fetched
+ * {@link Message}s and/or {@link Read.Result#getFailedReads()} to retrieve a {@link PCollection} of
+ * {@link HealthcareIOError} containing the msgID that could not be fetched and the exception, this
+ * can be used to write to the dead letter storage system of your choosing.
  *
- * <p>HL7v2 stores can be read in several ways: - Unbounded: based on the Pub/Sub Notification
- * Channel {@link HL7v2IO#readNotificationSubscription(String)} - Bounded: based on reading an
- * entire HL7v2 store (or stores) {@link HL7v2IO#readHL7v2Store(String)} - Bounded: based on reading
- * an HL7v2 store with a filter
- *
- * <p>Note, due to the flexibility of this Read transform, this must output a dead letter queue.
- * This handles the scenario where the the PTransform that populates a PCollection of message IDs
- * contains message IDs that do not exist in the HL7v2 stores.
- *
- * <p>Example:
+ * <p>Unbounded Example:
  *
  * <pre>{@code
  * PipelineOptions options = ...;
- * Pipeline pipeline = Pipeline.create(options)
+ * Pipeline p = Pipeline.create(options);
  *
- *
- * PCollectionTuple messages = pipeline.apply(
- *     new HLv2IO.readNotifications(options.getNotificationSubscription())
+ * HL7v2IO.Read.Result readResult = p
+ *   .apply(
+ *     "Read HL7v2 notifications",
+ *     PubSubIO.readStrings().fromTopic(options.getNotificationSubscription()))
+ *   .apply(HL7v2IO.readAll());
  *
  * // Write errors to your favorite dead letter  queue (e.g. Pub/Sub, GCS, BigQuery)
- * messages.get(PubsubNotificationToHL7v2Message.DEAD_LETTER)
- *    .apply("WriteToDeadLetterQueue", ...);
+ * readResult.getFailedReads().apply("WriteToDeadLetterQueue", ...);
  *
- * PCollection<Message> fetchedMessages = fetchResults.get(PubsubNotificationToHL7v2Message.OUT)
- *    .apply("ExtractFetchedMessage",
- *    MapElements
- *        .into(TypeDescriptor.of(Message.class))
- *        .via(FailsafeElement::getPayload));
  *
  * // Go about your happy path transformations.
- * PCollection<Message> out = fetchedMessages.apply("ProcessFetchedMessages", ...);
+ * PCollection<Message> out = readResult.getMessages().apply("ProcessFetchedMessages", ...);
  *
  * // Write using the Message.Ingest method of the HL7v2 REST API.
  * out.apply(HL7v2IO.ingestMessages(options.getOutputHL7v2Store()));
@@ -98,71 +86,42 @@ import org.slf4j.LoggerFactory;
  *
  * }***
  * </pre>
+ *
+ * <p>Bounded Example:
+ *
+ * <pre>{@code
+ * PipelineOptions options = ...;
+ * Pipeline p = Pipeline.create(options);
+ *
+ * HL7v2IO.Read.Result readResult = p
+ *   .apply(
+ *       "List messages in HL7v2 store with filter",
+ *       ListHL7v2MessageIDs(
+ *           Collections.singletonList(options.getInputHL7v2Store()), option.getHL7v2Filter()))
+ *   .apply(HL7v2IO.readAll());
+ *
+ * // Write errors to your favorite dead letter  queue (e.g. Pub/Sub, GCS, BigQuery)
+ * readResult.getFailedReads().apply("WriteToDeadLetterQueue", ...);
+ *
+ *
+ * // Go about your happy path transformations.
+ * PCollection<Message> out = readResult.getMessages().apply("ProcessFetchedMessages", ...);
+ *
+ * // Write using the Message.Ingest method of the HL7v2 REST API.
+ * out.apply(HL7v2IO.ingestMessages(options.getOutputHL7v2Store()));
+ *
+ * pipeline.run().waitUntilFinish();
+ * }***
+ * </pre>
  */
 public class HL7v2IO {
-  // TODO add metrics for failed records.
-
-  private static Read.Builder read(PTransform<PBegin, PCollection<String>> messageIDTransform) {
-    Read.Builder builder = new AutoValue_HL7v2IO_Read.Builder();
-    return builder.setMessageIDTransform(messageIDTransform);
-  }
-
-  /**
-   * Read the HL7v2 message IDs from a Pub/Sub Subscription to the notification channel.
-   *
-   * @param subscription the subscription
-   * @return the read
-   * @see <a
-   *     href=https://cloud.google.com/healthcare/docs/concepts/pubsub#hl7v2_message_data_and_attributes></a>
-   */
-  public static Read readNotificationSubscription(String subscription) {
-    return read(PubsubIO.readStrings().fromSubscription(subscription)).build();
-  }
-
-  /**
-   * Read an entire HL7v2 store.
-   *
-   * @param hl7v2Store the HL7v2 store
-   * @return the read
-   */
-  public static Read readHL7v2Store(String hl7v2Store) {
-    return read(new ListHL7v2MessageIDs(Collections.singletonList(hl7v2Store))).build();
-  }
-
-  /**
-   * Read HL7v2 store read.
-   *
-   * @param hl7v2Store the HL7v2 store
-   * @param filter the filter
-   * @return the read
-   */
-  public static Read readHL7v2Store(String hl7v2Store, String filter) {
-    return read(new ListHL7v2MessageIDs(Collections.singletonList(hl7v2Store), filter)).build();
-  }
-
-  /**
-   * Read several entire HL7v2 stores.
-   *
-   * @param hl7v2Stores the HL7v2 stores
-   * @return the read
-   */
-  public static Read readHL7v2Stores(List<String> hl7v2Stores) {
-    return read(new ListHL7v2MessageIDs(hl7v2Stores)).build();
-  }
-
-  /**
-   * Read HL7v2 stores read.
-   *
-   * @param hl7v2Stores the HL7v2 stores
-   * @param filter the filter
-   * @return the read
-   */
-  public static Read readHL7v2Stores(List<String> hl7v2Stores, String filter) {
-    return read(new ListHL7v2MessageIDs(hl7v2Stores, filter)).build();
-  }
 
   private static Write.Builder write(String hl7v2Store) {
     return new AutoValue_HL7v2IO_Write.Builder().setHL7v2Store(hl7v2Store);
+  }
+
+  private static Read readAll() {
+    return new Read();
   }
 
   /**
@@ -180,32 +139,76 @@ public class HL7v2IO {
   /**
    * The type Read that reads HL7v2 message contents given a PCollection of message IDs strings.
    *
-   * These could be sourced from any PCollection of strings but the most popular patterns would be
-   * {@link PubsubIO} reading a subscription on an HL7v2 Store's notification channel topic
-   * or using {@link ListHL7v2MessageIDs} to list an entire store (or with a filter).
+   * <p>These could be sourced from any {@link PCollection} of {@link String}s but the most popular
+   * patterns would be {@link PubsubIO#readStrings()} reading a subscription on an HL7v2 Store's
+   * notification channel topic or using {@link ListHL7v2MessageIDs} to list HL7v2 message IDs with
+   * an optional filter using
+   * https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list.
    */
-  @AutoValue
-  public abstract static class Read extends PTransform<PBegin, PCollectionTuple> {
+  public static class Read extends PTransform<PCollection<String>, Read.Result> {
+
+    public Read() {}
+
+    public static class Result implements POutput, PInput {
+      PCollection<Message> messages;
+
+      public Result() {
+        super();
+      }
+
+      PCollection<HealthcareIOError<String>> failedReads;
+      PCollectionTuple pct;
+
+      public static Result of(PCollectionTuple pct) throws IllegalArgumentException {
+        if (pct.getAll()
+            .keySet()
+            .containsAll((Collection<?>) TupleTagList.of(OUT).and(DEAD_LETTER))) {
+          return new Result(pct);
+        } else {
+          throw new IllegalArgumentException(
+              "The PCollection tuple must have the HL7v2IO.Read.OUT "
+                  + "and HL7v2IO.Read.DEAD_LETTER tuple tags");
+        }
+      }
+
+      private Result(PCollectionTuple pct) {
+        this.pct = pct;
+        this.messages = pct.get(OUT);
+        this.failedReads = pct.get(DEAD_LETTER);
+      }
+
+      public PCollection<HealthcareIOError<String>> getFailedReads() {
+        return failedReads;
+      }
+
+      public PCollection<Message> getMessages() {
+        return messages;
+      }
+
+      @Override
+      public Pipeline getPipeline() {
+        return null;
+      }
+
+      @Override
+      public Map<TupleTag<?>, PValue> expand() {
+        return ImmutableMap.of(OUT, messages);
+      }
+
+      @Override
+      public void finishSpecifyingOutput(
+          String transformName, PInput input, PTransform<?, ?> transform) {}
+    }
 
     /** The tag for the main output of HL7v2 Messages. */
-    public static final TupleTag<FailsafeElement<String, Message>> OUT =
-        new TupleTag<FailsafeElement<String, Message>>() {};
+    public static final TupleTag<Message> OUT = new TupleTag<Message>() {};
     /** The tag for the deadletter output of HL7v2 Messages. */
-    public static final TupleTag<FailsafeElement<String, Message>> DEAD_LETTER =
-        new TupleTag<FailsafeElement<String, Message>>() {};
-
-    /**
-     * Gets message id transform.
-     *
-     * @return the message id transform
-     */
-    abstract PTransform<PBegin, PCollection<String>> getMessageIDTransform();
+    public static final TupleTag<HealthcareIOError<String>> DEAD_LETTER =
+        new TupleTag<HealthcareIOError<String>>() {};
 
     @Override
-    public PCollectionTuple expand(PBegin input) {
-      return input
-          .apply("Get Message IDs", this.getMessageIDTransform())
-          .apply("Fetch HL7v2 messages", new FetchHL7v2Message());
+    public Result expand(PCollection<String> input) {
+      return input.apply("Fetch HL7v2 messages", new FetchHL7v2Message());
     }
 
     /**
@@ -255,24 +258,22 @@ public class HL7v2IO {
      * }****
      * </pre>
      */
-    public static class FetchHL7v2Message
-        extends PTransform<PCollection<String>, PCollectionTuple> {
+    public static class FetchHL7v2Message extends PTransform<PCollection<String>, Result> {
       // TODO: this should migrate to use the batch API once available
-
-      private static final Logger LOG = LoggerFactory.getLogger(FetchHL7v2Message.class);
 
       /** Instantiates a new Fetch HL7v2 message DoFn. */
       public FetchHL7v2Message() {}
 
       @Override
-      public PCollectionTuple expand(PCollection<String> msgIds) {
-        return msgIds.apply(
-            ParDo.of(new FetchHL7v2Message.HL7v2MessageGetFn())
-                .withOutputTags(HL7v2IO.Read.OUT, TupleTagList.of(HL7v2IO.Read.DEAD_LETTER)));
+      public Result expand(PCollection<String> msgIds) {
+        return new Result(
+            msgIds.apply(
+                ParDo.of(new FetchHL7v2Message.HL7v2MessageGetFn())
+                    .withOutputTags(HL7v2IO.Read.OUT, TupleTagList.of(HL7v2IO.Read.DEAD_LETTER))));
       }
 
       /** DoFn for fetching messages from the HL7v2 store with error handling. */
-      public static class HL7v2MessageGetFn extends DoFn<String, FailsafeElement<String, Message>> {
+      public static class HL7v2MessageGetFn extends DoFn<String, Message> {
 
         private Counter failedMessageGets =
             Metrics.counter(FetchHL7v2Message.HL7v2MessageGetFn.class, "failed-message-reads");
@@ -321,7 +322,7 @@ public class HL7v2IO {
         public void processElement(ProcessContext context) {
           String msgId = context.element();
           try {
-            context.output(FailsafeElement.of(msgId, fetchMessage(this.client, msgId)));
+            context.output(fetchMessage(this.client, msgId));
           } catch (Exception e) {
             failedMessageGets.inc();
             LOG.warn(
@@ -329,54 +330,30 @@ public class HL7v2IO {
                     "Error fetching HL7v2 message with ID %s writing to Dead Letter "
                         + "Queue. Cause: %s Stack Trace: %s",
                     msgId, e.getMessage(), Throwables.getStackTraceAsString(e)));
-            context.output(
-                HL7v2IO.Read.DEAD_LETTER,
-                FailsafeElement.of(msgId, new Message())
-                    .setErrorMessage(e.getMessage())
-                    .setStacktrace(Throwables.getStackTraceAsString(e)));
+            context.output(HL7v2IO.Read.DEAD_LETTER, HealthcareIOError.of(msgId, e));
           }
         }
 
         private Message fetchMessage(HealthcareApiClient client, String msgId)
             throws IOException, ParseException, IllegalArgumentException, InterruptedException {
-
+          final int throttleWaitSeconds = 5;
           long startTime = System.currentTimeMillis();
           Sleeper sleeper = Sleeper.DEFAULT;
           if (throttler.throttleRequest(startTime)) {
             LOG.info(String.format("Delaying request for %s due to previous failures.", msgId));
-            this.throttledSeconds.inc(5); // TODO avoid magic numbers.
-            sleeper.sleep(5000);
+            this.throttledSeconds.inc(throttleWaitSeconds);
+            sleeper.sleep(throttleWaitSeconds * 1000);
           }
 
           Message msg = client.getHL7v2Message(msgId);
           this.throttler.successfulRequest(startTime);
-          this.successfulHL7v2MessageGets.inc();
           if (msg == null) {
             throw new IOException(String.format("GET request for %s returned null", msgId));
           }
+          this.successfulHL7v2MessageGets.inc();
           return msg;
         }
       }
-    }
-    /** The type Builder. */
-    @AutoValue.Builder
-    abstract static class Builder {
-
-      /**
-       * Sets message id transform.
-       *
-       * @param messageIDTransform the message id transform
-       * @return the message id transform
-       */
-      abstract Builder setMessageIDTransform(
-          PTransform<PBegin, PCollection<String>> messageIDTransform);
-
-      /**
-       * Build read.
-       *
-       * @return the read
-       */
-      abstract Read build();
     }
   }
 
@@ -527,15 +504,12 @@ public class HL7v2IO {
       private final PCollection<HealthcareIOError<Message>> failedInsertsWithErr;
 
       /** Creates a {@link HL7v2IO.Write.Result} in the given {@link Pipeline}. */
-      static Result in(
-          Pipeline pipeline, PCollection<HealthcareIOError<Message>> failedInserts) {
+      static Result in(Pipeline pipeline, PCollection<HealthcareIOError<Message>> failedInserts) {
         return new Result(pipeline, failedInserts);
       }
 
-      static Result withErrors(
-          Pipeline pipeline,
-          PCollection<HealthcareIOError<Message>> failedInserts) {
-        return new Result(pipeline, failedInserts);
+      public PCollection<HealthcareIOError<Message>> getFailedInsertsWithErr() {
+        return this.failedInsertsWithErr;
       }
 
       @Override
@@ -549,12 +523,11 @@ public class HL7v2IO {
       }
 
       @Override
-      public void finishSpecifyingOutput(String transformName, PInput input,
-          PTransform<?, ?> transform) {}
+      public void finishSpecifyingOutput(
+          String transformName, PInput input, PTransform<?, ?> transform) {}
 
       private Result(
-          Pipeline pipeline,
-          PCollection<HealthcareIOError<Message>> failedInsertsWithErr) {
+          Pipeline pipeline, PCollection<HealthcareIOError<Message>> failedInsertsWithErr) {
         this.pipeline = pipeline;
         this.failedInsertsWithErr = failedInsertsWithErr;
       }
@@ -579,9 +552,12 @@ public class HL7v2IO {
 
     @Override
     public Result expand(PCollection<Message> input) {
-      PCollection<HealthcareIOError<Message>> failedInserts = input.apply(
-          ParDo.of(new WriteHL7v2Fn(hl7v2Store, writeMethod))
-              .withOutputTags(Write.SUCCESS, TupleTagList.of(Write.FAILED))).get(Write.FAILED);
+      PCollection<HealthcareIOError<Message>> failedInserts =
+          input
+              .apply(
+                  ParDo.of(new WriteHL7v2Fn(hl7v2Store, writeMethod))
+                      .withOutputTags(Write.SUCCESS, TupleTagList.of(Write.FAILED)))
+              .get(Write.FAILED);
       return Write.Result.in(input.getPipeline(), failedInserts);
     }
 

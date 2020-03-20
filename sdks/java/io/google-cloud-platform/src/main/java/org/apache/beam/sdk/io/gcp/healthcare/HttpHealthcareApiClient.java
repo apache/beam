@@ -22,7 +22,6 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.healthcare.v1alpha2.CloudHealthcare;
 import com.google.api.services.healthcare.v1alpha2.CloudHealthcare.Projects.Locations.Datasets.Hl7V2Stores.Messages;
-import com.google.api.services.healthcare.v1alpha2.CloudHealthcareScopes;
 import com.google.api.services.healthcare.v1alpha2.model.CreateMessageRequest;
 import com.google.api.services.healthcare.v1alpha2.model.Hl7V2Store;
 import com.google.api.services.healthcare.v1alpha2.model.HttpBody;
@@ -31,13 +30,10 @@ import com.google.api.services.healthcare.v1alpha2.model.IngestMessageResponse;
 import com.google.api.services.healthcare.v1alpha2.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1alpha2.model.Message;
 import com.google.api.services.healthcare.v1alpha2.model.SearchResourcesRequest;
-import com.google.auth.http.HttpCredentialsAdapter;
-import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
 import java.io.Serializable;
 import java.text.ParseException;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -46,6 +42,7 @@ import java.util.Spliterators;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
@@ -247,14 +244,10 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
     return client.projects().locations().datasets().fhirStores().fhir().read(resource).execute();
   }
 
-  private void initClient() throws IOException {
-    // Use Application Default Credentials (ADC) to authenticate the requests
-    // For more information see https://cloud.google.com/docs/authentication/production
-    GoogleCredentials credentials =
-        GoogleCredentials.getApplicationDefault()
-            .createScoped(Collections.singleton(CloudHealthcareScopes.CLOUD_PLATFORM));
+  private void initClient() {
     // Create a HttpRequestInitializer, which will provide a baseline configuration to all requests.
-    HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credentials);
+    HttpRequestInitializer requestInitializer = new RetryHttpRequestInitializer();
+
     client =
         new CloudHealthcare.Builder(new NetHttpTransport(), new GsonFactory(), requestInitializer)
             .setApplicationName("apache-beam-hl7-io")
