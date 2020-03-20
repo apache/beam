@@ -99,6 +99,7 @@ message InstructionRequest {
     ProcessBundleProgressRequest process_bundle_progress = 1002;
     ProcessBundleSplitRequest process_bundle_split = 1003;
     FinalizeBundleRequest finalize_bundle = 1004;
+    ProcessBundleProgressMetadataRequest process_bundle_progress_metadata = 1005;
   }
 }
 
@@ -123,6 +124,7 @@ message InstructionResponse {
     ProcessBundleProgressResponse process_bundle_progress = 1002;
     ProcessBundleSplitResponse process_bundle_split = 1003;
     FinalizeBundleResponse finalize_bundle = 1004;
+    ProcessBundleProgressMetadataResponse process_bundle_progress_metadata = 1005;
   }
 }
 
@@ -266,6 +268,18 @@ message ProcessBundleResponse {
   // FinalizeBundleRequest with the instruction id of the ProcessBundleRequest
   // that is related to this ProcessBundleResponse.
   bool requires_finalization = 4;
+
+  // An identifier to MonitoringInfo.payload mapping.
+  //
+  // An SDK can report metrics using an identifier that only contains the
+  // associated payload. A runner who wants to receive the full metrics
+  // information can request all the monitoring metadata via a
+  // ProcessBundleProgressMetadataRequest providing a list of ids as necessary.
+  //
+  // The SDK is allowed to reuse the identifiers across multiple bundles as long
+  // as the MonitoringInfo could be reconstructed fully by overwriting its
+  // payload field with the bytes specified here.
+  map<string, bytes> monitoring_data = 5;
 }
 
 // A request to report progress information for a given bundle.
@@ -275,6 +289,21 @@ message ProcessBundleProgressRequest {
   // (Required) A reference to an active process bundle request with the given
   // instruction id.
   string instruction_id = 1;
+}
+
+// A request to provide full MonitoringInfo for a given bundle.
+//
+// An SDK can report metrics using an identifier that only contains the
+// associated payload. A runner who wants to receive the full metrics
+// information can request all the monitoring metadata via a
+// ProcessBundleProgressMetadataRequest providing a list of ids as necessary.
+//
+// The SDK is allowed to reuse the identifiers across multiple bundles as long
+// as the MonitoringInfo could be reconstructed fully by overwriting its
+// payload field with the bytes specified here.
+message ProcessBundleProgressMetadataRequest {
+  // A list of ids for which the full MonitoringInfo is requested for.
+  repeated string monitoring_info_id = 1;
 }
 
 // DEPRECATED
@@ -398,13 +427,41 @@ message ProcessBundleProgressResponse {
   // DEPRECATED (Required)
   Metrics metrics = 1;
 
-  // (Required) The list of metrics or other MonitoredState
+  // DEPRECATED (Required) The list of metrics or other MonitoredState
   // collected while processing this bundle.
   repeated org.apache.beam.model.pipeline.v1.MonitoringInfo monitoring_infos = 3;
 
   // The list of currently active primary roots that are being
   // executed. Required to be populated for PTransforms which can be split.
   repeated BundleApplication primary_roots = 4;
+
+  // An identifier to MonitoringInfo.payload mapping.
+  //
+  // An SDK can report metrics using an identifier that only contains the
+  // associated payload. A runner who wants to receive the full metrics
+  // information can request all the monitoring metadata via a
+  // ProcessBundleProgressMetadataRequest providing a list of ids as necessary.
+  //
+  // The SDK is allowed to reuse the identifiers across multiple bundles as long
+  // as the MonitoringInfo could be reconstructed fully by overwriting its
+  // payload field with the bytes specified here.
+  map<string, bytes> monitoring_data = 5;
+}
+
+// A response that contains the full mapping information associated with
+// a specified set of identifiers.
+//
+// An SDK can report metrics using an identifier that only contains the
+// associated payload. A runner who wants to receive the full metrics
+// information can request all the monitoring metadata via a
+// ProcessBundleProgressMetadataRequest providing a list of ids as necessary.
+//
+// The SDK is allowed to reuse the identifiers across multiple bundles as long
+// as the MonitoringInfo could be reconstructed fully by overwriting its
+// payload field with the bytes specified here.
+message ProcessBundleProgressMetadataResponse {
+  // A mapping from an identifier to the full metrics information.
+  map<string, org.apache.beam.model.pipeline.v1.MonitoringInfo> monitoring_info = 1;
 }
 
 // Represents a request to the SDK to split a currently active bundle.
