@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util;
 
+import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -100,7 +101,7 @@ public class GcsUtil {
           storageBuilder.build(),
           storageBuilder.getHttpRequestInitializer(),
           gcsOptions.getExecutorService(),
-          gcsOptions.getUseGrpcForGcs(),
+          hasExperiment(options, "use_grpc_for_gcs"),
           gcsOptions.getGcsUploadBufferSizeBytes());
     }
 
@@ -116,7 +117,7 @@ public class GcsUtil {
           storageClient,
           httpRequestInitializer,
           executorService,
-          gcsOptions.getUseGrpcForGcs(),
+          hasExperiment(options, "use_grpc_for_gcs"),
           uploadBufferSizeBytes);
     }
   }
