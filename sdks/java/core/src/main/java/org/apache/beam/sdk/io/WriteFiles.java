@@ -417,7 +417,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
   }
 
-  public static class ToListCombineFn<ResultT>
+  private static class ToListCombineFn<ResultT>
       extends CombineFn<ResultT, List<ResultT>, List<ResultT>> {
 
     @Override
