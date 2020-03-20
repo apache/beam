@@ -416,11 +416,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
                 }
 
                 @Override
-                public boolean isSplittable() {
-                  return true;
-                }
-
-                @Override
                 public boolean isRequiresTimeSortedInput() {
                   return false;
                 }

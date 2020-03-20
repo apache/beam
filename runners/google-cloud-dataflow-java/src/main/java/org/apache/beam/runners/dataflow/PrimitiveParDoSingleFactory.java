@@ -254,11 +254,6 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
             }
 
             @Override
-            public boolean isSplittable() {
-              return signature.processElement().isSplittable();
-            }
-
-            @Override
             public boolean isRequiresTimeSortedInput() {
               return signature.processElement().requiresTimeSortedInput();
             }
