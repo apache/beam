@@ -42,8 +42,8 @@ from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
-from apache_beam.runners.portability import fn_api_runner_test
 from apache_beam.runners.portability import portable_runner
+from apache_beam.runners.portability.fn_api_runner import fn_runner_test
 from apache_beam.runners.portability.local_job_service import LocalJobServicer
 from apache_beam.runners.portability.portable_runner import PortableRunner
 from apache_beam.runners.worker import worker_pool_main
@@ -59,7 +59,7 @@ _LOGGER = logging.getLogger(__name__)
 # Disable timeout since this test implements its own.
 # TODO(BEAM-9011): Consider using pytest-timeout's mechanism instead.
 @pytest.mark.timeout(0)
-class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
+class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
 
   TIMEOUT_SECS = 60
 

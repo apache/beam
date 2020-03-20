@@ -269,8 +269,8 @@ class DataflowRunner(PipelineRunner):
               pcoll.element_type, transform_node.full_label)
           key_type, value_type = pcoll.element_type.tuple_types
           if transform_node.outputs:
-            from apache_beam.runners.portability.fn_api_runner_transforms import \
-              only_element
+            from apache_beam.runners.portability.fn_api_runner.translations \
+              import only_element
             key = (
                 None if None in transform_node.outputs.keys() else only_element(
                     transform_node.outputs.keys()))
@@ -599,7 +599,7 @@ class DataflowRunner(PipelineRunner):
 
   def _get_encoded_output_coder(self, transform_node, window_value=True):
     """Returns the cloud encoding of the coder for the output of a transform."""
-    from apache_beam.runners.portability.fn_api_runner_transforms import \
+    from apache_beam.runners.portability.fn_api_runner.translations import \
       only_element
     if len(transform_node.outputs) == 1:
       output_tag = only_element(transform_node.outputs.keys())
@@ -633,7 +633,8 @@ class DataflowRunner(PipelineRunner):
 
     # Main output key of external transforms can be ambiguous, so we only tag if
     # there's only one tag instead of None.
-    from apache_beam.runners.portability.fn_api_runner_transforms import only_element
+    from apache_beam.runners.portability.fn_api_runner.translations import \
+      only_element
     output_tag = (
         only_element(transform_node.outputs.keys()) if len(
             transform_node.outputs.keys()) == 1 else None)
