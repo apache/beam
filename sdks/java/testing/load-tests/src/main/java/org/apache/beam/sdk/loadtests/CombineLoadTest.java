@@ -25,8 +25,6 @@ import java.util.Optional;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
-import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -113,27 +111,17 @@ public class CombineLoadTest extends LoadTest<CombineLoadTest.Options> {
   }
 
   @Override
-  protected void loadTest() throws IOException {
+  protected void loadTest(PCollection<KV<byte[], byte[]>> input) throws IOException {
     Optional<SyntheticStep> syntheticStep = createStep(options.getStepOptions());
 
-    PCollection<KV<byte[], byte[]>> input =
-        pipeline
-            .apply("Read input", readFromSource(sourceOptions))
-            .apply(
-                "Collect start time metric",
-                ParDo.of(new TimeMonitor<>(METRICS_NAMESPACE, "runtime")))
-            .apply(
-                "Collect metrics",
-                ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")));
-
+    input = input.apply("Collect metrics", ParDo.of(byteMonitor));
     input = applyWindowing(input);
 
     for (int i = 0; i < options.getFanout(); i++) {
       applyStepIfPresent(input, format("Step: %d", i), syntheticStep)
           .apply(format("Convert to Long: %d", i), MapElements.via(new ByteValueToLong()))
           .apply(format("Combine: %d", i), getPerKeyCombiner(options.getPerKeyCombiner()))
-          .apply(
-              "Collect end time metric", ParDo.of(new TimeMonitor<>(METRICS_NAMESPACE, "runtime")));
+          .apply("Collect end time metric", ParDo.of(runtimeMonitor));
     }
   }
 

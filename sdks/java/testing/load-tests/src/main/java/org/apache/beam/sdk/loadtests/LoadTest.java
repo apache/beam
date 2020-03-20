@@ -35,6 +35,7 @@ import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
 import org.apache.beam.sdk.io.synthetic.SyntheticUnboundedSource;
 import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
@@ -62,13 +63,16 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
 
   protected OptionsT options;
 
-  protected SyntheticSourceOptions sourceOptions;
+  private SyntheticSourceOptions sourceOptions;
 
   protected Pipeline pipeline;
+
+  protected ByteMonitor byteMonitor;
 
   LoadTest(String[] args, Class<OptionsT> testOptions, String metricsNamespace) throws IOException {
     this.metricsNamespace = metricsNamespace;
     this.runtimeMonitor = new TimeMonitor<>(metricsNamespace, "runtime");
+    this.byteMonitor = new ByteMonitor(metricsNamespace, "totalBytes.count");
     this.options = LoadTestOptions.readFromArgs(args, testOptions);
     this.sourceOptions = fromJsonString(options.getSourceOptions(), SyntheticSourceOptions.class);
 
@@ -85,7 +89,7 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
   }
 
   /** The load test pipeline implementation. */
-  abstract void loadTest() throws IOException;
+  abstract void loadTest(PCollection<KV<byte[], byte[]>> input) throws IOException;
 
   /**
    * Runs the load test, collects and publishes test results to various data store and/or console.
@@ -93,13 +97,14 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
   public PipelineResult run() throws IOException {
     Timestamp timestamp = Timestamp.now();
 
-    loadTest();
+    PCollection<KV<byte[], byte[]>> input = readSourceFromOptions();
+    loadTest(input);
 
     PipelineResult pipelineResult = pipeline.run();
     pipelineResult.waitUntilFinish(Duration.standardMinutes(options.getLoadTestTimeout()));
 
     String testId = UUID.randomUUID().toString();
-    List metrics = readMetrics(timestamp, pipelineResult, testId);
+    List<NamedTestResult> metrics = readMetrics(timestamp, pipelineResult, testId);
 
     ConsoleResultPublisher.publish(metrics, testId, timestamp.toString());
 
@@ -110,6 +115,12 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
     }
 
     return pipelineResult;
+  }
+
+  private PCollection<KV<byte[], byte[]>> readSourceFromOptions() {
+    return pipeline
+        .apply("Read input", readFromSource(sourceOptions))
+        .apply("Collect start time metrics", ParDo.of(runtimeMonitor));
   }
 
   private List<NamedTestResult> readMetrics(

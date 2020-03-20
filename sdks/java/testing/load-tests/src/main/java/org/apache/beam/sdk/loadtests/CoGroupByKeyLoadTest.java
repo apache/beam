@@ -27,7 +27,6 @@ import org.apache.beam.sdk.io.synthetic.SyntheticStep;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
-import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
@@ -92,21 +91,19 @@ public class CoGroupByKeyLoadTest extends LoadTest<CoGroupByKeyLoadTest.Options>
   }
 
   @Override
-  void loadTest() throws IOException {
+  void loadTest(PCollection<KV<byte[], byte[]>> input) throws IOException {
     SyntheticSourceOptions coSourceOptions =
         fromJsonString(options.getCoSourceOptions(), SyntheticSourceOptions.class);
 
     Optional<SyntheticStep> syntheticStep = createStep(options.getStepOptions());
 
-    PCollection<KV<byte[], byte[]>> input =
-        pipeline.apply("Read input", readFromSource(sourceOptions));
-    input = input.apply("Collect start time metrics (input)", ParDo.of(runtimeMonitor));
     input = applyWindowing(input);
     input = applyStepIfPresent(input, "Synthetic step for input", syntheticStep);
 
     PCollection<KV<byte[], byte[]>> coInput =
-        pipeline.apply("Read co-input", readFromSource(coSourceOptions));
-    coInput = coInput.apply("Collect start time metrics (co-input)", ParDo.of(runtimeMonitor));
+        pipeline
+            .apply("Read co-input", readFromSource(coSourceOptions))
+            .apply("Collect start time metrics (co-input)", ParDo.of(runtimeMonitor));
     coInput = applyWindowing(coInput, options.getCoInputWindowDurationSec());
     coInput = applyStepIfPresent(coInput, "Synthetic step for co-input", syntheticStep);
 
@@ -114,8 +111,7 @@ public class CoGroupByKeyLoadTest extends LoadTest<CoGroupByKeyLoadTest.Options>
         .and(CO_INPUT_TAG, coInput)
         .apply("CoGroupByKey", CoGroupByKey.create())
         .apply("Ungroup and reiterate", ParDo.of(new UngroupAndReiterate(options.getIterations())))
-        .apply(
-            "Collect total bytes", ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")))
+        .apply("Collect total bytes", ParDo.of(byteMonitor))
         .apply("Collect end time metrics", ParDo.of(runtimeMonitor));
   }
 

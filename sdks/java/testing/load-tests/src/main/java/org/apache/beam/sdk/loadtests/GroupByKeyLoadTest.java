@@ -24,7 +24,6 @@ import java.util.Optional;
 import org.apache.beam.sdk.io.synthetic.SyntheticStep;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.testutils.metrics.ByteMonitor;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -79,17 +78,10 @@ public class GroupByKeyLoadTest extends LoadTest<GroupByKeyLoadTest.Options> {
   }
 
   @Override
-  void loadTest() throws IOException {
+  void loadTest(PCollection<KV<byte[], byte[]>> input) throws IOException {
     Optional<SyntheticStep> syntheticStep = createStep(options.getStepOptions());
 
-    PCollection<KV<byte[], byte[]>> input =
-        pipeline
-            .apply("Read input", readFromSource(sourceOptions))
-            .apply("Collect start time metrics", ParDo.of(runtimeMonitor))
-            .apply(
-                "Total bytes monitor",
-                ParDo.of(new ByteMonitor(METRICS_NAMESPACE, "totalBytes.count")));
-
+    input = input.apply("Total bytes monitor", ParDo.of(byteMonitor));
     input = applyWindowing(input);
 
     for (int branch = 0; branch < options.getFanout(); branch++) {
