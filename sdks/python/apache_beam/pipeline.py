@@ -307,58 +307,61 @@ class Pipeline(object):
           elif len(inputs) == 0:
             input_node = pvalue.PBegin(self.pipeline)
 
-          # We have to add the new AppliedTransform to the stack before expand()
-          # and pop it out later to make sure that parts get added correctly.
-          self.pipeline.transforms_stack.append(replacement_transform_node)
+          try:
+            # We have to add the new AppliedTransform to the stack before
+            # expand() and pop it out later to make sure that parts get added
+            # correctly.
+            self.pipeline.transforms_stack.append(replacement_transform_node)
 
-          # Keeping the same label for the replaced node but recursively
-          # removing labels of child transforms of original transform since they
-          # will be replaced during the expand below. This is needed in case
-          # the replacement contains children that have labels that conflicts
-          # with labels of the children of the original.
-          self.pipeline._remove_labels_recursively(original_transform_node)
+            # Keeping the same label for the replaced node but recursively
+            # removing labels of child transforms of original transform since
+            # they will be replaced during the expand below. This is needed in
+            # case the replacement contains children that have labels that
+            # conflicts with labels of the children of the original.
+            self.pipeline._remove_labels_recursively(original_transform_node)
 
-          new_output = replacement_transform.expand(input_node)
-          assert isinstance(
-              new_output, (dict, pvalue.PValue, pvalue.DoOutputsTuple))
+            new_output = replacement_transform.expand(input_node)
+            assert isinstance(
+                new_output, (dict, pvalue.PValue, pvalue.DoOutputsTuple))
 
-          if isinstance(new_output, pvalue.PValue):
-            new_output.element_type = None
-            self.pipeline._infer_result_type(
-                replacement_transform, inputs, new_output)
+            if isinstance(new_output, pvalue.PValue):
+              new_output.element_type = None
+              self.pipeline._infer_result_type(
+                  replacement_transform, inputs, new_output)
 
-          if isinstance(new_output, dict):
-            for new_tag, new_pcoll in new_output.items():
-              replacement_transform_node.add_output(new_pcoll, new_tag)
-          elif isinstance(new_output, pvalue.DoOutputsTuple):
-            replacement_transform_node.add_output(
-                new_output, new_output._main_tag)
-          else:
-            replacement_transform_node.add_output(new_output, new_output.tag)
+            if isinstance(new_output, dict):
+              for new_tag, new_pcoll in new_output.items():
+                replacement_transform_node.add_output(new_pcoll, new_tag)
+            elif isinstance(new_output, pvalue.DoOutputsTuple):
+              replacement_transform_node.add_output(
+                  new_output, new_output._main_tag)
+            else:
+              replacement_transform_node.add_output(new_output, new_output.tag)
 
-          # Recording updated outputs. This cannot be done in the same visitor
-          # since if we dynamically update output type here, we'll run into
-          # errors when visiting child nodes.
-          #
-          # NOTE: When replacing multiple outputs, the replacement PCollection
-          # tags must have a matching tag in the original transform.
-          if isinstance(new_output, pvalue.PValue):
-            if not new_output.producer:
-              new_output.producer = replacement_transform_node
-            output_map[original_transform_node.outputs[new_output.tag]] = \
-                new_output
-          elif isinstance(new_output, (pvalue.DoOutputsTuple, tuple)):
-            for pcoll in new_output:
-              if not pcoll.producer:
-                pcoll.producer = replacement_transform_node
-              output_map[original_transform_node.outputs[pcoll.tag]] = pcoll
-          elif isinstance(new_output, dict):
-            for tag, pcoll in new_output.items():
-              if not pcoll.producer:
-                pcoll.producer = replacement_transform_node
-              output_map[original_transform_node.outputs[tag]] = pcoll
-
-          self.pipeline.transforms_stack.pop()
+            # Recording updated outputs. This cannot be done in the same
+            # visitor since if we dynamically update output type here, we'll
+            # run into errors when visiting child nodes.
+            #
+            # NOTE: When replacing multiple outputs, the replacement
+            # PCollection tags must have a matching tag in the original
+            # transform.
+            if isinstance(new_output, pvalue.PValue):
+              if not new_output.producer:
+                new_output.producer = replacement_transform_node
+              output_map[original_transform_node.outputs[new_output.tag]] = \
+                  new_output
+            elif isinstance(new_output, (pvalue.DoOutputsTuple, tuple)):
+              for pcoll in new_output:
+                if not pcoll.producer:
+                  pcoll.producer = replacement_transform_node
+                output_map[original_transform_node.outputs[pcoll.tag]] = pcoll
+            elif isinstance(new_output, dict):
+              for tag, pcoll in new_output.items():
+                if not pcoll.producer:
+                  pcoll.producer = replacement_transform_node
+                output_map[original_transform_node.outputs[tag]] = pcoll
+          finally:
+            self.pipeline.transforms_stack.pop()
 
       def enter_composite_transform(self, transform_node):
         # type: (AppliedPTransform) -> None
@@ -617,68 +620,70 @@ class Pipeline(object):
     current = AppliedPTransform(
         self._current_transform(), transform, full_label, inputs)
     self._current_transform().add_part(current)
-    self.transforms_stack.append(current)
 
-    type_options = self._options.view_as(TypeOptions)
-    if type_options.pipeline_type_check:
-      transform.type_check_inputs(pvalueish)
+    try:
+      self.transforms_stack.append(current)
 
-    pvalueish_result = self.runner.apply(transform, pvalueish, self._options)
+      type_options = self._options.view_as(TypeOptions)
+      if type_options.pipeline_type_check:
+        transform.type_check_inputs(pvalueish)
 
-    if type_options is not None and type_options.pipeline_type_check:
-      transform.type_check_outputs(pvalueish_result)
+      pvalueish_result = self.runner.apply(transform, pvalueish, self._options)
 
-    for result in ptransform.get_nested_pvalues(pvalueish_result):
-      assert isinstance(result, (pvalue.PValue, pvalue.DoOutputsTuple))
+      if type_options is not None and type_options.pipeline_type_check:
+        transform.type_check_outputs(pvalueish_result)
 
-      # Make sure we set the producer only for a leaf node in the transform DAG.
-      # This way we preserve the last transform of a composite transform as
-      # being the real producer of the result.
-      if result.producer is None:
-        result.producer = current
+      for result in ptransform.get_nested_pvalues(pvalueish_result):
+        assert isinstance(result, (pvalue.PValue, pvalue.DoOutputsTuple))
 
-      self._infer_result_type(transform, inputs, result)
+        # Make sure we set the producer only for a leaf node in the transform
+        # DAG. This way we preserve the last transform of a composite transform
+        # as being the real producer of the result.
+        if result.producer is None:
+          result.producer = current
 
-      assert isinstance(result.producer.inputs, tuple)
-      # The DoOutputsTuple adds the PCollection to the outputs when accessed
-      # except for the main tag. Add the main tag here.
-      if isinstance(result, pvalue.DoOutputsTuple):
-        current.add_output(result, result._main_tag)
-        continue
+        self._infer_result_type(transform, inputs, result)
 
-      # TODO(BEAM-9322): Remove the experiment check and have this conditional
-      # be the default.
-      if self._options.view_as(DebugOptions).lookup_experiment(
-          'passthrough_pcollection_output_ids', default=False):
-        # Passthrough the PCollection output_ids from the PCollection tag.
-        # Only generate a tag if there are multiple PCollections that have a
-        # None tag. This happens when returning multiple PCollections from a
-        # composite.
-        if result.tag is None and None in current.outputs:
-          tag = len(current.outputs)
-        else:
-          tag = result.tag
+        assert isinstance(result.producer.inputs, tuple)
+        # The DoOutputsTuple adds the PCollection to the outputs when accessed
+        # except for the main tag. Add the main tag here.
+        if isinstance(result, pvalue.DoOutputsTuple):
+          current.add_output(result, result._main_tag)
+          continue
+
+        # TODO(BEAM-9322): Remove the experiment check and have this
+        # conditional be the default.
+        if self._options.view_as(DebugOptions).lookup_experiment(
+            'passthrough_pcollection_output_ids', default=False):
+          # Passthrough the PCollection output_ids from the PCollection tag.
+          # Only generate a tag if there are multiple PCollections that have a
+          # None tag. This happens when returning multiple PCollections from a
+          # composite.
+          if result.tag is None and None in current.outputs:
+            tag = len(current.outputs)
+          else:
+            tag = result.tag
+          current.add_output(result, tag)
+          continue
+
+        # TODO(BEAM-9322): Find the best auto-generated tags for nested
+        # PCollections.
+        # If the user wants the old implementation of always generated
+        # PCollection output ids, then set the tag to None first, then count up
+        # from 1.
+        tag = len(current.outputs) if None in current.outputs else None
         current.add_output(result, tag)
-        continue
 
-      # TODO(BEAM-9322): Find the best auto-generated tags for nested
-      # PCollections.
-      # If the user wants the old implementation of always generated
-      # PCollection output ids, then set the tag to None first, then count up
-      # from 1.
-      tag = len(current.outputs) if None in current.outputs else None
-      current.add_output(result, tag)
-
-    if (type_options is not None and
-        type_options.type_check_strictness == 'ALL_REQUIRED' and
-        transform.get_type_hints().output_types is None):
-      ptransform_name = '%s(%s)' % (transform.__class__.__name__, full_label)
-      raise TypeCheckError(
-          'Pipeline type checking is enabled, however no '
-          'output type-hint was found for the '
-          'PTransform %s' % ptransform_name)
-
-    self.transforms_stack.pop()
+      if (type_options is not None and
+          type_options.type_check_strictness == 'ALL_REQUIRED' and
+          transform.get_type_hints().output_types is None):
+        ptransform_name = '%s(%s)' % (transform.__class__.__name__, full_label)
+        raise TypeCheckError(
+            'Pipeline type checking is enabled, however no '
+            'output type-hint was found for the '
+            'PTransform %s' % ptransform_name)
+    finally:
+      self.transforms_stack.pop()
     return pvalueish_result
 
   def _infer_result_type(
