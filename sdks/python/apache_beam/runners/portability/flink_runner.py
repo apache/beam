@@ -65,6 +65,13 @@ class FlinkRunner(portable_runner.PortableRunner):
     else:
       return job_server.StopOnExitJobServer(FlinkJarJobServer(options))
 
+  def create_job_service_handle(self, job_service, options):
+    return portable_runner.JobServiceHandle(
+        job_service,
+        options,
+        retain_unknown_options=options.view_as(
+            pipeline_options.FlinkRunnerOptions).flink_submit_uber_jar)
+
   @staticmethod
   def add_http_scheme(flink_master):
     """Adds a http protocol scheme if none provided."""
