@@ -57,8 +57,9 @@
 
 ## Breaking Changes
 
-* HBaseIO.ReadAll now requires a PCollection of HBaseIO.Read objects instead of HBaseQuery objects ([BEAM-9279](https://issues.apache.org/jira/browse/BEAM-9279)).
 * ProcessContext.updateWatermark has been removed in favor of using a WatermarkEstimator ([BEAM-9430](https://issues.apache.org/jira/browse/BEAM-9430)).
+* HBaseIO.ReadAll now requires a PCollection of HBaseIO.Read objects instead of HBaseQuery objects ([BEAM-9279](https://issues.apache.org/jira/browse/BEAM-9279)).
+* Remove insecure ssl options from MongoDBIO ([BEAM-9564](https://issues.apache.org/jira/browse/BEAM-9564)).
 
 ## Deprecations
 
