@@ -17,14 +17,16 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import com.google.api.services.healthcare.v1alpha2.model.IngestMessageResponse;
 import com.google.api.services.healthcare.v1alpha2.model.Message;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.datastore.AdaptiveThrottler;
+import org.apache.beam.sdk.io.gcp.healthcare.HL7v2IO.Write.Result;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -36,10 +38,13 @@ import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -171,7 +176,14 @@ public class HL7v2IO {
     return write(hl7v2Store).setWriteMethod(Write.WriteMethod.INGEST).build();
   }
 
-  /** The type Read. */
+  // TODO add hyper links to this doc string.
+  /**
+   * The type Read that reads HL7v2 message contents given a PCollection of message IDs strings.
+   *
+   * These could be sourced from any PCollection of strings but the most popular patterns would be
+   * {@link PubsubIO} reading a subscription on an HL7v2 Store's notification channel topic
+   * or using {@link ListHL7v2MessageIDs} to list an entire store (or with a filter).
+   */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollectionTuple> {
 
@@ -442,14 +454,14 @@ public class HL7v2IO {
 
   /** The type Write. */
   @AutoValue
-  public abstract static class Write extends PTransform<PCollection<Message>, PDone> {
+  public abstract static class Write extends PTransform<PCollection<Message>, Result> {
 
     /** The tag for the successful writes to HL7v2 store`. */
-    public static final TupleTag<FailsafeElement<Message, String>> SUCCESS =
-        new TupleTag<FailsafeElement<Message, String>>() {};
+    public static final TupleTag<HealthcareIOError<Message>> SUCCESS =
+        new TupleTag<HealthcareIOError<Message>>() {};
     /** The tag for the failed writes to HL7v2 store`. */
-    public static final TupleTag<FailsafeElement<Message, String>> FAILED =
-        new TupleTag<FailsafeElement<Message, String>>() {};
+    public static final TupleTag<HealthcareIOError<Message>> FAILED =
+        new TupleTag<HealthcareIOError<Message>>() {};
 
     /**
      * Gets HL7v2 store.
@@ -465,23 +477,9 @@ public class HL7v2IO {
      */
     abstract WriteMethod getWriteMethod();
 
-    /**
-     * Gets dead letter transform.
-     *
-     * @return the dead letter transform
-     */
-    abstract PTransform<PCollection<FailsafeElement<Message, String>>, PDone>
-        getDeadLetterTransform();
-
     @Override
-    public PDone expand(PCollection<Message> messages) {
-      PCollectionTuple writeResults =
-          messages.apply(new WriteHL7v2(this.getHL7v2Store(), this.getWriteMethod()));
-      PCollection<FailsafeElement<Message, String>> failedWrites = writeResults.get(FAILED);
-      if (this.getDeadLetterTransform() != null) {
-        failedWrites.apply("HL7v2IO.Write DeadLetter Transform", this.getDeadLetterTransform());
-      }
-      return PDone.in(messages.getPipeline());
+    public Result expand(PCollection<Message> messages) {
+      return messages.apply(new WriteHL7v2(this.getHL7v2Store(), this.getWriteMethod()));
     }
 
     /** The enum Write method. */
@@ -517,25 +515,54 @@ public class HL7v2IO {
       abstract Builder setWriteMethod(WriteMethod writeMethod);
 
       /**
-       * Sets dead letter transform.
-       *
-       * @param deadLetterTransform the dead letter transform
-       * @return the dead letter transform
-       */
-      abstract Builder setDeadLetterTransform(
-          PTransform<PCollection<FailsafeElement<Message, String>>, PDone> deadLetterTransform);
-
-      /**
        * Build write.
        *
        * @return the write
        */
       abstract Write build();
     }
+
+    public static class Result implements POutput {
+      private final Pipeline pipeline;
+      private final PCollection<HealthcareIOError<Message>> failedInsertsWithErr;
+
+      /** Creates a {@link HL7v2IO.Write.Result} in the given {@link Pipeline}. */
+      static Result in(
+          Pipeline pipeline, PCollection<HealthcareIOError<Message>> failedInserts) {
+        return new Result(pipeline, failedInserts);
+      }
+
+      static Result withErrors(
+          Pipeline pipeline,
+          PCollection<HealthcareIOError<Message>> failedInserts) {
+        return new Result(pipeline, failedInserts);
+      }
+
+      @Override
+      public Pipeline getPipeline() {
+        return this.pipeline;
+      }
+
+      @Override
+      public Map<TupleTag<?>, PValue> expand() {
+        return ImmutableMap.of(FAILED, failedInsertsWithErr);
+      }
+
+      @Override
+      public void finishSpecifyingOutput(String transformName, PInput input,
+          PTransform<?, ?> transform) {}
+
+      private Result(
+          Pipeline pipeline,
+          PCollection<HealthcareIOError<Message>> failedInsertsWithErr) {
+        this.pipeline = pipeline;
+        this.failedInsertsWithErr = failedInsertsWithErr;
+      }
+    }
   }
 
   /** The type Write hl 7 v 2. */
-  static class WriteHL7v2 extends PTransform<PCollection<Message>, PCollectionTuple> {
+  static class WriteHL7v2 extends PTransform<PCollection<Message>, Result> {
     private final String hl7v2Store;
     private final Write.WriteMethod writeMethod;
 
@@ -551,22 +578,21 @@ public class HL7v2IO {
     }
 
     @Override
-    public PCollectionTuple expand(PCollection<Message> input) {
-      return input.apply(
+    public Result expand(PCollection<Message> input) {
+      PCollection<HealthcareIOError<Message>> failedInserts = input.apply(
           ParDo.of(new WriteHL7v2Fn(hl7v2Store, writeMethod))
-              .withOutputTags(Write.SUCCESS, TupleTagList.of(Write.FAILED)));
+              .withOutputTags(Write.SUCCESS, TupleTagList.of(Write.FAILED))).get(Write.FAILED);
+      return Write.Result.in(input.getPipeline(), failedInserts);
     }
 
     /** The type Write hl 7 v 2 fn. */
-    static class WriteHL7v2Fn extends DoFn<Message, FailsafeElement<Message, String>> {
+    static class WriteHL7v2Fn extends DoFn<Message, HealthcareIOError<Message>> {
       // TODO when the healthcare API releases a bulk import method this should use that to improve
       // throughput.
 
       private Counter failedMessageWrites =
           Metrics.counter(WriteHL7v2Fn.class, "failed-hl7v2-message-writes");
-      /** The HL7v2 store. */
       private final String hl7v2Store;
-      /** The Write method. */
       private final Write.WriteMethod writeMethod;
 
       private transient HealthcareApiClient client;
@@ -607,11 +633,10 @@ public class HL7v2IO {
           case INGEST:
           default:
             try {
-              IngestMessageResponse response = client.ingestHL7v2Message(hl7v2Store, msg);
-              context.output(Write.SUCCESS, FailsafeElement.of(msg, response.getHl7Ack()));
+              client.ingestHL7v2Message(hl7v2Store, msg);
             } catch (IOException e) {
               failedMessageWrites.inc();
-              context.output(Write.FAILED, FailsafeElement.of(msg, e.getMessage()));
+              context.output(HealthcareIOError.of(msg, e));
             }
         }
       }
