@@ -589,10 +589,11 @@ message Elements {
     // (Optional) Represents a part of a logical byte stream. Elements within
     // the logical byte stream are encoded in the nested context and
     // concatenated together.
-    //
-    // An empty data block represents the end of stream for the given
-    // instruction and transform.
     bytes data = 3;
+
+    // (Optional) Set this bit to indicate the this is the last data block
+    // for the given instruction and transform, ending the stream.
+    bool is_last = 4;
   }
 
   // Represent the encoded user timer for a given instruction, transform and
@@ -613,9 +614,11 @@ message Elements {
 
     // (Optional) Represents a logical byte stream of a timer. Encoded according
     // to the coder in the timer spec.
-    // An empty data block represents the end of stream for the given
-    // instruction and transform.
     bytes timer = 4;
+
+    // (Optional) Set this bit to indicate the this is the last data block
+    // for the given instruction and transform, ending the stream.
+    bool is_last = 5;
   }
 
 
