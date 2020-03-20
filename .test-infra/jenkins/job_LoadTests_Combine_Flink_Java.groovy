@@ -39,11 +39,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName, sdkHarnessImageTa
                                             {
                                               "numRecords": 200000000,
                                               "keySizeBytes": 1,
-                                              "valueSizeBytes": 9,
-                                                "delayDistribution": {
-                                                  "type":"const",
-                                                  "const":1
-                                                  }
+                                              "valueSizeBytes": 9
                                             }
                                        """.trim().replaceAll("\\s", ""),
                           fanout              : 1,
@@ -73,11 +69,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName, sdkHarnessImageTa
                                                     {
                                                       "numRecords": 12500000,
                                                       "keySizeBytes": 1,
-                                                      "valueSizeBytes": 9,
-                                                      "delayDistribution": {
-                                                        "type":"const",
-                                                        "const":1
-                                                        }
+                                                      "valueSizeBytes": 9
                                                     }
                                                """.trim().replaceAll("\\s", ""),
                             fanout              : 8,
