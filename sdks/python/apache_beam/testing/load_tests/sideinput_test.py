@@ -95,28 +95,34 @@ class SideInputTest(LoadTest):
 
     self.side_input_type = self.pipeline.get_option('side_input_type')
     if self.side_input_type is None:
-      raise ValueError('side_input_type is required')
+      raise ValueError(
+          'side_input_type is required. Please provide one of '
+          'these: {}'.format(list(self.SIDE_INPUT_TYPES.keys())))
 
   def materialize_as(self):
     try:
       return self.SIDE_INPUT_TYPES[self.side_input_type]
     except KeyError:
       raise ValueError(
-          'Unknown side input type. You have to provide one of '
+          'Unknown side input type. Please provide one of '
           'these: {}'.format(list(self.SIDE_INPUT_TYPES.keys())))
 
   def test(self):
     class SequenceSideInputTestDoFn(beam.DoFn):
-      """Iterate over first n side_input elements. Iterate over all
-      elements if `first_n` is :data:`None`."""
-      def __init__(self, first_n=None):
+      """Iterate over first n side_input elements."""
+      def __init__(self, first_n):
         self._first_n = first_n
 
       def process(self, unused_element, side_input):
-        for i, _ in enumerate(side_input):
-          if self._first_n and i >= self._first_n:
+        i = 0
+        it = iter(side_input)
+        while i < self._first_n:
+          i += 1
+          try:
+            # No-op. We only make sure that the element is accessed.
+            next(it)
+          except StopIteration:
             return
-          # No-op. We only make sure that the element is accessed.
 
     class MappingSideInputTestDoFn(beam.DoFn):
       """Take a sequence of keys as an additional side input and for each
@@ -136,16 +142,14 @@ class SideInputTest(LoadTest):
         return random.sample(dict_side_input.keys(), n)
 
     class AddEventTimestamps(beam.DoFn):
-      """Assign timestamp to each element of PCollection, starting from the
-      current Unix seconds-since-epoch timestamp."""
+      """Assign timestamp to each element of PCollection."""
       def setup(self):
-        import time
-        self.current_time = int(time.time())
+        self._timestamp = 0
 
       def process(self, element):
         from apache_beam.transforms.combiners import window
-        yield window.TimestampedValue(element, self.current_time)
-        self.current_time += 1
+        yield window.TimestampedValue(element, self._timestamp)
+        self._timestamp += 1
 
     input_pc = (
         self.pipeline
