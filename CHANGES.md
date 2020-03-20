@@ -54,6 +54,19 @@
 ## I/Os
 
 ## New Features / Improvements
+* Python SDK will now use Python 3 type annotations as pipeline type hints.
+([#10717](https://github.com/apache/beam/pull/10717))
+
+    If you suspect that this feature is causing your pipeline to fail, calling
+    `apache_beam.typehints.disable_type_annotations()` before pipeline creation
+    will disable is completely, and decorating specific functions (such as 
+    `process()`) with `@apache_beam.typehints.no_annotations` will disable it
+    for that function.
+
+    More details will be in 
+    [Ensuring Python Type Safety](https://beam.apache.org/documentation/sdks/python-type-safety/)
+    and an upcoming
+    [blog post](https://beam.apache.org/blog/python/typing/2020/03/06/python-typing.html).
 
 ## Breaking Changes
 
