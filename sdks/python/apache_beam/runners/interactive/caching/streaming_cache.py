@@ -153,7 +153,10 @@ class StreamingCacheSource:
     self._coder = coder
     self._labels = labels
     self._is_cache_complete = (
-        is_cache_complete if is_cache_complete else lambda: True)
+        is_cache_complete if is_cache_complete else lambda _: True)
+
+    from apache_beam.runners.interactive.pipeline_instrument import CacheKey
+    self._pipeline_id = CacheKey.from_str(labels[-1]).pipeline_id
 
   def _wait_until_file_exists(self, timeout_secs=30):
     """Blocks until the file exists for a maximum of timeout_secs.
@@ -186,7 +189,7 @@ class StreamingCacheSource:
       # Check if we are at EOF or if we have an incomplete line.
       if not line or (line and line[-1] != b'\n'[0]):
         # Complete reading only when the cache is complete.
-        if self._is_cache_complete():
+        if self._is_cache_complete(self._pipeline_id):
           break
 
         if not tail:
@@ -273,8 +276,7 @@ class StreamingCache(CacheManager):
       return iter([]), -1
 
     reader = StreamingCacheSource(
-        self._cache_dir, labels,
-        is_cache_complete=self._is_cache_complete).read(tail=False)
+        self._cache_dir, labels, self._is_cache_complete).read(tail=False)
     header = next(reader)
     return StreamingCache.Reader([header], [reader]).read(), 1
 
@@ -286,9 +288,8 @@ class StreamingCache(CacheManager):
     pipeline runtime which needs to block.
     """
     readers = [
-        StreamingCacheSource(
-            self._cache_dir, l,
-            is_cache_complete=self._is_cache_complete).read(tail=True)
+        StreamingCacheSource(self._cache_dir, l,
+                             self._is_cache_complete).read(tail=True)
         for l in labels
     ]
     headers = [next(r) for r in readers]

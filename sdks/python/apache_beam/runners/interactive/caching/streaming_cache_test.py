@@ -29,6 +29,7 @@ from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileR
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive.cache_manager import SafeFastPrimitivesCoder
 from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
+from apache_beam.runners.interactive.pipeline_instrument import CacheKey
 from apache_beam.runners.interactive.testing.test_cache_manager import FileRecordsBuilder
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
@@ -56,7 +57,7 @@ class StreamingCacheTest(unittest.TestCase):
   def test_single_reader(self):
     """Tests that we expect to see all the correctly emitted TestStreamPayloads.
     """
-    CACHED_PCOLLECTION_KEY = 'arbitrary_key'
+    CACHED_PCOLLECTION_KEY = repr(CacheKey('arbitrary_key', '', '', ''))
 
     values = (FileRecordsBuilder(tag=CACHED_PCOLLECTION_KEY)
               .add_element(element=0, event_time_secs=0)
@@ -109,9 +110,9 @@ class StreamingCacheTest(unittest.TestCase):
     """Tests that the service advances the clock with multiple outputs.
     """
 
-    CACHED_LETTERS = 'letters'
-    CACHED_NUMBERS = 'numbers'
-    CACHED_LATE = 'late'
+    CACHED_LETTERS = repr(CacheKey('letters', '', '', ''))
+    CACHED_NUMBERS = repr(CacheKey('numbers', '', '', ''))
+    CACHED_LATE = repr(CacheKey('late', '', '', ''))
 
     letters = (FileRecordsBuilder(CACHED_LETTERS)
                .advance_processing_time(1)
@@ -235,13 +236,14 @@ class StreamingCacheTest(unittest.TestCase):
     This ensures that the sink and source speak the same language in terms of
     coders, protos, order, and units.
     """
+    CACHED_RECORDS = repr(CacheKey('records', '', '', ''))
 
     # Units here are in seconds.
     test_stream = (TestStream()
-                   .advance_watermark_to(0, tag='records')
+                   .advance_watermark_to(0, tag=CACHED_RECORDS)
                    .advance_processing_time(5)
-                   .add_elements(['a', 'b', 'c'], tag='records')
-                   .advance_watermark_to(10, tag='records')
+                   .add_elements(['a', 'b', 'c'], tag=CACHED_RECORDS)
+                   .advance_watermark_to(10, tag=CACHED_RECORDS)
                    .advance_processing_time(1)
                    .add_elements(
                        [
@@ -249,7 +251,7 @@ class StreamingCacheTest(unittest.TestCase):
                            TimestampedValue('2', 15),
                            TimestampedValue('3', 15)
                        ],
-                       tag='records')) # yapf: disable
+                       tag=CACHED_RECORDS)) # yapf: disable
 
     coder = SafeFastPrimitivesCoder()
     cache = StreamingCache(cache_dir=None, sample_resolution_sec=1.0)
@@ -259,9 +261,9 @@ class StreamingCacheTest(unittest.TestCase):
         'passthrough_pcollection_output_ids')
     with TestPipeline(options=options) as p:
       # pylint: disable=expression-not-assigned
-      p | test_stream | cache.sink(['records'])
+      p | test_stream | cache.sink([CACHED_RECORDS])
 
-    reader, _ = cache.read('records')
+    reader, _ = cache.read(CACHED_RECORDS)
     actual_events = list(reader)
 
     # Units here are in microseconds.
@@ -271,7 +273,7 @@ class StreamingCacheTest(unittest.TestCase):
                 advance_duration=5 * 10**6)),
         TestStreamPayload.Event(
             watermark_event=TestStreamPayload.Event.AdvanceWatermark(
-                new_watermark=0, tag='records')),
+                new_watermark=0, tag=CACHED_RECORDS)),
         TestStreamPayload.Event(
             element_event=TestStreamPayload.Event.AddElements(
                 elements=[
@@ -282,13 +284,13 @@ class StreamingCacheTest(unittest.TestCase):
                     TestStreamPayload.TimestampedElement(
                         encoded_element=coder.encode('c'), timestamp=0),
                 ],
-                tag='records')),
+                tag=CACHED_RECORDS)),
         TestStreamPayload.Event(
             processing_time_event=TestStreamPayload.Event.AdvanceProcessingTime(
                 advance_duration=1 * 10**6)),
         TestStreamPayload.Event(
             watermark_event=TestStreamPayload.Event.AdvanceWatermark(
-                new_watermark=10 * 10**6, tag='records')),
+                new_watermark=10 * 10**6, tag=CACHED_RECORDS)),
         TestStreamPayload.Event(
             element_event=TestStreamPayload.Event.AddElements(
                 elements=[
@@ -302,7 +304,7 @@ class StreamingCacheTest(unittest.TestCase):
                         encoded_element=coder.encode('3'), timestamp=15 *
                         10**6),
                 ],
-                tag='records')),
+                tag=CACHED_RECORDS)),
     ]
     self.assertEqual(actual_events, expected_events)
 
@@ -312,8 +314,8 @@ class StreamingCacheTest(unittest.TestCase):
     This tests the funcionatlity that the StreamingCache reads from multiple
     files and combines them into a single sorted output.
     """
-    LETTERS_TAG = 'letters'
-    NUMBERS_TAG = 'numbers'
+    LETTERS_TAG = repr(CacheKey('letters', '', '', ''))
+    NUMBERS_TAG = repr(CacheKey('numbers', '', '', ''))
 
     # Units here are in seconds.
     test_stream = (TestStream()
