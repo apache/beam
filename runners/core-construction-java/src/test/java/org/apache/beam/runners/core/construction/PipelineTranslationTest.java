@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
@@ -227,5 +228,23 @@ public class PipelineTranslationTest {
     } else {
       return Optional.empty();
     }
+  }
+
+  // Static, out-of-line for serialization.
+  private static class DoFnRequiringStableInput extends DoFn<Integer, String> {
+    @RequiresStableInput
+    @ProcessElement
+    public void process(ProcessContext c) {
+      // actually never executed and no effect on translation
+    }
+  }
+
+  @Test
+  public void testRequirements() {
+    Pipeline pipeline = Pipeline.create();
+    pipeline.apply(Create.of(1, 2, 3)).apply(ParDo.of(new DoFnRequiringStableInput()));
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, false);
+    assertThat(
+        pipelineProto.getRequirementsList(), hasItem(ParDoTranslation.REQUIRES_STABLE_INPUT_URN));
   }
 }

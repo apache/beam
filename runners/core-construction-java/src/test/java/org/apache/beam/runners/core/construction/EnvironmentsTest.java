@@ -129,7 +129,7 @@ public class EnvironmentsTest implements Serializable {
             ParDo.of(
                     new DoFn<String, String>() {
                       @ProcessElement
-                      public void process(ProcessContext ctxt) {}CreateExecutableStageNodeFunction.java
+                      public void process(ProcessContext ctxt) {}
                     })
                 .withOutputTags(new TupleTag<>(), TupleTagList.empty()),
             DoFnSchemaInformation.create(),

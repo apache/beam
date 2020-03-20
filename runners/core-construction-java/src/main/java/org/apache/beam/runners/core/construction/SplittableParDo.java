@@ -416,8 +416,24 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
                 }
 
                 @Override
+                public boolean isStateful() {
+                  return !signature.stateDeclarations().isEmpty()
+                      || !signature.timerDeclarations().isEmpty();
+                }
+
+                @Override
+                public boolean isSplittable() {
+                  return true;
+                }
+
+                @Override
+                public boolean isRequiresStableInput() {
+                  return signature.processElement().requiresStableInput();
+                }
+
+                @Override
                 public boolean isRequiresTimeSortedInput() {
-                  return false;
+                  return signature.processElement().requiresTimeSortedInput();
                 }
 
                 @Override
