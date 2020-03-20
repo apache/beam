@@ -254,6 +254,22 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
             }
 
             @Override
+            public boolean isStateful() {
+              return !signature.stateDeclarations().isEmpty()
+                  || !signature.timerDeclarations().isEmpty();
+            }
+
+            @Override
+            public boolean isSplittable() {
+              return signature.processElement().isSplittable();
+            }
+
+            @Override
+            public boolean isRequiresStableInput() {
+              return signature.processElement().requiresStableInput();
+            }
+
+            @Override
             public boolean isRequiresTimeSortedInput() {
               return signature.processElement().requiresTimeSortedInput();
             }

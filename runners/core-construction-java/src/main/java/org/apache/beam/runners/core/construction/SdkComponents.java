@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -100,7 +101,9 @@ public class SdkComponents {
   }
 
   private SdkComponents(
-      Components components, Collection<String> requirements, String newIdPrefix) {
+      @Nullable Components components,
+      @Nullable Collection<String> requirements,
+      String newIdPrefix) {
     this.newIdPrefix = newIdPrefix;
     this.requirements = new HashSet<>();
 
@@ -114,7 +117,8 @@ public class SdkComponents {
   }
 
   /** Merge Components proto into this SdkComponents instance. */
-  public void mergeFrom(RunnerApi.Components components, Collection<String> requirements) {
+  public void mergeFrom(
+      RunnerApi.Components components, @Nullable Collection<String> requirements) {
     reservedIds.addAll(components.getTransformsMap().keySet());
     reservedIds.addAll(components.getPcollectionsMap().keySet());
     reservedIds.addAll(components.getWindowingStrategiesMap().keySet());

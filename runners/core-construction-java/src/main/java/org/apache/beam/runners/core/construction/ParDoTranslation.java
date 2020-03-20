@@ -322,6 +322,22 @@ public class ParDoTranslation {
           }
 
           @Override
+          public boolean isStateful() {
+            return !signature.stateDeclarations().isEmpty()
+                || !signature.timerDeclarations().isEmpty();
+          }
+
+          @Override
+          public boolean isSplittable() {
+            return signature.processElement().isSplittable();
+          }
+
+          @Override
+          public boolean isRequiresStableInput() {
+            return signature.processElement().requiresStableInput();
+          }
+
+          @Override
           public boolean isRequiresTimeSortedInput() {
             return signature.processElement().requiresTimeSortedInput();
           }
@@ -771,6 +787,12 @@ public class ParDoTranslation {
 
     Map<String, RunnerApi.TimerFamilySpec> translateTimerFamilySpecs(SdkComponents newComponents);
 
+    boolean isStateful();
+
+    boolean isSplittable();
+
+    boolean isRequiresStableInput();
+
     boolean isRequiresTimeSortedInput();
 
     boolean requestsFinalization();
@@ -781,12 +803,29 @@ public class ParDoTranslation {
   public static ParDoPayload payloadForParDoLike(ParDoLike parDo, SdkComponents components)
       throws IOException {
 
+    if (parDo.isStateful()) {
+      components.addRequirement(REQUIRES_STATEFUL_PROCESSING_URN);
+    }
+    if (parDo.isSplittable()) {
+      components.addRequirement(REQUIRES_SPLITTABLE_DOFN_URN);
+    }
+    if (parDo.requestsFinalization()) {
+      components.addRequirement(REQUIRES_BUNDLE_FINALIZATION_URN);
+    }
+    if (parDo.isRequiresStableInput()) {
+      components.addRequirement(REQUIRES_STABLE_INPUT_URN);
+    }
+    if (parDo.isRequiresTimeSortedInput()) {
+      components.addRequirement(REQUIRES_TIME_SORTED_INPUT_URN);
+    }
+
     return ParDoPayload.newBuilder()
         .setDoFn(parDo.translateDoFn(components))
         .putAllStateSpecs(parDo.translateStateSpecs(components))
         .putAllTimerSpecs(parDo.translateTimerSpecs(components))
         .putAllTimerFamilySpecs(parDo.translateTimerFamilySpecs(components))
         .putAllSideInputs(parDo.translateSideInputs(components))
+        .setRequiresStableInput(parDo.isRequiresStableInput())
         .setRequiresTimeSortedInput(parDo.isRequiresTimeSortedInput())
         .setRestrictionCoderId(parDo.translateRestrictionCoderId(components))
         .setRequestsFinalization(parDo.requestsFinalization())

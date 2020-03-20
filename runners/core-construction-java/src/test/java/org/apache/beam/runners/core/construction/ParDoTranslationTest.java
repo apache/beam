@@ -133,6 +133,9 @@ public class ParDoTranslationTest {
         payload.getSideInputsOrThrow(view.getTagInternal().getId());
       }
       assertFalse(payload.getRequestsFinalization());
+      assertEquals(
+          parDo.getFn() instanceof StateTimerDropElementsFn,
+          components.requirements().contains(ParDoTranslation.REQUIRES_STATEFUL_PROCESSING_URN));
     }
 
     @Test
