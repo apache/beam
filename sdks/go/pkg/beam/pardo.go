@@ -38,7 +38,8 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 	}
 
 	num := graph.MainSingle
-	if typex.IsKV(col.Type()) {
+	// Check the PCollection for any keyed type (not just KV specifically).
+	if typex.IsKV(col.Type()) || typex.IsCoGBK(col.Type()) {
 		num = graph.MainKv
 	}
 	fn, err := graph.NewDoFn(dofn, graph.NumMainInputs(num))
