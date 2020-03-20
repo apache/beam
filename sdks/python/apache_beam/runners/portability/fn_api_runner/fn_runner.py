@@ -695,7 +695,7 @@ class FnApiRunner(runner.PipelineRunner):
 
     Args:
       stage_context (translations.TransformContext)
-      stages (list[fn_api_runner_transforms.Stage])
+      stages (list[fn_api_runner.translations.Stage])
     """
     worker_handler_manager = WorkerHandlerManager(
         stage_context.components.environments, self._provision_info)
