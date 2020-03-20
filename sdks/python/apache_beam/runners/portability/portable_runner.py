@@ -88,10 +88,11 @@ class JobServiceHandle(object):
   - stage
   - run
   """
-  def __init__(self, job_service, options):
+  def __init__(self, job_service, options, retain_unknown_options=False):
     self.job_service = job_service
     self.options = options
     self.timeout = options.view_as(PortableOptions).job_server_timeout
+    self._retain_unknown_options = retain_unknown_options
 
   def submit(self, proto_pipeline):
     # type: (beam_runner_api_pb2.Pipeline) -> Tuple[str, Iterator[beam_job_api_pb2.JobStateEvent], Iterator[beam_job_api_pb2.JobMessagesResponse]]
@@ -157,7 +158,8 @@ class JobServiceHandle(object):
           _LOGGER.debug("Runner option '%s' was already added" % option.name)
 
     all_options = self.options.get_all_options(
-        add_extra_args_fn=add_runner_options)
+        add_extra_args_fn=add_runner_options,
+        retain_unknown_options=self._retain_unknown_options)
     # TODO: Define URNs for options.
     # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
     p_options = {
@@ -288,6 +290,9 @@ class PortableRunner(runner.PipelineRunner):
           job_server.DockerizedJobServer())
     return self._dockerized_job_server
 
+  def create_job_service_handle(self, job_service, options):
+    return JobServiceHandle(job_service, options)
+
   def create_job_service(self, options):
     # type: (PipelineOptions) -> JobServiceHandle
 
@@ -303,7 +308,7 @@ class PortableRunner(runner.PipelineRunner):
         server = job_server.ExternalJobServer(job_endpoint, job_server_timeout)
     else:
       server = self.default_job_server(options)
-    return JobServiceHandle(server.start(), options)
+    return self.create_job_service_handle(server.start(), options)
 
   @staticmethod
   def get_proto_pipeline(pipeline, options):

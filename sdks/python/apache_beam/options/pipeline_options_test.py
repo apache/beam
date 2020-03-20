@@ -300,6 +300,21 @@ class PipelineOptionsTest(unittest.TestCase):
             'option with space'),
         ' value with space')
 
+  def test_retain_unknown_options_binary_store_string(self):
+    options = PipelineOptions(['--unknown_option', 'some_value'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], 'some_value')
+
+  def test_retain_unknown_options_unary_store_true(self):
+    options = PipelineOptions(['--unknown_option'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], True)
+
+  def test_retain_unknown_options_unary_missing_prefix(self):
+    options = PipelineOptions(['bad_option'])
+    with self.assertRaises(SystemExit):
+      result = options.get_all_options(retain_unknown_options=True)
+
   def test_override_options(self):
     base_flags = ['--num_workers', '5']
     options = PipelineOptions(base_flags)
