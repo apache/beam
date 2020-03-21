@@ -35,12 +35,12 @@ from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners.portability.fn_api_runner.transforms import IMPULSE_BUFFER
-from apache_beam.runners.portability.fn_api_runner.transforms import PAR_DO_URNS
-from apache_beam.runners.portability.fn_api_runner.transforms import create_buffer_id
-from apache_beam.runners.portability.fn_api_runner.transforms import only_element
-from apache_beam.runners.portability.fn_api_runner.transforms import split_buffer_id
-from apache_beam.runners.portability.fn_api_runner.transforms import unique_name
+from apache_beam.runners.portability.fn_api_runner.translations import IMPULSE_BUFFER
+from apache_beam.runners.portability.fn_api_runner.translations import PAR_DO_URNS
+from apache_beam.runners.portability.fn_api_runner.translations import create_buffer_id
+from apache_beam.runners.portability.fn_api_runner.translations import only_element
+from apache_beam.runners.portability.fn_api_runner.translations import split_buffer_id
+from apache_beam.runners.portability.fn_api_runner.translations import unique_name
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindow
@@ -373,7 +373,7 @@ def store_side_inputs_in_state(
     worker_handler,  # type: WorkerHandler
     context,  # type: pipeline_context.PipelineContext
     pipeline_components,  # type: beam_runner_api_pb2.Components
-    side_input_infos,  # type: List[fn_api_runner_transforms.SideInputInfo]
+    side_input_infos,  # type: List[fn_api_runner.translations.SideInputInfo]
     pcoll_buffers,  # type: Mapping[bytes, _ListBuffer]
     safe_coders):
   for transform_id, tag, buffer_id, si in side_input_infos:
@@ -729,7 +729,7 @@ class PipelineExecutionContext(object):
   def _get_data_side_input_per_pcoll_id(stage):
     """
     Args:
-      stage (fn_api_runner_transforms.Stage): The stage that consumes side
+      stage (fn_api_runner.translations.Stage): The stage that consumes side
         inputs that we will extract.
     """
     consumer_side_input_pairs = []
@@ -757,7 +757,7 @@ class PipelineExecutionContext(object):
     Also mutates IO stages to point to the data ApiServiceDescriptor.
 
     Args:
-      stage (fn_api_runner_transforms.Stage): The stage to extract endpoints
+      stage (fn_api_runner.translations.Stage): The stage to extract endpoints
         for.
     Returns:
       A tuple of (data_input, data_output) dictionaries.
