@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 
 /** Class for capturing errors on IO operations on Google Cloud Healthcare APIs resources. */
 public class HealthcareIOError<T> {
-  private  T dataResource;
-  private  String errorMessage;
-  private  String stackTrace;
+  private T dataResource;
+  private String errorMessage;
+  private String stackTrace;
 
   HealthcareIOError(T dataResource, String errorMessage, String stackTrace) {
     this.dataResource = dataResource;
@@ -47,7 +46,6 @@ public class HealthcareIOError<T> {
   static <T> HealthcareIOError<T> of(T dataResource, Exception error) {
     String msg = error.getMessage();
     String stackTrace = Throwables.getStackTraceAsString(error);
-    return new HealthcareIOError<>(
-        dataResource, msg, stackTrace);
+    return new HealthcareIOError<>(dataResource, msg, stackTrace);
   }
 }

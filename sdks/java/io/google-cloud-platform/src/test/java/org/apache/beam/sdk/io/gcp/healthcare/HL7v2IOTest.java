@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.google.api.services.healthcare.v1alpha2.model.Message;
@@ -18,19 +35,18 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class HL7v2IOTest {
-  @Rule
-  public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
   public void test_HL7v2IO_failedReads() {
     List<String> badMessageIDs = Arrays.asList("foo", "bar");
-    HL7v2IO.Read.Result readResult = pipeline
-        .apply(Create.of(badMessageIDs))
-        .apply(HL7v2IO.readAll());
+    HL7v2IO.Read.Result readResult =
+        pipeline.apply(Create.of(badMessageIDs)).apply(HL7v2IO.readAll());
     PCollection<HealthcareIOError<String>> failed = readResult.getFailedReads();
     PCollection<Message> messages = readResult.getMessages().setCoder(new MessageCoder());
-    PCollection<String> failedMsgIds = failed.apply(
-        MapElements.into(TypeDescriptors.strings()).via((HealthcareIOError::getDataResource)));
+    PCollection<String> failedMsgIds =
+        failed.apply(
+            MapElements.into(TypeDescriptors.strings()).via((HealthcareIOError::getDataResource)));
 
     PAssert.that(failedMsgIds).containsInAnyOrder(badMessageIDs);
     PAssert.that(messages).empty();
@@ -41,14 +57,20 @@ public class HL7v2IOTest {
   public void test_HL7v2IO_failedWrites() {
     Message msg = new Message().setData("");
     List<Message> emptyMessages = Collections.singletonList(msg);
-    PCollection<Message> messages = pipeline.apply(Create.of(emptyMessages).withCoder(new MessageCoder()));
-    HL7v2IO.Write.Result writeResult = messages.apply(HL7v2IO.ingestMessages("projects/foo/locations/us-central1/datasets/bar/hl7V2Stores/baz"));
+    PCollection<Message> messages =
+        pipeline.apply(Create.of(emptyMessages).withCoder(new MessageCoder()));
+    HL7v2IO.Write.Result writeResult =
+        messages.apply(
+            HL7v2IO.ingestMessages(
+                "projects/foo/locations/us-central1/datasets/bar/hl7V2Stores/baz"));
     PCollection<HealthcareIOError<Message>> failedInserts = writeResult.getFailedInsertsWithErr();
-    PCollection<Message> failedMsgs = failedInserts.apply(
-        MapElements.into(TypeDescriptor.of(Message.class))
-            .via((HealthcareIOError::getDataResource))).setCoder(new MessageCoder());
+    PCollection<Message> failedMsgs =
+        failedInserts
+            .apply(
+                MapElements.into(TypeDescriptor.of(Message.class))
+                    .via((HealthcareIOError::getDataResource)))
+            .setCoder(new MessageCoder());
     PAssert.that(failedMsgs).containsInAnyOrder(emptyMessages);
     pipeline.run();
   }
-
 }

@@ -175,7 +175,8 @@ public class HL7v2IO {
       private Result(PCollectionTuple pct) {
         this.pct = pct;
         this.messages = pct.get(OUT);
-        this.failedReads = pct.get(DEAD_LETTER).setCoder(new HealthcareIOErrorCoder<>(StringUtf8Coder.of()));
+        this.failedReads =
+            pct.get(DEAD_LETTER).setCoder(new HealthcareIOErrorCoder<>(StringUtf8Coder.of()));
       }
 
       public PCollection<HealthcareIOError<String>> getFailedReads() {
@@ -223,11 +224,11 @@ public class HL7v2IO {
      * <p>The {@link PCollectionTuple} output will contain the following {@link PCollection}:
      *
      * <ul>
-     *   <li>{@link HL7v2IO.Read#OUT} - Contains all {@link PCollection} records successfully
-     *       read from the HL7v2 store.
-     *   <li>{@link HL7v2IO.Read#DEAD_LETTER} - Contains all {@link PCollection} of
-     *   {@link HealthcareIOError<String>} message IDs which
-     *       failed to be fetched from the HL7v2 store, with error message and stacktrace.
+     *   <li>{@link HL7v2IO.Read#OUT} - Contains all {@link PCollection} records successfully read
+     *       from the HL7v2 store.
+     *   <li>{@link HL7v2IO.Read#DEAD_LETTER} - Contains all {@link PCollection} of {@link
+     *       HealthcareIOError<String>} message IDs which failed to be fetched from the HL7v2 store,
+     *       with error message and stacktrace.
      * </ul>
      *
      * <p>Example:
@@ -303,10 +304,7 @@ public class HL7v2IO {
           this.client = new HttpHealthcareApiClient();
         }
 
-        /**
-         * Start bundle.
-         *
-         */
+        /** Start bundle. */
         @StartBundle
         public void startBundle() {
           if (throttler == null) {
@@ -346,7 +344,8 @@ public class HL7v2IO {
             sleeper.sleep(throttleWaitSeconds * 1000);
           }
 
-          com.google.api.services.healthcare.v1alpha2.model.Message msg = client.getHL7v2Message(msgId);
+          com.google.api.services.healthcare.v1alpha2.model.Message msg =
+              client.getHL7v2Message(msgId);
 
           this.throttler.successfulRequest(startTime);
           if (msg == null) {
@@ -557,16 +556,13 @@ public class HL7v2IO {
     public Result expand(PCollection<Message> input) {
       PCollection<HealthcareIOError<Message>> failedInserts =
           input
-              .apply(
-                  ParDo.of(new WriteHL7v2Fn(hl7v2Store, writeMethod)))
+              .apply(ParDo.of(new WriteHL7v2Fn(hl7v2Store, writeMethod)))
               .setCoder(new HealthcareIOErrorCoder<>(new MessageCoder()));
       return Write.Result.in(input.getPipeline(), failedInserts);
     }
 
     /** The type Write hl 7 v 2 fn. */
-    static class WriteHL7v2Fn extends
-        DoFn<Message,
-            HealthcareIOError<Message>> {
+    static class WriteHL7v2Fn extends DoFn<Message, HealthcareIOError<Message>> {
       // TODO when the healthcare API releases a bulk import method this should use that to improve
       // throughput.
 
@@ -575,8 +571,7 @@ public class HL7v2IO {
       private final String hl7v2Store;
       private final Write.WriteMethod writeMethod;
 
-      private static final Logger LOG =
-          LoggerFactory.getLogger(WriteHL7v2.WriteHL7v2Fn.class);
+      private static final Logger LOG = LoggerFactory.getLogger(WriteHL7v2.WriteHL7v2Fn.class);
       private transient HealthcareApiClient client;
 
       /**
@@ -618,9 +613,11 @@ public class HL7v2IO {
               client.ingestHL7v2Message(hl7v2Store, msg);
             } catch (Exception e) {
               failedMessageWrites.inc();
-              LOG.warn(String.format("Failed to ingest message Error: %s Stacktrace: %s",
-                  e.getMessage(), Throwables.getStackTraceAsString(e)));
-              HealthcareIOError<Message> err= HealthcareIOError.of(msg, e);
+              LOG.warn(
+                  String.format(
+                      "Failed to ingest message Error: %s Stacktrace: %s",
+                      e.getMessage(), Throwables.getStackTraceAsString(e)));
+              HealthcareIOError<Message> err = HealthcareIOError.of(msg, e);
               LOG.warn(String.format("%s %s", err.getErrorMessage(), err.getStackTrace()));
               context.output(err);
             }
