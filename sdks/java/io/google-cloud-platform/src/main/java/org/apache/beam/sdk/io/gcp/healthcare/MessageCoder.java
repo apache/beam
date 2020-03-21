@@ -33,12 +33,20 @@ public class MessageCoder extends CustomCoder<Message> {
 
   @Override
   public void encode(Message value, OutputStream outStream) throws CoderException, IOException {
+    STRING_CODER.encode(value.getName(), outStream);
+    STRING_CODER.encode(value.getMessageType(), outStream);
+    STRING_CODER.encode(value.getCreateTime(), outStream);
+    STRING_CODER.encode(value.getSendTime(), outStream);
     STRING_CODER.encode(value.getData(), outStream);
   }
 
   @Override
   public Message decode(InputStream inStream) throws CoderException, IOException {
     Message msg = new Message();
+    msg.setName(STRING_CODER.decode(inStream));
+    msg.setMessageType(STRING_CODER.decode(inStream));
+    msg.setCreateTime(STRING_CODER.decode(inStream));
+    msg.setSendTime(STRING_CODER.decode(inStream));
     msg.setData(STRING_CODER.decode(inStream));
     return msg;
   }
