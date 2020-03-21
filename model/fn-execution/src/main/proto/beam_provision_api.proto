@@ -56,7 +56,7 @@ message ProvisionInfo {
     google.protobuf.Struct pipeline_options = 3;
 
     // (required) The artifact retrieval token produced by
-    // ArtifactStagingService.CommitManifestResponse.
+    // LegacyArtifactStagingService.CommitManifestResponse.
     string retrieval_token = 6;
 
     // (optional) The endpoint that the runner is hosting for the SDK to submit

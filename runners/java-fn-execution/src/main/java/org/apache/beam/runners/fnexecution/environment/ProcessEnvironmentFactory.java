@@ -23,7 +23,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.LegacyArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
@@ -49,7 +49,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
       ProcessManager processManager,
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+      GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
       IdGenerator idGenerator,
@@ -68,7 +68,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
   private final ProcessManager processManager;
   private final GrpcFnServer<FnApiControlClientPoolService> controlServiceServer;
   private final GrpcFnServer<GrpcLoggingService> loggingServiceServer;
-  private final GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
+  private final GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer;
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
   private final IdGenerator idGenerator;
   private final ControlClientPool.Source clientSource;
@@ -78,7 +78,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
       ProcessManager processManager,
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+      GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       IdGenerator idGenerator,
       ControlClientPool.Source clientSource,
@@ -170,7 +170,7 @@ public class ProcessEnvironmentFactory implements EnvironmentFactory {
     public EnvironmentFactory createEnvironmentFactory(
         GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
         GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-        GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+        GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
         GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
         ControlClientPool clientPool,
         IdGenerator idGenerator) {

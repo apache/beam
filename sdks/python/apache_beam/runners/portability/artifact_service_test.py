@@ -69,7 +69,7 @@ class AbstractArtifactServiceTest(unittest.TestCase):
   def retrieve_artifact(retrieval_service, retrieval_token, name):
     return b''.join(
         chunk.data for chunk in retrieval_service.GetArtifact(
-            beam_artifact_api_pb2.GetArtifactRequest(
+            beam_artifact_api_pb2.LegacyGetArtifactRequest(
                 retrieval_token=retrieval_token, name=name)))
 
   def test_basic(self):
@@ -78,16 +78,17 @@ class AbstractArtifactServiceTest(unittest.TestCase):
   def test_with_grpc(self):
     server = grpc.server(UnboundedThreadPoolExecutor())
     try:
-      beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
+      beam_artifact_api_pb2_grpc.add_LegacyArtifactStagingServiceServicer_to_server(
           self._service, server)
-      beam_artifact_api_pb2_grpc.add_ArtifactRetrievalServiceServicer_to_server(
+      beam_artifact_api_pb2_grpc.add_LegacyArtifactRetrievalServiceServicer_to_server(
           self._service, server)
       port = server.add_insecure_port('[::]:0')
       server.start()
       channel = grpc.insecure_channel('localhost:%d' % port)
       self._run_staging(
-          beam_artifact_api_pb2_grpc.ArtifactStagingServiceStub(channel),
-          beam_artifact_api_pb2_grpc.ArtifactRetrievalServiceStub(channel))
+          beam_artifact_api_pb2_grpc.LegacyArtifactStagingServiceStub(channel),
+          beam_artifact_api_pb2_grpc.LegacyArtifactRetrievalServiceStub(
+              channel))
       channel.close()
     finally:
       server.stop(1)

@@ -26,13 +26,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.stream.Stream;
-import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
+import org.apache.beam.model.jobmanagement.v1.LegacyArtifactStagingServiceGrpc;
 
 /**
- * An {@link ArtifactStagingServiceGrpc.ArtifactStagingServiceImplBase} that loads artifacts into a
- * Java {@link FileSystem}.
+ * An {@link LegacyArtifactStagingServiceGrpc.LegacyArtifactStagingServiceImplBase} that loads
+ * artifacts into a Java {@link FileSystem}.
  */
-public class JavaFilesystemArtifactStagingService extends AbstractArtifactStagingService {
+public class JavaFilesystemLegacyArtifactStagingService
+    extends AbstractLegacyArtifactStagingService {
 
   public static final String MANIFEST = "MANIFEST.json";
   public static final String ARTIFACTS = "ARTIFACTS";
@@ -40,7 +41,7 @@ public class JavaFilesystemArtifactStagingService extends AbstractArtifactStagin
   private final FileSystem fileSystem;
   private final Path artifactRootDir;
 
-  public JavaFilesystemArtifactStagingService(FileSystem fileSystem, String artifactRootDir) {
+  public JavaFilesystemLegacyArtifactStagingService(FileSystem fileSystem, String artifactRootDir) {
     this.fileSystem = fileSystem;
     this.artifactRootDir = fileSystem.getPath(artifactRootDir);
   }
