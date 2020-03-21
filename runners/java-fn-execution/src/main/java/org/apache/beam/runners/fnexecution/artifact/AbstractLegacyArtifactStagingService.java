@@ -32,7 +32,7 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest.Location
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactRequest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactResponse;
-import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceImplBase;
+import org.apache.beam.model.jobmanagement.v1.LegacyArtifactStagingServiceGrpc.LegacyArtifactStagingServiceImplBase;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
@@ -46,11 +46,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An {@link ArtifactStagingServiceImplBase} that handles everything aside from actually opening the
- * backing resources.
+ * An {@link LegacyArtifactStagingServiceImplBase} that handles everything aside from actually
+ * opening the backing resources.
  */
-public abstract class AbstractArtifactStagingService extends ArtifactStagingServiceImplBase
-    implements FnService {
+public abstract class AbstractLegacyArtifactStagingService
+    extends LegacyArtifactStagingServiceImplBase implements FnService {
 
   public static final String NO_ARTIFACTS_STAGED_TOKEN =
       ArtifactApi.CommitManifestResponse.Constants.NO_ARTIFACTS_STAGED_TOKEN
@@ -58,7 +58,8 @@ public abstract class AbstractArtifactStagingService extends ArtifactStagingServ
           .getOptions()
           .getExtension(RunnerApi.beamConstant);
 
-  private static final Logger LOG = LoggerFactory.getLogger(AbstractArtifactStagingService.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(AbstractLegacyArtifactStagingService.class);
 
   private static final Charset CHARSET = StandardCharsets.UTF_8;
 

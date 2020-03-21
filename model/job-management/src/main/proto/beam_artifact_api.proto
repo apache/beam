@@ -32,7 +32,7 @@ option java_outer_classname = "ArtifactApi";
 import "beam_runner_api.proto";
 
 // A service to stage artifacts for use in a Job.
-service ArtifactStagingService {
+service LegacyArtifactStagingService {
   // Stage an artifact to be available during job execution. The first request must contain the
   // name of the artifact. All future requests must contain sequential chunks of the content of
   // the artifact.
@@ -46,12 +46,12 @@ service ArtifactStagingService {
 }
 
 // A service to retrieve artifacts for use in a Job.
-service ArtifactRetrievalService {
+service LegacyArtifactRetrievalService {
   // Get the manifest for the job
   rpc GetManifest(GetManifestRequest) returns (GetManifestResponse);
 
   // Get an artifact staged for the job. The requested artifact must be within the manifest
-  rpc GetArtifact(GetArtifactRequest) returns (stream ArtifactChunk);
+  rpc GetArtifact(LegacyGetArtifactRequest) returns (stream ArtifactChunk);
 }
 
 // An artifact identifier and associated metadata.
@@ -95,7 +95,7 @@ message GetManifestResponse {
 }
 
 // A request to get an artifact. The artifact must be present in the manifest for the job.
-message GetArtifactRequest {
+message LegacyGetArtifactRequest {
   // (Required) The name of the artifact to retrieve.
   string name = 1;
   // (Required) An opaque token representing the entirety of the staged artifacts.
@@ -150,6 +150,6 @@ message CommitManifestResponse {
   }
   // (Required) An opaque token representing the entirety of the staged artifacts.
   // This can be used to retrieve the manifest and artifacts from an associated
-  // ArtifactRetrievalService.
+  // LegacyArtifactRetrievalService.
   string retrieval_token = 1;
 }

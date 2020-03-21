@@ -46,7 +46,7 @@ func Materialize(ctx context.Context, endpoint string, rt string, dest string) (
 	}
 	defer cc.Close()
 
-	client := pb.NewArtifactRetrievalServiceClient(cc)
+	client := pb.NewLegacyArtifactRetrievalServiceClient(cc)
 
 	m, err := client.GetManifest(ctx, &pb.GetManifestRequest{RetrievalToken: rt})
 	if err != nil {
@@ -58,7 +58,7 @@ func Materialize(ctx context.Context, endpoint string, rt string, dest string) (
 
 // MultiRetrieve retrieves multiple artifacts concurrently, using at most 'cpus'
 // goroutines. It retries each artifact a few times. Convenience wrapper.
-func MultiRetrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, cpus int, list []*pb.ArtifactMetadata, rt string, dest string) error {
+func MultiRetrieve(ctx context.Context, client pb.LegacyArtifactRetrievalServiceClient, cpus int, list []*pb.ArtifactMetadata, rt string, dest string) error {
 	if len(list) == 0 {
 		return nil
 	}
@@ -109,7 +109,7 @@ func MultiRetrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient
 // retrieved. If not, it retrieves into the dest directory. It overwrites any
 // previous retrieval attempt and may leave a corrupt/partial local file on
 // failure.
-func Retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *pb.ArtifactMetadata, rt string, dest string) error {
+func Retrieve(ctx context.Context, client pb.LegacyArtifactRetrievalServiceClient, a *pb.ArtifactMetadata, rt string, dest string) error {
 	filename := filepath.Join(dest, filepath.FromSlash(a.Name))
 
 	_, err := os.Stat(filename)
@@ -144,8 +144,8 @@ func Retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *
 // It validates that the given SHA256 matches the content and fails otherwise.
 // It expects the file to not exist, but does not clean up on failure and
 // may leave a corrupt file.
-func retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *pb.ArtifactMetadata, rt string, filename string) error {
-	stream, err := client.GetArtifact(ctx, &pb.GetArtifactRequest{Name: a.Name, RetrievalToken: rt})
+func retrieve(ctx context.Context, client pb.LegacyArtifactRetrievalServiceClient, a *pb.ArtifactMetadata, rt string, filename string) error {
+	stream, err := client.GetArtifact(ctx, &pb.LegacyGetArtifactRequest{Name: a.Name, RetrievalToken: rt})
 	if err != nil {
 		return err
 	}
@@ -176,7 +176,7 @@ func retrieve(ctx context.Context, client pb.ArtifactRetrievalServiceClient, a *
 	return nil
 }
 
-func retrieveChunks(stream pb.ArtifactRetrievalService_GetArtifactClient, w io.Writer) (string, error) {
+func retrieveChunks(stream pb.LegacyArtifactRetrievalService_GetArtifactClient, w io.Writer) (string, error) {
 	sha256W := sha256.New()
 	for {
 		chunk, err := stream.Recv()

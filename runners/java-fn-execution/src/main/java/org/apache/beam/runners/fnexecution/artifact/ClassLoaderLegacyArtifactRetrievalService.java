@@ -21,21 +21,22 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * An {@link ArtifactRetrievalService} that loads artifacts as {@link ClassLoader} resources.
+ * An {@link LegacyArtifactRetrievalService} that loads artifacts as {@link ClassLoader} resources.
  *
  * <p>The retrieval token should be a path to a JSON-formatted ProxyManifest accessible via {@link
  * ClassLoader#getResource(String)} whose resource locations also point to paths loadable via {@link
  * ClassLoader#getResource(String)}.
  */
-public class ClassLoaderArtifactRetrievalService extends AbstractArtifactRetrievalService {
+public class ClassLoaderLegacyArtifactRetrievalService
+    extends AbstractLegacyArtifactRetrievalService {
 
   private final ClassLoader classLoader;
 
-  public ClassLoaderArtifactRetrievalService() {
-    this(ClassLoaderArtifactRetrievalService.class.getClassLoader());
+  public ClassLoaderLegacyArtifactRetrievalService() {
+    this(ClassLoaderLegacyArtifactRetrievalService.class.getClassLoader());
   }
 
-  public ClassLoaderArtifactRetrievalService(ClassLoader classLoader) {
+  public ClassLoaderLegacyArtifactRetrievalService(ClassLoader classLoader) {
     this.classLoader = classLoader;
   }
 

@@ -39,8 +39,8 @@ from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 
 
 class AbstractArtifactService(
-    beam_artifact_api_pb2_grpc.ArtifactStagingServiceServicer,
-    beam_artifact_api_pb2_grpc.ArtifactRetrievalServiceServicer):
+    beam_artifact_api_pb2_grpc.LegacyArtifactStagingServiceServicer,
+    beam_artifact_api_pb2_grpc.LegacyArtifactRetrievalServiceServicer):
 
   _DEFAULT_CHUNK_SIZE = 2 << 20  # 2mb
 
@@ -144,7 +144,7 @@ class AbstractArtifactService(
         manifest=self._get_manifest_proxy(request.retrieval_token).manifest)
 
   def GetArtifact(self,
-                  request,  # type: beam_artifact_api_pb2.GetArtifactRequest
+                  request,  # type: beam_artifact_api_pb2.LegacyGetArtifactRequest
                   context=None):
     # type: (...) -> Iterator[beam_artifact_api_pb2.ArtifactChunk]
     for artifact in self._get_manifest_proxy(request.retrieval_token).location:
