@@ -564,7 +564,7 @@ class FnApiRunner(runner.PipelineRunner):
       ready_to_schedule = True
       for transform in stage.transforms:
         if (transform.spec.urn == bundle_processor.DATA_INPUT_URN and
-            transform.spec.payload == transforms.IMPULSE_BUFFER):
+            transform.spec.payload == translations.IMPULSE_BUFFER):
           # If a transform is a DATA_INPUT or DATA_OUTPUT transform, it will
           # receive data from / deliver data to the runner.
           # For data input transforms, they only have one input.
@@ -581,7 +581,7 @@ class FnApiRunner(runner.PipelineRunner):
           if not producer:
             data_inputs[transform.unique_name] = _ListBuffer(
                 IMPULSE_VALUE_CODER_IMPL)
-        elif transform.spec.urn in transforms.PAR_DO_URNS:
+        elif transform.spec.urn in translations.PAR_DO_URNS:
           payload = proto_utils.parse_Bytes(
               transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
           if payload.side_inputs:
@@ -663,7 +663,9 @@ class FnApiRunner(runner.PipelineRunner):
               output_bundles,
               deferred_inputs)
 
-          self._process_output_bundles(execution_context,
+          self._process_output_bundles(deferred_inputs,
+                                       stage,
+                                       execution_context,
                                        output_bundles_with_timestamps,
                                        input_queue_manager)
           self._schedule_newly_ready_bundles(execution_context,
