@@ -140,7 +140,7 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
    * @throws ParseException the parse exception
    */
   @Override
-  public Message getHL7v2Message(String msgName) throws IOException, ParseException {
+  public Message getHL7v2Message(String msgName) throws IOException {
     Message msg =
         client.projects().locations().datasets().hl7V2Stores().messages().get(msgName).execute();
     if (msg == null) {

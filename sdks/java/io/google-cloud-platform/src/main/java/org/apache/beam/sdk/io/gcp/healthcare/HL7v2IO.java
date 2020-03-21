@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.datastore.AdaptiveThrottler;
 import org.apache.beam.sdk.io.gcp.healthcare.HL7v2IO.Write.Result;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
@@ -120,7 +121,7 @@ public class HL7v2IO {
     return new AutoValue_HL7v2IO_Write.Builder().setHL7v2Store(hl7v2Store);
   }
 
-  private static Read readAll() {
+  public static Read readAll() {
     return new Read();
   }
 
@@ -174,7 +175,7 @@ public class HL7v2IO {
       private Result(PCollectionTuple pct) {
         this.pct = pct;
         this.messages = pct.get(OUT);
-        this.failedReads = pct.get(DEAD_LETTER);
+        this.failedReads = pct.get(DEAD_LETTER).setCoder(new HealthcareIOErrorCoder<>(StringUtf8Coder.of()));
       }
 
       public PCollection<HealthcareIOError<String>> getFailedReads() {
@@ -222,9 +223,10 @@ public class HL7v2IO {
      * <p>The {@link PCollectionTuple} output will contain the following {@link PCollection}:
      *
      * <ul>
-     *   <li>{@link HL7v2IO.Read#OUT} - Contains all {@link FailsafeElement} records successfully
+     *   <li>{@link HL7v2IO.Read#OUT} - Contains all {@link PCollection} records successfully
      *       read from the HL7v2 store.
-     *   <li>{@link HL7v2IO.Read#DEAD_LETTER} - Contains all {@link FailsafeElement} records which
+     *   <li>{@link HL7v2IO.Read#DEAD_LETTER} - Contains all {@link PCollection} of
+     *   {@link HealthcareIOError<String>} message IDs which
      *       failed to be fetched from the HL7v2 store, with error message and stacktrace.
      * </ul>
      *
@@ -304,10 +306,9 @@ public class HL7v2IO {
         /**
          * Start bundle.
          *
-         * @param context the context.
          */
         @StartBundle
-        public void startBundle(StartBundleContext context) {
+        public void startBundle() {
           if (throttler == null) {
             throttler = new AdaptiveThrottler(1200000, 10000, 1.25);
           }
@@ -345,7 +346,8 @@ public class HL7v2IO {
             sleeper.sleep(throttleWaitSeconds * 1000);
           }
 
-          Message msg = client.getHL7v2Message(msgId);
+          com.google.api.services.healthcare.v1alpha2.model.Message msg = client.getHL7v2Message(msgId);
+
           this.throttler.successfulRequest(startTime);
           if (msg == null) {
             throw new IOException(String.format("GET request for %s returned null", msgId));
@@ -519,6 +521,7 @@ public class HL7v2IO {
 
       @Override
       public Map<TupleTag<?>, PValue> expand() {
+        failedInsertsWithErr.setCoder(new HealthcareIOErrorCoder<>(new MessageCoder()));
         return ImmutableMap.of(FAILED, failedInsertsWithErr);
       }
 
@@ -555,14 +558,15 @@ public class HL7v2IO {
       PCollection<HealthcareIOError<Message>> failedInserts =
           input
               .apply(
-                  ParDo.of(new WriteHL7v2Fn(hl7v2Store, writeMethod))
-                      .withOutputTags(Write.SUCCESS, TupleTagList.of(Write.FAILED)))
-              .get(Write.FAILED);
+                  ParDo.of(new WriteHL7v2Fn(hl7v2Store, writeMethod)))
+              .setCoder(new HealthcareIOErrorCoder<>(new MessageCoder()));
       return Write.Result.in(input.getPipeline(), failedInserts);
     }
 
     /** The type Write hl 7 v 2 fn. */
-    static class WriteHL7v2Fn extends DoFn<Message, HealthcareIOError<Message>> {
+    static class WriteHL7v2Fn extends
+        DoFn<Message,
+            HealthcareIOError<Message>> {
       // TODO when the healthcare API releases a bulk import method this should use that to improve
       // throughput.
 
@@ -571,6 +575,8 @@ public class HL7v2IO {
       private final String hl7v2Store;
       private final Write.WriteMethod writeMethod;
 
+      private static final Logger LOG =
+          LoggerFactory.getLogger(WriteHL7v2.WriteHL7v2Fn.class);
       private transient HealthcareApiClient client;
 
       /**
@@ -590,7 +596,7 @@ public class HL7v2IO {
        * @throws IOException the io exception
        */
       @Setup
-      void initClient() throws IOException {
+      public void initClient() throws IOException {
         this.client = new HttpHealthcareApiClient();
       }
 
@@ -600,7 +606,7 @@ public class HL7v2IO {
        * @param context the context
        */
       @ProcessElement
-      void writeMessages(ProcessContext context) {
+      public void writeMessages(ProcessContext context) {
         Message msg = context.element();
         // TODO could insert some lineage hook here?
         switch (writeMethod) {
@@ -610,9 +616,13 @@ public class HL7v2IO {
           default:
             try {
               client.ingestHL7v2Message(hl7v2Store, msg);
-            } catch (IOException e) {
+            } catch (Exception e) {
               failedMessageWrites.inc();
-              context.output(HealthcareIOError.of(msg, e));
+              LOG.warn(String.format("Failed to ingest message Error: %s Stacktrace: %s",
+                  e.getMessage(), Throwables.getStackTraceAsString(e)));
+              HealthcareIOError<Message> err= HealthcareIOError.of(msg, e);
+              LOG.warn(String.format("%s %s", err.getErrorMessage(), err.getStackTrace()));
+              context.output(err);
             }
         }
       }
