@@ -79,7 +79,6 @@ from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability.fn_api_runner import translations
 from apache_beam.runners.portability.fn_api_runner.execution import Buffer
-from apache_beam.runners.portability.fn_api_runner.execution import PartitionableBuffer
 from apache_beam.runners.portability.fn_api_runner.execution import PipelineExecutionContext
 from apache_beam.runners.portability.fn_api_runner.execution import _ListBuffer
 from apache_beam.runners.portability.fn_api_runner.execution import add_residuals_and_channel_splits_to_deferred_inputs
@@ -90,7 +89,6 @@ from apache_beam.runners.portability.fn_api_runner.execution import make_iterabl
 from apache_beam.runners.portability.fn_api_runner.execution import store_side_inputs_in_state
 from apache_beam.runners.portability.fn_api_runner.translations import only_element
 from apache_beam.runners.portability.fn_api_runner.translations import split_buffer_id
-from apache_beam.runners.portability.fn_api_runner.translations import unique_name
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
@@ -663,13 +661,14 @@ class FnApiRunner(runner.PipelineRunner):
               output_bundles,
               deferred_inputs)
 
-          self._process_output_bundles(deferred_inputs,
-                                       stage,
-                                       execution_context,
-                                       output_bundles_with_timestamps,
-                                       input_queue_manager)
-          self._schedule_newly_ready_bundles(execution_context,
-                                             input_queue_manager)
+          self._process_output_bundles(
+              deferred_inputs,
+              stage,
+              execution_context,
+              output_bundles_with_timestamps,
+              input_queue_manager)
+          self._schedule_newly_ready_bundles(
+              execution_context, input_queue_manager)
 
     finally:
       worker_handler_manager.close_all()
@@ -769,8 +768,7 @@ class FnApiRunner(runner.PipelineRunner):
         continue
 
       if buffer_id == translations.IMPULSE_BUFFER:
-        pcoll_name = '%s%s' % (stage.name,
-                               translations.IMPULSE_BUFFER)
+        pcoll_name = '%s%s' % (stage.name, translations.IMPULSE_BUFFER)
         # An impulse-typed input immediately moves to +inf
         execution_context.update_pcoll_watermark(
             pcoll_name, timestamp.MAX_TIMESTAMP)
