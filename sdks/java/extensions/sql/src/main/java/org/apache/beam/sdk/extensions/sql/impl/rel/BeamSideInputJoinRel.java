@@ -29,6 +29,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
@@ -39,6 +40,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Join;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.JoinRelType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Pair;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 /**
  * A {@code BeamJoinRel} which does sideinput Join
@@ -111,6 +113,11 @@ public class BeamSideInputJoinRel extends BeamJoinRel {
       throw new UnsupportedOperationException(
           String.format("%s side of an OUTER JOIN must be Unbounded table.", joinType.name()));
     }
+    if (leftRelNode.isBounded() == IsBounded.UNBOUNDED
+        && rightRelNode.isBounded() == IsBounded.UNBOUNDED) {
+      throw new UnsupportedOperationException(
+          "Side input join can only be used if one table is bounded.");
+    }
     return new SideInputJoin();
   }
 
@@ -155,11 +162,8 @@ public class BeamSideInputJoinRel extends BeamJoinRel {
     boolean swapped = (leftRows.isBounded() == PCollection.IsBounded.BOUNDED);
     JoinRelType realJoinType = joinType;
     if (swapped && joinType != JoinRelType.INNER) {
-      if (realJoinType == JoinRelType.LEFT) {
-        realJoinType = JoinRelType.RIGHT;
-      } else {
-        realJoinType = JoinRelType.LEFT;
-      }
+      Preconditions.checkArgument(realJoinType != JoinRelType.LEFT);
+      realJoinType = JoinRelType.LEFT;
     }
 
     PCollection<Row> realLeftRows = swapped ? rightRows : leftRows;
@@ -183,20 +187,17 @@ public class BeamSideInputJoinRel extends BeamJoinRel {
                         realRightRows)
                     .on(FieldsEqual.left(realLeftKeyFields).right(realRightKeyFields)));
         break;
-      case RIGHT:
       default:
-        joined =
-            realLeftRows.apply(
-                org.apache.beam.sdk.schemas.transforms.Join.<Row, Row>rightOuterBroadcastJoin(
-                        realRightRows)
-                    .on(FieldsEqual.left(realLeftKeyFields).right(realRightKeyFields)));
+        throw new RuntimeException("Unexpected join type " + realJoinType);
     }
     Schema schema = CalciteUtils.toSchema(getRowType());
 
+    String lhsSelect = org.apache.beam.sdk.schemas.transforms.Join.LHS_TAG + ".*";
+    String rhsSelect = org.apache.beam.sdk.schemas.transforms.Join.RHS_TAG + ".*";
     PCollection<Row> selected =
         (!swapped)
-            ? joined.apply(Select.<Row>fieldNames("lhs.*", "rhs.*").withOutputSchema(schema))
-            : joined.apply(Select.<Row>fieldNames("rhs.*", "lhs.*").withOutputSchema(schema));
+            ? joined.apply(Select.<Row>fieldNames(lhsSelect, rhsSelect).withOutputSchema(schema))
+            : joined.apply(Select.<Row>fieldNames(rhsSelect, lhsSelect).withOutputSchema(schema));
     return selected;
   }
 }
