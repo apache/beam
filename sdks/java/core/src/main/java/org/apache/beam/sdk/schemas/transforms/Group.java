@@ -83,7 +83,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  *
  * <p>The result will be a new row schema containing the fields total_cost, top_purchases, and
  * transactionDurations, containing the sum of all purchases costs (for that user and country), the
- * top ten purchases, and a histogram of transaction durations. The schema will als contain a key
+ * top ten purchases, and a histogram of transaction durations. The schema will also contain a key
  * field, which will be a row containing userId and country.
  *
  * <p>Note that usually the field type can be automatically inferred from the {@link CombineFn}
@@ -291,9 +291,9 @@ public class Group {
     @Override
     public PCollection<Iterable<InputT>> expand(PCollection<InputT> input) {
       return input
-          .apply(WithKeys.of((Void) null))
-          .apply(GroupByKey.create())
-          .apply(Values.create());
+          .apply("addNullKey", WithKeys.of((Void) null))
+          .apply("group", GroupByKey.create())
+          .apply("extractValues", Values.create());
     }
   }
 
@@ -308,7 +308,7 @@ public class Group {
 
     @Override
     public PCollection<OutputT> expand(PCollection<InputT> input) {
-      return input.apply(Combine.globally(combineFn));
+      return input.apply("globalCombine", Combine.globally(combineFn));
     }
   }
 
@@ -460,8 +460,8 @@ public class Group {
     public PCollection<Row> expand(PCollection<InputT> input) {
       SchemaAggregateFn.Inner fn = schemaAggregateFn.withSchema(input.getSchema());
       return input
-          .apply(Convert.toRows())
-          .apply(Combine.globally(fn))
+          .apply("toRows", Convert.toRows())
+          .apply("Global Combine", Combine.globally(fn))
           .setRowSchema(fn.getOutputSchema());
     }
   }
@@ -512,7 +512,7 @@ public class Group {
                 "selectKeys",
                 WithKeys.of((Row e) -> rowSelector.select(e)).withKeyType(TypeDescriptors.rows()))
             .setCoder(KvCoder.of(SchemaCoder.of(keySchema), SchemaCoder.of(schema)))
-            .apply(GroupByKey.create());
+            .apply("GroupByKey", GroupByKey.create());
       }
     }
 
@@ -704,8 +704,9 @@ public class Group {
               .build();
 
       return input
-          .apply(getToKvs())
+          .apply("ToKvs", getToKvs())
           .apply(
+              "ToRow",
               ParDo.of(
                   new DoFn<KV<Row, Iterable<Row>>, Row>() {
                     @ProcessElement
@@ -924,9 +925,10 @@ public class Group {
               .build();
 
       return input
-          .apply(getByFields().getToKvs())
-          .apply(Combine.groupedValues(fn))
+          .apply("ToKvs", getByFields().getToKvs())
+          .apply("Combine", Combine.groupedValues(fn))
           .apply(
+              "ToRow",
               ParDo.of(
                   new DoFn<KV<Row, Row>, Row>() {
                     @ProcessElement
