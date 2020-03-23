@@ -3300,6 +3300,27 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testArrayStructLiteral() {
+    String sql = "SELECT ARRAY<STRUCT<INT64, INT64>>[(11, 12)];";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    final Schema innerSchema =
+        Schema.of(Field.of("s", FieldType.INT64), Field.of("i", FieldType.INT64));
+    final Schema schema =
+        Schema.of(Field.of("field1", FieldType.array(FieldType.row(innerSchema))));
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValue(ImmutableList.of(Row.withSchema(innerSchema).addValues(11L, 12L).build()))
+                .build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testParameterStruct() {
     String sql = "SELECT @p as ColA";
     ImmutableMap<String, Value> params =
