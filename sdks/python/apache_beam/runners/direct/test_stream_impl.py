@@ -32,12 +32,14 @@ import itertools
 try:
   import grpc
   from apache_beam.portability.api import beam_runner_api_pb2_grpc
-except:
+except ImportError:
   grpc = None
   beam_runner_api_pb2_grpc = None
-  # A workaround for some internal tests which are missing grpc dependencyy.
-  print('Exception: grpc was not able to be imported. '
-        'Skip importing all grpc related moduels.')
+  # A workaround for directrunner users who would cannot depend
+  # on grpc which are missing grpc dependencyy.
+  print(
+      'Exception: grpc was not able to be imported. '
+      'Skip importing all grpc related moduels.')
 
 from apache_beam import ParDo
 from apache_beam import coders
