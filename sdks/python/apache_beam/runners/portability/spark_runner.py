@@ -64,6 +64,7 @@ class SparkRunner(portable_runner.PortableRunner):
         retain_unknown_options=options.view_as(
             pipeline_options.SparkRunnerOptions).spark_submit_uber_jar)
 
+
 class SparkJarJobServer(job_server.JavaJarJobServer):
   def __init__(self, options):
     super(SparkJarJobServer, self).__init__(options)

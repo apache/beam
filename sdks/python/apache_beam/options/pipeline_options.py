@@ -296,8 +296,12 @@ class PipelineOptions(HasDisplayData):
       while i < len(unknown_args):
         # Treat all unary flags as booleans, and all binary argument values as
         # strings.
-        if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('--'):
-          parser.add_argument(unknown_args[i], action='store_true')
+        if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('-'):
+          split = unknown_args[i].rsplit('=')
+          if len(split) == 1:
+            parser.add_argument(unknown_args[i], action='store_true')
+          else:
+            parser.add_argument(split[0], type=str)
           i += 1
         else:
           parser.add_argument(unknown_args[i], type=str)
