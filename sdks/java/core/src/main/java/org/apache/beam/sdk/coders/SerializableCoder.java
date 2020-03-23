@@ -19,8 +19,10 @@ package org.apache.beam.sdk.coders;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InvalidClassException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.ObjectStreamClass;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Method;
@@ -187,7 +189,25 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   @Override
   public T decode(InputStream inStream) throws IOException, CoderException {
     try {
-      ObjectInputStream ois = new ObjectInputStream(inStream);
+      ObjectInputStream ois =
+          new ObjectInputStream(inStream) {
+            private boolean valid;
+
+            @Override
+            protected Class<?> resolveClass(ObjectStreamClass desc)
+                throws IOException, ClassNotFoundException {
+              if (!valid) {
+                // Make sure the outer object is of the type we're expecting
+                if (desc.getName().equals(type.getName())) {
+                  valid = true;
+                } else {
+                  throw new InvalidClassException(
+                      "Unauthorized deserialization attempt", desc.getName());
+                }
+              }
+              return super.resolveClass(desc);
+            }
+          };
       return type.cast(ois.readObject());
     } catch (ClassNotFoundException e) {
       throw new CoderException("unable to deserialize record", e);
