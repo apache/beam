@@ -27,7 +27,6 @@ import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.datastore.AdaptiveThrottler;
-import org.apache.beam.sdk.io.gcp.healthcare.HL7v2IO.Write.Result;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -54,12 +53,24 @@ import org.slf4j.LoggerFactory;
  * href="https://cloud.google.com/healthcare/docs/concepts/hl7v2">Google Cloud Healthcare HL7v2 API.
  * </a>
  *
- * <p>Read HL7v2 Messages are fetched from the HL7v2 store based on the {@link PCollection} of
- * message IDs {@link String}s as {@link HL7v2IO.Read.Result} where one can call {@link
+ * <p>Read
+ *
+ * <p>HL7v2 Messages are fetched from the HL7v2 store based on the {@link PCollection} of message
+ * IDs {@link String}s as {@link HL7v2IO.Read.Result} where one can call {@link
  * Read.Result#getMessages()} to retrived a {@link PCollection} containing the successfully fetched
  * {@link Message}s and/or {@link Read.Result#getFailedReads()} to retrieve a {@link PCollection} of
- * {@link HealthcareIOError} containing the msgID that could not be fetched and the exception, this
- * can be used to write to the dead letter storage system of your choosing.
+ * {@link HealthcareIOError} containing the msgID that could not be fetched and the exception as a
+ * {@link HealthcareIOError<String>}, this can be used to write to the dead letter storage system of
+ * your choosing.
+ *
+ * <p>Write
+ *
+ * <p>A bounded or unbounded {@link PCollection} of {@link Message} can be ingested into an HL7v2
+ * store using {@link HL7v2IO#ingestMessages(String)}. This will return a {@link
+ * HL7v2IO.Write.Result} on which you can call {@link Write.Result#getFailedInsertsWithErr()} to
+ * retrieve a {@link PCollection} of {@link HealthcareIOError<Message>} containing the Message that
+ * failed to be ingested and the exception. This can be used to write to the dead letter storage
+ * system of your chosing.
  *
  * <p>Unbounded Example:
  *
@@ -151,9 +162,9 @@ public class HL7v2IO {
     public Read() {}
 
     public static class Result implements POutput, PInput {
-      PCollection<Message> messages;
+      private PCollection<Message> messages;
 
-      PCollection<HealthcareIOError<String>> failedReads;
+      private PCollection<HealthcareIOError<String>> failedReads;
       PCollectionTuple pct;
 
       public static Result of(PCollectionTuple pct) throws IllegalArgumentException {
@@ -258,7 +269,6 @@ public class HL7v2IO {
      * </pre>
      */
     public static class FetchHL7v2Message extends PTransform<PCollection<String>, Result> {
-      // TODO: this should migrate to use the batch API once available
 
       /** Instantiates a new Fetch HL7v2 message DoFn. */
       public FetchHL7v2Message() {}
@@ -428,7 +438,7 @@ public class HL7v2IO {
 
   /** The type Write. */
   @AutoValue
-  public abstract static class Write extends PTransform<PCollection<Message>, Result> {
+  public abstract static class Write extends PTransform<PCollection<Message>, Write.Result> {
 
     /** The tag for the successful writes to HL7v2 store`. */
     public static final TupleTag<HealthcareIOError<Message>> SUCCESS =
@@ -458,13 +468,15 @@ public class HL7v2IO {
 
     /** The enum Write method. */
     public enum WriteMethod {
-      // TODO there is a batch import method on the road-map that we should add here once released.
       /**
        * Ingest write method. @see <a
        * href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/ingest></a>
        */
       INGEST,
-      /** Batch import write method. */
+      /**
+       * Batch import write method. This is not yet supported by the HL7v2 API, but can be used to
+       * improve throughput once available.
+       */
       BATCH_IMPORT
     }
 
@@ -533,7 +545,7 @@ public class HL7v2IO {
   }
 
   /** The type Write hl 7 v 2. */
-  static class WriteHL7v2 extends PTransform<PCollection<Message>, Result> {
+  static class WriteHL7v2 extends PTransform<PCollection<Message>, Write.Result> {
     private final String hl7v2Store;
     private final Write.WriteMethod writeMethod;
 
@@ -549,7 +561,7 @@ public class HL7v2IO {
     }
 
     @Override
-    public Result expand(PCollection<Message> input) {
+    public Write.Result expand(PCollection<Message> input) {
       PCollection<HealthcareIOError<Message>> failedInserts =
           input
               .apply(ParDo.of(new WriteHL7v2Fn(hl7v2Store, writeMethod)))
@@ -614,7 +626,6 @@ public class HL7v2IO {
         final int throttleWaitSeconds = 5;
         long startTime = System.currentTimeMillis();
         Sleeper sleeper = Sleeper.DEFAULT;
-        // TODO could insert some lineage hook here?
         switch (writeMethod) {
           case BATCH_IMPORT:
             throw new UnsupportedOperationException("The Batch import API is not available yet");

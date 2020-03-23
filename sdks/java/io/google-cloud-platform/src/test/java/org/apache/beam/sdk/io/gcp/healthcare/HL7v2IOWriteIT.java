@@ -17,15 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.MESSAGES;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.deleteAllHL7v2Messages;
 import static org.junit.Assert.assertEquals;
 
-import com.google.api.services.healthcare.v1alpha2.model.Message;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.junit.After;
@@ -56,12 +55,13 @@ public class HL7v2IOWriteIT {
 
   @Test
   public void testHL7v2IOWrite() throws IOException {
-    List<Message> testMessages = new ArrayList<>(); // TODO actually mock out some messages.
     Pipeline pipeline = Pipeline.create(options);
-    pipeline.apply(Create.of(testMessages)).apply(HL7v2IO.ingestMessages(options.getHl7v2Store()));
+    HL7v2IO.Write.Result result =
+        pipeline.apply(Create.of(MESSAGES)).apply(HL7v2IO.ingestMessages(options.getHl7v2Store()));
 
     long numWrittenMessages = client.getHL7v2MessageIDStream(options.getHl7v2Store()).count();
 
-    assertEquals(numWrittenMessages, testMessages.size());
+    assertEquals(numWrittenMessages, MESSAGES.size());
+    PAssert.that(result.getFailedInsertsWithErr()).empty();
   }
 }

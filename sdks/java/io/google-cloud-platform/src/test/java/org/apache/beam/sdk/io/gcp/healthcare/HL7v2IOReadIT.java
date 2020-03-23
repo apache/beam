@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.MESSAGES;
+import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.NUM_ADT;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.deleteAllHL7v2Messages;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.writeHL7v2Messages;
 
@@ -36,7 +38,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class HL7v2IOReadIT {
   private HL7v2IOTestOptions options;
-  private final long numMessages = 1000;
   private transient HealthcareApiClient client;
 
   @Before
@@ -47,7 +48,7 @@ public class HL7v2IOReadIT {
     PipelineOptionsFactory.register(HL7v2IOTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(HL7v2IOTestOptions.class);
     // Create HL7 messages and write them to HL7v2 Store.
-    writeHL7v2Messages(client, options, numMessages);
+    writeHL7v2Messages(client, options);
   }
 
   @After
@@ -65,13 +66,13 @@ public class HL7v2IOReadIT {
                 new HL7v2IO.ListHL7v2MessageIDs(Collections.singletonList(options.getHl7v2Store())))
             .apply(HL7v2IO.readAll());
     PCollection<Long> numReadMessages = result.getMessages().apply(Count.globally());
-    PAssert.thatSingleton(numReadMessages).isEqualTo(numMessages);
+    PAssert.thatSingleton(numReadMessages).isEqualTo((long) MESSAGES.size());
+    PAssert.that(result.getFailedReads()).empty();
   }
 
   @Test
   public void testHL7v2IOFilteredRead() throws Exception {
     final String filter = "messageType = \"ADT\"";
-    final long numADT = 10; // TODO replace this placeholder once we have test data.
     // Should read only messages matching the filter.
     Pipeline pipeline = Pipeline.create(options);
     HL7v2IO.Read.Result result =
@@ -81,6 +82,7 @@ public class HL7v2IOReadIT {
                     Collections.singletonList(options.getHl7v2Store()), filter))
             .apply(HL7v2IO.readAll());
     PCollection<Long> numReadMessages = result.getMessages().apply(Count.globally());
-    PAssert.thatSingleton(numReadMessages).isEqualTo(numADT);
+    PAssert.thatSingleton(numReadMessages).isEqualTo(NUM_ADT);
+    PAssert.that(result.getFailedReads()).empty();
   }
 }

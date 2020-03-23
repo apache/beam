@@ -371,7 +371,6 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
       @Override
       public List<String> next() throws NoSuchElementException {
         try {
-          // TODO(jaketf): Parameterize page size for throughput parameterization?
           ListMessagesResponse response = makeListRequest(client, hl7v2Store, filter, pageToken);
           this.isFirstRequest = false;
           this.pageToken = response.getNextPageToken();

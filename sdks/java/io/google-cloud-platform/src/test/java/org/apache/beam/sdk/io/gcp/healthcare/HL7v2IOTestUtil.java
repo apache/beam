@@ -20,9 +20,53 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 import com.google.api.services.healthcare.v1alpha2.model.Message;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 class HL7v2IOTestUtil {
+
+  // Could generate more messages at scale using a tool like
+  // https://synthetichealth.github.io/synthea/ if necessary chose not to avoid the dependency.
+  static final List<String> MESSAGES_DATA =
+      Arrays.asList(
+          // ADT Message.
+          "MSH|^~\\&|CERNER|RAL|STREAMS|RAL|20190309132444||ADT^A01|827|T|2.3|||AL||44|ASCII\r"
+              + "EVN|A01|20190309132444|||C184726198^Connell^Alistair^^^Dr.^^^DRNBR^PRSNL^^^ORGDR|\r"
+              + "PID|1|456656825^^^SIMULATOR MRN^MRN|456656825^^^SIMULATOR MRN^MRN~1495641465^^^NHSNBR^NHSNMBR||Doe^Jane^Glynis^^Miss^^CURRENT||19940703010000|2|||73 Alto Road^^London^^HG63 4SN^GBR^HOME||075 6368 2928^HOME|||||||||A^White - British^||||||||\r"
+              + "PD1|||YIEWSLEY FAMILY PRACTICE^^6010|||||\r"
+              + "PV1|1|INPATIENT|Orthopaedic^Bay A^Bed 11^Simulated Hospital^^BED^Orthopaedic ward^1|28b|||C184726198^Connell^Alistair^^^Dr.^^^DRNBR^PRSNL^^^ORGDR|||180|||||||||12611791848783219197^^^^visitid||||||||||||||||||||||ARRIVED|||20190309132444||\r"
+              + "AL1|0|allergy|Z88.0^Personal history of allergy to penicillin^ZAL|SEVERE|Shortness of breath|\r"
+              + "AL1|1|allergy|T63.441A^Toxic effect of venom of bees^ZAL|MODERATE|Vomiting|\r"
+              + "AL1|2|allergy|Z91.013^Personal history of allergy to sea food^ZAL|SEVERE|Swollen face|\r"
+              + "AL1|3|allergy|Z91.040^Latex allergy^ZAL|MODERATE|Raised, itchy, red rash|",
+          // Another ADT Message
+          "MSH|^~\\&|hl7Integration|hl7Integration|||||ADT^A08|||2.5|\r"
+              + "EVN|A01|20130617154644||foo\r"
+              + "PID|1|465 306 5961||407623|Wood^Patrick^^^MR||19700101|1|||High Street^^Oxford^^Ox1 4DP~George St^^Oxford^^Ox1 5AP|||||||\r"
+              + "NK1|1|Wood^John^^^MR|Father||999-9999\r"
+              + "NK1|2|Jones^Georgie^^^MSS|MOTHER||999-9999\r"
+              + "PV1|1||Location||||||||||||||||261938_6_201306171546|||||||||||||||||||||||||20130617134644|||||||||",
+
+          // Not an ADT message.
+          "MSH|^~\\&|ULTRA|TML|OLIS|OLIS|200905011130||ORU^R01|20169838-v25|T|2.5\r"
+              + "PID|||7005728^^^TML^MR||TEST^RACHEL^DIAMOND||19310313|F|||200 ANYWHERE ST^^TORONTO^ON^M6G 2T9||(416)888-8888||||||1014071185^KR\r"
+              + "PV1|1||OLIS||||OLIST^BLAKE^DONALD^THOR^^^^^921379^^^^OLIST\r"
+              + "ORC|RE||T09-100442-RET-0^^OLIS_Site_ID^ISO|||||||||OLIST^BLAKE^DONALD^THOR^^^^L^921379\r"
+              + "OBR|0||T09-100442-RET-0^^OLIS_Site_ID^ISO|RET^RETICULOCYTE COUNT^HL79901 literal|||200905011106|||||||200905011106||OLIST^BLAKE^DONALD^THOR^^^^L^921379||7870279|7870279|T09-100442|MOHLTC|200905011130||B7|F||1^^^200905011106^^R\r"
+              + "OBX|1|ST|||Test Value");
+
+  static final List<Message> MESSAGES =
+      MESSAGES_DATA.stream()
+          .map(
+              (String data) -> {
+                Message msg = new Message();
+                msg.setData(data);
+                return msg;
+              })
+          .collect(Collectors.toList());
+
+  static final long NUM_ADT = 2;
   /** Clear all messages from the HL7v2 store. */
   static void deleteAllHL7v2Messages(HealthcareApiClient client, HL7v2IOTestOptions options)
       throws IOException {
@@ -45,12 +89,9 @@ class HL7v2IOTestUtil {
   }
 
   /** Populate the test messages into the HL7v2 store. */
-  static void writeHL7v2Messages(
-      HealthcareApiClient client, HL7v2IOTestOptions options, long numMessages) throws IOException {
-    Message msg = new Message();
-
-    for (int i = 0; i < numMessages; i++) {
-      // TODO modify each new message or read from resource file.
+  static void writeHL7v2Messages(HealthcareApiClient client, HL7v2IOTestOptions options)
+      throws IOException {
+    for (Message msg : MESSAGES) {
       client.createHL7v2Message(options.getHl7v2Store(), msg);
     }
   }
