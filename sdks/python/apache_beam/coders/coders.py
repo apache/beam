@@ -1387,6 +1387,13 @@ class ElementTypeHolder(typehints.TypeConstraint):
 
 
 class ExternalCoder(Coder):
+  """A `Coder` that holds a runner API `Coder` proto.
+
+  This is used for coders for which corresponding objects cannot be
+  initialized in Python SDK. For example, coders for remote SDKs that may
+  be available in Python SDK transform graph when expanding a cross-language
+  transform.
+  """
 
   coder_count = 0
 

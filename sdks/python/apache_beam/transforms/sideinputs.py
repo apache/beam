@@ -44,6 +44,7 @@ WindowMappingFn = Callable[[window.BoundedWindow], window.BoundedWindow]
 
 SIDE_INPUT_REGEX = 'side([0-9]+)(-.*)?$'
 
+
 # Top-level function so we can identify it later.
 def _global_window_mapping_fn(w, global_window=window.GlobalWindow()):
   # type: (...) -> window.GlobalWindow

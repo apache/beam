@@ -381,8 +381,8 @@ class DataflowRunner(PipelineRunner):
         # pylint: disable=wrong-import-order, wrong-import-position
         from apache_beam import Flatten
         if isinstance(transform_node.transform, Flatten):
-          from apache_beam.runners.portability.fn_api_runner_transforms import \
-            only_element
+          from apache_beam.runners.portability.fn_api_runner.translations \
+            import only_element
           output_pcoll = (
               transform_node.outputs[None] if None in transform_node.outputs
               else only_element(transform_node.outputs.values()))

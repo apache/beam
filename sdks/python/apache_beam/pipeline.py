@@ -86,8 +86,8 @@ from apache_beam.runners import create_runner
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.core import RunnerAPIPTransformHolder
-from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.sideinputs import SIDE_INPUT_REGEX
+from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
 from apache_beam.utils.annotations import deprecated
