@@ -145,11 +145,6 @@ public class Join {
     return new Impl<>(JoinType.RIGHT_OUTER, rhs);
   };
 
-  /** Perform a right outer join. */
-  public static <LhsT, RhsT> Impl<LhsT, RhsT> rightOuterBroadcastJoin(PCollection<RhsT> rhs) {
-    return new Impl<>(JoinType.RIGHT_OUTER_BROADCAST, rhs);
-  };
-
   /** Perform an inner join, broadcasting the right side. */
   public static <LhsT, RhsT> Impl<LhsT, RhsT> innerBroadcastJoin(PCollection<RhsT> rhs) {
     return new Impl<>(JoinType.INNER_BROADCAST, rhs);
@@ -167,7 +162,6 @@ public class Join {
     RIGHT_OUTER,
     INNER_BROADCAST,
     LEFT_OUTER_BROADCAST,
-    RIGHT_OUTER_BROADCAST
   };
 
   /** Implementation class . */
@@ -268,16 +262,6 @@ public class Join {
                       CoGroup.By.fieldAccessDescriptor(resolvedPredicate.lhs)
                           .withOptionalParticipation())
                   .join(RHS_TAG, CoGroup.By.fieldAccessDescriptor(resolvedPredicate.rhs))
-                  .crossProductJoin());
-        case RIGHT_OUTER_BROADCAST:
-          return tuple.apply(
-              CoGroup.join(
-                      LHS_TAG,
-                      CoGroup.By.fieldAccessDescriptor(resolvedPredicate.lhs)
-                          .withOptionalParticipation())
-                  .join(
-                      RHS_TAG,
-                      CoGroup.By.fieldAccessDescriptor(resolvedPredicate.rhs).withSideInput())
                   .crossProductJoin());
         default:
           throw new RuntimeException("Unexpected join type");

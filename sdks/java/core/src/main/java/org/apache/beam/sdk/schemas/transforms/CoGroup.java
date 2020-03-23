@@ -55,6 +55,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -411,7 +412,7 @@ public class CoGroup {
             extractKey(pc, schema, keySchema, resolved, tag);
         if (getIsSideInput.apply(tag)) {
           sideInputs.put(
-              keyedTag, keyedPCollection.apply("computeSideInputView", View.asMultimap()));
+              keyedTag, keyedPCollection.apply("computeSideInputView" + tag, View.asMultimap()));
         } else {
           keyedPCollectionTuple = keyedPCollectionTuple.and(keyedTag, keyedPCollection);
         }
@@ -515,6 +516,7 @@ public class CoGroup {
       List<Iterable<Row>> fields =
           Lists.newArrayListWithCapacity(joinInformation.sortedTags.size());
       List<String> tags = Lists.newArrayListWithCapacity(joinInformation.sortedTags.size());
+
       for (int i = 0; i < joinInformation.sortedTags.size(); ++i) {
         String tupleTag = joinInformation.tagToKeyedTag.get(i);
         SerializableFunction<Object, Row> toRow = joinInformation.toRows.get(i);
@@ -547,6 +549,23 @@ public class CoGroup {
       fields.add(getKey());
       fields.addAll(getIterables());
       o.output(Row.withSchema(outputSchema).attachValues(fields).build());
+    }
+
+    static void verifyExpandedArgs(JoinInformation joinInformation, JoinArguments joinArgs) {
+      boolean hasSideInput = false;
+      boolean allMainInputsOptional = true;
+      for (int i = 0; i < joinInformation.sortedTags.size(); ++i) {
+        String tupleTag = joinInformation.tagToKeyedTag.get(i);
+        if (joinInformation.sideInputs.get(tupleTag) != null) {
+          hasSideInput = true;
+        } else if (!joinArgs.getOptionalParticipation(joinInformation.sortedTags.get(i))) {
+          allMainInputsOptional = false;
+        }
+      }
+      Preconditions.checkArgument(
+          !hasSideInput || !allMainInputsOptional,
+          "Cannot perform join when all main inputs are optional and there is a side input. "
+              + " consider removing the side input.");
     }
 
     static Schema getExpandedOutputSchema(JoinInformation joinInformation, JoinArguments joinArgs) {
@@ -772,6 +791,7 @@ public class CoGroup {
           JoinInformation.from(
               input, joinArgs::getFieldAccessDescriptor, joinArgs::getSideInputSource);
 
+      Result.verifyExpandedArgs(joinInformation, joinArgs);
       Schema outputSchema = Result.getExpandedOutputSchema(joinInformation, joinArgs);
       Collection<PCollectionView<Map<Row, Iterable<Row>>>> views =
           joinInformation.sideInputs.values();
