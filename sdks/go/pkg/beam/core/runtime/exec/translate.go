@@ -474,6 +474,26 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			}
 			u = &Expand{UID: b.idgen.New(), ValueDecoders: decoders, Out: out[0]}
 
+		case graphx.URNReshuffleInput:
+			c, w, err := b.makeCoderForPCollection(from)
+			if err != nil {
+				return nil, err
+			}
+			u = &ReshuffleInput{UID: b.idgen.New(), Seed: rand.Int63(), Coder: coder.NewW(c, w), Out: out[0]}
+
+		case graphx.URNReshuffleOutput:
+			var pid string
+			// There's only one output PCollection, and iterating through the map
+			// is the only way to extract it.
+			for _, id := range transform.GetOutputs() {
+				pid = id
+			}
+			c, w, err := b.makeCoderForPCollection(pid)
+			if err != nil {
+				return nil, err
+			}
+			u = &ReshuffleOutput{UID: b.idgen.New(), Coder: coder.NewW(c, w), Out: out[0]}
+
 		default:
 			return nil, errors.Errorf("unexpected payload: %v", tp)
 		}
@@ -496,26 +516,6 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		for i := 0; i < len(transform.Inputs); i++ {
 			b.links[linkID{id.to, i}] = u
 		}
-
-	case graphx.URNReshuffleInput:
-		c, w, err := b.makeCoderForPCollection(from)
-		if err != nil {
-			return nil, err
-		}
-		u = &ReshuffleInput{UID: b.idgen.New(), Seed: rand.Int63(), Coder: coder.NewW(c, w), Out: out[0]}
-
-	case graphx.URNReshuffleOutput:
-		var pid string
-		// There's only one output PCollection, and iterating through the map
-		// is the only way to extract it.
-		for _, id := range transform.GetOutputs() {
-			pid = id
-		}
-		c, w, err := b.makeCoderForPCollection(pid)
-		if err != nil {
-			return nil, err
-		}
-		u = &ReshuffleOutput{UID: b.idgen.New(), Coder: coder.NewW(c, w), Out: out[0]}
 
 	case urnDataSink:
 		port, cid, err := unmarshalPort(payload)
