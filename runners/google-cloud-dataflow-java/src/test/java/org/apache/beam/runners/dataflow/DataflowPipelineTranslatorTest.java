@@ -733,7 +733,8 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 Structs.getObject(
                     processKeyedStep.getProperties(), PropertyNames.RESTRICTION_CODER));
 
-    assertEquals(SerializableCoder.of(OffsetRange.class), restrictionCoder);
+    assertEquals(
+        KvCoder.of(SerializableCoder.of(OffsetRange.class), VoidCoder.of()), restrictionCoder);
   }
 
   /** Smoke test to fail fast if translation of a splittable ParDo in FnAPI. */
