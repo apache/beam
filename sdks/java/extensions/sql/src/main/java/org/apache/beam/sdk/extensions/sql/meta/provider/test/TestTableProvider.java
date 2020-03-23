@@ -218,9 +218,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
         result =
             result.apply(
                 "IOPushDownProject",
-                Select.fieldAccess(
-                    FieldAccessDescriptor.withFieldNames(fieldNames)
-                        .withOrderByFieldInsertionOrder()));
+                Select.fieldAccess(FieldAccessDescriptor.withFieldNames(fieldNames)));
       }
 
       return result;

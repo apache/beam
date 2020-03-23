@@ -303,7 +303,9 @@ public class Schema implements Serializable {
     Schema other = (Schema) o;
     // If both schemas have a UUID set, we can simply compare the UUIDs.
     if (uuid != null && other.uuid != null) {
-      return Objects.equals(uuid, other.uuid);
+      if (Objects.equals(uuid, other.uuid)) {
+        return true;
+      }
     }
     return Objects.equals(fieldIndices, other.fieldIndices)
         && Objects.equals(getFields(), other.getFields())
@@ -591,9 +593,9 @@ public class Schema implements Serializable {
 
     /** Returns optional extra metadata. */
     @SuppressWarnings("mutable")
-    protected abstract Map<String, ByteArrayWrapper> getMetadata();
+    abstract Map<String, ByteArrayWrapper> getMetadata();
 
-    abstract FieldType.Builder toBuilder();
+    public abstract FieldType.Builder toBuilder();
 
     public boolean isLogicalType(String logicalTypeIdentifier) {
       return getTypeName().isLogicalType()
@@ -738,6 +740,11 @@ public class Schema implements Serializable {
     /** Returns a copy of the descriptor with metadata set for the given key. */
     public FieldType withMetadata(String key, String metadata) {
       return withMetadata(key, metadata.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public Map<String, byte[]> getAllMetadata() {
+      return getMetadata().entrySet().stream()
+          .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().array));
     }
 
     @Nullable
