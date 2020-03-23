@@ -978,12 +978,16 @@ public class DataflowPipelineTranslator {
             if (context.isFnApi()) {
               DoFnSignature signature = DoFnSignatures.signatureForDoFn(transform.getFn());
               if (signature.processElement().isSplittable()) {
-                Coder<?> restrictionCoder =
-                    DoFnInvokers.invokerFor(transform.getFn())
-                        .invokeGetRestrictionCoder(
-                            context.getInput(transform).getPipeline().getCoderRegistry());
+                DoFnInvoker<?, ?> doFnInvoker = DoFnInvokers.invokerFor(transform.getFn());
+                Coder<?> restrictionAndWatermarkStateCoder =
+                    KvCoder.of(
+                        doFnInvoker.invokeGetRestrictionCoder(
+                            context.getInput(transform).getPipeline().getCoderRegistry()),
+                        doFnInvoker.invokeGetWatermarkEstimatorStateCoder(
+                            context.getInput(transform).getPipeline().getCoderRegistry()));
                 stepContext.addInput(
-                    PropertyNames.RESTRICTION_ENCODING, translateCoder(restrictionCoder, context));
+                    PropertyNames.RESTRICTION_ENCODING,
+                    translateCoder(restrictionAndWatermarkStateCoder, context));
               }
             }
           }
@@ -1190,7 +1194,11 @@ public class DataflowPipelineTranslator {
 
             stepContext.addInput(
                 PropertyNames.RESTRICTION_CODER,
-                translateCoder(transform.getRestrictionCoder(), context));
+                translateCoder(
+                    KvCoder.of(
+                        transform.getRestrictionCoder(),
+                        transform.getWatermarkEstimatorStateCoder()),
+                    context));
           }
         });
   }
