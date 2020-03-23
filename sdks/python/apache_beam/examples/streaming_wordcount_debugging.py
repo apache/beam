@@ -81,10 +81,10 @@ class AddTimestampFn(beam.DoFn):
   def process(self, element):
     logging.info('Adding timestamp to: %s', element)
     try:
-      elem = int(element)
+      timestamp = int(element)
     except ValueError:
-      elem = int(time.time())
-    yield beam.window.TimestampedValue(element, elem)
+      timestamp = int(time.time())
+    yield beam.window.TimestampedValue(element, timestamp)
 
 
 def run(argv=None, save_main_session=True):
