@@ -26,16 +26,14 @@ tagged PCollection.
 # pytype: skip-file
 
 from __future__ import absolute_import
+from __future__ import print_function
 
 import itertools
-
-import grpc
 
 from apache_beam import ParDo
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.portability.api import beam_runner_api_pb2_grpc
 from apache_beam.testing.test_stream import ElementEvent
 from apache_beam.testing.test_stream import ProcessingTimeEvent
 from apache_beam.testing.test_stream import WatermarkEvent
@@ -46,6 +44,18 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
+
+try:
+  import grpc
+  from apache_beam.portability.api import beam_runner_api_pb2_grpc  # pylint: disable=ungrouped-imports
+except ImportError:
+  grpc = None
+  beam_runner_api_pb2_grpc = None
+  # A workaround for directrunner users who would cannot depend
+  # on grpc which are missing grpc dependencyy.
+  print(
+      'Exception: grpc was not able to be imported. '
+      'Skip importing all grpc related moduels.')
 
 
 class _WatermarkController(PTransform):
