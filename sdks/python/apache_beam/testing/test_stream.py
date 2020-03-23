@@ -207,6 +207,7 @@ class ProcessingTimeEvent(Event):
     return self.advance_by < other.advance_by
 
   def to_runner_api(self, unused_element_coder):
+    assert self.advance_by.micros % 1000 == 0
     return beam_runner_api_pb2.TestStreamPayload.Event(
         processing_time_event=beam_runner_api_pb2.TestStreamPayload.Event.
         AdvanceProcessingTime(advance_duration=self.advance_by.micros // 1000))
@@ -258,8 +259,8 @@ class TestStream(PTransform):
       coder: (apache_beam.Coder) the coder to encode/decode elements.
       events: (List[Event]) a list of instructions for the TestStream to
         execute. If specified, the events tags must exist in the output_tags.
-      output_tags: (List[str]) can be specified to allow for adding outputs that
-                        produce no output.
+      output_tags: (List[str]) Initial set of outputs. If no event references an
+        output tag, no output will be produced for that tag.
       endpoint: (str) a URL locating a TestStreamService.
     """
 
