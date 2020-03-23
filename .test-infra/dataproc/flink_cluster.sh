@@ -62,7 +62,6 @@ FLINK_LOCAL_PORT=8081
 # By default each taskmanager has one slot - use that value to avoid sharing SDK Harness by multiple tasks.
 FLINK_TASKMANAGER_SLOTS="${FLINK_TASKMANAGER_SLOTS:=1}"
 
-TASK_MANAGER_MEM=10240
 YARN_APPLICATION_MASTER=""
 
 function upload_init_actions() {
