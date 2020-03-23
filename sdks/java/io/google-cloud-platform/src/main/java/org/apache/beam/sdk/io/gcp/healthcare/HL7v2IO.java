@@ -153,9 +153,6 @@ public class HL7v2IO {
     public static class Result implements POutput, PInput {
       PCollection<Message> messages;
 
-      public Result() {
-        super();
-      }
 
       PCollection<HealthcareIOError<String>> failedReads;
       PCollectionTuple pct;
@@ -189,7 +186,7 @@ public class HL7v2IO {
 
       @Override
       public Pipeline getPipeline() {
-        return null;
+        return this.pct.getPipeline();
       }
 
       @Override
