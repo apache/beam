@@ -23,6 +23,7 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.healthcare.v1alpha2.CloudHealthcare;
 import com.google.api.services.healthcare.v1alpha2.CloudHealthcare.Projects.Locations.Datasets.Hl7V2Stores.Messages;
 import com.google.api.services.healthcare.v1alpha2.model.CreateMessageRequest;
+import com.google.api.services.healthcare.v1alpha2.model.Empty;
 import com.google.api.services.healthcare.v1alpha2.model.Hl7V2Store;
 import com.google.api.services.healthcare.v1alpha2.model.HttpBody;
 import com.google.api.services.healthcare.v1alpha2.model.IngestMessageRequest;
@@ -147,6 +148,18 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
       throw new IOException(String.format("Couldn't find message: %s.", msgName));
     }
     return msg;
+  }
+
+  @Override
+  public Empty deleteHL7v2Message(String msgName) throws IOException {
+    return client
+        .projects()
+        .locations()
+        .datasets()
+        .hl7V2Stores()
+        .messages()
+        .delete(msgName)
+        .execute();
   }
 
   /**

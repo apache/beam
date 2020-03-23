@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import com.google.api.services.healthcare.v1alpha2.model.Empty;
 import com.google.api.services.healthcare.v1alpha2.model.Hl7V2Store;
 import com.google.api.services.healthcare.v1alpha2.model.HttpBody;
 import com.google.api.services.healthcare.v1alpha2.model.IngestMessageResponse;
@@ -40,6 +41,8 @@ public interface HealthcareApiClient {
    * @throws ParseException the parse exception
    */
   Message getHL7v2Message(String msgName) throws IOException, ParseException;
+
+  Empty deleteHL7v2Message(String msgName) throws IOException;
 
   /**
    * Gets HL7v2 store.
