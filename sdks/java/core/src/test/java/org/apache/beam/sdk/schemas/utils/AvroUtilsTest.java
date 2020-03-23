@@ -46,6 +46,7 @@ import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.schemas.utils.AvroGenerators.RecordSchemaGenerator;
 import org.apache.beam.sdk.schemas.utils.AvroUtils.TypeWithNullability;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -332,6 +333,25 @@ public class AvroUtilsTest {
   @Test
   public void testFromAvroSchema() {
     assertEquals(getBeamSchema(), AvroUtils.toBeamSchema(getAvroSchema()));
+  }
+
+  // Test union type conversion from avro to beam separately.
+  // There is no union type conversion support from beam to avro yet.
+  @Test
+  public void testFromAvroSchemaUnion() {
+    Schema subSchema = getBeamSubSchema();
+    FieldType beamFieldType =
+        FieldType.logicalType(OneOfType.create(Field.of("union", Schema.FieldType.row(subSchema))));
+
+    org.apache.avro.Schema.Field field =
+        new org.apache.avro.Schema.Field(
+            "union",
+            org.apache.avro.Schema.createUnion(getAvroSubSchema("union")),
+            "",
+            (Object) null);
+    Schema.Field fieldExpected = AvroUtils.toBeamField(field);
+
+    assertEquals(fieldExpected.getType(), beamFieldType);
   }
 
   @Test

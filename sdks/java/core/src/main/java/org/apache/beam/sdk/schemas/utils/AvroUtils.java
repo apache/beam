@@ -63,6 +63,7 @@ import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForSetter;
@@ -740,7 +741,14 @@ public class AvroUtils {
           break;
 
         case UNION:
-          throw new IllegalArgumentException("Union types not yet supported");
+          List<org.apache.avro.Schema> schemaList = type.type.getTypes();
+          List<Field> fieldList = new ArrayList();
+          for (org.apache.avro.Schema schema : schemaList) {
+            TypeWithNullability nullableType = new TypeWithNullability(schema);
+            fieldList.add(Field.of(schema.getName(), toFieldType(nullableType)));
+          }
+          fieldType = FieldType.logicalType(OneOfType.create(fieldList));
+          break;
 
         case NULL:
           throw new IllegalArgumentException("Can't convert 'null' to FieldType");
