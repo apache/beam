@@ -17,13 +17,11 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import com.google.api.services.healthcare.v1alpha2.model.Message;
-import java.io.IOException;
-import java.util.ArrayList;
+import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.deleteAllHL7v2Messages;
+import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.writeHL7v2Messages;
+
 import java.util.Collections;
-import java.util.List;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.gcp.datastore.V1TestOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -38,7 +36,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class HL7v2IOReadIT {
   private HL7v2IOTestOptions options;
-  private String project;
   private final long numMessages = 1000;
   private transient HealthcareApiClient client;
 
@@ -47,15 +44,15 @@ public class HL7v2IOReadIT {
     if (client == null) {
       client = new HttpHealthcareApiClient();
     }
-    PipelineOptionsFactory.register(V1TestOptions.class);
+    PipelineOptionsFactory.register(HL7v2IOTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(HL7v2IOTestOptions.class);
     // Create HL7 messages and write them to HL7v2 Store.
-    writeHL7v2Messages(options, numMessages);
+    writeHL7v2Messages(client, options, numMessages);
   }
 
   @After
   public void tearDown() throws Exception {
-    deleteAllHL7v2Messages(options);
+    deleteAllHL7v2Messages(client, options);
   }
 
   @Test
@@ -85,35 +82,5 @@ public class HL7v2IOReadIT {
             .apply(HL7v2IO.readAll());
     PCollection<Long> numReadMessages = result.getMessages().apply(Count.globally());
     PAssert.thatSingleton(numReadMessages).isEqualTo(numADT);
-  }
-
-  /** Clear all messages from the HL7v2 store. */
-  private void deleteAllHL7v2Messages(HL7v2IOTestOptions options) throws IOException {
-    List<IOException> deleteErrors = new ArrayList<>();
-    client
-        .getHL7v2MessageIDStream(options.getHl7v2Store())
-        .forEach(
-            (String msgID) -> {
-              try {
-                client.deleteHL7v2Message(msgID);
-              } catch (IOException e) {
-                e.printStackTrace();
-                deleteErrors.add(e);
-              }
-            });
-
-    if (deleteErrors.size() > 0) {
-      throw deleteErrors.get(0);
-    }
-  }
-
-  /** Populate the test messages into the HL7v2 store. */
-  private void writeHL7v2Messages(HL7v2IOTestOptions options, long numMessages) throws IOException {
-    Message msg = new Message();
-
-    for (int i = 0; i < numMessages; i++) {
-      // TODO modify each new message or read from resource file.
-      client.createHL7v2Message(options.getHl7v2Store(), msg);
-    }
   }
 }
