@@ -384,8 +384,7 @@ class DataflowRunner(PipelineRunner):
           from apache_beam.runners.portability.fn_api_runner_transforms import \
             only_element
           output_pcoll = (
-              transform_node.outputs[None]
-              if None in transform_node.outputs
+              transform_node.outputs[None] if None in transform_node.outputs
               else only_element(transform_node.outputs.values()))
 
           for input_pcoll in transform_node.inputs:
@@ -567,8 +566,9 @@ class DataflowRunner(PipelineRunner):
 
   def _get_encoding_for_external_environment(self, element):
     if not isinstance(element, ElementTypeHolder):
-      raise Exception('Expected to receive an object of type ElementTypeHolder '
-                      'but received %r' % element)
+      raise Exception(
+          'Expected to receive an object of type ElementTypeHolder '
+          'but received %r' % element)
     from apache_beam.coders.coders import ExternalCoder
     return ExternalCoder(element)
 
@@ -642,7 +642,6 @@ class DataflowRunner(PipelineRunner):
               transform_node.outputs[output_tag].windowing.windowfn.
               get_window_coder())
           coder = coders.WindowedValueCoder(coder, window_coder=window_coder)
-
 
         return self._get_cloud_encoding(coder)
     else:
@@ -912,7 +911,7 @@ class DataflowRunner(PipelineRunner):
 
     # Attach side inputs.
     si_dict = {}
-    all_input_labels = transform_node.input_tags
+    all_input_labels = transform_node.input_tags_to_preserve
     si_labels = {}
     full_label_counts = defaultdict(int)
     lookup_label = lambda side_pval: si_labels[side_pval]
@@ -921,9 +920,10 @@ class DataflowRunner(PipelineRunner):
     for ix, side_pval in enumerate(transform_node.side_inputs):
       assert isinstance(side_pval, AsSideInput)
       step_name = 'SideInput-' + self._get_unique_step_name()
-      si_label = ('side%d-%s' % (ix, transform_node.full_label)
-                  if side_pval.pvalue not in all_input_labels
-                  else all_input_labels[side_pval.pvalue])
+      si_label = (
+          'side%d-%s' % (ix, transform_node.full_label)
+          if side_pval.pvalue not in all_input_labels else
+          all_input_labels[side_pval.pvalue])
       old_label = 'side%d' % ix
       label_renames[old_label] = si_label
       assert old_label in named_inputs

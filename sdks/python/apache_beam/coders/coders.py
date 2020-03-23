@@ -361,10 +361,8 @@ class Coder(object):
     """
     parameter_type, constructor = cls._known_urns[coder_proto.spec.urn]
     return constructor(
-        proto_utils.parse_Bytes(coder_proto.spec.payload, parameter_type), [
-            context.coders.get_by_id(c)
-            for c in coder_proto.component_coder_ids
-        ],
+        proto_utils.parse_Bytes(coder_proto.spec.payload, parameter_type),
+        [context.coders.get_by_id(c) for c in coder_proto.component_coder_ids],
         context)
 
   def to_runner_api_parameter(self, context):
@@ -1383,7 +1381,6 @@ class StateBackedIterableCoder(FastCoder):
 
 class ElementTypeHolder(typehints.TypeConstraint):
   """A dummy element type for external coders that cannot be parsed in Python"""
-
   def __init__(self, coder, context):
     self.coder = coder
     self.context = context
@@ -1399,12 +1396,12 @@ class ExternalCoder(Coder):
   def as_cloud_object(self, coders_context=None):
     if not coders_context:
       raise Exception(
-          'coders_context must be specified to correctly encode external coders')
+          'coders_context must be specified to correctly encode external coders'
+      )
     coder_id = coders_context.get_by_proto(
         self.element_type_holder.coder, deduplicate=True)
 
     coder_proto = self.element_type_holder.coder
-
 
     kind_str = 'kind:external' + str(ExternalCoder.coder_count)
     ExternalCoder.coder_count = ExternalCoder.coder_count + 1
@@ -1439,9 +1436,10 @@ class ExternalCoder(Coder):
           'Expected an instance of ElementTypeHolder'
           ', but got a %s' % typehint))
 
-
   def to_runner_api_parameter(self, context):
     if self.element_type_holder.coder.component_coder_ids:
       raise NotImplementedError
 
-    return (self.element_type_holder.coder.spec.urn, self.element_type_holder.coder.spec.payload, ())
+    return (
+        self.element_type_holder.coder.spec.urn,
+        self.element_type_holder.coder.spec.payload, ())

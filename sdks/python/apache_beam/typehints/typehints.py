@@ -1188,7 +1188,8 @@ def _coerce_to_kv_type_from_external_type(element_type_holder):
   if coder_proto.spec.urn != common_urns.coders.KV.urn:
     raise Exception(
         'A KV coder must be specified to infer key and value coders. '
-        'Received %r instead.', coder_proto)
+        'Received %r instead.',
+        coder_proto)
 
   key_coder_proto = (
       element_type_holder.context.coders.get_id_to_proto_map()[
@@ -1197,9 +1198,8 @@ def _coerce_to_kv_type_from_external_type(element_type_holder):
       element_type_holder.context.coders.get_id_to_proto_map()[
           coder_proto.component_coder_ids[1]])
 
-  return KV[
-      ElementTypeHolder(key_coder_proto, element_type_holder.context),
-      ElementTypeHolder(value_coder_proto, element_type_holder.context)]
+  return KV[ElementTypeHolder(key_coder_proto, element_type_holder.context),
+            ElementTypeHolder(value_coder_proto, element_type_holder.context)]
 
 
 def coerce_to_kv_type(element_type, label=None, side_input_producer=None):

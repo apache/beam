@@ -240,8 +240,11 @@ class PCollection(PValue, Generic[T]):
     except KeyError as ext:
       # This is potentially a coder from an external SDK that cannot be parsed
       # locally in Python SDK.
-      _LOGGER.debug('Finding coder for proto %r failed with %r. Assuming '
-                    'this to be an external coder.', proto, ext)
+      _LOGGER.debug(
+          'Finding coder for proto %r failed with %r. Assuming '
+          'this to be an external coder.',
+          proto,
+          ext)
       coder = context.coders.get_id_to_proto_map()[proto.coder_id]
       element_type = ElementTypeHolder(coder, context)
 
