@@ -27,6 +27,7 @@ import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.datastore.AdaptiveThrottler;
+import org.apache.beam.sdk.io.gcp.healthcare.HL7v2IO.Read.FetchHL7v2Message;
 import org.apache.beam.sdk.io.gcp.healthcare.HL7v2IO.Write.Result;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
@@ -152,7 +153,6 @@ public class HL7v2IO {
 
     public static class Result implements POutput, PInput {
       PCollection<Message> messages;
-
 
       PCollection<HealthcareIOError<String>> failedReads;
       PCollectionTuple pct;
@@ -281,10 +281,10 @@ public class HL7v2IO {
             LoggerFactory.getLogger(FetchHL7v2Message.HL7v2MessageGetFn.class);
         private final Counter throttledSeconds =
             Metrics.counter(
-                FetchHL7v2Message.HL7v2MessageGetFn.class, "cumulativeThrottlingSeconds");
+                FetchHL7v2Message.HL7v2MessageGetFn.class, "cumulative-throttling-seconds");
         private final Counter successfulHL7v2MessageGets =
             Metrics.counter(
-                FetchHL7v2Message.HL7v2MessageGetFn.class, "successfulHL7v2MessageGets");
+                FetchHL7v2Message.HL7v2MessageGetFn.class, "successful-hl7v2-message-gets");
         private HealthcareApiClient client;
         private transient AdaptiveThrottler throttler;
 
@@ -566,6 +566,11 @@ public class HL7v2IO {
       private Counter failedMessageWrites =
           Metrics.counter(WriteHL7v2Fn.class, "failed-hl7v2-message-writes");
       private final String hl7v2Store;
+      private final Counter throttledSeconds =
+          Metrics.counter(WriteHL7v2Fn.class, "cumulative-throttling-seconds");
+      private final Counter successfulHL7v2MessageWrites =
+          Metrics.counter(WriteHL7v2.class, "successful-hl7v2-message-writes");
+      private transient AdaptiveThrottler throttler;
       private final Write.WriteMethod writeMethod;
 
       private static final Logger LOG = LoggerFactory.getLogger(WriteHL7v2.WriteHL7v2Fn.class);
@@ -592,6 +597,13 @@ public class HL7v2IO {
         this.client = new HttpHealthcareApiClient();
       }
 
+      @StartBundle
+      public void startBundle() {
+        if (throttler == null) {
+          throttler = new AdaptiveThrottler(1200000, 10000, 1.25);
+        }
+      }
+
       /**
        * Write messages.
        *
@@ -600,13 +612,23 @@ public class HL7v2IO {
       @ProcessElement
       public void writeMessages(ProcessContext context) {
         Message msg = context.element();
+        final int throttleWaitSeconds = 5;
+        long startTime = System.currentTimeMillis();
+        Sleeper sleeper = Sleeper.DEFAULT;
         // TODO could insert some lineage hook here?
         switch (writeMethod) {
           case BATCH_IMPORT:
-            throw new UnsupportedOperationException("The Batch import API is not avaiable yet");
+            throw new UnsupportedOperationException("The Batch import API is not available yet");
           case INGEST:
           default:
             try {
+              if (throttler.throttleRequest(startTime)) {
+                LOG.info("Delaying request due to previous failures.");
+                this.throttledSeconds.inc(throttleWaitSeconds);
+                sleeper.sleep(throttleWaitSeconds * 1000);
+                this.throttler.successfulRequest(startTime);
+                this.successfulHL7v2MessageWrites.inc();
+              }
               client.ingestHL7v2Message(hl7v2Store, msg);
             } catch (Exception e) {
               failedMessageWrites.inc();
