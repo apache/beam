@@ -64,6 +64,8 @@ func main() {
 		{"cogbk:cogbk", primitives.CoGBK()},
 		{"flatten:flatten", primitives.Flatten()},
 		// {"flatten:dup", primitives.FlattenDup()},
+		{"reshuffle:reshuffle", primitives.Reshuffle()},
+		{"reshuffle:reshufflekv", primitives.ReshuffleKV()},
 	}
 
 	re := regexp.MustCompile(*filter)
