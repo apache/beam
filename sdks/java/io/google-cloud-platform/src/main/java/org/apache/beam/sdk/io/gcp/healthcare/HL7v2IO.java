@@ -27,7 +27,6 @@ import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.datastore.AdaptiveThrottler;
-import org.apache.beam.sdk.io.gcp.healthcare.HL7v2IO.Read.FetchHL7v2Message;
 import org.apache.beam.sdk.io.gcp.healthcare.HL7v2IO.Write.Result;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
