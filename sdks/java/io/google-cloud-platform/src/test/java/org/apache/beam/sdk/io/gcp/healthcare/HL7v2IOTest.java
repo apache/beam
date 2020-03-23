@@ -40,13 +40,19 @@ public class HL7v2IOTest {
   @Test
   public void test_HL7v2IO_failedReads() {
     List<String> badMessageIDs = Arrays.asList("foo", "bar");
-    HL7v2IO.Read.Result readResult =
-        pipeline.apply(Create.of(badMessageIDs)).apply(HL7v2IO.readAll());
+    HL7v2IO.Read.Result readResult = pipeline
+        .apply(Create.of(badMessageIDs))
+        .apply(HL7v2IO.readAll());
+
     PCollection<HealthcareIOError<String>> failed = readResult.getFailedReads();
+
     PCollection<Message> messages = readResult.getMessages().setCoder(new MessageCoder());
+
     PCollection<String> failedMsgIds =
         failed.apply(
-            MapElements.into(TypeDescriptors.strings()).via((HealthcareIOError::getDataResource)));
+            MapElements
+                .into(TypeDescriptors.strings())
+                .via(HealthcareIOError::getDataResource));
 
     PAssert.that(failedMsgIds).containsInAnyOrder(badMessageIDs);
     PAssert.that(messages).empty();
@@ -57,20 +63,26 @@ public class HL7v2IOTest {
   public void test_HL7v2IO_failedWrites() {
     Message msg = new Message().setData("");
     List<Message> emptyMessages = Collections.singletonList(msg);
-    PCollection<Message> messages =
-        pipeline.apply(Create.of(emptyMessages).withCoder(new MessageCoder()));
+
+    PCollection<Message> messages = pipeline
+        .apply(Create.of(emptyMessages).withCoder(new MessageCoder()));
+
     HL7v2IO.Write.Result writeResult =
         messages.apply(
             HL7v2IO.ingestMessages(
                 "projects/foo/locations/us-central1/datasets/bar/hl7V2Stores/baz"));
+
     PCollection<HealthcareIOError<Message>> failedInserts = writeResult.getFailedInsertsWithErr();
-    PCollection<Message> failedMsgs =
-        failedInserts
+
+    PCollection<Message> failedMsgs = failedInserts
             .apply(
-                MapElements.into(TypeDescriptor.of(Message.class))
-                    .via((HealthcareIOError::getDataResource)))
+                MapElements
+                    .into(TypeDescriptor.of(Message.class))
+                    .via(HealthcareIOError::getDataResource))
             .setCoder(new MessageCoder());
+
     PAssert.that(failedMsgs).containsInAnyOrder(emptyMessages);
+
     pipeline.run();
   }
 }
