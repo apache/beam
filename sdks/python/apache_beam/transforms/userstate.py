@@ -26,6 +26,7 @@ from __future__ import absolute_import
 
 import types
 from builtins import object
+from collections import namedtuple
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -129,6 +130,18 @@ class CombiningValueStateSpec(StateSpec):
             accumulator_coder_id=context.coders.get_id(self.coder)))
 
 
+Timer = namedtuple(
+    'Timer',
+    'user_key '
+    'dynamic_timer_tag '
+    'windows '
+    'clear_bit '
+    'fire_timestamp '
+    'hold_timestamp '
+    'paneinfo')
+
+
+# TODO(BEAM-9562): Plumb through actual key_coder and window_coder.
 class TimerSpec(object):
   """Specification for a user stateful DoFn timer."""
   prefix = "ts-"
@@ -148,7 +161,8 @@ class TimerSpec(object):
     return beam_runner_api_pb2.TimerFamilySpec(
         time_domain=TimeDomain.to_runner_api(self.time_domain),
         timer_family_coder_id=context.coders.get_id(
-            coders._TimerCoder(coders.SingletonCoder(None))))
+            coders._TimerCoder(
+                coders.StrUtf8Coder(), coders.GlobalWindowCoder())))
 
 
 # TODO(BEAM-9602): Provide support for dynamic timer.

@@ -580,16 +580,36 @@ class OutputTimer(object):
 
   def set(self, ts):
     ts = timestamp.Timestamp.of(ts)
+    # TODO(BEAM-9562): Plumb through actual timer fields.
     self._receiver.receive(
-        windowed_value.WindowedValue((self._key, dict(timestamp=ts)),
+        windowed_value.WindowedValue((
+            self._key,
+            userstate.Timer(
+                user_key='',
+                dynamic_timer_tag='',
+                windows=(self._window, ),
+                clear_bit=False,
+                fire_timestamp=ts,
+                hold_timestamp=ts,
+                paneinfo=windowed_value.PANE_INFO_UNKNOWN)),
                                      ts, (self._window, )))
 
   def clear(self):
     # type: () -> None
     dummy_millis = int(common_urns.constants.MAX_TIMESTAMP_MILLIS.constant) + 1
     clear_ts = timestamp.Timestamp(micros=dummy_millis * 1000)
+    # TODO(BEAM-9562): Plumb through actual paneinfo.
     self._receiver.receive(
-        windowed_value.WindowedValue((self._key, dict(timestamp=clear_ts)),
+        windowed_value.WindowedValue((
+            self._key,
+            userstate.Timer(
+                user_key='',
+                dynamic_timer_tag='',
+                windows=(self._window, ),
+                clear_bit=False,
+                fire_timestamp=timestamp.Timestamp.of(clear_ts),
+                hold_timestamp=timestamp.Timestamp.of(0),
+                paneinfo=windowed_value.PANE_INFO_UNKNOWN)),
                                      0, (self._window, )))
 
 

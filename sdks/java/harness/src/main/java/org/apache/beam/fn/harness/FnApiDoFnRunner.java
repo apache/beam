@@ -25,6 +25,7 @@ import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.function.BiFunction;
@@ -974,7 +975,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       outputTo(
           consumers,
           WindowedValue.of(
-              KV.of(key, Timer.of(scheduledTime)),
+              KV.of(
+                  key,
+                  Timer.of(
+                      "",
+                      "",
+                      Collections.singleton(GlobalWindow.INSTANCE),
+                      scheduledTime,
+                      scheduledTime,
+                      PaneInfo.NO_FIRING)),
               currentOutputTimestamp,
               currentElementOrTimer.getWindows(),
               currentElementOrTimer.getPane()));
@@ -1362,7 +1371,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public Instant fireTimestamp() {
-        return currentTimer.getValue().getValue().getTimestamp();
+        return currentTimer.getValue().getValue().getFireTimestamp();
       }
 
       @Override

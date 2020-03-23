@@ -82,7 +82,7 @@ public class TimerReceiverFactory implements OutputReceiverFactory {
         TimeDomain timeDomain = timerSpec.getTimerSpec().getTimeDomain();
         String timerId = timerSpec.inputCollectionId();
         TimerInternals.TimerData timerData =
-            TimerInternals.TimerData.of(timerId, namespace, timer.getTimestamp(), timeDomain);
+            TimerInternals.TimerData.of(timerId, namespace, timer.getFireTimestamp(), timeDomain);
         timerDataConsumer.accept(windowedValue, timerData);
       }
     };
