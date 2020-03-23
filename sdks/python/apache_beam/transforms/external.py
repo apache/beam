@@ -470,7 +470,7 @@ class JavaJarExpansionService(object):
 class BeamJarExpansionService(JavaJarExpansionService):
   """An expansion service based on an Beam Java Jar file.
 
-  Attempts to use a locally-build copy of the jar based on the gradle target,
+  Attempts to use a locally-built copy of the jar based on the gradle target,
   if it exists, otherwise attempts to download and cache the released artifact
   corresponding to this version of Beam from the apache maven repository.
   """
