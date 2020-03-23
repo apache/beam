@@ -20,13 +20,18 @@ package org.apache.beam.sdk.schemas.transforms;
 import static org.apache.beam.sdk.schemas.utils.SelectHelpers.CONCAT_FIELD_NAMES;
 import static org.apache.beam.sdk.schemas.utils.SelectHelpers.KEEP_NESTED_NAME;
 
+import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.utils.RowSelector;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers.RowSelectorContainer;
@@ -37,6 +42,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
@@ -82,17 +88,17 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 @Experimental(Kind.SCHEMAS)
 public class Select {
   public static <T> Fields<T> create() {
-    return new Fields<>(FieldAccessDescriptor.create());
+    return fieldAccess(FieldAccessDescriptor.create());
   }
 
   /** Select a set of top-level field ids from the row. */
   public static <T> Fields<T> fieldIds(Integer... ids) {
-    return new Fields<>(FieldAccessDescriptor.withFieldIds(ids));
+    return fieldAccess(FieldAccessDescriptor.withFieldIds(ids));
   }
 
   /** Select a set of top-level field names from the row. */
   public static <T> Fields<T> fieldNames(String... names) {
-    return new Fields<>(FieldAccessDescriptor.withFieldNames(names));
+    return fieldAccess(FieldAccessDescriptor.withFieldNames(names));
   }
 
   /**
@@ -101,7 +107,9 @@ public class Select {
    * <p>This allows for nested fields to be selected as well.
    */
   public static <T> Fields<T> fieldAccess(FieldAccessDescriptor fieldAccessDescriptor) {
-    return new Fields<>(fieldAccessDescriptor);
+    return new AutoValue_Select_Fields.Builder<T>()
+        .setFieldAccessDescriptor(fieldAccessDescriptor)
+        .build();
   }
 
   /**
@@ -111,7 +119,10 @@ public class Select {
    * Flattened#withFieldNameAs}.
    */
   public static <T> Flattened<T> flattenedSchema() {
-    return new Flattened<>();
+    return new AutoValue_Select_Flattened.Builder<T>()
+        .setNameFn(CONCAT_FIELD_NAMES)
+        .setNameOverrides(Collections.emptyMap())
+        .build();
   }
 
   private static class SelectDoFn<T> extends DoFn<T, Row> {
@@ -140,12 +151,23 @@ public class Select {
     }
   }
 
-  public static class Fields<T> extends PTransform<PCollection<T>, PCollection<Row>> {
-    private FieldAccessDescriptor fieldAccessDescriptor;
+  @AutoValue
+  public abstract static class Fields<T> extends PTransform<PCollection<T>, PCollection<Row>> {
+    abstract FieldAccessDescriptor getFieldAccessDescriptor();
 
-    public Fields(FieldAccessDescriptor fieldAccessDescriptor) {
-      this.fieldAccessDescriptor = fieldAccessDescriptor;
+    @Nullable
+    abstract Schema getOutputSchema();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setFieldAccessDescriptor(FieldAccessDescriptor fieldAccessDescriptor);
+
+      abstract Builder<T> setOutputSchema(Schema outputSchema);
+
+      abstract Fields<T> build();
     }
+
+    abstract Builder<T> toBuilder();
 
     /**
      * Add a single field to the selection, along with the name the field should take in the
@@ -154,41 +176,99 @@ public class Select {
      * rename one of the fields.
      */
     public Fields<T> withFieldNameAs(String fieldName, String fieldRename) {
-      return new Fields<>(fieldAccessDescriptor.withFieldNameAs(fieldName, fieldRename));
+      return toBuilder()
+          .setFieldAccessDescriptor(
+              getFieldAccessDescriptor().withFieldNameAs(fieldName, fieldRename))
+          .build();
+    }
+
+    /**
+     * Rename all output fields to match the specified schema. If the specified schema is not
+     * compatible with the output schema a failure will be raised.
+     */
+    public Fields<T> withOutputSchema(Schema schema) {
+      return toBuilder().setOutputSchema(schema).build();
     }
 
     @Override
     public PCollection<Row> expand(PCollection<T> input) {
       Schema inputSchema = input.getSchema();
-      FieldAccessDescriptor resolved = fieldAccessDescriptor.resolve(inputSchema);
-      Schema outputSchema = SelectHelpers.getOutputSchema(inputSchema, resolved);
+      FieldAccessDescriptor resolved = getFieldAccessDescriptor().resolve(inputSchema);
+      Schema outputSchema = getOutputSchema();
+      if (outputSchema == null) {
+        outputSchema = SelectHelpers.getOutputSchema(inputSchema, resolved);
+      } else {
+        inputSchema = uniquifyNames(inputSchema);
+        Schema inferredSchema = SelectHelpers.getOutputSchema(inputSchema, resolved);
+        Preconditions.checkArgument(
+            outputSchema.typesEqual(inferredSchema),
+            "Types not equal. provided output schema: "
+                + outputSchema
+                + " Schema inferred from select: "
+                + inferredSchema
+                + " from input type: "
+                + input.getSchema());
+      }
       return input
           .apply(ParDo.of(new SelectDoFn<>(resolved, inputSchema, outputSchema)))
           .setRowSchema(outputSchema);
     }
   }
 
+  private static Schema uniquifyNames(Schema schema) {
+    Schema.Builder builder = new Schema.Builder();
+    for (Field field : schema.getFields()) {
+      builder.addField(UUID.randomUUID().toString(), uniquifyNames(field.getType()));
+    }
+    return builder.build();
+  }
+
+  private static FieldType uniquifyNames(FieldType fieldType) {
+    switch (fieldType.getTypeName()) {
+      case ROW:
+        return FieldType.row(uniquifyNames(fieldType.getRowSchema()))
+            .withNullable(fieldType.getNullable())
+            .withMetadata(fieldType.getAllMetadata());
+      case ARRAY:
+        return FieldType.array(uniquifyNames(fieldType.getCollectionElementType()));
+      case ITERABLE:
+        return FieldType.iterable(uniquifyNames(fieldType.getCollectionElementType()));
+      case MAP:
+        return FieldType.map(
+            uniquifyNames(fieldType.getMapKeyType()), uniquifyNames(fieldType.getMapValueType()));
+      default:
+        return fieldType;
+    }
+  }
   /** A {@link PTransform} representing a flattened schema. */
-  public static class Flattened<T> extends PTransform<PCollection<T>, PCollection<Row>> {
-    private SerializableFunction<List<String>, String> nameFn;
-    private Map<String, String> nameOverrides;
+  @AutoValue
+  public abstract static class Flattened<T> extends PTransform<PCollection<T>, PCollection<Row>> {
+    abstract SerializableFunction<List<String>, String> getNameFn();
 
-    Flattened() {
-      this(CONCAT_FIELD_NAMES, Collections.emptyMap());
+    abstract Map<String, String> getNameOverrides();
+
+    @Nullable
+    abstract Schema getOutputSchema();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setNameFn(SerializableFunction<List<String>, String> nameFn);
+
+      abstract Builder<T> setNameOverrides(Map<String, String> nameOverrides);
+
+      abstract Builder<T> setOutputSchema(@Nullable Schema schema);
+
+      abstract Flattened<T> build();
     }
 
-    Flattened(
-        SerializableFunction<List<String>, String> nameFn, Map<String, String> nameOverrides) {
-      this.nameFn = nameFn;
-      this.nameOverrides = nameOverrides;
-    }
+    abstract Builder<T> toBuilder();
 
     /**
      * For nested fields, concatenate all the names separated by a _ character in the flattened
      * schema.
      */
     public Flattened<T> concatFieldNames() {
-      return new Flattened<>(CONCAT_FIELD_NAMES, nameOverrides);
+      return toBuilder().setNameFn(CONCAT_FIELD_NAMES).build();
     }
 
     /**
@@ -196,7 +276,7 @@ public class Select {
      * unique.
      */
     public Flattened<T> keepMostNestedFieldName() {
-      return new Flattened<>(KEEP_NESTED_NAME, nameOverrides);
+      return toBuilder().setNameFn(KEEP_NESTED_NAME).build();
     }
 
     /**
@@ -204,12 +284,20 @@ public class Select {
      * with the default name policies.
      */
     public Flattened<T> withFieldNameAs(String fieldName, String fieldRename) {
-      return new Flattened<>(
-          nameFn,
+      Map<String, String> overrides =
           ImmutableMap.<String, String>builder()
-              .putAll(nameOverrides)
+              .putAll(getNameOverrides())
               .put(fieldName, fieldRename)
-              .build());
+              .build();
+      return toBuilder().setNameOverrides(overrides).build();
+    }
+
+    /**
+     * Rename all output fields to match the specified schema. If the specified schema is not
+     * compatible with the output schema a failure will be raised.
+     */
+    public Flattened<T> withOutputSchema(Schema schema) {
+      return toBuilder().setOutputSchema(schema).build();
     }
 
     @Override
@@ -221,8 +309,15 @@ public class Select {
               inputSchema,
               n ->
                   MoreObjects.firstNonNull(
-                      nameOverrides.get(String.join(".", n)), nameFn.apply(n)));
-      Schema outputSchema = SelectHelpers.getOutputSchema(inputSchema, fieldAccessDescriptor);
+                      getNameOverrides().get(String.join(".", n)), getNameFn().apply(n)));
+      Schema inferredOutputSchema =
+          SelectHelpers.getOutputSchema(inputSchema, fieldAccessDescriptor);
+      Schema outputSchema = getOutputSchema();
+      if (outputSchema != null) {
+        Preconditions.checkArgument(outputSchema.typesEqual(inferredOutputSchema));
+      } else {
+        outputSchema = inferredOutputSchema;
+      }
       return input
           .apply(ParDo.of(new SelectDoFn<>(fieldAccessDescriptor, inputSchema, outputSchema)))
           .setRowSchema(outputSchema);
