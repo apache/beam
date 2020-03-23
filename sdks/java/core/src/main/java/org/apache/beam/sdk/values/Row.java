@@ -41,7 +41,6 @@ import org.apache.beam.sdk.schemas.Factory;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -383,7 +382,6 @@ public abstract class Row implements Serializable {
    */
   @Nullable
   public <T> T getLogicalTypeValue(int idx, Class<T> clazz) {
-    LogicalType logicalType = checkNotNull(getSchema().getField(idx).getType().getLogicalType());
     return (T) getValue(idx);
   }
 

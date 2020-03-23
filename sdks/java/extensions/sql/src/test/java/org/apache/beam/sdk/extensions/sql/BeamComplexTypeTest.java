@@ -397,7 +397,6 @@ public class BeamComplexTypeTest {
     PCollection<Row> outputRow =
         pipeline
             .apply(Create.of(row).withRowSchema(inputRowSchema))
-            //  .setRowSchema(outputRowSchema)
             .apply(
                 SqlTransform.query(
                     "SELECT timeTypeField, dateTypeField FROM PCOLLECTION GROUP BY timeTypeField, dateTypeField"));
