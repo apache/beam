@@ -588,28 +588,32 @@ class _TimerCoder(FastCoder):
   """A coder used for timer values.
 
   For internal use."""
-  def __init__(self, payload_coder):
+  def __init__(self, key_coder, window_coder):
     # type: (Coder) -> None
-    self._payload_coder = payload_coder
+    self._key_coder = key_coder
+    self._window_coder = window_coder
 
   def _get_component_coders(self):
     # type: () -> List[Coder]
-    return [self._payload_coder]
+    return [self._key_coder, self._window_coder]
 
   def _create_impl(self):
-    return coder_impl.TimerCoderImpl(self._payload_coder.get_impl())
+    return coder_impl.TimerCoderImpl(
+        self._key_coder.get_impl(), self._window_coder.get_impl())
 
   def is_deterministic(self):
     # () -> bool
-    return self._payload_coder.is_deterministic()
+    return (
+        self._key_coder.is_deterministic() and
+        self._window_coder.is_deterministic())
 
   def __eq__(self, other):
     return (
-        type(self) == type(other) and
-        self._payload_coder == other._payload_coder)
+        type(self) == type(other) and self._key_coder == other._key_coder and
+        self._window_coder == other._window_coder)
 
   def __hash__(self):
-    return hash(type(self)) + hash(self._payload_coder)
+    return hash(type(self)) + hash(self._key_coder) + hash(self._window_coder)
 
 
 Coder.register_structured_urn(common_urns.coders.TIMER.urn, _TimerCoder)

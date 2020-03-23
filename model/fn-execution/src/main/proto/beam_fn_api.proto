@@ -609,12 +609,13 @@ message Elements {
     // represents the producer of these timers.
     string transform_id = 2;
 
-    // (Optional) The local timer name used to identify the associated timer specification.
-    string timer_id = 3;
+    // (Optional) The local timer family name used to identify the associated
+    // timer family specification
+    string timer_family_id = 3;
 
-    // (Optional) Represents a logical byte stream of a timer. Encoded according
+    // (Optional) Represents a logical byte stream of timers. Encoded according
     // to the coder in the timer spec.
-    bytes timer = 4;
+    bytes timers = 4;
 
     // (Optional) Set this bit to indicate the this is the last data block
     // for the given instruction and transform, ending the stream.
