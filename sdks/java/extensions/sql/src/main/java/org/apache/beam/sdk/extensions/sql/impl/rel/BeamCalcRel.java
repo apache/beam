@@ -20,13 +20,13 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import static org.apache.beam.sdk.schemas.Schema.FieldType;
 import static org.apache.beam.sdk.schemas.Schema.TypeName;
 import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.AbstractList;
 import java.util.AbstractMap;
 import java.util.Arrays;
@@ -39,11 +39,11 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamJavaTypeFactory;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeWithLocalTzType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimestampWithLocalTzType;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -315,7 +315,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
   private static Expression castOutputTime(Expression value, FieldType toType) {
     Expression valueDateTime = value;
 
-    // First, convert to millis
+    // First, convert to millis (except for DATE type)
     if (CalciteUtils.TIMESTAMP.typesEqual(toType)
         || CalciteUtils.NULLABLE_TIMESTAMP.typesEqual(toType)) {
       if (value.getType() == java.sql.Timestamp.class) {
@@ -331,13 +331,16 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       if (value.getType() == java.sql.Date.class) {
         valueDateTime = Expressions.call(BuiltInMethod.DATE_TO_INT.method, valueDateTime);
       }
-      valueDateTime = Expressions.multiply(valueDateTime, Expressions.constant(MILLIS_PER_DAY));
     } else {
       throw new UnsupportedOperationException("Unknown DateTime type " + toType);
     }
 
-    // Second, convert to joda Instant
-    valueDateTime = Expressions.new_(Instant.class, valueDateTime);
+    // Second, convert to joda Instant (or LocalDate for DATE type)
+    if (CalciteUtils.DATE.typesEqual(toType) || CalciteUtils.NULLABLE_DATE.typesEqual(toType)) {
+      valueDateTime = Expressions.call(LocalDate.class, "ofEpochDay", valueDateTime);
+    } else {
+      valueDateTime = Expressions.new_(Instant.class, valueDateTime);
+    }
 
     // Third, make conversion conditional on non-null input.
     if (!((Class) value.getType()).isPrimitive()) {
@@ -371,9 +374,9 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
             .put(TypeName.ROW, Row.class)
             .build();
 
-    private static final Map<String, Class> LOGICAL_TYPE_CONVERSION_MAP =
+    private static final Map<String, Class> LOGICAL_TYPE_TO_BASE_TYPE_MAP =
         ImmutableMap.<String, Class>builder()
-            .put(DateType.IDENTIFIER, ReadableInstant.class)
+            .put(SqlTypes.DATE.getIdentifier(), Long.class)
             .put(TimeType.IDENTIFIER, ReadableInstant.class)
             .put(TimeWithLocalTzType.IDENTIFIER, ReadableInstant.class)
             .put(TimestampWithLocalTzType.IDENTIFIER, ReadableInstant.class)
@@ -406,7 +409,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       if (storageType == Object.class) {
         convertTo = Object.class;
       } else if (fromType.getTypeName().isLogicalType()) {
-        convertTo = LOGICAL_TYPE_CONVERSION_MAP.get(fromType.getLogicalType().getIdentifier());
+        convertTo = LOGICAL_TYPE_TO_BASE_TYPE_MAP.get(fromType.getLogicalType().getIdentifier());
       } else {
         convertTo = TYPE_CONVERSION_MAP.get(fromType.getTypeName());
       }
@@ -427,18 +430,13 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
 
     private static Expression value(Expression value, Schema.FieldType type) {
       if (type.getTypeName().isLogicalType()) {
-        Expression millisField = Expressions.call(value, "getMillis");
         String logicalId = type.getLogicalType().getIdentifier();
-        if (logicalId.equals(TimeType.IDENTIFIER)) {
-          return nullOr(value, Expressions.convert_(millisField, int.class));
-        } else if (logicalId.equals(DateType.IDENTIFIER)) {
-          value =
-              nullOr(
-                  value,
-                  Expressions.convert_(
-                      Expressions.divide(millisField, Expressions.constant(MILLIS_PER_DAY)),
-                      int.class));
-        } else if (!logicalId.equals(CharType.IDENTIFIER)) {
+        if (TimeType.IDENTIFIER.equals(logicalId)) {
+          return nullOr(
+              value, Expressions.convert_(Expressions.call(value, "getMillis"), int.class));
+        } else if (SqlTypes.DATE.getIdentifier().equals(logicalId)) {
+          value = nullOr(value, value);
+        } else if (!CharType.IDENTIFIER.equals(logicalId)) {
           throw new UnsupportedOperationException(
               "Unknown LogicalType " + type.getLogicalType().getIdentifier());
         }

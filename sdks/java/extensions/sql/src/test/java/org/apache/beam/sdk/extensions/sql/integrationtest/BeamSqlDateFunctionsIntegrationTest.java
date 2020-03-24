@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.time.LocalDate;
 import java.util.Iterator;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.testing.PAssert;
@@ -71,8 +72,12 @@ public class BeamSqlDateFunctionsIntegrationTest
       assertTrue(millis - row.getDateTime(1).getMillis() > -1000);
 
       // CURRENT_DATE
-      assertTrue(millis - row.getDateTime(2).getMillis() < MILLIS_PER_DAY);
-      assertTrue(millis - row.getDateTime(2).getMillis() > -MILLIS_PER_DAY);
+      assertTrue(
+          millis - row.getLogicalTypeValue(2, LocalDate.class).toEpochDay() * MILLIS_PER_DAY
+              < MILLIS_PER_DAY);
+      assertTrue(
+          millis - row.getLogicalTypeValue(2, LocalDate.class).toEpochDay() * MILLIS_PER_DAY
+              > -MILLIS_PER_DAY);
 
       // CURRENT_TIME
       assertTrue(timeMillis - row.getDateTime(3).getMillis() < 1000);
