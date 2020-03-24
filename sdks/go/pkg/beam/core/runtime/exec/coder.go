@@ -317,7 +317,7 @@ func (c *customDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
 		return err
 	}
 	*fv = FullValue{Elm: val}
-	return err
+	return nil
 }
 
 func (c *customDecoder) Decode(r io.Reader) (*FullValue, error) {

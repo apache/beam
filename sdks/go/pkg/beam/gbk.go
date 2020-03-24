@@ -108,23 +108,23 @@ func TryCoGroupByKey(s Scope, cols ...PCollection) (PCollection, error) {
 // parallelism, using the following pattern:
 //
 //   pc := bigHairyComputationNeedingParallelism(scope) // PCollection<string>
-//   resharded := beam.Reshard(scope, pc)                // PCollection<string>
+//   resharded := beam.Reshuffle(scope, pc)                // PCollection<string>
 //
 // Another use case is when one has a non-deterministic DoFn followed by one
-// that performs externally-visible side effects. Inserting a Reshard
+// that performs externally-visible side effects. Inserting a Reshuffle
 // between these DoFns ensures that retries of the second DoFn will always be
 // the same, which is necessary to make side effects idempotent.
 //
 // A Reshuffle will force a break in the optimized pipeline. Consequently,
 // this operation should be used sparingly, only after determining that the
-// pipeline without reshard is broken in some way and performing an extra
+// pipeline without reshuffling is broken in some way and performing an extra
 // operation is worth the cost.
 func Reshuffle(s Scope, col PCollection) PCollection {
 	return Must(TryReshuffle(s, col))
 }
 
-// TryReshuffle inserts a Reshard into the pipeline, and returns an error if
-// the pcollection's unable to be resharded.
+// TryReshuffle inserts a Reshuffle into the pipeline, and returns an error if
+// the pcollection's unable to be reshuffled.
 func TryReshuffle(s Scope, col PCollection) (PCollection, error) {
 	addContext := func(err error, s Scope) error {
 		return errors.WithContextf(err, "inserting Reshard in scope %s", s)

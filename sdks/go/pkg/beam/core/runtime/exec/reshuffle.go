@@ -154,6 +154,7 @@ func (n *ReshuffleOutput) ProcessElement(ctx context.Context, value *FullValue, 
 // FinishBundle propagates finish bundle to downstream nodes.
 func (n *ReshuffleOutput) FinishBundle(ctx context.Context) error {
 	n.b = bytes.Buffer{}
+	n.ret = FullValue{}
 	return MultiFinishBundle(ctx, n.Out)
 }
 
