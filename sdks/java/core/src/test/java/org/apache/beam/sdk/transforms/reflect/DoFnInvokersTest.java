@@ -60,6 +60,7 @@ import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.FakeArgumentProvider;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
@@ -123,7 +124,8 @@ public class DoFnInvokersTest {
   }
 
   private void invokeOnTimer(String timerId, DoFn<String, String> fn) {
-    DoFnInvokers.invokerFor(fn).invokeOnTimer(timerId, "", mockArgumentProvider);
+    DoFnInvokers.invokerFor(fn)
+        .invokeOnTimer(TimerDeclaration.PREFIX + timerId, "", mockArgumentProvider);
   }
 
   @Test
@@ -269,7 +271,7 @@ public class DoFnInvokersTest {
   public void testDoFnWithTimer() throws Exception {
     Timer mockTimer = mock(Timer.class);
     final String timerId = "my-timer-id-here";
-    when(mockArgumentProvider.timer(timerId)).thenReturn(mockTimer);
+    when(mockArgumentProvider.timer(TimerDeclaration.PREFIX + timerId)).thenReturn(mockTimer);
 
     class MockFn extends DoFn<String, String> {
       @TimerId(timerId)
@@ -1038,7 +1040,7 @@ public class DoFnInvokersTest {
     SimpleTimerDoFn fn = new SimpleTimerDoFn();
 
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
-    invoker.invokeOnTimer(timerId, "", mockArgumentProvider);
+    invoker.invokeOnTimer(TimerDeclaration.PREFIX + timerId, "", mockArgumentProvider);
     assertThat(fn.status, equalTo("OK now"));
   }
 
@@ -1067,7 +1069,7 @@ public class DoFnInvokersTest {
     SimpleTimerDoFn fn = new SimpleTimerDoFn();
 
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
-    invoker.invokeOnTimer(timerId, "", mockArgumentProvider);
+    invoker.invokeOnTimer(TimerDeclaration.PREFIX + timerId, "", mockArgumentProvider);
     assertThat(fn.window, equalTo(testWindow));
   }
 

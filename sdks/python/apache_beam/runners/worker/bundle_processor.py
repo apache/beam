@@ -601,7 +601,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
                transform_id,  # type: str
                key_coder,  # type: coders.Coder
                window_coder,  # type: coders.Coder
-               timer_specs  # type: Mapping[str, beam_runner_api_pb2.TimerSpec]
+               timer_family_specs  # type: Mapping[str, beam_runner_api_pb2.TimerFamilySpec]
               ):
     # type: (...) -> None
 
@@ -612,14 +612,14 @@ class FnApiUserStateContext(userstate.UserStateContext):
       transform_id: The name of the PTransform that this context is associated.
       key_coder:
       window_coder:
-      timer_specs: A list of ``userstate.TimerSpec`` objects specifying the
-        timers associated with this operation.
+      timer_family_specs: A list of ``userstate.TimerSpec`` objects specifying
+        the timers associated with this operation.
     """
     self._state_handler = state_handler
     self._transform_id = transform_id
     self._key_coder = key_coder
     self._window_coder = window_coder
-    self._timer_specs = timer_specs
+    self._timer_family_specs = timer_family_specs
     self._timer_receivers = None  # type: Optional[Dict[str, operations.ConsumerSet]]
     self._all_states = {
     }  # type: Dict[tuple, userstate.AccumulatingRuntimeState]
@@ -629,7 +629,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
 
     """TODO"""
     self._timer_receivers = {}
-    for tag in self._timer_specs:
+    for tag in self._timer_family_specs:
       self._timer_receivers[tag] = receivers.pop(tag)
 
   def get_timer(
@@ -1478,7 +1478,7 @@ def _create_pardo_operation(
     if pardo_proto:
       other_input_tags = set.union(
           set(pardo_proto.side_inputs),
-          set(pardo_proto.timer_specs))  # type: Container[str]
+          set(pardo_proto.timer_family_specs))  # type: Container[str]
     else:
       other_input_tags = ()
     pcoll_id, = [pcoll for tag, pcoll in transform_proto.inputs.items()
@@ -1488,12 +1488,12 @@ def _create_pardo_operation(
     serialized_fn = pickler.dumps(dofn_data[:-1] + (windowing, ))
 
   timer_inputs = None  # type: Optional[Dict[str, str]]
-  if pardo_proto and (pardo_proto.timer_specs or pardo_proto.state_specs or
-                      pardo_proto.restriction_coder_id):
+  if pardo_proto and (pardo_proto.timer_family_specs or pardo_proto.state_specs
+                      or pardo_proto.restriction_coder_id):
     main_input_coder = None  # type: Optional[WindowedValueCoder]
     timer_inputs = {}
     for tag, pcoll_id in transform_proto.inputs.items():
-      if tag in pardo_proto.timer_specs:
+      if tag in pardo_proto.timer_family_specs:
         timer_inputs[tag] = pcoll_id
       elif tag in pardo_proto.side_inputs:
         pass
@@ -1504,13 +1504,13 @@ def _create_pardo_operation(
         main_input_coder = factory.get_windowed_coder(pcoll_id)
     assert main_input_coder is not None
 
-    if pardo_proto.timer_specs or pardo_proto.state_specs:
+    if pardo_proto.timer_family_specs or pardo_proto.state_specs:
       user_state_context = FnApiUserStateContext(
           factory.state_handler,
           transform_id,
           main_input_coder.key_coder(),
           main_input_coder.window_coder,
-          timer_specs=pardo_proto.timer_specs
+          timer_family_specs=pardo_proto.timer_family_specs
       )  # type: Optional[FnApiUserStateContext]
     else:
       user_state_context = None

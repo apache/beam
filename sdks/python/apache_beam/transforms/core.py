@@ -1325,7 +1325,7 @@ class ParDo(PTransformWithSideInputs):
                 spec.name: spec.to_runner_api(context)
                 for spec in state_specs
             },
-            timer_specs={
+            timer_family_specs={
                 spec.name: spec.to_runner_api(context)
                 for spec in timer_specs
             },
