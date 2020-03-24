@@ -21,8 +21,10 @@ import com.google.api.services.healthcare.v1alpha2.model.Message;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Map;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
@@ -30,7 +32,7 @@ public class MessageCoder extends CustomCoder<Message> {
   MessageCoder() {}
 
   private static final NullableCoder<String> STRING_CODER = NullableCoder.of(StringUtf8Coder.of());
-
+  private static final NullableCoder<Map<String, String>> MAP_CODER = NullableCoder.of(MapCoder.of(STRING_CODER, STRING_CODER));
   @Override
   public void encode(Message value, OutputStream outStream) throws CoderException, IOException {
     STRING_CODER.encode(value.getName(), outStream);
@@ -38,6 +40,9 @@ public class MessageCoder extends CustomCoder<Message> {
     STRING_CODER.encode(value.getCreateTime(), outStream);
     STRING_CODER.encode(value.getSendTime(), outStream);
     STRING_CODER.encode(value.getData(), outStream);
+    STRING_CODER.encode(value.getSendFacility(), outStream);
+    MAP_CODER.encode(value.getLabels(), outStream);
+    // value.getParsedData(); // TODO
   }
 
   @Override
@@ -48,6 +53,8 @@ public class MessageCoder extends CustomCoder<Message> {
     msg.setCreateTime(STRING_CODER.decode(inStream));
     msg.setSendTime(STRING_CODER.decode(inStream));
     msg.setData(STRING_CODER.decode(inStream));
+    msg.setSendFacility(STRING_CODER.decode(inStream));
+    msg.setLabels(MAP_CODER.decode(inStream));
     return msg;
   }
 }
