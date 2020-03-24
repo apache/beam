@@ -26,6 +26,7 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.util.ArrayMap;
 import com.google.api.services.healthcare.v1alpha2.CloudHealthcare;
 import com.google.api.services.healthcare.v1alpha2.CloudHealthcare.Projects.Locations.Datasets.Hl7V2Stores.Messages;
+import com.google.api.services.healthcare.v1alpha2.CloudHealthcareScopes;
 import com.google.api.services.healthcare.v1alpha2.model.CreateMessageRequest;
 import com.google.api.services.healthcare.v1alpha2.model.Empty;
 import com.google.api.services.healthcare.v1alpha2.model.Hl7V2Store;
@@ -285,6 +286,7 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
         return;
       }
       HttpHeaders requestHeaders = request.getHeaders();
+      requestHeaders.setUserAgent("apache-beam-hl7v2-io");
       URI uri = null;
       if (request.getUrl() != null) {
         uri = request.getUrl().toURI();
@@ -295,8 +297,7 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
       }
       for (Map.Entry<String, List<String>> entry : credentialHeaders.entrySet()) {
         String headerName = entry.getKey();
-        List<String> requestValues = new ArrayList<>();
-        requestValues.addAll(entry.getValue());
+        List<String> requestValues = new ArrayList<>(entry.getValue());
         requestHeaders.put(headerName, requestValues);
       }
     }
@@ -307,11 +308,12 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
     // HttpRequestInitializer requestInitializer = new RetryHttpRequestInitializer();
     // GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
     HttpRequestInitializer requestInitializer =
-        new AuthenticatedRetryInitializer(GoogleCredentials.getApplicationDefault());
+        new AuthenticatedRetryInitializer(GoogleCredentials.getApplicationDefault().createScoped(
+            CloudHealthcareScopes.CLOUD_PLATFORM));
 
     client =
         new CloudHealthcare.Builder(new NetHttpTransport(), new GsonFactory(), requestInitializer)
-            .setApplicationName("apache-beam-hl7-io")
+            .setApplicationName("apache-beam-hl7v2-io")
             .build();
   }
 
