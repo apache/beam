@@ -308,8 +308,9 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
     // HttpRequestInitializer requestInitializer = new RetryHttpRequestInitializer();
     // GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
     HttpRequestInitializer requestInitializer =
-        new AuthenticatedRetryInitializer(GoogleCredentials.getApplicationDefault().createScoped(
-            CloudHealthcareScopes.CLOUD_PLATFORM));
+        new AuthenticatedRetryInitializer(
+            GoogleCredentials.getApplicationDefault()
+                .createScoped(CloudHealthcareScopes.CLOUD_PLATFORM));
 
     client =
         new CloudHealthcare.Builder(new NetHttpTransport(), new GsonFactory(), requestInitializer)

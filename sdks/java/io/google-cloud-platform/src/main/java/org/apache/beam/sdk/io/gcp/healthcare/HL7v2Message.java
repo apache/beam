@@ -30,7 +30,7 @@ public class HL7v2Message {
   private final String createTime;
   private final String data;
   private final String sendFacility;
-  private final String schematizedData;
+  private String schematizedData;
   private final Map<String, String> labels;
 
   /**
@@ -157,6 +157,9 @@ public class HL7v2Message {
     return schematizedData;
   }
 
+  public void setSchematizedData(String schematizedData) {
+    this.schematizedData = schematizedData;
+  }
   /**
    * Gets labels.
    *

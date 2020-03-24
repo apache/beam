@@ -45,6 +45,7 @@ public class HL7v2MessageCoder extends CustomCoder<HL7v2Message> {
     STRING_CODER.encode(value.getData(), outStream);
     STRING_CODER.encode(value.getSendFacility(), outStream);
     MAP_CODER.encode(value.getLabels(), outStream);
+    STRING_CODER.encode(value.getSchematizedData(), outStream);
   }
 
   @Override
@@ -57,6 +58,8 @@ public class HL7v2MessageCoder extends CustomCoder<HL7v2Message> {
     msg.setData(STRING_CODER.decode(inStream));
     msg.setSendFacility(STRING_CODER.decode(inStream));
     msg.setLabels(MAP_CODER.decode(inStream));
-    return HL7v2Message.fromModel(msg);
+    HL7v2Message out = HL7v2Message.fromModel(msg);
+    out.setSchematizedData(STRING_CODER.decode(inStream));
+    return out;
   }
 }
