@@ -4997,5 +4997,42 @@ public class ParDoTest implements Serializable {
 
       pipeline.apply(stream).apply(ParDo.of(fn));
     }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesKey.class,
+    })
+    public void testKeyInOnTimerWithoutKV() throws Exception {
+
+      thrown.expect(IllegalArgumentException.class);
+      thrown.expectMessage("@Key argument is expected to be use with input element of type KV.");
+
+      final String timerId = "foo";
+
+      DoFn<String, Integer> fn =
+          new DoFn<String, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
+              timer.set(new Instant(1));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(@Key Integer key, OutputReceiver<Integer> r) {}
+          };
+
+      TestStream<String> stream =
+          TestStream.create(StringUtf8Coder.of())
+              .addElements("1")
+              .advanceWatermarkTo(new Instant(3))
+              .advanceWatermarkToInfinity();
+
+      pipeline.apply(stream).apply(ParDo.of(fn));
+    }
   }
 }

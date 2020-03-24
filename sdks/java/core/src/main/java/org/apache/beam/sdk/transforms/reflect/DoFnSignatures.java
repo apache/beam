@@ -86,6 +86,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -1284,6 +1285,10 @@ public class DoFnSignatures {
           "@Timestamp argument must have type org.joda.time.Instant.");
       return Parameter.timestampParameter();
     } else if (hasAnnotation(DoFn.Key.class, param.getAnnotations())) {
+      methodErrors.checkArgument(
+          KV.class.equals(inputT.getRawType()),
+          "@Key argument is expected to be use with input element of type KV.");
+
       Type keyType = ((ParameterizedType) inputT.getType()).getActualTypeArguments()[0];
       methodErrors.checkArgument(
           TypeDescriptor.of(keyType).equals(paramT),

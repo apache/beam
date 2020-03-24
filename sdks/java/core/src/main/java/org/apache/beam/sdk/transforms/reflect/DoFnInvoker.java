@@ -167,7 +167,9 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a reference to the input element. */
     InputT element(DoFn<InputT, OutputT> doFn);
 
-    /** Provide a reference to the input element key in {@link org.apache.beam.sdk.values.KV} pair. */
+    /**
+     * Provide a reference to the input element key in {@link org.apache.beam.sdk.values.KV} pair.
+     */
     Object key();
 
     /** Provide a reference to the input sideInput with the specified tag. */
