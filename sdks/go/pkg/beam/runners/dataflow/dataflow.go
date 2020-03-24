@@ -140,7 +140,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		}
 	}
 	if !v2set {
-		experiments = append(experiments, "use_runner_v2=true")
+		experiments = append(experiments, "use_runner_v2")
 	}
 	if *minCPUPlatform != "" {
 		experiments = append(experiments, fmt.Sprintf("min_cpu_platform=%v", *minCPUPlatform))
