@@ -79,7 +79,6 @@ from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability.fn_api_runner import execution
 from apache_beam.runners.portability.fn_api_runner import translations
 from apache_beam.runners.portability.fn_api_runner.execution import Buffer
-from apache_beam.runners.portability.fn_api_runner.execution import GroupingBuffer
 from apache_beam.runners.portability.fn_api_runner.execution import ListBuffer
 from apache_beam.runners.portability.fn_api_runner.execution import WindowGroupingBuffer
 from apache_beam.runners.portability.fn_api_runner.translations import create_buffer_id
@@ -93,7 +92,6 @@ from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.sdk_worker import _Future
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.transforms import environments
-from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils import profiler
 from apache_beam.utils import proto_utils
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
@@ -506,7 +504,6 @@ class FnApiRunner(runner.PipelineRunner):
 
     try:
       with self.maybe_profile():
-        pcoll_buffers = {}  # type: Dict[bytes, PartitionableBuffer]
         for stage in stages:
           stage_results = self._run_stage(
               runner_execution_context,
@@ -553,7 +550,8 @@ class FnApiRunner(runner.PipelineRunner):
                   side_input_id=tag,
                   window=window,
                   key=key))
-          bundle_context_manager.worker_handler.state.append_raw(state_key, elements_data)
+          bundle_context_manager.worker_handler.state.append_raw(state_key,
+                                                                 elements_data)
       else:
         raise ValueError("Unknown access pattern: '%s'" % si.urn)
 
@@ -578,7 +576,8 @@ class FnApiRunner(runner.PipelineRunner):
         testing_bundle_manager = ParallelBundleManager(
             worker_handler_list,
             lambda pcoll_id,
-            transform_id: ListBuffer(coder_impl=bundle_context_manager.get_input_coder),
+            transform_id: ListBuffer(
+                coder_impl=bundle_context_manager.get_input_coder),
             bundle_context_manager.get_input_coder,
             bundle_context_manager.process_bundle_descriptor,
             self._progress_frequency,
@@ -601,8 +600,9 @@ class FnApiRunner(runner.PipelineRunner):
     for transform_id, timer_writes in stage.timer_pcollections:
 
       # Queue any set timers as new inputs.
-      windowed_timer_coder_impl = bundle_context_manager.pipeline_context.coders[
-          pipeline_components.pcollections[timer_writes].coder_id].get_impl()
+      windowed_timer_coder_impl = (
+          bundle_context_manager.pipeline_context.coders[
+            pipeline_components.pcollections[timer_writes].coder_id].get_impl())
       written_timers = bundle_context_manager.get_buffer(
           create_buffer_id(timer_writes, kind='timers'), transform_id)
       if not written_timers.cleared:
@@ -765,12 +765,14 @@ class FnApiRunner(runner.PipelineRunner):
     # info from any worker_handler and read from the first worker_handler.
     worker_handler = next(iter(worker_handler_list))
     context = pipeline_context.PipelineContext(
-        runner_execution_context.pipeline_components, iterable_state_write=iterable_state_write)
+        runner_execution_context.pipeline_components,
+        iterable_state_write=iterable_state_write)
     data_api_service_descriptor = worker_handler.data_api_service_descriptor()
 
     _LOGGER.info('Running %s', stage.name)
     data_input, data_side_input, data_output = self._extract_endpoints(
-        stage, runner_execution_context.pipeline_components, data_api_service_descriptor, runner_execution_context.pcoll_buffers,
+        stage, runner_execution_context.pipeline_components,
+        data_api_service_descriptor, runner_execution_context.pcoll_buffers,
         context, runner_execution_context.safe_coders)
 
     process_bundle_descriptor = beam_fn_api_pb2.ProcessBundleDescriptor(
@@ -779,14 +781,21 @@ class FnApiRunner(runner.PipelineRunner):
             transform.unique_name: transform
             for transform in stage.transforms
         },
-        pcollections=dict(runner_execution_context.pipeline_components.pcollections.items()),
-        coders=dict(runner_execution_context.pipeline_components.coders.items()),
+        pcollections=dict(
+            runner_execution_context.pipeline_components.pcollections.items()),
+        coders=dict(
+            runner_execution_context.pipeline_components.coders.items()),
         windowing_strategies=dict(
-            runner_execution_context.pipeline_components.windowing_strategies.items()),
-        environments=dict(runner_execution_context.pipeline_components.environments.items()))
+            runner_execution_context.pipeline_components.windowing_strategies
+              .items()),
+        environments=dict(
+            runner_execution_context.pipeline_components.environments.items()))
 
     bundle_context_manager = execution.BundleContextManager(
-        runner_execution_context, process_bundle_descriptor, worker_handler, context)
+        runner_execution_context,
+        process_bundle_descriptor,
+        worker_handler,
+        context)
 
     state_api_service_descriptor = worker_handler.state_api_service_descriptor()
     if state_api_service_descriptor:
