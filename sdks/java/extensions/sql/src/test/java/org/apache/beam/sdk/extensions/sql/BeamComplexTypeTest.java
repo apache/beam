@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -26,6 +27,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -373,76 +375,10 @@ public class BeamComplexTypeTest {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
 
-  @Test
-  public void testLogicalTypes() {
-    DateTime dateTime = DateTime.parse("2020-02-02T00:00:00");
-
-    Schema inputRowSchema =
-        Schema.builder()
-            .addField("timeTypeField", FieldType.logicalType(new DummySqlTimeType()))
-            .addField("dateTypeField", FieldType.logicalType(new DummySqlDateType()))
-            .build();
-
-    Row row =
-        Row.withSchema(inputRowSchema)
-            .addValues(dateTime.getMillis(), dateTime.getMillis())
-            .build();
-
-    Schema outputRowSchema =
-        Schema.builder()
-            .addField("timeTypeField", FieldType.DATETIME)
-            .addNullableField("dateTypeField", FieldType.DATETIME)
-            .build();
-
-    PCollection<Row> outputRow =
-        pipeline
-            .apply(Create.of(row).withRowSchema(inputRowSchema))
-            .apply(
-                SqlTransform.query(
-                    "SELECT timeTypeField, dateTypeField FROM PCOLLECTION GROUP BY timeTypeField, dateTypeField"));
-
-    PAssert.that(outputRow)
-        .containsInAnyOrder(Row.withSchema(outputRowSchema).addValues(dateTime, dateTime).build());
-
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
-  }
-
   private static class DummySqlTimeType implements Schema.LogicalType<Long, Instant> {
     @Override
     public String getIdentifier() {
       return "SqlTimeType";
-    }
-
-    @Override
-    public FieldType getArgumentType() {
-      return FieldType.STRING;
-    }
-
-    @Override
-    public String getArgument() {
-      return "";
-    }
-
-    @Override
-    public Schema.FieldType getBaseType() {
-      return Schema.FieldType.DATETIME;
-    }
-
-    @Override
-    public Instant toBaseType(Long input) {
-      return (input == null ? null : new Instant((long) input));
-    }
-
-    @Override
-    public Long toInputType(Instant base) {
-      return (base == null ? null : base.getMillis());
-    }
-  }
-
-  private static class DummySqlDateType implements Schema.LogicalType<Long, Instant> {
-    @Override
-    public String getIdentifier() {
-      return "SqlDateType";
     }
 
     @Override
@@ -483,14 +419,13 @@ public class BeamComplexTypeTest {
             .addField("timeTypeField", FieldType.logicalType(new DummySqlTimeType()))
             .addNullableField(
                 "nullableTimeTypeField", FieldType.logicalType(new DummySqlTimeType()))
-            .addField("dateTypeField", FieldType.logicalType(new DummySqlDateType()))
-            .addNullableField(
-                "nullableDateTypeField", FieldType.logicalType(new DummySqlDateType()))
+            .addField("dateTypeField", FieldType.logicalType(SqlTypes.DATE))
+            .addNullableField("nullableDateTypeField", FieldType.logicalType(SqlTypes.DATE))
             .build();
 
     Row dateTimeRow =
         Row.withSchema(dateTimeFieldSchema)
-            .addValues(current, null, date.getMillis(), null, current.getMillis(), null)
+            .addValues(current, null, date.getMillis(), null, LocalDate.of(2019, 6, 27), null)
             .build();
 
     PCollection<Row> outputRow =
