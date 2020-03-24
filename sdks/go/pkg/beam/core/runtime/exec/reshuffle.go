@@ -69,10 +69,7 @@ func (n *ReshuffleInput) ProcessElement(ctx context.Context, value *FullValue, v
 		return errors.WithContextf(err, "encoding element %v with coder %v", value, n.Coder)
 	}
 	n.ret = FullValue{Elm: n.r.Int(), Elm2: n.b.Bytes(), Timestamp: value.Timestamp}
-	if err := n.Out.ProcessElement(ctx, &n.ret); err != nil {
-		return err
-	}
-	return nil
+	return n.Out.ProcessElement(ctx, &n.ret)
 }
 
 // FinishBundle propagates finish bundle, and clears cached state.
