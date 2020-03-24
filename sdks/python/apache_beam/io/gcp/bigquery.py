@@ -638,7 +638,6 @@ class _CustomBigQuerySource(BoundedSource):
     self.kms_key = kms_key
     self.split_result = None
 
-  @check_accessible(['query'])
   def estimate_size(self):
     bq = bigquery_tools.BigQueryWrapper()
     if self.table_reference is not None:
