@@ -29,10 +29,8 @@ from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_fn_api_pb2
-from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability.fn_api_runner.translations import only_element
 from apache_beam.runners.portability.fn_api_runner.translations import split_buffer_id
-from apache_beam.runners.portability.fn_api_runner.translations import unique_name
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindow
@@ -252,8 +250,8 @@ class FnApiRunnerExecutionContext(object):
       safe_coders,
   ):
     """
-    :param worker_handler_factory: A ``callable`` that takes in an environment id
-        and a number of workers, and returns a list of ``WorkerHandler``s.
+    :param worker_handler_factory: A ``callable`` that takes in an environment
+        id and a number of workers, and returns a list of ``WorkerHandler``s.
     :param pipeline_components:  (beam_runner_api_pb2.Components): TODO
     :param safe_coders:
     """
@@ -330,8 +328,8 @@ class BundleContextManager(object):
 
   def input_for(self, transform_id, input_id):
     # type: (str, str) -> str
-    input_pcoll = self.process_bundle_descriptor.transforms[transform_id].inputs[
-      input_id]
+    input_pcoll = self.process_bundle_descriptor.transforms[
+        transform_id].inputs[input_id]
     for read_id, proto in self.process_bundle_descriptor.transforms.items():
       if (proto.spec.urn == bundle_processor.DATA_INPUT_URN and
           input_pcoll in proto.outputs.values()):
