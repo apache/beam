@@ -50,18 +50,20 @@ public class HL7v2IOWriteIT {
 
   @After
   public void tearDown() throws Exception {
-    deleteAllHL7v2Messages(client, options);
+    deleteAllHL7v2Messages(client, options.getHL7v2Store());
   }
 
   @Test
   public void testHL7v2IOWrite() throws IOException {
     Pipeline pipeline = Pipeline.create(options);
     HL7v2IO.Write.Result result =
-        pipeline.apply(Create.of(MESSAGES)).apply(HL7v2IO.ingestMessages(options.getHl7v2Store()));
+        pipeline.apply(Create.of(MESSAGES)).apply(HL7v2IO.ingestMessages(options.getHL7v2Store()));
 
-    long numWrittenMessages = client.getHL7v2MessageIDStream(options.getHl7v2Store()).count();
+    long numWrittenMessages = client.getHL7v2MessageIDStream(options.getHL7v2Store()).count();
 
     assertEquals(numWrittenMessages, MESSAGES.size());
     PAssert.that(result.getFailedInsertsWithErr()).empty();
+
+    pipeline.run();
   }
 }

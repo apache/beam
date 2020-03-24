@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
@@ -25,9 +24,9 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 public interface HL7v2IOTestOptions extends TestPipelineOptions {
 
   @Description(
-      "HL7v2 store should match the pattern: projects/PROJECT_ID/locations/LOCATION/datasets/DATASET_ID/hl7V2Stores/HL7V2_STORE_ID/messages/MESSAGE_ID")
+      "HL7v2 store should match the pattern: projects/PROJECT_ID/locations/LOCATION/datasets/DATASET_ID/hl7V2Stores/HL7V2_STORE_ID")
   @Required
-  String getHl7v2Store();
+  String getHL7v2Store();
 
-  void setHl7v2Store(@Nullable String value);
+  void setHL7v2Store(String value);
 }

@@ -41,6 +41,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
@@ -181,7 +182,7 @@ public class HL7v2IO {
 
       private Result(PCollectionTuple pct) {
         this.pct = pct;
-        this.messages = pct.get(OUT);
+        this.messages = pct.get(OUT).setCoder(new MessageCoder());
         this.failedReads =
             pct.get(DEAD_LETTER).setCoder(new HealthcareIOErrorCoder<>(StringUtf8Coder.of()));
       }
@@ -418,7 +419,7 @@ public class HL7v2IO {
      * @throws IOException the io exception
      */
     @Setup
-    void initClient() throws IOException {
+    public void initClient() throws IOException {
       this.client = new HttpHealthcareApiClient();
     }
 
@@ -429,7 +430,7 @@ public class HL7v2IO {
      * @throws IOException the io exception
      */
     @ProcessElement
-    void listMessages(ProcessContext context) throws IOException {
+    public void listMessages(ProcessContext context) throws IOException {
       String hl7v2Store = context.element();
       // Output all elements of all pages.
       this.client.getHL7v2MessageIDStream(hl7v2Store, this.filter).forEach(context::output);

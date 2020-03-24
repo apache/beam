@@ -45,7 +45,7 @@ public class HL7v2IOTest {
 
     PCollection<HealthcareIOError<String>> failed = readResult.getFailedReads();
 
-    PCollection<Message> messages = readResult.getMessages().setCoder(new MessageCoder());
+    PCollection<Message> messages = readResult.getMessages();
 
     PCollection<String> failedMsgIds =
         failed.apply(
@@ -75,8 +75,7 @@ public class HL7v2IOTest {
         failedInserts
             .apply(
                 MapElements.into(TypeDescriptor.of(Message.class))
-                    .via(HealthcareIOError::getDataResource))
-            .setCoder(new MessageCoder());
+                    .via(HealthcareIOError::getDataResource)).setCoder(new MessageCoder());
 
     PAssert.that(failedMsgs).containsInAnyOrder(emptyMessages);
 

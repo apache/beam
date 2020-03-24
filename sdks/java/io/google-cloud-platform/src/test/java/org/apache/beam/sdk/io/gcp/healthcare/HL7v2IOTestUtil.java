@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import com.google.api.client.util.Base64;
 import com.google.api.services.healthcare.v1alpha2.model.Message;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -58,6 +58,8 @@ class HL7v2IOTestUtil {
 
   static final List<Message> MESSAGES =
       MESSAGES_DATA.stream()
+          .map(String::getBytes)
+          .map(Base64::encodeBase64String)
           .map(
               (String data) -> {
                 Message msg = new Message();
@@ -68,31 +70,23 @@ class HL7v2IOTestUtil {
 
   static final long NUM_ADT = 2;
   /** Clear all messages from the HL7v2 store. */
-  static void deleteAllHL7v2Messages(HealthcareApiClient client, HL7v2IOTestOptions options)
+  static void deleteAllHL7v2Messages(HealthcareApiClient client, String hl7v2Store)
       throws IOException {
-    List<IOException> deleteErrors = new ArrayList<>();
-    client
-        .getHL7v2MessageIDStream(options.getHl7v2Store())
-        .forEach(
-            (String msgID) -> {
-              try {
-                client.deleteHL7v2Message(msgID);
-              } catch (IOException e) {
-                e.printStackTrace();
-                deleteErrors.add(e);
-              }
-            });
-
-    if (deleteErrors.size() > 0) {
-      throw deleteErrors.get(0);
+    for (String msgId:
+        client.getHL7v2MessageIDStream(hl7v2Store).collect(Collectors.toList())){
+      client.deleteHL7v2Message(msgId);
     }
   }
 
   /** Populate the test messages into the HL7v2 store. */
-  static void writeHL7v2Messages(HealthcareApiClient client, HL7v2IOTestOptions options)
+  static void writeHL7v2Messages(HealthcareApiClient client, String hl7v2Store)
       throws IOException {
     for (Message msg : MESSAGES) {
-      client.createHL7v2Message(options.getHl7v2Store(), msg);
+      Message result = client.createHL7v2Message(hl7v2Store, msg);
+      System.out.println(String.format("wrote message %s",result.getName()));
     }
+    System.out.println(
+        String.format("%s",
+            client.getHL7v2MessageIDStream(hl7v2Store).collect(Collectors.toList())));
   }
 }

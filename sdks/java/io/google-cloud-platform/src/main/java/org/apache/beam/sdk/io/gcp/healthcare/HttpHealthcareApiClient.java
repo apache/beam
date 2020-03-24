@@ -257,9 +257,11 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
     return client.projects().locations().datasets().fhirStores().fhir().read(resource).execute();
   }
 
-  private void initClient() {
+  private void initClient() throws IOException {
     // Create a HttpRequestInitializer, which will provide a baseline configuration to all requests.
     HttpRequestInitializer requestInitializer = new RetryHttpRequestInitializer();
+    // GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
+    // HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(GoogleCredentials.getApplicationDefault());
 
     client =
         new CloudHealthcare.Builder(new NetHttpTransport(), new GsonFactory(), requestInitializer)
@@ -351,8 +353,13 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
       public boolean hasNext() throws NoSuchElementException {
         if (isFirstRequest) {
           try {
-            List<String> msgs =
-                makeListRequest(client, hl7v2Store, filter, pageToken).getMessages();
+            ListMessagesResponse response = makeListRequest(client, hl7v2Store, filter, pageToken);
+            System.out.println(String.format(".getMessages() -> %s", response.getMessages()));
+            System.out.println(String.format(".get('hl7V2Messages') -> %s",
+                response.get("hl7V2Messages").toString()));
+            System.out.println(String.format(".getHl7V2Messages() -> %s",
+                response.get("hl7V2Messages").toString()));
+            List<String> msgs = (List<String>) response.getMessages();
             if (msgs == null) {
               return false;
             } else {
