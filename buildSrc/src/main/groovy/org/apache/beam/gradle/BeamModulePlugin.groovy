@@ -462,7 +462,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
         google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:1.6.3",
         // The GCP Libraries BOM dashboard shows the versions set by the BOM:
-        // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/4.2.0/index.html
+        // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/4.2.0/artifact_details.html
         google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:4.2.0",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         // google-http-client's version is explicitly declared for sdks/java/maven-archetypes/examples
