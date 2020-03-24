@@ -341,13 +341,31 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     }
   }
 
+  /**
+   * Default implementation for {@link DoFn.GetInitialWatermarkEstimatorState}, for delegation by
+   * bytebuddy.
+   */
+  public static class DefaultGetInitialWatermarkEstimatorState {
+    /** The default watermark estimator state is {@code null}. */
+    @SuppressWarnings("unused")
+    public static <InputT, OutputT, WatermarkEstimatorStateT>
+        WatermarkEstimator<WatermarkEstimatorStateT> invokeNewWatermarkEstimator(
+            DoFnInvoker.ArgumentProvider<InputT, OutputT> argumentProvider) {
+      return null;
+    }
+  }
+
   /** Default implementation of {@link DoFn.NewWatermarkEstimator}, for delegation by bytebuddy. */
   public static class DefaultNewWatermarkEstimator {
 
-    /** Returns a watermark estimator that always reports the minimum watermark. */
+    /**
+     * Constructs a new watermark estimator from the state type if it is annotated wtih {@link
+     * HasDefaultWatermarkEstimator} otherwise returns a watermark estimator that always reports the
+     * minimum watermark.
+     */
     @SuppressWarnings("unused")
     public static <InputT, OutputT, WatermarkEstimatorStateT>
-        WatermarkEstimator<WatermarkEstimatorStateT> invokeNewTracker(
+        WatermarkEstimator<WatermarkEstimatorStateT> invokeNewWatermarkEstimator(
             DoFnInvoker.ArgumentProvider<InputT, OutputT> argumentProvider) {
       if (argumentProvider.watermarkEstimatorState() instanceof HasDefaultWatermarkEstimator) {
         return ((HasDefaultWatermarkEstimator) argumentProvider.watermarkEstimatorState())
@@ -451,7 +469,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             .intercept(getWatermarkEstimatorStateCoderDelegation(clazzDescription, signature))
             .method(ElementMatchers.named("invokeGetInitialWatermarkEstimatorState"))
             .intercept(
-                delegateMethodWithExtraParametersOrNoop(
+                getInitialWatermarkEstimatorStateDelegation(
                     clazzDescription, signature.getInitialWatermarkEstimatorState()))
             .method(ElementMatchers.named("invokeNewWatermarkEstimator"))
             .intercept(
@@ -507,6 +525,16 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       TypeDescription doFnType, DoFnSignature.SplitRestrictionMethod signature) {
     if (signature == null) {
       return MethodDelegation.to(DefaultSplitRestriction.class);
+    } else {
+      return new DoFnMethodWithExtraParametersDelegation(doFnType, signature);
+    }
+  }
+
+  private static Implementation getInitialWatermarkEstimatorStateDelegation(
+      TypeDescription doFnType,
+      @Nullable DoFnSignature.GetInitialWatermarkEstimatorStateMethod signature) {
+    if (signature == null) {
+      return MethodDelegation.to(DefaultGetInitialWatermarkEstimatorState.class);
     } else {
       return new DoFnMethodWithExtraParametersDelegation(doFnType, signature);
     }

@@ -513,6 +513,10 @@ public class ExpressionConverter {
     }
   }
 
+  public RexNode trueLiteral() {
+    return rexBuilder().makeLiteral(true);
+  }
+
   /** Convert a resolved literal to a RexNode. */
   public RexNode convertResolvedLiteral(ResolvedLiteral resolvedLiteral) {
     TypeKind kind = resolvedLiteral.getType().getKind();
@@ -786,7 +790,7 @@ public class ExpressionConverter {
           break;
         default:
           throw new UnsupportedOperationException(
-              "Only support TUMBLE, HOP AND SESSION functions right now.");
+              "Unsupported function: " + funName + ". Only support TUMBLE, HOP, and SESSION now.");
       }
     } else if ("ZetaSQL".equals(funGroup)) {
       if (op == null) {

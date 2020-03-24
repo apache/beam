@@ -87,7 +87,7 @@ def alter_label_if_ipython(transform, pvalueish):
         # We only alter for transforms to be applied to user-defined pipelines
         # at pipeline construction time.
         and pipeline in ie.current_env().tracked_user_pipelines):
-      transform.label = 'Cell {}: {}'.format(prompt, transform.label)
+      transform.label = '[{}]: {}'.format(prompt, transform.label)
 
 
 def _extract_pipeline_of_pvalueish(pvalueish):

@@ -78,12 +78,12 @@ from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners import runner
 from apache_beam.runners.portability import artifact_service
-from apache_beam.runners.portability import fn_api_runner_transforms
 from apache_beam.runners.portability import portable_metrics
-from apache_beam.runners.portability.fn_api_runner_transforms import create_buffer_id
-from apache_beam.runners.portability.fn_api_runner_transforms import only_element
-from apache_beam.runners.portability.fn_api_runner_transforms import split_buffer_id
-from apache_beam.runners.portability.fn_api_runner_transforms import unique_name
+from apache_beam.runners.portability.fn_api_runner import translations
+from apache_beam.runners.portability.fn_api_runner.translations import create_buffer_id
+from apache_beam.runners.portability.fn_api_runner.translations import only_element
+from apache_beam.runners.portability.fn_api_runner.translations import split_buffer_id
+from apache_beam.runners.portability.fn_api_runner.translations import unique_name
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
@@ -100,7 +100,6 @@ from apache_beam.utils import windowed_value
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 if TYPE_CHECKING:
-  from google.protobuf import message  # pylint: disable=ungrouped-imports
   from apache_beam.pipeline import Pipeline
   from apache_beam.coders.coder_impl import CoderImpl
   from apache_beam.coders.coder_impl import WindowedValueCoderImpl
@@ -515,6 +514,7 @@ class FnApiRunner(runner.PipelineRunner):
     return (
         common_urns.requirements.REQUIRES_STATEFUL_PROCESSING.urn,
         common_urns.requirements.REQUIRES_BUNDLE_FINALIZATION.urn,
+        common_urns.requirements.REQUIRES_SPLITTABLE_DOFN.urn,
     )
 
   def run_pipeline(self,
@@ -620,7 +620,7 @@ class FnApiRunner(runner.PipelineRunner):
 
     def add_requirements(transform_id):
       transform = pipeline_proto.components.transforms[transform_id]
-      if transform.spec.urn in fn_api_runner_transforms.PAR_DO_URNS:
+      if transform.spec.urn in translations.PAR_DO_URNS:
         payload = proto_utils.parse_Bytes(
             transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
         if payload.requests_finalization:
@@ -636,6 +636,9 @@ class FnApiRunner(runner.PipelineRunner):
         if payload.requires_time_sorted_input:
           expected_requirements.add(
               common_urns.requirements.REQUIRES_TIME_SORTED_INPUT.urn)
+        if payload.restriction_coder_id:
+          expected_requirements.add(
+              common_urns.requirements.REQUIRES_SPLITTABLE_DOFN.urn)
       else:
         for sub in transform.subtransforms:
           add_requirements(sub)
@@ -659,22 +662,22 @@ class FnApiRunner(runner.PipelineRunner):
       self,
       pipeline_proto  # type: beam_runner_api_pb2.Pipeline
   ):
-    # type: (...) -> Tuple[fn_api_runner_transforms.TransformContext, List[fn_api_runner_transforms.Stage]]
-    return fn_api_runner_transforms.create_and_optimize_stages(
+    # type: (...) -> Tuple[translations.TransformContext, List[translations.Stage]]
+    return translations.create_and_optimize_stages(
         copy.deepcopy(pipeline_proto),
         phases=[
-            fn_api_runner_transforms.annotate_downstream_side_inputs,
-            fn_api_runner_transforms.fix_side_input_pcoll_coders,
-            fn_api_runner_transforms.lift_combiners,
-            fn_api_runner_transforms.expand_sdf,
-            fn_api_runner_transforms.expand_gbk,
-            fn_api_runner_transforms.sink_flattens,
-            fn_api_runner_transforms.greedily_fuse,
-            fn_api_runner_transforms.read_to_impulse,
-            fn_api_runner_transforms.impulse_to_input,
-            fn_api_runner_transforms.inject_timer_pcollections,
-            fn_api_runner_transforms.sort_stages,
-            fn_api_runner_transforms.window_pcollection_coders
+            translations.annotate_downstream_side_inputs,
+            translations.fix_side_input_pcoll_coders,
+            translations.lift_combiners,
+            translations.expand_sdf,
+            translations.expand_gbk,
+            translations.sink_flattens,
+            translations.greedily_fuse,
+            translations.read_to_impulse,
+            translations.impulse_to_input,
+            translations.inject_timer_pcollections,
+            translations.sort_stages,
+            translations.window_pcollection_coders
         ],
         known_runner_urns=frozenset([
             common_urns.primitives.FLATTEN.urn,
@@ -683,16 +686,16 @@ class FnApiRunner(runner.PipelineRunner):
         use_state_iterables=self._use_state_iterables)
 
   def run_stages(self,
-                 stage_context,  # type: fn_api_runner_transforms.TransformContext
-                 stages  # type: List[fn_api_runner_transforms.Stage]
+                 stage_context,  # type: translations.TransformContext
+                 stages  # type: List[translations.Stage]
                 ):
     # type: (...) -> RunnerResult
 
     """Run a list of topologically-sorted stages in batch mode.
 
     Args:
-      stage_context (fn_api_runner_transforms.TransformContext)
-      stages (list[fn_api_runner_transforms.Stage])
+      stage_context (translations.TransformContext)
+      stages (list[fn_api_runner.translations.Stage])
     """
     worker_handler_manager = WorkerHandlerManager(
         stage_context.components.environments, self._provision_info)
@@ -792,7 +795,7 @@ class FnApiRunner(runner.PipelineRunner):
       self,
       context,  # type: pipeline_context.PipelineContext
       pipeline_components,  # type: beam_runner_api_pb2.Components
-      stage,  # type: fn_api_runner_transforms.Stage
+      stage,  # type: translations.Stage
       get_buffer_callable,
       deferred_inputs  # type: MutableMapping[str, PartitionableBuffer]
   ):
@@ -881,7 +884,7 @@ class FnApiRunner(runner.PipelineRunner):
 
   @staticmethod
   def _extract_stage_data_endpoints(
-      stage,  # type: fn_api_runner_transforms.Stage
+      stage,  # type: translations.Stage
       pipeline_components,  # type: beam_runner_api_pb2.Components
       data_api_service_descriptor,
       pcoll_buffers,  # type: MutableMapping[bytes, PartitionableBuffer]
@@ -906,7 +909,7 @@ class FnApiRunner(runner.PipelineRunner):
             coder = stage.context.coders[safe_coders[coder_id]]
           else:
             coder = stage.context.coders[coder_id]
-          if pcoll_id == fn_api_runner_transforms.IMPULSE_BUFFER:
+          if pcoll_id == translations.IMPULSE_BUFFER:
             data_input[target] = _ListBuffer(coder_impl=coder.get_impl())
             data_input[target].append(ENCODED_IMPULSE_VALUE)
           else:
@@ -925,7 +928,7 @@ class FnApiRunner(runner.PipelineRunner):
           data_spec.api_service_descriptor.url = (
               data_api_service_descriptor.url)
         transform.spec.payload = data_spec.SerializeToString()
-      elif transform.spec.urn in fn_api_runner_transforms.PAR_DO_URNS:
+      elif transform.spec.urn in translations.PAR_DO_URNS:
         payload = proto_utils.parse_Bytes(
             transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
         for tag, si in payload.side_inputs.items():
@@ -936,7 +939,7 @@ class FnApiRunner(runner.PipelineRunner):
   def _run_stage(self,
                  worker_handler_factory,  # type: Callable[[Optional[str], int], List[WorkerHandler]]
                  pipeline_components,  # type: beam_runner_api_pb2.Components
-                 stage,  # type: fn_api_runner_transforms.Stage
+                 stage,  # type: translations.Stage
                  pcoll_buffers,  # type: MutableMapping[bytes, PartitionableBuffer]
                  safe_coders
                 ):
@@ -948,7 +951,7 @@ class FnApiRunner(runner.PipelineRunner):
       worker_handler_factory: A ``callable`` that takes in an environment id
         and a number of workers, and returns a list of ``WorkerHandler``s.
       pipeline_components (beam_runner_api_pb2.Components): TODO
-      stage (fn_api_runner_transforms.Stage)
+      stage (translations.Stage)
       pcoll_buffers (collections.defaultdict of str: list): Mapping of
         PCollection IDs to list that functions as buffer for the
         ``beam.PCollection``.
@@ -1138,7 +1141,7 @@ class FnApiRunner(runner.PipelineRunner):
     return result
 
   @staticmethod
-  def _extract_endpoints(stage,  # type: fn_api_runner_transforms.Stage
+  def _extract_endpoints(stage,  # type: translations.Stage
                          pipeline_components,  # type: beam_runner_api_pb2.Components
                          data_api_service_descriptor, # type: Optional[endpoints_pb2.ApiServiceDescriptor]
                          pcoll_buffers,  # type: MutableMapping[bytes, PartitionableBuffer]
@@ -1152,7 +1155,7 @@ class FnApiRunner(runner.PipelineRunner):
     Also mutates IO stages to point to the data ApiServiceDescriptor.
 
     Args:
-      stage (fn_api_runner_transforms.Stage): The stage to extract endpoints
+      stage (translations.Stage): The stage to extract endpoints
         for.
       pipeline_components (beam_runner_api_pb2.Components): Components of the
         pipeline to include coders, transforms, PCollections, etc.
@@ -1179,7 +1182,7 @@ class FnApiRunner(runner.PipelineRunner):
             coder = context.coders[safe_coders[coder_id]]
           else:
             coder = context.coders[coder_id]
-          if pcoll_id == fn_api_runner_transforms.IMPULSE_BUFFER:
+          if pcoll_id == translations.IMPULSE_BUFFER:
             data_input[transform.unique_name] = _ListBuffer(
                 coder_impl=coder.get_impl())
             data_input[transform.unique_name].append(ENCODED_IMPULSE_VALUE)
@@ -1198,7 +1201,7 @@ class FnApiRunner(runner.PipelineRunner):
           data_spec.api_service_descriptor.url = (
               data_api_service_descriptor.url)
         transform.spec.payload = data_spec.SerializeToString()
-      elif transform.spec.urn in fn_api_runner_transforms.PAR_DO_URNS:
+      elif transform.spec.urn in translations.PAR_DO_URNS:
         payload = proto_utils.parse_Bytes(
             transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
         for tag, si in payload.side_inputs.items():

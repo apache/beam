@@ -98,8 +98,8 @@ ConstructorFn = Callable[[
                          operations.Operation]
 OperationT = TypeVar('OperationT', bound=operations.Operation)
 
-DATA_INPUT_URN = 'beam:source:runner:0.1'
-DATA_OUTPUT_URN = 'beam:sink:runner:0.1'
+DATA_INPUT_URN = 'beam:runner:source:v1'
+DATA_OUTPUT_URN = 'beam:runner:sink:v1'
 IDENTITY_DOFN_URN = 'beam:dofn:identity:0.1'
 # TODO(vikasrk): Fix this once runner sends appropriate common_urns.
 OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN = 'beam:dofn:javasdk:0.1'
@@ -1489,7 +1489,7 @@ def _create_pardo_operation(
 
   timer_inputs = None  # type: Optional[Dict[str, str]]
   if pardo_proto and (pardo_proto.timer_specs or pardo_proto.state_specs or
-                      pardo_proto.splittable):
+                      pardo_proto.restriction_coder_id):
     main_input_coder = None  # type: Optional[WindowedValueCoder]
     timer_inputs = {}
     for tag, pcoll_id in transform_proto.inputs.items():
@@ -1537,7 +1537,7 @@ def _create_pardo_operation(
       transform_proto.unique_name,
       consumers,
       output_tags)
-  if pardo_proto and pardo_proto.splittable:
+  if pardo_proto and pardo_proto.restriction_coder_id:
     result.input_info = (
         transform_id,
         main_input_tag,

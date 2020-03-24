@@ -27,8 +27,8 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
@@ -55,6 +55,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.SchemaCoder;
@@ -81,6 +82,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.apache.beam.sdk.transforms.splittabledofn.TimestampObservingWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -112,7 +114,7 @@ import org.joda.time.Instant;
  * abstraction caused by StateInternals/TimerInternals since they model state and timer concepts
  * differently.
  */
-public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
+public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT> {
   /** A registrar which provides a factory to handle Java {@link DoFn}s. */
   @AutoService(PTransformRunnerFactory.Registrar.class)
   public static class Registrar implements PTransformRunnerFactory.Registrar {
@@ -131,12 +133,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     }
   }
 
-  static class Factory<InputT, RestrictionT, PositionT, OutputT>
+  static class Factory<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT>
       implements PTransformRunnerFactory<
-          FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT>> {
+          FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT>> {
 
     @Override
-    public final FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT>
+    public final FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT>
         createRunnerForPTransform(
             PipelineOptions pipelineOptions,
             BeamFnDataClient beamFnDataClient,
@@ -154,7 +156,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
             BundleSplitListener splitListener,
             BundleFinalizer bundleFinalizer) {
 
-      FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> runner =
+      FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT> runner =
           new FnApiDoFnRunner<>(
               pipelineOptions,
               beamFnStateClient,
@@ -259,7 +261,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
    * PTransformTranslation#SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN} transforms. Can
    * only be invoked from within {@code processElement...} methods.
    */
-  private final Function<SplitResult<RestrictionT>, WindowedSplitResult>
+  private final BiFunction<SplitResult<RestrictionT>, WatermarkEstimatorStateT, WindowedSplitResult>
       convertSplitResultToWindowedSplitResult;
 
   private final DoFnSchemaInformation doFnSchemaInformation;
@@ -269,14 +271,26 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
   /** Only valid during {@code processElement...} methods, null otherwise. */
   private WindowedValue<InputT> currentElement;
 
-  /** Only valid during {@link #processElementForSplitRestriction}, null otherwise. */
+  /**
+   * Only valid during {@link #processElementForPairWithRestriction}, {@link
+   * #processElementForSplitRestriction}, {@link #processElementForElementAndRestriction} and {@link
+   * #processElementForSizedElementAndRestriction}, null otherwise.
+   */
   private RestrictionT currentRestriction;
+
+  /**
+   * Only valid during {@link #processElementForSplitRestriction}, {@link
+   * #processElementForElementAndRestriction} and {@link
+   * #processElementForSizedElementAndRestriction}, null otherwise.
+   */
+  private WatermarkEstimatorStateT currentWatermarkEstimatorState;
 
   /**
    * Only valid during {@link #processElementForElementAndRestriction} and {@link
    * #processElementForSizedElementAndRestriction}, null otherwise.
    */
-  private Instant currentOutputWatermark;
+  private WatermarkEstimators.WatermarkAndStateObserver<WatermarkEstimatorStateT>
+      currentWatermarkEstimator;
 
   /**
    * Only valid during {@code processElement...} and {@link #processTimer} methods, null otherwise.
@@ -455,7 +469,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
                     mainOutputConsumers,
                     (WindowedValue<OutputT>)
                         WindowedValue.of(
-                            KV.of(currentElement.getValue(), output),
+                            KV.of(
+                                currentElement.getValue(),
+                                KV.of(output, currentWatermarkEstimatorState)),
                             timestamp,
                             currentWindow,
                             currentElement.getPane()));
@@ -494,7 +510,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
                     mainOutputConsumers,
                     (WindowedValue<OutputT>)
                         WindowedValue.of(
-                            KV.of(KV.of(currentElement.getValue(), output), size),
+                            KV.of(
+                                KV.of(
+                                    currentElement.getValue(),
+                                    KV.of(output, currentWatermarkEstimatorState)),
+                                size),
                             timestamp,
                             currentWindow,
                             currentElement.getPane()));
@@ -517,16 +537,20 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     switch (pTransform.getSpec().getUrn()) {
       case PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN:
         this.convertSplitResultToWindowedSplitResult =
-            (splitResult) ->
+            (splitResult, watermarkEstimatorState) ->
                 WindowedSplitResult.forRoots(
                     currentElement.withValue(
-                        KV.of(currentElement.getValue(), splitResult.getPrimary())),
+                        KV.of(
+                            currentElement.getValue(),
+                            KV.of(splitResult.getPrimary(), watermarkEstimatorState))),
                     currentElement.withValue(
-                        KV.of(currentElement.getValue(), splitResult.getResidual())));
+                        KV.of(
+                            currentElement.getValue(),
+                            KV.of(splitResult.getResidual(), watermarkEstimatorState))));
         break;
       case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
         this.convertSplitResultToWindowedSplitResult =
-            (splitResult) -> {
+            (splitResult, watermarkEstimatorState) -> {
               double primarySize =
                   doFnInvoker.invokeGetSize(
                       new DelegatingArgumentProvider<InputT, OutputT>(
@@ -564,16 +588,21 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
               return WindowedSplitResult.forRoots(
                   currentElement.withValue(
                       KV.of(
-                          KV.of(currentElement.getValue(), splitResult.getPrimary()), primarySize)),
+                          KV.of(
+                              currentElement.getValue(),
+                              KV.of(splitResult.getPrimary(), watermarkEstimatorState)),
+                          primarySize)),
                   currentElement.withValue(
                       KV.of(
-                          KV.of(currentElement.getValue(), splitResult.getResidual()),
+                          KV.of(
+                              currentElement.getValue(),
+                              KV.of(splitResult.getResidual(), watermarkEstimatorState)),
                           residualSize)));
             };
         break;
       default:
         this.convertSplitResultToWindowedSplitResult =
-            (splitResult) -> {
+            (splitResult, watermarkEstimatorStateT) -> {
               throw new IllegalStateException(
                   String.format(
                       "Unimplemented split conversion handler for %s.",
@@ -620,22 +649,29 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
           (Iterator<BoundedWindow>) elem.getWindows().iterator();
       while (windowIterator.hasNext()) {
         currentWindow = windowIterator.next();
+        currentRestriction = doFnInvoker.invokeGetInitialRestriction(processContext);
         outputTo(
             mainOutputConsumers,
             (WindowedValue)
                 elem.withValue(
                     KV.of(
-                        elem.getValue(), doFnInvoker.invokeGetInitialRestriction(processContext))));
+                        elem.getValue(),
+                        KV.of(
+                            currentRestriction,
+                            doFnInvoker.invokeGetInitialWatermarkEstimatorState(processContext)))));
       }
     } finally {
       currentElement = null;
       currentWindow = null;
+      currentRestriction = null;
     }
   }
 
-  public void processElementForSplitRestriction(WindowedValue<KV<InputT, RestrictionT>> elem) {
+  public void processElementForSplitRestriction(
+      WindowedValue<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>> elem) {
     currentElement = elem.withValue(elem.getValue().getKey());
-    currentRestriction = elem.getValue().getValue();
+    currentRestriction = elem.getValue().getValue().getKey();
+    currentWatermarkEstimatorState = elem.getValue().getValue().getValue();
     try {
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) elem.getWindows().iterator();
@@ -646,6 +682,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     } finally {
       currentElement = null;
       currentRestriction = null;
+      currentWatermarkEstimatorState = null;
       currentWindow = null;
     }
   }
@@ -664,22 +701,23 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
   }
 
   public void processElementForSizedElementAndRestriction(
-      WindowedValue<KV<KV<InputT, RestrictionT>, Double>> elem) {
+      WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
     processElementForElementAndRestriction(elem.withValue(elem.getValue().getKey()));
   }
 
-  public void processElementForElementAndRestriction(WindowedValue<KV<InputT, RestrictionT>> elem) {
+  public void processElementForElementAndRestriction(
+      WindowedValue<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>> elem) {
     currentElement = elem.withValue(elem.getValue().getKey());
     try {
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) elem.getWindows().iterator();
       while (windowIterator.hasNext()) {
-        // TODO(BEAM-2939): Ensure that the watermark we use as the lower bound comes from
-        // the previously reported watermark and doesn't reset to -infinity on each element.
-        currentOutputWatermark = GlobalWindow.TIMESTAMP_MIN_VALUE;
-        currentRestriction = elem.getValue().getValue();
+        currentRestriction = elem.getValue().getValue().getKey();
+        currentWatermarkEstimatorState = elem.getValue().getValue().getValue();
         currentWindow = windowIterator.next();
         currentTracker = doFnInvoker.invokeNewTracker(processContext);
+        currentWatermarkEstimator =
+            WatermarkEstimators.threadSafe(doFnInvoker.invokeNewWatermarkEstimator(processContext));
         DoFn.ProcessContinuation continuation = doFnInvoker.invokeProcessElement(processContext);
         // Ensure that all the work is done if the user tells us that they don't want to
         // resume processing.
@@ -688,6 +726,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
           continue;
         }
 
+        // Make sure to get the output watermark before we split to ensure that the lower bound
+        // applies to both the primary and residual.
+        KV<Instant, WatermarkEstimatorStateT> watermarkAndState =
+            currentWatermarkEstimator.getWatermarkAndState();
         SplitResult<RestrictionT> result = currentTracker.trySplit(0);
         // After the user has chosen to resume processing later, the Runner may have stolen
         // the remainder of work through a split call so the above trySplit may fail. If so,
@@ -699,7 +741,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
 
         // Otherwise we have a successful self checkpoint.
         WindowedSplitResult windowedSplitResult =
-            convertSplitResultToWindowedSplitResult.apply(result);
+            convertSplitResultToWindowedSplitResult.apply(result, watermarkAndState.getValue());
         ByteString.Output primaryBytes = ByteString.newOutput();
         ByteString.Output residualBytes = ByteString.newOutput();
         try {
@@ -719,13 +761,14 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
                 .setTransformId(pTransformId)
                 .setInputId(mainInputId)
                 .setElement(residualBytes.toByteString());
-        if (!currentOutputWatermark.equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
+
+        if (!watermarkAndState.getKey().equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
           for (String outputId : pTransform.getOutputsMap().keySet()) {
             residualApplication.putOutputWatermarks(
                 outputId,
                 org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
-                    .setSeconds(currentOutputWatermark.getMillis() / 1000)
-                    .setNanos((int) (currentOutputWatermark.getMillis() % 1000) * 1000000)
+                    .setSeconds(watermarkAndState.getKey().getMillis() / 1000)
+                    .setNanos((int) (watermarkAndState.getKey().getMillis() % 1000) * 1000000)
                     .build());
           }
         }
@@ -741,9 +784,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     } finally {
       currentElement = null;
       currentRestriction = null;
+      currentWatermarkEstimatorState = null;
       currentWindow = null;
       currentTracker = null;
-      currentOutputWatermark = null;
+      currentWatermarkEstimator = null;
     }
   }
 
@@ -780,6 +824,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
   /** Outputs the given element to the specified set of consumers wrapping any exceptions. */
   private <T> void outputTo(
       Collection<FnDataReceiver<WindowedValue<T>>> consumers, WindowedValue<T> output) {
+    if (currentWatermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
+      ((TimestampObservingWatermarkEstimator) currentWatermarkEstimator)
+          .observeTimestamp(output.getTimestamp());
+    }
     try {
       for (FnDataReceiver<WindowedValue<T>> consumer : consumers) {
         consumer.accept(output);
@@ -1232,27 +1280,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     }
 
     @Override
-    public void updateWatermark(Instant watermark) {
-      checkState(
-          currentOutputWatermark != null,
-          "Updating the watermark is only allowed for Splittable DoFns.");
-      checkArgument(
-          !watermark.isBefore(currentOutputWatermark),
-          "Watermark must be monotonically increasing. Provided watermark %s is less then current watermark %s.",
-          watermark,
-          currentOutputWatermark);
-      currentOutputWatermark = watermark;
-    }
-
-    @Override
     public Object watermarkEstimatorState() {
-      throw new UnsupportedOperationException(
-          "@WatermarkEstimatorState parameters are not supported.");
+      return currentWatermarkEstimatorState;
     }
 
     @Override
     public WatermarkEstimator<?> watermarkEstimator() {
-      throw new UnsupportedOperationException("WatermarkEstimator parameters are not supported.");
+      return currentWatermarkEstimator;
     }
   }
 

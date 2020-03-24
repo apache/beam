@@ -37,8 +37,8 @@ import (
 
 // TODO(lostluck): 2018/05/28 Extract these from the canonical enums in beam_runner_api.proto
 const (
-	urnDataSource           = "beam:source:runner:0.1"
-	urnDataSink             = "beam:sink:runner:0.1"
+	urnDataSource           = "beam:runner:source:v1"
+	urnDataSink             = "beam:runner:sink:v1"
 	urnPerKeyCombinePre     = "beam:transform:combine_per_key_precombine:v1"
 	urnPerKeyCombineMerge   = "beam:transform:combine_per_key_merge_accumulators:v1"
 	urnPerKeyCombineExtract = "beam:transform:combine_per_key_extract_outputs:v1"

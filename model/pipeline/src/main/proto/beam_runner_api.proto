@@ -433,11 +433,6 @@ message ParDoPayload {
   // (Required) The FunctionSpec of the DoFn.
   FunctionSpec do_fn = 1;
 
-  // (Required) Additional pieces of context the DoFn may require that
-  // are not otherwise represented in the payload.
-  // (may force runners to execute the ParDo differently)
-  repeated Parameter parameters = 2;
-
   // (Optional) A mapping of local input names to side inputs, describing
   // the expected access pattern.
   map<string, SideInput> side_inputs = 3;
@@ -457,10 +452,9 @@ message ParDoPayload {
   // be placed in the pipeline requirements.
   map<string, TimerFamilySpec> timer_family_specs = 9;
 
-  // Whether the DoFn is splittable
-  bool splittable = 6;
-
-  // (Required if splittable == true) Id of the restriction coder.
+  // (Optional) Only set when this ParDo contains a splittable DoFn.
+  // If this is set, the corresponding standard requirement should also
+  // be placed in the pipeline requirements.
   string restriction_coder_id = 7;
 
   // (Optional) Only set when this ParDo can request bundle finalization.
@@ -477,33 +471,8 @@ message ParDoPayload {
   // If this is set, the corresponding standard requirement should also
   // be placed in the pipeline requirements.
   bool requires_stable_input = 11;
-}
 
-// Parameters that a UDF might require.
-//
-// The details of how a runner sends these parameters to the SDK harness
-// are the subject of the Fn API.
-//
-// The details of how an SDK harness delivers them to the UDF is entirely
-// up to the SDK. (for some SDKs there may be parameters that are not
-// represented here if the runner doesn't need to do anything)
-//
-// Here, the parameters are simply indicators to the runner that they
-// need to run the function a particular way.
-//
-// TODO: the evolution of the Fn API will influence what needs explicit
-// representation here
-message Parameter {
-  Type.Enum type = 1;
-
-  message Type {
-    enum Enum {
-      UNSPECIFIED = 0;
-      WINDOW = 1;
-      PIPELINE_OPTIONS = 2;
-      RESTRICTION_TRACKER = 3;
-    }
-  }
+  reserved 6;
 }
 
 message StateSpec {
@@ -1264,7 +1233,6 @@ message Environment {
   // the URN does not require any arguments, this may be omitted.
   bytes payload = 3;
 
-
   // (Optional) Static display data for the environment. If there is none,
   // it may be omitted.
   repeated DisplayData display_data = 4;
@@ -1355,6 +1323,10 @@ message StandardRequirements {
     // This requirement indicates the requires_time_sorted_input field of ParDo
     // transform payloads must be inspected.
     REQUIRES_TIME_SORTED_INPUT = 3 [(beam_urn) = "beam:requirement:pardo:time_sorted_input:v1"];
+
+    // This requirement indicates the restriction_coder_id field of ParDo
+    // transform payloads must be inspected.
+    REQUIRES_SPLITTABLE_DOFN = 4 [(beam_urn) = "beam:requirement:pardo:splittable_dofn:v1"];
   }
 }
 

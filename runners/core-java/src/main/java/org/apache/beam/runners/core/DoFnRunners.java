@@ -163,7 +163,7 @@ public class DoFnRunners {
 
   public static <InputT, OutputT, RestrictionT>
       ProcessFnRunner<InputT, OutputT, RestrictionT> newProcessFnRunner(
-          ProcessFn<InputT, OutputT, RestrictionT, ?> fn,
+          ProcessFn<InputT, OutputT, RestrictionT, ?, ?> fn,
           PipelineOptions options,
           Collection<PCollectionView<?>> views,
           ReadyCheckingSideInputReader sideInputReader,

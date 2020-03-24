@@ -65,6 +65,7 @@ public class SqlQuery0 extends NexmarkQueryTransform<Bid> {
             .apply(getName() + ".SelectEvent", new SelectEvent(Type.BID));
 
     return rows.apply(getName() + ".Serialize", logBytesMetric(rows.getCoder()))
+        .setRowSchema(rows.getSchema())
         .apply(QUERY)
         .apply(Convert.fromRows(Bid.class));
   }

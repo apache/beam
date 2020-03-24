@@ -41,16 +41,16 @@ check.dependsOn formatter
 toxTask "testPython37", "py37"
 test.dependsOn testPython37
 
-toxTask "testPy37Gcp", "py37-gcp"
-test.dependsOn testPy37Gcp
+toxTask "testPy37Cloud", "py37-cloud"
+test.dependsOn testPy37Cloud
 
 toxTask "testPy37Cython", "py37-cython"
 test.dependsOn testPy37Cython
 
 // TODO(BEAM-8954): Remove this once tox uses isolated builds.
-testPy37Cython.mustRunAfter testPython37, testPy37Gcp
+testPy37Cython.mustRunAfter testPython37, testPy37Cloud
 
 task preCommitPy37() {
-    dependsOn "testPy37Gcp"
+    dependsOn "testPy37Cloud"
     dependsOn "testPy37Cython"
 }

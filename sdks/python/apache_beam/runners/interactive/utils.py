@@ -20,6 +20,7 @@
 
 from __future__ import absolute_import
 
+import hashlib
 import logging
 
 import pandas as pd
@@ -132,3 +133,12 @@ class IPythonLogHandler(logging.Handler):
                   msg=escape(record.msg % record.args))))
     except ImportError:
       pass  # NOOP when dependencies are not available.
+
+
+def obfuscate(*inputs):
+  # type: (*Any) -> str
+
+  """Obfuscates any inputs into a hexadecimal string."""
+  str_inputs = [str(input) for input in inputs]
+  merged_inputs = '_'.join(str_inputs)
+  return hashlib.md5(merged_inputs.encode('utf-8')).hexdigest()

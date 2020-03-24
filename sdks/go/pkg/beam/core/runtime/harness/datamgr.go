@@ -271,7 +271,8 @@ func (c *DataChannel) read(ctx context.Context) {
 				// through normal teardown.
 				continue
 			}
-			if len(elm.GetData()) == 0 {
+			// TODO(BEAM-9558): Cleanup once dataflow is updated.
+			if len(elm.GetData()) == 0 || elm.GetIsLast() {
 				// Sentinel EOF segment for stream. Close buffer to signal EOF.
 				r.completed = true
 				close(r.buf)
@@ -428,6 +429,7 @@ func (w *dataWriter) Close() error {
 				InstructionId: string(w.id.instID),
 				TransformId:   w.id.ptransformID,
 				// Empty data == sentinel
+				IsLast:        true,
 			},
 		},
 	}
