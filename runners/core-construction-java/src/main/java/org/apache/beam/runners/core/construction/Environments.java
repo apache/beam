@@ -27,6 +27,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -46,11 +48,15 @@ import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.ZipFiles;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -214,24 +220,90 @@ public class Environments {
       pathsToStage.addAll(stagingFiles);
     }
 
-    ImmutableList.Builder<ArtifactInformation> filesToStage = ImmutableList.builder();
+    ImmutableList.Builder<Supplier<ArtifactInformation>> lazyArtifactsBuilder =
+        ImmutableList.builder();
     for (String path : pathsToStage) {
       File file = new File(path);
-      if (new File(path).exists()) {
-        // Spurious items get added to the classpath. Filter by just those that exist.
-        if (file.isDirectory()) {
-          // Zip up directories so we can upload them to the artifact service.
-          try {
-            filesToStage.add(createArtifactInformation(zipDirectory(file)));
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-        } else {
-          filesToStage.add(createArtifactInformation(file));
-        }
+      // Spurious items get added to the classpath. Filter by just those that exist.
+      if (file.exists()) {
+        ArtifactInformation.Builder artifactBuilder = ArtifactInformation.newBuilder();
+        artifactBuilder.setTypeUrn(BeamUrns.getUrn(StandardArtifacts.Types.FILE));
+        artifactBuilder.setRoleUrn(BeamUrns.getUrn(StandardArtifacts.Roles.STAGING_TO));
+        artifactBuilder.setRolePayload(
+            RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+                .setStagedName(createStagingFileName(file))
+                .build()
+                .toByteString());
+        lazyArtifactsBuilder.add(
+            file.isDirectory()
+                ? () -> {
+                  File zippedFile;
+                  HashCode hashCode;
+                  try {
+                    zippedFile = zipDirectory(file);
+                    hashCode = Files.asByteSource(zippedFile).hash(Hashing.sha256());
+                  } catch (IOException e) {
+                    throw new RuntimeException(e);
+                  }
+                  return artifactBuilder
+                      .setTypePayload(
+                          RunnerApi.ArtifactFilePayload.newBuilder()
+                              .setPath(zippedFile.getPath())
+                              .setSha256(hashCode.toString())
+                              .build()
+                              .toByteString())
+                      .build();
+                }
+                : () -> {
+                  HashCode hashCode;
+                  try {
+                    hashCode = Files.asByteSource(file).hash(Hashing.sha256());
+                  } catch (IOException e) {
+                    throw new RuntimeException(e);
+                  }
+                  return artifactBuilder
+                      .setTypePayload(
+                          RunnerApi.ArtifactFilePayload.newBuilder()
+                              .setPath(file.getPath())
+                              .setSha256(hashCode.toString())
+                              .build()
+                              .toByteString())
+                      .build();
+                });
       }
     }
-    return filesToStage.build();
+
+    List<Supplier<ArtifactInformation>> lazyArtifacts = lazyArtifactsBuilder.build();
+    if (lazyArtifacts.isEmpty()) {
+      return ImmutableList.of();
+    }
+    String key = UUID.randomUUID().toString();
+    DefaultArtifactResolver.INSTANCE.register(
+        (info) -> {
+          if (BeamUrns.getUrn(StandardArtifacts.Types.DEFERRED).equals(info.getTypeUrn())) {
+            RunnerApi.DeferredArtifactPayload deferredArtifactPayload;
+            try {
+              deferredArtifactPayload =
+                  RunnerApi.DeferredArtifactPayload.parseFrom(info.getTypePayload());
+            } catch (InvalidProtocolBufferException e) {
+              throw new RuntimeException("Error parsing deferred artifact payload.", e);
+            }
+            if (key.equals(deferredArtifactPayload.getKey())) {
+              return lazyArtifacts.stream().map(Supplier::get).collect(Collectors.toList());
+            } else {
+              return ImmutableList.of();
+            }
+          } else {
+            return ImmutableList.of();
+          }
+        });
+
+    return ImmutableList.of(
+        ArtifactInformation.newBuilder()
+            .setTypeUrn(BeamUrns.getUrn(StandardArtifacts.Types.DEFERRED))
+            .setTypePayload(
+                RunnerApi.DeferredArtifactPayload.newBuilder().setKey(key).build().toByteString())
+            .build());
   }
 
   public static Set<String> getJavaCapabilities() {
@@ -240,14 +312,6 @@ public class Environments {
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.MULTI_CORE_BUNDLE_PROCESSING));
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.PROGRESS_REPORTING));
     return capabilities.build();
-  }
-
-  private static File zipDirectory(File directory) throws IOException {
-    File zipFile = File.createTempFile(directory.getName(), ".zip");
-    try (FileOutputStream fos = new FileOutputStream(zipFile)) {
-      ZipFiles.zipDirectory(directory, fos);
-    }
-    return zipFile;
   }
 
   private static String createStagingFileName(File file) {
@@ -261,21 +325,12 @@ public class Environments {
     return UUID.randomUUID().toString();
   }
 
-  public static ArtifactInformation createArtifactInformation(File file) {
-    ArtifactInformation.Builder artifactBuilder = ArtifactInformation.newBuilder();
-    artifactBuilder.setTypeUrn(BeamUrns.getUrn(StandardArtifacts.Types.FILE));
-    artifactBuilder.setTypePayload(
-        RunnerApi.ArtifactFilePayload.newBuilder()
-            .setPath(file.getAbsolutePath())
-            .build()
-            .toByteString());
-    artifactBuilder.setRoleUrn(BeamUrns.getUrn(StandardArtifacts.Roles.STAGING_TO));
-    artifactBuilder.setRolePayload(
-        RunnerApi.ArtifactStagingToRolePayload.newBuilder()
-            .setStagedName(createStagingFileName(file))
-            .build()
-            .toByteString());
-    return artifactBuilder.build();
+  private static File zipDirectory(File directory) throws IOException {
+    File zipFile = File.createTempFile(directory.getName(), ".zip");
+    try (FileOutputStream fos = new FileOutputStream(zipFile)) {
+      ZipFiles.zipDirectory(directory, fos);
+    }
+    return zipFile;
   }
 
   private static class ProcessPayloadReferenceJSON {

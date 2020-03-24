@@ -36,6 +36,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager.StagedFile;
 import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.runners.core.construction.DefaultArtifactResolver;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -157,6 +158,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
 
     RunnerApi.Pipeline pipelineProto =
         PipelineTranslation.toProto(pipeline, SdkComponents.create(options));
+    pipelineProto = DefaultArtifactResolver.INSTANCE.resolveArtifacts(pipelineProto);
 
     PrepareJobRequest prepareJobRequest =
         PrepareJobRequest.newBuilder()
