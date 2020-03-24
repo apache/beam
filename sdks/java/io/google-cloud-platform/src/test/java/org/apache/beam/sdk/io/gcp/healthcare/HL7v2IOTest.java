@@ -23,10 +23,10 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,7 +45,7 @@ public class HL7v2IOTest {
 
     PCollection<HealthcareIOError<String>> failed = readResult.getFailedReads();
 
-    PCollection<Message> messages = readResult.getMessages();
+    PCollection<HL7v2Message> messages = readResult.getMessages();
 
     PCollection<String> failedMsgIds =
         failed.apply(
@@ -59,26 +59,22 @@ public class HL7v2IOTest {
   @Test
   public void test_HL7v2IO_failedWrites() {
     Message msg = new Message().setData("");
-    List<Message> emptyMessages = Collections.singletonList(msg);
+    List<HL7v2Message> emptyMessages = Collections.singletonList(HL7v2Message.fromModel(msg));
 
-    PCollection<Message> messages =
-        pipeline.apply(Create.of(emptyMessages).withCoder(new MessageCoder()));
+    PCollection<HL7v2Message> messages =
+        pipeline.apply(Create.of(emptyMessages).withCoder(new HL7v2MessageCoder()));
 
     HL7v2IO.Write.Result writeResult =
         messages.apply(
             HL7v2IO.ingestMessages(
                 "projects/foo/locations/us-central1/datasets/bar/hl7V2Stores/baz"));
 
-    PCollection<HealthcareIOError<Message>> failedInserts = writeResult.getFailedInsertsWithErr();
+    PCollection<HealthcareIOError<HL7v2Message>> failedInserts =
+        writeResult.getFailedInsertsWithErr();
 
-    PCollection<Message> failedMsgs =
-        failedInserts
-            .apply(
-                MapElements.into(TypeDescriptor.of(Message.class))
-                    .via(HealthcareIOError::getDataResource))
-            .setCoder(new MessageCoder());
+    PCollection<Long> failedMsgs = failedInserts.apply(Count.globally());
 
-    PAssert.that(failedMsgs).containsInAnyOrder(emptyMessages);
+    PAssert.thatSingleton(failedMsgs).isEqualTo(1L);
 
     pipeline.run();
   }

@@ -17,10 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.healthcare.v1alpha2.model.Message;
-import com.google.api.services.healthcare.v1alpha2.model.ParsedData;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -31,15 +28,16 @@ import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
-public class MessageCoder extends CustomCoder<Message> {
-  MessageCoder() {}
+public class HL7v2MessageCoder extends CustomCoder<HL7v2Message> {
+  HL7v2MessageCoder() {}
 
   private static final NullableCoder<String> STRING_CODER = NullableCoder.of(StringUtf8Coder.of());
   private static final NullableCoder<Map<String, String>> MAP_CODER =
       NullableCoder.of(MapCoder.of(STRING_CODER, STRING_CODER));
 
   @Override
-  public void encode(Message value, OutputStream outStream) throws CoderException, IOException {
+  public void encode(HL7v2Message value, OutputStream outStream)
+      throws CoderException, IOException {
     STRING_CODER.encode(value.getName(), outStream);
     STRING_CODER.encode(value.getMessageType(), outStream);
     STRING_CODER.encode(value.getCreateTime(), outStream);
@@ -47,15 +45,10 @@ public class MessageCoder extends CustomCoder<Message> {
     STRING_CODER.encode(value.getData(), outStream);
     STRING_CODER.encode(value.getSendFacility(), outStream);
     MAP_CODER.encode(value.getLabels(), outStream);
-    if (value.getParsedData() != null) {
-      STRING_CODER.encode(value.getParsedData().toString(), outStream);
-    } else {
-      STRING_CODER.encode(null, outStream);
-    }
   }
 
   @Override
-  public Message decode(InputStream inStream) throws CoderException, IOException {
+  public HL7v2Message decode(InputStream inStream) throws CoderException, IOException {
     Message msg = new Message();
     msg.setName(STRING_CODER.decode(inStream));
     msg.setMessageType(STRING_CODER.decode(inStream));
@@ -64,12 +57,6 @@ public class MessageCoder extends CustomCoder<Message> {
     msg.setData(STRING_CODER.decode(inStream));
     msg.setSendFacility(STRING_CODER.decode(inStream));
     msg.setLabels(MAP_CODER.decode(inStream));
-    String parsedDataStr = STRING_CODER.decode(inStream);
-    if (parsedDataStr != null) {
-      // TODO: find better workaround to JsonFactory not serializable.
-      JsonFactory jsonFactory = new GsonFactory();
-      msg.setParsedData(jsonFactory.fromString(parsedDataStr, ParsedData.class));
-    }
-    return msg;
+    return HL7v2Message.fromModel(msg);
   }
 }

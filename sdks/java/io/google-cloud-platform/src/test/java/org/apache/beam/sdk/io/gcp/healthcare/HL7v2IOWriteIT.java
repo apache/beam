@@ -60,7 +60,7 @@ public class HL7v2IOWriteIT {
     Pipeline pipeline = Pipeline.create(options);
     HL7v2IO.Write.Result result =
         pipeline
-            .apply(Create.of(MESSAGES).withCoder(new MessageCoder()))
+            .apply(Create.of(MESSAGES).withCoder(new HL7v2MessageCoder()))
             .apply(HL7v2IO.ingestMessages(options.getHL7v2Store()));
 
     PAssert.that(result.getFailedInsertsWithErr()).empty();

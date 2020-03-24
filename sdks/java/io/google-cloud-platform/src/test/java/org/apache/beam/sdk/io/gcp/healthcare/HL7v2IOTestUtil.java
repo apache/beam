@@ -56,7 +56,7 @@ class HL7v2IOTestUtil {
               + "OBR|0||T09-100442-RET-0^^OLIS_Site_ID^ISO|RET^RETICULOCYTE COUNT^HL79901 literal|||200905011106|||||||200905011106||OLIST^BLAKE^DONALD^THOR^^^^L^921379||7870279|7870279|T09-100442|MOHLTC|200905011130||B7|F||1^^^200905011106^^R\r"
               + "OBX|1|ST|||Test Value");
 
-  static final List<Message> MESSAGES =
+  static final List<HL7v2Message> MESSAGES =
       MESSAGES_DATA.stream()
           .map(String::getBytes)
           .map(Base64::encodeBase64String)
@@ -64,7 +64,7 @@ class HL7v2IOTestUtil {
               (String data) -> {
                 Message msg = new Message();
                 msg.setData(data);
-                return msg;
+                return HL7v2Message.fromModel(msg);
               })
           .collect(Collectors.toList());
 
@@ -79,8 +79,8 @@ class HL7v2IOTestUtil {
 
   /** Populate the test messages into the HL7v2 store. */
   static void writeHL7v2Messages(HealthcareApiClient client, String hl7v2Store) throws IOException {
-    for (Message msg : MESSAGES) {
-      client.createHL7v2Message(hl7v2Store, msg);
+    for (HL7v2Message msg : MESSAGES) {
+      client.createHL7v2Message(hl7v2Store, msg.toModel());
     }
   }
 }

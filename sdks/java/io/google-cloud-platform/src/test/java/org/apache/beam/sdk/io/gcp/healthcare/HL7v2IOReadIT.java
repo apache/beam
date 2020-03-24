@@ -71,7 +71,7 @@ public class HL7v2IOReadIT {
                 new HL7v2IO.ListHL7v2MessageIDs(Collections.singletonList(options.getHL7v2Store())))
             .apply(HL7v2IO.readAll());
     PCollection<Long> numReadMessages =
-        result.getMessages().setCoder(new MessageCoder()).apply(Count.globally());
+        result.getMessages().setCoder(new HL7v2MessageCoder()).apply(Count.globally());
     PAssert.thatSingleton(numReadMessages).isEqualTo((long) MESSAGES.size());
     PAssert.that(result.getFailedReads()).empty();
 
@@ -90,7 +90,7 @@ public class HL7v2IOReadIT {
                     Collections.singletonList(options.getHL7v2Store()), filter))
             .apply(HL7v2IO.readAll());
     PCollection<Long> numReadMessages =
-        result.getMessages().setCoder(new MessageCoder()).apply(Count.globally());
+        result.getMessages().setCoder(new HL7v2MessageCoder()).apply(Count.globally());
     PAssert.thatSingleton(numReadMessages).isEqualTo(NUM_ADT);
     PAssert.that(result.getFailedReads()).empty();
 
