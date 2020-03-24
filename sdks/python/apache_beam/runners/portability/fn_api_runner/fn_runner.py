@@ -553,7 +553,7 @@ class FnApiRunner(runner.PipelineRunner):
                   side_input_id=tag,
                   window=window,
                   key=key))
-          worker_handler.state.append_raw(state_key, elements_data)
+          bundle_context_manager.worker_handler.state.append_raw(state_key, elements_data)
       else:
         raise ValueError("Unknown access pattern: '%s'" % si.urn)
 
