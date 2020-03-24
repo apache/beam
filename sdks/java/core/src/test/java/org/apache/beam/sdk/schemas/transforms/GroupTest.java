@@ -24,18 +24,20 @@ import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInA
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Objects;
-import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils.RowFieldMatcherIterableFieldAnyOrder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -44,6 +46,9 @@ import org.apache.beam.sdk.testing.UsesSchema;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Top;
@@ -66,56 +71,22 @@ import org.junit.runners.JUnit4;
 public class GroupTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
-  /** A simple POJO for testing. */
-  @DefaultSchema(JavaFieldSchema.class)
-  public static class POJO implements Serializable {
-    public String field1;
-    public long field2;
-    public String field3;
+  /** A basic type for testing. */
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  abstract static class Basic implements Serializable {
+    abstract String getField1();
 
-    public POJO(String field1, long field2, String field3) {
-      this.field1 = field1;
-      this.field2 = field2;
-      this.field3 = field3;
-    }
+    abstract long getField2();
 
-    public POJO() {}
+    abstract String getField3();
 
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      POJO pojo = (POJO) o;
-      return field2 == pojo.field2
-          && Objects.equals(field1, pojo.field1)
-          && Objects.equals(field3, pojo.field3);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(field1, field2, field3);
-    }
-
-    @Override
-    public String toString() {
-      return "POJO{"
-          + "field1='"
-          + field1
-          + '\''
-          + ", field2="
-          + field2
-          + ", field3='"
-          + field3
-          + '\''
-          + '}';
+    static Basic of(String field1, long field2, String field3) {
+      return new AutoValue_GroupTest_Basic(field1, field2, field3);
     }
   }
 
-  private static final Schema POJO_SCHEMA =
+  private static final Schema BASIC_SCHEMA =
       Schema.builder()
           .addStringField("field1")
           .addInt64Field("field2")
@@ -129,21 +100,21 @@ public class GroupTest implements Serializable {
         pipeline
             .apply(
                 Create.of(
-                    new POJO("key1", 1, "value1"),
-                    new POJO("key1", 2, "value2"),
-                    new POJO("key2", 3, "value3"),
-                    new POJO("key2", 4, "value4")))
+                    Basic.of("key1", 1, "value1"),
+                    Basic.of("key1", 2, "value2"),
+                    Basic.of("key2", 3, "value3"),
+                    Basic.of("key2", 4, "value4")))
             .apply(Group.byFieldNames("field1"));
 
     Schema keySchema = Schema.builder().addStringField("field1").build();
     Schema outputSchema =
         Schema.builder()
             .addRowField("key", keySchema)
-            .addIterableField("value", FieldType.row(POJO_SCHEMA))
+            .addIterableField("value", FieldType.row(BASIC_SCHEMA))
             .build();
 
-    SerializableFunction<POJO, Row> toRow =
-        pipeline.getSchemaRegistry().getToRowFunction(POJO.class);
+    SerializableFunction<Basic, Row> toRow =
+        pipeline.getSchemaRegistry().getToRowFunction(Basic.class);
 
     List<Row> expected =
         ImmutableList.of(
@@ -151,18 +122,18 @@ public class GroupTest implements Serializable {
                 .addValue(Row.withSchema(keySchema).addValue("key1").build())
                 .addIterable(
                     ImmutableList.of(
-                        toRow.apply(new POJO("key1", 1L, "value1")),
-                        toRow.apply(new POJO("key1", 2L, "value2"))))
+                        toRow.apply(Basic.of("key1", 1L, "value1")),
+                        toRow.apply(Basic.of("key1", 2L, "value2"))))
                 .build(),
             Row.withSchema(outputSchema)
                 .addValue(Row.withSchema(keySchema).addValue("key2").build())
                 .addIterable(
                     ImmutableList.of(
-                        toRow.apply(new POJO("key2", 3L, "value3")),
-                        toRow.apply(new POJO("key2", 4L, "value4"))))
+                        toRow.apply(Basic.of("key2", 3L, "value3")),
+                        toRow.apply(Basic.of("key2", 4L, "value4"))))
                 .build());
 
-    PAssert.that(grouped).satisfies(actual -> containsKIterableVs(expected, actual, new POJO[0]));
+    PAssert.that(grouped).satisfies(actual -> containsKIterableVs(expected, actual, new Basic[0]));
     pipeline.run();
   }
 
@@ -173,20 +144,20 @@ public class GroupTest implements Serializable {
         pipeline
             .apply(
                 Create.of(
-                    new POJO("key1", 1, "value1"),
-                    new POJO("key1", 1, "value2"),
-                    new POJO("key2", 2, "value3"),
-                    new POJO("key2", 2, "value4")))
+                    Basic.of("key1", 1, "value1"),
+                    Basic.of("key1", 1, "value2"),
+                    Basic.of("key2", 2, "value3"),
+                    Basic.of("key2", 2, "value4")))
             .apply(Group.byFieldNames("field1", "field2"));
 
     Schema keySchema = Schema.builder().addStringField("field1").addInt64Field("field2").build();
     Schema outputSchema =
         Schema.builder()
             .addRowField("key", keySchema)
-            .addIterableField("value", FieldType.row(POJO_SCHEMA))
+            .addIterableField("value", FieldType.row(BASIC_SCHEMA))
             .build();
-    SerializableFunction<POJO, Row> toRow =
-        pipeline.getSchemaRegistry().getToRowFunction(POJO.class);
+    SerializableFunction<Basic, Row> toRow =
+        pipeline.getSchemaRegistry().getToRowFunction(Basic.class);
 
     List<Row> expected =
         ImmutableList.of(
@@ -194,57 +165,34 @@ public class GroupTest implements Serializable {
                 .addValue(Row.withSchema(keySchema).addValues("key1", 1L).build())
                 .addIterable(
                     ImmutableList.of(
-                        toRow.apply(new POJO("key1", 1L, "value1")),
-                        toRow.apply(new POJO("key1", 1L, "value2"))))
+                        toRow.apply(Basic.of("key1", 1L, "value1")),
+                        toRow.apply(Basic.of("key1", 1L, "value2"))))
                 .build(),
             Row.withSchema(outputSchema)
                 .addValue(Row.withSchema(keySchema).addValues("key2", 2L).build())
                 .addIterable(
                     ImmutableList.of(
-                        toRow.apply(new POJO("key2", 2L, "value3")),
-                        toRow.apply(new POJO("key2", 2L, "value4"))))
+                        toRow.apply(Basic.of("key2", 2L, "value3")),
+                        toRow.apply(Basic.of("key2", 2L, "value4"))))
                 .build());
 
-    PAssert.that(grouped).satisfies(actual -> containsKIterableVs(expected, actual, new POJO[0]));
+    PAssert.that(grouped).satisfies(actual -> containsKIterableVs(expected, actual, new Basic[0]));
     pipeline.run();
   }
 
   /** A class for testing nested key grouping. */
-  @DefaultSchema(JavaFieldSchema.class)
-  public static class OuterPOJO implements Serializable {
-    public POJO inner;
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  abstract static class Outer implements Serializable {
+    abstract Basic getInner();
 
-    public OuterPOJO(POJO inner) {
-      this.inner = inner;
-    }
-
-    public OuterPOJO() {}
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      OuterPOJO outerPOJO = (OuterPOJO) o;
-      return Objects.equals(inner, outerPOJO.inner);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(inner);
-    }
-
-    @Override
-    public String toString() {
-      return "OuterPOJO{" + "inner=" + inner + '}';
+    static Outer of(Basic inner) {
+      return new AutoValue_GroupTest_Outer(inner);
     }
   }
 
-  private static final Schema OUTER_POJO_SCHEMA =
-      Schema.builder().addRowField("inner", POJO_SCHEMA).build();
+  private static final Schema OUTER_SCHEMA =
+      Schema.builder().addRowField("inner", BASIC_SCHEMA).build();
 
   /** Test grouping by a set of fields that are nested. */
   @Test
@@ -254,21 +202,21 @@ public class GroupTest implements Serializable {
         pipeline
             .apply(
                 Create.of(
-                    new OuterPOJO(new POJO("key1", 1L, "value1")),
-                    new OuterPOJO(new POJO("key1", 1L, "value2")),
-                    new OuterPOJO(new POJO("key2", 2L, "value3")),
-                    new OuterPOJO(new POJO("key2", 2L, "value4"))))
+                    Outer.of(Basic.of("key1", 1L, "value1")),
+                    Outer.of(Basic.of("key1", 1L, "value2")),
+                    Outer.of(Basic.of("key2", 2L, "value3")),
+                    Outer.of(Basic.of("key2", 2L, "value4"))))
             .apply(Group.byFieldNames("inner.field1", "inner.field2"));
 
     Schema keySchema = Schema.builder().addStringField("field1").addInt64Field("field2").build();
     Schema outputSchema =
         Schema.builder()
             .addRowField("key", keySchema)
-            .addIterableField("value", FieldType.row(OUTER_POJO_SCHEMA))
+            .addIterableField("value", FieldType.row(OUTER_SCHEMA))
             .build();
 
-    SerializableFunction<OuterPOJO, Row> toRow =
-        pipeline.getSchemaRegistry().getToRowFunction(OuterPOJO.class);
+    SerializableFunction<Outer, Row> toRow =
+        pipeline.getSchemaRegistry().getToRowFunction(Outer.class);
 
     List<Row> expected =
         ImmutableList.of(
@@ -276,33 +224,32 @@ public class GroupTest implements Serializable {
                 .addValue(Row.withSchema(keySchema).addValues("key1", 1L).build())
                 .addIterable(
                     ImmutableList.of(
-                        toRow.apply(new OuterPOJO(new POJO("key1", 1L, "value1"))),
-                        toRow.apply(new OuterPOJO(new POJO("key1", 1L, "value2")))))
+                        toRow.apply(Outer.of(Basic.of("key1", 1L, "value1"))),
+                        toRow.apply(Outer.of(Basic.of("key1", 1L, "value2")))))
                 .build(),
             Row.withSchema(outputSchema)
                 .addValue(Row.withSchema(keySchema).addValues("key2", 2L).build())
                 .addIterable(
                     ImmutableList.of(
-                        toRow.apply(new OuterPOJO(new POJO("key2", 2L, "value3"))),
-                        toRow.apply(new OuterPOJO(new POJO("key2", 2L, "value4")))))
+                        toRow.apply(Outer.of(Basic.of("key2", 2L, "value3"))),
+                        toRow.apply(Outer.of(Basic.of("key2", 2L, "value4")))))
                 .build());
 
-    PAssert.that(grouped)
-        .satisfies(actual -> containsKIterableVs(expected, actual, new OuterPOJO[0]));
+    PAssert.that(grouped).satisfies(actual -> containsKIterableVs(expected, actual, new Outer[0]));
     pipeline.run();
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testGroupGlobally() {
-    Collection<POJO> elements =
+    Collection<Basic> elements =
         ImmutableList.of(
-            new POJO("key1", 1, "value1"),
-            new POJO("key1", 1, "value2"),
-            new POJO("key2", 2, "value3"),
-            new POJO("key2", 2, "value4"));
+            Basic.of("key1", 1, "value1"),
+            Basic.of("key1", 1, "value2"),
+            Basic.of("key2", 2, "value3"),
+            Basic.of("key2", 2, "value4"));
 
-    PCollection<Iterable<POJO>> grouped =
+    PCollection<Iterable<Basic>> grouped =
         pipeline.apply(Create.of(elements)).apply(Group.globally());
     PAssert.that(grouped).satisfies(actual -> containsSingleIterable(elements, actual));
     pipeline.run();
@@ -311,16 +258,16 @@ public class GroupTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testGlobalAggregation() {
-    Collection<POJO> elements =
+    Collection<Basic> elements =
         ImmutableList.of(
-            new POJO("key1", 1, "value1"),
-            new POJO("key1", 1, "value2"),
-            new POJO("key2", 2, "value3"),
-            new POJO("key2", 2, "value4"));
+            Basic.of("key1", 1, "value1"),
+            Basic.of("key1", 1, "value2"),
+            Basic.of("key2", 2, "value3"),
+            Basic.of("key2", 2, "value4"));
     PCollection<Long> count =
         pipeline
             .apply(Create.of(elements))
-            .apply(Group.<POJO>globally().aggregate(Count.combineFn()));
+            .apply(Group.<Basic>globally().aggregate(Count.combineFn()));
     PAssert.that(count).containsInAnyOrder(4L);
 
     pipeline.run();
@@ -333,12 +280,12 @@ public class GroupTest implements Serializable {
     Schema outputSchema =
         Schema.builder()
             .addRowField("key", keySchema)
-            .addIterableField("value", FieldType.row(POJO_SCHEMA))
+            .addIterableField("value", FieldType.row(BASIC_SCHEMA))
             .build();
 
     PCollection<Row> grouped =
         pipeline
-            .apply(Create.of(new POJO("key1", 1, "value1")))
+            .apply(Create.of(Basic.of("key1", 1, "value1")))
             .apply(Group.byFieldNames("field1"));
 
     assertTrue(grouped.getSchema().equivalent(outputSchema));
@@ -347,53 +294,35 @@ public class GroupTest implements Serializable {
   }
 
   /** A class for testing field aggregation. */
-  @DefaultSchema(JavaFieldSchema.class)
-  public static class AggregatePojos implements Serializable {
-    public long field1;
-    public long field2;
-    public int field3;
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  abstract static class Aggregate implements Serializable {
+    abstract long getField1();
 
-    public AggregatePojos(long field1, long field2, int field3) {
-      this.field1 = field1;
-      this.field2 = field2;
-      this.field3 = field3;
-    }
+    abstract long getField2();
 
-    public AggregatePojos() {}
+    abstract int getField3();
 
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      AggregatePojos agg = (AggregatePojos) o;
-      return field1 == agg.field1 && field2 == agg.field2 && field3 == agg.field3;
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(field1, field2, field3);
+    static Aggregate of(long field1, long field2, int field3) {
+      return new AutoValue_GroupTest_Aggregate(field1, field2, field3);
     }
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testByKeyWithSchemaAggregateFn() {
-    Collection<AggregatePojos> elements =
+    Collection<Aggregate> elements =
         ImmutableList.of(
-            new AggregatePojos(1, 1, 2),
-            new AggregatePojos(2, 1, 3),
-            new AggregatePojos(3, 2, 4),
-            new AggregatePojos(4, 2, 5));
+            Aggregate.of(1, 1, 2),
+            Aggregate.of(2, 1, 3),
+            Aggregate.of(3, 2, 4),
+            Aggregate.of(4, 2, 5));
 
     PCollection<Row> aggregations =
         pipeline
             .apply(Create.of(elements))
             .apply(
-                Group.<AggregatePojos>byFieldNames("field2")
+                Group.<Aggregate>byFieldNames("field2")
                     .aggregateField("field1", Sum.ofLongs(), "field1_sum")
                     .aggregateField("field3", Sum.ofIntegers(), "field3_sum")
                     .aggregateField("field1", Top.largestLongsFn(1), "field1_top"));
@@ -426,18 +355,18 @@ public class GroupTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testGloballyWithSchemaAggregateFn() {
-    Collection<AggregatePojos> elements =
+    Collection<Aggregate> elements =
         ImmutableList.of(
-            new AggregatePojos(1, 1, 2),
-            new AggregatePojos(2, 1, 3),
-            new AggregatePojos(3, 2, 4),
-            new AggregatePojos(4, 2, 5));
+            Aggregate.of(1, 1, 2),
+            Aggregate.of(2, 1, 3),
+            Aggregate.of(3, 2, 4),
+            Aggregate.of(4, 2, 5));
 
     PCollection<Row> aggregate =
         pipeline
             .apply(Create.of(elements))
             .apply(
-                Group.<AggregatePojos>globally()
+                Group.<Aggregate>globally()
                     .aggregateField("field1", Sum.ofLongs(), "field1_sum")
                     .aggregateField("field3", Sum.ofIntegers(), "field3_sum")
                     .aggregateField("field1", Top.largestLongsFn(1), "field1_top"));
@@ -495,19 +424,19 @@ public class GroupTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testAggregateByMultipleFields() {
-    Collection<AggregatePojos> elements =
+    Collection<Aggregate> elements =
         ImmutableList.of(
-            new AggregatePojos(1, 1, 2),
-            new AggregatePojos(2, 1, 3),
-            new AggregatePojos(3, 2, 4),
-            new AggregatePojos(4, 2, 5));
+            Aggregate.of(1, 1, 2),
+            Aggregate.of(2, 1, 3),
+            Aggregate.of(3, 2, 4),
+            Aggregate.of(4, 2, 5));
 
     List<String> fieldNames = Lists.newArrayList("field1", "field2");
     PCollection<Row> aggregate =
         pipeline
             .apply(Create.of(elements))
             .apply(
-                Group.<AggregatePojos>globally()
+                Group.<Aggregate>globally()
                     .aggregateFields(fieldNames, new MultipleFieldCombineFn(), "field1+field2"));
 
     Schema outputSchema = Schema.builder().addInt64Field("field1+field2").build();
@@ -518,31 +447,13 @@ public class GroupTest implements Serializable {
   }
 
   /** A class for testing nested aggregation. */
-  @DefaultSchema(JavaFieldSchema.class)
-  public static class OuterAggregate implements Serializable {
-    public AggregatePojos inner;
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  abstract static class OuterAggregate implements Serializable {
+    abstract Aggregate getInner();
 
-    public OuterAggregate(AggregatePojos inner) {
-      this.inner = inner;
-    }
-
-    public OuterAggregate() {}
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      OuterAggregate that = (OuterAggregate) o;
-      return Objects.equals(inner, that.inner);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(inner);
+    static OuterAggregate of(Aggregate inner) {
+      return new AutoValue_GroupTest_OuterAggregate(inner);
     }
   }
 
@@ -551,10 +462,10 @@ public class GroupTest implements Serializable {
   public void testByKeyWithSchemaAggregateFnNestedFields() {
     Collection<OuterAggregate> elements =
         ImmutableList.of(
-            new OuterAggregate(new AggregatePojos(1, 1, 2)),
-            new OuterAggregate(new AggregatePojos(2, 1, 3)),
-            new OuterAggregate(new AggregatePojos(3, 2, 4)),
-            new OuterAggregate(new AggregatePojos(4, 2, 5)));
+            OuterAggregate.of(Aggregate.of(1, 1, 2)),
+            OuterAggregate.of(Aggregate.of(2, 1, 3)),
+            OuterAggregate.of(Aggregate.of(3, 2, 4)),
+            OuterAggregate.of(Aggregate.of(4, 2, 5)));
 
     PCollection<Row> aggregations =
         pipeline
@@ -595,10 +506,10 @@ public class GroupTest implements Serializable {
   public void testGloballyWithSchemaAggregateFnNestedFields() {
     Collection<OuterAggregate> elements =
         ImmutableList.of(
-            new OuterAggregate(new AggregatePojos(1, 1, 2)),
-            new OuterAggregate(new AggregatePojos(2, 1, 3)),
-            new OuterAggregate(new AggregatePojos(3, 2, 4)),
-            new OuterAggregate(new AggregatePojos(4, 2, 5)));
+            OuterAggregate.of(Aggregate.of(1, 1, 2)),
+            OuterAggregate.of(Aggregate.of(2, 1, 3)),
+            OuterAggregate.of(Aggregate.of(3, 2, 4)),
+            OuterAggregate.of(Aggregate.of(4, 2, 5)));
 
     PCollection<Row> aggregate =
         pipeline
@@ -616,6 +527,89 @@ public class GroupTest implements Serializable {
             .build();
     Row expectedRow = Row.withSchema(aggregateSchema).addValues(10L, 14).addArray(4L).build();
     PAssert.that(aggregate).containsInAnyOrder(expectedRow);
+
+    pipeline.run();
+  }
+
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  abstract static class BasicEnum {
+    enum Test {
+      ZERO,
+      ONE,
+      TWO
+    };
+
+    abstract String getKey();
+
+    abstract Test getEnumeration();
+
+    static BasicEnum of(String key, Test value) {
+      return new AutoValue_GroupTest_BasicEnum(key, value);
+    }
+  }
+
+  static final EnumerationType BASIC_ENUM_ENUMERATION =
+      EnumerationType.create("ZERO", "ONE", "TWO");
+  static final Schema BASIC_ENUM_SCHEMA =
+      Schema.builder()
+          .addStringField("key")
+          .addLogicalTypeField("enumeration", BASIC_ENUM_ENUMERATION)
+          .build();
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testAggregateBaseValuesGlobally() {
+    Collection<BasicEnum> elements =
+        Lists.newArrayList(
+            BasicEnum.of("a", BasicEnum.Test.ONE), BasicEnum.of("a", BasicEnum.Test.TWO));
+
+    PCollection<Row> aggregate =
+        pipeline
+            .apply(Create.of(elements))
+            .apply(
+                Group.<BasicEnum>globally()
+                    .aggregateFieldBaseValue("enumeration", Sum.ofIntegers(), "enum_sum"));
+    Schema aggregateSchema = Schema.builder().addInt32Field("enum_sum").build();
+    Row expectedRow = Row.withSchema(aggregateSchema).addValues(3).build();
+    PAssert.that(aggregate).containsInAnyOrder(expectedRow);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testAggregateLogicalValuesGlobally() {
+    Collection<BasicEnum> elements =
+        Lists.newArrayList(
+            BasicEnum.of("a", BasicEnum.Test.ONE), BasicEnum.of("a", BasicEnum.Test.TWO));
+
+    CombineFn<EnumerationType.Value, ?, Iterable<EnumerationType.Value>> sampleAnyCombineFn =
+        Sample.anyCombineFn(100);
+    Field aggField =
+        Field.of("sampleList", FieldType.array(FieldType.logicalType(BASIC_ENUM_ENUMERATION)));
+    pipeline
+        .apply(Create.of(elements))
+        .apply(
+            Group.<BasicEnum>globally().aggregateField("enumeration", sampleAnyCombineFn, aggField))
+        .apply(
+            ParDo.of(
+                new DoFn<Row, List<Integer>>() {
+                  @ProcessElement
+                  // TODO: List<enum> doesn't get converted properly by ConvertHelpers, so the
+                  // following line does
+                  // not work. TO fix this we need to move logical-type conversion out of
+                  // RowWithGetters and into
+                  // the actual getters.
+                  //    public void process(@FieldAccess("sampleList") List<BasicEnum.Test> values)
+                  // {
+                  public void process(@Element Row value) {
+                    assertThat(
+                        value.getArray(0),
+                        containsInAnyOrder(
+                            BASIC_ENUM_ENUMERATION.valueOf(1), BASIC_ENUM_ENUMERATION.valueOf(2)));
+                  }
+                }));
 
     pipeline.run();
   }
@@ -673,8 +667,8 @@ public class GroupTest implements Serializable {
   }
 
   private static Void containsSingleIterable(
-      Collection<POJO> expected, Iterable<Iterable<POJO>> actual) {
-    POJO[] values = expected.toArray(new POJO[0]);
+      Collection<Basic> expected, Iterable<Iterable<Basic>> actual) {
+    Basic[] values = expected.toArray(new Basic[0]);
     assertThat(actual, containsInAnyOrder(containsInAnyOrder(values)));
     return null;
   }

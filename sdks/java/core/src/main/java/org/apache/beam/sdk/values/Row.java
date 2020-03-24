@@ -32,13 +32,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collector;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Factory;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.LogicalType;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -72,6 +74,13 @@ public abstract class Row implements Serializable {
   public abstract int getFieldCount();
   /** Return the list of data values. */
   public abstract List<Object> getValues();
+
+  /** Return a list of data values. Any LogicalType values are returned as base values. * */
+  public List<Object> getBaseValues() {
+    return IntStream.range(0, getFieldCount())
+        .mapToObj(i -> getBaseValue(i))
+        .collect(Collectors.toList());
+  }
 
   /** Get value by field name, {@link ClassCastException} is thrown if type doesn't match. */
   @Nullable
@@ -205,13 +214,30 @@ public abstract class Row implements Serializable {
     return getMap(getSchema().indexOf(fieldName));
   }
 
-  /**
-   * Returns the Logical Type input type for this field. {@link IllegalStateException} is thrown if
+  /* Returns the Logical Type input type for this field. {@link IllegalStateException} is thrown if
    * schema doesn't match.
    */
   @Nullable
   public <T> T getLogicalTypeValue(String fieldName, Class<T> clazz) {
     return getLogicalTypeValue(getSchema().indexOf(fieldName), clazz);
+  }
+
+  /**
+   * Returns the base type for this field. If this is a logical type, we convert to the base value.
+   * Otherwise the field itself is returned.
+   */
+  @Nullable
+  public <T> T getBaseValue(String fieldName, Class<T> clazz) {
+    return getBaseValue(getSchema().indexOf(fieldName), clazz);
+  }
+
+  /**
+   * Returns the base type for this field. If this is a logical type, we convert to the base value.
+   * Otherwise the field itself is returned.
+   */
+  @Nullable
+  public Object getBaseValue(String fieldName) {
+    return getBaseValue(fieldName, Object.class);
   }
 
   /**
@@ -356,8 +382,33 @@ public abstract class Row implements Serializable {
    */
   @Nullable
   public <T> T getLogicalTypeValue(int idx, Class<T> clazz) {
-    LogicalType logicalType = checkNotNull(getSchema().getField(idx).getType().getLogicalType());
-    return (T) logicalType.toInputType(getValue(idx));
+    return (T) getValue(idx);
+  }
+
+  /**
+   * Returns the base type for this field. If this is a logical type, we convert to the base value.
+   * Otherwise the field itself is returned.
+   */
+  @Nullable
+  public <T> T getBaseValue(int idx, Class<T> clazz) {
+    Object value = getValue(idx);
+    FieldType fieldType = getSchema().getField(idx).getType();
+    if (fieldType.getTypeName().isLogicalType() && value != null) {
+      while (fieldType.getTypeName().isLogicalType()) {
+        value = fieldType.getLogicalType().toBaseType(value);
+        fieldType = fieldType.getLogicalType().getBaseType();
+      }
+    }
+    return (T) value;
+  }
+
+  /**
+   * Returns the base type for this field. If this is a logical type, we convert to the base value.
+   * Otherwise the field itself is returned.
+   */
+  @Nullable
+  public Object getBaseValue(int idx) {
+    return getBaseValue(idx, Object.class);
   }
 
   /**

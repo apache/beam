@@ -78,7 +78,8 @@ public abstract class SchemaVerification implements Serializable {
   }
 
   private static Object verifyLogicalType(Object value, LogicalType logicalType, String fieldName) {
-    return verifyFieldValue(logicalType.toBaseType(value), logicalType.getBaseType(), fieldName);
+    // TODO: this isn't guaranteed to clone the object.
+    return logicalType.toInputType(logicalType.toBaseType(value));
   }
 
   private static List<Object> verifyArray(

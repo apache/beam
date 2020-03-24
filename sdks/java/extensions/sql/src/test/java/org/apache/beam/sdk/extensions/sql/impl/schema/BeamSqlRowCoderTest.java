@@ -65,8 +65,8 @@ public class BeamSqlRowCoderTest {
                 1.1,
                 BigDecimal.ZERO,
                 "hello",
-                DateTime.now(),
-                DateTime.now(),
+                DateTime.now().toInstant(),
+                DateTime.now().toInstant(),
                 true)
             .build();
     Coder<Row> coder = SchemaCoder.of(beamSchema);

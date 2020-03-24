@@ -144,7 +144,7 @@ public class ConvertHelpers {
     }
 
     Type expectedInputType =
-        typeConversionsFactory.createTypeConversion(true).convert(outputTypeDescriptor);
+        typeConversionsFactory.createTypeConversion(false).convert(outputTypeDescriptor);
 
     TypeDescriptor<?> outputType = outputTypeDescriptor;
     if (outputType.getRawType().isPrimitive()) {
@@ -160,6 +160,7 @@ public class ConvertHelpers {
             .build();
     DynamicType.Builder<SerializableFunction> builder =
         (DynamicType.Builder<SerializableFunction>) new ByteBuddy().subclass(genericType);
+
     try {
       return builder
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
