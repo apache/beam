@@ -441,10 +441,10 @@ public class ProtoDynamicMessageSchema<T> implements Serializable {
 
     @Override
     Object convertToProtoValue(FieldDescriptor fieldDescriptor, Object value) {
-      Row row = (Row) value;
+      Instant ts = (Instant) value;
       return com.google.protobuf.Timestamp.newBuilder()
-          .setSeconds(row.getInt64(0))
-          .setNanos(row.getInt32(1))
+          .setSeconds(ts.getEpochSecond())
+          .setNanos(ts.getNano())
           .build();
     }
   }
@@ -486,10 +486,10 @@ public class ProtoDynamicMessageSchema<T> implements Serializable {
 
     @Override
     Object convertToProtoValue(FieldDescriptor fieldDescriptor, Object value) {
-      Row row = (Row) value;
+      Duration duration = (Duration) value;
       return com.google.protobuf.Duration.newBuilder()
-          .setSeconds(row.getInt64(0))
-          .setNanos(row.getInt32(1))
+          .setSeconds(duration.getSeconds())
+          .setNanos(duration.getNano())
           .build();
     }
   }
@@ -689,12 +689,12 @@ public class ProtoDynamicMessageSchema<T> implements Serializable {
     @Override
     Object convertToProtoValue(FieldDescriptor fieldDescriptor, Object value) {
       Descriptors.EnumDescriptor enumType = fieldDescriptor.getEnumType();
-      return enumType.findValueByNumber((Integer) value);
+      return enumType.findValueByNumber(((EnumerationType.Value) value).getValue());
     }
   }
 
   /** Convert Proto oneOf fields into the {@link OneOfType} logical type. */
-  static class OneOfConvert extends Convert<OneOfType.Value, Row> {
+  static class OneOfConvert extends Convert<OneOfType.Value, OneOfType.Value> {
     OneOfType logicalType;
     Map<Integer, Convert> oneOfConvert = new HashMap<>();
 
@@ -726,8 +726,7 @@ public class ProtoDynamicMessageSchema<T> implements Serializable {
     }
 
     @Override
-    void setOnProtoMessage(Message.Builder message, Row value) {
-      OneOfType.Value oneOf = logicalType.toInputType(value);
+    void setOnProtoMessage(Message.Builder message, OneOfType.Value oneOf) {
       int caseIndex = oneOf.getCaseType().getValue();
       oneOfConvert.get(caseIndex).setOnProtoMessage(message, oneOf.getValue());
     }

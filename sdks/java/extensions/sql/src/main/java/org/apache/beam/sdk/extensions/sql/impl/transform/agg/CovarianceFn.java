@@ -94,8 +94,8 @@ public class CovarianceFn<T extends Number>
 
     return currentVariance.combineWith(
         CovarianceAccumulator.ofSingleElement(
-            SqlFunctions.toBigDecimal((Object) rawInput.getValue(0)),
-            SqlFunctions.toBigDecimal((Object) rawInput.getValue(1))));
+            SqlFunctions.toBigDecimal((Object) rawInput.getBaseValue(0, Object.class)),
+            SqlFunctions.toBigDecimal((Object) rawInput.getBaseValue(1, Object.class))));
   }
 
   @Override
