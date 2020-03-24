@@ -222,7 +222,10 @@ class StreamingCacheSource:
       _LOGGER.error(
           'Could not parse as %s. This can indicate that the cache is '
           'corruputed. Please restart the kernel. '
-          '\nfile: %s \nmessage: %s', proto_cls, self._path, to_decode)
+          '\nfile: %s \nmessage: %s',
+          proto_cls,
+          self._path,
+          to_decode)
       msg = None
     return msg
 
