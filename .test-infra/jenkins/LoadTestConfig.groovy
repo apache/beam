@@ -30,6 +30,7 @@ import static java.util.Objects.requireNonNull
 /**
  * This class contains simple DSL for load tests configuration. Configuration as Map<String, Serializable>
  * [{@link LoadTestConfig#config config} -- returns configuration map]
+ * [{@link LoadTestConfig#extend extend} -- extends LoadTestConfig object]
  * [{@link LoadTestConfig#templateConfig templateConfig} -- return LoadTestConfig reusable object]
  * [{@link LoadTestConfig#fromTemplate fromTemplate} -- returns configuration from given template].<br><br>
  *
@@ -182,10 +183,8 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
      * @see LoadTestConfig#templateConfig
      */
     static Map<String, Serializable> fromTemplate(final LoadTestConfig templateConfig, final Closure cl = {}) {
-        final def newConfig = of(templateConfig)
-        delegateAndInvoke(newConfig, cl)
+        final def newConfig = extend(templateConfig, cl)
         final def properties = newConfig.propertiesMap
-        verifyProperties(properties)
         return ConfigHelper.convertProperties(properties)
     }
 
@@ -200,6 +199,20 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
         final def properties = config.propertiesMap
         verifyProperties(properties)
         return ConfigHelper.convertProperties(config.propertiesMap)
+    }
+
+    /**
+     * Extends LoadTestConfig object by appending the given settings
+     * @param templateConfig LoadTestConfig instance
+     * @param cl Closure with settings
+     * @return LoadTestConfig object
+     */
+    static LoadTestConfig extend(final LoadTestConfig templateConfig, final Closure cl = {}) {
+        final def newConfig = of(templateConfig)
+        delegateAndInvoke(newConfig, cl)
+        final def properties = newConfig.propertiesMap
+        verifyProperties(properties)
+        return newConfig
     }
 
     private static void delegateAndInvoke(final delegate, final Closure cl = {}) {
