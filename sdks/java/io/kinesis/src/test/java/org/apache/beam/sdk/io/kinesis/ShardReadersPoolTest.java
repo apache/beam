@@ -19,9 +19,9 @@ package org.apache.beam.sdk.io.kinesis;
 
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Matchers.same;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
@@ -59,7 +59,6 @@ public class ShardReadersPoolTest {
   @Mock private RateLimitPolicyFactory rateLimitPolicyFactory;
   @Mock private RateLimitPolicy customRateLimitPolicy;
 
-  private KinesisReaderCheckpoint checkpoint;
   private ShardReadersPool shardReadersPool;
   private final Instant now = Instant.now();
 
@@ -82,7 +81,8 @@ public class ShardReadersPoolTest {
         WatermarkPolicyFactory.withArrivalTimePolicy().createWatermarkPolicy();
     RateLimitPolicy rateLimitPolicy = RateLimitPolicyFactory.withoutLimiter().getRateLimitPolicy();
 
-    checkpoint = new KinesisReaderCheckpoint(ImmutableList.of(firstCheckpoint, secondCheckpoint));
+    KinesisReaderCheckpoint checkpoint =
+        new KinesisReaderCheckpoint(ImmutableList.of(firstCheckpoint, secondCheckpoint));
     shardReadersPool =
         Mockito.spy(
             new ShardReadersPool(
@@ -298,6 +298,24 @@ public class ShardReadersPoolTest {
 
     verify(firstIterator, times(2)).getShardWatermark();
     verify(secondIterator, times(2)).getShardWatermark();
+  }
+
+  @Test
+  public void shouldReturnTheOldestFromLatestRecordTimestampOfAllShards()
+      throws TransientKinesisException {
+    Instant threeMin = now.minus(Duration.standardMinutes(3));
+    Instant twoMin = now.minus(Duration.standardMinutes(2));
+
+    when(firstIterator.getLatestRecordTimestamp()).thenReturn(threeMin).thenReturn(now);
+    when(secondIterator.getLatestRecordTimestamp()).thenReturn(twoMin);
+
+    shardReadersPool.start();
+
+    assertThat(shardReadersPool.getLatestRecordTimestamp()).isEqualTo(threeMin);
+    assertThat(shardReadersPool.getLatestRecordTimestamp()).isEqualTo(twoMin);
+
+    verify(firstIterator, times(2)).getLatestRecordTimestamp();
+    verify(secondIterator, times(2)).getLatestRecordTimestamp();
   }
 
   @Test
