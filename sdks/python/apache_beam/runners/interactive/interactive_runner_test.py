@@ -173,10 +173,7 @@ class InteractiveRunnerTest(unittest.TestCase):
             .add_elements(['to', 'be', 'or', 'not', 'to', 'be'])
             .advance_watermark_to(20)
             .advance_processing_time(1)
-            .add_elements(['to', 'be', 'or', 'not', 'to', 'be'])
-            .advance_watermark_to(40)
-            .advance_processing_time(1)
-            .add_elements(['to', 'be', 'or', 'not', 'to', 'be'])
+            .add_elements(['that', 'is', 'the', 'question'])
         | beam.WindowInto(beam.window.FixedWindows(10))) # yapf: disable
 
     counts = (
@@ -196,26 +193,21 @@ class InteractiveRunnerTest(unittest.TestCase):
 
     # This tests that the data was correctly cached.
     pane_info = PaneInfo(True, True, PaneInfoTiming.UNKNOWN, 0, 0)
-    expected_data_df = pd.DataFrame(
-        [('to', 0, [beam.window.IntervalWindow(0, 10)], pane_info),
-         ('be', 0, [beam.window.IntervalWindow(0, 10)], pane_info),
-         ('or', 0, [beam.window.IntervalWindow(0, 10)], pane_info),
-         ('not', 0, [beam.window.IntervalWindow(0, 10)], pane_info),
-         ('to', 0, [beam.window.IntervalWindow(0, 10)], pane_info),
-         ('be', 0, [beam.window.IntervalWindow(0, 10)], pane_info),
-         ('to', 20000000, [beam.window.IntervalWindow(20, 30)], pane_info),
-         ('be', 20000000, [beam.window.IntervalWindow(20, 30)], pane_info),
-         ('or', 20000000, [beam.window.IntervalWindow(20, 30)], pane_info),
-         ('not', 20000000, [beam.window.IntervalWindow(20, 30)], pane_info),
-         ('to', 20000000, [beam.window.IntervalWindow(20, 30)], pane_info),
-         ('be', 20000000, [beam.window.IntervalWindow(20, 30)], pane_info),
-         ('to', 40000000, [beam.window.IntervalWindow(40, 50)], pane_info),
-         ('be', 40000000, [beam.window.IntervalWindow(40, 50)], pane_info),
-         ('or', 40000000, [beam.window.IntervalWindow(40, 50)], pane_info),
-         ('not', 40000000, [beam.window.IntervalWindow(40, 50)], pane_info),
-         ('to', 40000000, [beam.window.IntervalWindow(40, 50)], pane_info),
-         ('be', 40000000, [beam.window.IntervalWindow(40, 50)], pane_info)],
-        columns=[0, 'event_time', 'windows', 'pane_info'])
+    expected_data_df = pd.DataFrame([
+        ('to', 0, [beam.window.IntervalWindow(0, 10)], pane_info),
+        ('be', 0, [beam.window.IntervalWindow(0, 10)], pane_info),
+        ('or', 0, [beam.window.IntervalWindow(0, 10)], pane_info),
+        ('not', 0, [beam.window.IntervalWindow(0, 10)], pane_info),
+        ('to', 0, [beam.window.IntervalWindow(0, 10)], pane_info),
+        ('be', 0, [beam.window.IntervalWindow(0, 10)], pane_info),
+        ('that', 20000000, [beam.window.IntervalWindow(20, 30)], pane_info),
+        ('is', 20000000, [beam.window.IntervalWindow(20, 30)], pane_info),
+        ('the', 20000000, [beam.window.IntervalWindow(20, 30)], pane_info),
+        ('question', 20000000, [beam.window.IntervalWindow(20, 30)], pane_info)
+    ],
+                                    columns=[
+                                        0, 'event_time', 'windows', 'pane_info'
+                                    ])
 
     data_df = ib.collect(data, include_window_info=True)
     pd.testing.assert_frame_equal(expected_data_df, data_df)
@@ -228,14 +220,14 @@ class InteractiveRunnerTest(unittest.TestCase):
          ('be', 2, 9999999, [beam.window.IntervalWindow(0, 10)], pane_info),
          ('or', 1, 9999999, [beam.window.IntervalWindow(0, 10)], pane_info),
          ('not', 1, 9999999, [beam.window.IntervalWindow(0, 10)], pane_info),
-         ('to', 2, 29999999, [beam.window.IntervalWindow(20, 30)], pane_info),
-         ('be', 2, 29999999, [beam.window.IntervalWindow(20, 30)], pane_info),
-         ('or', 1, 29999999, [beam.window.IntervalWindow(20, 30)], pane_info),
-         ('not', 1, 29999999, [beam.window.IntervalWindow(20, 30)], pane_info),
-         ('to', 2, 49999999, [beam.window.IntervalWindow(40, 50)], pane_info),
-         ('be', 2, 49999999, [beam.window.IntervalWindow(40, 50)], pane_info),
-         ('or', 1, 49999999, [beam.window.IntervalWindow(40, 50)], pane_info),
-         ('not', 1, 49999999, [beam.window.IntervalWindow(40, 50)], pane_info)],
+         ('that', 1, 29999999, [beam.window.IntervalWindow(20, 30)], pane_info),
+         ('is', 1, 29999999, [beam.window.IntervalWindow(20, 30)], pane_info),
+         ('the', 1, 29999999, [beam.window.IntervalWindow(20, 30)], pane_info),
+         (
+             'question',
+             1,
+             29999999, [beam.window.IntervalWindow(20, 30)],
+             pane_info)],
         columns=[0, 1, 'event_time', 'windows', 'pane_info'])
 
     counts_df = ib.collect(counts, include_window_info=True)
