@@ -16,12 +16,14 @@
 #
 
 """Code for communicating with the Workers."""
+
+from __future__ import absolute_import
+
 import collections
 import contextlib
 import copy
 import logging
 import queue
-
 import subprocess
 import sys
 import threading
@@ -54,10 +56,10 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability.fn_api_runner.execution import Buffer
-from apache_beam.runners.worker.sdk_worker import _Future
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
+from apache_beam.runners.worker.sdk_worker import _Future
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.utils import proto_utils
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
@@ -70,16 +72,16 @@ STATE_CACHE_SIZE = 100
 # Time-based flush is enabled in the fn_api_runner by default.
 DATA_BUFFER_TIME_LIMIT_MS = 1000
 
-
 _LOGGER = logging.getLogger(__name__)
 
-
 ConstructorFn = Callable[[
-                             Union['message.Message', bytes],
-                             'StateServicer',
-                             Optional['ExtendedProvisionInfo'],
-                             'GrpcServer'
-                         ], 'WorkerHandler']
+    Union['message.Message', bytes],
+    'StateServicer',
+    Optional['ExtendedProvisionInfo'],
+    'GrpcServer'
+],
+                         'WorkerHandler']
+
 
 class ControlConnection(object):
 
@@ -870,8 +872,7 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
   def __init__(self):
     # type: () -> None
     self._lock = threading.Lock()
-    self._state = collections.defaultdict(
-        list)  # type: StateServicer.StateType
+    self._state = collections.defaultdict(list)  # type: StateServicer.StateType
     self._checkpoint = None  # type: Optional[StateServicer.StateType]
     self._use_continuation_tokens = False
     self._continuations = {}  # type: Dict[bytes, Tuple[bytes, ...]]
@@ -906,7 +907,7 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
   def get_raw(self,
       state_key,  # type: beam_fn_api_pb2.StateKey
       continuation_token=None  # type: Optional[bytes]
-  ):
+              ):
     # type: (...) -> Tuple[bytes, Optional[bytes]]
     with self._lock:
       full_state = self._state[self._to_key(state_key)]
@@ -965,7 +966,7 @@ class GrpcStateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer):
   def State(self,
       request_stream,  # type: Iterable[beam_fn_api_pb2.StateRequest]
       context=None
-  ):
+            ):
     # type: (...) -> Iterator[beam_fn_api_pb2.StateResponse]
     # Note that this eagerly mutates state, assuming any failures are fatal.
     # Thus it is safe to ignore instruction_id.

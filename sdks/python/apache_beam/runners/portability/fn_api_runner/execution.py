@@ -248,7 +248,7 @@ class FnApiRunnerExecutionContext(object):
       worker_handler_factory,  # type: Callable[[Optional[str], int], List[WorkerHandler]]
       pipeline_components,  # type: beam_runner_api_pb2.Components
       safe_coders,
-  ):
+               ):
     """
     :param worker_handler_factory: A ``callable`` that takes in an environment
         id and a number of workers, and returns a list of ``WorkerHandler``s.
@@ -268,7 +268,7 @@ class BundleContextManager(object):
       process_bundle_descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
       worker_handler,  # type: fn_runner.WorkerHandler
       p_context,  # type: pipeline_context.PipelineContext
-  ):
+               ):
     self.execution_context = execution_context
     self.process_bundle_descriptor = process_bundle_descriptor
     self.worker_handler = worker_handler
@@ -282,7 +282,7 @@ class BundleContextManager(object):
     assert coder_id
     if coder_id in self.execution_context.safe_coders:
       return self.pipeline_context.coders[
-        self.execution_context.safe_coders[coder_id]].get_impl()
+          self.execution_context.safe_coders[coder_id]].get_impl()
     else:
       return self.pipeline_context.coders[coder_id].get_impl()
 
@@ -304,19 +304,19 @@ class BundleContextManager(object):
       if buffer_id not in self.execution_context.pcoll_buffers:
         original_gbk_transform = name
         transform_proto = self.execution_context.pipeline_components.transforms[
-          original_gbk_transform]
+            original_gbk_transform]
         input_pcoll = only_element(list(transform_proto.inputs.values()))
         output_pcoll = only_element(list(transform_proto.outputs.values()))
         pre_gbk_coder = self.pipeline_context.coders[
-          self.execution_context.safe_coders[
-            self.execution_context.pipeline_components.
-              pcollections[input_pcoll].coder_id]]
+            self.execution_context.safe_coders[
+                self.execution_context.pipeline_components.
+                pcollections[input_pcoll].coder_id]]
         post_gbk_coder = self.pipeline_context.coders[
-          self.execution_context.safe_coders[
-            self.execution_context.pipeline_components.
-              pcollections[output_pcoll].coder_id]]
+            self.execution_context.safe_coders[
+                self.execution_context.pipeline_components.
+                pcollections[output_pcoll].coder_id]]
         windowing_strategy = self.pipeline_context.windowing_strategies[
-          self.execution_context.pipeline_components.
+            self.execution_context.pipeline_components.
             pcollections[output_pcoll].windowing_strategy_id]
         self.execution_context.pcoll_buffers[buffer_id] = GroupingBuffer(
             pre_gbk_coder, post_gbk_coder, windowing_strategy)

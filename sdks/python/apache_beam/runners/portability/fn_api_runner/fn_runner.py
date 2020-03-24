@@ -66,22 +66,19 @@ from apache_beam.runners.portability.fn_api_runner.translations import create_bu
 from apache_beam.runners.portability.fn_api_runner.translations import only_element
 from apache_beam.runners.portability.fn_api_runner.translations import split_buffer_id
 from apache_beam.runners.portability.fn_api_runner.translations import unique_name
+from apache_beam.runners.portability.fn_api_runner.worker_handlers import WorkerHandlerManager
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.transforms import environments
 from apache_beam.utils import profiler
 from apache_beam.utils import proto_utils
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
-from apache_beam.runners.portability.fn_api_runner.worker_handlers import \
-  WorkerHandlerManager
 
 if TYPE_CHECKING:
   from apache_beam.pipeline import Pipeline
   from apache_beam.coders.coder_impl import CoderImpl
   from apache_beam.portability.api import metrics_pb2
 
-
 _LOGGER = logging.getLogger(__name__)
-
 
 T = TypeVar('T')
 
@@ -342,7 +339,8 @@ class FnApiRunner(runner.PipelineRunner):
         for stage in stages:
           stage_results = self._run_stage(
               runner_execution_context,
-              stage,)
+              stage,
+          )
           metrics_by_stage[stage.name] = stage_results.process_bundle.metrics
           monitoring_infos_by_stage[stage.name] = (
               stage_results.process_bundle.monitoring_infos)
@@ -360,9 +358,9 @@ class FnApiRunner(runner.PipelineRunner):
     for (transform_id, tag), (buffer_id, si) in data_side_input.items():
       _, pcoll_id = split_buffer_id(buffer_id)
       value_coder = bundle_context_manager.pipeline_context.coders[
-        runner_execution_context.safe_coders[
-          runner_execution_context.pipeline_components.pcollections[
-            pcoll_id].coder_id]]
+          runner_execution_context.safe_coders[
+              runner_execution_context.pipeline_components.
+              pcollections[pcoll_id].coder_id]]
       elements_by_window = WindowGroupingBuffer(si, value_coder)
       if buffer_id not in runner_execution_context.pcoll_buffers:
         runner_execution_context.pcoll_buffers[buffer_id] = ListBuffer(
@@ -375,8 +373,8 @@ class FnApiRunner(runner.PipelineRunner):
           state_key = beam_fn_api_pb2.StateKey(
               iterable_side_input=beam_fn_api_pb2.StateKey.IterableSideInput(
                   transform_id=transform_id, side_input_id=tag, window=window))
-          bundle_context_manager.worker_handler.state.append_raw(state_key,
-                                                                 elements_data)
+          bundle_context_manager.worker_handler.state.append_raw(
+              state_key, elements_data)
       elif si.urn == common_urns.side_inputs.MULTIMAP.urn:
         for key, window, elements_data in elements_by_window.encoded_items():
           state_key = beam_fn_api_pb2.StateKey(
@@ -385,8 +383,8 @@ class FnApiRunner(runner.PipelineRunner):
                   side_input_id=tag,
                   window=window,
                   key=key))
-          bundle_context_manager.worker_handler.state.append_raw(state_key,
-                                                                 elements_data)
+          bundle_context_manager.worker_handler.state.append_raw(
+              state_key, elements_data)
       else:
         raise ValueError("Unknown access pattern: '%s'" % si.urn)
 
@@ -437,7 +435,8 @@ class FnApiRunner(runner.PipelineRunner):
       # Queue any set timers as new inputs.
       windowed_timer_coder_impl = (
           bundle_context_manager.pipeline_context.coders[
-            pipeline_components.pcollections[timer_writes].coder_id].get_impl())
+              pipeline_components.pcollections[timer_writes].coder_id].get_impl(
+              ))
       written_timers = bundle_context_manager.get_buffer(
           create_buffer_id(timer_writes, kind='timers'), transform_id)
       if not written_timers.cleared:
@@ -621,8 +620,8 @@ class FnApiRunner(runner.PipelineRunner):
         coders=dict(
             runner_execution_context.pipeline_components.coders.items()),
         windowing_strategies=dict(
-            runner_execution_context.pipeline_components.windowing_strategies
-              .items()),
+            runner_execution_context.pipeline_components.windowing_strategies.
+            items()),
         environments=dict(
             runner_execution_context.pipeline_components.environments.items()))
 
@@ -640,9 +639,7 @@ class FnApiRunner(runner.PipelineRunner):
     # Store the required side inputs into state so it is accessible for the
     # worker when it runs this bundle.
     self._store_side_inputs_in_state(
-        bundle_context_manager,
-        runner_execution_context,
-        data_side_input)
+        bundle_context_manager, runner_execution_context, data_side_input)
 
     # Change cache token across bundle repeats
     cache_token_generator = FnApiRunner.get_cache_token_generator(static=False)
@@ -676,8 +673,10 @@ class FnApiRunner(runner.PipelineRunner):
       deferred_inputs = {}  # type: Dict[str, PartitionableBuffer]
 
       self._collect_written_timers_and_add_to_deferred_inputs(
-          runner_execution_context.pipeline_components, stage,
-          bundle_context_manager, deferred_inputs)
+          runner_execution_context.pipeline_components,
+          stage,
+          bundle_context_manager,
+          deferred_inputs)
       # Queue any process-initiated delayed bundle applications.
       for delayed_application in last_result.process_bundle.residual_roots:
         name = bundle_context_manager.input_for(
