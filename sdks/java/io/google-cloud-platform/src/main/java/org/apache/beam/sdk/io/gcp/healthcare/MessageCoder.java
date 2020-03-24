@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.healthcare.v1alpha2.model.Message;
+import com.google.api.services.healthcare.v1alpha2.model.ParsedData;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -32,7 +35,9 @@ public class MessageCoder extends CustomCoder<Message> {
   MessageCoder() {}
 
   private static final NullableCoder<String> STRING_CODER = NullableCoder.of(StringUtf8Coder.of());
-  private static final NullableCoder<Map<String, String>> MAP_CODER = NullableCoder.of(MapCoder.of(STRING_CODER, STRING_CODER));
+  private static final NullableCoder<Map<String, String>> MAP_CODER =
+      NullableCoder.of(MapCoder.of(STRING_CODER, STRING_CODER));
+
   @Override
   public void encode(Message value, OutputStream outStream) throws CoderException, IOException {
     STRING_CODER.encode(value.getName(), outStream);
@@ -42,7 +47,11 @@ public class MessageCoder extends CustomCoder<Message> {
     STRING_CODER.encode(value.getData(), outStream);
     STRING_CODER.encode(value.getSendFacility(), outStream);
     MAP_CODER.encode(value.getLabels(), outStream);
-    // value.getParsedData(); // TODO
+    if (value.getParsedData() != null) {
+      STRING_CODER.encode(value.getParsedData().toString(), outStream);
+    } else {
+      STRING_CODER.encode(null, outStream);
+    }
   }
 
   @Override
@@ -55,6 +64,12 @@ public class MessageCoder extends CustomCoder<Message> {
     msg.setData(STRING_CODER.decode(inStream));
     msg.setSendFacility(STRING_CODER.decode(inStream));
     msg.setLabels(MAP_CODER.decode(inStream));
+    String parsedDataStr = STRING_CODER.decode(inStream);
+    if (parsedDataStr != null) {
+      // TODO: find better workaround to JsonFactory not serializable.
+      JsonFactory jsonFactory = new GsonFactory();
+      msg.setParsedData(jsonFactory.fromString(parsedDataStr, ParsedData.class));
+    }
     return msg;
   }
 }
