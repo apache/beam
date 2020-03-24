@@ -105,7 +105,7 @@ type ProvisionInfo struct {
 	// identical to what is passed to job submission.
 	PipelineOptions *_struct.Struct `protobuf:"bytes,3,opt,name=pipeline_options,json=pipelineOptions,proto3" json:"pipeline_options,omitempty"`
 	// (required) The artifact retrieval token produced by
-	// ArtifactStagingService.CommitManifestResponse.
+	// LegacyArtifactStagingService.CommitManifestResponse.
 	RetrievalToken string `protobuf:"bytes,6,opt,name=retrieval_token,json=retrievalToken,proto3" json:"retrieval_token,omitempty"`
 	// (optional) The endpoint that the runner is hosting for the SDK to submit
 	// status reports to during pipeline execution. This field will only be
