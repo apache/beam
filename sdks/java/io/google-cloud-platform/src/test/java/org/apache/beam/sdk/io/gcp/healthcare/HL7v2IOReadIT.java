@@ -47,7 +47,8 @@ public class HL7v2IOReadIT {
     }
     PipelineOptionsFactory.register(HL7v2IOTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(HL7v2IOTestOptions.class);
-    options.setHL7v2Store("projects/jferriero-dev/locations/us-central1/datasets/raw-dataset/hl7V2Stores/jake-hl7");
+    options.setHL7v2Store(
+        "projects/jferriero-dev/locations/us-central1/datasets/raw-dataset/hl7V2Stores/jake-hl7");
     // Create HL7 messages and write them to HL7v2 Store.
     writeHL7v2Messages(this.client, options.getHL7v2Store());
   }
@@ -69,7 +70,8 @@ public class HL7v2IOReadIT {
             .apply(
                 new HL7v2IO.ListHL7v2MessageIDs(Collections.singletonList(options.getHL7v2Store())))
             .apply(HL7v2IO.readAll());
-    PCollection<Long> numReadMessages = result.getMessages().setCoder(new MessageCoder()).apply(Count.globally());
+    PCollection<Long> numReadMessages =
+        result.getMessages().setCoder(new MessageCoder()).apply(Count.globally());
     PAssert.thatSingleton(numReadMessages).isEqualTo((long) MESSAGES.size());
     PAssert.that(result.getFailedReads()).empty();
 
@@ -87,7 +89,8 @@ public class HL7v2IOReadIT {
                 new HL7v2IO.ListHL7v2MessageIDs(
                     Collections.singletonList(options.getHL7v2Store()), filter))
             .apply(HL7v2IO.readAll());
-    PCollection<Long> numReadMessages = result.getMessages().setCoder(new MessageCoder()).apply(Count.globally());
+    PCollection<Long> numReadMessages =
+        result.getMessages().setCoder(new MessageCoder()).apply(Count.globally());
     PAssert.thatSingleton(numReadMessages).isEqualTo(NUM_ADT);
     PAssert.that(result.getFailedReads()).empty();
 

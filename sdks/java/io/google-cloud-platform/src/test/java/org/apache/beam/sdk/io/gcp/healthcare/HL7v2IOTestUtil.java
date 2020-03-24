@@ -72,21 +72,15 @@ class HL7v2IOTestUtil {
   /** Clear all messages from the HL7v2 store. */
   static void deleteAllHL7v2Messages(HealthcareApiClient client, String hl7v2Store)
       throws IOException {
-    for (String msgId:
-        client.getHL7v2MessageIDStream(hl7v2Store).collect(Collectors.toList())){
+    for (String msgId : client.getHL7v2MessageIDStream(hl7v2Store).collect(Collectors.toList())) {
       client.deleteHL7v2Message(msgId);
     }
   }
 
   /** Populate the test messages into the HL7v2 store. */
-  static void writeHL7v2Messages(HealthcareApiClient client, String hl7v2Store)
-      throws IOException {
+  static void writeHL7v2Messages(HealthcareApiClient client, String hl7v2Store) throws IOException {
     for (Message msg : MESSAGES) {
-      Message result = client.createHL7v2Message(hl7v2Store, msg);
-      System.out.println(String.format("wrote message %s",result.getName()));
+      client.createHL7v2Message(hl7v2Store, msg);
     }
-    System.out.println(
-        String.format("%s",
-            client.getHL7v2MessageIDStream(hl7v2Store).collect(Collectors.toList())));
   }
 }

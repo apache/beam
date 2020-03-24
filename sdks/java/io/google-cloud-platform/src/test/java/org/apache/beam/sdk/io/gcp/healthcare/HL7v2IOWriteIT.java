@@ -46,6 +46,8 @@ public class HL7v2IOWriteIT {
     }
     PipelineOptionsFactory.register(HL7v2IOTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(HL7v2IOTestOptions.class);
+    options.setHL7v2Store(
+        "projects/jferriero-dev/locations/us-central1/datasets/raw-dataset/hl7V2Stores/jake-hl7");
   }
 
   @After
@@ -57,13 +59,14 @@ public class HL7v2IOWriteIT {
   public void testHL7v2IOWrite() throws IOException {
     Pipeline pipeline = Pipeline.create(options);
     HL7v2IO.Write.Result result =
-        pipeline.apply(Create.of(MESSAGES)).apply(HL7v2IO.ingestMessages(options.getHL7v2Store()));
+        pipeline
+            .apply(Create.of(MESSAGES).withCoder(new MessageCoder()))
+            .apply(HL7v2IO.ingestMessages(options.getHL7v2Store()));
 
-    long numWrittenMessages = client.getHL7v2MessageIDStream(options.getHL7v2Store()).count();
-
-    assertEquals(numWrittenMessages, MESSAGES.size());
     PAssert.that(result.getFailedInsertsWithErr()).empty();
 
-    pipeline.run();
+    pipeline.run().waitUntilFinish();
+    long numWrittenMessages = client.getHL7v2MessageIDStream(options.getHL7v2Store()).count();
+    assertEquals(numWrittenMessages, MESSAGES.size());
   }
 }

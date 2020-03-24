@@ -21,8 +21,10 @@ import static junit.framework.TestCase.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.google.api.client.util.ArrayMap;
 import com.google.api.services.healthcare.v1alpha2.model.ListMessagesResponse;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -53,13 +55,38 @@ public class HL7v2MessageIDPagesTest {
     assertFalse(emptyPages.iterator().hasNext());
   }
 
-  /** Test empty store. */
+  /** Test Non-empty with beta store list response store. */
   @Test
-  public void test_NonEmptyStoreExpectedIterator() throws IOException {
+  public void test_NonEmptyLegacyStoreExpectedIterator() throws IOException {
     ListMessagesResponse page0 =
         new ListMessagesResponse()
             .setMessages(Arrays.asList("foo0", "foo1", "foo2"))
             .setNextPageToken("page1");
+    ListMessagesResponse page1 =
+        new ListMessagesResponse().setMessages(Arrays.asList("foo3", "foo4", "foo5"));
+    Mockito.doReturn(page0).when(client).makeHL7v2ListRequest("foo", null, null);
+
+    Mockito.doReturn(page1).when(client).makeHL7v2ListRequest("foo", null, "page1");
+
+    HL7v2MessageIDPages pages = new HL7v2MessageIDPages(client, "foo");
+    assertTrue(pages.iterator().hasNext());
+    Iterator<List<String>> pagesIterator = pages.iterator();
+    assertEquals(page0.getMessages(), pagesIterator.next());
+    assertEquals(page1.getMessages(), pagesIterator.next());
+    assertFalse(pagesIterator.hasNext());
+  }
+
+  /** Test Non-empty with alpha store list response store. */
+  @Test
+  public void test_NonEmptyStoreExpectedIterator() throws IOException {
+    ArrayList<ArrayMap<String, String>> messageList =
+        new ArrayList<>(
+            Arrays.asList(
+                ArrayMap.of("name", "foo0"),
+                ArrayMap.of("name", "foo1"),
+                ArrayMap.of("name", "foo2")));
+    ListMessagesResponse page0 =
+        new ListMessagesResponse().set("hl7V2Messages", messageList).setNextPageToken("page1");
     ListMessagesResponse page1 =
         new ListMessagesResponse().setMessages(Arrays.asList("foo3", "foo4", "foo5"));
     Mockito.doReturn(page0).when(client).makeHL7v2ListRequest("foo", null, null);

@@ -17,9 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import com.google.api.client.http.HttpHeaders;
+import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.client.util.ArrayMap;
 import com.google.api.services.healthcare.v1alpha2.CloudHealthcare;
 import com.google.api.services.healthcare.v1alpha2.CloudHealthcare.Projects.Locations.Datasets.Hl7V2Stores.Messages;
 import com.google.api.services.healthcare.v1alpha2.model.CreateMessageRequest;
@@ -31,15 +35,20 @@ import com.google.api.services.healthcare.v1alpha2.model.IngestMessageResponse;
 import com.google.api.services.healthcare.v1alpha2.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1alpha2.model.Message;
 import com.google.api.services.healthcare.v1alpha2.model.SearchResourcesRequest;
+import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.URI;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
@@ -81,6 +90,10 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
       Iterator<X> iterator) {
     Spliterator<Collection<T>> spliterator = Spliterators.spliteratorUnknownSize(iterator, 0);
     return StreamSupport.stream(spliterator, false).flatMap(Collection::stream);
+  }
+
+  public JsonFactory getJsonFactory() {
+    return this.client.getJsonFactory();
   }
 
   @Override
@@ -257,11 +270,44 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
     return client.projects().locations().datasets().fhirStores().fhir().read(resource).execute();
   }
 
+  private static class AuthenticatedRetryInitializer extends RetryHttpRequestInitializer {
+    GoogleCredentials credentials;
+
+    public AuthenticatedRetryInitializer(GoogleCredentials credentials) {
+      super();
+      this.credentials = credentials;
+    }
+
+    @Override
+    public void initialize(HttpRequest request) throws IOException {
+      super.initialize(request);
+      if (!credentials.hasRequestMetadata()) {
+        return;
+      }
+      HttpHeaders requestHeaders = request.getHeaders();
+      URI uri = null;
+      if (request.getUrl() != null) {
+        uri = request.getUrl().toURI();
+      }
+      Map<String, List<String>> credentialHeaders = credentials.getRequestMetadata(uri);
+      if (credentialHeaders == null) {
+        return;
+      }
+      for (Map.Entry<String, List<String>> entry : credentialHeaders.entrySet()) {
+        String headerName = entry.getKey();
+        List<String> requestValues = new ArrayList<>();
+        requestValues.addAll(entry.getValue());
+        requestHeaders.put(headerName, requestValues);
+      }
+    }
+  }
+
   private void initClient() throws IOException {
     // Create a HttpRequestInitializer, which will provide a baseline configuration to all requests.
-    HttpRequestInitializer requestInitializer = new RetryHttpRequestInitializer();
+    // HttpRequestInitializer requestInitializer = new RetryHttpRequestInitializer();
     // GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
-    // HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(GoogleCredentials.getApplicationDefault());
+    HttpRequestInitializer requestInitializer =
+        new AuthenticatedRetryInitializer(GoogleCredentials.getApplicationDefault());
 
     client =
         new CloudHealthcare.Builder(new NetHttpTransport(), new GsonFactory(), requestInitializer)
@@ -354,13 +400,12 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
         if (isFirstRequest) {
           try {
             ListMessagesResponse response = makeListRequest(client, hl7v2Store, filter, pageToken);
-            System.out.println(String.format(".getMessages() -> %s", response.getMessages()));
-            System.out.println(String.format(".get('hl7V2Messages') -> %s",
-                response.get("hl7V2Messages").toString()));
-            System.out.println(String.format(".getHl7V2Messages() -> %s",
-                response.get("hl7V2Messages").toString()));
-            List<String> msgs = (List<String>) response.getMessages();
+            List<String> msgs = response.getMessages();
             if (msgs == null) {
+              if (response.get("hl7V2Messages") != null) {
+                return ((ArrayList<ArrayMap<String, String>>) response.get("hl7V2Messages")).size()
+                    > 0;
+              }
               return false;
             } else {
               return !msgs.isEmpty();
@@ -381,7 +426,17 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
           ListMessagesResponse response = makeListRequest(client, hl7v2Store, filter, pageToken);
           this.isFirstRequest = false;
           this.pageToken = response.getNextPageToken();
-          return response.getMessages();
+          List<String> msgs = response.getMessages();
+          if (msgs == null && response.get("hl7V2Messages") != null) {
+            ArrayList<ArrayMap<String, String>> msgNames =
+                (ArrayList<ArrayMap<String, String>>) response.get("hl7V2Messages");
+
+            msgs =
+                msgNames.stream()
+                    .map((ArrayMap<String, String> map) -> map.get("name"))
+                    .collect(Collectors.toList());
+          }
+          return msgs;
         } catch (IOException e) {
           this.pageToken = null;
           throw new NoSuchElementException(

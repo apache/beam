@@ -75,7 +75,8 @@ public class HL7v2IOTest {
         failedInserts
             .apply(
                 MapElements.into(TypeDescriptor.of(Message.class))
-                    .via(HealthcareIOError::getDataResource)).setCoder(new MessageCoder());
+                    .via(HealthcareIOError::getDataResource))
+            .setCoder(new MessageCoder());
 
     PAssert.that(failedMsgs).containsInAnyOrder(emptyMessages);
 
