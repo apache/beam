@@ -33,6 +33,7 @@ from typing import List
 from typing import Optional
 
 import grpc
+import runners.portability.fn_api_runner.worker_handlers
 from google.protobuf import text_format  # type: ignore # not in typeshed
 
 from apache_beam.metrics import monitoring_infos
@@ -202,7 +203,7 @@ class SubprocessSdkWorker(object):
     if self._worker_id:
       env_dict['WORKER_ID'] = self._worker_id
 
-    with fn_runner.SUBPROCESS_LOCK:
+    with runners.portability.fn_api_runner.worker_handlers.SUBPROCESS_LOCK:
       p = subprocess.Popen(self._worker_command_line, shell=True, env=env_dict)
     try:
       p.wait()
