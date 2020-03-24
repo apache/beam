@@ -1305,6 +1305,8 @@ class ParDo(PTransformWithSideInputs):
       restriction_coder = sig.get_restriction_coder()
       restriction_coder_id = context.coders.get_id(
           restriction_coder)  # type: typing.Optional[str]
+      context.add_requirement(
+          common_urns.requirements.REQUIRES_SPLITTABLE_DOFN.urn)
     else:
       restriction_coder_id = None
     has_bundle_finalization = sig.has_bundle_finalization()
@@ -1317,7 +1319,6 @@ class ParDo(PTransformWithSideInputs):
             do_fn=beam_runner_api_pb2.FunctionSpec(
                 urn=python_urns.PICKLED_DOFN_INFO,
                 payload=picked_pardo_fn_data),
-            splittable=is_splittable,
             requests_finalization=has_bundle_finalization,
             restriction_coder_id=restriction_coder_id,
             state_specs={

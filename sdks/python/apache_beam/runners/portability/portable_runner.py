@@ -43,10 +43,10 @@ from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import runner
 from apache_beam.runners.job import utils as job_utils
-from apache_beam.runners.portability import fn_api_runner_transforms
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability import portable_stager
+from apache_beam.runners.portability.fn_api_runner.fn_runner import translations
 from apache_beam.runners.worker import sdk_worker_main
 from apache_beam.runners.worker import worker_pool_main
 from apache_beam.transforms import environments
@@ -337,21 +337,21 @@ class PortableRunner(runner.PipelineRunner):
       if pre_optimize == 'none':
         pass
       elif pre_optimize == 'all':
-        proto_pipeline = fn_api_runner_transforms.optimize_pipeline(
+        proto_pipeline = translations.optimize_pipeline(
             proto_pipeline,
             phases=[
-                fn_api_runner_transforms.annotate_downstream_side_inputs,
-                fn_api_runner_transforms.annotate_stateful_dofns_as_roots,
-                fn_api_runner_transforms.fix_side_input_pcoll_coders,
-                fn_api_runner_transforms.lift_combiners,
-                fn_api_runner_transforms.expand_sdf,
-                fn_api_runner_transforms.fix_flatten_coders,
+                translations.annotate_downstream_side_inputs,
+                translations.annotate_stateful_dofns_as_roots,
+                translations.fix_side_input_pcoll_coders,
+                translations.lift_combiners,
+                translations.expand_sdf,
+                translations.fix_flatten_coders,
                 # fn_api_runner_transforms.sink_flattens,
-                fn_api_runner_transforms.greedily_fuse,
-                fn_api_runner_transforms.read_to_impulse,
-                fn_api_runner_transforms.extract_impulse_stages,
-                fn_api_runner_transforms.remove_data_plane_ops,
-                fn_api_runner_transforms.sort_stages
+                translations.greedily_fuse,
+                translations.read_to_impulse,
+                translations.extract_impulse_stages,
+                translations.remove_data_plane_ops,
+                translations.sort_stages
             ],
             known_runner_urns=flink_known_urns)
       else:
@@ -359,12 +359,12 @@ class PortableRunner(runner.PipelineRunner):
         for phase_name in pre_optimize.split(','):
           # For now, these are all we allow.
           if phase_name in 'lift_combiners':
-            phases.append(getattr(fn_api_runner_transforms, phase_name))
+            phases.append(getattr(translations, phase_name))
           else:
             raise ValueError(
                 'Unknown or inapplicable phase for pre_optimize: %s' %
                 phase_name)
-        proto_pipeline = fn_api_runner_transforms.optimize_pipeline(
+        proto_pipeline = translations.optimize_pipeline(
             proto_pipeline,
             phases=phases,
             known_runner_urns=flink_known_urns,

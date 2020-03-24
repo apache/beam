@@ -191,7 +191,10 @@ public class GrpcDataServiceTest {
                                 encodeToByteArray(
                                     CODER, WindowedValue.valueInGlobalWindow("C" + id))))))
         .addData(
-            BeamFnApi.Elements.Data.newBuilder().setInstructionId(id).setTransformId(TRANSFORM_ID))
+            BeamFnApi.Elements.Data.newBuilder()
+                .setInstructionId(id)
+                .setTransformId(TRANSFORM_ID)
+                .setIsLast(true))
         .build();
   }
 }

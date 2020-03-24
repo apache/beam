@@ -36,7 +36,6 @@ from builtins import range
 from typing import Dict
 
 # patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import hamcrest  # pylint: disable=ungrouped-imports
 from hamcrest.core.matcher import Matcher
 from hamcrest.core.string_description import StringDescription
@@ -53,6 +52,7 @@ from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.portability import fn_api_runner
+from apache_beam.runners.portability.fn_api_runner import fn_runner
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
@@ -100,7 +100,12 @@ class FnApiRunnerTest(unittest.TestCase):
   def test_assert_that(self):
     # TODO: figure out a way for fn_api_runner to parse and raise the
     # underlying exception.
-    with self.assertRaisesRegex(Exception, 'Failed assert'):
+    if sys.version_info < (3, 2):
+      assertRaisesRegex = self.assertRaisesRegexp
+    else:
+      assertRaisesRegex = self.assertRaisesRegex
+
+    with assertRaisesRegex(Exception, 'Failed assert'):
       with self.create_pipeline() as p:
         assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
 
@@ -1354,7 +1359,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
     self.assertEqual([25, 15], seen_bundle_sizes)
 
   def run_split_pipeline(self, split_manager, elements, element_counter=None):
-    with fn_api_runner.split_manager('Identity', split_manager):
+    with fn_runner.split_manager('Identity', split_manager):
       with self.create_pipeline() as p:
         res = (
             p
@@ -1475,7 +1480,7 @@ class FnApiRunnerSplitTest(unittest.TestCase):
 
     expected = [(e, k) for e in elements for k in range(e)]
 
-    with fn_api_runner.split_manager('SDF', split_manager):
+    with fn_runner.split_manager('SDF', split_manager):
       with self.create_pipeline() as p:
         grouped = (
             p

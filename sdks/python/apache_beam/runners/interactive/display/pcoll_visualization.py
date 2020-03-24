@@ -36,6 +36,7 @@ from apache_beam import pvalue
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as instr
 from apache_beam.runners.interactive.utils import elements_to_df
+from apache_beam.runners.interactive.utils import obfuscate
 from apache_beam.runners.interactive.utils import to_element_list
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
@@ -246,11 +247,10 @@ class PCollectionVisualization(object):
     if not self._pcoll_var:
       self._pcoll_var = 'Value'
     self._cache_key = self._pin.cache_key(self._pcoll)
-    self._dive_display_id = 'facets_dive_{}_{}'.format(
-        self._cache_key, id(self))
-    self._overview_display_id = 'facets_overview_{}_{}'.format(
-        self._cache_key, id(self))
-    self._df_display_id = 'df_{}_{}'.format(self._cache_key, id(self))
+    obfuscated_id = obfuscate(self._cache_key, id(self))
+    self._dive_display_id = 'facets_dive_{}'.format(obfuscated_id)
+    self._overview_display_id = 'facets_overview_{}'.format(obfuscated_id)
+    self._df_display_id = 'df_{}'.format(obfuscated_id)
     self._include_window_info = include_window_info
     self._display_facets = display_facets
     self._is_datatable_empty = True

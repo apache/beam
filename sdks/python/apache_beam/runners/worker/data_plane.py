@@ -40,6 +40,7 @@ from typing import Iterable
 from typing import Iterator
 from typing import List
 from typing import Optional
+from typing import Set
 from typing import Tuple
 from typing import Type
 from typing import Union
@@ -356,7 +357,7 @@ class _GrpcDataChannel(DataChannel):
       expected_transforms(collection): expected transforms
     """
     received = self._receiving_queue(instruction_id)
-    done_transforms = []  # type: List[str]
+    done_transforms = set()  # type: Set[str]
     abort_callback = abort_callback or (lambda: False)
     try:
       while len(done_transforms) < len(expected_transforms):
@@ -371,8 +372,9 @@ class _GrpcDataChannel(DataChannel):
             t, v, tb = self._exc_info
             raise_(t, v, tb)
         else:
-          if not data.data and data.transform_id in expected_transforms:
-            done_transforms.append(data.transform_id)
+          # TODO(BEAM-9558): Cleanup once dataflow is updated.
+          if not data.data or data.is_last:
+            done_transforms.add(data.transform_id)
           else:
             assert data.transform_id not in done_transforms
             yield data
@@ -400,7 +402,8 @@ class _GrpcDataChannel(DataChannel):
           beam_fn_api_pb2.Elements.Data(
               instruction_id=instruction_id,
               transform_id=transform_id,
-              data=b''))
+              data=b'',
+              is_last=True))
 
     return ClosableOutputStream.create(
         close_callback, add_to_send_queue, self._data_buffer_time_limit_ms)
@@ -486,7 +489,8 @@ class BeamFnDataServicer(beam_fn_api_pb2_grpc.BeamFnDataServicer):
       yield elements
 
 
-class DataChannelFactory(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
+class DataChannelFactory(with_metaclass(abc.ABCMeta,
+                                        object)):  # type: ignore[misc]
   """An abstract factory for creating ``DataChannel``."""
   @abc.abstractmethod
   def create_data_channel(self, remote_grpc_port):

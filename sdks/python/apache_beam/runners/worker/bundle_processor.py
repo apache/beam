@@ -1489,7 +1489,7 @@ def _create_pardo_operation(
 
   timer_inputs = None  # type: Optional[Dict[str, str]]
   if pardo_proto and (pardo_proto.timer_specs or pardo_proto.state_specs or
-                      pardo_proto.splittable):
+                      pardo_proto.restriction_coder_id):
     main_input_coder = None  # type: Optional[WindowedValueCoder]
     timer_inputs = {}
     for tag, pcoll_id in transform_proto.inputs.items():
@@ -1537,7 +1537,7 @@ def _create_pardo_operation(
       transform_proto.unique_name,
       consumers,
       output_tags)
-  if pardo_proto and pardo_proto.splittable:
+  if pardo_proto and pardo_proto.restriction_coder_id:
     result.input_info = (
         transform_id,
         main_input_tag,

@@ -72,7 +72,8 @@ public class BeamFnDataSizeBasedBufferingOutboundObserver<T>
     elements
         .addDataBuilder()
         .setInstructionId(outputLocation.getInstructionId())
-        .setTransformId(outputLocation.getTransformId());
+        .setTransformId(outputLocation.getTransformId())
+        .setIsLast(true);
 
     LOG.debug(
         "Closing stream for instruction {} and "

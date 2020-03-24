@@ -122,10 +122,10 @@ class Pipeline(object):
   @classmethod
   def sdk_transforms_with_environment(cls):
     # type: () -> FrozenSet[str]
-    from apache_beam.runners.portability import fn_api_runner_transforms
+    from apache_beam.runners.portability.fn_api_runner import translations
     sets = [
-        fn_api_runner_transforms.PAR_DO_URNS,
-        fn_api_runner_transforms.COMBINE_URNS,
+        translations.PAR_DO_URNS,
+        translations.COMBINE_URNS,
         frozenset([common_urns.primitives.ASSIGN_WINDOWS.urn])
     ]
     result = frozenset()  # type: FrozenSet[str]
