@@ -698,7 +698,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Object key() {
+    public KeyT key() {
       return key;
     }
 

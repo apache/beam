@@ -22,7 +22,6 @@ import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 
 import com.alibaba.fastjson.JSONObject;
 import com.google.datastore.v1.Entity;
-import com.google.datastore.v1.Key;
 import com.google.datastore.v1.Query;
 import com.google.datastore.v1.Value;
 import com.google.datastore.v1.Value.ValueTypeCase;
@@ -372,14 +371,14 @@ class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
        * @param row {@code Row} to construct a key for.
        * @return resulting {@code Key}.
        */
-      private Key constructKeyFromRow(Row row) {
+      private com.google.datastore.v1.Key constructKeyFromRow(Row row) {
         if (!useNonRandomKey) {
           // When key field is not present - use key supplier to generate a random one.
           return makeKey(kind, keySupplier.get()).build();
         }
         byte[] keyBytes = row.getBytes(keyField);
         try {
-          return Key.parseFrom(keyBytes);
+          return com.google.datastore.v1.Key.parseFrom(keyBytes);
         } catch (InvalidProtocolBufferException e) {
           throw new IllegalStateException("Failed to parse DataStore key from bytes.");
         }

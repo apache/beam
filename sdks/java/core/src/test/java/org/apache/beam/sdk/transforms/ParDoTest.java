@@ -4901,7 +4901,7 @@ public class ParDoTest implements Serializable {
             }
 
             @OnTimer(timerId)
-            public void onTimer(@KeyId String key, OutputReceiver<Integer> r) {
+            public void onTimer(@Key String key, OutputReceiver<Integer> r) {
               r.output(Integer.parseInt(key));
             }
           };
@@ -4939,7 +4939,7 @@ public class ParDoTest implements Serializable {
             }
 
             @OnTimer(timerId)
-            public void onTimer(@KeyId KV<String, String> key, OutputReceiver<Integer> r) {
+            public void onTimer(@Key KV<String, String> key, OutputReceiver<Integer> r) {
               r.output(Integer.parseInt(key.getKey()));
             }
           };
@@ -4983,7 +4983,7 @@ public class ParDoTest implements Serializable {
             }
 
             @OnTimer(timerId)
-            public void onTimer(@KeyId Integer key, OutputReceiver<Integer> r) {}
+            public void onTimer(@Key Integer key, OutputReceiver<Integer> r) {}
           };
 
       TestStream<KV<String, Integer>> stream =
