@@ -38,6 +38,7 @@ import grpc
 from google.protobuf import json_format
 from google.protobuf import timestamp_pb2
 
+from apache_beam.metrics import monitoring_infos
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
@@ -188,6 +189,26 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
   def DescribePipelineOptions(self, request, context=None, timeout=None):
     # type: (...) -> beam_job_api_pb2.DescribePipelineOptionsResponse
     return beam_job_api_pb2.DescribePipelineOptionsResponse()
+
+  def GetJobMetrics(self, request, context=None):
+    if request.job_id not in self._jobs:
+      raise LookupError("Job {} does not exist".format(request.job_id))
+
+    result = self._jobs[request.job_id].result
+    monitoring_info_list = []
+    for mi in result._monitoring_infos_by_stage.values():
+      monitoring_info_list.extend(mi)
+
+    # Filter out system metrics
+    user_monitoring_info_list = [
+        x for x in monitoring_info_list
+        if monitoring_infos._is_user_monitoring_info(x) or
+        monitoring_infos._is_user_distribution_monitoring_info(x)
+    ]
+
+    return beam_job_api_pb2.GetJobMetricsResponse(
+        metrics=beam_job_api_pb2.MetricResults(
+            committed=user_monitoring_info_list))
 
 
 class AbstractBeamJob(object):
