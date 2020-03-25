@@ -489,7 +489,8 @@ class PipelineResult(runner.PipelineResult):
     if not self._metrics:
 
       job_metrics_response = self._job_service.GetJobMetrics(
-          beam_job_api_pb2.GetJobMetricsRequest(job_id=self._job_id))
+          beam_job_api_pb2.GetJobMetricsRequest(job_id=self._job_id),
+          context=None)
 
       self._metrics = PortableMetrics(job_metrics_response)
     return self._metrics
