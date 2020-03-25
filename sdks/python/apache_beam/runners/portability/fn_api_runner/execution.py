@@ -274,7 +274,7 @@ class BundleContextManager(object):
     self.worker_handler = worker_handler
     self.pipeline_context = p_context
 
-  def get_input_coder(self, transform_id):
+  def get_input_coder_impl(self, transform_id):
     # type: (str) -> CoderImpl
     coder_id = beam_fn_api_pb2.RemoteGrpcPort.FromString(
         self.process_bundle_descriptor.transforms[transform_id].spec.payload
@@ -297,7 +297,7 @@ class BundleContextManager(object):
     if kind in ('materialize', 'timers'):
       if buffer_id not in self.execution_context.pcoll_buffers:
         self.execution_context.pcoll_buffers[buffer_id] = ListBuffer(
-            coder_impl=self.get_input_coder(transform_id))
+            coder_impl=self.get_input_coder_impl(transform_id))
       return self.execution_context.pcoll_buffers[buffer_id]
     elif kind == 'group':
       # This is a grouping write, create a grouping buffer if needed.

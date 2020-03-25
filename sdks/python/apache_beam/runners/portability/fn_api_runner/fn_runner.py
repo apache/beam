@@ -410,8 +410,8 @@ class FnApiRunner(runner.PipelineRunner):
             worker_handler_list,
             lambda pcoll_id,
             transform_id: ListBuffer(
-                coder_impl=bundle_context_manager.get_input_coder),
-            bundle_context_manager.get_input_coder,
+                coder_impl=bundle_context_manager.get_input_coder_impl),
+            bundle_context_manager.get_input_coder_impl,
             bundle_context_manager.process_bundle_descriptor,
             self._progress_frequency,
             k,
@@ -478,10 +478,10 @@ class FnApiRunner(runner.PipelineRunner):
             delayed_application.application.input_id)
         if name not in deferred_inputs:
           deferred_inputs[name] = ListBuffer(
-              coder_impl=bundle_context_manager.get_input_coder(name))
+              coder_impl=bundle_context_manager.get_input_coder_impl(name))
         deferred_inputs[name].append(delayed_application.application.element)
       for channel_split in split.channel_splits:
-        coder_impl = bundle_context_manager.get_input_coder(
+        coder_impl = bundle_context_manager.get_input_coder_impl(
             channel_split.transform_id)
         # TODO(SDF): This requires determanistic ordering of buffer iteration.
         # TODO(SDF): The return split is in terms of indices.  Ideally,
@@ -504,7 +504,7 @@ class FnApiRunner(runner.PipelineRunner):
             get(channel_split.transform_id, len(all_elements)) + 1]
         if residual_elements:
           if channel_split.transform_id not in deferred_inputs:
-            coder_impl = bundle_context_manager.get_input_coder(
+            coder_impl = bundle_context_manager.get_input_coder_impl(
                 channel_split.transform_id)
             deferred_inputs[channel_split.transform_id] = ListBuffer(
                 coder_impl=coder_impl)
@@ -654,7 +654,7 @@ class FnApiRunner(runner.PipelineRunner):
     bundle_manager = ParallelBundleManager(
         worker_handler_list,
         bundle_context_manager.get_buffer,
-        bundle_context_manager.get_input_coder,
+        bundle_context_manager.get_input_coder_impl,
         process_bundle_descriptor,
         self._progress_frequency,
         num_workers=self._num_workers,
@@ -684,7 +684,7 @@ class FnApiRunner(runner.PipelineRunner):
             delayed_application.application.input_id)
         if name not in deferred_inputs:
           deferred_inputs[name] = ListBuffer(
-              coder_impl=bundle_context_manager.get_input_coder(name))
+              coder_impl=bundle_context_manager.get_input_coder_impl(name))
         deferred_inputs[name].append(delayed_application.application.element)
       # Queue any runner-initiated delayed bundle applications.
       self._add_residuals_and_channel_splits_to_deferred_inputs(
@@ -695,7 +695,7 @@ class FnApiRunner(runner.PipelineRunner):
         for other_input in data_input:
           if other_input not in deferred_inputs:
             deferred_inputs[other_input] = ListBuffer(
-                coder_impl=bundle_context_manager.get_input_coder(other_input))
+                coder_impl=bundle_context_manager.get_input_coder_impl(other_input))
         # TODO(robertwb): merge results
         # TODO(BEAM-8486): this should be changed to _registered
         bundle_manager._skip_registration = True  # type: ignore[attr-defined]
