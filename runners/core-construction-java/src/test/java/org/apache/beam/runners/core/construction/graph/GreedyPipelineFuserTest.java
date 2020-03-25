@@ -48,6 +48,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.hamcrest.Matchers;
@@ -980,7 +981,11 @@ public class GreedyPipelineFuserTest {
             .putEnvironments("common", Environments.createDockerEnvironment("common"))
             .build();
     FusedPipeline fused =
-        GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
+        GreedyPipelineFuser.fuse(
+            Pipeline.newBuilder()
+                .setComponents(components)
+                .addRequirements(ParDoTranslation.REQUIRES_STATEFUL_PROCESSING_URN)
+                .build());
 
     assertThat(
         fused.getRunnerExecutedTransforms(),
@@ -1054,7 +1059,11 @@ public class GreedyPipelineFuserTest {
             .build();
 
     FusedPipeline fused =
-        GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
+        GreedyPipelineFuser.fuse(
+            Pipeline.newBuilder()
+                .setComponents(components)
+                .addRequirements(ParDoTranslation.REQUIRES_STATEFUL_PROCESSING_URN)
+                .build());
 
     assertThat(
         fused.getRunnerExecutedTransforms(),
@@ -1107,7 +1116,11 @@ public class GreedyPipelineFuserTest {
             .build();
 
     FusedPipeline fused =
-        GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
+        GreedyPipelineFuser.fuse(
+            Pipeline.newBuilder()
+                .setComponents(components)
+                .addRequirements(ParDoTranslation.REQUIRES_STATEFUL_PROCESSING_URN)
+                .build());
 
     assertThat(
         fused.getRunnerExecutedTransforms(),
