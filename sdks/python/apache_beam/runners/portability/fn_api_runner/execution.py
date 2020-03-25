@@ -71,7 +71,7 @@ class PartitionableBuffer(Buffer, Protocol):
     pass
 
 
-class _ListBuffer(PartitionableBuffer):
+class _ListBuffer(object):
   """Used to support parititioning of a list."""
   def __init__(self, coder_impl):
     self._coder_impl = coder_impl
@@ -130,7 +130,7 @@ class _ListBuffer(PartitionableBuffer):
     self._grouped_output = None
 
 
-class _GroupingBuffer(PartitionableBuffer):
+class _GroupingBuffer(object):
   """Used to accumulate groupded (shuffled) results."""
   def __init__(
       self,
