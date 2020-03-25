@@ -152,6 +152,7 @@ class InteractiveRunnerTest(unittest.TestCase):
 
   def test_streaming_wordcount(self):
     self.skipTest('[BEAM-9601] Test is breaking PreCommits')
+    
     class WordExtractingDoFn(beam.DoFn):
       def process(self, element):
         text_line = element.strip()
