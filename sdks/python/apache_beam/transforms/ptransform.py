@@ -250,7 +250,43 @@ class _GetPValues(_PValueishTransform):
       self.visit_nested(node, pvalues)
 
 
+def _get_nested_pvalues_recur(pvalueish, prefix):
+  ret = []
+  if isinstance(pvalueish, (tuple, list)):
+    if hasattr(pvalueish, '_asdict'):
+      keys = pvalueish._asdict().keys()
+      values = pvalueish._asdict().values()
+    else:
+      keys = range(len(pvalueish))
+      values = pvalueish
+    for k, v in zip(keys, values):
+      ret += _get_nested_pvalues_recur(v, prefix + str(k) + '.')
+  elif isinstance(pvalueish, dict):
+    for k, v in pvalueish.items():
+      if isinstance(v, pvalue.PCollection):
+        ret.append((prefix + str(k), v))
+      else:
+        ret += _get_nested_pvalues_recur(v, prefix + str(k) + '.')
+  elif isinstance(pvalueish, pvalue.DoOutputsTuple):
+    for k, v in pvalueish._pcolls.items():
+      ret += _get_nested_pvalues_recur(v, prefix)
+  elif isinstance(pvalueish, pvalue.PValue):
+    new_tag = prefix + str(pvalueish.tag) if prefix else pvalueish.tag
+    return [(new_tag, pvalueish)]
+  return ret
+
+
 def get_nested_pvalues(pvalueish):
+  if not pvalueish:
+    return []
+
+  if isinstance(pvalueish, pvalue.DoOutputsTuple):
+    return [('', pvalueish)]
+
+  return _get_nested_pvalues_recur(pvalueish, '')
+
+
+def get_flattened_pvalues(pvalueish):
   pvalues = []
   _GetPValues().visit(pvalueish, pvalues)
   return pvalues
