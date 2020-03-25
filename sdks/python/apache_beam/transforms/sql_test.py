@@ -31,6 +31,7 @@ from past.builtins import unicode
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -43,6 +44,10 @@ coders.registry.register_coder(SimpleRow, coders.RowCoder)
 
 
 @attr('UsesSqlExpansionService')
+@unittest.skipIf(
+    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
+    None,
+    "Must be run with a runner that supports cross-language transforms")
 class SqlTransformTest(unittest.TestCase):
   """Tests that exercise the cross-language SqlTransform (implemented in java).
 
@@ -57,10 +62,10 @@ class SqlTransformTest(unittest.TestCase):
   using a runner like `FlinkRunner`, which starts its own job server, but you'll
   need to spin up a local flink cluster:
     $ pip install -e './sdks/python[gcp,test]'
-    $ python ./sdks/python/setup.py nosetests \
-        --tests apache_beam.transforms.sql_test \
-        --test-pipeline-options="--runner=FlinkRunner \
-                                 --flink_version=1.10 \
+    $ python ./sdks/python/setup.py nosetests \\
+        --tests apache_beam.transforms.sql_test \\
+        --test-pipeline-options="--runner=FlinkRunner \\
+                                 --flink_version=1.10 \\
                                  --flink_master=localhost:8081"
   """
   @staticmethod
