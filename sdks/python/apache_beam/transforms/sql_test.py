@@ -98,6 +98,7 @@ class SqlTransformTest(unittest.TestCase):
           | SqlTransform("SELECT * FROM PCOLLECTION WHERE `str` = 'bar'"))
       assert_that(out, equal_to([(2, "bar", 1.414)]))
 
+
 if __name__ == "__main__":
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
