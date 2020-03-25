@@ -4042,9 +4042,7 @@ func init() {
 	proto.RegisterType((*WorkerStatusResponse)(nil), "org.apache.beam.model.fn_execution.v1.WorkerStatusResponse")
 }
 
-func init() {
-	proto.RegisterFile("beam_fn_api.proto", fileDescriptor_6d954c03a4758710)
-}
+func init() { proto.RegisterFile("beam_fn_api.proto", fileDescriptor_6d954c03a4758710) }
 
 var fileDescriptor_6d954c03a4758710 = []byte{
 	// 3519 bytes of a gzipped FileDescriptorProto
@@ -4272,11 +4270,11 @@ var fileDescriptor_6d954c03a4758710 = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConnInterface
+var _ grpc.ClientConn
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion6
+const _ = grpc.SupportPackageIsVersion4
 
 // BeamFnControlClient is the client API for BeamFnControl service.
 //
@@ -4288,10 +4286,10 @@ type BeamFnControlClient interface {
 }
 
 type beamFnControlClient struct {
-	cc grpc.ClientConnInterface
+	cc *grpc.ClientConn
 }
 
-func NewBeamFnControlClient(cc grpc.ClientConnInterface) BeamFnControlClient {
+func NewBeamFnControlClient(cc *grpc.ClientConn) BeamFnControlClient {
 	return &beamFnControlClient{cc}
 }
 
@@ -4395,10 +4393,10 @@ type BeamFnDataClient interface {
 }
 
 type beamFnDataClient struct {
-	cc grpc.ClientConnInterface
+	cc *grpc.ClientConn
 }
 
-func NewBeamFnDataClient(cc grpc.ClientConnInterface) BeamFnDataClient {
+func NewBeamFnDataClient(cc *grpc.ClientConn) BeamFnDataClient {
 	return &beamFnDataClient{cc}
 }
 
@@ -4501,10 +4499,10 @@ type BeamFnStateClient interface {
 }
 
 type beamFnStateClient struct {
-	cc grpc.ClientConnInterface
+	cc *grpc.ClientConn
 }
 
-func NewBeamFnStateClient(cc grpc.ClientConnInterface) BeamFnStateClient {
+func NewBeamFnStateClient(cc *grpc.ClientConn) BeamFnStateClient {
 	return &beamFnStateClient{cc}
 }
 
@@ -4608,10 +4606,10 @@ type BeamFnLoggingClient interface {
 }
 
 type beamFnLoggingClient struct {
-	cc grpc.ClientConnInterface
+	cc *grpc.ClientConn
 }
 
-func NewBeamFnLoggingClient(cc grpc.ClientConnInterface) BeamFnLoggingClient {
+func NewBeamFnLoggingClient(cc *grpc.ClientConn) BeamFnLoggingClient {
 	return &beamFnLoggingClient{cc}
 }
 
@@ -4717,10 +4715,10 @@ type BeamFnExternalWorkerPoolClient interface {
 }
 
 type beamFnExternalWorkerPoolClient struct {
-	cc grpc.ClientConnInterface
+	cc *grpc.ClientConn
 }
 
-func NewBeamFnExternalWorkerPoolClient(cc grpc.ClientConnInterface) BeamFnExternalWorkerPoolClient {
+func NewBeamFnExternalWorkerPoolClient(cc *grpc.ClientConn) BeamFnExternalWorkerPoolClient {
 	return &beamFnExternalWorkerPoolClient{cc}
 }
 
@@ -4826,10 +4824,10 @@ type BeamFnWorkerStatusClient interface {
 }
 
 type beamFnWorkerStatusClient struct {
-	cc grpc.ClientConnInterface
+	cc *grpc.ClientConn
 }
 
-func NewBeamFnWorkerStatusClient(cc grpc.ClientConnInterface) BeamFnWorkerStatusClient {
+func NewBeamFnWorkerStatusClient(cc *grpc.ClientConn) BeamFnWorkerStatusClient {
 	return &beamFnWorkerStatusClient{cc}
 }
 

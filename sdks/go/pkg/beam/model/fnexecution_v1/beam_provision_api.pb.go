@@ -196,9 +196,7 @@ func init() {
 	proto.RegisterType((*ProvisionInfo)(nil), "org.apache.beam.model.fn_execution.v1.ProvisionInfo")
 }
 
-func init() {
-	proto.RegisterFile("beam_provision_api.proto", fileDescriptor_92e393e5933c7d6f)
-}
+func init() { proto.RegisterFile("beam_provision_api.proto", fileDescriptor_92e393e5933c7d6f) }
 
 var fileDescriptor_92e393e5933c7d6f = []byte{
 	// 402 bytes of a gzipped FileDescriptorProto
@@ -232,11 +230,11 @@ var fileDescriptor_92e393e5933c7d6f = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConnInterface
+var _ grpc.ClientConn
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion6
+const _ = grpc.SupportPackageIsVersion4
 
 // ProvisionServiceClient is the client API for ProvisionService service.
 //
@@ -247,10 +245,10 @@ type ProvisionServiceClient interface {
 }
 
 type provisionServiceClient struct {
-	cc grpc.ClientConnInterface
+	cc *grpc.ClientConn
 }
 
-func NewProvisionServiceClient(cc grpc.ClientConnInterface) ProvisionServiceClient {
+func NewProvisionServiceClient(cc *grpc.ClientConn) ProvisionServiceClient {
 	return &provisionServiceClient{cc}
 }
 

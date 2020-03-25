@@ -165,9 +165,7 @@ func init() {
 	proto.RegisterType((*ExpansionResponse)(nil), "org.apache.beam.model.expansion.v1.ExpansionResponse")
 }
 
-func init() {
-	proto.RegisterFile("beam_expansion_api.proto", fileDescriptor_0877284f21c25569)
-}
+func init() { proto.RegisterFile("beam_expansion_api.proto", fileDescriptor_0877284f21c25569) }
 
 var fileDescriptor_0877284f21c25569 = []byte{
 	// 302 bytes of a gzipped FileDescriptorProto
@@ -194,11 +192,11 @@ var fileDescriptor_0877284f21c25569 = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConnInterface
+var _ grpc.ClientConn
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion6
+const _ = grpc.SupportPackageIsVersion4
 
 // ExpansionServiceClient is the client API for ExpansionService service.
 //
@@ -208,10 +206,10 @@ type ExpansionServiceClient interface {
 }
 
 type expansionServiceClient struct {
-	cc grpc.ClientConnInterface
+	cc *grpc.ClientConn
 }
 
-func NewExpansionServiceClient(cc grpc.ClientConnInterface) ExpansionServiceClient {
+func NewExpansionServiceClient(cc *grpc.ClientConn) ExpansionServiceClient {
 	return &expansionServiceClient{cc}
 }
 

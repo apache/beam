@@ -5852,9 +5852,7 @@ func init() {
 	proto.RegisterExtension(E_BeamConstant)
 }
 
-func init() {
-	proto.RegisterFile("beam_runner_api.proto", fileDescriptor_cf57597c3a9659a9)
-}
+func init() { proto.RegisterFile("beam_runner_api.proto", fileDescriptor_cf57597c3a9659a9) }
 
 var fileDescriptor_cf57597c3a9659a9 = []byte{
 	// 5926 bytes of a gzipped FileDescriptorProto
@@ -6233,11 +6231,11 @@ var fileDescriptor_cf57597c3a9659a9 = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConnInterface
+var _ grpc.ClientConn
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion6
+const _ = grpc.SupportPackageIsVersion4
 
 // TestStreamServiceClient is the client API for TestStreamService service.
 //
@@ -6248,10 +6246,10 @@ type TestStreamServiceClient interface {
 }
 
 type testStreamServiceClient struct {
-	cc grpc.ClientConnInterface
+	cc *grpc.ClientConn
 }
 
-func NewTestStreamServiceClient(cc grpc.ClientConnInterface) TestStreamServiceClient {
+func NewTestStreamServiceClient(cc *grpc.ClientConn) TestStreamServiceClient {
 	return &testStreamServiceClient{cc}
 }
 

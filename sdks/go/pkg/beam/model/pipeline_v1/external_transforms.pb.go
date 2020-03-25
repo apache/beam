@@ -117,9 +117,7 @@ func init() {
 	proto.RegisterMapType((map[string]*ConfigValue)(nil), "org.apache.beam.model.pipeline.v1.ExternalConfigurationPayload.ConfigurationEntry")
 }
 
-func init() {
-	proto.RegisterFile("external_transforms.proto", fileDescriptor_d0efcf8cb92c1e82)
-}
+func init() { proto.RegisterFile("external_transforms.proto", fileDescriptor_d0efcf8cb92c1e82) }
 
 var fileDescriptor_d0efcf8cb92c1e82 = []byte{
 	// 278 bytes of a gzipped FileDescriptorProto

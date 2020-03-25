@@ -1361,9 +1361,7 @@ func init() {
 	proto.RegisterExtension(E_MonitoringInfoSpec)
 }
 
-func init() {
-	proto.RegisterFile("metrics.proto", fileDescriptor_6039342a2ba47b72)
-}
+func init() { proto.RegisterFile("metrics.proto", fileDescriptor_6039342a2ba47b72) }
 
 var fileDescriptor_6039342a2ba47b72 = []byte{
 	// 2094 bytes of a gzipped FileDescriptorProto
