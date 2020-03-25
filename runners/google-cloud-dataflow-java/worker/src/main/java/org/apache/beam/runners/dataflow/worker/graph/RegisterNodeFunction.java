@@ -188,7 +188,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
 
     // For intermediate PCollections we fabricate, we make a bogus WindowingStrategy
     // TODO: create a correct windowing strategy, including coders and environment
-    SdkComponents sdkComponents = SdkComponents.create(pipeline.getComponents());
+    SdkComponents sdkComponents = SdkComponents.create(pipeline.getComponents(), null);
 
     // Default to use the Java environment if pipeline doesn't have environment specified.
     if (pipeline.getComponents().getEnvironmentsMap().isEmpty()) {
