@@ -692,7 +692,9 @@ func init() {
 	proto.RegisterType((*CommitManifestResponse)(nil), "org.apache.beam.model.job_management.v1.CommitManifestResponse")
 }
 
-func init() { proto.RegisterFile("beam_artifact_api.proto", fileDescriptor_8ef4db42c81e3972) }
+func init() {
+	proto.RegisterFile("beam_artifact_api.proto", fileDescriptor_8ef4db42c81e3972)
+}
 
 var fileDescriptor_8ef4db42c81e3972 = []byte{
 	// 690 bytes of a gzipped FileDescriptorProto
@@ -744,11 +746,11 @@ var fileDescriptor_8ef4db42c81e3972 = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConn
+var _ grpc.ClientConnInterface
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
+const _ = grpc.SupportPackageIsVersion6
 
 // ArtifactStagingServiceClient is the client API for ArtifactStagingService service.
 //
@@ -766,10 +768,10 @@ type ArtifactStagingServiceClient interface {
 }
 
 type artifactStagingServiceClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewArtifactStagingServiceClient(cc *grpc.ClientConn) ArtifactStagingServiceClient {
+func NewArtifactStagingServiceClient(cc grpc.ClientConnInterface) ArtifactStagingServiceClient {
 	return &artifactStagingServiceClient{cc}
 }
 
@@ -918,10 +920,10 @@ type ArtifactRetrievalServiceClient interface {
 }
 
 type artifactRetrievalServiceClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewArtifactRetrievalServiceClient(cc *grpc.ClientConn) ArtifactRetrievalServiceClient {
+func NewArtifactRetrievalServiceClient(cc grpc.ClientConnInterface) ArtifactRetrievalServiceClient {
 	return &artifactRetrievalServiceClient{cc}
 }
 

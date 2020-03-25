@@ -335,7 +335,9 @@ func init() {
 	proto.RegisterType((*SessionWindowsPayload)(nil), "org.apache.beam.model.pipeline.v1.SessionWindowsPayload")
 }
 
-func init() { proto.RegisterFile("standard_window_fns.proto", fileDescriptor_fab9dd76b0d0d680) }
+func init() {
+	proto.RegisterFile("standard_window_fns.proto", fileDescriptor_fab9dd76b0d0d680)
+}
 
 var fileDescriptor_fab9dd76b0d0d680 = []byte{
 	// 404 bytes of a gzipped FileDescriptorProto

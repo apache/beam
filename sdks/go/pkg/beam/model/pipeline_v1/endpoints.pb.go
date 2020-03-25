@@ -130,7 +130,9 @@ func init() {
 	proto.RegisterType((*AuthenticationSpec)(nil), "org.apache.beam.model.pipeline.v1.AuthenticationSpec")
 }
 
-func init() { proto.RegisterFile("endpoints.proto", fileDescriptor_6445e0c85107719d) }
+func init() {
+	proto.RegisterFile("endpoints.proto", fileDescriptor_6445e0c85107719d)
+}
 
 var fileDescriptor_6445e0c85107719d = []byte{
 	// 210 bytes of a gzipped FileDescriptorProto

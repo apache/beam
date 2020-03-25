@@ -1340,7 +1340,9 @@ func init() {
 	proto.RegisterType((*DescribePipelineOptionsResponse)(nil), "org.apache.beam.model.job_management.v1.DescribePipelineOptionsResponse")
 }
 
-func init() { proto.RegisterFile("beam_job_api.proto", fileDescriptor_97c7b84f742157ae) }
+func init() {
+	proto.RegisterFile("beam_job_api.proto", fileDescriptor_97c7b84f742157ae)
+}
 
 var fileDescriptor_97c7b84f742157ae = []byte{
 	// 1444 bytes of a gzipped FileDescriptorProto
@@ -1439,11 +1441,11 @@ var fileDescriptor_97c7b84f742157ae = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConn
+var _ grpc.ClientConnInterface
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
+const _ = grpc.SupportPackageIsVersion6
 
 // JobServiceClient is the client API for JobService service.
 //
@@ -1473,10 +1475,10 @@ type JobServiceClient interface {
 }
 
 type jobServiceClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewJobServiceClient(cc *grpc.ClientConn) JobServiceClient {
+func NewJobServiceClient(cc grpc.ClientConnInterface) JobServiceClient {
 	return &jobServiceClient{cc}
 }
 
