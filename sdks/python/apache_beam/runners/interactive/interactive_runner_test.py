@@ -27,15 +27,18 @@ from __future__ import division
 from __future__ import print_function
 
 import unittest
+from datetime import timedelta
 
 import pandas as pd
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner
 from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import PaneInfo
@@ -146,6 +149,89 @@ class InteractiveRunnerTest(unittest.TestCase):
             PaneInfo(True, True, PaneInfoTiming.ON_TIME, 0, 0)) for e in actual
     ]
     self.assertEqual(actual_reified, expected_reified)
+
+  def test_streaming_wordcount(self):
+    class WordExtractingDoFn(beam.DoFn):
+      def process(self, element):
+        text_line = element.strip()
+        words = text_line.split()
+        return words
+
+    # Add the TestStream so that it can be cached.
+    ib.options.capturable_sources.add(TestStream)
+    ib.options.capture_duration = timedelta(seconds=1)
+
+    p = beam.Pipeline(
+        runner=interactive_runner.InteractiveRunner(),
+        options=StandardOptions(streaming=True))
+
+    data = (
+        p
+        | TestStream()
+            .advance_watermark_to(0)
+            .advance_processing_time(1)
+            .add_elements(['to', 'be', 'or', 'not', 'to', 'be'])
+            .advance_watermark_to(20)
+            .advance_processing_time(1)
+            .add_elements(['that', 'is', 'the', 'question'])
+        | beam.WindowInto(beam.window.FixedWindows(10))) # yapf: disable
+
+    counts = (
+        data
+        | 'split' >> beam.ParDo(WordExtractingDoFn())
+        | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
+        | 'group' >> beam.GroupByKey()
+        | 'count' >> beam.Map(lambda wordones: (wordones[0], sum(wordones[1]))))
+
+    # Watch the local scope for Interactive Beam so that referenced PCollections
+    # will be cached.
+    ib.watch(locals())
+
+    # This is normally done in the interactive_utils when a transform is
+    # applied but needs an IPython environment. So we manually run this here.
+    ie.current_env().track_user_pipelines()
+
+    # This tests that the data was correctly cached.
+    pane_info = PaneInfo(True, True, PaneInfoTiming.UNKNOWN, 0, 0)
+    expected_data_df = pd.DataFrame([
+        ('to', 0, [beam.window.IntervalWindow(0, 10)], pane_info),
+        ('be', 0, [beam.window.IntervalWindow(0, 10)], pane_info),
+        ('or', 0, [beam.window.IntervalWindow(0, 10)], pane_info),
+        ('not', 0, [beam.window.IntervalWindow(0, 10)], pane_info),
+        ('to', 0, [beam.window.IntervalWindow(0, 10)], pane_info),
+        ('be', 0, [beam.window.IntervalWindow(0, 10)], pane_info),
+        ('that', 20000000, [beam.window.IntervalWindow(20, 30)], pane_info),
+        ('is', 20000000, [beam.window.IntervalWindow(20, 30)], pane_info),
+        ('the', 20000000, [beam.window.IntervalWindow(20, 30)], pane_info),
+        ('question', 20000000, [beam.window.IntervalWindow(20, 30)], pane_info)
+    ],
+                                    columns=[
+                                        0, 'event_time', 'windows', 'pane_info'
+                                    ])
+
+    data_df = ib.collect(data, include_window_info=True)
+    pd.testing.assert_frame_equal(expected_data_df, data_df)
+
+    # This tests that the windowing was passed correctly so that all the data
+    # is aggregated also correctly.
+    pane_info = PaneInfo(True, False, PaneInfoTiming.ON_TIME, 0, 0)
+    expected_counts_df = pd.DataFrame(
+        [('to', 2, 9999999, [beam.window.IntervalWindow(0, 10)], pane_info),
+         ('be', 2, 9999999, [beam.window.IntervalWindow(0, 10)], pane_info),
+         ('or', 1, 9999999, [beam.window.IntervalWindow(0, 10)], pane_info),
+         ('not', 1, 9999999, [beam.window.IntervalWindow(0, 10)], pane_info),
+         ('that', 1, 29999999, [beam.window.IntervalWindow(20, 30)], pane_info),
+         ('is', 1, 29999999, [beam.window.IntervalWindow(20, 30)], pane_info),
+         ('the', 1, 29999999, [beam.window.IntervalWindow(20, 30)], pane_info),
+         (
+             'question',
+             1,
+             29999999, [beam.window.IntervalWindow(20, 30)],
+             pane_info)],
+        columns=[0, 1, 'event_time', 'windows', 'pane_info'])
+
+    counts_df = ib.collect(counts, include_window_info=True)
+    pd.testing.assert_frame_equal(expected_counts_df, counts_df)
 
   def test_session(self):
     class MockPipelineRunner(object):
