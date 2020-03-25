@@ -695,7 +695,8 @@ class FnApiRunner(runner.PipelineRunner):
         for other_input in data_input:
           if other_input not in deferred_inputs:
             deferred_inputs[other_input] = ListBuffer(
-                coder_impl=bundle_context_manager.get_input_coder_impl(other_input))
+                coder_impl=bundle_context_manager.get_input_coder_impl(
+                    other_input))
         # TODO(robertwb): merge results
         # TODO(BEAM-8486): this should be changed to _registered
         bundle_manager._skip_registration = True  # type: ignore[attr-defined]
