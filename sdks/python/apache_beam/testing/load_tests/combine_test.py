@@ -53,6 +53,8 @@ or:
     --project=...
     --metrics_dataset=python_load_tests
     --metrics_table=combine
+    --top_count=1000
+    --fanout=1
     --input_options='{
       \"num_records\": 1,
       \"key_size\": 1,
