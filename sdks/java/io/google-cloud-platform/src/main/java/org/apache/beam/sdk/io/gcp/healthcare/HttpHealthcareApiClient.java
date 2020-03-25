@@ -28,13 +28,17 @@ import com.google.api.services.healthcare.v1beta1.CloudHealthcare.Projects.Locat
 import com.google.api.services.healthcare.v1beta1.CloudHealthcareScopes;
 import com.google.api.services.healthcare.v1beta1.model.CreateMessageRequest;
 import com.google.api.services.healthcare.v1beta1.model.Empty;
+import com.google.api.services.healthcare.v1beta1.model.GoogleCloudHealthcareV1beta1FhirRestGcsSource;
 import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
+import com.google.api.services.healthcare.v1beta1.model.ImportResourcesRequest;
 import com.google.api.services.healthcare.v1beta1.model.IngestMessageRequest;
 import com.google.api.services.healthcare.v1beta1.model.IngestMessageResponse;
 import com.google.api.services.healthcare.v1beta1.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1beta1.model.Message;
+import com.google.api.services.healthcare.v1beta1.model.Operation;
 import com.google.api.services.healthcare.v1beta1.model.SearchResourcesRequest;
+import com.google.api.services.storage.StorageScopes;
 import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
 import java.io.Serializable;
@@ -61,7 +65,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
  * mainly to encapsulate the unserializable dependencies, since most generated classes are not
  * serializable in the HTTP client.
  */
-public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializable {
+public class HttpHealthcareApiClient implements HealthcareApiClient, Serializable {
 
   private transient CloudHealthcare client;
 
@@ -244,6 +248,25 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
   }
 
   @Override
+  public Operation importFhirResource(
+      String fhirStore, String gcsSourcePath, @Nullable String contentStructure)
+      throws IOException {
+    GoogleCloudHealthcareV1beta1FhirRestGcsSource gcsSrc =
+        new GoogleCloudHealthcareV1beta1FhirRestGcsSource();
+
+    gcsSrc.setUri(gcsSourcePath);
+    ImportResourcesRequest importRequest = new ImportResourcesRequest();
+    importRequest.setGcsSource(gcsSrc).setContentStructure(contentStructure);
+    return client
+        .projects()
+        .locations()
+        .datasets()
+        .fhirStores()
+        .healthcareImport(fhirStore, importRequest)
+        .execute();
+  }
+
+  @Override
   public HttpBody executeFhirBundle(String fhirStore, HttpBody bundle) throws IOException {
     return client
         .projects()
@@ -268,8 +291,8 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
   }
 
   @Override
-  public HttpBody readFHIRResource(String fhirStore, String resource) throws IOException {
-    return client.projects().locations().datasets().fhirStores().fhir().read(resource).execute();
+  public HttpBody readFHIRResource(String resourceId) throws IOException {
+    return client.projects().locations().datasets().fhirStores().fhir().read(resourceId).execute();
   }
 
   private static class AuthenticatedRetryInitializer extends RetryHttpRequestInitializer {
@@ -311,7 +334,8 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
     HttpRequestInitializer requestInitializer =
         new AuthenticatedRetryInitializer(
             GoogleCredentials.getApplicationDefault()
-                .createScoped(CloudHealthcareScopes.CLOUD_PLATFORM));
+                .createScoped(CloudHealthcareScopes.CLOUD_PLATFORM,
+                    StorageScopes.CLOUD_PLATFORM_READ_ONLY));
 
     client =
         new CloudHealthcare.Builder(new NetHttpTransport(), new GsonFactory(), requestInitializer)

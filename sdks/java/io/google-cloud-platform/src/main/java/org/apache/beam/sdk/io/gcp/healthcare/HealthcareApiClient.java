@@ -23,6 +23,7 @@ import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import com.google.api.services.healthcare.v1beta1.model.IngestMessageResponse;
 import com.google.api.services.healthcare.v1beta1.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1beta1.model.Message;
+import com.google.api.services.healthcare.v1beta1.model.Operation;
 import com.google.api.services.healthcare.v1beta1.model.SearchResourcesRequest;
 import java.io.IOException;
 import java.text.ParseException;
@@ -116,6 +117,11 @@ public interface HealthcareApiClient {
   HttpBody createFhirResource(String fhirStore, String type, HttpBody body) throws IOException;
 
   HttpBody fhirSearch(String fhirStore, SearchResourcesRequest query) throws IOException;
+
+  Operation importFhirResource(
+      String fhirStore, String gcsSourcePath, @Nullable String contentStructure)
+      throws IOException;
+
   /**
    * Execute fhir bundle http body.
    *
@@ -139,10 +145,9 @@ public interface HealthcareApiClient {
   /**
    * Read fhir resource http body.
    *
-   * @param fhirStore the fhir store
-   * @param resource the resource
+   * @param resourceId the resource
    * @return the http body
    * @throws IOException the io exception
    */
-  HttpBody readFHIRResource(String fhirStore, String resource) throws IOException;
+  HttpBody readFHIRResource(String resourceId) throws IOException;
 }
