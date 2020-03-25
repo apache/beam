@@ -718,8 +718,7 @@ class FnApiRunner(runner.PipelineRunner):
   def _extract_endpoints(stage,  # type: translations.Stage
                          pipeline_components,  # type: beam_runner_api_pb2.Components
                          data_api_service_descriptor, # type: Optional[endpoints_pb2.ApiServiceDescriptor]
-                         pcoll_buffers,  # ty
-      # pe: MutableMapping[bytes, PartitionableBuffer]
+                         pcoll_buffers,  # type: MutableMapping[bytes, PartitionableBuffer]
                          context,
                          safe_coders
                          ):
