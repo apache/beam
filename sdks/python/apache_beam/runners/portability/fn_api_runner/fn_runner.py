@@ -304,7 +304,8 @@ class FnApiRunner(runner.PipelineRunner):
             translations.impulse_to_input,
             translations.inject_timer_pcollections,
             translations.sort_stages,
-            translations.window_pcollection_coders
+            translations.populate_data_channel_coders,
+            translations.window_pcollection_coders,
         ],
         known_runner_urns=frozenset([
             common_urns.primitives.FLATTEN.urn,
@@ -332,15 +333,13 @@ class FnApiRunner(runner.PipelineRunner):
     runner_execution_context = execution.FnApiRunnerExecutionContext(
         worker_handler_manager.get_worker_handlers,
         stage_context.components,
-        stage_context.safe_coders)
+        stage_context.safe_coders,
+        stage_context.data_channel_coders)
 
     try:
       with self.maybe_profile():
         for stage in stages:
-          stage_results = self._run_stage(
-              runner_execution_context,
-              stage,
-          )
+          stage_results = self._run_stage(runner_execution_context, stage)
           metrics_by_stage[stage.name] = stage_results.process_bundle.metrics
           monitoring_infos_by_stage[stage.name] = (
               stage_results.process_bundle.monitoring_infos)
@@ -359,8 +358,7 @@ class FnApiRunner(runner.PipelineRunner):
       _, pcoll_id = split_buffer_id(buffer_id)
       value_coder = bundle_context_manager.pipeline_context.coders[
           runner_execution_context.safe_coders[
-              runner_execution_context.pipeline_components.
-              pcollections[pcoll_id].coder_id]]
+              runner_execution_context.data_channel_coders[pcoll_id]]]
       elements_by_window = WindowGroupingBuffer(si, value_coder)
       if buffer_id not in runner_execution_context.pcoll_buffers:
         runner_execution_context.pcoll_buffers[buffer_id] = ListBuffer(
@@ -426,7 +424,8 @@ class FnApiRunner(runner.PipelineRunner):
       pipeline_components,  # type: beam_runner_api_pb2.Components
       stage,  # type: translations.Stage
       bundle_context_manager,  # type: execution.BundleContextManager
-      deferred_inputs  # type: MutableMapping[str, PartitionableBuffer]
+      deferred_inputs,  # type: MutableMapping[str, PartitionableBuffer]
+      data_channel_coders,  # type: Mapping[str, str]
   ):
     # type: (...) -> None
 
@@ -435,8 +434,7 @@ class FnApiRunner(runner.PipelineRunner):
       # Queue any set timers as new inputs.
       windowed_timer_coder_impl = (
           bundle_context_manager.pipeline_context.coders[
-              pipeline_components.pcollections[timer_writes].coder_id].get_impl(
-              ))
+              data_channel_coders[timer_writes]].get_impl())
       written_timers = bundle_context_manager.get_buffer(
           create_buffer_id(timer_writes, kind='timers'), transform_id)
       if not written_timers.cleared:
@@ -513,60 +511,6 @@ class FnApiRunner(runner.PipelineRunner):
         prev_stops[
             channel_split.transform_id] = channel_split.last_primary_element
 
-  @staticmethod
-  def _extract_stage_data_endpoints(
-      stage,  # type: translations.Stage
-      pipeline_components,  # type: beam_runner_api_pb2.Components
-      data_api_service_descriptor,
-      pcoll_buffers,  # type: MutableMapping[bytes, PartitionableBuffer]
-      safe_coders
-  ):
-    # type: (...) -> Tuple[Dict[Tuple[str, str], PartitionableBuffer], DataSideInput, Dict[Tuple[str, str], bytes]]
-
-    # Returns maps of transform names to PCollection identifiers.
-    # Also mutates IO stages to point to the data ApiServiceDescriptor.
-    data_input = {}  # type: Dict[Tuple[str, str], PartitionableBuffer]
-    data_side_input = {}  # type: DataSideInput
-    data_output = {}  # type: Dict[Tuple[str, str], bytes]
-    for transform in stage.transforms:
-      if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
-                                bundle_processor.DATA_OUTPUT_URN):
-        pcoll_id = transform.spec.payload
-        if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
-          target = transform.unique_name, only_element(transform.outputs)
-          coder_id = pipeline_components.pcollections[only_element(
-              transform.outputs.values())].coder_id
-          if coder_id in stage.context.coders[safe_coders[coder_id]]:
-            coder = stage.context.coders[safe_coders[coder_id]]
-          else:
-            coder = stage.context.coders[coder_id]
-          if pcoll_id == translations.IMPULSE_BUFFER:
-            data_input[target] = ListBuffer(coder_impl=coder.get_impl())
-            data_input[target].append(ENCODED_IMPULSE_VALUE)
-          else:
-            if pcoll_id not in pcoll_buffers:
-              data_input[target] = ListBuffer(coder_impl=coder.get_impl())
-            data_input[target] = pcoll_buffers[pcoll_id]
-        elif transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
-          target = transform.unique_name, only_element(transform.inputs)
-          data_output[target] = pcoll_id
-          coder_id = pipeline_components.pcollections[only_element(
-              transform.inputs.values())].coder_id
-        else:
-          raise NotImplementedError
-        data_spec = beam_fn_api_pb2.RemoteGrpcPort(coder_id=coder_id)
-        if data_api_service_descriptor:
-          data_spec.api_service_descriptor.url = (
-              data_api_service_descriptor.url)
-        transform.spec.payload = data_spec.SerializeToString()
-      elif transform.spec.urn in translations.PAR_DO_URNS:
-        payload = proto_utils.parse_Bytes(
-            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
-        for tag, si in payload.side_inputs.items():
-          data_side_input[transform.unique_name, tag] = (
-              create_buffer_id(transform.inputs[tag]), si.access_pattern)
-    return data_input, data_side_input, data_output
-
   def _run_stage(self,
                  runner_execution_context,  # type: execution.FnApiRunnerExecutionContext
                  stage,  # type: translations.Stage
@@ -605,9 +549,13 @@ class FnApiRunner(runner.PipelineRunner):
 
     _LOGGER.info('Running %s', stage.name)
     data_input, data_side_input, data_output = self._extract_endpoints(
-        stage, runner_execution_context.pipeline_components,
-        data_api_service_descriptor, runner_execution_context.pcoll_buffers,
-        context, runner_execution_context.safe_coders)
+        stage,
+        runner_execution_context.pipeline_components,
+        data_api_service_descriptor,
+        runner_execution_context.pcoll_buffers,
+        context,
+        runner_execution_context.safe_coders,
+        runner_execution_context.data_channel_coders)
 
     process_bundle_descriptor = beam_fn_api_pb2.ProcessBundleDescriptor(
         id=self._next_uid(),
@@ -676,7 +624,8 @@ class FnApiRunner(runner.PipelineRunner):
           runner_execution_context.pipeline_components,
           stage,
           bundle_context_manager,
-          deferred_inputs)
+          deferred_inputs,
+          runner_execution_context.data_channel_coders)
       # Queue any process-initiated delayed bundle applications.
       for delayed_application in last_result.process_bundle.residual_roots:
         name = bundle_context_manager.input_for(
@@ -720,8 +669,9 @@ class FnApiRunner(runner.PipelineRunner):
                          pipeline_components,  # type: beam_runner_api_pb2.Components
                          data_api_service_descriptor, # type: Optional[endpoints_pb2.ApiServiceDescriptor]
                          pcoll_buffers,  # type: MutableMapping[bytes, PartitionableBuffer]
-                         context,
-                         safe_coders
+                         context,  # type: pipeline_context.PipelineContext
+                         safe_coders,  # type: Mapping[str, str]
+                         data_channel_coders,  # type: Mapping[str, str]
                          ):
     # type: (...) -> Tuple[Dict[str, PartitionableBuffer], DataSideInput, DataOutput]
 
@@ -746,17 +696,15 @@ class FnApiRunner(runner.PipelineRunner):
     data_input = {}  # type: Dict[str, PartitionableBuffer]
     data_side_input = {}  # type: DataSideInput
     data_output = {}  # type: DataOutput
+
     for transform in stage.transforms:
       if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
                                 bundle_processor.DATA_OUTPUT_URN):
         pcoll_id = transform.spec.payload
         if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
-          coder_id = pipeline_components.pcollections[only_element(
-              transform.outputs.values())].coder_id
-          if coder_id in safe_coders:
-            coder = context.coders[safe_coders[coder_id]]
-          else:
-            coder = context.coders[coder_id]
+          coder_id = data_channel_coders[only_element(
+              transform.outputs.values())]
+          coder = context.coders[safe_coders.get(coder_id, coder_id)]
           if pcoll_id == translations.IMPULSE_BUFFER:
             data_input[transform.unique_name] = ListBuffer(
                 coder_impl=coder.get_impl())
@@ -767,8 +715,8 @@ class FnApiRunner(runner.PipelineRunner):
             data_input[transform.unique_name] = pcoll_buffers[pcoll_id]
         elif transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
           data_output[transform.unique_name] = pcoll_id
-          coder_id = pipeline_components.pcollections[only_element(
-              transform.inputs.values())].coder_id
+          coder_id = data_channel_coders[only_element(
+              transform.inputs.values())]
         else:
           raise NotImplementedError
         data_spec = beam_fn_api_pb2.RemoteGrpcPort(coder_id=coder_id)

@@ -334,6 +334,7 @@ class TransformContext(object):
         None)  # type: ignore[arg-type]
     self.bytes_coder_id = self.add_or_get_coder_id(coder_proto, 'bytes_coder')
     self.safe_coders = {self.bytes_coder_id: self.bytes_coder_id}
+    self.data_channel_coders = {}
 
   def add_or_get_coder_id(self,
                           coder_proto,  # type: beam_runner_api_pb2.Coder
@@ -346,6 +347,22 @@ class TransformContext(object):
     new_coder_id = unique_name(self.components.coders, coder_prefix)
     self.components.coders[new_coder_id].CopyFrom(coder_proto)
     return new_coder_id
+
+  def add_data_channel_coder(self, pcoll_id):
+    pcoll = self.components.pcollections[pcoll_id]
+    proto = beam_runner_api_pb2.Coder(
+        spec=beam_runner_api_pb2.FunctionSpec(
+            urn=common_urns.coders.WINDOWED_VALUE.urn),
+        component_coder_ids=[
+            pcoll.coder_id,
+            self.components.windowing_strategies[
+                pcoll.windowing_strategy_id].window_coder_id
+        ])
+    channel_coder = self.add_or_get_coder_id(
+        proto, pcoll.coder_id + '_windowed')
+    if pcoll.coder_id in self.safe_coders:
+      channel_coder = self.length_prefixed_coder(channel_coder)
+    self.data_channel_coders[pcoll_id] = channel_coder
 
   @memoize_on_instance
   def with_state_iterables(self, coder_id):
@@ -1400,6 +1417,23 @@ def sort_stages(stages, pipeline_context):
   for stage in stages:
     process(stage)
   return ordered
+
+
+def populate_data_channel_coders(stages, pipeline_context):
+  # type: (Iterable[Stage], TransformContext) -> Iterable[Stage]
+
+  """Populate coders for GRPC input and output ports."""
+  for stage in stages:
+    for transform in stage.transforms:
+      if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
+                                bundle_processor.DATA_OUTPUT_URN):
+        if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
+          sdk_pcoll_id = only_element(transform.outputs.values())
+        else:
+          sdk_pcoll_id = only_element(transform.inputs.values())
+        pipeline_context.add_data_channel_coder(sdk_pcoll_id)
+
+  return stages
 
 
 def window_pcollection_coders(stages, pipeline_context):
