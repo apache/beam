@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""End-to-end test for the streaming wordcount example."""
+"""End-to-end test for the streaming wordcount example with debug."""
 
 # pytype: skip-file
 
@@ -29,7 +29,7 @@ from builtins import range
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
-from apache_beam.examples import streaming_wordcount
+from apache_beam.examples import streaming_wordcount_debugging
 from apache_beam.io.gcp.tests.pubsub_matcher import PubSubMessageMatcher
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing import test_utils
@@ -41,14 +41,17 @@ OUTPUT_TOPIC = 'wc_topic_output'
 INPUT_SUB = 'wc_subscription_input'
 OUTPUT_SUB = 'wc_subscription_output'
 
-DEFAULT_INPUT_NUMBERS = 500
+DEFAULT_INPUT_NUMBERS = 100
 WAIT_UNTIL_FINISH_DURATION = 6 * 60 * 1000  # in milliseconds
 
 
-class StreamingWordCountIT(unittest.TestCase):
+class StreamingWordcountDebuggingIT(unittest.TestCase):
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.project = self.test_pipeline.get_option('project')
+    self.setup_pubsub()
+
+  def setup_pubsub(self):
     self.uuid = str(uuid.uuid4())
 
     # Set up PubSub environment.
@@ -81,7 +84,6 @@ class StreamingWordCountIT(unittest.TestCase):
         self.pub_client, [self.input_topic, self.output_topic])
 
   @attr('IT')
-  @unittest.skip('TODO(BEAM-8078): This test is failing')
   def test_streaming_wordcount_it(self):
     # Build expected dataset.
     expected_msg = [('%d: 1' % num).encode('utf-8')
@@ -103,11 +105,11 @@ class StreamingWordCountIT(unittest.TestCase):
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
-    streaming_wordcount.run(
+    streaming_wordcount_debugging.run(
         self.test_pipeline.get_full_options_as_args(**extra_opts),
         save_main_session=False)
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.DEBUG)
+  logging.getLogger().setLevel(logging.INFO)
   unittest.main()
