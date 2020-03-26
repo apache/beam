@@ -305,7 +305,6 @@ class FnApiRunner(runner.PipelineRunner):
             translations.inject_timer_pcollections,
             translations.sort_stages,
             translations.populate_data_channel_coders,
-            translations.window_pcollection_coders,
         ],
         known_runner_urns=frozenset([
             common_urns.primitives.FLATTEN.urn,
