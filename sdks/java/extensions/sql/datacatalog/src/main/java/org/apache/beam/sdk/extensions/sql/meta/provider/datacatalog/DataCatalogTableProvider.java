@@ -47,7 +47,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /** Uses DataCatalog to get the source type and schema for a table. */
-public class DataCatalogTableProvider extends FullNameTableProvider {
+public class DataCatalogTableProvider extends FullNameTableProvider implements AutoCloseable {
 
   private static final TableFactory PUBSUB_TABLE_FACTORY = new PubsubTableFactory();
   private static final TableFactory GCS_TABLE_FACTORY = new GcsTableFactory();
@@ -61,7 +61,6 @@ public class DataCatalogTableProvider extends FullNameTableProvider {
   private final TableFactory tableFactory;
 
   private DataCatalogTableProvider(DataCatalogClient dataCatalog, boolean truncateTimestamps) {
-
     this.tableCache = new HashMap<>();
     this.dataCatalog = dataCatalog;
     this.tableFactory =
@@ -173,5 +172,10 @@ public class DataCatalogTableProvider extends FullNameTableProvider {
     }
 
     return tableBuilder.get().schema(schema).name(tableName).build();
+  }
+
+  @Override
+  public void close() {
+    dataCatalog.close();
   }
 }
