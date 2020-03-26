@@ -16,7 +16,11 @@
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
+plugins {
+  id 'org.apache.beam.module'
+  id 'com.github.jk1.dependency-license-report' version '1.13'
+}
+
 applyGoNature()
 applyDockerNature()
 
@@ -59,6 +63,7 @@ task copyDockerfileDependencies(type: Copy) {
   into "build/target"
 }
 
+
 golang {
   packagePath = 'github.com/apache/beam/sdks/java/boot'
   goBuild {
@@ -66,6 +71,25 @@ golang {
     targetPlatform = ['linux-amd64']
     outputLocation = './build/target/${GOOS}_${GOARCH}/boot'
   }
+}
+
+// this is a workaround to call generateLicenseReport task directly.
+// generateLicenseReport does not return correct dependency list when called with dependsOn feature.
+task generateThirdPartyLicenses(type: Exec) {
+  workingDir project.rootProject.projectDir
+  commandLine './sdks/java/container/license_script.sh'
+}
+
+//command: ./gradlew generateLicenseReport
+licenseReport {
+  outputDir = 'third_party_licenses'
+  projects = [project.rootProject] + project.rootProject.subprojects
+  excludeOwnGroup = true
+}
+
+task copyThirdPartyLicenses(type: Copy) {
+  from ("third_party_licenses")
+  into "build/target/third_party_licenses"
 }
 
 docker {
@@ -81,4 +105,6 @@ docker {
 }
 // Ensure that we build the required resources and copy and file dependencies from related projects
 dockerPrepare.dependsOn goBuild
+copyThirdPartyLicenses.dependsOn generateThirdPartyLicenses
 dockerPrepare.dependsOn copyDockerfileDependencies
+dockerPrepare.dependsOn copyThirdPartyLicenses
