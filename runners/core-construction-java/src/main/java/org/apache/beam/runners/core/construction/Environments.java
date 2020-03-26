@@ -239,6 +239,7 @@ public class Environments {
     capabilities.addAll(ModelCoders.urns());
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.MULTI_CORE_BUNDLE_PROCESSING));
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.PROGRESS_REPORTING));
+    capabilities.add("beam:version:sdk_base:" + JAVA_SDK_HARNESS_CONTAINER_URL);
     return capabilities.build();
   }
 

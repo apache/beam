@@ -587,6 +587,7 @@ def _python_sdk_capabilities_iter():
       yield urn_spec.urn
   yield common_urns.protocols.LEGACY_PROGRESS_REPORTING.urn
   yield common_urns.protocols.WORKER_STATUS.urn
+  yield 'beam:version:sdk_base:' + DockerEnvironment.default_docker_image()
 
 
 def python_sdk_dependencies(options, tmp_dir=None):
