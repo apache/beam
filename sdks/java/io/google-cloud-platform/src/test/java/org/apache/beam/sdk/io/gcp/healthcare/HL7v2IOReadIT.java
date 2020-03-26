@@ -26,6 +26,7 @@ import static org.junit.Assert.assertFalse;
 
 import java.util.Collections;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.gcp.healthcare.HL7v2IO.ListHL7v2Messages;
 import org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.ListHL7v2MessageIDs;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -92,14 +93,63 @@ public class HL7v2IOReadIT {
   }
 
   @Test
-  public void testHL7v2IOFilteredRead() throws Exception {
-    final String filter = "messageType = \"ADT\"";
+  public void testHL7v2IO_ListHL7v2Messages() throws Exception {
+    // Should read all messages.
+    Pipeline pipeline = Pipeline.create(options);
+    PCollection<HL7v2Message> result =
+        pipeline.apply(new ListHL7v2Messages(Collections.singletonList(options.getHL7v2Store())));
+    PCollection<Long> numReadMessages =
+        result.setCoder(new HL7v2MessageCoder()).apply(Count.globally());
+    PAssert.thatSingleton(numReadMessages).isEqualTo((long) MESSAGES.size());
+
+    PAssert.that(result)
+        .satisfies(
+            input -> {
+              for (HL7v2Message elem : input) {
+                assertFalse(elem.getName().isEmpty());
+                assertFalse(elem.getData().isEmpty());
+                assertFalse(elem.getMessageType().isEmpty());
+              }
+              return null;
+            });
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testHL7v2IO_ListHL7v2Messages_filtered() throws Exception {
+    final String adtFilter = "messageType = \"ADT\"";
+    // Should read all messages.
+    Pipeline pipeline = Pipeline.create(options);
+    PCollection<HL7v2Message> result =
+        pipeline.apply(
+            new ListHL7v2Messages(Collections.singletonList(options.getHL7v2Store()), adtFilter));
+    PCollection<Long> numReadMessages =
+        result.setCoder(new HL7v2MessageCoder()).apply(Count.globally());
+    PAssert.thatSingleton(numReadMessages).isEqualTo(NUM_ADT);
+
+    PAssert.that(result)
+        .satisfies(
+            input -> {
+              for (HL7v2Message elem : input) {
+                assertEquals("ADT", elem.getMessageType());
+              }
+              return null;
+            });
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testHL7v2IORead_filtered() throws Exception {
+    final String adtFilter = "messageType = \"ADT\"";
     // Should read only messages matching the filter.
     Pipeline pipeline = Pipeline.create(options);
     HL7v2IO.Read.Result result =
         pipeline
             .apply(
-                new ListHL7v2MessageIDs(Collections.singletonList(options.getHL7v2Store()), filter))
+                new ListHL7v2MessageIDs(
+                    Collections.singletonList(options.getHL7v2Store()), adtFilter))
             .apply(HL7v2IO.readAll());
     PCollection<Long> numReadMessages =
         result.getMessages().setCoder(new HL7v2MessageCoder()).apply(Count.globally());
