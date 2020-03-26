@@ -152,11 +152,11 @@ class MainInputTest(unittest.TestCase):
 
   def test_typed_callable_not_iterable(self):
     def do_fn(element: int) -> int:
-      return [element]  # Return a list to not fail the pipeline.
+      return element
 
-    with self.assertLogs() as cm:
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'int.*is not iterable'):
       _ = [1, 2, 3] | beam.ParDo(do_fn)
-    self.assertRegex(''.join(cm.output), r'int.*is not iterable')
 
   def test_typed_dofn_kwonly(self):
     class MyDoFn(beam.DoFn):
@@ -232,15 +232,16 @@ class MainInputTest(unittest.TestCase):
     def fn(element: int) -> int:
       return element * 2
 
-    # TODO(BEAM-8466): This case currently only generates a warning instead of a
-    #   typehints.TypeCheckError.
-    with self.assertRaisesRegex(TypeError, r'int.*is not iterable'):
+    # This is raised (originally) in strip_iterable.
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'int.*is not iterable'):
       _ = [1, 2, 3] | beam.FlatMap(fn)
 
   def test_typed_flatmap_output_value_not_iterable(self):
     def fn(element: int) -> typehints.Iterable[int]:
       return element * 2
 
+    # This is raised in runners/common.py (process_outputs).
     with self.assertRaisesRegex(TypeError, r'int.*is not iterable'):
       _ = [1, 2, 3] | beam.FlatMap(fn)
 
@@ -297,9 +298,9 @@ class AnnotationsTest(unittest.TestCase):
     def do_fn(element: int) -> str:
       return str(element)
 
-    with self.assertLogs() as cm:
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'str.*is not iterable'):
       _ = beam.ParDo(do_fn).get_type_hints()
-    self.assertRegex(''.join(cm.output), r'do_fn.* not iterable')
 
   def test_flat_map_wrapper(self):
     def map_fn(element: int) -> typehints.Iterable[int]:
