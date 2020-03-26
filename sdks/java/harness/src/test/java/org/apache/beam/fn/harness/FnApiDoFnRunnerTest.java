@@ -700,7 +700,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
     builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "Window.Into()/Window.Assign.out");
-    builder.setInt64Value(2);
+    builder.setInt64SumValue(2);
     expected.add(builder.build());
 
     builder = new SimpleMonitoringInfoBuilder();
@@ -708,12 +708,12 @@ public class FnApiDoFnRunnerTest implements Serializable {
     builder.setLabel(
         MonitoringInfoConstants.Labels.PCOLLECTION,
         "pTransformId/ParMultiDo(TestSideInputIsAccessibleForDownstreamCallers).output");
-    builder.setInt64Value(2);
+    builder.setInt64SumValue(2);
     expected.add(builder.build());
 
     builder = new SimpleMonitoringInfoBuilder();
     builder
-        .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+        .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
         .setLabel(
             MonitoringInfoConstants.Labels.NAMESPACE,
             TestSideInputIsAccessibleForDownstreamCallersDoFn.class.getName())
@@ -721,13 +721,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
             MonitoringInfoConstants.Labels.NAME,
             TestSideInputIsAccessibleForDownstreamCallersDoFn.USER_COUNTER_NAME);
     builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, TEST_TRANSFORM_ID);
-    builder.setInt64Value(2);
+    builder.setInt64SumValue(2);
     expected.add(builder.build());
 
     closeable.close();
     List<MonitoringInfo> result = new ArrayList<MonitoringInfo>();
     for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
-      result.add(SimpleMonitoringInfoBuilder.copyAndClearTimestamp(mi));
+      result.add(mi);
     }
     assertThat(result, containsInAnyOrder(expected.toArray()));
   }

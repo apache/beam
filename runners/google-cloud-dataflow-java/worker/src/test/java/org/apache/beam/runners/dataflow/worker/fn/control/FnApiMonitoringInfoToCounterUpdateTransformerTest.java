@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.fn.control;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.CounterUpdate;
@@ -47,6 +48,7 @@ public class FnApiMonitoringInfoToCounterUpdateTransformerTest {
     Map<String, MonitoringInfoToCounterUpdateTransformer> genericTransformers = new HashMap<>();
 
     final String validUrn = "urn1";
+    final String validType = "type1";
     genericTransformers.put(validUrn, mockTransformer1);
     genericTransformers.put("any:other:urn", mockTransformer2);
 
@@ -59,34 +61,35 @@ public class FnApiMonitoringInfoToCounterUpdateTransformerTest {
     MonitoringInfo monitoringInfo =
         MonitoringInfo.newBuilder()
             .setUrn(validUrn)
+            .setType(validType)
             .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyValue")
             .build();
 
     CounterUpdate result = testObject.transform(monitoringInfo);
 
     assertSame(expectedResult, result);
+    verifyZeroInteractions(mockTransformer2);
   }
 
   @Test
   public void testTransformReturnsNullOnUnknownUrn() {
     Map<String, MonitoringInfoToCounterUpdateTransformer> genericTransformers = new HashMap<>();
 
-    genericTransformers.put("beam:metric:user", mockTransformer2);
+    final String validUrn = "known:urn";
+    final String validType = "known:type";
+    genericTransformers.put(validUrn, mockTransformer2);
 
     FnApiMonitoringInfoToCounterUpdateTransformer testObject =
         new FnApiMonitoringInfoToCounterUpdateTransformer(genericTransformers);
 
-    CounterUpdate expectedResult = new CounterUpdate();
-    when(mockTransformer1.transform(any())).thenReturn(expectedResult);
-
-    MonitoringInfo monitoringInfo =
+    MonitoringInfo unknownUrn =
         MonitoringInfo.newBuilder()
-            .setUrn("any:other:urn")
+            .setUrn("unknown:urn")
+            .setType(validType)
             .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyValue")
             .build();
+    assertNull(testObject.transform(unknownUrn));
 
-    CounterUpdate result = testObject.transform(monitoringInfo);
-
-    assertNull(result);
+    verifyZeroInteractions(mockTransformer1, mockTransformer2);
   }
 }

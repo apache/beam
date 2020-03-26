@@ -429,7 +429,7 @@ func (w *dataWriter) Close() error {
 				InstructionId: string(w.id.instID),
 				TransformId:   w.id.ptransformID,
 				// Empty data == sentinel
-				IsLast:        true,
+				IsLast: true,
 			},
 		},
 	}
