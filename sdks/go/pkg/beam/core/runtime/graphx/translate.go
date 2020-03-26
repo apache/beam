@@ -67,6 +67,8 @@ func goCapabilities() []string {
 	capabilities := []string{
 		URNLegacyProgressReporting,
 		URNMultiCore,
+		// TOOD(BEAM-9614): Make this versioned.
+		"beam:version:sdk_base:go",
 	}
 	return append(capabilities, knownStandardCoders()...)
 }
