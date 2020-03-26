@@ -28,13 +28,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HL7v2MessageIDPages;
+import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HL7v2MessagePages;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 /** The type HL7v2 message id pages test. */
-public class HL7v2MessageIDPagesTest {
+public class HL7V2MessagePagesTest {
 
   /** The Healthcare API. */
   private transient HttpHealthcareApiClient client;
@@ -50,7 +50,7 @@ public class HL7v2MessageIDPagesTest {
     Mockito.doReturn(new ListMessagesResponse())
         .when(client)
         .makeHL7v2ListRequest("foo", null, null);
-    HL7v2MessageIDPages emptyPages = new HL7v2MessageIDPages(client, "foo");
+    HL7v2MessagePages emptyPages = new HL7v2MessagePages(client, "foo");
     // In the case that the store is empty we should return a single empty list.
     assertFalse(emptyPages.iterator().hasNext());
   }
@@ -71,11 +71,11 @@ public class HL7v2MessageIDPagesTest {
 
     Mockito.doReturn(page1).when(client).makeHL7v2ListRequest("foo", null, "page1");
 
-    HL7v2MessageIDPages pages = new HL7v2MessageIDPages(client, "foo");
+    HL7v2MessagePages pages = new HL7v2MessagePages(client, "foo");
     assertTrue(pages.iterator().hasNext());
-    Iterator<List<String>> pagesIterator = pages.iterator();
-    assertEquals(page0.getMessages(), pagesIterator.next());
-    assertEquals(page1.getMessages(), pagesIterator.next());
+    Iterator<List<HL7v2Message>> pagesIterator = pages.iterator();
+    assertEquals(page0.getMessages(), pagesIterator.next().stream().map(HL7v2Message::getName));
+    assertEquals(page1.getMessages(), pagesIterator.next().stream().map(HL7v2Message::getName));
     assertFalse(pagesIterator.hasNext());
   }
 
@@ -107,11 +107,15 @@ public class HL7v2MessageIDPagesTest {
 
     Mockito.doReturn(page1).when(client).makeHL7v2ListRequest("foo", null, "page1");
 
-    HL7v2MessageIDPages pages = new HL7v2MessageIDPages(client, "foo");
+    HL7v2MessagePages pages = new HL7v2MessagePages(client, "foo");
     assertTrue(pages.iterator().hasNext());
-    Iterator<List<String>> pagesIterator = pages.iterator();
-    assertEquals(Arrays.asList("foo0", "foo1", "foo2"), pagesIterator.next());
-    assertEquals(Arrays.asList("foo3", "foo4", "foo5"), pagesIterator.next());
+    Iterator<List<HL7v2Message>> pagesIterator = pages.iterator();
+    assertEquals(
+        Arrays.asList("foo0", "foo1", "foo2"),
+        pagesIterator.next().stream().map(HL7v2Message::getName));
+    assertEquals(
+        Arrays.asList("foo3", "foo4", "foo5"),
+        pagesIterator.next().stream().map(HL7v2Message::getName));
     assertFalse(pagesIterator.hasNext());
   }
 }

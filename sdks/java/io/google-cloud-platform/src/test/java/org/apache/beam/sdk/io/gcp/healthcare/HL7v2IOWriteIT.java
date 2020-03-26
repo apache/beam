@@ -66,7 +66,7 @@ public class HL7v2IOWriteIT {
     PAssert.that(result.getFailedInsertsWithErr()).empty();
 
     pipeline.run().waitUntilFinish();
-    long numWrittenMessages = client.getHL7v2MessageIDStream(options.getHL7v2Store()).count();
-    assertEquals(numWrittenMessages, MESSAGES.size());
+    long numWrittenMessages = client.getHL7v2MessageStream(options.getHL7v2Store()).count();
+    assertEquals(MESSAGES.size(), numWrittenMessages);
   }
 }

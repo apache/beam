@@ -60,7 +60,7 @@ public interface HealthcareApiClient {
    * @return the HL7v2 message id page iterator
    * @throws IOException the io exception
    */
-  Stream<String> getHL7v2MessageIDStream(String hl7v2Store) throws IOException;
+  Stream<HL7v2Message> getHL7v2MessageStream(String hl7v2Store) throws IOException;
 
   /**
    * Gets hl 7 v 2 message id page iterator.
@@ -70,7 +70,7 @@ public interface HealthcareApiClient {
    * @return the hl 7 v 2 message id page iterator
    * @throws IOException the io exception
    */
-  Stream<String> getHL7v2MessageIDStream(String hl7v2Store, String filter) throws IOException;
+  Stream<HL7v2Message> getHL7v2MessageStream(String hl7v2Store, String filter) throws IOException;
 
   /**
    * Make hl 7 v 2 list request list messages response.

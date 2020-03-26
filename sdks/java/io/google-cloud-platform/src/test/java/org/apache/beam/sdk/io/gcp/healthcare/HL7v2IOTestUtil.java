@@ -23,6 +23,12 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
 
 class HL7v2IOTestUtil {
 
@@ -72,7 +78,11 @@ class HL7v2IOTestUtil {
   /** Clear all messages from the HL7v2 store. */
   static void deleteAllHL7v2Messages(HealthcareApiClient client, String hl7v2Store)
       throws IOException {
-    for (String msgId : client.getHL7v2MessageIDStream(hl7v2Store).collect(Collectors.toList())) {
+    for (String msgId :
+        client
+            .getHL7v2MessageStream(hl7v2Store)
+            .map(HL7v2Message::getName)
+            .collect(Collectors.toList())) {
       client.deleteHL7v2Message(msgId);
     }
   }
@@ -81,6 +91,86 @@ class HL7v2IOTestUtil {
   static void writeHL7v2Messages(HealthcareApiClient client, String hl7v2Store) throws IOException {
     for (HL7v2Message msg : MESSAGES) {
       client.createHL7v2Message(hl7v2Store, msg.toModel());
+    }
+  }
+
+  /**
+   * List HL7v2 message IDs. This is just convenient for integration testing the unbounded
+   * HL7v2IO.Read without the dependency on PubSub Notification channel.
+   */
+  static class ListHL7v2MessageIDs extends PTransform<PBegin, PCollection<String>> {
+
+    private final List<String> hl7v2Stores;
+    private final String filter;
+
+    /**
+     * Instantiates a new List HL7v2 message IDs with filter.
+     *
+     * @param hl7v2Stores the HL7v2 stores
+     * @param filter the filter
+     */
+    ListHL7v2MessageIDs(List<String> hl7v2Stores, String filter) {
+      this.hl7v2Stores = hl7v2Stores;
+      this.filter = filter;
+    }
+
+    /**
+     * Instantiates a new List HL7v2 message IDs without filter.
+     *
+     * @param hl7v2Stores the HL7v2 stores
+     */
+    ListHL7v2MessageIDs(List<String> hl7v2Stores) {
+      this.hl7v2Stores = hl7v2Stores;
+      this.filter = null;
+    }
+
+    @Override
+    public PCollection<String> expand(PBegin input) {
+      return input
+          .apply(Create.of(this.hl7v2Stores))
+          .apply(ParDo.of(new ListHL7v2MessageIDsFn(this.filter)));
+    }
+  }
+
+  /** The type List HL7v2 fn. */
+  static class ListHL7v2MessageIDsFn extends DoFn<String, String> {
+
+    private final String filter;
+    private transient HealthcareApiClient client;
+
+    /**
+     * Instantiates a new List HL7v2 fn.
+     *
+     * @param filter the filter
+     */
+    ListHL7v2MessageIDsFn(String filter) {
+      this.filter = filter;
+    }
+
+    /**
+     * Init client.
+     *
+     * @throws IOException the io exception
+     */
+    @Setup
+    public void initClient() throws IOException {
+      this.client = new HttpHealthcareApiClient();
+    }
+
+    /**
+     * List messages.
+     *
+     * @param context the context
+     * @throws IOException the io exception
+     */
+    @ProcessElement
+    public void listMessages(ProcessContext context) throws IOException {
+      String hl7v2Store = context.element();
+      // Output all elements of all pages.
+      this.client
+          .getHL7v2MessageStream(hl7v2Store, this.filter)
+          .map(HL7v2Message::getName)
+          .forEach(context::output);
     }
   }
 }

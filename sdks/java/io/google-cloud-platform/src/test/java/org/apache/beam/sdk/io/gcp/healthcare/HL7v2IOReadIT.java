@@ -21,9 +21,12 @@ import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.MESSAGES;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.NUM_ADT;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.deleteAllHL7v2Messages;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.writeHL7v2Messages;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 import java.util.Collections;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.ListHL7v2MessageIDs;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -67,13 +70,23 @@ public class HL7v2IOReadIT {
     Pipeline pipeline = Pipeline.create(options);
     HL7v2IO.Read.Result result =
         pipeline
-            .apply(
-                new HL7v2IO.ListHL7v2MessageIDs(Collections.singletonList(options.getHL7v2Store())))
+            .apply(new ListHL7v2MessageIDs(Collections.singletonList(options.getHL7v2Store())))
             .apply(HL7v2IO.readAll());
     PCollection<Long> numReadMessages =
         result.getMessages().setCoder(new HL7v2MessageCoder()).apply(Count.globally());
     PAssert.thatSingleton(numReadMessages).isEqualTo((long) MESSAGES.size());
     PAssert.that(result.getFailedReads()).empty();
+
+    PAssert.that(result.getMessages())
+        .satisfies(
+            input -> {
+              for (HL7v2Message elem : input) {
+                assertFalse(elem.getName().isEmpty());
+                assertFalse(elem.getData().isEmpty());
+                assertFalse(elem.getMessageType().isEmpty());
+              }
+              return null;
+            });
 
     pipeline.run();
   }
@@ -86,14 +99,21 @@ public class HL7v2IOReadIT {
     HL7v2IO.Read.Result result =
         pipeline
             .apply(
-                new HL7v2IO.ListHL7v2MessageIDs(
-                    Collections.singletonList(options.getHL7v2Store()), filter))
+                new ListHL7v2MessageIDs(Collections.singletonList(options.getHL7v2Store()), filter))
             .apply(HL7v2IO.readAll());
     PCollection<Long> numReadMessages =
         result.getMessages().setCoder(new HL7v2MessageCoder()).apply(Count.globally());
     PAssert.thatSingleton(numReadMessages).isEqualTo(NUM_ADT);
     PAssert.that(result.getFailedReads()).empty();
 
+    PAssert.that(result.getMessages())
+        .satisfies(
+            input -> {
+              for (HL7v2Message elem : input) {
+                assertEquals("ADT", elem.getMessageType());
+              }
+              return null;
+            });
     pipeline.run();
   }
 }

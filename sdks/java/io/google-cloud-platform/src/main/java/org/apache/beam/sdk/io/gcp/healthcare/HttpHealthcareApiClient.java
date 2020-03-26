@@ -109,6 +109,7 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
             .hl7V2Stores()
             .messages()
             .list(hl7v2Store)
+            .set("view", "full")
             .setPageToken(pageToken);
 
     if (Strings.isNullOrEmpty(filter)) {
@@ -126,13 +127,13 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
    * @throws IOException the io exception
    */
   @Override
-  public Stream<String> getHL7v2MessageIDStream(String hl7v2Store) throws IOException {
-    return getHL7v2MessageIDStream(hl7v2Store, null);
+  public Stream<HL7v2Message> getHL7v2MessageStream(String hl7v2Store) throws IOException {
+    return getHL7v2MessageStream(hl7v2Store, null);
   }
 
   /**
    * Get a {@link Stream} of message IDs from flattening the pages of a new {@link
-   * HL7v2MessageIDPages}.
+   * HL7v2MessagePages}.
    *
    * @param hl7v2Store the HL7v2 store
    * @param filter the filter
@@ -140,9 +141,10 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
    * @throws IOException the io exception
    */
   @Override
-  public Stream<String> getHL7v2MessageIDStream(String hl7v2Store, @Nullable String filter)
+  public Stream<HL7v2Message> getHL7v2MessageStream(String hl7v2Store, @Nullable String filter)
       throws IOException {
-    Iterator<List<String>> iterator = new HL7v2MessageIDPages(this, hl7v2Store, filter).iterator();
+    Iterator<List<HL7v2Message>> iterator =
+        new HL7v2MessagePages(this, hl7v2Store, filter).iterator();
     return flattenIteratorCollectionsToStream(iterator);
   }
 
@@ -318,7 +320,7 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
             .build();
   }
 
-  public static class HL7v2MessageIDPages implements Iterable<List<String>> {
+  public static class HL7v2MessagePages implements Iterable<List<HL7v2Message>> {
 
     private final String hl7v2Store;
     private final String filter;
@@ -330,7 +332,7 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
      * @param client the client
      * @param hl7v2Store the HL7v2 store
      */
-    HL7v2MessageIDPages(HealthcareApiClient client, String hl7v2Store) {
+    HL7v2MessagePages(HealthcareApiClient client, String hl7v2Store) {
       this.client = client;
       this.hl7v2Store = hl7v2Store;
       this.filter = null;
@@ -343,7 +345,7 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
      * @param hl7v2Store the HL7v2 store
      * @param filter the filter
      */
-    HL7v2MessageIDPages(HealthcareApiClient client, String hl7v2Store, @Nullable String filter) {
+    HL7v2MessagePages(HealthcareApiClient client, String hl7v2Store, @Nullable String filter) {
       this.client = client;
       this.hl7v2Store = hl7v2Store;
       this.filter = filter;
@@ -369,12 +371,12 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
     }
 
     @Override
-    public Iterator<List<String>> iterator() {
-      return new HL7v2MessageIDPagesIterator(this.client, this.hl7v2Store, this.filter);
+    public Iterator<List<HL7v2Message>> iterator() {
+      return new HL7v2MessagePagesIterator(this.client, this.hl7v2Store, this.filter);
     }
 
     /** The type Hl7v2 message id pages iterator. */
-    public static class HL7v2MessageIDPagesIterator implements Iterator<List<String>> {
+    public static class HL7v2MessagePagesIterator implements Iterator<List<HL7v2Message>> {
 
       private final String hl7v2Store;
       private final String filter;
@@ -389,7 +391,7 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
        * @param hl7v2Store the hl 7 v 2 store
        * @param filter the filter
        */
-      HL7v2MessageIDPagesIterator(
+      HL7v2MessagePagesIterator(
           HealthcareApiClient client, String hl7v2Store, @Nullable String filter) {
         this.client = client;
         this.hl7v2Store = hl7v2Store;
@@ -424,22 +426,15 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
       }
 
       @Override
-      public List<String> next() throws NoSuchElementException {
+      public List<HL7v2Message> next() throws NoSuchElementException {
         try {
           ListMessagesResponse response = makeListRequest(client, hl7v2Store, filter, pageToken);
           this.isFirstRequest = false;
           this.pageToken = response.getNextPageToken();
-          List<String> msgs = response.getMessages();
-          if (msgs == null && response.get("hl7V2Messages") != null) {
-            ArrayList<ArrayMap<String, String>> msgNames =
-                (ArrayList<ArrayMap<String, String>>) response.get("hl7V2Messages");
+          ArrayList<ArrayMap<String, String>> msgNames =
+              (ArrayList<ArrayMap<String, String>>) response.get("hl7V2Messages");
 
-            msgs =
-                msgNames.stream()
-                    .map((ArrayMap<String, String> map) -> map.get("name"))
-                    .collect(Collectors.toList());
-          }
-          return msgs;
+          return msgNames.stream().map(HL7v2Message::fromMap).collect(Collectors.toList());
         } catch (IOException e) {
           this.pageToken = null;
           throw new NoSuchElementException(

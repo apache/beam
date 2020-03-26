@@ -55,20 +55,43 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Read
  *
- * <p>HL7v2 Messages are fetched from the HL7v2 store based on the {@link PCollection} of message
- * IDs {@link String}s as {@link HL7v2IO.Read.Result} where one can call {@link
- * Read.Result#getMessages()} to retrived a {@link PCollection} containing the successfully fetched
- * {@link HL7v2Message}s and/or {@link Read.Result#getFailedReads()} to retrieve a {@link
- * PCollection} of {@link HealthcareIOError} containing the msgID that could not be fetched and the
- * exception as a {@link HealthcareIOError<String>}, this can be used to write to the dead letter
- * storage system of your choosing.
+ * <p>HL7v2 Messages can be fetched from the HL7v2 store in two ways Message Fetching and Message
+ * Listing.
+ *
+ * <p>Message Fetching
+ *
+ * <p>Message Fetching with {@link HL7v2IO.Read} supports use cases where you have a ${@link
+ * PCollection<String>} of message IDS. This is appropriate for reading the HL7v2 notifications from
+ * a Pub/Sub subscription with {@link PubsubIO#readStrings()} or in cases where you have a manually
+ * prepared list of messages that you need to process (e.g. in a text file read with {@link
+ * org.apache.beam.sdk.io.TextIO}) .
+ *
+ * <p>Fetch Message contents from HL7v2 Store based on the {@link PCollection} of message ID strings
+ * {@link HL7v2IO.Read.Result} where one can call {@link Read.Result#getMessages()} to retrived a
+ * {@link PCollection} containing the successfully fetched {@link HL7v2Message}s and/or {@link
+ * Read.Result#getFailedReads()} to retrieve a {@link PCollection} of {@link HealthcareIOError}
+ * containing the msgID that could not be fetched and the exception as a {@link HealthcareIOError},
+ * this can be used to write to the dead letter storage system of your choosing. This error handling
+ * is mainly to catch scenarios where the upstream {@link PCollection} contains IDs that are not
+ * valid or are not reachable due to permissions issues.
+ *
+ * <p>Message Listing Message Listing with {@link HL7v2IO.ListHL7v2Messages} supports batch use
+ * cases where you want to process all the messages in an HL7v2 store or those matching a
+ * filter @see <a
+ * href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters</a>
+ * This paginates through results of a Messages.List call @see <a
+ * href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list</a>
+ * and outputs directly to a {@link PCollection} of {@link HL7v2Message}. In these use cases, the
+ * error handling similar to above is unnecessary because we are listing from the source of truth
+ * the pipeline should fail transparently if this transform fails to paginate through all the
+ * results.
  *
  * <p>Write
  *
  * <p>A bounded or unbounded {@link PCollection} of {@link HL7v2Message} can be ingested into an
  * HL7v2 store using {@link HL7v2IO#ingestMessages(String)}. This will return a {@link
  * HL7v2IO.Write.Result} on which you can call {@link Write.Result#getFailedInsertsWithErr()} to
- * retrieve a {@link PCollection} of {@link HealthcareIOError<HL7v2Message>} containing the Message
+ * retrieve a {@link PCollection} of {@link HealthcareIOError} containing the {@link HL7v2Message}
  * that failed to be ingested and the exception. This can be used to write to the dead letter
  * storage system of your chosing.
  *
@@ -99,29 +122,19 @@ import org.slf4j.LoggerFactory;
  * }***
  * </pre>
  *
- * <p>Bounded Example:
+ * <p>Bounded Read Example:
  *
  * <pre>{@code
  * PipelineOptions options = ...;
  * Pipeline p = Pipeline.create(options);
  *
- * HL7v2IO.Read.Result readResult = p
+ * PCollection<HL7v2Message> out = p
  *   .apply(
  *       "List messages in HL7v2 store with filter",
- *       ListHL7v2MessageIDs(
+ *       ListHL7v2Messages(
  *           Collections.singletonList(options.getInputHL7v2Store()), option.getHL7v2Filter()))
- *   .apply(HL7v2IO.readAll());
- *
- * // Write errors to your favorite dead letter  queue (e.g. Pub/Sub, GCS, BigQuery)
- * readResult.getFailedReads().apply("WriteToDeadLetterQueue", ...);
- *
- *
- * // Go about your happy path transformations.
- * PCollection<HL7v2Message> out = readResult.getMessages().apply("ProcessFetchedMessages", ...);
- *
- * // Write using the Message.Ingest method of the HL7v2 REST API.
- * out.apply(HL7v2IO.ingestMessages(options.getOutputHL7v2Store()));
- *
+ *    // Go about your happy path transformations.
+ *   .apply("Process HL7v2 Messages", ...);
  * pipeline.run().waitUntilFinish();
  * }***
  * </pre>
@@ -153,8 +166,8 @@ public class HL7v2IO {
    *
    * <p>These could be sourced from any {@link PCollection} of {@link String}s but the most popular
    * patterns would be {@link PubsubIO#readStrings()} reading a subscription on an HL7v2 Store's
-   * notification channel topic or using {@link ListHL7v2MessageIDs} to list HL7v2 message IDs with
-   * an optional filter using Ingest write method. @see <a
+   * notification channel topic or using {@link ListHL7v2Messages} to list HL7v2 message IDs with an
+   * optional filter using Ingest write method. @see <a
    * href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list></a>.
    */
   public static class Read extends PTransform<PCollection<String>, Read.Result> {
@@ -237,36 +250,6 @@ public class HL7v2IO {
      *       HealthcareIOError<String>} message IDs which failed to be fetched from the HL7v2 store,
      *       with error message and stacktrace.
      * </ul>
-     *
-     * <p>Example:
-     *
-     * <pre>{@code
-     * PipelineOptions options = ...;
-     * Pipeline pipeline = Pipeline.create(options)
-     *
-     * PCollection<String> msgIDs = pipeline.apply(
-     *    "ReadHL7v2Notifications",
-     *    PubsubIO.readStrings().fromSubscription(options.getInputSubscription()));
-     *
-     * PCollectionTuple fetchResults = msgIDs.apply(
-     *    "FetchHL7v2Messages",
-     *    new FetchHL7v2Message;
-     *
-     * // Write errors to your favorite dead letter  queue (e.g. Pub/Sub, GCS, BigQuery)
-     * fetchResults.get(PubsubNotificationToHL7v2Message.DEAD_LETTER)
-     *    .apply("WriteToDeadLetterQueue", ...);
-     *
-     * PCollection<Message> fetchedMessages = fetchResults.get(PubsubNotificationToHL7v2Message.OUT)
-     *    .apply("ExtractFetchedMessage",
-     *    MapElements
-     *        .into(TypeDescriptor.of(Message.class))
-     *        .via(FailsafeElement::getPayload));
-     *
-     * // Go about your happy path transformations.
-     * fetchedMessages.apply("ProcessFetchedMessages", ...)
-     *
-     * }****
-     * </pre>
      */
     public static class FetchHL7v2Message extends PTransform<PCollection<String>, Result> {
 
@@ -364,9 +347,8 @@ public class HL7v2IO {
     }
   }
 
-  /** The type List HL7v2 message IDs. */
-  public static class ListHL7v2MessageIDs extends PTransform<PBegin, PCollection<String>> {
-
+  /** List HL7v2 messages. */
+  public static class ListHL7v2Messages extends PTransform<PBegin, PCollection<HL7v2Message>> {
     private final List<String> hl7v2Stores;
     private final String filter;
 
@@ -376,29 +358,25 @@ public class HL7v2IO {
      * @param hl7v2Stores the HL7v2 stores
      * @param filter the filter
      */
-    ListHL7v2MessageIDs(List<String> hl7v2Stores, String filter) {
+    ListHL7v2Messages(List<String> hl7v2Stores, String filter) {
       this.hl7v2Stores = hl7v2Stores;
       this.filter = filter;
     }
 
-    /**
-     * Instantiates a new List HL7v2 message IDs without filter.
-     *
-     * @param hl7v2Stores the HL7v2 stores
-     */
-    ListHL7v2MessageIDs(List<String> hl7v2Stores) {
+    ListHL7v2Messages(List<String> hl7v2Stores) {
       this.hl7v2Stores = hl7v2Stores;
       this.filter = null;
     }
 
     @Override
-    public PCollection<String> expand(PBegin input) {
-      return input.apply(Create.of(this.hl7v2Stores)).apply(ParDo.of(new ListHL7v2Fn(this.filter)));
+    public PCollection<HL7v2Message> expand(PBegin input) {
+      return input
+          .apply(Create.of(this.hl7v2Stores))
+          .apply(ParDo.of(new ListHL7v2MessagesFn(this.filter)));
     }
   }
 
-  /** The type List HL7v2 fn. */
-  static class ListHL7v2Fn extends DoFn<String, String> {
+  static class ListHL7v2MessagesFn extends DoFn<String, HL7v2Message> {
 
     private final String filter;
     private transient HealthcareApiClient client;
@@ -408,7 +386,7 @@ public class HL7v2IO {
      *
      * @param filter the filter
      */
-    ListHL7v2Fn(String filter) {
+    ListHL7v2MessagesFn(String filter) {
       this.filter = filter;
     }
 
@@ -432,7 +410,7 @@ public class HL7v2IO {
     public void listMessages(ProcessContext context) throws IOException {
       String hl7v2Store = context.element();
       // Output all elements of all pages.
-      this.client.getHL7v2MessageIDStream(hl7v2Store, this.filter).forEach(context::output);
+      this.client.getHL7v2MessageStream(hl7v2Store, this.filter).forEach(context::output);
     }
   }
 

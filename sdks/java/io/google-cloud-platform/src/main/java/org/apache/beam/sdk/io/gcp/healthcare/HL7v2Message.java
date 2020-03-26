@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.healthcare.v1alpha2.model.Message;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -24,6 +26,7 @@ import javax.annotation.Nullable;
 /** The type HL7v2 message to wrap the {@link Message} model. */
 public class HL7v2Message {
   private static final String schematizedDataKey = "schematizedData";
+  private static final String schematizedDataPrefix = "{data=";
   private final String name;
   private final String messageType;
   private final String sendTime;
@@ -32,6 +35,27 @@ public class HL7v2Message {
   private final String sendFacility;
   private String schematizedData;
   private final Map<String, String> labels;
+
+  private static String extractDataJson(String schematizedData) {
+    String jsonData;
+    final ObjectMapper mapper = new ObjectMapper();
+    if (schematizedData != null
+        && schematizedData.startsWith(schematizedDataPrefix)
+        && schematizedData.endsWith("}}")) {
+      jsonData =
+          schematizedData.substring(schematizedDataPrefix.length(), schematizedData.length() - 1);
+      try {
+        mapper.readTree(jsonData);
+      } catch (JsonProcessingException e) {
+        throw new IllegalArgumentException(
+            String.format("Could not validate inner schematizedData JSON: %s", e.getMessage()));
+      }
+      return jsonData;
+    } else {
+      throw new IllegalArgumentException(
+          "expected schematized data string to be of the format '{data=<actual_valid_json>}'");
+    }
+  }
 
   /**
    * From model {@link Message} to hl7v2 message.
@@ -42,7 +66,7 @@ public class HL7v2Message {
   public static HL7v2Message fromModel(Message msg) {
     final String schematizedData;
     if (msg.get(schematizedDataKey) != null) {
-      schematizedData = msg.get(schematizedDataKey).toString();
+      schematizedData = extractDataJson(msg.get(schematizedDataKey).toString());
     } else {
       schematizedData = null;
     }
@@ -57,6 +81,24 @@ public class HL7v2Message {
         msg.getLabels());
   }
 
+  public static HL7v2Message fromMap(Map msg) {
+    final String schematizedData;
+    if (msg.get(schematizedDataKey) != null) {
+      schematizedData = extractDataJson(msg.get(schematizedDataKey).toString());
+    } else {
+      schematizedData = null;
+    }
+
+    return new HL7v2Message(
+        msg.get("name").toString(),
+        msg.get("messageType").toString(),
+        null,
+        msg.get("createTime").toString(),
+        msg.get("data").toString(),
+        msg.get("sendFacility").toString(),
+        schematizedData,
+        null);
+  }
   /**
    * To model message.
    *
