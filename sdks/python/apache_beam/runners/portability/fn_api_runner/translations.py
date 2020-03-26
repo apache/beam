@@ -1436,36 +1436,6 @@ def populate_data_channel_coders(stages, pipeline_context):
   return stages
 
 
-def window_pcollection_coders(stages, pipeline_context):
-  # type: (Iterable[Stage], TransformContext) -> Iterable[Stage]
-
-  """Wrap all PCollection coders as windowed value coders.
-
-  This is required as some SDK workers require windowed coders for their
-  PCollections.
-  TODO(BEAM-4150): Consistently use unwindowed coders everywhere.
-  """
-  def windowed_coder_id(coder_id, window_coder_id):
-    proto = beam_runner_api_pb2.Coder(
-        spec=beam_runner_api_pb2.FunctionSpec(
-            urn=common_urns.coders.WINDOWED_VALUE.urn),
-        component_coder_ids=[coder_id, window_coder_id])
-    return pipeline_context.add_or_get_coder_id(proto, coder_id + '_windowed')
-
-  for pcoll in pipeline_context.components.pcollections.values():
-    if (pipeline_context.components.coders[pcoll.coder_id].spec.urn !=
-        common_urns.coders.WINDOWED_VALUE.urn):
-      new_coder_id = windowed_coder_id(
-          pcoll.coder_id,
-          pipeline_context.components.windowing_strategies[
-              pcoll.windowing_strategy_id].window_coder_id)
-      if pcoll.coder_id in pipeline_context.safe_coders:
-        new_coder_id = pipeline_context.length_prefixed_coder(new_coder_id)
-      pcoll.coder_id = new_coder_id
-
-  return stages
-
-
 def union(a, b):
   # Minimize the number of distinct sets.
   if not a or a == b:
