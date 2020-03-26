@@ -20,9 +20,9 @@ from __future__ import absolute_import
 import time
 
 import apache_beam as beam
+import apache_beam.runners.sdf_utils as sdf_utils
 from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
-import apache_beam.runners.sdf_utils as sdf_utils
 from apache_beam.transforms import core
 from apache_beam.transforms import window
 from apache_beam.transforms.ptransform import PTransform
@@ -34,8 +34,8 @@ from apache_beam.utils.timestamp import Timestamp
 
 class ImpulseSeqGenRestrictionProvider(core.RestrictionProvider):
   def initial_restriction(self, element):
-    start, end, _ = element
-    return OffsetRange(start, end)
+    start, end, interval = element
+    return OffsetRange(start - interval, end)
 
   def create_tracker(self, restriction):
     return ImpulseSeqGenRestrictionTracker(restriction)
@@ -45,7 +45,6 @@ class ImpulseSeqGenRestrictionProvider(core.RestrictionProvider):
 
 
 class ImpulseSeqGenRestrictionTracker(OffsetRestrictionTracker):
-
   def try_split(self, fraction_of_remainder):
     if not self._checkpointed:
       if fraction_of_remainder != 0:
@@ -62,8 +61,8 @@ class ImpulseSeqGenRestrictionTracker(OffsetRestrictionTracker):
         self._range, residual_range = self._range.split_at(split_point)
         return self._range, residual_range
 
-  def cur_pos():
-    return _current_position
+  def cur_pos(self):
+    return self._current_position
 
   def try_claim(self, pos):
     if (pos > self._last_claim_attempt) and (pos == self._range.stop):
@@ -74,12 +73,11 @@ class ImpulseSeqGenRestrictionTracker(OffsetRestrictionTracker):
 
 
 class ImpulseSeqGenDoFn(beam.DoFn):
-
   def process(
       self,
       element,
       restriction_tracker=beam.DoFn.RestrictionParam(
-        ImpulseSeqGenRestrictionProvider())):
+          ImpulseSeqGenRestrictionProvider())):
 
     _, _, interval = element
 
@@ -90,18 +88,18 @@ class ImpulseSeqGenDoFn(beam.DoFn):
     current_timestamp = cr.start
 
     restriction_tracker.try_claim(current_timestamp)
-    if (current_timestamp <= t):
+    if current_timestamp <= t:
       if restriction_tracker.try_claim(current_timestamp + interval):
         current_timestamp += interval
         yield current_timestamp
 
-    if (current_timestamp + interval >= cr.stop):
+    if current_timestamp + interval >= cr.stop:
       restriction_tracker.try_claim(cr.stop)
     else:
-      restriction_tracker.defer_remainder(timestamp.Timestamp(current_timestamp))
+      restriction_tracker.defer_remainder(
+          timestamp.Timestamp(current_timestamp))
 
 
-# @typehints.with_output_types(bytes)
 class Heartbeat(PTransform):
   """
   Heartbeat transform receives tuple elements with three parts:
@@ -109,20 +107,16 @@ class Heartbeat(PTransform):
     * last_timestamp = last timestamp/time to output element for
     * fire_interval = how often to fire an element
 
-  For each input element received, Heartbeat transform will start generating output elements in following pattern:
+  For each input element received, Heartbeat transform will start generating
+  output elements in following pattern:
     * if element timestamp is less than current runtime then output element
-    * if element timestamp is greater than current runtime, wait until next element timestamp
+    * if element timestamp is greater than current runtime, wait until next
+      element timestamp
 
   Heartbeat can't guarantee that each element is output at exact time.
-  Heartbeat guarantees that elements would not be output prior to given runtime timestamp.
-
-  First element will be output for first_timestamp+fire_interval
+  Heartbeat guarantees that elements would not be output prior to given runtime
+  timestamp.
   """
-
-  # todo(migryz): https://stackoverflow.com/questions/58014098/how-to-change-the-event-time-in-apache-beam
-  #   verify timestamped value is set to prior to current watermark.
-  #   Try test going couple hours in the past.
-
   def __init_(self):
     pass
 
@@ -130,31 +124,21 @@ class Heartbeat(PTransform):
     return (
         pbegin
         | 'GenSequence' >> beam.ParDo(ImpulseSeqGenDoFn())
-        | 'MapToTimestamped' >> beam.Map(lambda tt: TimestampedValue(tt, tt))
-    )
+        | 'MapToTimestamped' >> beam.Map(lambda tt: TimestampedValue(tt, tt)))
 
 
 class HeartbeatImpulse(PTransform):
   """
-  Heartbeat transform receives tuple elements with three parts:
-    * first_timestamp = first timestamp to output element for
-    * last_timestamp = last timestamp/time to output element for
-    * fire_interval = how often to fire an element
+  See Heartbeat.
 
-  For each input element received, Heartbeat transform will start generating output elements in following pattern:
-    * if element timestamp is less than current runtime then output element
-    * if element timestamp is greater than current runtime, wait until next element timestamp
-
-  Heartbeat can't guarantee that each element is output at exact time.
-  Heartbeat guarantees that elements would not be output prior to given runtime timestamp.
+  apply_windowing will assign each element to its own window if true.
   """
-
-  # todo(migryz): https://stackoverflow.com/questions/58014098/how-to-change-the-event-time-in-apache-beam
-  #   verify timestamped value is set to prior to current watermark.
-  #   Try test going couple hours in the past.
-
-  def __init__(self, start_timestamp=Timestamp.now(), stop_timestamp=MAX_TIMESTAMP, fire_interval=360.0,
-               apply_windowing=False):
+  def __init__(
+      self,
+      start_timestamp=Timestamp.now(),
+      stop_timestamp=MAX_TIMESTAMP,
+      fire_interval=360.0,
+      apply_windowing=False):
     self.start_ts = start_timestamp
     self.stop_ts = stop_timestamp
     self.interval = fire_interval
@@ -163,10 +147,11 @@ class HeartbeatImpulse(PTransform):
   def expand(self, pbegin):
     result = (
         pbegin
-        | 'ImpulseElement' >> beam.Create([(self.start_ts, self.stop_ts, self.interval)])
+        | 'ImpulseElement' >> beam.Create(
+            [(self.start_ts, self.stop_ts, self.interval)])
         | 'GenSequence' >> beam.ParDo(ImpulseSeqGenDoFn())
-        | 'MapToTimestamped' >> beam.Map(lambda tt: TimestampedValue(tt, tt))
-    )
+        | 'MapToTimestamped' >> beam.Map(lambda tt: TimestampedValue(tt, tt)))
     if self.apply_windowing:
-      result = result | 'ApplyWindowing' >> beam.WindowInto(window.FixedWindows(self.interval))
+      result = result | 'ApplyWindowing' >> beam.WindowInto(
+          window.FixedWindows(self.interval))
     return result

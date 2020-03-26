@@ -561,8 +561,7 @@ class ReadFromText(PTransform):
         skip_header_lines=skip_header_lines)
 
   def expand(self, pvalue):
-    # return pvalue.pipeline | Read(self._source)
-    return pvalue | Read(self._source)
+    return pvalue.pipeline | Read(self._source)
 
 
 class ReadFromTextWithFilename(ReadFromText):
