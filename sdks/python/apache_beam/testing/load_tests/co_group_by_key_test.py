@@ -118,7 +118,6 @@ class CoGroupByKeyTest(LoadTest):
         | 'Read ' + self.INPUT_TAG >> beam.io.Read(
             synthetic_pipeline.SyntheticSource(
                 self.parse_synthetic_source_options()))
-        | 'Make ' + self.INPUT_TAG + ' iterable' >> beam.Map(lambda x: (x, x))
         | 'Measure time: Start pc1' >> beam.ParDo(
             MeasureTime(self.metrics_namespace)))
 
@@ -127,8 +126,6 @@ class CoGroupByKeyTest(LoadTest):
         | 'Read ' + self.CO_INPUT_TAG >> beam.io.Read(
             synthetic_pipeline.SyntheticSource(
                 self.parse_synthetic_source_options(self.co_input_options)))
-        |
-        'Make ' + self.CO_INPUT_TAG + ' iterable' >> beam.Map(lambda x: (x, x))
         | 'Measure time: Start pc2' >> beam.ParDo(
             MeasureTime(self.metrics_namespace)))
     # pylint: disable=expression-not-assigned
