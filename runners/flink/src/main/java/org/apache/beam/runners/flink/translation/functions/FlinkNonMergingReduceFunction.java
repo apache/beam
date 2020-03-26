@@ -61,7 +61,7 @@ public class FlinkNonMergingReduceFunction<K, InputT>
         return iterator;
       }
       throw new IllegalStateException(
-          "GBK result is not re-iterable. You can enable re-iterations by setting '--reIterableGroupByKeyResult=true'.");
+          "GBK result is not re-iterable. You can enable re-iterations by setting '--reIterableGroupByKeyResult'.");
     }
   }
 

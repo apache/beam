@@ -83,6 +83,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.MultimapBuilder;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -111,36 +113,28 @@ class FlinkBatchTransformTranslators {
   // --------------------------------------------------------------------------------------------
 
   @SuppressWarnings("rawtypes")
-  private static final Map<String, List<FlinkBatchPipelineTranslator.BatchTransformTranslator>>
-      TRANSLATORS = new HashMap<>();
-
-  private static void registerTranslator(
-      String urn, FlinkBatchPipelineTranslator.BatchTransformTranslator<?> translator) {
-    if (!TRANSLATORS.containsKey(urn)) {
-      TRANSLATORS.put(urn, new ArrayList<>());
-    }
-    TRANSLATORS.get(urn).add(translator);
-  }
+  private static final Multimap<String, FlinkBatchPipelineTranslator.BatchTransformTranslator>
+      TRANSLATORS = MultimapBuilder.hashKeys().arrayListValues().build();
 
   static {
-    registerTranslator(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslatorBatch());
-    registerTranslator(
+    TRANSLATORS.put(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslatorBatch());
+    TRANSLATORS.put(
         PTransformTranslation.CREATE_VIEW_TRANSFORM_URN,
         new CreatePCollectionViewTranslatorBatch<>());
-    registerTranslator(
+    TRANSLATORS.put(
         PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new CombinePerKeyTranslatorBatch<>());
-    registerTranslator(
+    TRANSLATORS.put(
         PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN,
         new NonMergingGroupByKeyTranslatorBatch<>());
-    registerTranslator(
+    TRANSLATORS.put(
         PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslatorBatch<>());
-    registerTranslator(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslatorBatch<>());
-    registerTranslator(
+    TRANSLATORS.put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslatorBatch<>());
+    TRANSLATORS.put(
         PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionTranslatorBatch<>());
-    registerTranslator(
+    TRANSLATORS.put(
         PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, new WindowAssignTranslatorBatch<>());
-    registerTranslator(PTransformTranslation.PAR_DO_TRANSFORM_URN, new ParDoTranslatorBatch<>());
-    registerTranslator(PTransformTranslation.READ_TRANSFORM_URN, new ReadSourceTranslatorBatch<>());
+    TRANSLATORS.put(PTransformTranslation.PAR_DO_TRANSFORM_URN, new ParDoTranslatorBatch<>());
+    TRANSLATORS.put(PTransformTranslation.READ_TRANSFORM_URN, new ReadSourceTranslatorBatch<>());
   }
 
   @SuppressWarnings("unchecked")
