@@ -485,7 +485,7 @@ public class RowTest {
         Stream.of(Schema.Field.of("f1_enum", FieldType.logicalType(enumerationType)))
             .collect(toSchema());
     Row row = Row.withSchema(type).addValue(enumerationType.valueOf("zero")).build();
-    assertEquals(0, (int) row.getValue(0));
+    assertEquals(enumerationType.valueOf(0), row.getValue(0));
     assertEquals(
         enumerationType.valueOf("zero"), row.getLogicalTypeValue(0, EnumerationType.Value.class));
   }
@@ -498,7 +498,7 @@ public class RowTest {
             .collect(toSchema());
     Row row =
         Row.withSchema(type).withFieldValue("f1_enum", enumerationType.valueOf("zero")).build();
-    assertEquals(0, (int) row.getValue(0));
+    assertEquals(enumerationType.valueOf(0), row.getValue(0));
     assertEquals(
         enumerationType.valueOf("zero"), row.getLogicalTypeValue(0, EnumerationType.Value.class));
   }
@@ -513,7 +513,7 @@ public class RowTest {
         Row.withSchema(type).withFieldValue("f1_enum", enumerationType.valueOf("zero")).build();
     Row overriddenRow =
         Row.fromRow(row).withFieldValue("f1_enum", enumerationType.valueOf("one")).build();
-    assertEquals(1, (int) overriddenRow.getValue(0));
+    assertEquals(enumerationType.valueOf(1), overriddenRow.getValue(0));
     assertEquals(
         enumerationType.valueOf("one"),
         overriddenRow.getLogicalTypeValue(0, EnumerationType.Value.class));

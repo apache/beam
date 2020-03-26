@@ -632,8 +632,7 @@ public class CoGroup {
       if (atBottom) {
         // Bottom of recursive call, so output the row we've accumulated.
         Row row =
-            Row.withSchema(getOutputSchema())
-                .attachValues(Lists.newArrayList(accumulatedRows));
+            Row.withSchema(getOutputSchema()).attachValues(Lists.newArrayList(accumulatedRows));
         o.output(row);
       } else {
         crossProduct(tagIndex + 1, accumulatedRows, iterables, o);
