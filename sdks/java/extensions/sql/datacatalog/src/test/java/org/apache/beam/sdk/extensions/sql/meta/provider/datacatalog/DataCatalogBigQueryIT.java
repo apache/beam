@@ -97,17 +97,18 @@ public class DataCatalogBigQueryIT {
           .as(BeamSqlPipelineOptions.class)
           .setPlannerName(queryPlanner.getCanonicalName());
 
-      PCollection<Row> result =
-          readPipeline.apply(
-              "query",
-              SqlTransform.query("SELECT id, name FROM " + tableId)
-                  .withDefaultTableProvider(
-                      "datacatalog",
-                      DataCatalogTableProvider.create(
-                          readPipeline.getOptions().as(DataCatalogPipelineOptions.class))));
+      try (DataCatalogTableProvider tableProvider =
+          DataCatalogTableProvider.create(
+              readPipeline.getOptions().as(DataCatalogPipelineOptions.class))) {
+        PCollection<Row> result =
+            readPipeline.apply(
+                "query",
+                SqlTransform.query("SELECT id, name FROM " + tableId)
+                    .withDefaultTableProvider("datacatalog", tableProvider));
 
-      PAssert.that(result).containsInAnyOrder(row(1, "name1"), row(2, "name2"), row(3, "name3"));
-      readPipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+        PAssert.that(result).containsInAnyOrder(row(1, "name1"), row(2, "name2"), row(3, "name3"));
+        readPipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+      }
     }
 
     private static Row row(long id, String name) {
