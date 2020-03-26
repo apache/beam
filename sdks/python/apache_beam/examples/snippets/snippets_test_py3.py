@@ -44,7 +44,7 @@ class TypeHintsTest(unittest.TestCase):
     # pylint: disable=expression-not-assigned
     # pylint: disable=unused-variable
     class FilterEvensDoFn(beam.DoFn):
-      def process(self, element):
+      def process(self, element, *unused_args, **unused_kwargs):
         if element % 2 == 0:
           yield element
 
@@ -65,20 +65,37 @@ class TypeHintsTest(unittest.TestCase):
       from typing import Iterable
 
       class FilterEvensDoFn(beam.DoFn):
-        def process(self, element: int) -> Iterable[int]:
+        def process(self, element: int, *unused_args,
+                    **unused_kwargs) -> Iterable[int]:
           if element % 2 == 0:
             yield element
 
-      evens = numbers | beam.ParDo(FilterEvensDoFn())
+      evens = numbers | 'filter_evens' >> beam.ParDo(FilterEvensDoFn())
       # [END type_hints_do_fn_annotations]
 
-    # Another example using an annotated function.
+    # Another example, using a list output type. Notice that the output
+    # annotation has an additional Optional for the else clause.
+    with self.assertRaises(typehints.TypeCheckError):
+      # [START type_hints_do_fn_annotations_optional]
+      from typing import List, Optional
+
+      class FilterEvensDoubleDoFn(beam.DoFn):
+        def process(self, element: int, *unused_args,
+                    **unused_kwargs) -> Optional[List[int]]:
+          if element % 2 == 0:
+            return [element, element]
+          return None
+
+      evens = numbers | 'double_evens' >> beam.ParDo(FilterEvensDoubleDoFn())
+      # [END type_hints_do_fn_annotations_optional]
+
+    # Example using an annotated function.
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_map_annotations]
       def my_fn(element: int) -> str:
         return 'id_' + str(element)
 
-      ids = numbers | beam.Map(my_fn)
+      ids = numbers | 'to_id' >> beam.Map(my_fn)
       # [END type_hints_map_annotations]
 
 

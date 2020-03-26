@@ -28,7 +28,6 @@ import logging
 import os
 import sys
 import tempfile
-import typing
 import unittest
 import uuid
 from builtins import map
@@ -290,7 +289,7 @@ class ParDoTest(unittest.TestCase):
 class TypeHintsTest(unittest.TestCase):
   def test_bad_types(self):
     # [START type_hints_missing_define_numbers]
-    p = TestPipeline(options=PipelineOptions(pipeline_type_check=True))
+    p = TestPipeline()
 
     numbers = p | beam.Create(['1', '2', '3'])
     # [END type_hints_missing_define_numbers]
@@ -332,10 +331,12 @@ class TypeHintsTest(unittest.TestCase):
     # One can assert outputs and apply them to transforms as well.
     # Helps document the contract and checks it at pipeline construction time.
     # [START type_hints_transform]
-    T = typing.TypeVar('T')
+    from typing import Tuple, TypeVar
+
+    T = TypeVar('T')
 
     @beam.typehints.with_input_types(T)
-    @beam.typehints.with_output_types(typing.Tuple[int, T])
+    @beam.typehints.with_output_types(Tuple[int, T])
     class MyTransform(beam.PTransform):
       def expand(self, pcoll):
         return pcoll | beam.Map(lambda x: (len(x), x))
@@ -343,10 +344,12 @@ class TypeHintsTest(unittest.TestCase):
     words_with_lens = words | MyTransform()
     # [END type_hints_transform]
 
+    # Given an input of str, the inferred output type would be Tuple[int, str].
+    self.assertEqual(typehints.Tuple[int, str], words_with_lens.element_type)
+
     # pylint: disable=expression-not-assigned
     with self.assertRaises(typehints.TypeCheckError):
-      words_with_lens | beam.Map(lambda x: x).with_input_types(
-          typing.Tuple[int, int])
+      words_with_lens | beam.Map(lambda x: x).with_input_types(Tuple[int, int])
 
   def test_runtime_checks_off(self):
     # We do not run the following pipeline, as it has incorrect type
@@ -354,16 +357,16 @@ class TypeHintsTest(unittest.TestCase):
     # implementation.
 
     # pylint: disable=expression-not-assigned
-    p = TestPipeline()
     # [START type_hints_runtime_off]
+    p = TestPipeline()
     p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
     # [END type_hints_runtime_off]
 
   def test_runtime_checks_on(self):
     # pylint: disable=expression-not-assigned
-    p = TestPipeline(options=PipelineOptions(runtime_type_check=True))
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_runtime_on]
+      p = TestPipeline(options=PipelineOptions(runtime_type_check=True))
       p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
       p.run()
       # [END type_hints_runtime_on]
@@ -382,6 +385,8 @@ class TypeHintsTest(unittest.TestCase):
       global Player  # pylint: disable=global-variable-not-assigned
 
       # [START type_hints_deterministic_key]
+      from typing import Tuple
+
       class Player(object):
         def __init__(self, team, name):
           self.team = team
@@ -406,7 +411,7 @@ class TypeHintsTest(unittest.TestCase):
       totals = (
           lines
           | beam.Map(parse_player_and_score)
-          | beam.CombinePerKey(sum).with_input_types(typing.Tuple[Player, int]))
+          | beam.CombinePerKey(sum).with_input_types(Tuple[Player, int]))
       # [END type_hints_deterministic_key]
 
       assert_that(
