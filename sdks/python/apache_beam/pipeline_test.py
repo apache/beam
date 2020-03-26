@@ -370,11 +370,6 @@ class PipelineTest(unittest.TestCase):
         # pylint: disable=expression-not-assigned
         p | Create([ValueError('msg')]) | Map(raise_exception)
 
-  # TODO(BEAM-1894).
-  # def test_eager_pipeline(self):
-  #   p = Pipeline('EagerRunner')
-  #   self.assertEqual([1, 4, 9], p | Create([1, 2, 3]) | Map(lambda x: x*x))
-
   @mock.patch(
       'apache_beam.runners.direct.direct_runner._get_transform_overrides')
   def test_ptransform_overrides(self, file_system_override_mock):
