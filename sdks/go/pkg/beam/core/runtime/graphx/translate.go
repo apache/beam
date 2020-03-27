@@ -534,11 +534,8 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) string {
 				WindowFn: makeWindowFn(wfn),
 				// ...output after every element is received...
 				Trigger: &pb.Trigger{
-					// Should this be an Always trigger instead?
-					Trigger: &pb.Trigger_ElementCount_{
-						ElementCount: &pb.Trigger_ElementCount{
-							ElementCount: 1,
-						},
+					Trigger: &pb.Trigger_Always_{
+						Always: &pb.Trigger_Always{},
 					},
 				},
 				// ...and after outputing, discard the output elements...
