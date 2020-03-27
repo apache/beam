@@ -31,9 +31,12 @@ import java.util.stream.Stream;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HL7v2MessagePages;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
 /** The type HL7v2 message id pages test. */
+@RunWith(JUnit4.class)
 public class HL7V2MessagePagesTest {
 
   /** The Healthcare API. */

@@ -26,8 +26,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** The type Http healthcare api client test. */
+@RunWith(JUnit4.class)
 public class HttpHealthcareApiClientTest {
 
   /** Test flatten empty iterator collections to empty stream. */
