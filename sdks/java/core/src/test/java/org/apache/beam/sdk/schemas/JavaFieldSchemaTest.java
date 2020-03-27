@@ -578,7 +578,7 @@ public class JavaFieldSchemaTest {
     SchemaTestUtils.assertSchemaEquivalent(POJO_WITH_ITERABLE, schema);
 
     List<String> list = Lists.newArrayList("one", "two");
-    Row iterableRow = Row.withSchema(POJO_WITH_ITERABLE).addIterable(list).build();
+    Row iterableRow = Row.withSchema(POJO_WITH_ITERABLE).attachValues((Object) list);
     PojoWithIterable converted =
         registry.getFromRowFunction(PojoWithIterable.class).apply(iterableRow);
     assertEquals(list, Lists.newArrayList(converted.strings));

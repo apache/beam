@@ -368,11 +368,6 @@ class SelectByteBuddyHelpers {
                             ElementMatchers.named("attachValues")
                                 .and(ElementMatchers.takesArguments(Object[].class)))
                         .getOnly()),
-                MethodInvocation.invoke(
-                    new ForLoadedType(Row.Builder.class)
-                        .getDeclaredMethods()
-                        .filter(ElementMatchers.named("build"))
-                        .getOnly()),
                 MethodReturn.REFERENCE);
         size = size.aggregate(attachToRow.apply(methodVisitor, implementationContext));
         return new Size(size.getMaximalSize(), localVariables.getTotalNumVariables());
