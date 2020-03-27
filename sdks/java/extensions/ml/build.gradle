@@ -31,4 +31,10 @@ dependencies {
     testCompile library.java.mockito_core
     testCompile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
     testCompile library.java.junit
+    testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+    testRuntimeOnly project(":runners:google-cloud-dataflow-java")
+}
+
+project.test {
+    include "**/**IT.class"
 }
