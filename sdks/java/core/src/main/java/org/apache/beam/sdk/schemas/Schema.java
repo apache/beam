@@ -1119,7 +1119,7 @@ public class Schema implements Serializable {
         this(new HashMap<>());
       }
 
-      public Builder setRowOption(String optionName, Row value) {
+      public Builder setOption(String optionName, Row value) {
         setOption(optionName, FieldType.row(value.getSchema()), value);
         return this;
       }
@@ -1209,7 +1209,7 @@ public class Schema implements Serializable {
     }
 
     public static Options.Builder setOption(String optionName, Row value) {
-      return Options.builder().setRowOption(optionName, value);
+      return Options.builder().setOption(optionName, value);
     }
   }
 
