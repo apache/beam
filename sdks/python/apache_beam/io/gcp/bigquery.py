@@ -651,9 +651,7 @@ class _CustomBigQuerySource(BoundedSource):
         # access to the table that we're querying.
         return 0
       table = bq.get_table(
-          table_ref.projectId,
-          table_ref.datasetId,
-          table_ref.tableId)
+          table_ref.projectId, table_ref.datasetId, table_ref.tableId)
       return int(table.numBytes)
     elif self.query is not None and self.query.is_accessible():
       job = bq._start_query_job(
@@ -748,9 +746,7 @@ class _CustomBigQuerySource(BoundedSource):
     else:
       table_ref = self.table_reference
     table = bq.get_table(
-        table_ref.projectId,
-        table_ref.datasetId,
-        table_ref.tableId)
+        table_ref.projectId, table_ref.datasetId, table_ref.tableId)
 
     return table.schema, metadata_list
 
