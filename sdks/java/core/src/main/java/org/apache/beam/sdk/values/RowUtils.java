@@ -331,10 +331,8 @@ class RowUtils {
         if (!fieldAccessDescriptor.getFieldsAccessed().isEmpty()) {
           FieldDescriptor fieldDescriptor =
               Iterables.getOnlyElement(fieldAccessDescriptor.getFieldsAccessed());
-          return (((fieldDescriptor.getFieldId() < fieldOverrides.size()))
-                  && fieldOverrides.get(fieldDescriptor.getFieldId()) != null)
-              || (((fieldDescriptor.getFieldId() < nestedAccess.size()))
-                  && nestedAccess.get(fieldDescriptor.getFieldId()) != null);
+          return (((fieldDescriptor.getFieldId() < nestedAccess.size()))
+              && nestedAccess.get(fieldDescriptor.getFieldId()) != null);
         } else if (!fieldAccessDescriptor.getNestedFieldsAccessed().isEmpty()) {
           Map.Entry<FieldDescriptor, FieldAccessDescriptor> entry =
               Iterables.getOnlyElement(fieldAccessDescriptor.getNestedFieldsAccessed().entrySet());
@@ -461,7 +459,6 @@ class RowUtils {
       }
 
       List<Object> captured = Lists.newArrayListWithCapacity(Iterables.size(values));
-
       RowPosition elementPosition = rowPosition.withArrayQualifier();
       for (Object listValue : values) {
         if (listValue == null) {
