@@ -404,17 +404,13 @@ class FnApiRunner(runner.PipelineRunner):
       try:
         runner_execution_context.state_servicer.checkpoint()
         testing_bundle_manager = ParallelBundleManager(
-            bundle_context_manager.worker_handlers,
-            lambda pcoll_id,
-            transform_id: ListBuffer(
-                coder_impl=bundle_context_manager.get_input_coder_impl),
-            bundle_context_manager.get_input_coder_impl,
-            bundle_context_manager.process_bundle_descriptor,
+            bundle_context_manager,
             self._progress_frequency,
             num_workers=self._num_workers,
             cache_token_generator=cache_token_generator)
         testing_bundle_manager.process_bundle(
-            data_input, data_output, fired_timers, expected_output_timers)
+            data_input, data_output, fired_timers, expected_output_timers,
+            dry_run=True)
       finally:
         runner_execution_context.state_servicer.restore()
 
@@ -509,7 +505,7 @@ class FnApiRunner(runner.PipelineRunner):
         object containing execution information for the pipeline.
       stage (translations.Stage): A description of the stage to execute.
     """
-    worker_handler_list = bundle_context_manager.worker_handlers
+
     worker_handler_manager = runner_execution_context.worker_handler_manager
     _LOGGER.info('Running %s', bundle_context_manager.stage.name)
     (data_input, data_side_input, data_output,
@@ -534,12 +530,8 @@ class FnApiRunner(runner.PipelineRunner):
         cache_token_generator=cache_token_generator)
 
     bundle_manager = ParallelBundleManager(
-        worker_handler_list,
-        bundle_context_manager.get_buffer,
-        bundle_context_manager.get_input_coder_impl,
-        bundle_context_manager.process_bundle_descriptor,
+        bundle_context_manager,
         self._progress_frequency,
-        num_workers=self._num_workers,
         cache_token_generator=cache_token_generator)
 
     # For the first time of processing, we don't have fired timers as inputs.
@@ -765,28 +757,18 @@ class BundleManager(object):
   _lock = threading.Lock()
 
   def __init__(self,
-               worker_handler_list,  # type: Sequence[WorkerHandler]
-               get_buffer,  # type: Callable[[bytes, str], PartitionableBuffer]
-               get_input_coder_impl,  # type: Callable[[str], CoderImpl]
-               bundle_descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
+               bundle_context_manager,  # type: execution.BundleContextManager
                progress_frequency=None,
                cache_token_generator=FnApiRunner.get_cache_token_generator()
               ):
     """Set up a bundle manager.
 
     Args:
-      worker_handler_list
-      get_buffer (Callable[[str], list])
-      get_input_coder_impl (Callable[[str], Coder])
-      bundle_descriptor (beam_fn_api_pb2.ProcessBundleDescriptor)
       progress_frequency
     """
-    self._worker_handler_list = worker_handler_list
-    self._get_buffer = get_buffer
-    self._get_input_coder_impl = get_input_coder_impl
-    self._bundle_descriptor = bundle_descriptor
+    self.bundle_context_manager = bundle_context_manager  # type: execution.BundleContextManager
     self._progress_frequency = progress_frequency
-    self._worker_handler = None  # type: Optional[WorkerHandler]
+    self._worker_handler = None  # type: Optional[execution.WorkerHandler]
     self._cache_token_generator = cache_token_generator
 
   def _send_input_to_worker(self,
@@ -814,7 +796,9 @@ class BundleManager(object):
   def _select_split_manager(self):
     """TODO(pabloem) WHAT DOES THIS DO"""
     unique_names = set(
-        t.unique_name for t in self._bundle_descriptor.transforms.values())
+        t.unique_name for t in
+        self.bundle_context_manager.process_bundle_descriptor
+            .transforms.values())
     for stage_name, candidate in reversed(_split_managers):
       if (stage_name in unique_names or
           (stage_name + '/Process') in unique_names):
@@ -835,8 +819,8 @@ class BundleManager(object):
     byte_stream = b''.join(buffer_data)
     num_elements = len(
         list(
-            self._get_input_coder_impl(read_transform_id).decode_all(
-                byte_stream)))
+            self.bundle_context_manager.get_input_coder_impl(read_transform_id)
+                .decode_all(byte_stream)))
 
     # Start the split manager in case it wants to set any breakpoints.
     split_manager_generator = split_manager(num_elements)
@@ -892,15 +876,17 @@ class BundleManager(object):
                      inputs,  # type: Mapping[str, PartitionableBuffer]
                      expected_outputs,  # type: DataOutput
                      fired_timers,  # type: Mapping[Tuple[str, str], PartitionableBuffer]
-                     expected_output_timers  # type: Dict[str, Dict[str, str]]
+                     expected_output_timers,  # type: Dict[str, Dict[str, str]]
+                     dry_run=False
                     ):
     # type: (...) -> BundleProcessResult
     # Unique id for the instruction processing this bundle.
     with BundleManager._lock:
       BundleManager._uid_counter += 1
       process_bundle_id = 'bundle_%s' % BundleManager._uid_counter
-      self._worker_handler = self._worker_handler_list[
-          BundleManager._uid_counter % len(self._worker_handler_list)]
+      self._worker_handler = self.bundle_context_manager.worker_handlers[
+          BundleManager._uid_counter % len(
+              self.bundle_context_manager.worker_handlers)]
 
     split_manager = self._select_split_manager()
     if not split_manager:
@@ -920,7 +906,8 @@ class BundleManager(object):
     process_bundle_req = beam_fn_api_pb2.InstructionRequest(
         instruction_id=process_bundle_id,
         process_bundle=beam_fn_api_pb2.ProcessBundleRequest(
-            process_bundle_descriptor_id=self._bundle_descriptor.id,
+            process_bundle_descriptor_id=
+                self.bundle_context_manager.process_bundle_descriptor.id,
             cache_tokens=[next(self._cache_token_generator)]))
     result_future = self._worker_handler.control_conn.push(process_bundle_req)
 
@@ -948,9 +935,9 @@ class BundleManager(object):
                 expected_output_timers[(
                     output.transform_id, output.timer_family_id)],
                 output.transform_id).append(output.timers)
-        if isinstance(output, beam_fn_api_pb2.Elements.Data):
+        if isinstance(output, beam_fn_api_pb2.Elements.Data) and not dry_run:
           with BundleManager._lock:
-            self._get_buffer(
+            self.bundle_context_manager.get_buffer(
                 expected_outputs[output.transform_id],
                 output.transform_id).append(output.data)
 
@@ -973,29 +960,24 @@ class ParallelBundleManager(BundleManager):
 
   def __init__(
       self,
-      worker_handler_list,  # type: Sequence[WorkerHandler]
-      get_buffer,  # type: Callable[[bytes, str], PartitionableBuffer]
-      get_input_coder_impl,  # type: Callable[[str], CoderImpl]
-      bundle_descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
+      bundle_context_manager,  # type: execution.BundleContextManager
       progress_frequency=None,
       cache_token_generator=None,
       **kwargs):
     # type: (...) -> None
     super(ParallelBundleManager, self).__init__(
-        worker_handler_list,
-        get_buffer,
-        get_input_coder_impl,
-        bundle_descriptor,
+        bundle_context_manager,
         progress_frequency,
         cache_token_generator=cache_token_generator)
-    self._num_workers = kwargs.pop('num_workers', 1)
+    self._num_workers = bundle_context_manager.num_workers
 
   def process_bundle(self,
                      inputs,  # type: Mapping[str, PartitionableBuffer]
                      expected_outputs,  # type: DataOutput
                      fired_timers,  # type: Mapping[Tuple[str, str], PartitionableBuffer]
-                     expected_output_timers  # type: Dict[Tuple[str, str], str]
-                     ):
+                     expected_output_timers,  # type: Dict[Tuple[str, str], str]
+                     dry_run=False
+                    ):
     # type: (...) -> BundleProcessResult
     part_inputs = [{} for _ in range(self._num_workers)
                    ]  # type: List[Dict[str, List[bytes]]]
@@ -1010,14 +992,12 @@ class ParallelBundleManager(BundleManager):
     def execute(part_map):
       # type: (...) -> BundleProcessResult
       bundle_manager = BundleManager(
-          self._worker_handler_list,
-          self._get_buffer,
-          self._get_input_coder_impl,
-          self._bundle_descriptor,
+          self.bundle_context_manager,
           self._progress_frequency,
           cache_token_generator=self._cache_token_generator)
       return bundle_manager.process_bundle(
-          part_map, expected_outputs, fired_timers, expected_output_timers)
+          part_map, expected_outputs, fired_timers, expected_output_timers,
+          dry_run)
 
     with UnboundedThreadPoolExecutor() as executor:
       for result, split_result in executor.map(execute, part_inputs):
