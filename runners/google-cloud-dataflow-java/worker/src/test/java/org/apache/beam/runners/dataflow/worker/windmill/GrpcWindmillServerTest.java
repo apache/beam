@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
@@ -59,6 +60,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitR
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetWorkStream;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.StreamPool;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Status;
@@ -67,6 +69,7 @@ import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessServerBuil
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.util.MutableHandlerRegistry;
 import org.hamcrest.Matchers;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
@@ -268,14 +271,11 @@ public class GrpcWindmillServerTest {
               assertEquals(workItem.getKey(), ByteString.copyFromUtf8("somewhat_long_key"));
             });
     assertTrue(latch.await(30, TimeUnit.SECONDS));
-
     stream.close();
     assertTrue(stream.awaitTermination(30, TimeUnit.SECONDS));
   }
 
-  @Test
-  @SuppressWarnings("FutureReturnValueIgnored")
-  public void testStreamingGetData() throws Exception {
+  private void addGetDataService() {
     // This server responds to GetDataRequests with responses that mirror the requests.
     serviceRegistry.addService(
         new CloudWindmillServiceV1Alpha1ImplBase() {
@@ -406,33 +406,80 @@ public class GrpcWindmillServerTest {
             };
           }
         });
+  }
 
+  @Test
+  public void testStreamingGetData() throws Exception {
+    addGetDataService();
     GetDataStream stream = client.getDataStream();
-
     // Make requests of varying sizes to test chunking, and verify the responses.
     ExecutorService executor = Executors.newFixedThreadPool(50);
-    final CountDownLatch done = new CountDownLatch(200);
+    List<Future> futures = new ArrayList<>(200);
+
     for (int i = 0; i < 100; ++i) {
       final String key = "key" + i;
       final String s = i % 5 == 0 ? largeString(i) : "tag";
-      executor.submit(
-          () -> {
-            errorCollector.checkThat(
-                stream.requestKeyedData("computation", makeGetDataRequest(key, s)),
-                Matchers.equalTo(makeGetDataResponse(key, s)));
-            done.countDown();
-          });
-      executor.execute(
-          () -> {
-            errorCollector.checkThat(
-                stream.requestGlobalData(makeGlobalDataRequest(key)),
-                Matchers.equalTo(makeGlobalDataResponse(key)));
-            done.countDown();
-          });
+      futures.add(
+          executor.submit(
+              () -> {
+                errorCollector.checkThat(
+                    stream.requestKeyedData("computation", makeGetDataRequest(key, s)),
+                    Matchers.equalTo(makeGetDataResponse(key, s)));
+              }));
+      futures.add(
+          executor.submit(
+              () -> {
+                errorCollector.checkThat(
+                    stream.requestGlobalData(makeGlobalDataRequest(key)),
+                    Matchers.equalTo(makeGlobalDataResponse(key)));
+              }));
+      Thread.sleep((i * 17) % 50);
     }
-    done.await();
+    for (Future f : futures) {
+      f.get();
+    }
     stream.close();
     assertTrue(stream.awaitTermination(60, TimeUnit.SECONDS));
+    executor.shutdown();
+  }
+
+  @Test
+  public void testStreamingGetDataWithPool() throws Exception {
+    addGetDataService();
+
+    final StreamPool<GetDataStream> streamPool =
+        new StreamPool<GetDataStream>(4, Duration.standardSeconds(1), () -> client.getDataStream());
+
+    // Make requests of varying sizes to test chunking, and verify the responses.
+    ExecutorService executor = Executors.newFixedThreadPool(50);
+    List<Future> futures = new ArrayList<>(200);
+    for (int i = 0; i < 100; ++i) {
+      final String key = "key" + i;
+      final String s = i % 5 == 0 ? largeString(i) : "tag";
+      futures.add(
+          executor.submit(
+              () -> {
+                GetDataStream stream = streamPool.getStream();
+                errorCollector.checkThat(
+                    stream.requestKeyedData("computation", makeGetDataRequest(key, s)),
+                    Matchers.equalTo(makeGetDataResponse(key, s)));
+                streamPool.releaseStream(stream);
+              }));
+      futures.add(
+          executor.submit(
+              () -> {
+                GetDataStream stream = streamPool.getStream();
+                errorCollector.checkThat(
+                    stream.requestGlobalData(makeGlobalDataRequest(key)),
+                    Matchers.equalTo(makeGlobalDataResponse(key)));
+                streamPool.releaseStream(stream);
+              }));
+      Thread.sleep((i * 17) % 50);
+    }
+    for (Future f : futures) {
+      f.get();
+    }
+    assertTrue(streamPool.closeIdle(60, TimeUnit.SECONDS));
     executor.shutdown();
   }
 
