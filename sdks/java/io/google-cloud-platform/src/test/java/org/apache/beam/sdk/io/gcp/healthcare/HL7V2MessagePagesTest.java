@@ -55,8 +55,6 @@ public class HL7V2MessagePagesTest {
     assertFalse(emptyPages.iterator().hasNext());
   }
 
-
-
   /**
    * Test Non-empty with beta store list response store. This tests backwards compatibility with
    * Stores that return the deprecated messages field in list requests.
@@ -66,11 +64,16 @@ public class HL7V2MessagePagesTest {
     ListMessagesResponse page0 =
         new ListMessagesResponse()
             .setHl7V2Messages(
-                Stream.of("foo0", "foo1", "foo2").map(HL7v2IOTestUtil::testMessage).collect(
-                    Collectors.toList()))
+                Stream.of("foo0", "foo1", "foo2")
+                    .map(HL7v2IOTestUtil::testMessage)
+                    .collect(Collectors.toList()))
             .setNextPageToken("page1");
     ListMessagesResponse page1 =
-        new ListMessagesResponse().setHl7V2Messages(Stream.of("foo3", "foo4", "foo5").map(HL7v2IOTestUtil::testMessage).collect(Collectors.toList()));
+        new ListMessagesResponse()
+            .setHl7V2Messages(
+                Stream.of("foo3", "foo4", "foo5")
+                    .map(HL7v2IOTestUtil::testMessage)
+                    .collect(Collectors.toList()));
     Mockito.doReturn(page0).when(client).makeHL7v2ListRequest("foo", null, null);
 
     Mockito.doReturn(page1).when(client).makeHL7v2ListRequest("foo", null, "page1");
@@ -86,5 +89,4 @@ public class HL7V2MessagePagesTest {
         pagesIterator.next().stream().map(HL7v2Message::getName).collect(Collectors.toList()));
     assertFalse(pagesIterator.hasNext());
   }
-
 }

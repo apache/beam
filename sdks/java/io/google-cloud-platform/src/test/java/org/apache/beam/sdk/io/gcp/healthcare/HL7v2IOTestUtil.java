@@ -173,6 +173,7 @@ class HL7v2IOTestUtil {
           .forEach(context::output);
     }
   }
+
   static Message testMessage(String name) {
     Message msg = new Message();
     msg.setName(name);
