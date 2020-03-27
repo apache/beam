@@ -359,7 +359,7 @@ public abstract class RowCoderGenerator {
       // all values. Since we assume that decode is always being called on a previously-encoded
       // Row, the values should already be validated and of the correct type. So, we can save
       // some processing by simply transferring ownership of the list to the Row.
-      return Row.withSchema(schema).attachValues(fieldValues).build();
+      return Row.withSchema(schema).attachValues(fieldValues);
     }
   }
 }

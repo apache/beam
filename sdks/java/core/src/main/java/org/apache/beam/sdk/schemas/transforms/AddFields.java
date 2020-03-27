@@ -373,7 +373,7 @@ public class AddFields {
         }
       }
 
-      return Row.withSchema(outputSchema).attachValues(newValues).build();
+      return Row.withSchema(outputSchema).attachValues(newValues);
     }
 
     private static Object fillNewFields(

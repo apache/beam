@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
-import static org.apache.beam.sdk.values.SchemaVerification.verifyRowValues;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
@@ -37,11 +37,18 @@ import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Factory;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.values.RowUtils.CapturingRowCases;
+import org.apache.beam.sdk.values.RowUtils.FieldOverride;
+import org.apache.beam.sdk.values.RowUtils.FieldOverrides;
+import org.apache.beam.sdk.values.RowUtils.RowFieldMatcher;
+import org.apache.beam.sdk.values.RowUtils.RowPosition;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.DateTime;
@@ -52,8 +59,31 @@ import org.joda.time.ReadableInstant;
  * {@link Row} is an immutable tuple-like schema to represent one element in a {@link PCollection}.
  * The fields are described with a {@link Schema}.
  *
- * <p>{@link Schema} contains the names for each field and the coder for the whole record,
- * {see @link Schema#getRowCoder()}.
+ * <p>{@link Schema} contains the names and types for each field.
+ *
+ * <p>There are several ways to build a new Row object. To build a row from scratch using a schema
+ * object, {@link Row#withSchema} can be used. Schema fields can be specified by name, and nested
+ * fields can be specified using the field selection syntax. For example:
+ *
+ * <pre>{@code
+ * Row row = Row.withSchema(schema)
+ *              .withFieldValue("userId", "user1)
+ *              .withFieldValue("location.city", "seattle")
+ *              .withFieldValue("location.state", "wa")
+ *              .build();
+ * }</pre>
+ *
+ * <p>The {@link Row#fromRow} builder can be used to base a row off of another row. The builder can
+ * be used to specify values for specific fields, and all the remaining values will be taken from
+ * the original row. For example, the following produces a row identical to the above row except for
+ * the location.city field.
+ *
+ * <pre>{@code
+ * Row modifiedRow =
+ *     Row.fromRow(row)
+ *        .withFieldValue("location.city", "tacoma")
+ *        .build();
+ * }</pre>
  */
 @Experimental(Kind.SCHEMAS)
 public abstract class Row implements Serializable {
@@ -72,6 +102,7 @@ public abstract class Row implements Serializable {
 
   /** Return the size of data fields. */
   public abstract int getFieldCount();
+
   /** Return the list of data values. */
   public abstract List<Object> getValues();
 
@@ -585,36 +616,149 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Creates a record builder with specified {@link #getSchema()}. {@link Builder#build()} will
-   * throw an {@link IllegalArgumentException} if number of fields in {@link #getSchema()} does not
-   * match the number of fields specified.
+   * Creates a row builder with specified {@link #getSchema()}. {@link Builder#build()} will throw
+   * an {@link IllegalArgumentException} if number of fields in {@link #getSchema()} does not match
+   * the number of fields specified. If any of the arguments don't match the expected types for the
+   * schema fields, {@link Builder#build()} will throw a {@link ClassCastException}.
    */
   public static Builder withSchema(Schema schema) {
     return new Builder(schema);
   }
 
-  /** Builder for {@link Row}. */
-  public static class Builder {
-    private List<Object> values = Lists.newArrayList();
-    private boolean attached = false;
-    @Nullable private Factory<List<FieldValueGetter>> fieldValueGetterFactory;
-    @Nullable private Object getterTarget;
-    private Schema schema;
+  /**
+   * Creates a row builder based on the specified row. Field values in the new row can be explicitly
+   * set using {@link FieldValueBuilder#withFieldValue}. Any values not so overridden will be the
+   * same as the values in the original row.
+   */
+  public static FieldValueBuilder fromRow(Row row) {
+    return new FieldValueBuilder(row.getSchema(), row);
+  }
 
-    Builder(Schema schema) {
+  /** Builder for {@link Row} that bases a row on another row. */
+  public static class FieldValueBuilder {
+    private final Schema schema;
+    private final @Nullable Row sourceRow;
+    private final FieldOverrides fieldOverrides;
+
+    private FieldValueBuilder(Schema schema, @Nullable Row sourceRow) {
       this.schema = schema;
-    }
-
-    public int nextFieldId() {
-      if (fieldValueGetterFactory != null) {
-        throw new RuntimeException("Not supported");
-      }
-      return values.size();
+      this.sourceRow = sourceRow;
+      this.fieldOverrides = new FieldOverrides(schema);
     }
 
     public Schema getSchema() {
       return schema;
     }
+
+    /**
+     * Set a field value using the field name. Nested values can be set using the field selection
+     * syntax.
+     */
+    public FieldValueBuilder withFieldValue(String fieldName, Object value) {
+      return withFieldValue(FieldAccessDescriptor.withFieldNames(fieldName), value);
+    }
+
+    /** Set a field value using the field id. */
+    public FieldValueBuilder withFieldValue(Integer fieldId, Object value) {
+      return withFieldValue(FieldAccessDescriptor.withFieldIds(fieldId), value);
+    }
+
+    /** Set a field value using a FieldAccessDescriptor. */
+    public FieldValueBuilder withFieldValue(
+        FieldAccessDescriptor fieldAccessDescriptor, Object value) {
+      FieldAccessDescriptor fieldAccess = fieldAccessDescriptor.resolve(getSchema());
+      checkArgument(fieldAccess.referencesSingleField(), "");
+      fieldOverrides.addOverride(fieldAccess, new FieldOverride(value));
+      return this;
+    }
+
+    /**
+     * Sets field values using the field names. Nested values can be set using the field selection
+     * syntax.
+     */
+    public FieldValueBuilder withFieldValues(Map<String, Object> values) {
+      values.entrySet().stream()
+          .forEach(
+              e ->
+                  fieldOverrides.addOverride(
+                      FieldAccessDescriptor.withFieldNames(e.getKey()),
+                      new FieldOverride(e.getValue())));
+      return this;
+    }
+
+    /**
+     * Sets field values using the FieldAccessDescriptors. Nested values can be set using the field
+     * selection syntax.
+     */
+    public FieldValueBuilder withFieldAccessDescriptors(Map<FieldAccessDescriptor, Object> values) {
+      values.entrySet().stream()
+          .forEach(e -> fieldOverrides.addOverride(e.getKey(), new FieldOverride(e.getValue())));
+      return this;
+    }
+
+    public Row build() {
+      Row row =
+          (Row)
+              new RowFieldMatcher()
+                  .match(
+                      new CapturingRowCases(getSchema(), this.fieldOverrides),
+                      FieldType.row(getSchema()),
+                      new RowPosition(FieldAccessDescriptor.create()),
+                      sourceRow);
+      return row;
+    }
+  }
+
+  /** Builder for {@link Row}. */
+  public static class Builder {
+    private List<Object> values = Lists.newArrayList();
+    private final Schema schema;
+    private Row nullRow;
+
+    Builder(Schema schema) {
+      this.schema = schema;
+    }
+
+    /** Return the schema for the row being built. */
+    public Schema getSchema() {
+      return schema;
+    }
+
+    /**
+     * Set a field value using the field name. Nested values can be set using the field selection
+     * syntax.
+     */
+    public FieldValueBuilder withFieldValue(String fieldName, Object value) {
+      checkState(values.isEmpty());
+      return new FieldValueBuilder(schema, null).withFieldValue(fieldName, value);
+    }
+
+    /** Set a field value using the field id. */
+    public FieldValueBuilder withFieldValue(Integer fieldId, Object value) {
+      checkState(values.isEmpty());
+      return new FieldValueBuilder(schema, null).withFieldValue(fieldId, value);
+    }
+
+    /** Set a field value using a FieldAccessDescriptor. */
+    public FieldValueBuilder withFieldValue(
+        FieldAccessDescriptor fieldAccessDescriptor, Object value) {
+      checkState(values.isEmpty());
+      return new FieldValueBuilder(schema, null).withFieldValue(fieldAccessDescriptor, value);
+    }
+    /**
+     * Sets field values using the field names. Nested values can be set using the field selection
+     * syntax.
+     */
+    public FieldValueBuilder withFieldValues(Map<String, Object> values) {
+      checkState(values.isEmpty());
+      return new FieldValueBuilder(schema, null).withFieldValues(values);
+    }
+
+    // The following methods allow appending a list of values to the Builder object. The values must
+    // be in the same
+    // order as the fields in the row. These methods cannot be used in conjunction with
+    // withFieldValue or
+    // withFieldValues.
 
     public Builder addValue(@Nullable Object values) {
       this.values.add(values);
@@ -645,40 +789,62 @@ public abstract class Row implements Serializable {
       return this;
     }
 
-    // Values are attached. No verification is done, and no conversions are done. LogicalType
-    // values must be specified as the base type.
-    public Builder attachValues(List<Object> values) {
-      this.attached = true;
-      this.values = values;
-      return this;
+    // Values are attached. No verification is done, and no conversions are done. LogicalType values
+    // must be specified as the base type. This method should be used with great care, as no
+    // validation is done. If
+    // incorrect values are passed in, it could result in strange errors later in the pipeline. This
+    // method is largely
+    // used internal to Beam.
+    @Internal
+    public Row attachValues(List<Object> attachedValues) {
+      checkState(this.values.isEmpty());
+      return new RowWithStorage(schema, attachedValues);
     }
 
-    public Builder attachValues(Object... values) {
+    public Row attachValues(Object... values) {
       return attachValues(Arrays.asList(values));
     }
 
-    public Builder withFieldValueGetters(
+    public int nextFieldId() {
+      return values.size();
+    }
+
+    @Internal
+    public Row withFieldValueGetters(
         Factory<List<FieldValueGetter>> fieldValueGetterFactory, Object getterTarget) {
-      this.fieldValueGetterFactory = fieldValueGetterFactory;
-      this.getterTarget = getterTarget;
-      return this;
+      checkState(getterTarget != null, "getters require withGetterTarget.");
+      return new RowWithGetters(schema, fieldValueGetterFactory, getterTarget);
     }
 
     public Row build() {
       checkNotNull(schema);
-      if (!this.values.isEmpty() && fieldValueGetterFactory != null) {
-        throw new IllegalArgumentException("Cannot specify both values and getters.");
+
+      if (!values.isEmpty() && values.size() != schema.getFieldCount()) {
+        throw new IllegalArgumentException(
+            "Row expected "
+                + schema.getFieldCount()
+                + " fields. initialized with "
+                + values.size()
+                + " fields.");
       }
-      if (!this.values.isEmpty()) {
-        List<Object> storageValues = attached ? this.values : verifyRowValues(schema, this.values);
-        checkState(getterTarget == null, "withGetterTarget requires getters.");
-        return new RowWithStorage(schema, storageValues);
-      } else if (fieldValueGetterFactory != null) {
-        checkState(getterTarget != null, "getters require withGetterTarget.");
-        return new RowWithGetters(schema, fieldValueGetterFactory, getterTarget);
+
+      FieldOverrides fieldOverrides = new FieldOverrides(schema);
+      fieldOverrides.setOverrides(this.values);
+
+      Row row;
+      if (!fieldOverrides.isEmpty()) {
+        row =
+            (Row)
+                new RowFieldMatcher()
+                    .match(
+                        new CapturingRowCases(schema, fieldOverrides),
+                        FieldType.row(schema),
+                        new RowPosition(FieldAccessDescriptor.create()),
+                        null);
       } else {
-        return new RowWithStorage(schema, Collections.emptyList());
+        row = new RowWithStorage(schema, Collections.emptyList());
       }
+      return row;
     }
   }
 
