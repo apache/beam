@@ -62,7 +62,8 @@ class PrefetchingSourceSetIterable(object):
       self,
       sources,
       max_reader_threads=MAX_SOURCE_READER_THREADS,
-      read_counter=None):
+      read_counter=None,
+      element_counter=None):
     self.sources = sources
     self.num_reader_threads = min(max_reader_threads, len(self.sources))
 
@@ -80,6 +81,7 @@ class PrefetchingSourceSetIterable(object):
     self.has_errored = False
 
     self.read_counter = read_counter or opcounters.NoOpTransformIOCounter()
+    self.element_counter = element_counter
     self.reader_threads = []
     self._start_reader_threads()
 
@@ -170,7 +172,12 @@ class PrefetchingSourceSetIterable(object):
             if num_readers_finished == self.num_reader_threads:
               return
           else:
-            yield element
+            if self.element_counter:
+              self.element_counter.update_from(element)
+              yield element
+              self.element_counter.update_collect()
+            else:
+              yield element
         finally:
           if self.has_errored:
             raise self.reader_exceptions.get()
@@ -187,14 +194,18 @@ class PrefetchingSourceSetIterable(object):
 
 
 def get_iterator_fn_for_sources(
-    sources, max_reader_threads=MAX_SOURCE_READER_THREADS, read_counter=None):
+    sources,
+    max_reader_threads=MAX_SOURCE_READER_THREADS,
+    read_counter=None,
+    element_counter=None):
   """Returns callable that returns iterator over elements for given sources."""
   def _inner():
     return iter(
         PrefetchingSourceSetIterable(
             sources,
             max_reader_threads=max_reader_threads,
-            read_counter=read_counter))
+            read_counter=read_counter,
+            element_counter=element_counter))
 
   return _inner
 
