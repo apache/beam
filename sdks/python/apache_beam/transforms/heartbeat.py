@@ -65,7 +65,8 @@ class ImpulseSeqGenRestrictionTracker(OffsetRestrictionTracker):
     return self._current_position
 
   def try_claim(self, pos):
-    if (pos > self._last_claim_attempt) and (pos == self._range.stop):
+    if ((self._last_claim_attempt is None) or
+        (pos > self._last_claim_attempt and pos == self._range.stop)):
       self._last_claim_attempt = pos
       return True
     else:
