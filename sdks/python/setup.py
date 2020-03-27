@@ -156,7 +156,6 @@ REQUIRED_PACKAGES = [
     'httplib2>=0.8,<=0.12.0',
     'mock>=1.0.1,<3.0.0',
     'numpy>=1.14.3,<2',
-    'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<4',
     'protobuf>=3.5.0.post1,<4',
     # [BEAM-6287] pyarrow is not supported on Windows for Python 2
@@ -225,6 +224,9 @@ INTERACTIVE_BEAM = [
 AWS_REQUIREMENTS = [
     'boto3 >=1.9'
 ]
+MONGO_REQUIREMENTS = [
+    'pymongo>=3.8.0,<4.0.0',
+]
 
 
 # We must generate protos after setup_requires are installed.
@@ -286,7 +288,8 @@ setuptools.setup(
         'test': REQUIRED_TEST_PACKAGES,
         'gcp': GCP_REQUIREMENTS,
         'interactive': INTERACTIVE_BEAM,
-        'aws': AWS_REQUIREMENTS
+        'aws': AWS_REQUIREMENTS,
+        'mongo': MONGO_REQUIREMENTS,
     },
     zip_safe=False,
     # PyPI package information.
