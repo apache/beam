@@ -16,8 +16,11 @@
 package harness
 
 import (
+	"bytes"
 	"time"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
@@ -30,6 +33,7 @@ func monitoring(p *exec.Plan) (*fnpb.Metrics, []*ppb.MonitoringInfo) {
 	if store == nil {
 		return nil, nil
 	}
+
 	// Get the legacy style metrics.
 	transforms := make(map[string]*fnpb.Metrics_PTransform)
 	metrics.Extractor{
@@ -80,35 +84,42 @@ func monitoring(p *exec.Plan) (*fnpb.Metrics, []*ppb.MonitoringInfo) {
 	var monitoringInfo []*ppb.MonitoringInfo
 	metrics.Extractor{
 		SumInt64: func(l metrics.Labels, v int64) {
-			monitoringInfo = append(monitoringInfo,
-				&ppb.MonitoringInfo{
-					Urn:    "beam:metric:user",
-					Type:   "beam:metrics:sum_int_64",
-					Labels: userLabels(l),
-					Data:   int64Counter(v),
-				})
-		},
-		DistributionInt64: func(l metrics.Labels, count, sum, min, max int64) {
-			monitoringInfo = append(monitoringInfo,
-				&ppb.MonitoringInfo{
-					Urn:    "beam:metric:user_distribution",
-					Type:   "beam:metrics:distribution_int_64",
-					Labels: userLabels(l),
-					Data:   int64Distribution(count, sum, min, max),
-				})
-		},
-		GaugeInt64: func(l metrics.Labels, v int64, t time.Time) {
-			ts, err := ptypes.TimestampProto(t)
+			payload, err := int64Counter(v)
 			if err != nil {
 				panic(err)
 			}
 			monitoringInfo = append(monitoringInfo,
 				&ppb.MonitoringInfo{
-					Urn:       "beam:metric:user",
-					Type:      "beam:metrics:latest_int_64",
-					Labels:    userLabels(l),
-					Data:      int64Counter(v),
-					Timestamp: ts,
+					Urn:     "beam:metric:user:sum_int64:v1",
+					Type:    "beam:metrics:sum_int64:v1",
+					Labels:  userLabels(l),
+					Payload: payload,
+				})
+		},
+		DistributionInt64: func(l metrics.Labels, count, sum, min, max int64) {
+			payload, err := int64Distribution(count, sum, min, max)
+			if err != nil {
+				panic(err)
+			}
+			monitoringInfo = append(monitoringInfo,
+				&ppb.MonitoringInfo{
+					Urn:     "beam:metric:user:distribution_int64:v1",
+					Type:    "beam:metrics:distribution_int64:v1",
+					Labels:  userLabels(l),
+					Payload: payload,
+				})
+		},
+		GaugeInt64: func(l metrics.Labels, v int64, t time.Time) {
+			payload, err := int64Latest(t, v)
+			if err != nil {
+				panic(err)
+			}
+			monitoringInfo = append(monitoringInfo,
+				&ppb.MonitoringInfo{
+					Urn:     "beam:metric:user:latest_int64:v1",
+					Type:    "beam:metrics:latest_int64:v1",
+					Labels:  userLabels(l),
+					Payload: payload,
 				})
 		},
 	}.ExtractFrom(store)
@@ -126,14 +137,18 @@ func monitoring(p *exec.Plan) (*fnpb.Metrics, []*ppb.MonitoringInfo) {
 			},
 		}
 		// Monitoring info version.
+		payload, err := int64Counter(snapshot.Count)
+		if err != nil {
+			panic(err)
+		}
 		monitoringInfo = append(monitoringInfo,
 			&ppb.MonitoringInfo{
 				Urn:  "beam:metric:element_count:v1",
-				Type: "beam:metrics:sum_int_64",
+				Type: "beam:metrics:sum_int64:v1",
 				Labels: map[string]string{
 					"PCOLLECTION": snapshot.PID,
 				},
-				Data: int64Counter(snapshot.Count),
+				Payload: payload,
 			})
 	}
 
@@ -150,37 +165,40 @@ func userLabels(l metrics.Labels) map[string]string {
 	}
 }
 
-func int64Counter(v int64) *ppb.MonitoringInfo_Metric {
-	return &ppb.MonitoringInfo_Metric{
-		Metric: &ppb.Metric{
-			Data: &ppb.Metric_CounterData{
-				CounterData: &ppb.CounterData{
-					Value: &ppb.CounterData_Int64Value{
-						Int64Value: v,
-					},
-				},
-			},
-		},
+func int64Counter(v int64) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := coder.EncodeVarInt(v, &buf); err != nil {
+		return nil, err
 	}
+	return buf.Bytes(), nil
 }
 
-func int64Distribution(count, sum, min, max int64) *ppb.MonitoringInfo_Metric {
-	return &ppb.MonitoringInfo_Metric{
-		Metric: &ppb.Metric{
-			Data: &ppb.Metric_DistributionData{
-				DistributionData: &ppb.DistributionData{
-					Distribution: &ppb.DistributionData_IntDistributionData{
-						IntDistributionData: &ppb.IntDistributionData{
-							Count: count,
-							Sum:   sum,
-							Min:   min,
-							Max:   max,
-						},
-					},
-				},
-			},
-		},
+func int64Latest(t time.Time, v int64) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := coder.EncodeVarInt(mtime.FromTime(t).Milliseconds(), &buf); err != nil {
+		return nil, err
 	}
+	if err := coder.EncodeVarInt(v, &buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func int64Distribution(count, sum, min, max int64) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := coder.EncodeVarInt(count, &buf); err != nil {
+		return nil, err
+	}
+	if err := coder.EncodeVarInt(sum, &buf); err != nil {
+		return nil, err
+	}
+	if err := coder.EncodeVarInt(min, &buf); err != nil {
+		return nil, err
+	}
+	if err := coder.EncodeVarInt(max, &buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 func getTransform(transforms map[string]*fnpb.Metrics_PTransform, l metrics.Labels) *fnpb.Metrics_PTransform {

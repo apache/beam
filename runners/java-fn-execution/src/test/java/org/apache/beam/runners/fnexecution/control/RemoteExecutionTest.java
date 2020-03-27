@@ -53,6 +53,7 @@ import org.apache.beam.runners.core.construction.graph.FusedPipeline;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMatchers;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
@@ -686,40 +687,40 @@ public class RemoteExecutionTest implements Serializable {
             // User Counters.
             SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
             builder
-                .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+                .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
                 .setLabel(
                     MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
                 .setLabel(MonitoringInfoConstants.Labels.NAME, processUserCounterName);
             builder.setLabel(
                 MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
-            builder.setInt64Value(1);
+            builder.setInt64SumValue(1);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             builder = new SimpleMonitoringInfoBuilder();
             builder
-                .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+                .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
                 .setLabel(
                     MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
                 .setLabel(MonitoringInfoConstants.Labels.NAME, startUserCounterName);
             builder.setLabel(
                 MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
-            builder.setInt64Value(10);
+            builder.setInt64SumValue(10);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             builder = new SimpleMonitoringInfoBuilder();
             builder
-                .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+                .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
                 .setLabel(
                     MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
                 .setLabel(MonitoringInfoConstants.Labels.NAME, finishUserCounterName);
             builder.setLabel(
                 MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
-            builder.setInt64Value(100);
+            builder.setInt64SumValue(100);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             // User Distributions.
             builder
-                .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_COUNTER)
+                .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64)
                 .setLabel(
                     MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
                 .setLabel(MonitoringInfoConstants.Labels.NAME, processUserDistributionName);
@@ -730,7 +731,7 @@ public class RemoteExecutionTest implements Serializable {
 
             builder = new SimpleMonitoringInfoBuilder();
             builder
-                .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_COUNTER)
+                .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64)
                 .setLabel(
                     MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
                 .setLabel(MonitoringInfoConstants.Labels.NAME, startUserDistributionName);
@@ -741,7 +742,7 @@ public class RemoteExecutionTest implements Serializable {
 
             builder = new SimpleMonitoringInfoBuilder();
             builder
-                .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_COUNTER)
+                .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64)
                 .setLabel(
                     MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
                 .setLabel(MonitoringInfoConstants.Labels.NAME, finishUserDistributionName);
@@ -755,14 +756,14 @@ public class RemoteExecutionTest implements Serializable {
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
             builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "impulse.out");
-            builder.setInt64Value(2);
+            builder.setInt64SumValue(2);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
             builder.setLabel(
                 MonitoringInfoConstants.Labels.PCOLLECTION, "create/ParMultiDo(Anonymous).output");
-            builder.setInt64Value(3);
+            builder.setInt64SumValue(3);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             // Verify that the element count is not double counted if two PCollections consume it.
@@ -771,7 +772,7 @@ public class RemoteExecutionTest implements Serializable {
             builder.setLabel(
                 MonitoringInfoConstants.Labels.PCOLLECTION,
                 "processA/ParMultiDo(Anonymous).output");
-            builder.setInt64Value(6);
+            builder.setInt64SumValue(6);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             builder = new SimpleMonitoringInfoBuilder();
@@ -779,37 +780,37 @@ public class RemoteExecutionTest implements Serializable {
             builder.setLabel(
                 MonitoringInfoConstants.Labels.PCOLLECTION,
                 "processB/ParMultiDo(Anonymous).output");
-            builder.setInt64Value(6);
+            builder.setInt64SumValue(6);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             // Check for execution time metrics for the testPTransformId
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(MonitoringInfoConstants.Urns.START_BUNDLE_MSECS);
-            builder.setInt64TypeUrn();
+            builder.setType(TypeUrns.SUM_INT64_TYPE);
             builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
             matchers.add(
                 allOf(
                     MonitoringInfoMatchers.matchSetFields(builder.build()),
-                    MonitoringInfoMatchers.valueGreaterThan(0)));
+                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(0)));
 
             // Check for execution time metrics for the testPTransformId
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(Urns.PROCESS_BUNDLE_MSECS);
-            builder.setInt64TypeUrn();
+            builder.setType(TypeUrns.SUM_INT64_TYPE);
             builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
             matchers.add(
                 allOf(
                     MonitoringInfoMatchers.matchSetFields(builder.build()),
-                    MonitoringInfoMatchers.valueGreaterThan(0)));
+                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(0)));
 
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(Urns.FINISH_BUNDLE_MSECS);
-            builder.setInt64TypeUrn();
+            builder.setType(TypeUrns.SUM_INT64_TYPE);
             builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
             matchers.add(
                 allOf(
                     MonitoringInfoMatchers.matchSetFields(builder.build()),
-                    MonitoringInfoMatchers.valueGreaterThan(0)));
+                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(0)));
 
             for (Matcher<MonitoringInfo> matcher : matchers) {
               assertThat(response.getMonitoringInfosList(), Matchers.hasItem(matcher));

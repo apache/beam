@@ -86,15 +86,14 @@ public class PCollectionConsumerRegistryTest {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
     builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, pCollectionA);
-    builder.setInt64Value(numElements);
+    builder.setInt64SumValue(numElements);
     MonitoringInfo expected = builder.build();
 
     // Clear the timestamp before comparison.
-    MonitoringInfo pCollectionCount =
+    MonitoringInfo result =
         Iterables.find(
             metricsContainerRegistry.getMonitoringInfos(),
             monitoringInfo -> monitoringInfo.containsLabels(Labels.PCOLLECTION));
-    MonitoringInfo result = SimpleMonitoringInfoBuilder.copyAndClearTimestamp(pCollectionCount);
     assertEquals(expected, result);
   }
 
@@ -160,15 +159,14 @@ public class PCollectionConsumerRegistryTest {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
     builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, pCollectionA);
-    builder.setInt64Value(numElements);
+    builder.setInt64SumValue(numElements);
     MonitoringInfo expected = builder.build();
 
     // Clear the timestamp before comparison.
-    MonitoringInfo pCollectionCount =
+    MonitoringInfo result =
         Iterables.find(
             metricsContainerRegistry.getMonitoringInfos(),
             monitoringInfo -> monitoringInfo.containsLabels(Labels.PCOLLECTION));
-    MonitoringInfo result = SimpleMonitoringInfoBuilder.copyAndClearTimestamp(pCollectionCount);
     assertEquals(expected, result);
   }
 

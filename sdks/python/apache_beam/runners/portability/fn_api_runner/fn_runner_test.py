@@ -797,18 +797,18 @@ class FnApiRunnerTest(unittest.TestCase):
 # the sampling counter.
 class FnApiRunnerMetricsTest(unittest.TestCase):
   def assert_has_counter(
-      self, monitoring_infos, urn, labels, value=None, ge_value=None):
+      self, mon_infos, urn, labels, value=None, ge_value=None):
     # TODO(ajamato): Consider adding a matcher framework
     found = 0
     matches = []
-    for mi in monitoring_infos:
+    for mi in mon_infos:
       if has_urn_and_labels(mi, urn, labels):
-        matches.append(mi.metric.counter_data.int64_value)
+        extracted_value = monitoring_infos.extract_counter_value(mi)
         if ge_value is not None:
-          if mi.metric.counter_data.int64_value >= ge_value:
+          if extracted_value >= ge_value:
             found = found + 1
         elif value is not None:
-          if mi.metric.counter_data.int64_value == value:
+          if extracted_value == value:
             found = found + 1
         else:
           found = found + 1
@@ -824,14 +824,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
         ))
 
   def assert_has_distribution(
-      self,
-      monitoring_infos,
-      urn,
-      labels,
-      sum=None,
-      count=None,
-      min=None,
-      max=None):
+      self, mon_infos, urn, labels, sum=None, count=None, min=None, max=None):
     # TODO(ajamato): Consider adding a matcher framework
     sum = _matcher_or_equal_to(sum)
     count = _matcher_or_equal_to(count)
@@ -839,29 +832,30 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
     max = _matcher_or_equal_to(max)
     found = 0
     description = StringDescription()
-    for mi in monitoring_infos:
+    for mi in mon_infos:
       if has_urn_and_labels(mi, urn, labels):
-        int_dist = mi.metric.distribution_data.int_distribution_data
+        (extracted_count, extracted_sum, extracted_min,
+         extracted_max) = monitoring_infos.extract_distribution(mi)
         increment = 1
         if sum is not None:
           description.append_text(' sum: ')
           sum.describe_to(description)
-          if not sum.matches(int_dist.sum):
+          if not sum.matches(extracted_sum):
             increment = 0
         if count is not None:
           description.append_text(' count: ')
           count.describe_to(description)
-          if not count.matches(int_dist.count):
+          if not count.matches(extracted_count):
             increment = 0
         if min is not None:
           description.append_text(' min: ')
           min.describe_to(description)
-          if not min.matches(int_dist.min):
+          if not min.matches(extracted_min):
             increment = 0
         if max is not None:
           description.append_text(' max: ')
           max.describe_to(description)
-          if not max.matches(int_dist.max):
+          if not max.matches(extracted_max):
             increment = 0
         found += increment
     self.assertEqual(

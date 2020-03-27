@@ -161,8 +161,7 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     # Filter out system metrics
     user_monitoring_info_list = [
         x for x in monitoring_info_list
-        if monitoring_infos._is_user_monitoring_info(x) or
-        monitoring_infos._is_user_distribution_monitoring_info(x)
+        if monitoring_infos.is_user_monitoring_info(x)
     ]
 
     return beam_job_api_pb2.GetJobMetricsResponse(

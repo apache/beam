@@ -23,8 +23,7 @@ from __future__ import absolute_import
 import logging
 import unittest
 
-from apache_beam.metrics.monitoring_infos import LATEST_INT64_TYPE
-from apache_beam.metrics.monitoring_infos import SUM_INT64_TYPE
+from apache_beam.metrics import monitoring_infos
 from apache_beam.runners.worker.statecache import StateCache
 
 
@@ -241,9 +240,10 @@ class StateCacheTest(unittest.TestCase):
     infos = cache.get_monitoring_infos()
     # Reconstruct metrics dictionary from monitoring infos
     metrics = {
-        info.urn.rsplit(':', 1)[1]: info.metric.counter_data.int64_value
-        for info in infos
-        if "_total" not in info.urn and info.type == LATEST_INT64_TYPE
+        info.urn.rsplit(':',
+                        1)[1]: monitoring_infos.extract_gauge_value(info)[1]
+        for info in infos if "_total" not in info.urn and
+        info.type == monitoring_infos.LATEST_INT64_TYPE
     }
     self.assertDictEqual(metrics, expected_metrics)
     # Metrics and total metrics should be identical for a single bundle.
@@ -255,9 +255,9 @@ class StateCacheTest(unittest.TestCase):
       pass
     total_metrics = {
         info.urn.rsplit(':', 1)[1].rsplit("_total")[0]:
-        info.metric.counter_data.int64_value
+        monitoring_infos.extract_counter_value(info)
         for info in infos
-        if "_total" in info.urn and info.type == SUM_INT64_TYPE
+        if "_total" in info.urn and info.type == monitoring_infos.SUM_INT64_TYPE
     }
     self.assertDictEqual(metrics, total_metrics)
 
