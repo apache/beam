@@ -33,14 +33,14 @@ import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.transforms.heartbeat import Heartbeat
-from apache_beam.transforms.heartbeat import HeartbeatImpulse
+from apache_beam.transforms.periodicsequence import PeriodicSequence
+from apache_beam.transforms.periodicsequence import PeriodicImpulse
 
 # Disable frequent lint warning due to pipe operator for chaining transforms.
 # pylint: disable=expression-not-assigned
 
 
-class HeartbeatTest(unittest.TestCase):
+class PeriodicSequenceTest(unittest.TestCase):
   # Enable nose tests running in parallel
 
   def test_heartbeat_outputs_valid_sequence(self):
@@ -54,12 +54,12 @@ class HeartbeatTest(unittest.TestCase):
       result = (
           p
           | 'ImpulseElement' >> beam.Create([(it, et, interval)])
-          | 'ImpulseSeqGen' >> Heartbeat())
+          | 'ImpulseSeqGen' >> PeriodicSequence())
 
       k = [it + x * interval for x in range(0, int(duration / interval), 1)]
       assert_that(result, equal_to(k))
 
-  def test_heartbeat_windowing_on_si(self):
+  def test_periodicimpulse_windowing_on_si(self):
     start_offset = -15
     it = time.time() + start_offset
     duration = 15
@@ -69,7 +69,7 @@ class HeartbeatTest(unittest.TestCase):
     with TestPipeline() as p:
       si = (
           p
-          | 'Heartbeat' >> HeartbeatImpulse(it, et, interval, True)
+          | 'PeriodicImpulse' >> PeriodicImpulse(it, et, interval, True)
           | 'AddKey' >> beam.Map(lambda v: ('key', v))
           | 'GBK' >> beam.GroupByKey()
           | 'SortGBK' >> beam.MapTuple(lambda k, vs: (k, sorted(vs))))
@@ -80,7 +80,7 @@ class HeartbeatTest(unittest.TestCase):
       assert_that(actual, equal_to(k))
 
   def test_heartbeat_outputs_valid_sequence_in_past(self):
-    start_offset = -1200
+    start_offset = -10000
     it = time.time() + start_offset
     duration = 5
     et = it + duration
@@ -90,7 +90,7 @@ class HeartbeatTest(unittest.TestCase):
       result = (
           p
           | 'ImpulseElement' >> beam.Create([(it, et, interval)])
-          | 'ImpulseSeqGen' >> Heartbeat())
+          | 'ImpulseSeqGen' >> PeriodicSequence())
 
       k = [it + x * interval for x in range(0, int(duration / interval), 1)]
       assert_that(result, equal_to(k))

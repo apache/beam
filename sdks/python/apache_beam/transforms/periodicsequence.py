@@ -101,25 +101,25 @@ class ImpulseSeqGenDoFn(beam.DoFn):
           timestamp.Timestamp(current_timestamp))
 
 
-class Heartbeat(PTransform):
+class PeriodicSequence(PTransform):
 
   """
-  Heartbeat transform receives tuple elements with three parts:
+  PeriodicSequence transform receives tuple elements with three parts:
 
   * first_timestamp = first timestamp to output element for.
   * last_timestamp = last timestamp/time to output element for.
   * fire_interval = how often to fire an element.
 
-  For each input element received, Heartbeat transform will start generating
-  output elements in following pattern:
+  For each input element received, PeriodicSequence transform will start
+  generating output elements in following pattern:
 
   * if element timestamp is less than current runtime then output element.
   * if element timestamp is greater than current runtime, wait until next
     element timestamp.
 
-  Heartbeat can't guarantee that each element is output at exact time.
-  Heartbeat guarantees that elements would not be output prior to given runtime
-  timestamp.
+  PeriodicSequence can't guarantee that each element is output at exact time.
+  PeriodicSequence guarantees that elements would not be output prior to given
+  runtime timestamp.
   """
   def __init_(self):
     pass
@@ -131,9 +131,9 @@ class Heartbeat(PTransform):
         | 'MapToTimestamped' >> beam.Map(lambda tt: TimestampedValue(tt, tt)))
 
 
-class HeartbeatImpulse(PTransform):
+class PeriodicImpulse(PTransform):
   """
-  See Heartbeat.
+  See PeriodicSequence.
 
   apply_windowing will assign each element to its own window if true.
   """
