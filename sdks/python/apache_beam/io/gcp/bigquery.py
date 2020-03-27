@@ -645,17 +645,15 @@ class _CustomBigQuerySource(BoundedSource):
       if (isinstance(self.table_reference, vp.ValueProvider) and
           self.table_reference.is_accessible()):
         table_ref = bigquery_tools.parse_table_reference(
-            self.table_reference.get(),
-            self.dataset,
-            self.project)
+            self.table_reference.get(), self.dataset, self.project)
       else:
         # Size estimation is best effort. We return 0 as we have no
         # access to the table that we're querying.
         return 0
       table = bq.get_table(
-          self.table_reference.projectId,
-          self.table_reference.datasetId,
-          self.table_reference.tableId)
+          table_ref.projectId,
+          table_ref.datasetId,
+          table_ref.tableId)
       return int(table.numBytes)
     elif self.query is not None and self.query.is_accessible():
       job = bq._start_query_job(
@@ -745,16 +743,14 @@ class _CustomBigQuerySource(BoundedSource):
     metadata_list = FileSystems.match([self.gcs_location])[0].metadata_list
 
     if isinstance(self.table_reference, vp.ValueProvider):
-        table_ref = bigquery_tools.parse_table_reference(
-            self.table_reference.get(),
-            self.dataset,
-            self.project)
+      table_ref = bigquery_tools.parse_table_reference(
+          self.table_reference.get(), self.dataset, self.project)
     else:
-        table_ref = self.table_reference
+      table_ref = self.table_reference
     table = bq.get_table(
-        self.table_reference.projectId,
-        self.table_reference.datasetId,
-        self.table_reference.tableId)
+        table_ref.projectId,
+        table_ref.datasetId,
+        table_ref.tableId)
 
     return table.schema, metadata_list
 
