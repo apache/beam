@@ -295,6 +295,12 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 
 		return b.links[id], nil
 
+	case graph.Reshuffle:
+		// Reshuffle is a no-op in the direct runner, as there's only a single bundle
+		// on a single worker. Hoist the next node up in the cache.
+		b.links[id] = out[0]
+		return b.links[id], nil
+
 	case graph.Flatten:
 		u = &exec.Flatten{UID: b.idgen.New(), N: len(edge.Input), Out: out[0]}
 

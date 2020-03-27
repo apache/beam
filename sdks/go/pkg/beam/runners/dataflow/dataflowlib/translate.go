@@ -209,6 +209,9 @@ func (x *translator) translateTransform(trunk string, id string) ([]*df.Step, er
 		steps[1].Properties = newMsg(prop)
 		return steps, nil
 
+	case graphx.URNReshuffle:
+		return x.translateTransforms(fmt.Sprintf("%v%v/", trunk, path.Base(t.UniqueName)), t.Subtransforms)
+
 	case graphx.URNFlatten:
 		for _, in := range t.Inputs {
 			prop.Inputs = append(prop.Inputs, x.pcollections[in])
