@@ -24,18 +24,18 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.util.ArrayMap;
-import com.google.api.services.healthcare.v1alpha2.CloudHealthcare;
-import com.google.api.services.healthcare.v1alpha2.CloudHealthcare.Projects.Locations.Datasets.Hl7V2Stores.Messages;
-import com.google.api.services.healthcare.v1alpha2.CloudHealthcareScopes;
-import com.google.api.services.healthcare.v1alpha2.model.CreateMessageRequest;
-import com.google.api.services.healthcare.v1alpha2.model.Empty;
-import com.google.api.services.healthcare.v1alpha2.model.Hl7V2Store;
-import com.google.api.services.healthcare.v1alpha2.model.HttpBody;
-import com.google.api.services.healthcare.v1alpha2.model.IngestMessageRequest;
-import com.google.api.services.healthcare.v1alpha2.model.IngestMessageResponse;
-import com.google.api.services.healthcare.v1alpha2.model.ListMessagesResponse;
-import com.google.api.services.healthcare.v1alpha2.model.Message;
-import com.google.api.services.healthcare.v1alpha2.model.SearchResourcesRequest;
+import com.google.api.services.healthcare.v1beta1.CloudHealthcare;
+import com.google.api.services.healthcare.v1beta1.CloudHealthcare.Projects.Locations.Datasets.Hl7V2Stores.Messages;
+import com.google.api.services.healthcare.v1beta1.CloudHealthcareScopes;
+import com.google.api.services.healthcare.v1beta1.model.CreateMessageRequest;
+import com.google.api.services.healthcare.v1beta1.model.Empty;
+import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
+import com.google.api.services.healthcare.v1beta1.model.HttpBody;
+import com.google.api.services.healthcare.v1beta1.model.IngestMessageRequest;
+import com.google.api.services.healthcare.v1beta1.model.IngestMessageResponse;
+import com.google.api.services.healthcare.v1beta1.model.ListMessagesResponse;
+import com.google.api.services.healthcare.v1beta1.model.Message;
+import com.google.api.services.healthcare.v1beta1.model.SearchResourcesRequest;
 import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
 import java.io.Serializable;
@@ -405,12 +405,8 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
         if (isFirstRequest) {
           try {
             ListMessagesResponse response = makeListRequest(client, hl7v2Store, filter, pageToken);
-            List<String> msgs = response.getMessages();
+            List<Message> msgs = response.getHl7V2Messages();
             if (msgs == null) {
-              if (response.get("hl7V2Messages") != null) {
-                return ((ArrayList<ArrayMap<String, String>>) response.get("hl7V2Messages")).size()
-                    > 0;
-              }
               return false;
             } else {
               return !msgs.isEmpty();
@@ -431,10 +427,9 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
           ListMessagesResponse response = makeListRequest(client, hl7v2Store, filter, pageToken);
           this.isFirstRequest = false;
           this.pageToken = response.getNextPageToken();
-          ArrayList<ArrayMap<String, String>> msgNames =
-              (ArrayList<ArrayMap<String, String>>) response.get("hl7V2Messages");
+          List<Message> msgs = response.getHl7V2Messages();
 
-          return msgNames.stream().map(HL7v2Message::fromMap).collect(Collectors.toList());
+          return msgs.stream().map(HL7v2Message::fromModel).collect(Collectors.toList());
         } catch (IOException e) {
           this.pageToken = null;
           throw new NoSuchElementException(

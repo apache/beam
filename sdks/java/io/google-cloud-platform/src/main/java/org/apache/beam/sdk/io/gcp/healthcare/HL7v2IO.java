@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import com.google.api.services.healthcare.v1alpha2.model.Message;
+import com.google.api.services.healthcare.v1beta1.model.Message;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.text.ParseException;
@@ -333,7 +333,7 @@ public class HL7v2IO {
             sleeper.sleep(throttleWaitSeconds * 1000);
           }
 
-          com.google.api.services.healthcare.v1alpha2.model.Message msg =
+          com.google.api.services.healthcare.v1beta1.model.Message msg =
               client.getHL7v2Message(msgId);
 
           this.throttler.successfulRequest(startTime);

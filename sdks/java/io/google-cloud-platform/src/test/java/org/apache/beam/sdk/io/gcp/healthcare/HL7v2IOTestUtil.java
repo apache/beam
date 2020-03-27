@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.google.api.client.util.Base64;
-import com.google.api.services.healthcare.v1alpha2.model.Message;
+import com.google.api.services.healthcare.v1beta1.model.Message;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -172,5 +172,10 @@ class HL7v2IOTestUtil {
           .map(HL7v2Message::getName)
           .forEach(context::output);
     }
+  }
+  static Message testMessage(String name) {
+    Message msg = new Message();
+    msg.setName(name);
+    return msg;
   }
 }

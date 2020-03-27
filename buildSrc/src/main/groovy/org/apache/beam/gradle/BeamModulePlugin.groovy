@@ -381,7 +381,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_cloud_core_version = "1.92.2"
     def google_cloud_spanner_version = "1.49.1"
     def google_cloud_datacatalog_version = "0.32.1"
-    def google_cloud_healthcare_version = "1.30.1"
+    def google_cloud_healthcare_version = "1.30.9"
     def google_http_clients_version = "1.34.0"
     def grpc_version = "1.25.0"
     def guava_version = "25.1-jre"
@@ -455,7 +455,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20191003-$google_clients_version",
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20191206-$google_clients_version",
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20190927-$google_clients_version",
-        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1alpha2-rev20190901-$google_cloud_healthcare_version",
+        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1beta1-rev20200307-$google_cloud_healthcare_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20191111-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20191011-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials:$google_auth_version",

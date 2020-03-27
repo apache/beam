@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.api.services.healthcare.v1alpha2.model.Message;
+import com.google.api.services.healthcare.v1beta1.model.Message;
 import java.util.Map;
 import javax.annotation.Nullable;
 

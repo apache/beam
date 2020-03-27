@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import com.google.api.services.healthcare.v1alpha2.model.Empty;
-import com.google.api.services.healthcare.v1alpha2.model.Hl7V2Store;
-import com.google.api.services.healthcare.v1alpha2.model.HttpBody;
-import com.google.api.services.healthcare.v1alpha2.model.IngestMessageResponse;
-import com.google.api.services.healthcare.v1alpha2.model.ListMessagesResponse;
-import com.google.api.services.healthcare.v1alpha2.model.Message;
-import com.google.api.services.healthcare.v1alpha2.model.SearchResourcesRequest;
+import com.google.api.services.healthcare.v1beta1.model.Empty;
+import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
+import com.google.api.services.healthcare.v1beta1.model.HttpBody;
+import com.google.api.services.healthcare.v1beta1.model.IngestMessageResponse;
+import com.google.api.services.healthcare.v1beta1.model.ListMessagesResponse;
+import com.google.api.services.healthcare.v1beta1.model.Message;
+import com.google.api.services.healthcare.v1beta1.model.SearchResourcesRequest;
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.stream.Stream;
