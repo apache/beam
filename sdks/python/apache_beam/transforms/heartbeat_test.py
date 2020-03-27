@@ -79,34 +79,6 @@ class HeartbeatTest(unittest.TestCase):
            for x in range(0, int(duration / interval), 1)]
       assert_that(actual, equal_to(k))
 
-  def test_multiple_reads(self):
-    temp_file = tempfile.NamedTemporaryFile(delete=False)
-    file_pattern = temp_file.name
-    temp_file.write(b'a\nb\nc\n')
-    temp_file.close()
-
-    start_offset = -15
-    it = time.time() + start_offset
-    duration = 15
-    et = it + duration
-    interval = 1
-
-    with TestPipeline() as p:
-      si = (
-          p
-          | 'Heartbeat' >> HeartbeatImpulse(it, et, interval, True)
-          | 'MapToFileName' >> beam.Map(lambda x: file_pattern)
-          | 'ReadFromFile' >> beam.io.ReadAllFromText()
-          | 'AddKey' >> beam.Map(lambda v: ('key', v))
-          | 'GBK' >> beam.GroupByKey()
-          | 'SortGBK' >> beam.MapTuple(lambda k, vs: (k, sorted(vs))))
-
-      actual = si
-      k = [('key', ['a', 'b', 'c'])
-           for x in range(0, int(duration / interval), 1)]
-      assert_that(actual, equal_to(k))
-    os.unlink(file_pattern)
-
   def test_heartbeat_outputs_valid_sequence_in_past(self):
     start_offset = -1200
     it = time.time() + start_offset
@@ -122,7 +94,6 @@ class HeartbeatTest(unittest.TestCase):
 
       k = [it + x * interval for x in range(0, int(duration / interval), 1)]
       assert_that(result, equal_to(k))
-
 
 if __name__ == '__main__':
   unittest.main()
