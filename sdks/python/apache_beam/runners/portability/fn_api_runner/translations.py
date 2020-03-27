@@ -255,7 +255,7 @@ class Stage(object):
             user_states.append(
                 beam_runner_api_pb2.ExecutableStagePayload.UserStateId(
                     transform_id=transform_id, local_name=tag))
-          for tag in payload.timer_specs.keys():
+          for tag in payload.timer_family_specs.keys():
             timers.append(
                 beam_runner_api_pb2.ExecutableStagePayload.TimerId(
                     transform_id=transform_id, local_name=tag))
@@ -633,7 +633,7 @@ def annotate_stateful_dofns_as_roots(stages, pipeline_context):
       if transform.spec.urn == common_urns.primitives.PAR_DO.urn:
         pardo_payload = proto_utils.parse_Bytes(
             transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
-        if pardo_payload.state_specs or pardo_payload.timer_specs:
+        if pardo_payload.state_specs or pardo_payload.timer_family_specs:
           stage.forced_root = True
     yield stage
 
@@ -1319,7 +1319,7 @@ def inject_timer_pcollections(stages, pipeline_context):
       if transform.spec.urn in PAR_DO_URNS:
         payload = proto_utils.parse_Bytes(
             transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
-        for tag, spec in payload.timer_specs.items():
+        for tag, spec in payload.timer_family_specs.items():
           if len(transform.inputs) > 1:
             raise NotImplementedError('Timers and side inputs.')
           input_pcoll = pipeline_context.components.pcollections[next(
@@ -1334,7 +1334,9 @@ def inject_timer_pcollections(stages, pipeline_context):
               beam_runner_api_pb2.Coder(
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=common_urns.coders.KV.urn),
-                  component_coder_ids=[key_coder_id, spec.timer_coder_id]))
+                  component_coder_ids=[
+                      key_coder_id, spec.timer_family_coder_id
+                  ]))
           # Inject the read and write pcollections.
           timer_read_pcoll = unique_name(
               pipeline_context.components.pcollections,

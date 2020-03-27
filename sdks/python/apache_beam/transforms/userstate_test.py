@@ -265,7 +265,7 @@ class InterfaceTest(unittest.TestCase):
     # different timer callbacks.
     with self.assertRaisesRegex(
         ValueError,
-        r'Multiple on_timer callbacks registered for TimerSpec\(expiry1\).'):
+        r'Multiple on_timer callbacks registered for TimerSpec\(.*expiry1\).'):
 
       class StatefulDoFnWithTimerWithTypo1(DoFn):  # pylint: disable=unused-variable
         BUFFER_STATE = BagStateSpec('buffer', BytesCoder())
@@ -315,7 +315,7 @@ class InterfaceTest(unittest.TestCase):
     dofn = StatefulDoFnWithTimerWithTypo2()
     with self.assertRaisesRegex(
         ValueError,
-        (r'The on_timer callback for TimerSpec\(expiry1\) is not the '
+        (r'The on_timer callback for TimerSpec\(.*expiry1\) is not the '
          r'specified .on_expiry_1 method for DoFn '
          r'StatefulDoFnWithTimerWithTypo2 \(perhaps it was overwritten\?\).')):
       validate_stateful_dofn(dofn)
@@ -348,7 +348,7 @@ class InterfaceTest(unittest.TestCase):
     with self.assertRaisesRegex(
         ValueError,
         (r'DoFn StatefulDoFnWithTimerWithTypo3 has a TimerSpec without an '
-         r'associated on_timer callback: TimerSpec\(expiry2\).')):
+         r'associated on_timer callback: TimerSpec\(.*expiry2\).')):
       validate_stateful_dofn(dofn)
 
 

@@ -54,7 +54,8 @@ public abstract class Timer<T> {
    * Returns the timestamp of when the timer is scheduled to fire.
    *
    * <p>The time is relative to the time domain defined in the {@link
-   * org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec} that is associated with this timer.
+   * org.apache.beam.model.pipeline.v1.RunnerApi.TimerFamilySpec} that is associated with this
+   * timer.
    */
   public abstract Instant getTimestamp();
 

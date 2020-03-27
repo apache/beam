@@ -203,7 +203,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           pTransform.getInputsOrThrow(mainInput), pTransformId, (FnDataReceiver) mainInputConsumer);
 
       // Register as a consumer for each timer PCollection.
-      for (String localName : runner.parDoPayload.getTimerSpecsMap().keySet()) {
+      for (String localName : runner.parDoPayload.getTimerFamilySpecsMap().keySet()) {
         TimeDomain timeDomain =
             DoFnSignatures.getTimerSpecOrThrow(
                     runner.doFnSignature.timerDeclarations().get(localName), runner.doFn)
@@ -362,7 +362,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   pTransform.getInputsMap().keySet(),
                   Sets.union(
                       parDoPayload.getSideInputsMap().keySet(),
-                      parDoPayload.getTimerSpecsMap().keySet())));
+                      parDoPayload.getTimerFamilySpecsMap().keySet())));
       PCollection mainInput = pCollections.get(pTransform.getInputsOrThrow(mainInputTag));
       Coder<?> maybeWindowedValueInputCoder = rehydratedComponents.getCoder(mainInput.getCoderId());
       // TODO: Stop passing windowed value coders within PCollections.

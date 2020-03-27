@@ -185,7 +185,7 @@ public class ParDoTranslation {
 
       // https://s.apache.org/beam-portability-timers
       // Add a PCollection and coder for each timer. Also treat them as inputs and outputs.
-      for (String localTimerName : payload.getTimerSpecsMap().keySet()) {
+      for (String localTimerName : payload.getTimerFamilySpecsMap().keySet()) {
         PCollection<?> timerPCollection =
             PCollection.createPrimitiveOutputInternal(
                 // Create a dummy pipeline since we don't want to modify the current
@@ -294,12 +294,14 @@ public class ParDoTranslation {
           }
 
           @Override
-          public Map<String, RunnerApi.TimerSpec> translateTimerSpecs(SdkComponents newComponents) {
-            Map<String, RunnerApi.TimerSpec> timerSpecs = new HashMap<>();
+          public Map<String, RunnerApi.TimerFamilySpec> translateTimerSpecs(
+              SdkComponents newComponents) {
+            Map<String, RunnerApi.TimerFamilySpec> timerSpecs = new HashMap<>();
             for (Map.Entry<String, TimerDeclaration> timer :
                 signature.timerDeclarations().entrySet()) {
-              RunnerApi.TimerSpec spec =
-                  translateTimerSpec(getTimerSpecOrThrow(timer.getValue(), doFn), newComponents);
+              RunnerApi.TimerFamilySpec spec =
+                  translateTimerFamilySpec(
+                      getTimerSpecOrThrow(timer.getValue(), doFn), newComponents);
               timerSpecs.put(timer.getKey(), spec);
             }
 
@@ -538,7 +540,8 @@ public class ParDoTranslation {
     return Iterables.getOnlyElement(
         Sets.difference(
             ptransform.getInputsMap().keySet(),
-            Sets.union(payload.getSideInputsMap().keySet(), payload.getTimerSpecsMap().keySet())));
+            Sets.union(
+                payload.getSideInputsMap().keySet(), payload.getTimerFamilySpecsMap().keySet())));
   }
 
   /** Translate state specs. */
@@ -654,15 +657,6 @@ public class ParDoTranslation {
     }
   }
 
-  public static RunnerApi.TimerSpec translateTimerSpec(TimerSpec timer, SdkComponents components) {
-    return RunnerApi.TimerSpec.newBuilder()
-        .setTimeDomain(translateTimeDomain(timer.getTimeDomain()))
-        // TODO: Add support for timer payloads to the SDK
-        // We currently assume that all payloads are unspecified.
-        .setTimerCoderId(registerCoderOrThrow(components, Timer.Coder.of(VoidCoder.of())))
-        .build();
-  }
-
   public static RunnerApi.TimerFamilySpec translateTimerFamilySpec(
       TimerSpec timer, SdkComponents components) {
     return RunnerApi.TimerFamilySpec.newBuilder()
@@ -756,9 +750,7 @@ public class ParDoTranslation {
 
   public static boolean usesStateOrTimers(AppliedPTransform<?, ?, ?> transform) throws IOException {
     ParDoPayload payload = getParDoPayload(transform);
-    return payload.getStateSpecsCount() > 0
-        || payload.getTimerSpecsCount() > 0
-        || payload.getTimerFamilySpecsCount() > 0;
+    return payload.getStateSpecsCount() > 0 || payload.getTimerFamilySpecsCount() > 0;
   }
 
   public static boolean isSplittable(AppliedPTransform<?, ?, ?> transform) throws IOException {
@@ -783,7 +775,7 @@ public class ParDoTranslation {
     Map<String, RunnerApi.StateSpec> translateStateSpecs(SdkComponents components)
         throws IOException;
 
-    Map<String, RunnerApi.TimerSpec> translateTimerSpecs(SdkComponents newComponents);
+    Map<String, RunnerApi.TimerFamilySpec> translateTimerSpecs(SdkComponents newComponents);
 
     Map<String, RunnerApi.TimerFamilySpec> translateTimerFamilySpecs(SdkComponents newComponents);
 
@@ -822,7 +814,7 @@ public class ParDoTranslation {
     return ParDoPayload.newBuilder()
         .setDoFn(parDo.translateDoFn(components))
         .putAllStateSpecs(parDo.translateStateSpecs(components))
-        .putAllTimerSpecs(parDo.translateTimerSpecs(components))
+        .putAllTimerFamilySpecs(parDo.translateTimerSpecs(components))
         .putAllTimerFamilySpecs(parDo.translateTimerFamilySpecs(components))
         .putAllSideInputs(parDo.translateSideInputs(components))
         .setRequiresStableInput(parDo.isRequiresStableInput())

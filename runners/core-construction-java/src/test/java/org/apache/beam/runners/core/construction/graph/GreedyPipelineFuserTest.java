@@ -43,7 +43,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.TimerFamilySpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.Environments;
@@ -1041,7 +1041,7 @@ public class GreedyPipelineFuserTest {
                     .setPayload(
                         ParDoPayload.newBuilder()
                             .setDoFn(FunctionSpec.newBuilder())
-                            .putTimerSpecs("timer", TimerSpec.getDefaultInstance())
+                            .putTimerFamilySpecs("timer", TimerFamilySpec.getDefaultInstance())
                             .build()
                             .toByteString()))
             .setEnvironmentId("common")
@@ -1100,7 +1100,7 @@ public class GreedyPipelineFuserTest {
                         ParDoPayload.newBuilder()
                             .setDoFn(FunctionSpec.newBuilder())
                             .putStateSpecs("state", StateSpec.getDefaultInstance())
-                            .putTimerSpecs("timer", TimerSpec.getDefaultInstance())
+                            .putTimerFamilySpecs("timer", TimerFamilySpec.getDefaultInstance())
                             .build()
                             .toByteString()))
             .setEnvironmentId("common")
