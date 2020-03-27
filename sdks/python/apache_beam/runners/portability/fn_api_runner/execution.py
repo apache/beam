@@ -248,17 +248,20 @@ class FnApiRunnerExecutionContext(object):
       worker_handler_factory,  # type: Callable[[Optional[str], int], List[WorkerHandler]]
       pipeline_components,  # type: beam_runner_api_pb2.Components
       safe_coders,
+      data_channel_coders,
                ):
     """
     :param worker_handler_factory: A ``callable`` that takes in an environment
         id and a number of workers, and returns a list of ``WorkerHandler``s.
     :param pipeline_components:  (beam_runner_api_pb2.Components): TODO
     :param safe_coders:
+    :param data_channel_coders:
     """
     self.pcoll_buffers = {}  # type: MutableMapping[bytes, PartitionableBuffer]
     self.worker_handler_factory = worker_handler_factory
     self.pipeline_components = pipeline_components
     self.safe_coders = safe_coders
+    self.data_channel_coders = data_channel_coders
 
 
 class BundleContextManager(object):
@@ -309,12 +312,10 @@ class BundleContextManager(object):
         output_pcoll = only_element(list(transform_proto.outputs.values()))
         pre_gbk_coder = self.pipeline_context.coders[
             self.execution_context.safe_coders[
-                self.execution_context.pipeline_components.
-                pcollections[input_pcoll].coder_id]]
+                self.execution_context.data_channel_coders[input_pcoll]]]
         post_gbk_coder = self.pipeline_context.coders[
             self.execution_context.safe_coders[
-                self.execution_context.pipeline_components.
-                pcollections[output_pcoll].coder_id]]
+                self.execution_context.data_channel_coders[output_pcoll]]]
         windowing_strategy = self.pipeline_context.windowing_strategies[
             self.execution_context.pipeline_components.
             pcollections[output_pcoll].windowing_strategy_id]
