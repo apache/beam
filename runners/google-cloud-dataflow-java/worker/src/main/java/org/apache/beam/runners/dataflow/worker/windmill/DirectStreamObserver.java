@@ -18,6 +18,8 @@
 package org.apache.beam.runners.dataflow.worker.windmill;
 
 import java.util.concurrent.Phaser;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.CallStreamObserver;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
@@ -43,13 +45,20 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
 
   @Override
   public void onNext(T value) {
-    int phase = phaser.getPhase();
-    if (!outboundObserver.isReady()) {
+    int phase = phaser.getPhase(); // A negative phase indicates it has been terminated.
+    // The registered onReady may be blocked, so we periodically poll the observer directly.
+    // Additionally to avoid becoming permanently stuck due to synchronization we fallback
+    // to queuing in the outbound observer after 1 minute, see BEAM-9651 for more context.
+    for (int waitLoops = 0;
+        phase >= 0 && !outboundObserver.isReady() && waitLoops < 600;
+        ++waitLoops) {
       try {
-        phaser.awaitAdvanceInterruptibly(phase);
+        phase = phaser.awaitAdvanceInterruptibly(phase, 100, TimeUnit.MILLISECONDS);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);
+      } catch (TimeoutException e) {
+        // Polling isReady in case the callback is delayed
       }
     }
     synchronized (outboundObserver) {
