@@ -169,7 +169,7 @@ public class SchemaOptionsTest {
 
   @Test
   public void testRowOption() {
-    Schema.Options options = Schema.Options.setRowOption(OPTION_NAME, TEST_ROW).build();
+    Schema.Options options = Schema.Options.setOption(OPTION_NAME, TEST_ROW).build();
     assertEquals(TEST_ROW, options.getValue(OPTION_NAME));
     assertEquals(FieldType.row(TEST_ROW.getSchema()), options.getType(OPTION_NAME));
   }
