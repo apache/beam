@@ -3513,7 +3513,7 @@ public class ParDoTest implements Serializable {
                 fail("Should have failed due to processing time with absolute timer.");
               } catch (RuntimeException e) {
                 String message = e.getMessage();
-                List<String> expectedSubstrings = Arrays.asList("event time timer", "expiration");
+                List<String> expectedSubstrings = Arrays.asList("event-time timer", "expiration");
                 expectedSubstrings.forEach(
                     str ->
                         Preconditions.checkState(
