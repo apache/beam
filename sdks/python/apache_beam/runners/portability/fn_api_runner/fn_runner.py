@@ -253,8 +253,7 @@ class FnApiRunner(runner.PipelineRunner):
         if payload.requests_finalization:
           expected_requirements.add(
               common_urns.requirements.REQUIRES_BUNDLE_FINALIZATION.urn)
-        if (payload.state_specs or payload.timer_specs or
-            payload.timer_family_specs):
+        if (payload.state_specs or payload.timer_family_specs):
           expected_requirements.add(
               common_urns.requirements.REQUIRES_STATEFUL_PROCESSING.urn)
         if payload.requires_stable_input:

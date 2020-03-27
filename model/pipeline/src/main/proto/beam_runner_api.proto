@@ -442,14 +442,9 @@ message ParDoPayload {
   // be placed in the pipeline requirements.
   map<string, StateSpec> state_specs = 4;
 
-  // (Optional) A mapping of local timer names to timer specifications.
-  // If this is set, the stateful processing requirement should also
-  // be placed in the pipeline requirements.
-  map<string, TimerSpec> timer_specs = 5;
-
-  // (Optional) A mapping of local timer family names to timer specifications.
-  // If this is set, the stateful processing requirement should also
-  // be placed in the pipeline requirements.
+  // (Optional) A mapping of local timer family names to timer family
+  // specifications. If this is set, the stateful processing requirement should
+  // also be placed in the pipeline requirements.
   map<string, TimerFamilySpec> timer_family_specs = 9;
 
   // (Optional) Only set when this ParDo contains a splittable DoFn.
@@ -505,11 +500,6 @@ message MapStateSpec {
 
 message SetStateSpec {
   string element_coder_id = 1;
-}
-
-message TimerSpec {
-  TimeDomain.Enum time_domain = 1;
-  string timer_coder_id = 2;
 }
 
 message TimerFamilySpec {

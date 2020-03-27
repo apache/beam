@@ -354,7 +354,7 @@ public class ProcessBundleDescriptors {
           RunnerApi.ParDoPayload.parseFrom(
               timerReference.transform().getTransform().getSpec().getPayload());
       RunnerApi.TimeDomain.Enum timeDomain =
-          payload.getTimerSpecsOrThrow(timerReference.localName()).getTimeDomain();
+          payload.getTimerFamilySpecsOrThrow(timerReference.localName()).getTimeDomain();
       org.apache.beam.sdk.state.TimerSpec spec;
       switch (timeDomain) {
         case EVENT_TIME:
@@ -380,13 +380,15 @@ public class ProcessBundleDescriptors {
                           timerReference.transform().getTransform().getInputsMap().keySet(),
                           Sets.union(
                               payload.getSideInputsMap().keySet(),
-                              payload.getTimerSpecsMap().keySet()))));
+                              payload.getTimerFamilySpecsMap().keySet()))));
       String timerCoderId =
           keyValueCoderId(
               components
                   .getCodersOrThrow(components.getPcollectionsOrThrow(mainInputName).getCoderId())
                   .getComponentCoderIds(0),
-              payload.getTimerSpecsOrThrow(timerReference.localName()).getTimerCoderId(),
+              payload
+                  .getTimerFamilySpecsOrThrow(timerReference.localName())
+                  .getTimerFamilyCoderId(),
               components);
       RunnerApi.PCollection timerCollectionSpec =
           components

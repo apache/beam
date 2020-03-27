@@ -84,6 +84,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -802,11 +803,14 @@ public class FnApiDoFnRunnerTest implements Serializable {
     RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
     String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
     String outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);
-    String eventTimerInputPCollectionId = "pTransformId/ParMultiDo(TestTimerful).event";
-    String eventTimerOutputPCollectionId = "pTransformId/ParMultiDo(TestTimerful).event.output";
-    String processingTimerInputPCollectionId = "pTransformId/ParMultiDo(TestTimerful).processing";
+    String eventTimerInputPCollectionId =
+        "pTransformId/ParMultiDo(TestTimerful)." + TimerDeclaration.PREFIX + "event";
+    String eventTimerOutputPCollectionId =
+        "pTransformId/ParMultiDo(TestTimerful)." + TimerDeclaration.PREFIX + "event.output";
+    String processingTimerInputPCollectionId =
+        "pTransformId/ParMultiDo(TestTimerful)." + TimerDeclaration.PREFIX + "processing";
     String processingTimerOutputPCollectionId =
-        "pTransformId/ParMultiDo(TestTimerful).processing.output";
+        "pTransformId/ParMultiDo(TestTimerful)." + TimerDeclaration.PREFIX + "processing.output";
 
     RunnerApi.PTransform pTransform =
         pProto
@@ -816,8 +820,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
             .toBuilder()
             // We need to re-write the "output" PCollections that a runner would have inserted
             // on the way to a output sink.
-            .putOutputs("event", eventTimerOutputPCollectionId)
-            .putOutputs("processing", processingTimerOutputPCollectionId)
+            .putOutputs(TimerDeclaration.PREFIX + "event", eventTimerOutputPCollectionId)
+            .putOutputs(TimerDeclaration.PREFIX + "processing", processingTimerOutputPCollectionId)
             .build();
 
     FakeBeamFnStateClient fakeClient =

@@ -229,7 +229,7 @@ public class PipelineValidator {
           id,
           sideInputId);
     }
-    if (payload.getStateSpecsCount() > 0 || payload.getTimerSpecsCount() > 0) {
+    if (payload.getStateSpecsCount() > 0 || payload.getTimerFamilySpecsCount() > 0) {
       checkArgument(requirements.contains(ParDoTranslation.REQUIRES_STATEFUL_PROCESSING_URN));
       // TODO: Validate state_specs and timer_specs
     }
