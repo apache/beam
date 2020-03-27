@@ -74,7 +74,7 @@ public class SchemaTranslationTest {
               .setOption(
                   "field_option_map", FieldType.map(FieldType.STRING, FieldType.INT32), optionMap)
               .setOption("field_option_array", FieldType.array(FieldType.STRING), optionList)
-              .setRowOption("field_option_row", optionRow)
+              .setOption("field_option_row", optionRow)
               .setOption("field_option_value", FieldType.STRING, "other");
 
       return ImmutableList.<Schema>builder()
