@@ -1183,7 +1183,7 @@ def get_yielded_type(type_hint):
 def _coerce_to_kv_type_from_external_type(element_type_holder):
   """Similar to 'coerce_to_kv_type' but for external coders"""
   from apache_beam.coders.coders import ElementTypeHolder
-  coder_proto = element_type_holder.coder
+  coder_proto = element_type_holder.coder_proto
   from apache_beam.portability import common_urns
   if coder_proto.spec.urn != common_urns.coders.KV.urn:
     raise Exception(
@@ -1192,11 +1192,11 @@ def _coerce_to_kv_type_from_external_type(element_type_holder):
         coder_proto)
 
   key_coder_proto = (
-      element_type_holder.context.coders.get_id_to_proto_map()[
-          coder_proto.component_coder_ids[0]])
+      element_type_holder.context.coders.get_proto_from_id(
+          coder_proto.component_coder_ids[0]))
   value_coder_proto = (
-      element_type_holder.context.coders.get_id_to_proto_map()[
-          coder_proto.component_coder_ids[1]])
+      element_type_holder.context.coders.get_proto_from_id(
+          coder_proto.component_coder_ids[1]))
 
   return KV[ElementTypeHolder(key_coder_proto, element_type_holder.context),
             ElementTypeHolder(value_coder_proto, element_type_holder.context)]

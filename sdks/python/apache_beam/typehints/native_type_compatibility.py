@@ -334,6 +334,12 @@ def convert_to_typing_type(typ):
   Raises:
     ValueError: The type was malformed or could not be converted.
   """
+
+  from apache_beam.coders.coders import ElementTypeHolder
+  if isinstance(typ, ElementTypeHolder):
+    # This represents an external SDK type. No special handling is needed here.
+    return typ
+
   if isinstance(typ, typehints.TypeVariable):
     # This is a special case, as it's not parameterized by types.
     # Also, identity must be preserved through conversion (i.e. the same

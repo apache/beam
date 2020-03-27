@@ -115,9 +115,12 @@ class _PipelineContextMap(object):
     # type: () -> Dict[str, message.Message]
     return self._id_to_proto
 
-  def put_proto(self, id, proto):
+  def get_proto_from_id(self, id):
+    return self.get_id_to_proto_map()[id]
+
+  def put_proto(self, id, proto, ignore_duplicates=False):
     # type: (str, message.Message) -> str
-    if id in self._id_to_proto:
+    if not ignore_duplicates and id in self._id_to_proto:
       raise ValueError("Id '%s' is already taken." % id)
     self._id_to_proto[id] = proto
     return id

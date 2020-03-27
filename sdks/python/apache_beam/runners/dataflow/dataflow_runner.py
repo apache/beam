@@ -246,6 +246,12 @@ class DataflowRunner(PipelineRunner):
     runner.last_error_msg = last_error_msg
 
   @staticmethod
+  def _only_element(iterable):
+    # type: (Iterable[T]) -> T
+    element, = iterable
+    return element
+
+  @staticmethod
   def group_by_key_input_visitor():
     # Imported here to avoid circular dependencies.
     from apache_beam.pipeline import PipelineVisitor
@@ -270,11 +276,9 @@ class DataflowRunner(PipelineRunner):
               pcoll.element_type, transform_node.full_label)
           key_type, value_type = pcoll.element_type.tuple_types
           if transform_node.outputs:
-            from apache_beam.runners.portability.fn_api_runner.translations \
-              import only_element
             key = (
-                None if None in transform_node.outputs.keys() else only_element(
-                    transform_node.outputs.keys()))
+                None if None in transform_node.outputs.keys() else
+                DataflowRunner._only_element(transform_node.outputs.keys()))
             transform_node.outputs[key].element_type = typehints.KV[
                 key_type, typehints.Iterable[value_type]]
 
@@ -381,12 +385,8 @@ class DataflowRunner(PipelineRunner):
         # pylint: disable=wrong-import-order, wrong-import-position
         from apache_beam import Flatten
         if isinstance(transform_node.transform, Flatten):
-          from apache_beam.runners.portability.fn_api_runner.translations \
-            import only_element
-          output_pcoll = (
-              transform_node.outputs[None] if None in transform_node.outputs
-              else only_element(transform_node.outputs.values()))
-
+          output_pcoll = DataflowRunner._only_element(
+              transform_node.outputs.values())
           for input_pcoll in transform_node.inputs:
             input_pcoll.element_type = output_pcoll.element_type
 
@@ -618,9 +618,6 @@ class DataflowRunner(PipelineRunner):
     If output_tag is not specified, we assume all outputs to have the same
     encoding.
     """
-    from apache_beam.runners.portability.fn_api_runner.translations import \
-      only_element
-
     from apache_beam.transforms.core import RunnerAPIPTransformHolder
     external_transform = isinstance(
         transform_node.transform, RunnerAPIPTransformHolder)
@@ -646,7 +643,7 @@ class DataflowRunner(PipelineRunner):
         return self._get_cloud_encoding(coder)
     else:
       if len(transform_node.outputs) == 1:
-        output_tag = only_element(transform_node.outputs.keys())
+        output_tag = DataflowRunner._only_element(transform_node.outputs.keys())
         # TODO(robertwb): Handle type hints for multi-output transforms.
         element_type = transform_node.outputs[output_tag].element_type
       else:
@@ -678,10 +675,8 @@ class DataflowRunner(PipelineRunner):
 
     # Main output key of external transforms can be ambiguous, so we only tag if
     # there's only one tag instead of None.
-    from apache_beam.runners.portability.fn_api_runner.translations import \
-      only_element
     output_tag = (
-        only_element(transform_node.outputs.keys()) if len(
+        DataflowRunner._only_element(transform_node.outputs.keys()) if len(
             transform_node.outputs.keys()) == 1 else None)
 
     self._cache.cache_output(transform_node, output_tag, step)

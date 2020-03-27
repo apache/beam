@@ -424,8 +424,8 @@ class RunnerAPIPTransformHolder(ptransform.PTransform):
       par_do_payload = proto_utils.parse_Bytes(
           self._proto.payload, beam_runner_api_pb2.ParDoPayload)
       if par_do_payload.restriction_coder_id:
-        restriction_coder_proto = self._context.coders.get_id_to_proto_map()[
-            par_do_payload.restriction_coder_id]
+        restriction_coder_proto = self._context.coders.get_proto_from_id(
+            par_do_payload.restriction_coder_id)
 
         return ExternalCoder(
             ElementTypeHolder(restriction_coder_proto, self._context))
