@@ -39,6 +39,12 @@ func (l Labels) Namespace() string { return l.namespace }
 // Name returns the name for this metric.
 func (l Labels) Name() string { return l.name }
 
+// NewUserLabels builds a Labels for user metrics.
+// Intended for framework testing use to construct a Labels instance.
+func NewUserLabels(transform, namespace, name string) Labels {
+	return Labels{transform: transform, namespace: namespace, name: name}
+}
+
 // Extractor allows users to access metrics programatically after
 // pipeline completion. Users assign functions to fields that
 // interest them, and that function is called for each metric
