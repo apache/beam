@@ -17,21 +17,24 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Counter;
+
 import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
 import com.google.api.services.dataflow.model.CounterUpdate;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,45 +43,31 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Use getSupportedUrns to get all urns this class supports.
  */
-public class MSecMonitoringInfoToCounterUpdateTransformer
+public class ExecutionTimeMonitoringInfoToCounterUpdateTransformer
     implements MonitoringInfoToCounterUpdateTransformer {
 
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnMapTaskExecutor.class);
 
   private SpecMonitoringInfoValidator specValidator;
   private Map<String, DataflowStepContext> transformIdMapping;
-  private Map<String, String> urnToCounterNameMapping;
+
+  @VisibleForTesting
+  static final Map<String, String> URN_TO_COUNTER_NAME_MAPPING =
+      ImmutableMap.<String, String>builder()
+          .put(MonitoringInfoConstants.Urns.START_BUNDLE_MSECS, "start-msecs")
+          .put(MonitoringInfoConstants.Urns.PROCESS_BUNDLE_MSECS, "process-msecs")
+          .put(MonitoringInfoConstants.Urns.FINISH_BUNDLE_MSECS, "finish-msecs")
+          .build();
 
   /**
    * @param specValidator SpecMonitoringInfoValidator to utilize for default validation.
    * @param transformIdMapping Mapping of PTransform ID string to DataflowStepContext.
    */
-  public MSecMonitoringInfoToCounterUpdateTransformer(
+  public ExecutionTimeMonitoringInfoToCounterUpdateTransformer(
       SpecMonitoringInfoValidator specValidator,
       Map<String, DataflowStepContext> transformIdMapping) {
     this.specValidator = specValidator;
     this.transformIdMapping = transformIdMapping;
-    urnToCounterNameMapping = createKnownUrnToCounterNameMapping();
-  }
-
-  /** Allows to inject members for cleaner testing. */
-  @VisibleForTesting
-  protected MSecMonitoringInfoToCounterUpdateTransformer(
-      SpecMonitoringInfoValidator specValidator,
-      Map<String, DataflowStepContext> transformIdMapping,
-      Map<String, String> urnToCounterNameMapping) {
-    this.specValidator = specValidator;
-    this.transformIdMapping = transformIdMapping;
-    this.urnToCounterNameMapping = urnToCounterNameMapping;
-  }
-
-  @VisibleForTesting
-  protected Map<String, String> createKnownUrnToCounterNameMapping() {
-    Map<String, String> result = new HashMap<>();
-    result.put(MonitoringInfoConstants.Urns.START_BUNDLE_MSECS, "start-msecs");
-    result.put(MonitoringInfoConstants.Urns.PROCESS_BUNDLE_MSECS, "process-msecs");
-    result.put(MonitoringInfoConstants.Urns.FINISH_BUNDLE_MSECS, "finish-msecs");
-    return result;
   }
 
   /**
@@ -95,8 +84,16 @@ public class MSecMonitoringInfoToCounterUpdateTransformer
     }
 
     String urn = monitoringInfo.getUrn();
-    if (!urnToCounterNameMapping.keySet().contains(urn)) {
+    if (!URN_TO_COUNTER_NAME_MAPPING.keySet().contains(urn)) {
       throw new RuntimeException(String.format("Received unexpected counter urn: %s", urn));
+    }
+
+    String type = monitoringInfo.getType();
+    if (!type.equals(TypeUrns.SUM_INT64_TYPE)) {
+      throw new RuntimeException(
+          String.format(
+              "Received unexpected counter type. Expected type: %s, received: %s",
+              TypeUrns.SUM_INT64_TYPE, type));
     }
 
     final String ptransform =
@@ -120,14 +117,14 @@ public class MSecMonitoringInfoToCounterUpdateTransformer
       return null;
     }
 
-    long value = monitoringInfo.getMetric().getCounterData().getInt64Value();
+    long value = decodeInt64Counter(monitoringInfo.getPayload());
     String urn = monitoringInfo.getUrn();
 
     final String ptransform =
         monitoringInfo.getLabelsMap().get(MonitoringInfoConstants.Labels.PTRANSFORM);
     DataflowStepContext stepContext = transformIdMapping.get(ptransform);
 
-    String counterName = urnToCounterNameMapping.get(urn);
+    String counterName = URN_TO_COUNTER_NAME_MAPPING.get(urn);
     CounterStructuredNameAndMetadata name = new CounterStructuredNameAndMetadata();
     name.setName(
             new CounterStructuredName()
@@ -143,8 +140,8 @@ public class MSecMonitoringInfoToCounterUpdateTransformer
         .setInteger(DataflowCounterUpdateExtractor.longToSplitInt(value));
   }
 
-  /** @return iterable of Urns that this transformer can convert to CounterUpdates. */
-  public Iterable<String> getSupportedUrns() {
-    return this.urnToCounterNameMapping.keySet();
+  /** @return URNs that this transformer can convert to {@link CounterUpdate}s. */
+  public static Iterable<String> getSupportedUrns() {
+    return URN_TO_COUNTER_NAME_MAPPING.keySet();
   }
 }

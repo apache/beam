@@ -49,8 +49,16 @@ public class SpecMonitoringInfoValidator {
   public Optional<String> validate(MonitoringInfo monitoringInfo) {
     MonitoringInfoSpec spec = null;
 
+    if (monitoringInfo.getUrn().isEmpty() || monitoringInfo.getType().isEmpty()) {
+      return Optional.of(
+          String.format(
+              "MonitoringInfo requires both urn %s and type %s to be specified.",
+              monitoringInfo.getUrn(), monitoringInfo.getType()));
+    }
+
     for (MonitoringInfoSpec specIterator : specs) {
-      if (monitoringInfo.getUrn().equals(specIterator.getUrn())) {
+      if (monitoringInfo.getUrn().equals(specIterator.getUrn())
+          && monitoringInfo.getType().equals(specIterator.getType())) {
         spec = specIterator;
         break;
       }
@@ -59,13 +67,6 @@ public class SpecMonitoringInfoValidator {
     // Skip checking unknown MonitoringInfos
     if (spec == null) {
       return Optional.empty();
-    }
-
-    if (!monitoringInfo.getType().equals(spec.getTypeUrn())) {
-      return Optional.of(
-          String.format(
-              "Monitoring info with urn: %s should have type: %s, received %s",
-              monitoringInfo.getUrn(), spec.getTypeUrn(), monitoringInfo.getType()));
     }
 
     // TODO(ajamato): Tighten this restriction to use set equality, to catch unused
