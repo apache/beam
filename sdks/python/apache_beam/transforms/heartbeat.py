@@ -102,17 +102,20 @@ class ImpulseSeqGenDoFn(beam.DoFn):
 
 
 class Heartbeat(PTransform):
+
   """
   Heartbeat transform receives tuple elements with three parts:
-    * first_timestamp = first timestamp to output element for
-    * last_timestamp = last timestamp/time to output element for
-    * fire_interval = how often to fire an element
+
+  * first_timestamp = first timestamp to output element for.
+  * last_timestamp = last timestamp/time to output element for.
+  * fire_interval = how often to fire an element.
 
   For each input element received, Heartbeat transform will start generating
   output elements in following pattern:
-    * if element timestamp is less than current runtime then output element
-    * if element timestamp is greater than current runtime, wait until next
-      element timestamp
+
+  * if element timestamp is less than current runtime then output element.
+  * if element timestamp is greater than current runtime, wait until next
+    element timestamp.
 
   Heartbeat can't guarantee that each element is output at exact time.
   Heartbeat guarantees that elements would not be output prior to given runtime
