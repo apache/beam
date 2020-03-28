@@ -297,7 +297,7 @@ class PipelineOptions(HasDisplayData):
         # Treat all unary flags as booleans, and all binary argument values as
         # strings.
         if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('-'):
-          split = unknown_args[i].rsplit('=')
+          split = unknown_args[i].split('=', 1)
           if len(split) == 1:
             parser.add_argument(unknown_args[i], action='store_true')
           else:
