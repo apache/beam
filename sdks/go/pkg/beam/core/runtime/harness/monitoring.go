@@ -32,10 +32,9 @@ import (
 )
 
 type mUrn uint32
-type mType uint32
 
 // TODO: Pull these from the protos.
-var sUrns = []string{
+var sUrns = [...]string{
 	"beam:metric:user:sum_int64:v1",
 	"beam:metric:user:sum_double:v1",
 	"beam:metric:user:distribution_int64:v1",
@@ -87,71 +86,40 @@ const (
 	urnTestSentinel // Must remain last.
 )
 
-var sTypes = []string{
-	"beam:metrics:sum_int64:v1",
-	"beam:metrics:sum_double:v1",
-	"beam:metrics:distribution_int64:v1",
-	"beam:metrics:distribution_double:v1",
-	"beam:metrics:latest_int64:v1",
-	"beam:metrics:latest_double:v1",
-	"beam:metrics:top_n_int64:v1",
-	"beam:metrics:top_n_double:v1",
-	"beam:metrics:bottom_n_int64:v1",
-	"beam:metrics:bottom_n_double:v1",
-	"beam:metrics:monitoring_table:v1",
-	"beam:metrics:progress:v1",
-
-	"TestingSentinelType", // Must remain last.
-}
-
-const (
-	typeSumInt64 mType = iota
-	typeSumFloat64
-	typeDistInt64
-	typeDistFloat64
-	typeLatestMsInt64
-	typeLatestMsFloat64
-	typeTopNInt64
-	typeTopNFloat64
-	typeBottomNInt64
-	typeBottomNFloat64
-
-	typeMonitoringTable
-	typeProgress
-
-	typeTestSentinel // Must remain last.
-)
-
 // urnToType maps the urn to it's encoding type.
 // This function is written to be inlinable by the compiler.
-func urnToType(u mUrn) mType {
+func urnToType(u mUrn) string {
 	switch u {
 	case urnUserSumInt64, urnElementCount, urnStartBundle, urnProcessBundle, urnFinishBundle, urnTransformTotalTime:
-		return typeSumInt64
+		return "beam:metrics:sum_int64:v1"
 	case urnUserSumFloat64:
-		return typeSumFloat64
+		return "beam:metrics:sum_double:v1"
 	case urnUserDistInt64, urnSampledByteSize:
-		return typeDistInt64
+		return "beam:metrics:distribution_int64:v1"
 	case urnUserDistFloat64:
-		return typeDistFloat64
+		return "beam:metrics:distribution_double:v1"
 	case urnUserLatestMsInt64:
-		return typeLatestMsInt64
+		return "beam:metrics:latest_int64:v1"
 	case urnUserLatestMsFloat64:
-		return typeLatestMsFloat64
+		return "beam:metrics:latest_double:v1"
 	case urnUserTopNInt64:
-		return typeTopNInt64
+		return "beam:metrics:top_n_int64:v1"
 	case urnUserTopNFloat64:
-		return typeTopNFloat64
+		return "beam:metrics:top_n_double:v1"
 	case urnUserBottomNInt64:
-		return typeSumInt64
+		return "beam:metrics:bottom_n_int64:v1"
 	case urnUserBottomNFloat64:
-		return typeBottomNFloat64
+		return "beam:metrics:bottom_n_double:v1"
 
 	case urnProgressRemaining, urnProgressCompleted:
-		return typeProgress
+		return "beam:metrics:progress:v1"
+
+	// Monitoring Table isn't currently in the protos.
+	// case ???:
+	//	return "beam:metrics:monitoring_table:v1"
 
 	case urnTestSentinel:
-		return typeTestSentinel
+		return "TestingSentinelType"
 
 	default:
 		panic("metric urn without specified type" + sUrns[u])
@@ -191,7 +159,7 @@ func (c *shortIDCache) getNextShortID() string {
 
 // getShortID returns the short id for the given metric, and if
 // it doesn't exist yet, stores the metadata.
-// Assumes shortMu lock is held.
+// Assumes c.mu lock is held.
 func (c *shortIDCache) getShortID(l metrics.Labels, urn mUrn) string {
 	k := shortKey{l, urn}
 	s, ok := c.labels2ShortIds[k]
@@ -202,7 +170,7 @@ func (c *shortIDCache) getShortID(l metrics.Labels, urn mUrn) string {
 	c.labels2ShortIds[k] = s
 	c.shortIds2Infos[s] = &ppb.MonitoringInfo{
 		Urn:    sUrns[urn],
-		Type:   sTypes[urnToType(urn)],
+		Type:   urnToType(urn),
 		Labels: userLabels(l),
 	}
 	return s
@@ -302,7 +270,7 @@ func monitoring(p *exec.Plan) (*fnpb.Metrics, []*ppb.MonitoringInfo, map[string]
 			monitoringInfo = append(monitoringInfo,
 				&ppb.MonitoringInfo{
 					Urn:     sUrns[urnUserSumInt64],
-					Type:    sTypes[typeSumInt64],
+					Type:    urnToType(urnUserSumInt64),
 					Labels:  userLabels(l),
 					Payload: payload,
 				})
@@ -317,7 +285,7 @@ func monitoring(p *exec.Plan) (*fnpb.Metrics, []*ppb.MonitoringInfo, map[string]
 			monitoringInfo = append(monitoringInfo,
 				&ppb.MonitoringInfo{
 					Urn:     sUrns[urnUserDistInt64],
-					Type:    sTypes[typeDistInt64],
+					Type:    urnToType(urnUserDistInt64),
 					Labels:  userLabels(l),
 					Payload: payload,
 				})
@@ -332,7 +300,7 @@ func monitoring(p *exec.Plan) (*fnpb.Metrics, []*ppb.MonitoringInfo, map[string]
 			monitoringInfo = append(monitoringInfo,
 				&ppb.MonitoringInfo{
 					Urn:     sUrns[urnUserLatestMsInt64],
-					Type:    sTypes[typeLatestMsInt64],
+					Type:    urnToType(urnUserLatestMsInt64),
 					Labels:  userLabels(l),
 					Payload: payload,
 				})
@@ -358,7 +326,7 @@ func monitoring(p *exec.Plan) (*fnpb.Metrics, []*ppb.MonitoringInfo, map[string]
 			monitoringInfo = append(monitoringInfo,
 				&ppb.MonitoringInfo{
 					Urn:  sUrns[urnElementCount],
-					Type: sTypes[typeSumInt64],
+					Type: urnToType(urnElementCount),
 					Labels: map[string]string{
 						"PCOLLECTION": snapshot.PID,
 					},
