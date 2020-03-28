@@ -322,17 +322,20 @@ func monitoring(p *exec.Plan) (*fnpb.Metrics, []*ppb.MonitoringInfo, map[string]
 		}
 		// Monitoring info version.
 		payload, err := int64Counter(snapshot.Count)
-		if err == nil {
-			monitoringInfo = append(monitoringInfo,
-				&ppb.MonitoringInfo{
-					Urn:  sUrns[urnElementCount],
-					Type: urnToType(urnElementCount),
-					Labels: map[string]string{
-						"PCOLLECTION": snapshot.PID,
-					},
-					Payload: payload,
-				})
+		if err != nil {
+			panic(err)
 		}
+		payloads[getShortID(metrics.PCollectionLabels(snapshot.PID), urnElementCount)] = payload
+
+		monitoringInfo = append(monitoringInfo,
+			&ppb.MonitoringInfo{
+				Urn:  sUrns[urnElementCount],
+				Type: urnToType(urnElementCount),
+				Labels: map[string]string{
+					"PCOLLECTION": snapshot.PID,
+				},
+				Payload: payload,
+			})
 	}
 
 	return &fnpb.Metrics{
