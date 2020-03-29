@@ -24,8 +24,6 @@ import com.google.auto.value.AutoValue;
 import com.mongodb.BasicDBObject;
 import com.mongodb.MongoBulkWriteException;
 import com.mongodb.MongoClient;
-import com.mongodb.MongoClientOptions;
-import com.mongodb.MongoClientURI;
 import com.mongodb.client.AggregateIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
@@ -39,7 +37,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -117,11 +114,11 @@ public class MongoDbIO {
   public static Read read() {
     return new AutoValue_MongoDbIO_Read.Builder()
         .setMaxConnectionIdleTime(60000)
+        .setSslEnabled(false)
+        .setSslInvalidHostNameAllowed(false)
+        .setIgnoreSSLCertificate(false)
         .setNumSplits(0)
         .setBucketAuto(false)
-        .setSslEnabled(false)
-        .setIgnoreSSLCertificate(false)
-        .setSslInvalidHostNameAllowed(false)
         .setQueryFn(FindQuery.create())
         .build();
   }
@@ -130,10 +127,10 @@ public class MongoDbIO {
   public static Write write() {
     return new AutoValue_MongoDbIO_Write.Builder()
         .setMaxConnectionIdleTime(60000)
-        .setBatchSize(1024L)
         .setSslEnabled(false)
-        .setIgnoreSSLCertificate(false)
         .setSslInvalidHostNameAllowed(false)
+        .setIgnoreSSLCertificate(false)
+        .setBatchSize(1024L)
         .setOrdered(true)
         .build();
   }
@@ -154,6 +151,8 @@ public class MongoDbIO {
 
     abstract boolean ignoreSSLCertificate();
 
+    abstract SerializableFunction<Void, MongoClient> mongoClientProvider();
+
     @Nullable
     abstract String database();
 
@@ -166,7 +165,7 @@ public class MongoDbIO {
 
     abstract SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> queryFn();
 
-    abstract Builder builder();
+    abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
@@ -180,6 +179,9 @@ public class MongoDbIO {
 
       abstract Builder setIgnoreSSLCertificate(boolean value);
 
+      abstract Builder setMongoClientProvider(
+          SerializableFunction<Void, MongoClient> mongoClientProvider);
+
       abstract Builder setDatabase(String database);
 
       abstract Builder setCollection(String collection);
@@ -191,7 +193,29 @@ public class MongoDbIO {
       abstract Builder setQueryFn(
           SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> queryBuilder);
 
-      abstract Read build();
+      abstract String uri();
+
+      abstract int maxConnectionIdleTime();
+
+      abstract boolean sslEnabled();
+
+      abstract boolean sslInvalidHostNameAllowed();
+
+      abstract boolean ignoreSSLCertificate();
+
+      abstract Read autoBuild(); // not public
+
+      public Read build() {
+        DefaultMongoClientProvider mongoClientProvider =
+            DefaultMongoClientProvider.of(
+                uri(),
+                maxConnectionIdleTime(),
+                sslEnabled(),
+                sslInvalidHostNameAllowed(),
+                ignoreSSLCertificate());
+        setMongoClientProvider(mongoClientProvider);
+        return autoBuild();
+      }
     }
 
     /**
@@ -228,40 +252,47 @@ public class MongoDbIO {
      * </ul>
      */
     public Read withUri(String uri) {
-      checkArgument(uri != null, "MongoDbIO.read().withUri(uri) called with null uri");
-      return builder().setUri(uri).build();
+      checkArgument(uri != null, "uri can not be null");
+      return toBuilder().setUri(uri).build();
     }
 
     /** Sets the maximum idle time for a pooled connection. */
     public Read withMaxConnectionIdleTime(int maxConnectionIdleTime) {
-      return builder().setMaxConnectionIdleTime(maxConnectionIdleTime).build();
+      return toBuilder().setMaxConnectionIdleTime(maxConnectionIdleTime).build();
     }
 
     /** Enable ssl for connection. */
     public Read withSSLEnabled(boolean sslEnabled) {
-      return builder().setSslEnabled(sslEnabled).build();
+      return toBuilder().setSslEnabled(sslEnabled).build();
     }
 
     /** Enable invalidHostNameAllowed for ssl for connection. */
     public Read withSSLInvalidHostNameAllowed(boolean invalidHostNameAllowed) {
-      return builder().setSslInvalidHostNameAllowed(invalidHostNameAllowed).build();
+      return toBuilder().setSslInvalidHostNameAllowed(invalidHostNameAllowed).build();
     }
 
     /** Enable ignoreSSLCertificate for ssl for connection (allow for self signed certificates). */
     public Read withIgnoreSSLCertificate(boolean ignoreSSLCertificate) {
-      return builder().setIgnoreSSLCertificate(ignoreSSLCertificate).build();
+      return toBuilder().setIgnoreSSLCertificate(ignoreSSLCertificate).build();
+    }
+
+    /** Sets a MongoClient provider. */
+    public Read withMongoClientProvider(
+        SerializableFunction<Void, MongoClient> mongoClientProvider) {
+      checkArgument(mongoClientProvider != null, "mongoClientProvider can not be null");
+      return toBuilder().setMongoClientProvider(mongoClientProvider).build();
     }
 
     /** Sets the database to use. */
     public Read withDatabase(String database) {
       checkArgument(database != null, "database can not be null");
-      return builder().setDatabase(database).build();
+      return toBuilder().setDatabase(database).build();
     }
 
     /** Sets the collection to consider in the database. */
     public Read withCollection(String collection) {
       checkArgument(collection != null, "collection can not be null");
-      return builder().setCollection(collection).build();
+      return toBuilder().setCollection(collection).build();
     }
 
     /**
@@ -279,7 +310,7 @@ public class MongoDbIO {
       FindQuery findQuery = (FindQuery) queryFn();
       FindQuery queryWithFilter =
           findQuery.toBuilder().setFilters(bson2BsonDocument(Document.parse(filter))).build();
-      return builder().setQueryFn(queryWithFilter).build();
+      return toBuilder().setQueryFn(queryWithFilter).build();
     }
 
     /**
@@ -297,24 +328,24 @@ public class MongoDbIO {
       FindQuery findQuery = (FindQuery) queryFn();
       FindQuery queryWithProjection =
           findQuery.toBuilder().setProjection(Arrays.asList(fieldNames)).build();
-      return builder().setQueryFn(queryWithProjection).build();
+      return toBuilder().setQueryFn(queryWithProjection).build();
     }
 
     /** Sets the user defined number of splits. */
     public Read withNumSplits(int numSplits) {
       checkArgument(numSplits >= 0, "invalid num_splits: must be >= 0, but was %s", numSplits);
-      return builder().setNumSplits(numSplits).build();
+      return toBuilder().setNumSplits(numSplits).build();
     }
 
     /** Sets weather to use $bucketAuto or not. */
     public Read withBucketAuto(boolean bucketAuto) {
-      return builder().setBucketAuto(bucketAuto).build();
+      return toBuilder().setBucketAuto(bucketAuto).build();
     }
 
     /** Sets a queryFn. */
     public Read withQueryFn(
         SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> queryBuilderFn) {
-      return builder().setQueryFn(queryBuilderFn).build();
+      return toBuilder().setQueryFn(queryBuilderFn).build();
     }
 
     @Override
@@ -348,24 +379,6 @@ public class MongoDbIO {
     }
   }
 
-  private static MongoClientOptions.Builder getOptions(
-      int maxConnectionIdleTime,
-      boolean sslEnabled,
-      boolean sslInvalidHostNameAllowed,
-      boolean ignoreSSLCertificate) {
-    MongoClientOptions.Builder optionsBuilder = new MongoClientOptions.Builder();
-    optionsBuilder.maxConnectionIdleTime(maxConnectionIdleTime);
-    if (sslEnabled) {
-      optionsBuilder.sslEnabled(sslEnabled).sslInvalidHostNameAllowed(sslInvalidHostNameAllowed);
-      if (ignoreSSLCertificate) {
-        SSLContext sslContext = SSLUtils.ignoreSSLCertificate();
-        optionsBuilder.sslContext(sslContext);
-        optionsBuilder.socketFactory(sslContext.getSocketFactory());
-      }
-    }
-    return optionsBuilder;
-  }
-
   /** A MongoDB {@link BoundedSource} reading {@link Document} from a given instance. */
   @VisibleForTesting
   static class BoundedMongoDbSource extends BoundedSource<Document> {
@@ -396,23 +409,13 @@ public class MongoDbIO {
      * @return Positive number of Documents in a collection or -1 on error.
      */
     long getDocumentCount() {
-      try (MongoClient mongoClient =
-          new MongoClient(
-              new MongoClientURI(
-                  spec.uri(),
-                  getOptions(
-                      spec.maxConnectionIdleTime(),
-                      spec.sslEnabled(),
-                      spec.sslInvalidHostNameAllowed(),
-                      spec.ignoreSSLCertificate())))) {
-        return getDocumentCount(mongoClient, spec.database(), spec.collection());
-      } catch (Exception e) {
-        return -1;
+      try (MongoClient client = spec.mongoClientProvider().apply(null)) {
+        return getDocumentCount(client, spec.database(), spec.collection());
       }
     }
 
-    private long getDocumentCount(MongoClient mongoClient, String database, String collection) {
-      MongoDatabase mongoDatabase = mongoClient.getDatabase(database);
+    private static long getDocumentCount(MongoClient client, String database, String collection) {
+      MongoDatabase mongoDatabase = client.getDatabase(database);
 
       // get the Mongo collStats object
       // it gives the size for the entire collection
@@ -425,22 +428,14 @@ public class MongoDbIO {
 
     @Override
     public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) {
-      try (MongoClient mongoClient =
-          new MongoClient(
-              new MongoClientURI(
-                  spec.uri(),
-                  getOptions(
-                      spec.maxConnectionIdleTime(),
-                      spec.sslEnabled(),
-                      spec.sslInvalidHostNameAllowed(),
-                      spec.ignoreSSLCertificate())))) {
-        return getEstimatedSizeBytes(mongoClient, spec.database(), spec.collection());
+      try (MongoClient client = spec.mongoClientProvider().apply(null)) {
+        return getEstimatedSizeBytes(client, spec.database(), spec.collection());
       }
     }
 
-    private long getEstimatedSizeBytes(
-        MongoClient mongoClient, String database, String collection) {
-      MongoDatabase mongoDatabase = mongoClient.getDatabase(database);
+    private static long getEstimatedSizeBytes(
+        MongoClient client, String database, String collection) {
+      MongoDatabase mongoDatabase = client.getDatabase(database);
 
       // get the Mongo collStats object
       // it gives the size for the entire collection
@@ -454,16 +449,8 @@ public class MongoDbIO {
     @Override
     public List<BoundedSource<Document>> split(
         long desiredBundleSizeBytes, PipelineOptions options) {
-      try (MongoClient mongoClient =
-          new MongoClient(
-              new MongoClientURI(
-                  spec.uri(),
-                  getOptions(
-                      spec.maxConnectionIdleTime(),
-                      spec.sslEnabled(),
-                      spec.sslInvalidHostNameAllowed(),
-                      spec.ignoreSSLCertificate())))) {
-        MongoDatabase mongoDatabase = mongoClient.getDatabase(spec.database());
+      try (MongoClient client = spec.mongoClientProvider().apply(null)) {
+        MongoDatabase mongoDatabase = client.getDatabase(spec.database());
 
         List<Document> splitKeys;
         List<BoundedSource<Document>> sources = new ArrayList<>();
@@ -476,7 +463,7 @@ public class MongoDbIO {
               // the user defines his desired number of splits
               // calculate the batch size
               long estimatedSizeBytes =
-                  getEstimatedSizeBytes(mongoClient, spec.database(), spec.collection());
+                  getEstimatedSizeBytes(client, spec.database(), spec.collection());
               desiredBundleSizeBytes = estimatedSizeBytes / spec.numSplits();
             }
 
@@ -704,7 +691,7 @@ public class MongoDbIO {
       Read spec = source.spec;
 
       // MongoDB Connection preparation
-      client = createClient(spec);
+      client = spec.mongoClientProvider().apply(null);
       MongoDatabase mongoDatabase = client.getDatabase(spec.database());
       MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(spec.collection());
       cursor = spec.queryFn().apply(mongoCollection);
@@ -732,29 +719,14 @@ public class MongoDbIO {
 
     @Override
     public void close() {
-      try {
-        if (cursor != null) {
-          cursor.close();
-        }
-      } catch (Exception e) {
-        LOG.warn("Error closing MongoDB cursor", e);
+      if (cursor != null) {
+        cursor.close();
+        cursor = null;
       }
-      try {
+      if (client != null) {
         client.close();
-      } catch (Exception e) {
-        LOG.warn("Error closing MongoDB client", e);
+        client = null;
       }
-    }
-
-    private MongoClient createClient(Read spec) {
-      return new MongoClient(
-          new MongoClientURI(
-              spec.uri(),
-              getOptions(
-                  spec.maxConnectionIdleTime(),
-                  spec.sslEnabled(),
-                  spec.sslInvalidHostNameAllowed(),
-                  spec.ignoreSSLCertificate())));
     }
   }
 
@@ -773,6 +745,8 @@ public class MongoDbIO {
 
     abstract boolean ignoreSSLCertificate();
 
+    abstract SerializableFunction<Void, MongoClient> mongoClientProvider();
+
     abstract boolean ordered();
 
     @Nullable
@@ -783,7 +757,7 @@ public class MongoDbIO {
 
     abstract long batchSize();
 
-    abstract Builder builder();
+    abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
@@ -797,6 +771,9 @@ public class MongoDbIO {
 
       abstract Builder setIgnoreSSLCertificate(boolean value);
 
+      abstract Builder setMongoClientProvider(
+          SerializableFunction<Void, MongoClient> mongoClientProvider);
+
       abstract Builder setOrdered(boolean value);
 
       abstract Builder setDatabase(String database);
@@ -805,7 +782,30 @@ public class MongoDbIO {
 
       abstract Builder setBatchSize(long batchSize);
 
-      abstract Write build();
+      @Nullable
+      abstract String uri();
+
+      abstract int maxConnectionIdleTime();
+
+      abstract boolean sslEnabled();
+
+      abstract boolean sslInvalidHostNameAllowed();
+
+      abstract boolean ignoreSSLCertificate();
+
+      abstract Write autoBuild(); // not public
+
+      public Write build() {
+        DefaultMongoClientProvider mongoClientProvider =
+            DefaultMongoClientProvider.of(
+                uri(),
+                maxConnectionIdleTime(),
+                sslEnabled(),
+                sslInvalidHostNameAllowed(),
+                ignoreSSLCertificate());
+        setMongoClientProvider(mongoClientProvider);
+        return autoBuild();
+      }
     }
 
     /**
@@ -843,22 +843,39 @@ public class MongoDbIO {
      */
     public Write withUri(String uri) {
       checkArgument(uri != null, "uri can not be null");
-      return builder().setUri(uri).build();
+      Write spec = toBuilder().setUri(uri).build();
+      return withMongoClientProvider(
+              DefaultMongoClientProvider.of(
+                  spec.uri(),
+                  spec.maxConnectionIdleTime(),
+                  spec.sslEnabled(),
+                  spec.sslInvalidHostNameAllowed(),
+                  spec.ignoreSSLCertificate()))
+          .toBuilder()
+          .setUri(uri)
+          .build();
     }
 
     /** Sets the maximum idle time for a pooled connection. */
     public Write withMaxConnectionIdleTime(int maxConnectionIdleTime) {
-      return builder().setMaxConnectionIdleTime(maxConnectionIdleTime).build();
+      return toBuilder().setMaxConnectionIdleTime(maxConnectionIdleTime).build();
     }
 
     /** Enable ssl for connection. */
     public Write withSSLEnabled(boolean sslEnabled) {
-      return builder().setSslEnabled(sslEnabled).build();
+      return toBuilder().setSslEnabled(sslEnabled).build();
     }
 
     /** Enable invalidHostNameAllowed for ssl for connection. */
     public Write withSSLInvalidHostNameAllowed(boolean invalidHostNameAllowed) {
-      return builder().setSslInvalidHostNameAllowed(invalidHostNameAllowed).build();
+      return toBuilder().setSslInvalidHostNameAllowed(invalidHostNameAllowed).build();
+    }
+
+    /** Sets a MongoClient provider. */
+    public Write withMongoClientProvider(
+        SerializableFunction<Void, MongoClient> mongoClientProvider) {
+      checkArgument(mongoClientProvider != null, "mongoClientProvider can not be null");
+      return toBuilder().setMongoClientProvider(mongoClientProvider).build();
     }
 
     /**
@@ -869,30 +886,30 @@ public class MongoDbIO {
      *     specification of MongoDb CRUD operations</a>
      */
     public Write withOrdered(boolean ordered) {
-      return builder().setOrdered(ordered).build();
+      return toBuilder().setOrdered(ordered).build();
     }
 
     /** Enable ignoreSSLCertificate for ssl for connection (allow for self signed certificates). */
     public Write withIgnoreSSLCertificate(boolean ignoreSSLCertificate) {
-      return builder().setIgnoreSSLCertificate(ignoreSSLCertificate).build();
+      return toBuilder().setIgnoreSSLCertificate(ignoreSSLCertificate).build();
     }
 
     /** Sets the database to use. */
     public Write withDatabase(String database) {
       checkArgument(database != null, "database can not be null");
-      return builder().setDatabase(database).build();
+      return toBuilder().setDatabase(database).build();
     }
 
     /** Sets the collection where to write data in the database. */
     public Write withCollection(String collection) {
       checkArgument(collection != null, "collection can not be null");
-      return builder().setCollection(collection).build();
+      return toBuilder().setCollection(collection).build();
     }
 
     /** Define the size of the batch to group write operations. */
     public Write withBatchSize(long batchSize) {
       checkArgument(batchSize >= 0, "Batch size must be >= 0, but was %s", batchSize);
-      return builder().setBatchSize(batchSize).build();
+      return toBuilder().setBatchSize(batchSize).build();
     }
 
     @Override
@@ -928,16 +945,8 @@ public class MongoDbIO {
       }
 
       @Setup
-      public void createMongoClient() {
-        client =
-            new MongoClient(
-                new MongoClientURI(
-                    spec.uri(),
-                    getOptions(
-                        spec.maxConnectionIdleTime(),
-                        spec.sslEnabled(),
-                        spec.sslInvalidHostNameAllowed(),
-                        spec.ignoreSSLCertificate())));
+      public void setup() {
+        client = spec.mongoClientProvider().apply(null);
       }
 
       @StartBundle
@@ -978,9 +987,11 @@ public class MongoDbIO {
       }
 
       @Teardown
-      public void closeMongoClient() {
-        client.close();
-        client = null;
+      public void teardown() {
+        if (client != null) {
+          client.close();
+          client = null;
+        }
       }
     }
   }
