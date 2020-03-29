@@ -166,7 +166,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
               new InputGetterImpl(input, upstream.getSchema()),
               null);
 
-      // Expressions.call is equivalent to: output = Row.withSchema(outputSchema)
+      // Expressions.call is equivalent to: Lists.newArrayListWithCapacity();
       Expression valueList =
           Expressions.call(
               Lists.class, "newArrayListWithCapacity", Expressions.constant(expressions.size()));
@@ -179,9 +179,10 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
         valueList = Expressions.call(value, addToList, castOutput(value, toType));
       }
 
+      // Expressions.call is equivalent to: output =
+      // Row.withSchema(outputSchema).attachValue(values);
       Expression output = Expressions.call(Row.class, "withSchema", outputSchemaParam);
       Method attachValues = Types.lookupMethod(Row.Builder.class, "attachValues", List.class);
-      // Expressions.call is equivalent to: .attachValues(<list>);
       output = Expressions.call(output, attachValues, valueList);
 
       builder.add(
