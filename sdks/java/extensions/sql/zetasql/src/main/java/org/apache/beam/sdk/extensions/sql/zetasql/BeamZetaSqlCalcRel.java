@@ -53,6 +53,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
 /**
  * BeamRelNode to replace {@code Project} and {@code Filter} node based on the {@code ZetaSQL}
@@ -186,13 +187,14 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
       }
 
       Row.Builder output = Row.withSchema(outputSchema);
+      List<Object> values = Lists.newArrayListWithExpectedSize(outputSchema.getFieldCount());
       for (int i = 0; i < outputSchema.getFieldCount(); i++) {
         // TODO[BEAM-8630]: performance optimization by bundling the gRPC calls
         Value v = projectExps.get(i).execute(columns, params);
-        output.addValue(
+        values.add(
             ZetaSqlUtils.zetaSqlValueToJavaObject(v, outputSchema.getField(i).getType()));
       }
-      c.output(output.build());
+      c.output(Row.withSchema(outputSchema).attachValues(values));
     }
 
     @Teardown
