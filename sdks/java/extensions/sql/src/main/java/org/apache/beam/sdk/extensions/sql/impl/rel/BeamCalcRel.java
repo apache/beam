@@ -79,6 +79,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.Sq
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.BuiltInMethod;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.codehaus.commons.compiler.CompileException;
 import org.codehaus.janino.ScriptEvaluator;
@@ -166,19 +167,22 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
               null);
 
       // Expressions.call is equivalent to: output = Row.withSchema(outputSchema)
-      Expression output = Expressions.call(Row.class, "withSchema", outputSchemaParam);
-      Method addValue = Types.lookupMethod(Row.Builder.class, "addValue", Object.class);
-
+      Expression valueList =
+          Expressions.call(
+              Lists.class, "newArrayListWithCapacity", Expressions.constant(expressions.size()));
+      Method addToList = Types.lookupMethod(List.class, "add", Object.class);
       for (int index = 0; index < expressions.size(); index++) {
         Expression value = expressions.get(index);
         FieldType toType = outputSchema.getField(index).getType();
 
-        // Expressions.call is equivalent to: .addValue(value)
-        output = Expressions.call(output, addValue, castOutput(value, toType));
+        // Expressions.call is equivalent to: .add(value)
+        valueList = Expressions.call(value, addToList, castOutput(value, toType));
       }
 
-      // Expressions.call is equivalent to: .build();
-      output = Expressions.call(output, "build");
+      Expression output = Expressions.call(Row.class, "withSchema", outputSchemaParam);
+      Method attachValues = Types.lookupMethod(Row.Builder.class, "attachValues", List.class);
+      // Expressions.call is equivalent to: .attachValues(<list>);
+      output = Expressions.call(output, attachValues, valueList);
 
       builder.add(
           // Expressions.ifThen is equivalent to:

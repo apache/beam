@@ -239,6 +239,6 @@ public final class ZetaSqlUtils {
     for (int i = 0; i < values.size(); i++) {
       objects.add(zetaSqlValueToJavaObject(values.get(i), schema.getField(i).getType()));
     }
-    return Row.withSchema(schema).addValues(objects).build();
+    return Row.withSchema(schema).attachValues(objects);
   }
 }

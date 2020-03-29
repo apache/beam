@@ -343,7 +343,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
             fieldValues.add(windowStartFieldIndex, ((IntervalWindow) window).start());
           }
 
-          o.output(Row.withSchema(outputSchema).addValues(fieldValues).build());
+          o.output(Row.withSchema(outputSchema).attachValues(fieldValues));
         }
       };
     }

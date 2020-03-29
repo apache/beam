@@ -186,13 +186,11 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
         return;
       }
 
-      Row.Builder output = Row.withSchema(outputSchema);
       List<Object> values = Lists.newArrayListWithExpectedSize(outputSchema.getFieldCount());
       for (int i = 0; i < outputSchema.getFieldCount(); i++) {
         // TODO[BEAM-8630]: performance optimization by bundling the gRPC calls
         Value v = projectExps.get(i).execute(columns, params);
-        values.add(
-            ZetaSqlUtils.zetaSqlValueToJavaObject(v, outputSchema.getField(i).getType()));
+        values.add(ZetaSqlUtils.zetaSqlValueToJavaObject(v, outputSchema.getField(i).getType()));
       }
       c.output(Row.withSchema(outputSchema).attachValues(values));
     }
