@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -416,8 +417,13 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
 
                 @Override
                 public boolean isStateful() {
-                  return !signature.stateDeclarations().isEmpty()
-                      || !signature.timerDeclarations().isEmpty();
+                  // SDFs should not have user timer/state.
+                  checkState(
+                      signature.stateDeclarations().isEmpty()
+                          && signature.timerDeclarations().isEmpty()
+                          && signature.timerFamilyDeclarations().isEmpty(),
+                      "SDFs should not have user state/timer.");
+                  return false;
                 }
 
                 @Override

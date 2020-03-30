@@ -326,7 +326,8 @@ public class ParDoTranslation {
           @Override
           public boolean isStateful() {
             return !signature.stateDeclarations().isEmpty()
-                || !signature.timerDeclarations().isEmpty();
+                || !signature.timerDeclarations().isEmpty()
+                || !signature.timerFamilyDeclarations().isEmpty();
           }
 
           @Override
