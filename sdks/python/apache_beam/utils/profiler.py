@@ -88,7 +88,11 @@ class Profile(object):
       self.profile_output = dump_location
 
     if self.log_results:
-      s = io.StringIO()
+      try:
+        import StringIO  # Python 2
+        s = StringIO.StringIO()
+      except ImportError:
+        s = io.StringIO()
       self.stats = pstats.Stats(
           self.profile, stream=s).sort_stats(Profile.SORTBY)
       self.stats.print_stats()
