@@ -27,6 +27,12 @@ import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollectionView;
 
+/**
+ * Base class for Video Intelligence transform.
+ *
+ * @param <T> Class of input data being passed in - either ByteString - video data encoded into
+ *     String or String - a GCS URI of the video to be annotated
+ */
 public abstract class AnnotateVideo<T> extends DoFn<T, List<VideoAnnotationResults>> {
 
   protected final PCollectionView<Map<T, VideoContext>> contextSideInput;
@@ -54,6 +60,15 @@ public abstract class AnnotateVideo<T> extends DoFn<T, List<VideoAnnotationResul
     videoIntelligenceServiceClient.close();
   }
 
+  /**
+   * Call the Video Intelligence Cloud AI service and return annotation results
+   *
+   * @param elementURI This or elementContents is required. GCS address of video to be annotated
+   * @param elementContents this or elementURI is required. Hex-encoded contents of video to be
+   *     annotated
+   * @param videoContext Optional context for video annotation.
+   * @return
+   */
   List<VideoAnnotationResults> getVideoAnnotationResults(
       String elementURI, ByteString elementContents, VideoContext videoContext)
       throws InterruptedException, ExecutionException {
@@ -75,6 +90,7 @@ public abstract class AnnotateVideo<T> extends DoFn<T, List<VideoAnnotationResul
     return annotateVideoAsync.get().getAnnotationResultsList();
   }
 
+  /** Process element implementation required. */
   @ProcessElement
   public abstract void processElement(ProcessContext context)
       throws ExecutionException, InterruptedException;
