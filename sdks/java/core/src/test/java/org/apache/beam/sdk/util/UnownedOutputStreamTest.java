@@ -17,9 +17,14 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -52,5 +57,22 @@ public class UnownedOutputStreamTest {
     expectedException.expect(UnsupportedOperationException.class);
     expectedException.expectMessage("Caller does not own the underlying");
     os.close();
+  }
+
+  @Test
+  public void testWrite() throws IOException {
+    ByteArrayOutputStream expected = new ByteArrayOutputStream();
+    ByteArrayOutputStream actual = new ByteArrayOutputStream();
+    UnownedOutputStream osActual = new UnownedOutputStream(actual);
+
+    writeToBoth(expected, osActual, "Hello World!".getBytes(StandardCharsets.UTF_8));
+    writeToBoth(expected, osActual, "Welcome!".getBytes(StandardCharsets.UTF_8));
+
+    assertArrayEquals(expected.toByteArray(), actual.toByteArray());
+  }
+
+  private static void writeToBoth(OutputStream a, OutputStream b, byte[] data) throws IOException {
+    a.write(data);
+    b.write(data);
   }
 }
