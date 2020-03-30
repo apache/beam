@@ -38,9 +38,12 @@ from apache_beam.options.pipeline_options_validator import PipelineOptionsValida
 # Mock runners to use for validations.
 class MockRunners(object):
   class DataflowRunner(object):
-    pass
+    def get_default_gcp_region(self):
+      # Return a default so we don't have to specify --region in every test
+      # (unless specifically testing it).
+      return 'us-central1'
 
-  class TestDataflowRunner(object):
+  class TestDataflowRunner(DataflowRunner):
     pass
 
   class OtherRunner(object):
@@ -82,12 +85,15 @@ class SetupTest(unittest.TestCase):
   def test_missing_required_options(self):
     options = PipelineOptions([''])
     runner = MockRunners.DataflowRunner()
+    # Remove default region for this test.
+    runner.get_default_gcp_region = lambda: None
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
 
     self.assertEqual(
         self.check_errors_for_arguments(
-            errors, ['project', 'staging_location', 'temp_location']), [])
+            errors, ['project', 'staging_location', 'temp_location', 'region']),
+        [])
 
   def test_gcs_path(self):
     def get_validator(temp_location, staging_location):
