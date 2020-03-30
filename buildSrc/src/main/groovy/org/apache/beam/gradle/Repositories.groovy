@@ -47,7 +47,7 @@ class Repositories {
       }
 
       // Release staging repository
-      maven { url "https://oss.sonatype.org/content/repositories/staging/" }
+      // maven { url "https://oss.sonatype.org/content/repositories/staging/" }
 
       // Apache nightly snapshots
       maven { url "https://repository.apache.org/snapshots" }
