@@ -28,10 +28,15 @@ import unittest
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
-from apache_beam.examples.cookbook import datastore_wordcount
 from apache_beam.testing.pipeline_verifiers import FileChecksumMatcher
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
+
+# Don't fail during pytest collection scan.
+try:
+  from apache_beam.examples.cookbook import datastore_wordcount
+except ImportError:
+  datastore_wordcount = None
 
 
 class DatastoreWordCountIT(unittest.TestCase):

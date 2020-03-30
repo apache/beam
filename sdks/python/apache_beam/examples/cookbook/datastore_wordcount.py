@@ -56,6 +56,7 @@ The following options must be provided to run this pipeline in read-write mode:
 # pytype: skip-file
 
 from __future__ import absolute_import
+from __future__ import print_function
 
 import argparse
 import logging

@@ -31,10 +31,11 @@ import time
 from builtins import round
 
 from apache_beam import typehints
-from apache_beam.io.gcp.datastore.v1new.adaptive_throttler import AdaptiveThrottler
-from apache_beam.io.gcp.datastore.v1new import helper, util
+from apache_beam.io.gcp.datastore.v1new import helper
 from apache_beam.io.gcp.datastore.v1new import query_splitter
 from apache_beam.io.gcp.datastore.v1new import types
+from apache_beam.io.gcp.datastore.v1new import util
+from apache_beam.io.gcp.datastore.v1new.adaptive_throttler import AdaptiveThrottler
 from apache_beam.metrics.metric import Metrics
 from apache_beam.transforms import Create
 from apache_beam.transforms import DoFn
