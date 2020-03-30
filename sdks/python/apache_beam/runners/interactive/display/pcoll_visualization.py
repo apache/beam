@@ -117,10 +117,12 @@ _DATAFRAME_SCRIPT_TEMPLATE = """
             var dt;
             if ($.fn.dataTable.isDataTable("#{table_id}")) {{
               dt = $("#{table_id}").dataTable();
-            }} else {{
+            }} else if ($("#{table_id}_wrapper").length == 0) {{
               dt = $("#{table_id}").dataTable({{
                 """ + _DATATABLE_INITIALIZATION_CONFIG + """
               }});
+            }} else {{
+              return;
             }}
             dt.api()
               .clear()
