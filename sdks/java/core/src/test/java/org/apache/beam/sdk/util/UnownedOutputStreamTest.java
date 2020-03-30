@@ -22,7 +22,6 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import org.junit.Before;
 import org.junit.Rule;
@@ -64,14 +63,15 @@ public class UnownedOutputStreamTest {
     ByteArrayOutputStream actual = new ByteArrayOutputStream();
     UnownedOutputStream osActual = new UnownedOutputStream(actual);
 
-    writeToBoth(expected, osActual, "Hello World!".getBytes(StandardCharsets.UTF_8));
-    writeToBoth(expected, osActual, "Welcome!".getBytes(StandardCharsets.UTF_8));
+    byte[] data0 = "Hello World!".getBytes(StandardCharsets.UTF_8);
+    byte[] data1 = "Welcome!".getBytes(StandardCharsets.UTF_8);
+
+    expected.write(data0, 0, data0.length);
+    osActual.write(data0, 0, data0.length);
+
+    expected.write(data1, 0, data1.length);
+    osActual.write(data1, 0, data1.length);
 
     assertArrayEquals(expected.toByteArray(), actual.toByteArray());
-  }
-
-  private static void writeToBoth(OutputStream a, OutputStream b, byte[] data) throws IOException {
-    a.write(data);
-    b.write(data);
   }
 }
