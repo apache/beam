@@ -157,6 +157,7 @@ jobmanager.rpc.address: ${master_hostname}
 jobmanager.heap.mb: ${flink_jobmanager_memory}
 taskmanager.memory.process.size: "${flink_taskmanager_memory} mb"
 taskmanager.memory.jvm-metaspace.size: 512 mb
+taskmanager.memory.managed.fraction: 0.5
 taskmanager.numberOfTaskSlots: ${flink_taskmanager_slots}
 parallelism.default: ${flink_parallelism}
 taskmanager.network.numberOfBuffers: ${FLINK_NETWORK_NUM_BUFFERS}
