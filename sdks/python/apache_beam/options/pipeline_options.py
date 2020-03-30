@@ -256,7 +256,8 @@ class PipelineOptions(HasDisplayData):
   def get_all_options(
       self,
       drop_default=False,
-      add_extra_args_fn=None  # type: Optional[Callable[[_BeamArgumentParser], None]]
+      add_extra_args_fn=None,  # type: Optional[Callable[[_BeamArgumentParser], None]]
+      retain_unknown_options=False
   ):
     # type: (...) -> Dict[str, Any]
 
@@ -270,6 +271,9 @@ class PipelineOptions(HasDisplayData):
         values, are not returned as part of the result dictionary.
       add_extra_args_fn: Callback to populate additional arguments, can be used
         by runner to supply otherwise unknown args.
+      retain_unknown_options: If set to true, options not recognized by any
+        known pipeline options class will still be included in the result. If
+        set to false, they will be discarded.
 
     Returns:
       Dictionary of all args and values.
@@ -285,10 +289,29 @@ class PipelineOptions(HasDisplayData):
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
     if add_extra_args_fn:
       add_extra_args_fn(parser)
+
     known_args, unknown_args = parser.parse_known_args(self._flags)
-    if unknown_args:
-      _LOGGER.warning("Discarding unparseable args: %s", unknown_args)
-    result = vars(known_args)
+    if retain_unknown_options:
+      i = 0
+      while i < len(unknown_args):
+        # Treat all unary flags as booleans, and all binary argument values as
+        # strings.
+        if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('-'):
+          split = unknown_args[i].split('=', 1)
+          if len(split) == 1:
+            parser.add_argument(unknown_args[i], action='store_true')
+          else:
+            parser.add_argument(split[0], type=str)
+          i += 1
+        else:
+          parser.add_argument(unknown_args[i], type=str)
+          i += 2
+      parsed_args = parser.parse_args(self._flags)
+    else:
+      if unknown_args:
+        _LOGGER.warning("Discarding unparseable args: %s", unknown_args)
+      parsed_args = known_args
+    result = vars(parsed_args)
 
     overrides = self._all_options.copy()
     # Apply the overrides if any

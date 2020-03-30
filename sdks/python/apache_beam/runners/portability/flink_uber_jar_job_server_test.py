@@ -32,6 +32,7 @@ import requests_mock
 from apache_beam.options import pipeline_options
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners.portability import flink_runner
 from apache_beam.runners.portability import flink_uber_jar_job_server
 from apache_beam.runners.portability.local_job_service_test import TestJobServicePlan
 
@@ -144,6 +145,21 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
                                message_text='exc_text'),
                            beam_job_api_pb2.JobState.DONE,
                        ])
+
+  def test_retain_unknown_options(self):
+    original_options = pipeline_options.PipelineOptions(
+        ['--unknown_option_foo', 'some_value'])
+    flink_options = original_options.view_as(
+        pipeline_options.FlinkRunnerOptions)
+    flink_options.flink_submit_uber_jar = True
+    flink_options.flink_master = 'http://host:port'
+    runner = flink_runner.FlinkRunner()
+
+    job_service_handle = runner.create_job_service(original_options)
+    options_proto = job_service_handle.get_pipeline_options()
+
+    self.assertEqual(
+        options_proto['beam:option:unknown_option_foo:v1'], 'some_value')
 
 
 if __name__ == '__main__':
