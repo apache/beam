@@ -283,8 +283,7 @@ message StandardPTransforms {
 
     // Represents the Contert To Accumulators transform, as described in the
     // following document:
-    //
-    https://s.apache.org/beam-runner-api-combine-model#heading=h.h5697l1scd9x
+    // https://s.apache.org/beam-runner-api-combine-model#heading=h.h5697l1scd9x
     // Payload: CombinePayload
     COMBINE_PER_KEY_CONVERT_TO_ACCUMULATORS = 4
         [(beam_urn) =
