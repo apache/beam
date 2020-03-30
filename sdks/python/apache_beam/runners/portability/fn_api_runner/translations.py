@@ -26,6 +26,7 @@ import collections
 import functools
 import logging
 from builtins import object
+from typing import Any
 from typing import Container
 from typing import DefaultDict
 from typing import Dict
@@ -74,6 +75,9 @@ PAR_DO_URNS = frozenset([
 ])
 
 IMPULSE_BUFFER = b'impulse'
+
+# SideInputId is identified by a consumer ParDo + tag.
+SideInputId = Tuple[str, str]
 
 
 class Stage(object):
@@ -643,7 +647,7 @@ def annotate_downstream_side_inputs(stages, pipeline_context):
 
   for stage in stages:
     stage.downstream_side_inputs = compute_downstream_side_inputs(stage)
-  return stages
+  return downstream_side_inputs_by_stage
 
 
 def annotate_stateful_dofns_as_roots(stages, pipeline_context):
@@ -1032,7 +1036,7 @@ def expand_gbk(stages, pipeline_context):
                       urn=bundle_processor.DATA_OUTPUT_URN,
                       payload=grouping_buffer))
           ],
-          downstream_side_inputs=frozenset(),
+          downstream_side_inputs={},
           must_follow=stage.must_follow)
       yield gbk_write
 
@@ -1085,7 +1089,7 @@ def fix_flatten_coders(stages, pipeline_context):
                           urn=bundle_processor.IDENTITY_DOFN_URN),
                       environment_id=transform.environment_id)
               ],
-              downstream_side_inputs=frozenset(),
+              downstream_side_inputs={},
               must_follow=stage.must_follow)
           pcollections[transcoded_pcollection].CopyFrom(pcollections[pcoll_in])
           pcollections[transcoded_pcollection].unique_name = (
@@ -1123,7 +1127,7 @@ def sink_flattens(stages, pipeline_context):
                         urn=bundle_processor.DATA_OUTPUT_URN,
                         payload=buffer_id))
             ],
-            downstream_side_inputs=frozenset(),
+            downstream_side_inputs={},
             must_follow=stage.must_follow)
         flatten_writes.append(flatten_write)
         yield flatten_write

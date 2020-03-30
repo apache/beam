@@ -22,16 +22,21 @@ from __future__ import absolute_import
 import collections
 import itertools
 from typing import TYPE_CHECKING
+from typing import Any
+from typing import DefaultDict
 from typing import Dict
+from typing import Iterator
 from typing import List
 from typing import MutableMapping
+from typing import Optional
+from typing import Tuple
 
 from typing_extensions import Protocol
 
 from apache_beam import coders
+from apache_beam.coders import BytesCoder
 from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
-from apache_beam.coders.coders import BytesCoder
 from apache_beam.coders.coders import GlobalWindowCoder
 from apache_beam.coders.coders import WindowedValueCoder
 from apache_beam.portability import common_urns
@@ -52,8 +57,8 @@ from apache_beam.utils import windowed_value
 
 if TYPE_CHECKING:
   from apache_beam.coders.coder_impl import CoderImpl
-  from apache_beam.portability.api import beam_runner_api_pb2
   from apache_beam.runners.portability.fn_api_runner import worker_handlers
+  from apache_beam.transforms.window import BoundedWindow
 
 ENCODED_IMPULSE_VALUE = WindowedValueCoder(
     BytesCoder(), GlobalWindowCoder()).get_impl().encode_nested(
@@ -61,6 +66,9 @@ ENCODED_IMPULSE_VALUE = WindowedValueCoder(
 
 DataOutput = Dict[str, bytes]
 SideInputAccessPattern = beam_runner_api_pb2.FunctionSpec
+
+DataSideInput = Dict[translations.SideInputId,
+                     Tuple[bytes, beam_runner_api_pb2.FunctionSpec]]
 
 
 class Buffer(Protocol):
@@ -218,7 +226,7 @@ class WindowGroupingBuffer(object):
   def __init__(
       self,
       access_pattern,
-      coder  # type: coders.WindowedValueCoder
+      coder  # type: WindowedValueCoder
   ):
     # type: (...) -> None
     # Here's where we would use a different type of partitioning
@@ -265,7 +273,7 @@ class WindowGroupingBuffer(object):
 
 class FnApiRunnerExecutionContext(object):
   """
- :var pcoll_buffers: (collections.defaultdict of str: list): Mapping of
+ :var pcoll_buffers: (dict): Mapping of
        PCollection IDs to list that functions as buffer for the
        ``beam.PCollection``.
  """

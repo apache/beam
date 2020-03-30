@@ -64,7 +64,6 @@ from apache_beam.runners.portability.fn_api_runner.translations import create_bu
 from apache_beam.runners.portability.fn_api_runner.translations import only_element
 from apache_beam.runners.portability.fn_api_runner.translations import split_buffer_id
 from apache_beam.runners.portability.fn_api_runner.worker_handlers import WorkerHandlerManager
-from apache_beam.runners.worker import bundle_processor
 from apache_beam.transforms import environments
 from apache_beam.utils import profiler
 from apache_beam.utils import proto_utils
@@ -72,7 +71,6 @@ from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 if TYPE_CHECKING:
   from apache_beam.pipeline import Pipeline
-  from apache_beam.coders.coder_impl import CoderImpl
   from apache_beam.portability.api import metrics_pb2
 
 _LOGGER = logging.getLogger(__name__)
@@ -382,12 +380,11 @@ class FnApiRunner(runner.PipelineRunner):
   def _run_bundle_multiple_times_for_testing(
       self,
       runner_execution_context,  # type: execution.FnApiRunnerExecutionContext
-      bundle_context_manager,  # type: execution.BundleContextManager
+      bundle_manager,  # type: BundleManager
       data_input,
       data_output,  # type: DataOutput
       fired_timers,
       expected_output_timers,
-      cache_token_generator
   ):
     # type: (...) -> None
 
@@ -398,12 +395,7 @@ class FnApiRunner(runner.PipelineRunner):
     for _ in range(self._bundle_repeat):
       try:
         runner_execution_context.state_servicer.checkpoint()
-        testing_bundle_manager = ParallelBundleManager(
-            bundle_context_manager,
-            self._progress_frequency,
-            num_workers=self._num_workers,
-            cache_token_generator=cache_token_generator)
-        testing_bundle_manager.process_bundle(
+        bundle_manager.process_bundle(
             data_input, data_output, fired_timers, expected_output_timers,
             dry_run=True)
       finally:
@@ -434,6 +426,17 @@ class FnApiRunner(runner.PipelineRunner):
             coder_impl=timer_coder_impl)
         fired_timers[(transform_id, timer_family_id)].append(out.get())
         written_timers.clear()
+
+  def _add_sdk_delayed_applications_to_deferred_inputs(
+      self, bundle_context_manager, bundle_result, deferred_inputs):
+    for delayed_application in bundle_result.process_bundle.residual_roots:
+      name = bundle_context_manager.input_for(
+          delayed_application.application.transform_id,
+          delayed_application.application.input_id)
+      if name not in deferred_inputs:
+        deferred_inputs[name] = ListBuffer(
+            coder_impl=bundle_context_manager.get_input_coder_impl(name))
+      deferred_inputs[name].append(delayed_application.application.element)
 
   def _add_residuals_and_channel_splits_to_deferred_inputs(
       self,
@@ -498,86 +501,113 @@ class FnApiRunner(runner.PipelineRunner):
     Args:
       runner_execution_context (execution.FnApiRunnerExecutionContext): An
         object containing execution information for the pipeline.
-      stage (translations.Stage): A description of the stage to execute.
+      bundle_context_manager (execution.BundleContextManager): A description of
+        the stage to execute, and its context.
     """
     data_input, data_output, expected_timer_output = (
         bundle_context_manager.extract_bundle_inputs())
+    input_timers = {}
 
     worker_handler_manager = runner_execution_context.worker_handler_manager
     _LOGGER.info('Running %s', bundle_context_manager.stage.name)
     worker_handler_manager.register_process_bundle_descriptor(
         bundle_context_manager.process_bundle_descriptor)
 
-    # Change cache token across bundle repeats
+    # We create the bundle manager here, as it can be reused for bundles of the
+    # same stage, but it may have to be created by-bundle later on.
     cache_token_generator = FnApiRunner.get_cache_token_generator(static=False)
-
-    self._run_bundle_multiple_times_for_testing(
-        runner_execution_context,
-        bundle_context_manager,
-        data_input,
-        data_output, {},
-        expected_timer_output,
-        cache_token_generator=cache_token_generator)
-
     bundle_manager = ParallelBundleManager(
         bundle_context_manager,
         self._progress_frequency,
+        skip_registration=False,
         cache_token_generator=cache_token_generator)
 
-    # For the first time of processing, we don't have fired timers as inputs.
-    result, splits = bundle_manager.process_bundle(data_input,
-                                                   data_output,
-                                                   {},
-                                                   expected_timer_output)
+    final_result = None
 
-    last_result = result
-    last_sent = data_input
+    def merge_results(last_result):
+      """ Merge the latest result with other accumulated results. """
+      return (
+          last_result
+          if final_result is None else beam_fn_api_pb2.InstructionResponse(
+              process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
+                  monitoring_infos=monitoring_infos.consolidate(
+                      itertools.chain(
+                          final_result.process_bundle.monitoring_infos,
+                          last_result.process_bundle.monitoring_infos))),
+              error=final_result.error or last_result.error))
 
     while True:
-      deferred_inputs = {}  # type: Dict[str, PartitionableBuffer]
-      fired_timers = {}
+      last_result, deferred_inputs, fired_timers = self._run_bundle(
+              runner_execution_context,
+              bundle_context_manager,
+              data_input,
+              data_output,
+              input_timers,
+              expected_timer_output,
+              bundle_manager)
 
-      self._collect_written_timers_and_add_to_fired_timers(
-          bundle_context_manager, fired_timers)
-      # Queue any SDK-initiated delayed bundle applications.
-      for delayed_application in last_result.process_bundle.residual_roots:
-        name = bundle_context_manager.input_for(
-            delayed_application.application.transform_id,
-            delayed_application.application.input_id)
-        if name not in deferred_inputs:
-          deferred_inputs[name] = ListBuffer(
-              coder_impl=bundle_context_manager.get_input_coder_impl(name))
-        deferred_inputs[name].append(delayed_application.application.element)
-      # Queue any runner-initiated delayed bundle applications.
-      self._add_residuals_and_channel_splits_to_deferred_inputs(
-          splits, bundle_context_manager, last_sent, deferred_inputs)
-
-      if deferred_inputs or fired_timers:
-        # The worker will be waiting on these inputs as well.
-        for other_input in data_input:
-          if other_input not in deferred_inputs:
-            deferred_inputs[other_input] = ListBuffer(
-                coder_impl=bundle_context_manager.get_input_coder_impl(
-                    other_input))
-        # TODO(robertwb): merge results
-        last_result, splits = bundle_manager.process_bundle(
-            deferred_inputs, data_output, fired_timers, expected_timer_output)
-        last_sent = deferred_inputs
-        result = beam_fn_api_pb2.InstructionResponse(
-            process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
-                monitoring_infos=monitoring_infos.consolidate(
-                    itertools.chain(
-                        result.process_bundle.monitoring_infos,
-                        last_result.process_bundle.monitoring_infos))),
-            error=result.error or last_result.error)
-      else:
+      final_result = merge_results(last_result)
+      if not deferred_inputs and not fired_timers:
         break
+      else:
+        data_input = deferred_inputs
+        input_timers = fired_timers
+        bundle_manager._registered = True
 
     # Store the required downstream side inputs into state so it is accessible
     # for the worker when it runs bundles that consume this stage's output.
     data_side_input = runner_execution_context.side_input_descriptors_by_stage[
       bundle_context_manager.stage]
     runner_execution_context.commit_side_inputs_to_state(data_side_input)
+    return final_result
+
+  def _run_bundle(
+      self,
+      runner_execution_context,
+      bundle_context_manager,
+      data_input,
+      data_output,
+      fired_timers,
+      expected_timer_output,
+      bundle_manager):
+    """Execute a bundle, and return a result object, and deferred inputs."""
+    self._run_bundle_multiple_times_for_testing(
+        runner_execution_context,
+        bundle_manager,
+        data_input,
+        data_output, {},
+        expected_timer_output)
+
+    result, splits = bundle_manager.process_bundle(
+        data_input, data_output, fired_timers, expected_timer_output)
+    # Now we collect all the deferred inputs remaining from bundle execution.
+    # Deferred inputs can be:
+    # - timers
+    # - SDK-initiated deferred applications of root elements
+    # - Runner-initiated deferred applications of root elements
+    deferred_inputs = {}  # type: Dict[str, execution.PartitionableBuffer]
+    fired_timers = {}
+
+    self._collect_written_timers_and_add_to_fired_timers(
+        bundle_context_manager, fired_timers)
+
+    self._add_sdk_delayed_applications_to_deferred_inputs(
+        bundle_context_manager, result, deferred_inputs)
+
+    self._add_residuals_and_channel_splits_to_deferred_inputs(
+        splits, bundle_context_manager, data_input, deferred_inputs)
+
+    # After collecting deferred inputs, we 'pad' the structure with empty
+    # buffers for other expected inputs.
+    if deferred_inputs or fired_timers:
+      # The worker will be waiting on these inputs as well.
+      for other_input in data_input:
+        if other_input not in deferred_inputs:
+          deferred_inputs[other_input] = ListBuffer(
+              coder_impl=bundle_context_manager.get_input_coder_impl(
+                  other_input))
+
+    return result, deferred_inputs, fired_timers
 
   @staticmethod
   def get_cache_token_generator(static=True):
@@ -934,7 +964,6 @@ class ParallelBundleManager(BundleManager):
                           merged_result.process_bundle.monitoring_infos))),
               error=result.error or merged_result.error)
     assert merged_result is not None
-
     return merged_result, split_result_list
 
 
