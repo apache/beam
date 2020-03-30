@@ -45,7 +45,6 @@ from typing import Tuple
 from typing import Union
 
 from apache_beam import coders
-from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.metrics import monitoring_infos
@@ -607,25 +606,20 @@ class DoOperation(Operation):
         if not isinstance(si, operation_specs.WorkerSideInputSource):
           raise NotImplementedError('Unknown side input type: %r' % si)
         sources.append(si.source)
-        # The tracking of time spend reading and bytes read from side inputs is
-        # behind an experiment flag to test its performance impact.
-        si_counter = opcounters.SideInputReadCounter(
-            self.counter_factory,
-            self.state_sampler,
-            declaring_step=self.name_context.step_name,
-            # Inputs are 1-indexed, so we add 1 to i in the side input id
-            input_index=i + 1)
+      si_counter = opcounters.SideInputReadCounter(
+          self.counter_factory,
+          self.state_sampler,
+          declaring_step=self.name_context.step_name,
+          # Inputs are 1-indexed, so we add 1 to i in the side input id
+          input_index=i + 1)
+      element_counter = opcounters.OperationCounters(
+          self.counter_factory,
+          self.name_context.step_name,
+          view_options['coder'],
+          i,
+          suffix='side-input')
       iterator_fn = sideinputs.get_iterator_fn_for_sources(
-          sources, read_counter=si_counter)
-
-      # Backwards compatibility for pre BEAM-733 SDKs.
-      if isinstance(view_options, tuple):
-        if view_class == pvalue.AsSingleton:
-          has_default, default = view_options
-          view_options = {'default': default} if has_default else {}
-        else:
-          view_options = {}
-
+          sources, read_counter=si_counter, element_counter=element_counter)
       yield apache_sideinputs.SideInputMap(
           view_class, view_options, sideinputs.EmulatedIterable(iterator_fn))
 
