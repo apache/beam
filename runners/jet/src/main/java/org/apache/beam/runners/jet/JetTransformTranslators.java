@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.jet;
 
+import com.hazelcast.function.SupplierEx;
 import com.hazelcast.jet.core.Processor;
 import com.hazelcast.jet.core.ProcessorMetaSupplier;
 import com.hazelcast.jet.core.Vertex;
-import com.hazelcast.jet.function.SupplierEx;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;

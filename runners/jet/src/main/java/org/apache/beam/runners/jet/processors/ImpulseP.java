@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.jet.processors;
 
+import com.hazelcast.cluster.Address;
 import com.hazelcast.jet.core.AbstractProcessor;
 import com.hazelcast.jet.core.Processor;
 import com.hazelcast.jet.core.ProcessorMetaSupplier;
 import com.hazelcast.jet.core.ProcessorSupplier;
-import com.hazelcast.nio.Address;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
