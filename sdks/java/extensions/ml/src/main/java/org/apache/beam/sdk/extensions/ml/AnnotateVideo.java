@@ -18,7 +18,13 @@
 package org.apache.beam.sdk.extensions.ml;
 
 import com.google.api.gax.longrunning.OperationFuture;
-import com.google.cloud.videointelligence.v1.*;
+import com.google.cloud.videointelligence.v1.AnnotateVideoProgress;
+import com.google.cloud.videointelligence.v1.AnnotateVideoRequest;
+import com.google.cloud.videointelligence.v1.AnnotateVideoResponse;
+import com.google.cloud.videointelligence.v1.Feature;
+import com.google.cloud.videointelligence.v1.VideoAnnotationResults;
+import com.google.cloud.videointelligence.v1.VideoContext;
+import com.google.cloud.videointelligence.v1.VideoIntelligenceServiceClient;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.List;
@@ -30,8 +36,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 /**
  * Base class for Video Intelligence transform.
  *
- * @param <T> Class of input data being passed in - either ByteString - video data encoded into
- *     String or String - a GCS URI of the video to be annotated
+ * @param <T> Class of input data being passed in - either ByteString - video data encoded into.
+ *     String or String - a GCS URI of the video to be annotated.
  */
 public abstract class AnnotateVideo<T> extends DoFn<T, List<VideoAnnotationResults>> {
 
@@ -61,7 +67,7 @@ public abstract class AnnotateVideo<T> extends DoFn<T, List<VideoAnnotationResul
   }
 
   /**
-   * Call the Video Intelligence Cloud AI service and return annotation results
+   * Call the Video Intelligence Cloud AI service and return annotation results.
    *
    * @param elementURI This or elementContents is required. GCS address of video to be annotated
    * @param elementContents this or elementURI is required. Hex-encoded contents of video to be

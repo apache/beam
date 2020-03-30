@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.ml;
 
-import com.google.cloud.videointelligence.v1.*;
+import com.google.cloud.videointelligence.v1.Feature;
+import com.google.cloud.videointelligence.v1.VideoAnnotationResults;
+import com.google.cloud.videointelligence.v1.VideoContext;
 import com.google.protobuf.ByteString;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +64,7 @@ public class VideoIntelligence {
   }
 
   /**
-   * Annotates videos from key-value pairs of GCS URI and VideoContext
+   * Annotates videos from key-value pairs of GCS URI and VideoContext.
    *
    * @param featureList List of features to be annotated
    * @return DoFn performing the necessary operations
@@ -72,7 +74,7 @@ public class VideoIntelligence {
   }
 
   /**
-   * Annotates videos from key-value pairs of ByteStrings and VideoContext
+   * Annotates videos from key-value pairs of ByteStrings and VideoContext.
    *
    * @param featureList List of features to be annotated
    * @return DoFn performing the necessary operations
@@ -84,7 +86,7 @@ public class VideoIntelligence {
 
   /**
    * Implementation of AnnotateVideo accepting Strings as contents of input PCollection. Annotates
-   * videos found on GCS based on URIs from input PCollection
+   * videos found on GCS based on URIs from input PCollection.
    */
   public static class AnnotateVideoFromURI extends AnnotateVideo<String> {
 
@@ -120,7 +122,7 @@ public class VideoIntelligence {
       super(contextSideInput, featureList);
     }
 
-    /** Implementation of ProcessElement */
+    /** Implementation of ProcessElement. */
     @Override
     public void processElement(ProcessContext context)
         throws ExecutionException, InterruptedException {
@@ -145,7 +147,7 @@ public class VideoIntelligence {
       super(featureList);
     }
 
-    /** ProcessElement implementation */
+    /** ProcessElement implementation. */
     @Override
     public void processElement(ProcessContext context)
         throws ExecutionException, InterruptedException {
@@ -168,7 +170,7 @@ public class VideoIntelligence {
       super(featureList);
     }
 
-    /** ProcessElement implementation */
+    /** ProcessElement implementation. */
     @Override
     public void processElement(ProcessContext context)
         throws ExecutionException, InterruptedException {
