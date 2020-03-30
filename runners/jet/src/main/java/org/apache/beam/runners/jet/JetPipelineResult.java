@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.jet;
 
-import com.hazelcast.jet.IMapJet;
 import com.hazelcast.jet.Job;
 import com.hazelcast.jet.core.JobStatus;
+import com.hazelcast.map.IMap;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
@@ -48,7 +48,7 @@ public class JetPipelineResult implements PipelineResult {
 
   private CompletableFuture<Void> completionFuture;
 
-  JetPipelineResult(@Nonnull Job job, @Nonnull IMapJet<String, MetricUpdates> metricsAccumulator) {
+  JetPipelineResult(@Nonnull Job job, @Nonnull IMap<String, MetricUpdates> metricsAccumulator) {
     this.job = Objects.requireNonNull(job);
     // save the terminal state when the job completes because the `job` instance will become invalid
     // afterwards
