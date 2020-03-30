@@ -281,7 +281,7 @@ message StandardPTransforms {
     // Payload: CombinePayload
     COMBINE_GROUPED_VALUES = 3 [(beam_urn) = "beam:transform:combine_grouped_values:v1"];
 
-    // Represents the Contert To Accumulators transform, as described in the
+    // Represents the Convert To Accumulators transform, as described in the
     // following document:
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.h5697l1scd9x
     // Payload: CombinePayload
