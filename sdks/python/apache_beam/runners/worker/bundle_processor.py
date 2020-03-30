@@ -1595,6 +1595,20 @@ def create_combine_per_key_extract_outputs(
 
 
 @BeamTransformFactory.register_urn(
+    common_urns.combine_components.COMBINE_PER_KEY_CONVERT_TO_ACCUMULATORS.urn,
+    beam_runner_api_pb2.CombinePayload)
+def create_combine_per_key_convert_to_accumulators(
+    factory,  # type: BeamTransformFactory
+    transform_id,  # type: str
+    transform_proto,  # type: beam_runner_api_pb2.PTransform
+    payload,  # type: beam_runner_api_pb2.CombinePayload
+    consumers  # type: Dict[str, List[operations.Operation]]
+):
+  return _create_combine_phase_operation(
+      factory, transform_id, transform_proto, payload, consumers, 'convert')
+
+
+@BeamTransformFactory.register_urn(
     common_urns.combine_components.COMBINE_GROUPED_VALUES.urn,
     beam_runner_api_pb2.CombinePayload)
 def create_combine_grouped_values(

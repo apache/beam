@@ -280,6 +280,15 @@ message StandardPTransforms {
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.aj86ew4v1wk
     // Payload: CombinePayload
     COMBINE_GROUPED_VALUES = 3 [(beam_urn) = "beam:transform:combine_grouped_values:v1"];
+
+    // Represents the Contert To Accumulators transform, as described in the
+    // following document:
+    //
+    https://s.apache.org/beam-runner-api-combine-model#heading=h.h5697l1scd9x
+    // Payload: CombinePayload
+    COMBINE_PER_KEY_CONVERT_TO_ACCUMULATORS = 4
+        [(beam_urn) =
+             "beam:transform:combine_per_key_convert_to_accumulators:v1"];
   }
   // Payload for all of these: ParDoPayload containing the user's SDF
   enum SplittableParDoComponents {
