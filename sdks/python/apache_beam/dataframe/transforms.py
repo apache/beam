@@ -80,9 +80,10 @@ class DataframeTransform(transforms.PTransform):
     # Likewise the output may be a dict, tuple, or raw (deferred) Dataframe.
     result_dict = wrap_as_dict(result_frames)
 
-    result_pcolls = self._apply_deferred_ops(
-        {placeholders[key]._expr: pcoll
-         for key, pcoll in input_dict.items()},
+    result_pcolls = {
+        placeholders[key]._expr: pcoll
+        for key, pcoll in input_dict.items()
+    } | 'Eval' >> DataframeExpressionsTransform(
         {key: df._expr
          for key, df in result_dict.items()})
 
@@ -93,6 +94,14 @@ class DataframeTransform(transforms.PTransform):
       return tuple((value for _, value in sorted(result_pcolls.items())))
     else:
       return result_pcolls[None]
+
+
+class DataframeExpressionsTransform(transforms.PTransform):
+  def __init__(self, outputs):
+    self._outputs = outputs
+
+  def expand(self, inputs):
+    return self._apply_deferred_ops(inputs, self._outputs)
 
   def _apply_deferred_ops(
       self,
