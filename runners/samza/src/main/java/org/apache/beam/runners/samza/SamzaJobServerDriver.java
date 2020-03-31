@@ -26,7 +26,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
+import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemLegacyArtifactStagingService;
 import org.apache.beam.runners.fnexecution.jobsubmission.InMemoryJobService;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
@@ -94,7 +94,7 @@ public class SamzaJobServerDriver {
         null,
         (String session) -> {
           try {
-            return BeamFileSystemArtifactStagingService.generateStagingSessionToken(
+            return BeamFileSystemLegacyArtifactStagingService.generateStagingSessionToken(
                 session, "/tmp/beam-artifact-staging");
           } catch (Exception exn) {
             throw new RuntimeException(exn);

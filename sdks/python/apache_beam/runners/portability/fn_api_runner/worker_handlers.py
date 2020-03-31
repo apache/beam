@@ -407,7 +407,7 @@ class BasicProvisionService(beam_provision_api_pb2_grpc.ProvisionServiceServicer
 
 
 class EmptyArtifactRetrievalService(
-    beam_artifact_api_pb2_grpc.ArtifactRetrievalServiceServicer):
+    beam_artifact_api_pb2_grpc.LegacyArtifactRetrievalServiceServicer):
   def GetManifest(self, request, context=None):
     return beam_artifact_api_pb2.GetManifestResponse(
         manifest=beam_artifact_api_pb2.Manifest())
@@ -460,10 +460,10 @@ class GrpcServer(object):
       if self.provision_info.artifact_staging_dir:
         service = artifact_service.BeamFilesystemArtifactService(
             self.provision_info.artifact_staging_dir
-        )  # type: beam_artifact_api_pb2_grpc.ArtifactRetrievalServiceServicer
+        )  # type: beam_artifact_api_pb2_grpc.LegacyArtifactRetrievalServiceServicer
       else:
         service = EmptyArtifactRetrievalService()
-      beam_artifact_api_pb2_grpc.add_ArtifactRetrievalServiceServicer_to_server(
+      beam_artifact_api_pb2_grpc.add_LegacyArtifactRetrievalServiceServicer_to_server(
           service, self.control_server)
 
     self.data_plane_handler = data_plane.BeamFnDataServicer(
@@ -642,6 +642,8 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
     self.worker_thread.join()
 
 
+# The subprocesses module is not threadsafe on Python 2.7. Use this lock to
+# prevent concurrent calls to POpen().
 SUBPROCESS_LOCK = threading.Lock()
 
 

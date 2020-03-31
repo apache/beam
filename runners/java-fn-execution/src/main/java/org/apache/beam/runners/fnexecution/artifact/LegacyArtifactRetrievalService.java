@@ -20,4 +20,4 @@ package org.apache.beam.runners.fnexecution.artifact;
 import org.apache.beam.runners.fnexecution.FnService;
 
 /** An implementation of the Beam Artifact Retrieval Service. */
-public interface ArtifactRetrievalService extends FnService {}
+public interface LegacyArtifactRetrievalService extends FnService {}
