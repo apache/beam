@@ -155,6 +155,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Utf8;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -236,6 +237,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     if (dataflowOptions.getAppName() == null) {
       missing.add("appName");
+    }
+    if (Strings.isNullOrEmpty(dataflowOptions.getRegion())) {
+      missing.add("region");
     }
     if (missing.size() > 0) {
       throw new IllegalArgumentException(
