@@ -633,46 +633,52 @@ class Pipeline(object):
       if type_options is not None and type_options.pipeline_type_check:
         transform.type_check_outputs(pvalueish_result)
 
-      for result in ptransform.get_nested_pvalues(pvalueish_result):
-        assert isinstance(result, (pvalue.PValue, pvalue.DoOutputsTuple))
+        # TODO(BEAM-9322): Set the default to True when tested to work.
+      if self._options.view_as(DebugOptions).lookup_experiment(
+          'passthrough_pcollection_output_ids', default=True):
+        for tag, result in ptransform.get_nested_pvalues(pvalueish_result):
+          assert isinstance(result, (pvalue.PValue, pvalue.DoOutputsTuple))
 
-        # Make sure we set the producer only for a leaf node in the transform
-        # DAG. This way we preserve the last transform of a composite transform
-        # as being the real producer of the result.
-        if result.producer is None:
-          result.producer = current
+          # Make sure we set the producer only for a leaf node in the transform DAG.
+          # This way we preserve the last transform of a composite transform as
+          # being the real producer of the result.
+          if result.producer is None:
+            result.producer = current
 
-        self._infer_result_type(transform, inputs, result)
+          self._infer_result_type(transform, inputs, result)
 
-        assert isinstance(result.producer.inputs, tuple)
-        # The DoOutputsTuple adds the PCollection to the outputs when accessed
-        # except for the main tag. Add the main tag here.
-        if isinstance(result, pvalue.DoOutputsTuple):
-          current.add_output(result, result._main_tag)
-          continue
+          assert isinstance(result.producer.inputs, tuple)
+          # The DoOutputsTuple adds the PCollection to the outputs when accessed
+          # except for the main tag. Add the main tag here.
+          if isinstance(result, pvalue.DoOutputsTuple):
+            current.add_output(result, result._main_tag)
+            continue
 
-        # TODO(BEAM-9322): Remove the experiment check and have this
-        # conditional be the default.
-        if self._options.view_as(DebugOptions).lookup_experiment(
-            'passthrough_pcollection_output_ids', default=False):
-          # Passthrough the PCollection output_ids from the PCollection tag.
-          # Only generate a tag if there are multiple PCollections that have a
-          # None tag. This happens when returning multiple PCollections from a
-          # composite.
-          if result.tag is None and None in current.outputs:
-            tag = len(current.outputs)
-          else:
-            tag = result.tag
           current.add_output(result, tag)
-          continue
+      else:
+        for result in ptransform.get_flattened_pvalues(pvalueish_result):
+          assert isinstance(result, (pvalue.PValue, pvalue.DoOutputsTuple))
 
-        # TODO(BEAM-9322): Find the best auto-generated tags for nested
-        # PCollections.
-        # If the user wants the old implementation of always generated
-        # PCollection output ids, then set the tag to None first, then count up
-        # from 1.
-        tag = len(current.outputs) if None in current.outputs else None
-        current.add_output(result, tag)
+          # Make sure we set the producer only for a leaf node in the transform DAG.
+          # This way we preserve the last transform of a composite transform as
+          # being the real producer of the result.
+          if result.producer is None:
+            result.producer = current
+
+          self._infer_result_type(transform, inputs, result)
+
+          assert isinstance(result.producer.inputs, tuple)
+          # The DoOutputsTuple adds the PCollection to the outputs when accessed
+          # except for the main tag. Add the main tag here.
+          if isinstance(result, pvalue.DoOutputsTuple):
+            current.add_output(result, result._main_tag)
+            continue
+
+          # If the user wants the old implementation of always generated
+          # PCollection output ids, then set the tag to None first, then count up
+          # from 1.
+          tag = len(current.outputs) if None in current.outputs else None
+          current.add_output(result, tag)
 
       if (type_options is not None and
           type_options.type_check_strictness == 'ALL_REQUIRED' and
@@ -684,6 +690,7 @@ class Pipeline(object):
             'PTransform %s' % ptransform_name)
     finally:
       self.transforms_stack.pop()
+
     return pvalueish_result
 
   def _infer_result_type(

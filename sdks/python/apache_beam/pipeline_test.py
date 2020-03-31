@@ -592,6 +592,51 @@ class PipelineTest(unittest.TestCase):
     self.assertIs(pcoll2_unbounded.is_bounded, False)
     self.assertIs(merged.is_bounded, False)
 
+  def test_nested_pcollections_naming(self):
+    p = TestPipeline(
+        additional_pipeline_args=[
+            '--experiments=passthrough_pcollection_output_ids'
+        ])
+
+    class OutputsNestedPCollectionTuple(beam.PTransform):
+      def expand(self, pcoll):
+        partition_1 = pcoll | "partition_1" >> beam.Partition(
+            lambda _0, _1, _2: 0, 2)
+        partition_2 = pcoll | "partition_2" >> beam.Partition(
+            lambda _0, _1, _2: 0, 2)
+        return (('p_1', partition_1[0]), ('p_2', partition_2[0]))
+
+    class OutputsNestedPCollectionDict(beam.PTransform):
+      def expand(self, pcoll):
+        partition_1 = pcoll | "partition_1" >> beam.Partition(
+            lambda _0, _1, _2: 0, 2)
+        partition_2 = pcoll | "partition_2" >> beam.Partition(
+            lambda _0, _1, _2: 0, 2)
+
+        print('returning')
+        return {'p_1': partition_1[0], 'p_2': partition_2[0]}
+
+    result = p | OutputsNestedPCollectionTuple()
+
+    class Visitor(PipelineVisitor):
+      def __init__(self):
+        self.output_tags = []
+
+      def enter_composite_transform(self, transform_node):
+        if isinstance(
+            transform_node.transform,
+            (OutputsNestedPCollectionTuple, OutputsNestedPCollectionDict)):
+          self.output_tags = list(transform_node.outputs.keys())
+
+      def accept(self, p):
+        p.visit(self)
+        return self.output_tags
+
+    # print('here', Visitor().accept(p))
+    self.assertListEqual(
+        Visitor().accept(p), ['p_1', 'p_2'])
+    # print([r.tag for r in result.values()])
+
 
 class DoFnTest(unittest.TestCase):
   def test_element(self):

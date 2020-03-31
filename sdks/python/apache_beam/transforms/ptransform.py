@@ -251,6 +251,27 @@ class _GetPValues(_PValueishTransform):
 
 
 def get_nested_pvalues(pvalueish):
+  if not pvalueish:
+    return []
+
+  if isinstance(pvalueish, pvalue.DoOutputsTuple):
+    return [('', pvalueish)]
+
+  if isinstance(pvalueish, dict):
+    return pvalueish.items()
+
+  if isinstance(pvalueish, tuple):
+    if hasattr(pvalueish, '_asdict'):
+      return pvalueish._asdict().items()
+    return pvalueish
+
+  if isinstance(pvalueish, pvalue.PValue):
+    return [(pvalueish.tag, pvalueish)]
+
+  return []
+
+
+def get_flattened_pvalues(pvalueish):
   pvalues = []
   _GetPValues().visit(pvalueish, pvalues)
   return pvalues

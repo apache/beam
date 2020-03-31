@@ -797,11 +797,11 @@ class PTransformTest(unittest.TestCase):
   def test_tuple_twice(self):
     class Duplicate(PTransform):
       def expand(self, pcoll):
-        return pcoll, pcoll
+        return ((0, pcoll), (1, pcoll))
 
     res1, res2 = [1, 2, 4, 8] | Duplicate()
-    self.assertEqual(sorted(res1), [1, 2, 4, 8])
-    self.assertEqual(sorted(res2), [1, 2, 4, 8])
+    self.assertEqual(sorted(res1[1]), [1, 2, 4, 8])
+    self.assertEqual(sorted(res2[1]), [1, 2, 4, 8])
 
 
 @beam.ptransform_fn
