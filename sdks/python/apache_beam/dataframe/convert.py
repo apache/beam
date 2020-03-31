@@ -49,8 +49,7 @@ def to_pcollection(*dataframes, **kwargs):
       for key, value in previous_frame.f_globals.items():
         if obj is value:
           return key
-      else:
-        return '...'
+      return '...'
 
     label = 'ToDataframe(%s)' % ', '.join(name(e) for e in dataframes)
 
