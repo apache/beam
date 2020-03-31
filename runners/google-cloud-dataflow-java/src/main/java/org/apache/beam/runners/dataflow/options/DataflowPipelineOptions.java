@@ -213,7 +213,7 @@ public interface DataflowPipelineOptions
   /**
    * Factory for a default value for Google Cloud region according to
    * https://cloud.google.com/compute/docs/gcloud-compute/#default-properties. If no other default
-   * can be found, returns "us-central1".
+   * can be found, returns the empty string.
    */
   class DefaultGcpRegionFactory implements DefaultValueFactory<String> {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultGcpRegionFactory.class);
@@ -235,11 +235,7 @@ public interface DataflowPipelineOptions
         // Ignore.
         LOG.debug("Unable to get gcloud compute region", e);
       }
-      LOG.warn(
-          "Region will default to us-central1. Future releases of Beam will "
-              + "require the user to set the region explicitly. "
-              + "https://cloud.google.com/compute/docs/regions-zones/regions-zones");
-      return "us-central1";
+      return "";
     }
 
     @VisibleForTesting
