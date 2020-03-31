@@ -59,16 +59,39 @@ Issue following command in the Beam examples project to start new Jet cluster an
 ```
 
 ### Running WordCount on a Remote Jet Cluster ##
-Download latest stable Hazelcast Jet version, that Beam depends on, from 
-[Hazelcast Jet Website](https://jet-start.sh/download). At the time of writing the 
-[latest Beam release]({{site.baseurl}}/get-started/downloads/#releases) is 2.19.0, which still depends on Hazelcast
-Jet 3.0, but following versions should migrate to Jet 4.0.
+The Beam examples project, when generated from an archetype, comes from a particular released Beam version (that's what
+the `archetypeVersion` property is about). Each Beam version that contains the Jet Runner (ie. from 2.14.0 onwards)
+uses a certain version of Jet. Because of this, when we start a stand-alone Jet cluster and try to run Beam examples on
+it we need to make sure the two are compatible. See following table for which Jet version is recommended for various
+Beam versions.  
+
+<table class="table table-bordered">
+<tr>
+  <th>Beam Version</th>
+  <th>Compatible Jet Versions</th>
+</tr>
+<tr>
+  <td>2.20.0 or newer</td>
+  <td>4.x</td>
+</tr>
+<tr>
+  <td>2.14.0 - 2.19.0</td>
+  <td>3.x</td>
+</tr>
+<tr>
+  <td>2.13.0 or older</td>
+  <td>N/A</td>
+</tr>
+</table>
+
+Download latest Hazelcast Jet version compatible with the Beam you are using from 
+[Hazelcast Jet Website](https://jet-start.sh/download). 
 
 <nav class="version-switcher">
   <strong>Adapt for:</strong>
   <ul>
-    <li data-type="version-jet3">Hazelcast Jet 3.0</li>
-    <li data-type="version-jet4">Hazelcast Jet 4.0</li>
+    <li data-type="version-jet3">Hazelcast Jet 3.x</li>
+    <li data-type="version-jet4">Hazelcast Jet 4.x</li>
   </ul>
 </nav>
 
