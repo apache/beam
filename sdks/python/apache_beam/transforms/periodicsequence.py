@@ -102,7 +102,6 @@ class ImpulseSeqGenDoFn(beam.DoFn):
 
 
 class PeriodicSequence(PTransform):
-
   """
   PeriodicSequence transform receives tuple elements with three parts:
 

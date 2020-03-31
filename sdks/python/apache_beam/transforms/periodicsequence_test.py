@@ -95,5 +95,6 @@ class PeriodicSequenceTest(unittest.TestCase):
       k = [it + x * interval for x in range(0, int(duration / interval), 1)]
       assert_that(result, equal_to(k))
 
+
 if __name__ == '__main__':
   unittest.main()
