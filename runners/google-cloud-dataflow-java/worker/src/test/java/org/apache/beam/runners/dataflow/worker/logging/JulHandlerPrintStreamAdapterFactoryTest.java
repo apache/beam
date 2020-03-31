@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
 import java.io.PrintStream;
+import java.nio.charset.Charset;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import org.apache.beam.runners.dataflow.worker.LogSaver;
