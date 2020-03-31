@@ -15,31 +15,29 @@
 # limitations under the License.
 #
 
-"""A script to pull licenses for Python.
+"""
+A script to pull licenses for Python.
+The script is executed within Docker.
 """
 import json
 import os
 import shutil
 import subprocess
 import sys
-import wget
+import tempfile
+import traceback
 import yaml
 
+from future.moves.urllib.request import urlopen
 from tenacity import retry
 from tenacity import stop_after_attempt
+from tenacity import wait_exponential
+
+LICENSE_DIR = '/opt/apache/beam/third_party_licenses'
 
 
 def run_bash_command(command):
-  process = subprocess.Popen(
-      command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-  result, error = process.communicate()
-  if error:
-    raise RuntimeError(
-        'Error occurred when running a bash command.',
-        'command: {command}, error: {error}'.format(
-            command=command, error=error.decode('utf-8')),
-    )
-  return result.decode('utf-8')
+  return subprocess.check_output(command.split()).decode('utf-8')
 
 
 def run_pip_licenses():
@@ -54,7 +52,7 @@ def copy_license_files(dep):
   if source_license_file.lower() == 'unknown':
     return False
   name = dep['Name'].lower()
-  dest_dir = '/'.join([license_dir, name])
+  dest_dir = '/'.join([LICENSE_DIR, name])
   try:
     os.mkdir(dest_dir)
     shutil.copy(source_license_file, dest_dir + '/LICENSE')
@@ -63,11 +61,13 @@ def copy_license_files(dep):
             dep=name))
     return True
   except Exception as e:
-    print(e)
-    return False
+    print(
+        'Failed to copy from {source} to {dest}'.format(
+            source=source_license_file, dest=dest_dir + '/LICENSE'))
+    traceback.print_exc()
 
 
-@retry(stop=stop_after_attempt(3))
+@retry(wait=wait_exponential(multiplier=1, min=30, max=180))
 def pull_from_url(dep, configs):
   '''
   :param dep: name of a dependency
@@ -77,54 +77,44 @@ def pull_from_url(dep, configs):
   It downloads files form urls to a temp directory first in order to avoid
   to deal with any temp files. It helps keep clean final directory.
   '''
-  if dep in configs.keys():
+  if dep in configs:
     config = configs[dep]
-    dest_dir = '/'.join([license_dir, dep])
-    cur_temp_dir = 'temp_license_' + dep
-    os.mkdir(cur_temp_dir)
+    dest_dir = '/'.join([LICENSE_DIR, dep])
+    cur_temp_dir = tempfile.mkdtemp()
 
     try:
       if config['license'] == 'skip':
         print('Skip pulling license for ', dep)
-      elif config['license'] == 'manual':
-        shutil.copyfile(
-            '/tmp/manual_licenses/{dep}/LICENSE'.format(dep=dep),
-            cur_temp_dir + '/LICENSE')
+      else:
+        url_read = urlopen(config['license'])
+        with open(cur_temp_dir + '/LICENSE', 'wb') as temp_write:
+          shutil.copyfileobj(url_read, temp_write, length=1 << 20)
         print(
-            'Successfully copied license for {dep} from manual_licenses/{dep}/'
-            'LICENSE.'.format(dep=dep))
-      else:  # pull from url
-        wget.download(config['license'], cur_temp_dir + '/LICENSE')
-        print(
-            'Successfully pulled license for {dep} from internet.'.format(
-                dep=dep))
+            'Successfully pulled license for {dep} from {url}.'.format(
+                dep=dep, url=config['license']))
 
       # notice is optional.
       if 'notice' in config:
-        wget.download(config['notice'], cur_temp_dir + '/NOTICE')
-      # copy from temp dir to final dir only when either file is available.
-      if os.listdir(cur_temp_dir):
-        shutil.copytree(cur_temp_dir, dest_dir)
-      result = True
-    except Exception as e:
-      print(
-          'Error occurred when pull license for {dep} from {url}. \n'
-          'Error: {error}'.format(dep=dep, url=config, error=e.decode('utf-8')))
-      result = False
-    finally:
+        url_read = urlopen(config['notice'])
+        with open(cur_temp_dir + '/NOTICE', 'wb') as temp_write:
+          shutil.copyfileobj(url_read, temp_write, length=1 << 20)
+
+      shutil.copytree(cur_temp_dir, dest_dir)
       shutil.rmtree(cur_temp_dir)
-      return result
-  else:
-    return False
+      return True
+    except Exception as e:
+      shutil.rmtree(cur_temp_dir)
+      print(
+          'Error occurred when pull license for {dep} from {url}.'.format(
+              dep=dep, url=config))
+      traceback.print_exc()
 
 
 if __name__ == "__main__":
-  # the script is executed within DockerFile.
-  license_dir = '/opt/apache/beam/third_party_licenses'
-  os.makedirs(license_dir)
+  os.makedirs(LICENSE_DIR)
   no_licenses = []
 
-  with open('/tmp/dep_urls_py.yaml') as file:
+  with open('/tmp/license_scripts/dep_urls_py.yaml') as file:
     dep_config = yaml.full_load(file)
 
   dependencies = run_pip_licenses()
@@ -143,11 +133,11 @@ if __name__ == "__main__":
              'and add urls to RAW license file at sdks/python/container/' \
              'license_scripts/dep_urls_py.yaml for each missing license ' \
              'and rerun the test. If no such urls can be found, you need ' \
-             'to manually add LICENSE and NOTICE (if possible) files at ' \
+             'to manually add LICENSE and NOTICE (if available) files at ' \
              'sdks/python/container/license_scripts/manual_licenses/{dep}/ ' \
              'and add entries to sdks/python/container/license_scripts/' \
              'dep_urls_py.yaml.'
     raise RuntimeError(
-        'Some dependencies are missing licenses at python{py_ver} environment. '
-        '{license_list} \n {how_to}'.format(
-            py_ver=py_ver, license_list=no_licenses, how_to=how_to))
+        'Could not retrieve licences for packages {license_list} in '
+        'Python{py_ver} environment. \n {how_to}'.format(
+            py_ver=py_ver, license_list=','.join(no_licenses), how_to=how_to))

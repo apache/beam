@@ -37,11 +37,15 @@ dependencies {
 task copyDockerfileDependencies(type: Copy) {
   from configurations.sdkSourceTarball
   from file("../base_image_requirements.txt")
-  from file("../license_scripts")
   into "build/target"
   if(configurations.sdkSourceTarball.isEmpty()) {
       throw new StopExecutionException();
   }
+}
+
+task copyLicenseScrips(type: Copy){
+  from ("../license_scripts")
+  into "build/target/license_scripts"
 }
 
 task copyLauncherDependencies(type: Copy) {
@@ -66,3 +70,4 @@ docker {
 
 dockerPrepare.dependsOn copyLauncherDependencies
 dockerPrepare.dependsOn copyDockerfileDependencies
+dockerPrepare.dependsOn copyLicenseScrips

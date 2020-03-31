@@ -51,7 +51,12 @@ RUN ln -s /usr/bin/ccache /usr/local/bin/gcc
 RUN ccache --set-config=sloppiness=file_macro && ccache --set-config=hash_dir=false
 
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
+ADD target/license_scripts /tmp/license_scripts/
 RUN pip install -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp] && \
+    pip install 'pip-licenses<3.0.0;python_version>="3.5"' && \
+    pip install 'pip-licenses==1.18.0;python_version<="2.7"' && \
+    python /tmp/license_scripts/pull_licenses_py.py && \
+    pip uninstall -y pip-licenses && \
     # Remove pip cache.
     rm -rf /root/.cache/pip
 
@@ -60,15 +65,6 @@ RUN pip freeze --all
 
 COPY target/LICENSE /opt/apache/beam/
 COPY target/NOTICE /opt/apache/beam/
-
-# run the script after all dependencies are installed.
-COPY target/license_requirements.txt /tmp/license_requirements.txt
-RUN pip install -r /tmp/license_requirements.txt --no-cache-dir
-
-COPY target/dep_urls_py.yaml /tmp/dep_urls_py.yaml
-ADD target/manual_licenses /tmp/manual_licenses/
-COPY target/pull_licenses_py.py /tmp/pull_licenses_py.py
-RUN python /tmp/pull_licenses_py.py
 
 ADD target/launcher/linux_amd64/boot /opt/apache/beam/
 ENTRYPOINT ["/opt/apache/beam/boot"]
