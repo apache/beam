@@ -260,6 +260,11 @@ final class ExecutorServiceParallelExecutor
         }
       }
     }
+
+    if (Instant.now().isAfter(completionTime)) {
+      return null;
+    }
+
     return pipelineState.get();
   }
 
