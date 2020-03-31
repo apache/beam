@@ -398,7 +398,6 @@ class BatchLoads<DestinationT, ElementT>
 
     tempTables
         .apply("ReifyRenameInput", new ReifyAsIterable<>())
-        .setCoder(IterableCoder.of(tempTables.getCoder()))
         .apply(
             "WriteRenameUntriggered",
             ParDo.of(
