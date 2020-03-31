@@ -21,6 +21,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import org.junit.Before;
@@ -59,19 +60,35 @@ public class UnownedOutputStreamTest {
 
   @Test
   public void testWrite() throws IOException {
-    ByteArrayOutputStream expected = new ByteArrayOutputStream();
-    ByteArrayOutputStream actual = new ByteArrayOutputStream();
-    UnownedOutputStream osActual = new UnownedOutputStream(actual);
+    CallCountOutputStream fsCount = new CallCountOutputStream();
+    FilterOutputStream fs = new FilterOutputStream(fsCount);
+    CallCountOutputStream osCount = new CallCountOutputStream();
+    UnownedOutputStream os = new UnownedOutputStream(osCount);
 
-    byte[] data0 = "Hello World!".getBytes(StandardCharsets.UTF_8);
-    byte[] data1 = "Welcome!".getBytes(StandardCharsets.UTF_8);
+    byte[] data = "Hello World!".getBytes(StandardCharsets.UTF_8);
+    fs.write(data, 0, data.length);
+    os.write(data, 0, data.length);
+    fs.write('\n');
+    os.write('\n');
 
-    expected.write(data0, 0, data0.length);
-    osActual.write(data0, 0, data0.length);
+    assertEquals(13, fsCount.callCnt);
+    assertEquals(2, osCount.callCnt);
+    assertArrayEquals(fsCount.toByteArray(), osCount.toByteArray());
+  }
 
-    expected.write(data1, 0, data1.length);
-    osActual.write(data1, 0, data1.length);
+  private static final class CallCountOutputStream extends ByteArrayOutputStream {
+    int callCnt;
 
-    assertArrayEquals(expected.toByteArray(), actual.toByteArray());
+    @Override
+    public synchronized void write(int b) {
+      callCnt++;
+      super.write(b);
+    }
+
+    @Override
+    public synchronized void write(byte[] b, int off, int len) {
+      callCnt++;
+      super.write(b, off, len);
+    }
   }
 }
