@@ -39,20 +39,20 @@ import java.util.jar.Manifest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactChunk;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
-import org.apache.beam.model.jobmanagement.v1.ArtifactApi.GetArtifactRequest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.GetManifestRequest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.GetManifestResponse;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.LegacyGetArtifactRequest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest.Location;
-import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
-import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
+import org.apache.beam.model.jobmanagement.v1.LegacyArtifactRetrievalServiceGrpc;
+import org.apache.beam.model.jobmanagement.v1.LegacyArtifactRetrievalServiceGrpc.LegacyArtifactRetrievalServiceBlockingStub;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.resources.PipelineResources;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemLegacyArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -182,12 +182,12 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
   interface ArtifactRetriever {
     GetManifestResponse getManifest(GetManifestRequest request);
 
-    Iterator<ArtifactChunk> getArtifact(GetArtifactRequest request);
+    Iterator<ArtifactChunk> getArtifact(LegacyGetArtifactRequest request);
   }
 
   /**
-   * Copy all artifacts retrievable via the {@link ArtifactRetrievalServiceBlockingStub} to the
-   * {@code outputStream}.
+   * Copy all artifacts retrievable via the {@link LegacyArtifactRetrievalServiceBlockingStub} to
+   * the {@code outputStream}.
    *
    * @return A {@link ProxyManifest} pointing to the artifacts' location in the output jar.
    */
@@ -207,8 +207,8 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
       proxyManifestBuilder.addLocation(
           Location.newBuilder().setName(artifact.getName()).setUri("/" + outputPath).build());
       outputStream.putNextEntry(new JarEntry(outputPath));
-      GetArtifactRequest artifactRequest =
-          GetArtifactRequest.newBuilder()
+      LegacyGetArtifactRequest artifactRequest =
+          LegacyGetArtifactRequest.newBuilder()
               .setRetrievalToken(retrievalToken)
               .setName(artifact.getName())
               .build();
@@ -221,18 +221,19 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
   }
 
   /**
-   * Uses {@link BeamFileSystemArtifactRetrievalService} to fetch artifacts, then writes the
+   * Uses {@link BeamFileSystemLegacyArtifactRetrievalService} to fetch artifacts, then writes the
    * artifacts to {@code outputStream}. Include a {@link ProxyManifest} to locate artifacts later.
    */
   private void writeArtifacts(String retrievalToken, String jobName) throws Exception {
     try (GrpcFnServer artifactServer =
         GrpcFnServer.allocatePortAndCreateFor(
-            BeamFileSystemArtifactRetrievalService.create(), InProcessServerFactory.create())) {
+            BeamFileSystemLegacyArtifactRetrievalService.create(),
+            InProcessServerFactory.create())) {
       ManagedChannel grpcChannel =
           InProcessManagedChannelFactory.create()
               .forDescriptor(artifactServer.getApiServiceDescriptor());
-      ArtifactRetrievalServiceBlockingStub retrievalServiceStub =
-          ArtifactRetrievalServiceGrpc.newBlockingStub(grpcChannel);
+      LegacyArtifactRetrievalServiceBlockingStub retrievalServiceStub =
+          LegacyArtifactRetrievalServiceGrpc.newBlockingStub(grpcChannel);
       ProxyManifest proxyManifest =
           copyStagedArtifacts(
               retrievalToken,
@@ -243,7 +244,7 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
                 }
 
                 @Override
-                public Iterator<ArtifactChunk> getArtifact(GetArtifactRequest request) {
+                public Iterator<ArtifactChunk> getArtifact(LegacyGetArtifactRequest request) {
                   return retrievalServiceStub.getArtifact(request);
                 }
               },

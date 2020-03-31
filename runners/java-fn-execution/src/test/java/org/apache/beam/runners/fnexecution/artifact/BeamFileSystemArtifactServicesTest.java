@@ -40,21 +40,21 @@ import java.util.stream.Collectors;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactChunk;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.CommitManifestRequest;
-import org.apache.beam.model.jobmanagement.v1.ArtifactApi.GetArtifactRequest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.GetManifestRequest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.GetManifestResponse;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.LegacyGetArtifactRequest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.Manifest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest.Location;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactRequest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactResponse;
-import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
-import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub;
-import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceStub;
-import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
-import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceBlockingStub;
-import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceStub;
+import org.apache.beam.model.jobmanagement.v1.LegacyArtifactRetrievalServiceGrpc;
+import org.apache.beam.model.jobmanagement.v1.LegacyArtifactRetrievalServiceGrpc.LegacyArtifactRetrievalServiceBlockingStub;
+import org.apache.beam.model.jobmanagement.v1.LegacyArtifactRetrievalServiceGrpc.LegacyArtifactRetrievalServiceStub;
+import org.apache.beam.model.jobmanagement.v1.LegacyArtifactStagingServiceGrpc;
+import org.apache.beam.model.jobmanagement.v1.LegacyArtifactStagingServiceGrpc.LegacyArtifactStagingServiceBlockingStub;
+import org.apache.beam.model.jobmanagement.v1.LegacyArtifactStagingServiceGrpc.LegacyArtifactStagingServiceStub;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.sdk.io.FileSystems;
@@ -77,41 +77,41 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link BeamFileSystemArtifactStagingService} and {@link
- * BeamFileSystemArtifactRetrievalService}.
+ * Tests for {@link BeamFileSystemLegacyArtifactStagingService} and {@link
+ * BeamFileSystemLegacyArtifactRetrievalService}.
  */
 @RunWith(JUnit4.class)
 public class BeamFileSystemArtifactServicesTest {
   private static final int DATA_1KB = 1 << 10;
-  private GrpcFnServer<BeamFileSystemArtifactStagingService> stagingServer;
-  private BeamFileSystemArtifactStagingService stagingService;
-  private GrpcFnServer<BeamFileSystemArtifactRetrievalService> retrievalServer;
-  private BeamFileSystemArtifactRetrievalService retrievalService;
-  private ArtifactStagingServiceStub stagingStub;
-  private ArtifactStagingServiceBlockingStub stagingBlockingStub;
-  private ArtifactRetrievalServiceStub retrievalStub;
-  private ArtifactRetrievalServiceBlockingStub retrievalBlockingStub;
+  private GrpcFnServer<BeamFileSystemLegacyArtifactStagingService> stagingServer;
+  private BeamFileSystemLegacyArtifactStagingService stagingService;
+  private GrpcFnServer<BeamFileSystemLegacyArtifactRetrievalService> retrievalServer;
+  private BeamFileSystemLegacyArtifactRetrievalService retrievalService;
+  private LegacyArtifactStagingServiceStub stagingStub;
+  private LegacyArtifactStagingServiceBlockingStub stagingBlockingStub;
+  private LegacyArtifactRetrievalServiceStub retrievalStub;
+  private LegacyArtifactRetrievalServiceBlockingStub retrievalBlockingStub;
   private Path stagingDir;
   private Path originalDir;
   @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
   @Before
   public void setUp() throws Exception {
-    stagingService = new BeamFileSystemArtifactStagingService();
+    stagingService = new BeamFileSystemLegacyArtifactStagingService();
     stagingServer =
         GrpcFnServer.allocatePortAndCreateFor(stagingService, InProcessServerFactory.create());
     ManagedChannel stagingChannel =
         InProcessChannelBuilder.forName(stagingServer.getApiServiceDescriptor().getUrl()).build();
-    stagingStub = ArtifactStagingServiceGrpc.newStub(stagingChannel);
-    stagingBlockingStub = ArtifactStagingServiceGrpc.newBlockingStub(stagingChannel);
+    stagingStub = LegacyArtifactStagingServiceGrpc.newStub(stagingChannel);
+    stagingBlockingStub = LegacyArtifactStagingServiceGrpc.newBlockingStub(stagingChannel);
 
-    retrievalService = new BeamFileSystemArtifactRetrievalService();
+    retrievalService = new BeamFileSystemLegacyArtifactRetrievalService();
     retrievalServer =
         GrpcFnServer.allocatePortAndCreateFor(retrievalService, InProcessServerFactory.create());
     ManagedChannel retrievalChannel =
         InProcessChannelBuilder.forName(retrievalServer.getApiServiceDescriptor().getUrl()).build();
-    retrievalStub = ArtifactRetrievalServiceGrpc.newStub(retrievalChannel);
-    retrievalBlockingStub = ArtifactRetrievalServiceGrpc.newBlockingStub(retrievalChannel);
+    retrievalStub = LegacyArtifactRetrievalServiceGrpc.newStub(retrievalChannel);
+    retrievalBlockingStub = LegacyArtifactRetrievalServiceGrpc.newBlockingStub(retrievalChannel);
 
     originalDir = tempFolder.newFolder("original").toPath();
     stagingDir = tempFolder.newFolder("staging").toPath();
@@ -192,7 +192,7 @@ public class BeamFileSystemArtifactServicesTest {
   public void generateStagingSessionTokenTest() throws Exception {
     String basePath = stagingDir.toAbsolutePath().toString();
     String stagingToken =
-        BeamFileSystemArtifactStagingService.generateStagingSessionToken("abc123", basePath);
+        BeamFileSystemLegacyArtifactStagingService.generateStagingSessionToken("abc123", basePath);
     Assert.assertEquals(
         "{\"sessionId\":\"abc123\",\"basePath\":\"" + basePath + "\"}", stagingToken);
   }
@@ -209,10 +209,11 @@ public class BeamFileSystemArtifactServicesTest {
   public void noArtifactsTest() throws Exception {
     String stagingSession = "123";
     String stagingSessionToken =
-        BeamFileSystemArtifactStagingService.generateStagingSessionToken(
+        BeamFileSystemLegacyArtifactStagingService.generateStagingSessionToken(
             stagingSession, stagingDir.toUri().getPath());
     String stagingToken = commitManifest(stagingSessionToken, Collections.emptyList());
-    Assert.assertEquals(AbstractArtifactStagingService.NO_ARTIFACTS_STAGED_TOKEN, stagingToken);
+    Assert.assertEquals(
+        AbstractLegacyArtifactStagingService.NO_ARTIFACTS_STAGED_TOKEN, stagingToken);
     Assert.assertFalse(
         Files.exists(Paths.get(stagingDir.toAbsolutePath().toString(), stagingSession)));
 
@@ -228,7 +229,7 @@ public class BeamFileSystemArtifactServicesTest {
     String fileName = "file1";
     String stagingSession = "123";
     String stagingSessionToken =
-        BeamFileSystemArtifactStagingService.generateStagingSessionToken(
+        BeamFileSystemLegacyArtifactStagingService.generateStagingSessionToken(
             stagingSession, stagingDir.toUri().getPath());
     Path srcFilePath = Paths.get(originalDir.toString(), fileName).toAbsolutePath();
     Files.write(srcFilePath, "some_test".getBytes(StandardCharsets.UTF_8));
@@ -241,7 +242,7 @@ public class BeamFileSystemArtifactServicesTest {
         Paths.get(
             stagingDir.toAbsolutePath().toString(),
             stagingSession,
-            BeamFileSystemArtifactStagingService.MANIFEST),
+            BeamFileSystemLegacyArtifactStagingService.MANIFEST),
         Paths.get(stagingToken));
     assertFiles(Collections.singleton(fileName), stagingToken);
     checkCleanup(stagingSessionToken, stagingSession);
@@ -277,7 +278,7 @@ public class BeamFileSystemArtifactServicesTest {
           }
         });
     String stagingSessionToken =
-        BeamFileSystemArtifactStagingService.generateStagingSessionToken(
+        BeamFileSystemLegacyArtifactStagingService.generateStagingSessionToken(
             stagingSession, stagingDir.toUri().getPath());
 
     List<ArtifactMetadata> metadata = new ArrayList<>();
@@ -327,7 +328,7 @@ public class BeamFileSystemArtifactServicesTest {
           }
         });
     String stagingSessionToken =
-        BeamFileSystemArtifactStagingService.generateStagingSessionToken(
+        BeamFileSystemLegacyArtifactStagingService.generateStagingSessionToken(
             stagingSession, stagingDir.toUri().getPath());
 
     List<ArtifactMetadata> metadata = Collections.synchronizedList(new ArrayList<>());
@@ -397,10 +398,10 @@ public class BeamFileSystemArtifactServicesTest {
               }
             });
     String stagingSessionToken1 =
-        BeamFileSystemArtifactStagingService.generateStagingSessionToken(
+        BeamFileSystemLegacyArtifactStagingService.generateStagingSessionToken(
             stagingSession1, stagingDir.toUri().getPath());
     String stagingSessionToken2 =
-        BeamFileSystemArtifactStagingService.generateStagingSessionToken(
+        BeamFileSystemLegacyArtifactStagingService.generateStagingSessionToken(
             stagingSession2, stagingDir.toUri().getPath());
 
     List<ArtifactMetadata> metadata1 = Collections.synchronizedList(new ArrayList<>());
@@ -452,7 +453,7 @@ public class BeamFileSystemArtifactServicesTest {
 
   private void assertFiles(Set<String> files, String retrievalToken) throws Exception {
     ProxyManifest proxyManifest =
-        BeamFileSystemArtifactRetrievalService.loadManifest(retrievalToken);
+        BeamFileSystemLegacyArtifactRetrievalService.loadManifest(retrievalToken);
     GetManifestResponse retrievedManifest =
         retrievalBlockingStub.getManifest(
             GetManifestRequest.newBuilder().setRetrievalToken(retrievalToken).build());
@@ -497,7 +498,10 @@ public class BeamFileSystemArtifactServicesTest {
       throws ExecutionException, InterruptedException {
     CompletableFuture<ByteString> result = new CompletableFuture<>();
     retrievalStub.getArtifact(
-        GetArtifactRequest.newBuilder().setRetrievalToken(retrievalToken).setName(name).build(),
+        LegacyGetArtifactRequest.newBuilder()
+            .setRetrievalToken(retrievalToken)
+            .setName(name)
+            .build(),
         new StreamObserver<ArtifactChunk>() {
           private ByteString data = ByteString.EMPTY;
 

@@ -30,7 +30,7 @@ import (
 func TestStage(t *testing.T) {
 	cc := startServer(t)
 	defer cc.Close()
-	client := pb.NewArtifactStagingServiceClient(cc)
+	client := pb.NewLegacyArtifactStagingServiceClient(cc)
 
 	ctx := grpcx.WriteWorkerID(context.Background(), "idA")
 	keys := []string{"foo", "bar", "baz/baz/baz"}
@@ -59,7 +59,7 @@ func TestStage(t *testing.T) {
 func TestStageDir(t *testing.T) {
 	cc := startServer(t)
 	defer cc.Close()
-	client := pb.NewArtifactStagingServiceClient(cc)
+	client := pb.NewLegacyArtifactStagingServiceClient(cc)
 
 	ctx := grpcx.WriteWorkerID(context.Background(), "idB")
 	keys := []string{"1", "2", "3", "4", "a/5", "a/6", "a/7", "a/8", "a/a/9", "a/a/10", "a/b/11", "a/b/12"}
@@ -81,10 +81,10 @@ func TestStageDir(t *testing.T) {
 }
 
 func validate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys, sha256s []string, rt string) {
-	rcl := pb.NewArtifactRetrievalServiceClient(cc)
+	rcl := pb.NewLegacyArtifactRetrievalServiceClient(cc)
 
 	for i, key := range keys {
-		stream, err := rcl.GetArtifact(ctx, &pb.GetArtifactRequest{Name: key, RetrievalToken: rt})
+		stream, err := rcl.GetArtifact(ctx, &pb.LegacyGetArtifactRequest{Name: key, RetrievalToken: rt})
 		if err != nil {
 			t.Fatalf("failed to get artifact for %v: %v", key, err)
 		}

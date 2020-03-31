@@ -771,10 +771,6 @@ class FnApiRunner(runner.PipelineRunner):
     return StaticGenerator() if static else DynamicGenerator()
 
 
-# The subprocesses module is not threadsafe on Python 2.7. Use this lock to
-# prevent concurrent calls to POpen().
-
-
 class ExtendedProvisionInfo(object):
   def __init__(self,
                provision_info=None,  # type: Optional[beam_provision_api_pb2.ProvisionInfo]

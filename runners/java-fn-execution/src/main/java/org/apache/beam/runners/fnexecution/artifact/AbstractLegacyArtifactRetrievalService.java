@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest;
-import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
+import org.apache.beam.model.jobmanagement.v1.LegacyArtifactRetrievalServiceGrpc;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.JsonFormat;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Status;
@@ -44,17 +44,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An {@link ArtifactRetrievalService} that handles everything aside from actually opening the
+ * An {@link LegacyArtifactRetrievalService} that handles everything aside from actually opening the
  * backing resources.
  */
-public abstract class AbstractArtifactRetrievalService
-    extends ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceImplBase
-    implements ArtifactRetrievalService {
-  private static final Logger LOG = LoggerFactory.getLogger(AbstractArtifactRetrievalService.class);
+public abstract class AbstractLegacyArtifactRetrievalService
+    extends LegacyArtifactRetrievalServiceGrpc.LegacyArtifactRetrievalServiceImplBase
+    implements LegacyArtifactRetrievalService {
+  private static final Logger LOG =
+      LoggerFactory.getLogger(AbstractLegacyArtifactRetrievalService.class);
 
   private static final int ARTIFACT_CHUNK_SIZE_BYTES = 2 << 20; // 2MB
 
-  public AbstractArtifactRetrievalService() {
+  public AbstractLegacyArtifactRetrievalService() {
     this(
         CacheBuilder.newBuilder()
             .expireAfterAccess(1, TimeUnit.HOURS /* arbitrary */)
@@ -62,7 +63,8 @@ public abstract class AbstractArtifactRetrievalService
             .build());
   }
 
-  public AbstractArtifactRetrievalService(Cache<String, ArtifactApi.ProxyManifest> manifestCache) {
+  public AbstractLegacyArtifactRetrievalService(
+      Cache<String, ArtifactApi.ProxyManifest> manifestCache) {
     this.manifestCache = manifestCache;
   }
 
@@ -96,7 +98,7 @@ public abstract class AbstractArtifactRetrievalService
     LOG.info("GetManifest for {}", token);
     try {
       final ArtifactApi.Manifest manifest;
-      if (AbstractArtifactStagingService.NO_ARTIFACTS_STAGED_TOKEN.equals(token)) {
+      if (AbstractLegacyArtifactStagingService.NO_ARTIFACTS_STAGED_TOKEN.equals(token)) {
         manifest = ArtifactApi.Manifest.newBuilder().build();
       } else {
         ArtifactApi.ProxyManifest proxyManifest = getManifestProxy(token);
@@ -118,7 +120,7 @@ public abstract class AbstractArtifactRetrievalService
 
   @Override
   public void getArtifact(
-      ArtifactApi.GetArtifactRequest request,
+      ArtifactApi.LegacyGetArtifactRequest request,
       StreamObserver<ArtifactApi.ArtifactChunk> responseObserver) {
     LOG.debug("GetArtifact {}", request);
     String name = request.getName();

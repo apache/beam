@@ -333,7 +333,7 @@ class UberJarBeamJob(AbstractBeamJob):
     self._artifact_staging_server = grpc.server(futures.ThreadPoolExecutor())
     port = self._artifact_staging_server.add_insecure_port(
         '[::]:%s' % requested_port)
-    beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
+    beam_artifact_api_pb2_grpc.add_LegacyArtifactStagingServiceServicer_to_server(
         self._artifact_staging_service, self._artifact_staging_server)
     self._artifact_staging_endpoint = endpoints_pb2.ApiServiceDescriptor(
         url='localhost:%d' % port)

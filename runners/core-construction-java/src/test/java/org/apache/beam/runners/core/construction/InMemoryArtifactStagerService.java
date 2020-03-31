@@ -34,15 +34,15 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi.Manifest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactRequest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactRequest.ContentCase;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactResponse;
-import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceImplBase;
+import org.apache.beam.model.jobmanagement.v1.LegacyArtifactStagingServiceGrpc.LegacyArtifactStagingServiceImplBase;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 
 /**
- * An {@link ArtifactStagingServiceImplBase ArtifactStagingService} which stores the bytes of the
- * artifacts in memory..
+ * An {@link LegacyArtifactStagingServiceImplBase LegacyArtifactStagingService} which stores the
+ * bytes of the artifacts in memory..
  */
-public class InMemoryArtifactStagerService extends ArtifactStagingServiceImplBase {
+public class InMemoryArtifactStagerService extends LegacyArtifactStagingServiceImplBase {
   private final ConcurrentMap<ArtifactMetadata, byte[]> artifactBytes;
   private final AtomicReference<Manifest> manifest = new AtomicReference<>();
 

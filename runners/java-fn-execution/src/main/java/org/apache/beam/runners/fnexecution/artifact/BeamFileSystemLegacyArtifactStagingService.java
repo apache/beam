@@ -25,7 +25,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.Collections;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest.Location;
-import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceImplBase;
+import org.apache.beam.model.jobmanagement.v1.LegacyArtifactStagingServiceGrpc.LegacyArtifactStagingServiceImplBase;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
@@ -40,21 +40,22 @@ import org.slf4j.LoggerFactory;
 /**
  * This implementation is experimental.
  *
- * <p>{@link ArtifactStagingServiceImplBase} based on beam file system. {@link
- * BeamFileSystemArtifactStagingService} requires {@link StagingSessionToken} in every me call. The
- * manifest is put in {@link StagingSessionToken#getBasePath()}/{@link
+ * <p>{@link LegacyArtifactStagingServiceImplBase} based on beam file system. {@link
+ * BeamFileSystemLegacyArtifactStagingService} requires {@link StagingSessionToken} in every me
+ * call. The manifest is put in {@link StagingSessionToken#getBasePath()}/{@link
  * StagingSessionToken#getSessionId()} and artifacts are put in {@link
  * StagingSessionToken#getBasePath()}/{@link StagingSessionToken#getSessionId()}/{@link
- * BeamFileSystemArtifactStagingService#ARTIFACTS}.
+ * BeamFileSystemLegacyArtifactStagingService#ARTIFACTS}.
  *
  * <p>The returned token is the path to the manifest file.
  *
  * <p>The manifest file is encoded in {@link ProxyManifest}.
  */
-public class BeamFileSystemArtifactStagingService extends AbstractArtifactStagingService {
+public class BeamFileSystemLegacyArtifactStagingService
+    extends AbstractLegacyArtifactStagingService {
 
   private static final Logger LOG =
-      LoggerFactory.getLogger(BeamFileSystemArtifactStagingService.class);
+      LoggerFactory.getLogger(BeamFileSystemLegacyArtifactStagingService.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();
   // Use UTF8 for all text encoding.
   public static final String MANIFEST = "MANIFEST";
@@ -92,7 +93,7 @@ public class BeamFileSystemArtifactStagingService extends AbstractArtifactStagin
     // when no artifacts are staged, the manifest file does not exist
     if (FileSystems.match(manifestResourceId.toString()).status() == MatchResult.Status.OK) {
       ProxyManifest proxyManifest =
-          BeamFileSystemArtifactRetrievalService.loadManifest(manifestResourceId);
+          BeamFileSystemLegacyArtifactRetrievalService.loadManifest(manifestResourceId);
       for (Location location : proxyManifest.getLocationList()) {
         String uri = location.getUri();
         LOG.debug("Removing artifact: {}", uri);
@@ -149,7 +150,8 @@ public class BeamFileSystemArtifactStagingService extends AbstractArtifactStagin
   }
 
   /**
-   * Generate a stagingSessionToken compatible with {@link BeamFileSystemArtifactStagingService}.
+   * Generate a stagingSessionToken compatible with {@link
+   * BeamFileSystemLegacyArtifactStagingService}.
    *
    * @param sessionId Unique sessionId for artifact staging.
    * @param basePath Base path to upload artifacts.
@@ -164,7 +166,7 @@ public class BeamFileSystemArtifactStagingService extends AbstractArtifactStagin
 
   /**
    * Serializable StagingSessionToken used to stage files with {@link
-   * BeamFileSystemArtifactStagingService}.
+   * BeamFileSystemLegacyArtifactStagingService}.
    */
   protected static class StagingSessionToken implements Serializable {
 
