@@ -31,7 +31,6 @@ from past.builtins import unicode
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.options.pipeline_options import DebugOptions
-from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -47,7 +46,7 @@ coders.registry.register_coder(SimpleRow, coders.RowCoder)
 @unittest.skipIf(
     TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
     None,
-    "Must be run with a runner that supports cross-language transforms")
+    "Must be run with a runner that supports staging java artifacts.")
 class SqlTransformTest(unittest.TestCase):
   """Tests that exercise the cross-language SqlTransform (implemented in java).
 
@@ -59,24 +58,23 @@ class SqlTransformTest(unittest.TestCase):
   test on Flink 1.10.
 
   Alternatively, you may be able to iterate faster if you run the tests directly
-  using a runner like `FlinkRunner`, which starts its own job server, but you'll
-  need to spin up a local flink cluster:
+  using a runner like `FlinkRunner`, which can start a local Flink cluster and
+  job server for you:
     $ pip install -e './sdks/python[gcp,test]'
     $ python ./sdks/python/setup.py nosetests \\
         --tests apache_beam.transforms.sql_test \\
-        --test-pipeline-options="--runner=FlinkRunner \\
-                                 --flink_version=1.10 \\
-                                 --flink_master=localhost:8081"
+        --test-pipeline-options="--runner=FlinkRunner"
   """
   @staticmethod
   def make_test_pipeline():
     path_to_jar = subprocess_server.JavaJarServer.path_to_beam_jar(
         ":sdks:java:extensions:sql:expansion-service:shadowJar")
     test_pipeline = TestPipeline()
+    # TODO(BEAM-9238): Remove this when it's no longer needed for artifact
+    # staging.
     test_pipeline.get_pipeline_options().view_as(DebugOptions).experiments = [
         'jar_packages=' + path_to_jar
     ]
-    test_pipeline.not_use_test_runner_api = True
     return test_pipeline
 
   def test_generate_data(self):
@@ -102,6 +100,25 @@ class SqlTransformTest(unittest.TestCase):
           | beam.Create([SimpleRow(1, "foo", 3.14), SimpleRow(2, "bar", 1.414)])
           | SqlTransform("SELECT * FROM PCOLLECTION WHERE `str` = 'bar'"))
       assert_that(out, equal_to([(2, "bar", 1.414)]))
+
+  def test_agg(self):
+    with self.make_test_pipeline() as p:
+      out = (
+          p
+          | beam.Create([
+              SimpleRow(1, "foo", 1.),
+              SimpleRow(1, "foo", 2.),
+              SimpleRow(1, "foo", 3.),
+              SimpleRow(2, "bar", 1.414),
+              SimpleRow(2, "bar", 1.414),
+              SimpleRow(2, "bar", 1.414),
+              SimpleRow(2, "bar", 1.414),
+          ])
+          | SqlTransform(
+              """
+              SELECT `str`, COUNT(*), SUM(`int`), MEAN(`flt`)
+              FROM PCOLLECTION GROUP BY `str`"""))
+      assert_that(out, equal_to([("foo", 3, 2), ("bar", 4, 8, 1.414)]))
 
 
 if __name__ == "__main__":

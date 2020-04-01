@@ -21,7 +21,6 @@ from __future__ import absolute_import
 
 import argparse
 import logging
-import re
 import typing
 
 from past.builtins import unicode
@@ -35,27 +34,8 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.transforms.sql import SqlTransform
 from apache_beam.utils import subprocess_server
 
-MyRow = typing.NamedTuple([('word', unicode)])
+MyRow = typing.NamedTuple('MyRow', [('word', unicode)])
 coders.registry.register_coder(MyRow, coders.RowCoder)
-
-
-class WordExtractingDoFn(beam.DoFn):
-  """Parse each line of input text into words."""
-  def process(self, element):
-    """Returns an iterator over the words of this element.
-
-    The element is a line of text.  If the line is blank, note that, too.
-
-    Args:
-      element: the element being processed
-
-    Returns:
-      The processed element.
-    """
-    text_line = element.strip()
-    for word in re.findall(r'[\w\']+', text_line):
-      yield word
-
 
 # Some more fun queries:
 # ------
@@ -83,7 +63,7 @@ def run(p, input_file, output_file):
   (
       p
       | 'read' >> ReadFromText(input_file)
-      | 'split' >> beam.ParDo(WordExtractingDoFn())
+      | 'split' >> beam.FlatMap(str.split)
       | 'row' >> beam.Map(MyRow).with_output_types(MyRow)
       | 'sql!!' >> SqlTransform(
           """
@@ -118,6 +98,8 @@ def main():
 
   path_to_jar = subprocess_server.JavaJarServer.path_to_beam_jar(
       ":sdks:java:extensions:sql:expansion-service:shadowJar")
+  # TODO(BEAM-9238): Remove this when it's no longer needed for artifact
+  # staging.
   pipeline_args.extend(['--experiment', 'jar_packages=%s' % path_to_jar])
   pipeline_options = PipelineOptions(pipeline_args)
 

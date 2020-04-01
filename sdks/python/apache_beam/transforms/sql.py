@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Transforms that use the SQL Expansion service."""
+"""Package for SqlTransform and related classes."""
 
 # pytype: skip-file
 
@@ -34,6 +34,37 @@ SqlTransformSchema = typing.NamedTuple(
 
 
 class SqlTransform(ExternalTransform):
+  """A transform that can translate a SQL query into PTransforms.
+
+  Input PCollections must have a schema. Currently, this means the PCollection
+  *must* have a NamedTuple output type, and that type must be registered to use
+  RowCoder. For example:
+  ```
+  Purchase = typing.NamedTuple('Purchase',
+                               [('item_name', unicode), ('price', float)])
+  coders.registry.register_coder(Purchase, coders.RowCoder)
+  ```
+
+  Similarly, the output of SqlTransform is a PCollection with a generated
+  NamedTuple type, and columns can be accessed as fields. For example:
+  ```
+  purchases | SqlTransform(\"\"\"
+                SELECT item_name, COUNT(*) AS `count`
+                FROM PCOLLECTION GROUP BY item_name\"\"\")
+            | beam.Map(lambda row: "We've sold %d %ss!" % (row.count,
+                                                           row.item_name))
+  ```
+
+  Additional examples can be found in
+  `apache_beam.examples.wordcount_xlang_sql`, and
+  `apache_beam.transforms.sql_test`.
+
+  For more details about Beam SQL in general see the Java transform [1], and the
+  documentation [2].
+
+  [1] https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/SqlTransform.html # pylint: disable=line-too-long
+  [2] https://beam.apache.org/documentation/dsls/sql/overview/
+  """
   URN = 'beam:external:java:sql:v1'
 
   def __init__(self, query):
