@@ -761,7 +761,7 @@ class WorkerHandlerManager(object):
     self._cached_handlers = collections.defaultdict(
         list)  # type: DefaultDict[str, List[WorkerHandler]]
     self._workers_by_id = {}  # type: Dict[str, WorkerHandler]
-    self._state = StateServicer()  # rename?
+    self.state_servicer = StateServicer()
     self._grpc_server = None  # type: Optional[GrpcServer]
 
   def get_worker_handlers(
@@ -783,14 +783,14 @@ class WorkerHandlerManager(object):
       self._grpc_server = cast(GrpcServer, None)
     elif self._grpc_server is None:
       self._grpc_server = GrpcServer(
-          self._state, self._job_provision_info, self)
+          self.state_servicer, self._job_provision_info, self)
 
     worker_handler_list = self._cached_handlers[environment_id]
     if len(worker_handler_list) < num_workers:
       for _ in range(len(worker_handler_list), num_workers):
         worker_handler = WorkerHandler.create(
             environment,
-            self._state,
+            self.state_servicer,
             self._job_provision_info,
             self._grpc_server)
         _LOGGER.info(
