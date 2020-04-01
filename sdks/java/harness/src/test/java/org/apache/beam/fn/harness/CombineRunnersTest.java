@@ -361,6 +361,7 @@ public class CombineRunnersTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             null,
+            null,
             null);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());
