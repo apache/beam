@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.gcp.datastore.AdaptiveThrottler;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -271,14 +270,10 @@ public class HL7v2IO {
             Metrics.counter(FetchHL7v2Message.HL7v2MessageGetFn.class, "failed-message-reads");
         private static final Logger LOG =
             LoggerFactory.getLogger(FetchHL7v2Message.HL7v2MessageGetFn.class);
-        private final Counter throttledSeconds =
-            Metrics.counter(
-                FetchHL7v2Message.HL7v2MessageGetFn.class, "cumulative-throttling-seconds");
         private final Counter successfulHL7v2MessageGets =
             Metrics.counter(
                 FetchHL7v2Message.HL7v2MessageGetFn.class, "successful-hl7v2-message-gets");
         private HealthcareApiClient client;
-        private transient AdaptiveThrottler throttler;
 
         /** Instantiates a new Hl 7 v 2 message get fn. */
         HL7v2MessageGetFn() {}
@@ -291,14 +286,6 @@ public class HL7v2IO {
         @Setup
         public void instantiateHealthcareClient() throws IOException {
           this.client = new HttpHealthcareApiClient();
-        }
-
-        /** Start bundle. */
-        @StartBundle
-        public void startBundle() {
-          if (throttler == null) {
-            throttler = new AdaptiveThrottler(1200000, 10000, 1.25);
-          }
         }
 
         /**
@@ -324,19 +311,11 @@ public class HL7v2IO {
 
         private Message fetchMessage(HealthcareApiClient client, String msgId)
             throws IOException, ParseException, IllegalArgumentException, InterruptedException {
-          final int throttleWaitSeconds = 5;
           long startTime = System.currentTimeMillis();
-          Sleeper sleeper = Sleeper.DEFAULT;
-          if (throttler.throttleRequest(startTime)) {
-            LOG.info(String.format("Delaying request for %s due to previous failures.", msgId));
-            this.throttledSeconds.inc(throttleWaitSeconds);
-            sleeper.sleep(throttleWaitSeconds * 1000);
-          }
 
           com.google.api.services.healthcare.v1beta1.model.Message msg =
               client.getHL7v2Message(msgId);
 
-          this.throttler.successfulRequest(startTime);
           if (msg == null) {
             throw new IOException(String.format("GET request for %s returned null", msgId));
           }
@@ -556,11 +535,8 @@ public class HL7v2IO {
       private Counter failedMessageWrites =
           Metrics.counter(WriteHL7v2Fn.class, "failed-hl7v2-message-writes");
       private final String hl7v2Store;
-      private final Counter throttledSeconds =
-          Metrics.counter(WriteHL7v2Fn.class, "cumulative-throttling-seconds");
       private final Counter successfulHL7v2MessageWrites =
           Metrics.counter(WriteHL7v2.class, "successful-hl7v2-message-writes");
-      private transient AdaptiveThrottler throttler;
       private final Write.WriteMethod writeMethod;
 
       private static final Logger LOG = LoggerFactory.getLogger(WriteHL7v2.WriteHL7v2Fn.class);
@@ -587,13 +563,6 @@ public class HL7v2IO {
         this.client = new HttpHealthcareApiClient();
       }
 
-      @StartBundle
-      public void startBundle() {
-        if (throttler == null) {
-          throttler = new AdaptiveThrottler(1200000, 10000, 1.25);
-        }
-      }
-
       /**
        * Write messages.
        *
@@ -602,7 +571,6 @@ public class HL7v2IO {
       @ProcessElement
       public void writeMessages(ProcessContext context) {
         HL7v2Message msg = context.element();
-        final int throttleWaitSeconds = 5;
         long startTime = System.currentTimeMillis();
         Sleeper sleeper = Sleeper.DEFAULT;
         switch (writeMethod) {
@@ -611,13 +579,6 @@ public class HL7v2IO {
           case INGEST:
           default:
             try {
-              if (throttler.throttleRequest(startTime)) {
-                LOG.info("Delaying request due to previous failures.");
-                this.throttledSeconds.inc(throttleWaitSeconds);
-                sleeper.sleep(throttleWaitSeconds * 1000);
-                this.throttler.successfulRequest(startTime);
-                this.successfulHL7v2MessageWrites.inc();
-              }
               client.ingestHL7v2Message(hl7v2Store, msg.toModel());
             } catch (Exception e) {
               failedMessageWrites.inc();
