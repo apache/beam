@@ -54,6 +54,7 @@ class ValueProviderTests(unittest.TestCase):
             '--vpt_vp_arg1',
             help='This keyword argument is a value provider',
             default='some value')
+
     options = UserDefinedOptions(['--vpt_vp_arg1', 'abc'])
     self.assertTrue(isinstance(options.vpt_vp_arg1, StaticValueProvider))
     self.assertTrue(options.vpt_vp_arg1.is_accessible())
@@ -64,8 +65,8 @@ class ValueProviderTests(unittest.TestCase):
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument(
-            '--vpt_vp_arg2',
-            help='This keyword argument is a value provider')
+            '--vpt_vp_arg2', help='This keyword argument is a value provider')
+
     options = UserDefinedOptions()
     self.assertTrue(isinstance(options.vpt_vp_arg2, RuntimeValueProvider))
     self.assertFalse(options.vpt_vp_arg2.is_accessible())
@@ -80,6 +81,7 @@ class ValueProviderTests(unittest.TestCase):
             'vpt_vp_arg3',
             help='This positional argument is a value provider',
             default='some value')
+
     options = UserDefinedOptions(['abc'])
     self.assertTrue(isinstance(options.vpt_vp_arg3, StaticValueProvider))
     self.assertTrue(options.vpt_vp_arg3.is_accessible())
@@ -90,8 +92,8 @@ class ValueProviderTests(unittest.TestCase):
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument(
-            'vpt_vp_arg4',
-            help='This positional argument is a value provider')
+            'vpt_vp_arg4', help='This positional argument is a value provider')
+
     options = UserDefinedOptions([])
     self.assertTrue(isinstance(options.vpt_vp_arg4, RuntimeValueProvider))
     self.assertFalse(options.vpt_vp_arg4.is_accessible())
@@ -103,9 +105,7 @@ class ValueProviderTests(unittest.TestCase):
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument(
-            '--vpt_vp_arg5',
-            type=int,
-            help='This flag is a value provider')
+            '--vpt_vp_arg5', type=int, help='This flag is a value provider')
 
     options = UserDefinedOptions(['--vpt_vp_arg5', '123'])
     self.assertTrue(isinstance(options.vpt_vp_arg5, StaticValueProvider))
@@ -119,7 +119,7 @@ class ValueProviderTests(unittest.TestCase):
       def _add_argparse_args(cls, parser):
         parser.add_value_provider_argument(
             '--vpt_vp_arg6',
-            help='This keyword argument is a value provider')   # set at runtime
+            help='This keyword argument is a value provider')  # set at runtime
 
         parser.add_value_provider_argument(         # not set, had default int
             '-v', '--vpt_vp_arg7',                      # with short form
@@ -152,8 +152,9 @@ class ValueProviderTests(unittest.TestCase):
 
     # provide values at job-execution time
     # (options not provided here will use their default, if they have one)
-    RuntimeValueProvider.set_runtime_options({'vpt_vp_arg6': 'abc',
-                                              'vpt_vp_arg10':'3.2'})
+    RuntimeValueProvider.set_runtime_options({
+        'vpt_vp_arg6': 'abc', 'vpt_vp_arg10': '3.2'
+    })
     self.assertTrue(options.vpt_vp_arg6.is_accessible())
     self.assertEqual(options.vpt_vp_arg6.get(), 'abc')
     self.assertTrue(options.vpt_vp_arg7.is_accessible())
@@ -178,6 +179,7 @@ class ValueProviderTests(unittest.TestCase):
             choices=[1, 2],
             type=int,
             help='This flag is a value provider with concrete choices')
+
     options = UserDefinedOptions(['--vpt_vp_arg11', 'a', '--vpt_vp_arg12', '2'])
     self.assertEqual(options.vpt_vp_arg11, 'a')
     self.assertEqual(options.vpt_vp_arg12, 2)
@@ -195,6 +197,7 @@ class ValueProviderTests(unittest.TestCase):
             choices=[1, 2],
             type=int,
             help='This flag is a value provider with concrete choices')
+
     options = UserDefinedOptions(['--vpt_vp_arg13', 'a', '--vpt_vp_arg14', '2'])
     self.assertEqual(options.vpt_vp_arg13.get(), 'a')
     self.assertEqual(options.vpt_vp_arg14.get(), 2)
@@ -203,8 +206,7 @@ class ValueProviderTests(unittest.TestCase):
     self.assertFalse('feature_1' in RuntimeValueProvider.experiments)
 
     RuntimeValueProvider.set_runtime_options(
-        {'experiments': ['feature_1', 'feature_2']}
-    )
+        {'experiments': ['feature_1', 'feature_2']})
     self.assertTrue(isinstance(RuntimeValueProvider.experiments, set))
     self.assertTrue('feature_1' in RuntimeValueProvider.experiments)
     self.assertTrue('feature_2' in RuntimeValueProvider.experiments)

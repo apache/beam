@@ -91,16 +91,19 @@ s.close()
 FLINK_PORT=$(python -c "$SOCKET_SCRIPT")
 
 echo "Starting Flink mini cluster listening on port $FLINK_PORT"
-java -jar "$FLINK_MINI_CLUSTER_JAR" --rest-port "$FLINK_PORT" &
+java -Dorg.slf4j.simpleLogger.defaultLogLevel=warn -jar "$FLINK_MINI_CLUSTER_JAR" --rest-port "$FLINK_PORT" --rest-bind-address localhost &
 
 PIPELINE_PY="
 import apache_beam as beam
+import logging
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import Create
 from apache_beam.transforms import Map
+
+logging.basicConfig(level=logging.INFO)
 
 # To test that our main session is getting plumbed through artifact staging
 # correctly, create a global variable. If the main session is not plumbed

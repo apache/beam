@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Distribution;
 import static org.apache.beam.runners.dataflow.worker.testing.GenericJsonAssert.assertEqualsAsJson;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -28,7 +29,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.junit.Before;
@@ -64,7 +68,10 @@ public class MeanByteCountMonitoringInfoToCounterUpdateTransformerTest {
   public void testTransformThrowsIfMonitoringInfoWithWrongUrnReceived() {
     Map<String, NameContext> pcollectionNameMapping = new HashMap<>();
     MonitoringInfo monitoringInfo =
-        MonitoringInfo.newBuilder().setUrn("beam:user:metric:element_count:v1").build();
+        MonitoringInfo.newBuilder()
+            .setUrn(Urns.ELEMENT_COUNT)
+            .setType(TypeUrns.SUM_INT64_TYPE)
+            .build();
     MeanByteCountMonitoringInfoToCounterUpdateTransformer testObject =
         new MeanByteCountMonitoringInfoToCounterUpdateTransformer(
             mockSpecValidator, pcollectionNameMapping);
@@ -79,7 +86,8 @@ public class MeanByteCountMonitoringInfoToCounterUpdateTransformerTest {
     Map<String, NameContext> pcollectionNameMapping = new HashMap<>();
     MonitoringInfo monitoringInfo =
         MonitoringInfo.newBuilder()
-            .setUrn("beam:metric:sampled_byte_size:v1")
+            .setUrn(Urns.SAMPLED_BYTE_SIZE)
+            .setType(TypeUrns.DISTRIBUTION_INT64_TYPE)
             .putLabels(MonitoringInfoConstants.Labels.PCOLLECTION, "anyValue")
             .build();
     MeanByteCountMonitoringInfoToCounterUpdateTransformer testObject =
@@ -90,7 +98,8 @@ public class MeanByteCountMonitoringInfoToCounterUpdateTransformerTest {
   }
 
   @Test
-  public void testTransformReturnsValidCounterUpdateWhenValidMonitoringInfoReceived() {
+  public void testTransformReturnsValidCounterUpdateWhenValidMonitoringInfoReceived()
+      throws Exception {
     Map<String, NameContext> pcollectionNameMapping = new HashMap<>();
     pcollectionNameMapping.put(
         "anyValue",
@@ -98,8 +107,13 @@ public class MeanByteCountMonitoringInfoToCounterUpdateTransformerTest {
 
     MonitoringInfo monitoringInfo =
         MonitoringInfo.newBuilder()
-            .setUrn("beam:metric:sampled_byte_size:v1")
+            .setUrn(Urns.SAMPLED_BYTE_SIZE)
+            .setType(TypeUrns.DISTRIBUTION_INT64_TYPE)
             .putLabels(MonitoringInfoConstants.Labels.PCOLLECTION, "anyValue")
+            .setPayload(
+                encodeInt64Distribution(
+                    DistributionData.create(
+                        2L /* sum */, 1L /* count */, 3L /* min */, 4L /* max */)))
             .build();
     MeanByteCountMonitoringInfoToCounterUpdateTransformer testObject =
         new MeanByteCountMonitoringInfoToCounterUpdateTransformer(
@@ -110,8 +124,8 @@ public class MeanByteCountMonitoringInfoToCounterUpdateTransformerTest {
 
     assertNotNull(result);
     assertEqualsAsJson(
-        "{cumulative:true, integerMean:{count:{highBits:0, lowBits:0}, "
-            + "sum:{highBits:0, lowBits:0}}, "
+        "{cumulative:true, integerMean:{count:{highBits:0, lowBits:1}, "
+            + "sum:{highBits:0, lowBits:2}}, "
             + "nameAndKind:{kind:'MEAN', "
             + "name:'transformedValue-MeanByteCount'}}",
         result);

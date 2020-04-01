@@ -114,6 +114,22 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="message" value="You are using raw guava, please use vendored guava classes."/>
     </module>
 
+    <!-- Forbid org.spark_project imports. -->
+    <module name="RegexpSinglelineJava">
+      <property name="id" value="ForbidSparkProject"/>
+      <property name="format" value="(\sorg\.spark_project)"/>
+      <property name="severity" value="error"/>
+      <property name="message" value="You should not use org.spark_project classes in Beam."/>
+    </module>
+
+    <!-- Forbid calling Loggers different than LOG. -->
+    <module name="RegexpSinglelineJava">
+      <property name="id" value="LoggerNamingStyle"/>
+      <property name="format" value="(\sprivate static final Logger )(?!LOG )"/>
+      <property name="severity" value="error"/>
+      <property name="message" value="You should name sfl4j Loggers as LOG."/>
+    </module>
+
     <!-- Forbid TestNG imports that may leak because of dependencies. -->
     <module name="RegexpSinglelineJava">
       <property name="id" value="ForbidTestNG"/>

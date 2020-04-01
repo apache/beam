@@ -147,19 +147,6 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       this.worker = worker;
     }
 
-    /*
-     * Report the lull to the StreamingDataflowWorker that is stuck in addition to logging the
-     * lull.
-     */
-    @Override
-    public void reportLull(Thread trackedThread, long millis) {
-      super.reportLull(trackedThread, millis);
-      // Also report the failure to the list of pending failures to report on the worker thread
-      // so that the failure gets communicated to the StreamingDataflowWorker.
-      String errorMessage = getLullMessage(trackedThread, Duration.millis(millis));
-      worker.addFailure(errorMessage);
-    }
-
     /**
      * Take sample is only called by the ExecutionStateSampler thread. It is the only place that
      * increments totalMillisInState, however the reporting thread periodically calls extractUpdate

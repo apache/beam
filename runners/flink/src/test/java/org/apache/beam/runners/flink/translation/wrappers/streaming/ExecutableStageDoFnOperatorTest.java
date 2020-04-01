@@ -67,7 +67,6 @@ import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.streaming.FlinkStateInternalsTest;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContextFactory;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
-import org.apache.beam.runners.flink.translation.utils.NoopLock;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
@@ -92,6 +91,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.NoopLock;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
@@ -813,8 +813,7 @@ public class ExecutableStageDoFnOperatorTest {
     ExecutableStageDoFnOperator<Integer, Integer> operator =
         new ExecutableStageDoFnOperator<>(
             "transform",
-            null,
-            null,
+            WindowedValue.getValueOnlyCoder(VarIntCoder.of()),
             Collections.emptyMap(),
             mainOutput,
             ImmutableList.of(additionalOutput),
@@ -860,7 +859,7 @@ public class ExecutableStageDoFnOperatorTest {
       DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory,
       WindowingStrategy windowingStrategy,
       @Nullable Coder keyCoder,
-      @Nullable Coder windowedInputCoder) {
+      Coder windowedInputCoder) {
 
     FlinkExecutableStageContextFactory contextFactory =
         Mockito.mock(FlinkExecutableStageContextFactory.class);
@@ -877,7 +876,6 @@ public class ExecutableStageDoFnOperatorTest {
         new ExecutableStageDoFnOperator<>(
             "transform",
             windowedInputCoder,
-            null,
             Collections.emptyMap(),
             mainOutput,
             additionalOutputs,

@@ -163,13 +163,13 @@ public final class ProtoDomain implements Serializable {
         .values()
         .forEach(
             fileDescriptor -> {
-              fileDescriptor
-                  .getMessageTypes()
-                  .forEach(
-                      descriptor -> {
-                        descriptorMap.put(descriptor.getFullName(), descriptor);
-                      });
+              fileDescriptor.getMessageTypes().forEach(this::indexDescriptor);
             });
+  }
+
+  private void indexDescriptor(Descriptors.Descriptor descriptor) {
+    descriptorMap.put(descriptor.getFullName(), descriptor);
+    descriptor.getNestedTypes().forEach(this::indexDescriptor);
   }
 
   private void indexOptionsByNumber(Collection<Descriptors.FileDescriptor> fileDescriptors) {

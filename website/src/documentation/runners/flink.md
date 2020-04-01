@@ -84,8 +84,8 @@ Flink [Setup Quickstart](https://ci.apache.org/projects/flink/flink-docs-stable/
 ## Version Compatibility
 
 The Flink cluster version has to match the minor version used by the FlinkRunner.
-The minor version is the first two numbers in the version string, e.g. in `1.7.0` the
-minor version is `1.7`.
+The minor version is the first two numbers in the version string, e.g. in `1.8.0` the
+minor version is `1.8`.
 
 We try to track the latest version of Apache Flink at the time of the Beam release.
 A Flink version is supported by Beam for the time it is supported by the Flink community.
@@ -103,7 +103,20 @@ To find out which version of Flink is compatible with Beam please see the table 
   <th>Artifact Id</th>
 </tr>
 <tr>
-  <td rowspan="3">2.17.0-2.18.0</td>
+  <td rowspan="3">2.21.0</td>
+  <td>1.10.x</td>
+  <td>beam-runners-flink-1.10</td>
+</tr>
+<tr>
+  <td>1.9.x</td>
+  <td>beam-runners-flink-1.9</td>
+</tr>
+<tr>
+  <td>1.8.x</td>
+  <td>beam-runners-flink-1.8</td>
+</tr>
+<tr>
+  <td rowspan="3">2.17.0-2.20.0</td>
   <td>1.9.x</td>
   <td>beam-runners-flink-1.9</td>
 </tr>
@@ -273,15 +286,15 @@ If you have a Flink `JobManager` running on your local machine you can provide `
 Starting with Beam 2.18.0, pre-built Docker images are available at Docker Hub.
 
 JobService:
-[Flink 1.7](https://hub.docker.com/r/apachebeam/flink1.7_job_server),
-[Flink 1.8](https://hub.docker.com/r/apachebeam/flink1.8_job_server),
-[Flink 1.9](https://hub.docker.com/r/apachebeam/flink1.9_job_server).
+[Flink 1.7](https://hub.docker.com/r/apache/beam_flink1.7_job_server),
+[Flink 1.8](https://hub.docker.com/r/apache/beam_flink1.8_job_server),
+[Flink 1.9](https://hub.docker.com/r/apache/beam_flink1.9_job_server).
 
 Beam SDK:
-[Python 2.7](https://hub.docker.com/r/apachebeam/python2.7_sdk),
-[Python 3.5](https://hub.docker.com/r/apachebeam/python3.5_sdk),
-[Python 3.6](https://hub.docker.com/r/apachebeam/python3.6_sdk),
-[Python 3.7](https://hub.docker.com/r/apachebeam/python3.7_sdk).
+[Python 2.7](https://hub.docker.com/r/apache/beam_python2.7_sdk),
+[Python 3.5](https://hub.docker.com/r/apache/beam_python3.5_sdk),
+[Python 3.6](https://hub.docker.com/r/apache/beam_python3.6_sdk),
+[Python 3.7](https://hub.docker.com/r/apache/beam_python3.7_sdk).
 
 To run a pipeline on an embedded Flink cluster:
 <!-- Span implictly ended -->
@@ -322,7 +335,7 @@ To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-
 
 <span class="language-py">3. Submit the pipeline as above.
 Note however that `environment_type=LOOPBACK` is only intended for local testing.
-See [here]({{ site.baseurl }}/roadmap/portability/#sdk-harness-config) for details.
+See [here]({{ site.baseurl }}/documentation/runtime/sdk-harness-config/) for details.
 </span>
 
 <span class="language-py">Steps 2 and 3 can be automated in Python by using the `FlinkRunner`,

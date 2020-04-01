@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """
 This is ParDo load test with Synthetic Source. Besides of the standard
 input options there are additional options:
@@ -32,11 +33,11 @@ will be stored,
 will be stored,
 * input_options - options for Synthetic Sources.
 
-Example test run on DirectRunner:
+Example test run:
 
-python setup.py nosetests \
+python -m apache_beam.testing.load_tests.pardo_test \
     --test-pipeline-options="
-    --iterations=1000
+    --iterations=1
     --number_of_counters=1
     --number_of_counter_operations=1
     --project=big-query-project
@@ -46,75 +47,23 @@ python setup.py nosetests \
     --input_options='{
     \"num_records\": 300,
     \"key_size\": 5,
-    \"value_size\":15,
-    \"bundle_size_distribution_type\": \"const\",
-    \"bundle_size_distribution_param\": 1,
-    \"force_initial_num_bundles\": 0
-    }'" \
-    --tests apache_beam.testing.load_tests.pardo_test
+    \"value_size\": 15
+    }'"
 
 or:
 
-./gradlew -PloadTest.args='
+./gradlew -PloadTest.args="
     --publish_to_big_query=true
     --project=...
     --metrics_dataset=python_load_tests
     --metrics_table=pardo
-    --input_options=\'
-      {"num_records": 1,
-      "key_size": 1,
-      "value_size":1,
-      "bundle_size_distribution_type": "const",
-      "bundle_size_distribution_param": 1,
-      "force_initial_num_bundles": 1}\'
-    --runner=DirectRunner' \
+    --input_options='{
+      \"num_records\": 1,
+      \"key_size\": 1,
+      \"value_size\": 1}'
+    --runner=DirectRunner" \
 -PloadTest.mainClass=apache_beam.testing.load_tests.pardo_test \
--Prunner=DirectRunner :sdks:python:apache_beam:testing:load-tests:run
-
-
-To run test on other runner (ex. Dataflow):
-
-python setup.py nosetests \
-    --test-pipeline-options="
-        --runner=TestDataflowRunner
-        --project=...
-        --staging_location=gs://...
-        --temp_location=gs://...
-        --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
-        --iterations=1000
-        --number_of_counters=1
-        --number_of_counter_operations=1
-        --publish_to_big_query=true
-        --metrics_dataset=python_load_tests
-        --metrics_table=pardo
-        --input_options='{
-        \"num_records\": 1000,
-        \"key_size\": 5,
-        \"value_size\":15,
-        \"bundle_size_distribution_type\": \"const\",
-        \"bundle_size_distribution_param\": 1,
-        \"force_initial_num_bundles\": 0
-        }'" \
-    --tests apache_beam.testing.load_tests.pardo_test
-
-or:
-
-./gradlew -PloadTest.args='
-    --publish_to_big_query=true
-    --project=...
-    --metrics_dataset=python_load_tests
-    --metrics_table=pardo
-    --temp_location=gs://...
-    --input_options=\'
-      {"num_records": 1,
-      "key_size": 1,
-      "value_size":1,
-      "bundle_size_distribution_type": "const",
-      "bundle_size_distribution_param": 1,
-      "force_initial_num_bundles": 1}\'
-    --runner=TestDataflowRunner' \
--PloadTest.mainClass=apache_beam.testing.load_tests.pardo_test \
--Prunner=TestDataflowRunner :sdks:python:apache_beam:testing:load-tests:run
+-Prunner=DirectRunner :sdks:python:apache_beam:testing:load_tests:run
 """
 
 # pytype: skip-file
@@ -122,37 +71,30 @@ or:
 from __future__ import absolute_import
 
 import logging
-import os
-import unittest
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
-from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-
-load_test_enabled = False
-if os.environ.get('LOAD_TEST_ENABLED') == 'true':
-  load_test_enabled = True
+from apache_beam.testing.synthetic_pipeline import SyntheticSource
 
 
-@unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class ParDoTest(LoadTest):
-  def setUp(self):
-    super(ParDoTest, self).setUp()
+  def __init__(self):
+    super(ParDoTest, self).__init__()
     self.iterations = self.get_option_or_default('iterations')
     self.number_of_counters = self.get_option_or_default('number_of_counters')
     self.number_of_operations = self.get_option_or_default(
         'number_of_counter_operations')
 
-  def testParDo(self):
+  def test(self):
     class CounterOperation(beam.DoFn):
       def __init__(self, number_of_counters, number_of_operations):
         self.number_of_operations = number_of_operations
         self.counters = []
         for i in range(number_of_counters):
-          self.counters.append(Metrics.counter('do-not-publish',
-                                               'name-{}'.format(i)))
+          self.counters.append(
+              Metrics.counter('do-not-publish', 'name-{}'.format(i)))
 
       def process(self, element):
         for _ in range(self.number_of_operations):
@@ -160,28 +102,27 @@ class ParDoTest(LoadTest):
             counter.inc()
         yield element
 
-    pc = (self.pipeline
-          | 'Read synthetic' >> beam.io.Read(
-              synthetic_pipeline.SyntheticSource(
-                  self.parseTestPipelineOptions()
-              ))
-          | 'Measure time: Start' >> beam.ParDo(
-              MeasureTime(self.metrics_namespace))
-         )
+    pc = (
+        self.pipeline
+        | 'Read synthetic' >> beam.io.Read(
+            SyntheticSource(self.parse_synthetic_source_options()))
+        | 'Measure time: Start' >> beam.ParDo(
+            MeasureTime(self.metrics_namespace)))
 
     for i in range(self.iterations):
-      pc = (pc
-            | 'Step: %d' % i >> beam.ParDo(
-                CounterOperation(self.number_of_counters,
-                                 self.number_of_operations))
-           )
+      pc = (
+          pc
+          | 'Step: %d' % i >> beam.ParDo(
+              CounterOperation(
+                  self.number_of_counters, self.number_of_operations)))
 
     # pylint: disable=expression-not-assigned
-    (pc
-     | 'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace))
-    )
+    (
+        pc
+        |
+        'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace)))
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
-  unittest.main()
+  logging.basicConfig(level=logging.INFO)
+  ParDoTest().run()

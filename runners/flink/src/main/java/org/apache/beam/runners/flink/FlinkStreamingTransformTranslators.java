@@ -453,7 +453,6 @@ class FlinkStreamingTransformTranslators {
           Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders,
           Map<TupleTag<?>, Integer> tagsToIds,
           Coder<WindowedValue<InputT>> windowedInputCoder,
-          Coder<InputT> inputCoder,
           Map<TupleTag<?>, Coder<?>> outputCoders,
           Coder keyCoder,
           KeySelector<WindowedValue<InputT>, ?> keySelector,
@@ -505,7 +504,6 @@ class FlinkStreamingTransformTranslators {
       SingleOutputStreamOperator<WindowedValue<OutputT>> outputStream;
 
       Coder<WindowedValue<InputT>> windowedInputCoder = context.getWindowedInputCoder(input);
-      Coder<InputT> inputCoder = context.getInputCoder(input);
       Map<TupleTag<?>, Coder<?>> outputCoders = context.getOutputCoders();
 
       DataStream<WindowedValue<InputT>> inputDataStream = context.getInputDataStream(input);
@@ -546,7 +544,6 @@ class FlinkStreamingTransformTranslators {
                 tagsToCoders,
                 tagsToIds,
                 windowedInputCoder,
-                inputCoder,
                 outputCoders,
                 keyCoder,
                 keySelector,
@@ -574,7 +571,6 @@ class FlinkStreamingTransformTranslators {
                 tagsToCoders,
                 tagsToIds,
                 windowedInputCoder,
-                inputCoder,
                 outputCoders,
                 keyCoder,
                 keySelector,
@@ -694,7 +690,6 @@ class FlinkStreamingTransformTranslators {
               tagsToCoders,
               tagsToIds,
               windowedInputCoder,
-              inputCoder,
               outputCoders1,
               keyCoder,
               keySelector,
@@ -705,7 +700,6 @@ class FlinkStreamingTransformTranslators {
                   doFn1,
                   stepName,
                   windowedInputCoder,
-                  inputCoder,
                   outputCoders1,
                   mainOutputTag1,
                   additionalOutputTags1,
@@ -723,14 +717,15 @@ class FlinkStreamingTransformTranslators {
   }
 
   private static class SplittableProcessElementsStreamingTranslator<
-          InputT, OutputT, RestrictionT, PositionT>
+          InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
       extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
           SplittableParDoViaKeyedWorkItems.ProcessElements<
-              InputT, OutputT, RestrictionT, PositionT>> {
+              InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>> {
 
     @Override
     public void translateNode(
-        SplittableParDoViaKeyedWorkItems.ProcessElements<InputT, OutputT, RestrictionT, PositionT>
+        SplittableParDoViaKeyedWorkItems.ProcessElements<
+                InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
             transform,
         FlinkStreamingTranslationContext context) {
 
@@ -756,7 +751,6 @@ class FlinkStreamingTransformTranslators {
               tagsToCoders,
               tagsToIds,
               windowedInputCoder,
-              inputCoder,
               outputCoders1,
               keyCoder,
               keySelector,
@@ -767,7 +761,6 @@ class FlinkStreamingTransformTranslators {
                   doFn,
                   stepName,
                   windowedInputCoder,
-                  inputCoder,
                   outputCoders1,
                   mainOutputTag,
                   additionalOutputTags,
@@ -1285,12 +1278,13 @@ class FlinkStreamingTransformTranslators {
    */
   private static class SplittableParDoProcessElementsTranslator
       extends PTransformTranslation.TransformPayloadTranslator.NotSerializable<
-          SplittableParDoViaKeyedWorkItems.ProcessElements<?, ?, ?, ?>> {
+          SplittableParDoViaKeyedWorkItems.ProcessElements<?, ?, ?, ?, ?>> {
 
     private SplittableParDoProcessElementsTranslator() {}
 
     @Override
-    public String getUrn(SplittableParDoViaKeyedWorkItems.ProcessElements<?, ?, ?, ?> transform) {
+    public String getUrn(
+        SplittableParDoViaKeyedWorkItems.ProcessElements<?, ?, ?, ?, ?> transform) {
       return SPLITTABLE_PROCESS_URN;
     }
   }

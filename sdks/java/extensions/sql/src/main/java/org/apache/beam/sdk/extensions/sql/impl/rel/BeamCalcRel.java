@@ -29,6 +29,7 @@ import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.util.AbstractList;
 import java.util.AbstractMap;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -228,7 +229,8 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       try {
         se.cook(processElementBlock);
       } catch (CompileException e) {
-        throw new RuntimeException("Could not compile CalcFn: " + processElementBlock, e);
+        throw new UnsupportedOperationException(
+            "Could not compile CalcFn: " + processElementBlock, e);
       }
       return se;
     }
@@ -292,21 +294,24 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
     Expression valueDateTime = value;
 
     // First, convert to millis
-    if (CalciteUtils.TIMESTAMP.typesEqual(toType)) {
+    if (CalciteUtils.TIMESTAMP.typesEqual(toType)
+        || CalciteUtils.NULLABLE_TIMESTAMP.typesEqual(toType)) {
       if (value.getType() == java.sql.Timestamp.class) {
         valueDateTime = Expressions.call(BuiltInMethod.TIMESTAMP_TO_LONG.method, valueDateTime);
       }
-    } else if (CalciteUtils.TIME.typesEqual(toType)) {
+    } else if (CalciteUtils.TIME.typesEqual(toType)
+        || CalciteUtils.NULLABLE_TIME.typesEqual(toType)) {
       if (value.getType() == java.sql.Time.class) {
         valueDateTime = Expressions.call(BuiltInMethod.TIME_TO_INT.method, valueDateTime);
       }
-    } else if (CalciteUtils.DATE.typesEqual(toType)) {
+    } else if (CalciteUtils.DATE.typesEqual(toType)
+        || CalciteUtils.NULLABLE_DATE.typesEqual(toType)) {
       if (value.getType() == java.sql.Date.class) {
         valueDateTime = Expressions.call(BuiltInMethod.DATE_TO_INT.method, valueDateTime);
       }
       valueDateTime = Expressions.multiply(valueDateTime, Expressions.constant(MILLIS_PER_DAY));
     } else {
-      throw new IllegalArgumentException("Unknown DateTime type " + toType);
+      throw new UnsupportedOperationException("Unknown DateTime type " + toType);
     }
 
     // Second, convert to joda DateTime
@@ -329,32 +334,32 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
   }
 
   private static class InputGetterImpl implements RexToLixTranslator.InputGetter {
-    private static final Map<TypeName, String> TYPE_GETTER_MAP =
-        ImmutableMap.<TypeName, String>builder()
-            .put(TypeName.BYTE, "getByte")
-            .put(TypeName.BYTES, "getBytes")
-            .put(TypeName.INT16, "getInt16")
-            .put(TypeName.INT32, "getInt32")
-            .put(TypeName.INT64, "getInt64")
-            .put(TypeName.DECIMAL, "getDecimal")
-            .put(TypeName.FLOAT, "getFloat")
-            .put(TypeName.DOUBLE, "getDouble")
-            .put(TypeName.STRING, "getString")
-            .put(TypeName.DATETIME, "getDateTime")
-            .put(TypeName.BOOLEAN, "getBoolean")
-            .put(TypeName.MAP, "getMap")
-            .put(TypeName.ARRAY, "getArray")
-            .put(TypeName.ITERABLE, "getIterable")
-            .put(TypeName.ROW, "getRow")
+    private static final Map<TypeName, Class> TYPE_CONVERSION_MAP =
+        ImmutableMap.<TypeName, Class>builder()
+            .put(TypeName.BYTE, Byte.class)
+            .put(TypeName.BYTES, byte[].class)
+            .put(TypeName.INT16, Short.class)
+            .put(TypeName.INT32, Integer.class)
+            .put(TypeName.INT64, Long.class)
+            .put(TypeName.DECIMAL, BigDecimal.class)
+            .put(TypeName.FLOAT, Float.class)
+            .put(TypeName.DOUBLE, Double.class)
+            .put(TypeName.STRING, String.class)
+            .put(TypeName.DATETIME, ReadableInstant.class)
+            .put(TypeName.BOOLEAN, Boolean.class)
+            .put(TypeName.MAP, Map.class)
+            .put(TypeName.ARRAY, Collection.class)
+            .put(TypeName.ITERABLE, Iterable.class)
+            .put(TypeName.ROW, Row.class)
             .build();
 
-    private static final Map<String, String> LOGICAL_TYPE_GETTER_MAP =
-        ImmutableMap.<String, String>builder()
-            .put(DateType.IDENTIFIER, "getDateTime")
-            .put(TimeType.IDENTIFIER, "getDateTime")
-            .put(TimeWithLocalTzType.IDENTIFIER, "getDateTime")
-            .put(TimestampWithLocalTzType.IDENTIFIER, "getDateTime")
-            .put(CharType.IDENTIFIER, "getString")
+    private static final Map<String, Class> LOGICAL_TYPE_CONVERSION_MAP =
+        ImmutableMap.<String, Class>builder()
+            .put(DateType.IDENTIFIER, ReadableInstant.class)
+            .put(TimeType.IDENTIFIER, ReadableInstant.class)
+            .put(TimeWithLocalTzType.IDENTIFIER, ReadableInstant.class)
+            .put(TimestampWithLocalTzType.IDENTIFIER, ReadableInstant.class)
+            .put(CharType.IDENTIFIER, String.class)
             .build();
 
     private final Expression input;
@@ -377,24 +382,29 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       }
 
       final Expression expression = list.append(list.newName("current"), input);
-      if (storageType == Object.class) {
-        return Expressions.convert_(
-            Expressions.call(expression, "getValue", Expressions.constant(index)), Object.class);
-      }
+
       FieldType fromType = schema.getField(index).getType();
-      String getter;
-      if (fromType.getTypeName().isLogicalType()) {
-        getter = LOGICAL_TYPE_GETTER_MAP.get(fromType.getLogicalType().getIdentifier());
+      Class convertTo = null;
+      if (storageType == Object.class) {
+        convertTo = Object.class;
+      } else if (fromType.getTypeName().isLogicalType()) {
+        convertTo = LOGICAL_TYPE_CONVERSION_MAP.get(fromType.getLogicalType().getIdentifier());
       } else {
-        getter = TYPE_GETTER_MAP.get(fromType.getTypeName());
+        convertTo = TYPE_CONVERSION_MAP.get(fromType.getTypeName());
       }
-      if (getter == null) {
-        throw new IllegalArgumentException("Unable to get " + fromType.getTypeName());
+      if (convertTo == null) {
+        throw new UnsupportedOperationException("Unable to get " + fromType.getTypeName());
       }
 
-      Expression value = Expressions.call(expression, getter, Expressions.constant(index));
-
-      return value(value, fromType);
+      Expression value =
+          Expressions.convert_(
+              Expressions.call(
+                  expression,
+                  "getBaseValue",
+                  Expressions.constant(index),
+                  Expressions.constant(convertTo)),
+              convertTo);
+      return (storageType != Object.class) ? value(value, fromType) : value;
     }
 
     private static Expression value(Expression value, Schema.FieldType type) {
@@ -411,7 +421,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
                       Expressions.divide(millisField, Expressions.constant(MILLIS_PER_DAY)),
                       int.class));
         } else if (!logicalId.equals(CharType.IDENTIFIER)) {
-          throw new IllegalArgumentException(
+          throw new UnsupportedOperationException(
               "Unknown LogicalType " + type.getLogicalType().getIdentifier());
         }
       } else if (type.getTypeName().isMapType()) {

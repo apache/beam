@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.mongodb;
 import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.AND;
 import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.COMPARISON;
 import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind.OR;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.mongodb.client.model.Filters;
 import java.io.Serializable;
@@ -37,6 +36,7 @@ import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.ProjectSupport;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.InvalidTableException;
 import org.apache.beam.sdk.io.mongodb.FindQuery;
 import org.apache.beam.sdk.io.mongodb.MongoDbIO;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -74,7 +74,7 @@ import org.slf4j.LoggerFactory;
 
 @Experimental
 public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
-  private static final Logger LOGGER = LoggerFactory.getLogger(MongoDbTable.class);
+  private static final Logger LOG = LoggerFactory.getLogger(MongoDbTable.class);
   // Should match: mongodb://username:password@localhost:27017/database/collection
   @VisibleForTesting
   final Pattern locationPattern =
@@ -90,9 +90,14 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
 
     String location = table.getLocation();
     Matcher matcher = locationPattern.matcher(location);
-    checkArgument(
-        matcher.matches(),
-        "MongoDb location must be in the following format: 'mongodb://(username:password@)?localhost:27017/database/collection'");
+
+    if (!matcher.matches()) {
+      throw new InvalidTableException(
+          "MongoDb location must be in the following format:"
+              + " 'mongodb://(username:password@)?localhost:27017/database/collection'"
+              + " but was: "
+              + location);
+    }
     this.dbUri = matcher.group("credsHostPort"); // "mongodb://localhost:27017"
     this.dbName = matcher.group("database");
     this.dbCollection = matcher.group("collection");
@@ -118,9 +123,7 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
         MongoDbIO.read().withUri(dbUri).withDatabase(dbName).withCollection(dbCollection);
 
     final FieldAccessDescriptor resolved =
-        FieldAccessDescriptor.withFieldNames(fieldNames)
-            .withOrderByFieldInsertionOrder()
-            .resolve(getSchema());
+        FieldAccessDescriptor.withFieldNames(fieldNames).resolve(getSchema());
     final Schema newSchema = SelectHelpers.getOutputSchema(getSchema(), resolved);
 
     FindQuery findQuery = FindQuery.create();
@@ -129,7 +132,7 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
       MongoDbFilter mongoFilter = (MongoDbFilter) filters;
       if (!mongoFilter.getSupported().isEmpty()) {
         Bson filter = constructPredicate(mongoFilter.getSupported());
-        LOGGER.info("Pushing down the following filter: " + filter.toString());
+        LOG.info("Pushing down the following filter: " + filter.toString());
         findQuery = findQuery.withFilters(filter);
       }
     }

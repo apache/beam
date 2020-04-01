@@ -55,14 +55,14 @@ def _get_args(typ):
     return typ.__args__
   except AttributeError:
     if isinstance(typ, typing.TypeVar):
-      return (typ.__name__,)
+      return (typ.__name__, )
     # On Python versions < 3.5.3, the Tuple and Union type from typing do
     # not have an __args__ attribute, but a __tuple_params__, and a
     # __union_params__ argument respectively.
     if (3, 0, 0) <= sys.version_info[0:3] < (3, 5, 3):
       if getattr(typ, '__tuple_params__', None) is not None:
         if typ.__tuple_use_ellipsis__:
-          return typ.__tuple_params__ + (Ellipsis,)
+          return typ.__tuple_params__ + (Ellipsis, )
         else:
           return typ.__tuple_params__
       elif getattr(typ, '__union_params__', None) is not None:
@@ -119,8 +119,9 @@ def _match_is_exactly_iterable(user_type):
 
 
 def _match_is_named_tuple(user_type):
-  return (_safe_issubclass(user_type, typing.Tuple) and
-          hasattr(user_type, '_field_types'))
+  return (
+      _safe_issubclass(user_type, typing.Tuple) and
+      hasattr(user_type, '_field_types'))
 
 
 def _match_is_optional(user_type):
@@ -158,8 +159,22 @@ def _match_is_union(user_type):
   return False
 
 
-def is_Any(typ):
+def is_any(typ):
   return typ is typing.Any
+
+
+def is_new_type(typ):
+  return hasattr(typ, '__supertype__')
+
+
+try:
+  _ForwardRef = typing.ForwardRef  # Python 3.7+
+except AttributeError:
+  _ForwardRef = typing._ForwardRef
+
+
+def is_forward_ref(typ):
+  return isinstance(typ, _ForwardRef)
 
 
 # Mapping from typing.TypeVar/typehints.TypeVariable ids to an object of the
@@ -202,8 +217,11 @@ def convert_to_beam_type(typ):
     return typ
 
   type_map = [
-      _TypeMapEntry(
-          match=is_Any, arity=0, beam_type=typehints.Any),
+      # TODO(BEAM-9355): Currently unsupported.
+      _TypeMapEntry(match=is_new_type, arity=0, beam_type=typehints.Any),
+      # TODO(BEAM-8487): Currently unsupported.
+      _TypeMapEntry(match=is_forward_ref, arity=0, beam_type=typehints.Any),
+      _TypeMapEntry(match=is_any, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(
           match=_match_issubclass(typing.Dict),
           arity=2,
@@ -217,8 +235,7 @@ def convert_to_beam_type(typ):
           arity=1,
           beam_type=typehints.List),
       _TypeMapEntry(
-          match=_match_issubclass(typing.Set),
-          arity=1,
+          match=_match_issubclass(typing.Set), arity=1,
           beam_type=typehints.Set),
       # NamedTuple is a subclass of Tuple, but it needs special handling.
       # We just convert it to Any for now.
@@ -263,16 +280,17 @@ def convert_to_beam_type(typ):
     elif (_match_issubclass(typing.Iterator)(typ) or
           _match_issubclass(typing.Generator)(typ) or
           _match_is_exactly_iterable(typ)):
-      args = (typehints.TypeVariable('T_co'),)
+      args = (typehints.TypeVariable('T_co'), )
     else:
-      args = (typehints.TypeVariable('T'),) * arity
+      args = (typehints.TypeVariable('T'), ) * arity
   elif matched_entry.arity == -1:
     arity = len_args
   else:
     arity = matched_entry.arity
     if len_args != arity:
-      raise ValueError('expecting type %s to have arity %d, had arity %d '
-                       'instead' % (str(typ), arity, len_args))
+      raise ValueError(
+          'expecting type %s to have arity %d, had arity %d '
+          'instead' % (str(typ), arity, len_args))
   typs = convert_to_beam_types(args)
   if arity == 0:
     # Nullary types (e.g. Any) don't accept empty tuples as arguments.

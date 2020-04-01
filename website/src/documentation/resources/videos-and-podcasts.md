@@ -115,9 +115,10 @@ ApacheCon, Miami, 2017
 Presented by Etienne Chauchot and Ismaël Mejia, *Apache Beam PMC members*
 
 <iframe src="//www.slideshare.net/slideshow/embed_code/key/auWXjEK7GTkiUK" width="595" height="485" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" style="border:1px solid #CCC; border-width:1px; margin-bottom:5px; max-width: 100%;" allowfullscreen> </iframe> <div style="margin-bottom:5px"> <strong> <a href="//www.slideshare.net/EtienneChauchot/nexmark-with-beam" title="Nexmark with Beam" target="_blank">Nexmark with Beam</a> </strong> by <strong><a href="https://www.slideshare.net/EtienneChauchot" target="_blank">Etienne Chauchot</a></strong> </div>
-<!--<audio controls class="wp-audio-shortcode" id="audio-3597-1_html5"src="https://feathercastapache.files.wordpress.com/2017/05/0517-04-mejia.mp3?_=1"><source type="audio/mpeg" src="https://feathercastapache.files.wordpress.com/2017/05/0517-04-mejia.mp3?_=1"><a href="https://feathercastapache.files.wordpress.com/2017/05/0517-04-mejia.mp3">https://feathercastapache.files.wordpress.com/2017/05/0517-04-mejia.mp3</a></audio>-->
-<a href="https://feathercastapache.files.wordpress.com/2017/05/0517-04-mejia.mp3">Play audio podcast</a>
-
+<audio controls>
+  <source src="https://feathercastapache.files.wordpress.com/2017/05/0517-04-mejia.mp3" type="audio/mpeg">
+Your browser does not support the audio element.
+</audio>
 ### Universal metrics with Apache Beam
 
 ApacheCon, Montreal, 2018
@@ -125,8 +126,10 @@ ApacheCon, Montreal, 2018
 Presented by Etienne Chauchot, *Apache Beam PMC member*
 
 <iframe src="//www.slideshare.net/slideshow/embed_code/key/kKJRzR8HxkxLsR" width="595" height="485" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" style="border:1px solid #CCC; border-width:1px; margin-bottom:5px; max-width: 100%;" allowfullscreen> </iframe> <div style="margin-bottom:5px"> <strong> <a href="//www.slideshare.net/EtienneChauchot/universal-metrics-with-apache-beam" title="Universal metrics with Apache Beam" target="_blank">Universal metrics with Apache Beam</a> </strong> by <strong><a href="https://www.slideshare.net/EtienneChauchot" target="_blank">Etienne Chauchot</a></strong> </div>
-<!--<audio controls class="wp-audio-shortcode" id="audio-3597-1_html5"src="https://feathercastapache.files.wordpress.com/2018/09/03-universal-metrics-with-beam-etienne-chauchot.mp3?_=1"><source type="audio/mpeg" src="https://feathercastapache.files.wordpress.com/2018/09/03-universal-metrics-with-beam-etienne-chauchot.mp3?_=1"><a href="https://feathercastapache.files.wordpress.com/2018/09/03-universal-metrics-with-beam-etienne-chauchot.mp3">https://feathercastapache.files.wordpress.com/2018/09/03-universal-metrics-with-beam-etienne-chauchot.mp3</a></audio> -->
-<a href="https://feathercastapache.files.wordpress.com/2018/09/03-universal-metrics-with-beam-etienne-chauchot.mp3">Play audio podcast</a>
+<audio controls>
+  <source src="//feathercastapache.files.wordpress.com/2018/09/03-universal-metrics-with-beam-etienne-chauchot.mp3" type="audio/mpeg">
+Your browser does not support the audio element.
+</audio>
 
 ## Next Steps
 

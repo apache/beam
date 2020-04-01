@@ -17,6 +17,7 @@ package exec
 
 import (
 	"fmt"
+	"math/rand"
 	"strconv"
 	"strings"
 
@@ -37,8 +38,8 @@ import (
 
 // TODO(lostluck): 2018/05/28 Extract these from the canonical enums in beam_runner_api.proto
 const (
-	urnDataSource           = "beam:source:runner:0.1"
-	urnDataSink             = "beam:sink:runner:0.1"
+	urnDataSource           = "beam:runner:source:v1"
+	urnDataSink             = "beam:runner:sink:v1"
 	urnPerKeyCombinePre     = "beam:transform:combine_per_key_precombine:v1"
 	urnPerKeyCombineMerge   = "beam:transform:combine_per_key_merge_accumulators:v1"
 	urnPerKeyCombineExtract = "beam:transform:combine_per_key_extract_outputs:v1"
@@ -65,30 +66,24 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 		}
 
 		u := &DataSource{UID: b.idgen.New()}
+		u.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
+		if err != nil {
+			return nil, err
+		}
+		if !coder.IsW(u.Coder) {
+			return nil, errors.Errorf("unwindowed coder %v on DataSource %v: %v", cid, id, u.Coder)
+		}
 
+		// There's only a single pair in this map, but a for loop range statement
+		// is the easiest way to extract it, so this loop will iterate only once.
 		for key, pid := range transform.GetOutputs() {
 			u.SID = StreamID{PtransformID: id, Port: port}
 			u.Name = key
+			u.outputPID = pid
 
 			u.Out, err = b.makePCollection(pid)
 			if err != nil {
 				return nil, err
-			}
-
-			if cid == "" {
-				c, wc, err := b.makeCoderForPCollection(pid)
-				if err != nil {
-					return nil, err
-				}
-				u.Coder = coder.NewW(c, wc)
-			} else {
-				u.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
-				if err != nil {
-					return nil, err
-				}
-				if !coder.IsW(u.Coder) {
-					return nil, errors.Errorf("unwindowed coder %v on DataSource %v: %v", cid, id, u.Coder)
-				}
 			}
 		}
 
@@ -210,7 +205,7 @@ func unmarshalWindowFn(wfn *pb.FunctionSpec) (*window.Fn, error) {
 		return window.NewSlidingWindows(period, size), nil
 
 	case graphx.URNSessionsWindowFn:
-		var payload pb.SessionsPayload
+		var payload pb.SessionWindowsPayload
 		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
 			return nil, err
 		}
@@ -378,7 +373,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			switch op {
 			case graph.ParDo:
 				n := &ParDo{UID: b.idgen.New(), Inbound: in, Out: out}
-				n.Fn, err = graph.AsDoFn(fn)
+				n.Fn, err = graph.AsDoFn(fn, graph.MainUnknown)
 				if err != nil {
 					return nil, err
 				}
@@ -473,6 +468,26 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			}
 			u = &Expand{UID: b.idgen.New(), ValueDecoders: decoders, Out: out[0]}
 
+		case graphx.URNReshuffleInput:
+			c, w, err := b.makeCoderForPCollection(from)
+			if err != nil {
+				return nil, err
+			}
+			u = &ReshuffleInput{UID: b.idgen.New(), Seed: rand.Int63(), Coder: coder.NewW(c, w), Out: out[0]}
+
+		case graphx.URNReshuffleOutput:
+			var pid string
+			// There's only one output PCollection, and iterating through the map
+			// is the only way to extract it.
+			for _, id := range transform.GetOutputs() {
+				pid = id
+			}
+			c, w, err := b.makeCoderForPCollection(pid)
+			if err != nil {
+				return nil, err
+			}
+			u = &ReshuffleOutput{UID: b.idgen.New(), Coder: coder.NewW(c, w), Out: out[0]}
+
 		default:
 			return nil, errors.Errorf("unexpected payload: %v", tp)
 		}
@@ -503,25 +518,13 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		}
 
 		sink := &DataSink{UID: b.idgen.New()}
-
-		for _, pid := range transform.GetInputs() {
-			sink.SID = StreamID{PtransformID: id.to, Port: port}
-
-			if cid == "" {
-				c, wc, err := b.makeCoderForPCollection(pid)
-				if err != nil {
-					return nil, err
-				}
-				sink.Coder = coder.NewW(c, wc)
-			} else {
-				sink.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
-				if err != nil {
-					return nil, err
-				}
-				if !coder.IsW(sink.Coder) {
-					return nil, errors.Errorf("unwindowed coder %v on DataSink %v: %v", cid, id, sink.Coder)
-				}
-			}
+		sink.SID = StreamID{PtransformID: id.to, Port: port}
+		sink.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
+		if err != nil {
+			return nil, err
+		}
+		if !coder.IsW(sink.Coder) {
+			return nil, errors.Errorf("unwindowed coder %v on DataSink %v: %v", cid, id, sink.Coder)
 		}
 		u = sink
 

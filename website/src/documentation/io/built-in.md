@@ -43,6 +43,7 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/xml/src/main/java/org/apache/beam/sdk/io/xml/XmlIO.java">XmlIO</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/tika/src/main/java/org/apache/beam/sdk/io/tika/TikaIO.java">TikaIO</a></p>
     <p><a href="{{site.baseurl}}/documentation/io/built-in/parquet">ParquetIO</a></p>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/thrift/src/main/java/org/apache/beam/sdk/io/thrift/ThriftIO.java">ThriftIO</a></p>
   </td>
   <td>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/kinesis">Amazon Kinesis</a></p>
@@ -74,7 +75,7 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
 <tr>
   <td>Python/Batch</td>
   <td>
-    <p>Beam Python supports Apache HDFS, Google Cloud Storage, and local filesystems.</p>
+    <p>Beam Python supports Apache HDFS, Amazon S3, Google Cloud Storage, and local filesystems.</p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/avroio.py">avroio</a></p>
     <p><a href="{{site.baseurl}}/documentation/io/built-in/parquet">parquetio.py</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/textio.py">textio</a></p>

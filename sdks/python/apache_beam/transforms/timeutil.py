@@ -31,7 +31,7 @@ from apache_beam.portability.api import beam_runner_api_pb2
 
 __all__ = [
     'TimeDomain',
-    ]
+]
 
 
 class TimeDomain(object):
@@ -44,8 +44,8 @@ class TimeDomain(object):
   _RUNNER_API_MAPPING = {
       WATERMARK: beam_runner_api_pb2.TimeDomain.EVENT_TIME,
       REAL_TIME: beam_runner_api_pb2.TimeDomain.PROCESSING_TIME,
-      DEPENDENT_REAL_TIME:
-      beam_runner_api_pb2.TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
+      DEPENDENT_REAL_TIME: beam_runner_api_pb2.TimeDomain.
+      SYNCHRONIZED_PROCESSING_TIME,
   }
 
   @staticmethod
@@ -63,7 +63,6 @@ class TimeDomain(object):
 
 class TimestampCombinerImpl(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
   """Implementation of TimestampCombiner."""
-
   @abstractmethod
   def assign_output_time(self, window, input_timestamp):
     raise NotImplementedError
@@ -79,8 +78,7 @@ class TimestampCombinerImpl(with_metaclass(ABCMeta, object)):  # type: ignore[mi
       if combined_output_time is None:
         combined_output_time = output_time
       elif output_time is not None:
-        combined_output_time = self.combine(
-            combined_output_time, output_time)
+        combined_output_time = self.combine(combined_output_time, output_time)
     return combined_output_time
 
   def merge(self, unused_result_window, merging_timestamps):
@@ -90,7 +88,6 @@ class TimestampCombinerImpl(with_metaclass(ABCMeta, object)):  # type: ignore[mi
 
 class DependsOnlyOnWindow(with_metaclass(ABCMeta, TimestampCombinerImpl)):  # type: ignore[misc]
   """TimestampCombinerImpl that only depends on the window."""
-
   def merge(self, result_window, unused_merging_timestamps):
     # Since we know that the result only depends on the window, we can ignore
     # the given timestamps.
@@ -99,7 +96,6 @@ class DependsOnlyOnWindow(with_metaclass(ABCMeta, TimestampCombinerImpl)):  # ty
 
 class OutputAtEarliestInputTimestampImpl(TimestampCombinerImpl):
   """TimestampCombinerImpl outputting at earliest input timestamp."""
-
   def assign_output_time(self, window, input_timestamp):
     return input_timestamp
 
@@ -110,7 +106,6 @@ class OutputAtEarliestInputTimestampImpl(TimestampCombinerImpl):
 
 class OutputAtEarliestTransformedInputTimestampImpl(TimestampCombinerImpl):
   """TimestampCombinerImpl outputting at earliest input timestamp."""
-
   def __init__(self, window_fn):
     self.window_fn = window_fn
 
@@ -123,7 +118,6 @@ class OutputAtEarliestTransformedInputTimestampImpl(TimestampCombinerImpl):
 
 class OutputAtLatestInputTimestampImpl(TimestampCombinerImpl):
   """TimestampCombinerImpl outputting at latest input timestamp."""
-
   def assign_output_time(self, window, input_timestamp):
     return input_timestamp
 
@@ -133,7 +127,6 @@ class OutputAtLatestInputTimestampImpl(TimestampCombinerImpl):
 
 class OutputAtEndOfWindowImpl(DependsOnlyOnWindow):
   """TimestampCombinerImpl outputting at end of window."""
-
   def assign_output_time(self, window, unused_input_timestamp):
     return window.max_timestamp()
 

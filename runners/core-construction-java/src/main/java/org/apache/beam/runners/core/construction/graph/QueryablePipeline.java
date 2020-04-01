@@ -414,7 +414,9 @@ public class QueryablePipeline {
   private Set<String> getLocalTimerNames(PTransform transform) {
     if (PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
       try {
-        return ParDoPayload.parseFrom(transform.getSpec().getPayload()).getTimerSpecsMap().keySet();
+        return ParDoPayload.parseFrom(transform.getSpec().getPayload())
+            .getTimerFamilySpecsMap()
+            .keySet();
       } catch (InvalidProtocolBufferException e) {
         throw new RuntimeException(e);
       }

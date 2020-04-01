@@ -31,42 +31,53 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.ByteBuddy;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.NamingStrategy;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.NamingStrategy.SuffixingRandom.BaseNameResolver;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.method.MethodDescription.ForLoadedConstructor;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.type.TypeDescription;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.type.TypeDescription.ForLoadedType;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.dynamic.DynamicType;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.dynamic.scaffold.InstrumentedType;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.Implementation;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.ByteCodeAppender;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.Duplication;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.StackManipulation;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.StackManipulation.Compound;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.TypeCreation;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.assign.Assigner;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.assign.TypeCasting;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.collection.ArrayAccess;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.collection.ArrayFactory;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.FieldAccess;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.MethodInvocation;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.MethodReturn;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.matcher.ElementMatchers;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.utility.RandomString;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.ByteBuddy;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.NamingStrategy;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.NamingStrategy.SuffixingRandom.BaseNameResolver;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.asm.AsmVisitorWrapper;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.method.MethodDescription.ForLoadedConstructor;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.type.TypeDescription;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.type.TypeDescription.ForLoadedType;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.dynamic.DynamicType;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.dynamic.scaffold.InstrumentedType;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.Implementation;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.Implementation.Context;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.ByteCodeAppender;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.Duplication;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.StackManipulation;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.StackManipulation.Compound;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.TypeCreation;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.assign.Assigner;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.collection.ArrayAccess;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.collection.ArrayFactory;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.constant.NullConstant;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.FieldAccess;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodInvocation;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodReturn;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.jar.asm.ClassWriter;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.jar.asm.Label;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.jar.asm.MethodVisitor;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.jar.asm.Opcodes;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.matcher.ElementMatchers;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.utility.RandomString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Collections2;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -81,6 +92,7 @@ import org.joda.time.ReadableInstant;
 import org.joda.time.ReadablePartial;
 import org.joda.time.base.BaseLocal;
 
+@Internal
 public class ByteBuddyUtils {
   private static final ForLoadedType ARRAYS_TYPE = new ForLoadedType(Arrays.class);
   private static final ForLoadedType ARRAY_UTILS_TYPE = new ForLoadedType(ArrayUtils.class);
@@ -115,11 +127,11 @@ public class ByteBuddyUtils {
 
     private final RandomString randomString;
 
-    private final String targetPackage;
+    @Nullable private final String targetPackage;
 
     public InjectPackageStrategy(Class<?> baseType) {
       randomString = new RandomString();
-      this.targetPackage = baseType.getPackage().getName();
+      this.targetPackage = baseType.getPackage() != null ? baseType.getPackage().getName() : null;
     }
 
     @Override
@@ -127,9 +139,61 @@ public class ByteBuddyUtils {
       String baseName = baseNameResolver.resolve(superClass);
       int lastDot = baseName.lastIndexOf('.');
       String className = baseName.substring(lastDot, baseName.length());
-      return targetPackage + className + "$" + SUFFIX + "$" + randomString.nextString();
+      // If the target class is in a prohibited package (java.*) then leave the original package
+      // alone.
+      String realPackage =
+          overridePackage(targetPackage) ? targetPackage : superClass.getPackage().getName();
+      return realPackage + className + "$" + SUFFIX + "$" + randomString.nextString();
+    }
+
+    private static boolean overridePackage(@Nullable String targetPackage) {
+      return targetPackage != null && !targetPackage.startsWith("java.");
     }
   };
+
+  static class IfNullElse implements StackManipulation {
+    private final StackManipulation readValue;
+    private final StackManipulation onNull;
+    private final StackManipulation onNotNull;
+
+    IfNullElse(StackManipulation readValue, StackManipulation onNull, StackManipulation onNotNull) {
+      this.readValue = readValue;
+      this.onNull = onNull;
+      this.onNotNull = onNotNull;
+    }
+
+    @Override
+    public boolean isValid() {
+      return true;
+    }
+
+    @Override
+    public Size apply(MethodVisitor methodVisitor, Context context) {
+      Size size = new Size(0, 0);
+      size = size.aggregate(readValue.apply(methodVisitor, context));
+      Label label = new Label();
+      Label skipLabel = new Label();
+      methodVisitor.visitJumpInsn(Opcodes.IFNONNULL, label);
+      size = size.aggregate(new Size(-1, 0));
+      size = size.aggregate(onNull.apply(methodVisitor, context));
+      methodVisitor.visitJumpInsn(Opcodes.GOTO, skipLabel);
+      size = size.aggregate(new Size(0, 1));
+      methodVisitor.visitLabel(label);
+      // We set COMPUTE_FRAMES on our builders, which causes ASM to calculate the correct frame
+      // information to insert here.
+      size = size.aggregate(onNotNull.apply(methodVisitor, context));
+      methodVisitor.visitLabel(skipLabel);
+      return size;
+    }
+  }
+
+  // This StackManipulation returns onNotNull if the result of readValue is not null. Otherwise it
+  // returns null.
+  static class ShortCircuitReturnNull extends IfNullElse {
+    ShortCircuitReturnNull(StackManipulation readValue, StackManipulation onNotNull) {
+      super(readValue, NullConstant.INSTANCE, onNotNull);
+    }
+  }
 
   // Create a new FieldValueGetter subclass.
   @SuppressWarnings("unchecked")
@@ -145,7 +209,7 @@ public class ByteBuddyUtils {
 
   // Create a new FieldValueSetter subclass.
   @SuppressWarnings("unchecked")
-  static DynamicType.Builder<FieldValueSetter> subclassSetterInterface(
+  public static DynamicType.Builder<FieldValueSetter> subclassSetterInterface(
       ByteBuddy byteBuddy, Type objectType, Type fieldType) {
     TypeDescription.Generic setterGenericType =
         TypeDescription.Generic.Builder.parameterizedType(
@@ -314,8 +378,6 @@ public class ByteBuddyUtils {
 
     @Override
     protected Type convertEnum(TypeDescriptor<?> type) {
-      // We represent enums in the Row as Integers. The EnumerationType handles the mapping to the
-      // actual enum type.
       return Integer.class;
     }
 
@@ -360,6 +422,7 @@ public class ByteBuddyUtils {
     DynamicType.Builder<Function> builder =
         (DynamicType.Builder<Function>)
             BYTE_BUDDY
+                .with(new InjectPackageStrategy((Class) fromType))
                 .subclass(functionGenericType)
                 .method(ElementMatchers.named("apply"))
                 .intercept(
@@ -388,8 +451,11 @@ public class ByteBuddyUtils {
                     });
 
     return builder
+        .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
         .make()
-        .load(ByteBuddyUtils.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+        .load(
+            ReflectHelpers.findClassLoader(((Class) fromType).getClassLoader()),
+            ClassLoadingStrategy.Default.INJECTION)
         .getLoaded();
   }
 
@@ -510,6 +576,28 @@ public class ByteBuddyUtils {
     public Set<Entry<K2, V2>> entrySet() {
       return delegateMap.entrySet();
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      TransformingMap<?, ?, ?, ?> that = (TransformingMap<?, ?, ?, ?>) o;
+      return Objects.equals(delegateMap, that.delegateMap);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(delegateMap);
+    }
+
+    @Override
+    public String toString() {
+      return delegateMap.toString();
+    }
   }
 
   /**
@@ -569,6 +657,7 @@ public class ByteBuddyUtils {
                       .getOnly()));
 
       // Generate a SerializableFunction to convert the element-type objects.
+      StackManipulation stackManipulation;
       final TypeDescriptor finalComponentType = ReflectUtils.boxIfPrimitive(componentType);
       if (!finalComponentType.hasUnresolvedParameters()) {
         Type convertedComponentType =
@@ -579,16 +668,18 @@ public class ByteBuddyUtils {
                     componentType.getRawType(),
                     convertedComponentType,
                     (s) -> getFactory().createGetterConversions(s).convert(finalComponentType)));
-        return createTransformingContainer(functionType, readListValue);
+        stackManipulation = createTransformingContainer(functionType, readListValue);
       } else {
-        return readListValue;
+        stackManipulation = readListValue;
       }
+      return new ShortCircuitReturnNull(readValue, stackManipulation);
     }
 
     @Override
     protected StackManipulation convertIterable(TypeDescriptor<?> type) {
       TypeDescriptor componentType = ReflectUtils.getIterableComponentType(type);
       Type convertedComponentType = getFactory().createTypeConversion(true).convert(componentType);
+
       final TypeDescriptor finalComponentType = ReflectUtils.boxIfPrimitive(componentType);
       if (!finalComponentType.hasUnresolvedParameters()) {
         ForLoadedType functionType =
@@ -597,7 +688,8 @@ public class ByteBuddyUtils {
                     componentType.getRawType(),
                     convertedComponentType,
                     (s) -> getFactory().createGetterConversions(s).convert(finalComponentType)));
-        return createTransformingContainer(functionType, readValue);
+        StackManipulation stackManipulation = createTransformingContainer(functionType, readValue);
+        return new ShortCircuitReturnNull(readValue, stackManipulation);
       } else {
         return readValue;
       }
@@ -615,7 +707,8 @@ public class ByteBuddyUtils {
                     componentType.getRawType(),
                     convertedComponentType,
                     (s) -> getFactory().createGetterConversions(s).convert(finalComponentType)));
-        return createTransformingContainer(functionType, readValue);
+        StackManipulation stackManipulation = createTransformingContainer(functionType, readValue);
+        return new ShortCircuitReturnNull(readValue, stackManipulation);
       } else {
         return readValue;
       }
@@ -633,7 +726,8 @@ public class ByteBuddyUtils {
                     componentType.getRawType(),
                     convertedComponentType,
                     (s) -> getFactory().createGetterConversions(s).convert(finalComponentType)));
-        return createTransformingContainer(functionType, readValue);
+        StackManipulation stackManipulation = createTransformingContainer(functionType, readValue);
+        return new ShortCircuitReturnNull(readValue, stackManipulation);
       } else {
         return readValue;
       }
@@ -660,27 +754,31 @@ public class ByteBuddyUtils {
                     valueType.getRawType(),
                     convertedValueType,
                     (s) -> getFactory().createGetterConversions(s).convert(valueType)));
-        return new Compound(
-            readValue,
-            TypeCreation.of(keyFunctionType),
-            Duplication.SINGLE,
-            MethodInvocation.invoke(
-                keyFunctionType
-                    .getDeclaredMethods()
-                    .filter(ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(0)))
-                    .getOnly()),
-            TypeCreation.of(valueFunctionType),
-            Duplication.SINGLE,
-            MethodInvocation.invoke(
-                valueFunctionType
-                    .getDeclaredMethods()
-                    .filter(ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(0)))
-                    .getOnly()),
-            MethodInvocation.invoke(
-                BYTE_BUDDY_UTILS_TYPE
-                    .getDeclaredMethods()
-                    .filter(ElementMatchers.named("getTransformingMap"))
-                    .getOnly()));
+        StackManipulation stackManipulation =
+            new Compound(
+                readValue,
+                TypeCreation.of(keyFunctionType),
+                Duplication.SINGLE,
+                MethodInvocation.invoke(
+                    keyFunctionType
+                        .getDeclaredMethods()
+                        .filter(
+                            ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(0)))
+                        .getOnly()),
+                TypeCreation.of(valueFunctionType),
+                Duplication.SINGLE,
+                MethodInvocation.invoke(
+                    valueFunctionType
+                        .getDeclaredMethods()
+                        .filter(
+                            ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(0)))
+                        .getOnly()),
+                MethodInvocation.invoke(
+                    BYTE_BUDDY_UTILS_TYPE
+                        .getDeclaredMethods()
+                        .filter(ElementMatchers.named("getTransformingMap"))
+                        .getOnly()));
+        return new ShortCircuitReturnNull(readValue, stackManipulation);
       } else {
         return readValue;
       }
@@ -758,7 +856,8 @@ public class ByteBuddyUtils {
                           .and(ElementMatchers.takesArguments(ForLoadedType.of(long.class))))
                   .getOnly()));
 
-      return new StackManipulation.Compound(stackManipulations);
+      StackManipulation stackManipulation = new StackManipulation.Compound(stackManipulations);
+      return new ShortCircuitReturnNull(readValue, stackManipulation);
     }
 
     @Override
@@ -769,14 +868,17 @@ public class ByteBuddyUtils {
       // We must extract the array from the ByteBuffer before returning.
       // NOTE: we only support array-backed byte buffers in these POJOs. Others (e.g. mmaped
       // files) are not supported.
-      return new Compound(
-          readValue,
-          MethodInvocation.invoke(
-              BYTE_BUFFER_TYPE
-                  .getDeclaredMethods()
-                  .filter(
-                      ElementMatchers.named("array").and(ElementMatchers.returns(BYTE_ARRAY_TYPE)))
-                  .getOnly()));
+      StackManipulation stackManipulation =
+          new Compound(
+              readValue,
+              MethodInvocation.invoke(
+                  BYTE_BUFFER_TYPE
+                      .getDeclaredMethods()
+                      .filter(
+                          ElementMatchers.named("array")
+                              .and(ElementMatchers.returns(BYTE_ARRAY_TYPE)))
+                      .getOnly()));
+      return new ShortCircuitReturnNull(readValue, stackManipulation);
     }
 
     @Override
@@ -788,13 +890,16 @@ public class ByteBuddyUtils {
 
       // Otherwise, generate the following code:
       // return value.toString();
-      return new Compound(
-          readValue,
-          MethodInvocation.invoke(
-              CHAR_SEQUENCE_TYPE
-                  .getDeclaredMethods()
-                  .filter(ElementMatchers.named("toString").and(ElementMatchers.takesArguments(0)))
-                  .getOnly()));
+      StackManipulation stackManipulation =
+          new Compound(
+              readValue,
+              MethodInvocation.invoke(
+                  CHAR_SEQUENCE_TYPE
+                      .getDeclaredMethods()
+                      .filter(
+                          ElementMatchers.named("toString").and(ElementMatchers.takesArguments(0)))
+                      .getOnly()));
+      return new ShortCircuitReturnNull(readValue, stackManipulation);
     }
 
     @Override
@@ -809,17 +914,20 @@ public class ByteBuddyUtils {
 
     @Override
     protected StackManipulation convertEnum(TypeDescriptor<?> type) {
-      return new Compound(
-          readValue,
-          MethodInvocation.invoke(
-              ENUM_TYPE
-                  .getDeclaredMethods()
-                  .filter(ElementMatchers.named("ordinal").and(ElementMatchers.takesArguments(0)))
-                  .getOnly()),
-          Assigner.DEFAULT.assign(
-              INTEGER_TYPE.asUnboxed().asGenericType(),
-              INTEGER_TYPE.asGenericType(),
-              Typing.STATIC));
+      StackManipulation stackManipulation =
+          new Compound(
+              readValue,
+              MethodInvocation.invoke(
+                  ENUM_TYPE
+                      .getDeclaredMethods()
+                      .filter(
+                          ElementMatchers.named("ordinal").and(ElementMatchers.takesArguments(0)))
+                      .getOnly()),
+              Assigner.DEFAULT.assign(
+                  INTEGER_TYPE.asUnboxed().asGenericType(),
+                  INTEGER_TYPE.asGenericType(),
+                  Typing.STATIC));
+      return new ShortCircuitReturnNull(readValue, stackManipulation);
     }
 
     @Override
@@ -862,6 +970,7 @@ public class ByteBuddyUtils {
       Type rowElementType =
           getFactory().createTypeConversion(false).convert(type.getComponentType());
       final TypeDescriptor arrayElementType = ReflectUtils.boxIfPrimitive(type.getComponentType());
+      StackManipulation readTransformedValue = readValue;
       if (!arrayElementType.hasUnresolvedParameters()) {
         ForLoadedType conversionFunction =
             new ForLoadedType(
@@ -869,13 +978,13 @@ public class ByteBuddyUtils {
                     TypeDescriptor.of(rowElementType).getRawType(),
                     Primitives.wrap(arrayElementType.getRawType()),
                     (s) -> getFactory().createSetterConversions(s).convert(arrayElementType)));
-        readValue = createTransformingContainer(conversionFunction, readValue);
+        readTransformedValue = createTransformingContainer(conversionFunction, readValue);
       }
 
       // Extract an array from the collection.
       StackManipulation stackManipulation =
           new Compound(
-              readValue,
+              readTransformedValue,
               TypeCasting.to(COLLECTION_TYPE),
               // Call Collection.toArray(T[[]) to extract the array. Push new T[0] on the stack
               // before
@@ -905,7 +1014,7 @@ public class ByteBuddyUtils {
                                 .and(ElementMatchers.takesArguments(arrayType)))
                         .getOnly()));
       }
-      return stackManipulation;
+      return new ShortCircuitReturnNull(readValue, stackManipulation);
     }
 
     @Override
@@ -924,7 +1033,7 @@ public class ByteBuddyUtils {
                     (s) -> getFactory().createSetterConversions(s).convert(iterableElementType)));
         StackManipulation transformedContainer =
             createTransformingContainer(conversionFunction, readValue);
-        return transformedContainer;
+        return new ShortCircuitReturnNull(readValue, transformedContainer);
       } else {
         return readValue;
       }
@@ -947,7 +1056,7 @@ public class ByteBuddyUtils {
                     (s) -> getFactory().createSetterConversions(s).convert(collectionElementType)));
         StackManipulation transformedContainer =
             createTransformingContainer(conversionFunction, readValue);
-        return transformedContainer;
+        return new ShortCircuitReturnNull(readValue, transformedContainer);
       } else {
         return readValue;
       }
@@ -961,6 +1070,7 @@ public class ByteBuddyUtils {
               .convert(ReflectUtils.getIterableComponentType(type));
       final TypeDescriptor collectionElementType = ReflectUtils.getIterableComponentType(type);
 
+      StackManipulation readTrasformedValue = readValue;
       if (!collectionElementType.hasUnresolvedParameters()) {
         ForLoadedType conversionFunction =
             new ForLoadedType(
@@ -968,12 +1078,12 @@ public class ByteBuddyUtils {
                     TypeDescriptor.of(rowElementType).getRawType(),
                     collectionElementType.getRawType(),
                     (s) -> getFactory().createSetterConversions(s).convert(collectionElementType)));
-        readValue = createTransformingContainer(conversionFunction, readValue);
+        readTrasformedValue = createTransformingContainer(conversionFunction, readValue);
       }
       // TODO: Don't copy if already a list!
       StackManipulation transformedList =
           new Compound(
-              readValue,
+              readTrasformedValue,
               MethodInvocation.invoke(
                   new ForLoadedType(Lists.class)
                       .getDeclaredMethods()
@@ -981,7 +1091,7 @@ public class ByteBuddyUtils {
                           ElementMatchers.named("newArrayList")
                               .and(ElementMatchers.takesArguments(Iterable.class)))
                       .getOnly()));
-      return transformedList;
+      return new ShortCircuitReturnNull(readValue, transformedList);
     }
 
     @Override
@@ -993,6 +1103,7 @@ public class ByteBuddyUtils {
           getFactory().createTypeConversion(false).convert(ReflectUtils.getMapType(type, 1));
       final TypeDescriptor valueElementType = ReflectUtils.getMapType(type, 1);
 
+      StackManipulation readTrasformedValue = readValue;
       if (!keyElementType.hasUnresolvedParameters()
           && !valueElementType.hasUnresolvedParameters()) {
         ForLoadedType keyConversionFunction =
@@ -1007,7 +1118,7 @@ public class ByteBuddyUtils {
                     TypeDescriptor.of(rowValueType).getRawType(),
                     valueElementType.getRawType(),
                     (s) -> getFactory().createSetterConversions(s).convert(valueElementType)));
-        readValue =
+        readTrasformedValue =
             new Compound(
                 readValue,
                 TypeCreation.of(keyConversionFunction),
@@ -1032,7 +1143,7 @@ public class ByteBuddyUtils {
                         .filter(ElementMatchers.named("getTransformingMap"))
                         .getOnly()));
       }
-      return readValue;
+      return new ShortCircuitReturnNull(readValue, readTrasformedValue);
     }
 
     @Override
@@ -1062,6 +1173,7 @@ public class ByteBuddyUtils {
                   .getDeclaredMethods()
                   .filter(ElementMatchers.named("getMillis"))
                   .getOnly()));
+
       if (type.isSubtypeOf(TypeDescriptor.of(BaseLocal.class))) {
         // Access DateTimeZone.UTC
         stackManipulations.add(
@@ -1097,7 +1209,8 @@ public class ByteBuddyUtils {
                     .getOnly()));
       }
 
-      return new Compound(stackManipulations);
+      StackManipulation stackManipulation = new Compound(stackManipulations);
+      return new ShortCircuitReturnNull(readValue, stackManipulation);
     }
 
     @Override
@@ -1106,17 +1219,19 @@ public class ByteBuddyUtils {
       // return ByteBuffer.wrap((byte[]) value);
 
       // We currently assume that a byte[] setter will always accept a parameter of type byte[].
-      return new Compound(
-          readValue,
-          TypeCasting.to(BYTE_ARRAY_TYPE),
-          // Create a new ByteBuffer that wraps this byte[].
-          MethodInvocation.invoke(
-              BYTE_BUFFER_TYPE
-                  .getDeclaredMethods()
-                  .filter(
-                      ElementMatchers.named("wrap")
-                          .and(ElementMatchers.takesArguments(BYTE_ARRAY_TYPE)))
-                  .getOnly()));
+      StackManipulation stackManipulation =
+          new Compound(
+              readValue,
+              TypeCasting.to(BYTE_ARRAY_TYPE),
+              // Create a new ByteBuffer that wraps this byte[].
+              MethodInvocation.invoke(
+                  BYTE_BUFFER_TYPE
+                      .getDeclaredMethods()
+                      .filter(
+                          ElementMatchers.named("wrap")
+                              .and(ElementMatchers.takesArguments(BYTE_ARRAY_TYPE)))
+                      .getOnly()));
+      return new ShortCircuitReturnNull(readValue, stackManipulation);
     }
 
     @Override
@@ -1130,20 +1245,22 @@ public class ByteBuddyUtils {
       // return new T((CharacterSequence) value).
 
       ForLoadedType loadedType = new ForLoadedType(type.getRawType());
-      return new StackManipulation.Compound(
-          TypeCreation.of(loadedType),
-          Duplication.SINGLE,
-          // Load the parameter and cast it to a CharSequence.
-          readValue,
-          TypeCasting.to(CHAR_SEQUENCE_TYPE),
-          // Create an element of the field type that wraps this one.
-          MethodInvocation.invoke(
-              loadedType
-                  .getDeclaredMethods()
-                  .filter(
-                      ElementMatchers.isConstructor()
-                          .and(ElementMatchers.takesArguments(CHAR_SEQUENCE_TYPE)))
-                  .getOnly()));
+      StackManipulation stackManipulation =
+          new StackManipulation.Compound(
+              TypeCreation.of(loadedType),
+              Duplication.SINGLE,
+              // Load the parameter and cast it to a CharSequence.
+              readValue,
+              TypeCasting.to(CHAR_SEQUENCE_TYPE),
+              // Create an element of the field type that wraps this one.
+              MethodInvocation.invoke(
+                  loadedType
+                      .getDeclaredMethods()
+                      .filter(
+                          ElementMatchers.isConstructor()
+                              .and(ElementMatchers.takesArguments(CHAR_SEQUENCE_TYPE)))
+                      .getOnly()));
+      return new ShortCircuitReturnNull(readValue, stackManipulation);
     }
 
     @Override
@@ -1163,24 +1280,28 @@ public class ByteBuddyUtils {
       ForLoadedType loadedType = new ForLoadedType(type.getRawType());
 
       // Convert the stored ordinal back to the Java enum constant.
-      return new Compound(
-          // Call EnumType::values() to get an array of all enum constants.
-          MethodInvocation.invoke(
-              loadedType
-                  .getDeclaredMethods()
-                  .filter(
-                      ElementMatchers.named("values")
-                          .and(ElementMatchers.isStatic().and(ElementMatchers.takesArguments(0))))
-                  .getOnly()),
-          // Read the integer enum value.
-          readValue,
-          // Unbox Integer -> int before accessing the array.
-          Assigner.DEFAULT.assign(
-              INTEGER_TYPE.asBoxed().asGenericType(),
-              INTEGER_TYPE.asUnboxed().asGenericType(),
-              Typing.STATIC),
-          // Access the array to return the Java enum type.
-          ArrayAccess.REFERENCE.load());
+      StackManipulation stackManipulation =
+          new Compound(
+              // Call EnumType::values() to get an array of all enum constants.
+              MethodInvocation.invoke(
+                  loadedType
+                      .getDeclaredMethods()
+                      .filter(
+                          ElementMatchers.named("values")
+                              .and(
+                                  ElementMatchers.isStatic()
+                                      .and(ElementMatchers.takesArguments(0))))
+                      .getOnly()),
+              // Read the integer enum value.
+              readValue,
+              // Unbox Integer -> int before accessing the array.
+              Assigner.DEFAULT.assign(
+                  INTEGER_TYPE.asBoxed().asGenericType(),
+                  INTEGER_TYPE.asUnboxed().asGenericType(),
+                  Typing.STATIC),
+              // Access the array to return the Java enum type.
+              ArrayAccess.REFERENCE.load());
+      return new ShortCircuitReturnNull(readValue, stackManipulation);
     }
 
     @Override
@@ -1345,7 +1466,7 @@ public class ByteBuddyUtils {
                   stackManipulation,
                   typeConversionsFactory
                       .createSetterConversions(readParameter)
-                      .convert(TypeDescriptor.of(parameter.getType())));
+                      .convert(TypeDescriptor.of(parameter.getParameterizedType())));
         }
         stackManipulation =
             new StackManipulation.Compound(

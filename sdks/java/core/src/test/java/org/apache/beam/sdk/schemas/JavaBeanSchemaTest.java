@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ALL_NULLABLE_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ARRAY_OF_BYTE_ARRAY_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ITERABLE_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_ARRAYS_BEAM_SCHEMA;
@@ -27,6 +28,7 @@ import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.PRIMITIVE_ARRAY_BE
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.SIMPLE_BEAN_SCHEMA;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
@@ -37,6 +39,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.AllNullableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.ArrayOfByteArray;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.IterableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.MismatchingNullableBean;
@@ -157,6 +160,47 @@ public class JavaBeanSchemaTest {
     assertArrayEquals("not equal", BYTE_ARRAY, bean.getByteBuffer().array());
     assertEquals(BigDecimal.ONE, bean.getBigDecimal());
     assertEquals("stringbuilder", bean.getStringBuilder().toString());
+  }
+
+  @Test
+  public void testNullableToRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    AllNullableBean bean = new AllNullableBean();
+    Row row = registry.getToRowFunction(AllNullableBean.class).apply(bean);
+
+    assertEquals(12, row.getFieldCount());
+    assertNull(row.getString("str"));
+    assertNull(row.getByte("aByte"));
+    assertNull(row.getInt16("aShort"));
+    assertNull(row.getInt32("anInt"));
+    assertNull(row.getInt64("aLong"));
+    assertNull(row.getBoolean("aBoolean"));
+    assertNull(row.getDateTime("dateTime"));
+    assertNull(row.getDateTime("instant"));
+    assertNull(row.getBytes("bytes"));
+    assertNull(row.getBytes("byteBuffer"));
+    assertNull(row.getDecimal("bigDecimal"));
+    assertNull(row.getString("stringBuilder"));
+  }
+
+  @Test
+  public void testNullableFromRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row = Row.nullRow(ALL_NULLABLE_BEAN_SCHEMA);
+
+    AllNullableBean bean = registry.getFromRowFunction(AllNullableBean.class).apply(row);
+    assertNull(bean.getStr());
+    assertNull(bean.getaByte());
+    assertNull(bean.getaShort());
+    assertNull(bean.getAnInt());
+    assertNull(bean.getaLong());
+    assertNull(bean.isaBoolean());
+    assertNull(bean.getDateTime());
+    assertNull(bean.getInstant());
+    assertNull(bean.getBytes());
+    assertNull(bean.getByteBuffer());
+    assertNull(bean.getBigDecimal());
+    assertNull(bean.getStringBuilder());
   }
 
   @Test
@@ -417,7 +461,8 @@ public class JavaBeanSchemaTest {
     SchemaTestUtils.assertSchemaEquivalent(ITERABLE_BEAM_SCHEMA, schema);
 
     List<String> list = Lists.newArrayList("one", "two");
-    Row iterableRow = Row.withSchema(ITERABLE_BEAM_SCHEMA).addIterable(list).build();
+    Row iterableRow =
+        Row.withSchema(ITERABLE_BEAM_SCHEMA).attachValues(ImmutableList.of((Object) list));
     IterableBean converted = registry.getFromRowFunction(IterableBean.class).apply(iterableRow);
     assertEquals(list, Lists.newArrayList(converted.getStrings()));
 

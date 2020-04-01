@@ -118,7 +118,7 @@ func matchLocations(artifacts []*pb.ArtifactMetadata, blobs map[string]staged) (
 }
 
 // PutArtifact stores the given artifact in GCS.
-func (s *StagingServer) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServer) error {
+func (s *StagingServer) PutArtifact(ps pb.LegacyArtifactStagingService_PutArtifactServer) error {
 	// Read header
 
 	header, err := ps.Recv()
@@ -161,7 +161,7 @@ func (s *StagingServer) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServ
 type reader struct {
 	sha256W hash.Hash
 	buf     []byte
-	stream  pb.ArtifactStagingService_PutArtifactServer
+	stream  pb.LegacyArtifactStagingService_PutArtifactServer
 }
 
 func (r *reader) Read(buf []byte) (int, error) {

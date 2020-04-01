@@ -41,6 +41,7 @@ import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.BigQueryServerStream;
@@ -55,10 +56,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A {@link org.apache.beam.sdk.io.Source} representing a single stream in a read session. */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryStorageStreamSource.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryStorageStreamSource.class);
 
   public static <T> BigQueryStorageStreamSource<T> create(
       ReadSession readSession,
@@ -149,7 +150,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
   }
 
   /** A {@link org.apache.beam.sdk.io.Source.Reader} which reads records from a stream. */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
+  @Experimental(Kind.SOURCE_SINK)
   public static class BigQueryStorageStreamReader<T> extends BoundedSource.BoundedReader<T> {
 
     private final DatumReader<GenericRecord> datumReader;
@@ -200,7 +201,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
       responseStream = storageClient.readRows(request);
       responseIterator = responseStream.iterator();
-      LOGGER.info("Started BigQuery Storage API read from stream {}.", source.stream.getName());
+      LOG.info("Started BigQuery Storage API read from stream {}.", source.stream.getName());
       return readNextRecord();
     }
 
@@ -282,7 +283,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     @Override
     public BoundedSource<T> splitAtFraction(double fraction) {
       Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls").inc();
-      LOGGER.debug(
+      LOG.debug(
           "Received BigQuery Storage API split request for stream {} at fraction {}.",
           source.stream.getName(),
           fraction);
@@ -300,7 +301,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
                 BigQueryStorageStreamReader.class,
                 "split-at-fraction-calls-failed-due-to-impossible-split-point")
             .inc();
-        LOGGER.info(
+        LOG.info(
             "BigQuery Storage API stream {} cannot be split at {}.",
             source.stream.getName(),
             fraction);
@@ -331,7 +332,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
                   BigQueryStorageStreamReader.class,
                   "split-at-fraction-calls-failed-due-to-bad-split-point")
               .inc();
-          LOGGER.info(
+          LOG.info(
               "BigQuery Storage API split of stream {} abandoned because the primary stream is to "
                   + "the left of the split fraction {}.",
               source.stream.getName(),
@@ -342,7 +343,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
                   BigQueryStorageStreamReader.class,
                   "split-at-fraction-calls-failed-due-to-other-reasons")
               .inc();
-          LOGGER.error("BigQuery Storage API stream split failed.", e);
+          LOG.error("BigQuery Storage API stream split failed.", e);
           return null;
         }
 
@@ -366,7 +367,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
       Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls-successful")
           .inc();
-      LOGGER.info(
+      LOG.info(
           "Successfully split BigQuery Storage API stream at {}. Split response: {}",
           fraction,
           splitResponse);

@@ -37,8 +37,7 @@ def kvswap(test=None):
             ('🥔', 'Potato'),
         ])
         | 'Key-Value swap' >> beam.KvSwap()
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END kvswap]
     if test:
       test(plants)

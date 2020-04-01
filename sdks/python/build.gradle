@@ -89,11 +89,12 @@ task depSnapshot {
 
 task dependencyUpdates {
   dependsOn ':dependencyUpdates'
+  dependsOn setupVirtualenv
 
   doLast {
     exec {
       executable 'sh'
-      args '-c', "./scripts/run_dependency_check.sh"
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_dependency_check.sh"
     }
   }
 }

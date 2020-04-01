@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.joda.time.Instant;
 
@@ -41,7 +42,7 @@ import org.joda.time.Instant;
  *       Repeatedly.forever(a)}, since the repeated trigger never finishes.
  * </ul>
  */
-@Experimental(Experimental.Kind.TRIGGER)
+@Experimental(Kind.TRIGGER)
 public class AfterEach extends Trigger {
 
   private AfterEach(List<Trigger> subTriggers) {

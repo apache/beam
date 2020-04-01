@@ -42,22 +42,20 @@ is_running_in_gce = False
 # information.
 executing_project = None
 
-
 _LOGGER = logging.getLogger(__name__)
 
-
 if GceAssertionCredentials is not None:
+
   class _GceAssertionCredentials(GceAssertionCredentials):
     """GceAssertionCredentials with retry wrapper.
 
     For internal use only; no backwards-compatibility guarantees.
     """
-
     @retry.with_exponential_backoff(
         retry_filter=retry.retry_on_server_errors_and_timeout_filter)
     def _do_refresh_request(self, http_request):
-      return super(_GceAssertionCredentials, self)._do_refresh_request(
-          http_request)
+      return super(_GceAssertionCredentials,
+                   self)._do_refresh_request(http_request)
 
 
 def set_running_in_gce(worker_executing_project):
@@ -135,11 +133,13 @@ class _Credentials(object):
       try:
         credentials = GoogleCredentials.get_application_default()
         credentials = credentials.create_scoped(client_scopes)
-        logging.debug('Connecting using Google Application Default '
-                      'Credentials.')
+        logging.debug(
+            'Connecting using Google Application Default '
+            'Credentials.')
         return credentials
       except Exception as e:
         _LOGGER.warning(
             'Unable to find default credentials to use: %s\n'
-            'Connecting anonymously.', e)
+            'Connecting anonymously.',
+            e)
         return None

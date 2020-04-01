@@ -287,7 +287,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     Object[] convertedColumns = new Object[schema.getFields().size()];
     int i = 0;
     for (Schema.Field field : schema.getFields()) {
-      convertedColumns[i] = fieldToAvatica(field.getType(), row.getValue(i));
+      convertedColumns[i] = fieldToAvatica(field.getType(), row.getBaseValue(i, Object.class));
       ++i;
     }
     return convertedColumns;
@@ -308,7 +308,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
         } else if (logicalId.equals(CharType.IDENTIFIER)) {
           return beamValue;
         } else {
-          throw new IllegalArgumentException("Unknown DateTime type " + logicalId);
+          throw new UnsupportedOperationException("Unknown DateTime type " + logicalId);
         }
       case DATETIME:
         return ((ReadableInstant) beamValue).getMillis();
@@ -394,7 +394,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       return ((AbstractBeamCalcRel) node).getLimitCountOfSortRel();
     }
 
-    throw new RuntimeException(
+    throw new IllegalArgumentException(
         "Cannot get limit count from RelNode tree with root " + node.getRelTypeName());
   }
 

@@ -35,6 +35,7 @@ const (
 	Impulse    Opcode = "Impulse"
 	ParDo      Opcode = "ParDo"
 	CoGBK      Opcode = "CoGBK"
+	Reshuffle  Opcode = "Reshuffle"
 	External   Opcode = "External"
 	Flatten    Opcode = "Flatten"
 	Combine    Opcode = "Combine"
@@ -143,13 +144,14 @@ type MultiEdge struct {
 	id     int
 	parent *Scope
 
-	Op         Opcode
-	DoFn       *DoFn        // ParDo
-	CombineFn  *CombineFn   // Combine
-	AccumCoder *coder.Coder // Combine
-	Value      []byte       // Impulse
-	Payload    *Payload     // External
-	WindowFn   *window.Fn   // WindowInto
+	Op               Opcode
+	DoFn             *DoFn        // ParDo
+	RestrictionCoder *coder.Coder // SplittableParDo
+	CombineFn        *CombineFn   // Combine
+	AccumCoder       *coder.Coder // Combine
+	Value            []byte       // Impulse
+	Payload          *Payload     // External
+	WindowFn         *window.Fn   // WindowInto
 
 	Input  []*Inbound
 	Output []*Outbound
@@ -296,11 +298,11 @@ func NewExternal(g *Graph, s *Scope, payload *Payload, in []*Node, out []typex.F
 }
 
 // NewParDo inserts a new ParDo edge into the graph.
-func NewParDo(g *Graph, s *Scope, u *DoFn, in []*Node, typedefs map[string]reflect.Type) (*MultiEdge, error) {
-	return newDoFnNode(ParDo, g, s, u, in, typedefs)
+func NewParDo(g *Graph, s *Scope, u *DoFn, in []*Node, rc *coder.Coder, typedefs map[string]reflect.Type) (*MultiEdge, error) {
+	return newDoFnNode(ParDo, g, s, u, in, rc, typedefs)
 }
 
-func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node, typedefs map[string]reflect.Type) (*MultiEdge, error) {
+func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node, rc *coder.Coder, typedefs map[string]reflect.Type) (*MultiEdge, error) {
 	// TODO(herohde) 5/22/2017: revisit choice of ProcessElement as representative. We should
 	// perhaps create a synthetic method for binding purposes? The main question is how to
 	// tell which side input binds to which if the signatures differ, which is a downside of
@@ -321,6 +323,7 @@ func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node, typedefs ma
 		n := g.NewNode(out[i], inputWindow(in), inputBounded(in))
 		edge.Output = append(edge.Output, &Outbound{To: n, Type: outbound[i]})
 	}
+	edge.RestrictionCoder = rc
 	return edge, nil
 }
 
@@ -447,4 +450,23 @@ func inputBounded(in []*Node) bool {
 		return true
 	}
 	return in[0].Bounded()
+}
+
+// NewReshuffle inserts a new Reshuffle edge into the graph.
+func NewReshuffle(g *Graph, s *Scope, in *Node) (*MultiEdge, error) {
+	addContext := func(err error, s *Scope) error {
+		return errors.WithContextf(err, "creating new Reshuffle in scope %v", s)
+	}
+	n := g.NewNode(in.Type(), in.WindowingStrategy(), in.Bounded())
+	n.Coder = in.Coder
+
+	t := in.Type()
+	if typex.IsCoGBK(t) {
+		return nil, addContext(errors.Errorf("Reshuffle input type cannot be CoGBK: %v", t), s)
+	}
+	edge := g.NewEdge(s)
+	edge.Op = Reshuffle
+	edge.Input = []*Inbound{{Kind: Main, From: in, Type: t}}
+	edge.Output = []*Outbound{{To: n, Type: t}}
+	return edge, nil
 }

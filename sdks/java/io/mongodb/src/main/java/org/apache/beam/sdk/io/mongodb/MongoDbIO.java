@@ -41,6 +41,7 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -107,7 +108,7 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class MongoDbIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(MongoDbIO.class);

@@ -31,15 +31,16 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.TimeDomain;
-import org.apache.beam.sdk.state.Timer;
-import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
-import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.BaseArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -50,7 +51,6 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
@@ -212,7 +212,13 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
           createProcessContext(
               ValueInSingleWindow.of(element, timestamp, window, PaneInfo.NO_FIRING));
       fnInvoker.invokeProcessElement(
-          new DoFnInvoker.ArgumentProvider<InputT, OutputT>() {
+          new DoFnInvoker.BaseArgumentProvider<InputT, OutputT>() {
+
+            @Override
+            public String getErrorContext() {
+              return "DoFnTester";
+            }
+
             @Override
             public BoundedWindow window() {
               return window;
@@ -253,16 +259,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
-            public InputT sideInput(String sideInputTag) {
-              throw new UnsupportedOperationException("SideInputs are not supported by DoFnTester");
-            }
-
-            @Override
-            public InputT schemaElement(int index) {
-              throw new UnsupportedOperationException("Schemas are not supported by DoFnTester");
-            }
-
-            @Override
             public Instant timestamp(DoFn<InputT, OutputT> doFn) {
               return processContext.timestamp();
             }
@@ -285,39 +281,20 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
-            public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-              throw new UnsupportedOperationException("Schemas are not supported by DoFnTester");
-            }
-
-            @Override
             public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
               return DoFnOutputReceivers.windowedMultiReceiver(processContext, null);
             }
 
             @Override
-            public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
-              throw new UnsupportedOperationException("DoFnTester doesn't support timers yet.");
+            public Object restriction() {
+              throw new UnsupportedOperationException(
+                  "Not expected to access Restriction from a regular DoFn in DoFnTester");
             }
 
             @Override
             public RestrictionTracker<?, ?> restrictionTracker() {
               throw new UnsupportedOperationException(
                   "Not expected to access RestrictionTracker from a regular DoFn in DoFnTester");
-            }
-
-            @Override
-            public org.apache.beam.sdk.state.State state(String stateId) {
-              throw new UnsupportedOperationException("DoFnTester doesn't support state yet");
-            }
-
-            @Override
-            public Timer timer(String timerId) {
-              throw new UnsupportedOperationException("DoFnTester doesn't support timers yet");
-            }
-
-            @Override
-            public TimerMap timerFamily(String tagId) {
-              throw new UnsupportedOperationException("DoFnTester doesn't support timerFamily yet");
             }
           });
     } catch (UserCodeException e) {
@@ -453,38 +430,58 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return mainOutputTag;
   }
 
-  private class TestStartBundleContext extends DoFn<InputT, OutputT>.StartBundleContext {
-
-    private TestStartBundleContext() {
-      fn.super();
+  private class TestStartBundleContext extends BaseArgumentProvider<InputT, OutputT> {
+    @Override
+    public StartBundleContext startBundleContext(DoFn doFn) {
+      return fn.new StartBundleContext() {
+        @Override
+        public PipelineOptions getPipelineOptions() {
+          return options;
+        }
+      };
     }
 
     @Override
-    public PipelineOptions getPipelineOptions() {
+    public PipelineOptions pipelineOptions() {
       return options;
+    }
+
+    @Override
+    public String getErrorContext() {
+      return "DoFnTester/StartBundle";
     }
   }
 
-  private class TestFinishBundleContext extends DoFn<InputT, OutputT>.FinishBundleContext {
+  private class TestFinishBundleContext extends BaseArgumentProvider<InputT, OutputT> {
+    @Override
+    public FinishBundleContext finishBundleContext(DoFn doFn) {
+      return fn.new FinishBundleContext() {
+        @Override
+        public PipelineOptions getPipelineOptions() {
+          return options;
+        }
 
-    private TestFinishBundleContext() {
-      fn.super();
+        @Override
+        public void output(OutputT output, Instant timestamp, BoundedWindow window) {
+          output(mainOutputTag, output, timestamp, window);
+        }
+
+        @Override
+        public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
+          getMutableOutput(tag)
+              .add(ValueInSingleWindow.of(output, timestamp, window, PaneInfo.NO_FIRING));
+        }
+      };
     }
 
     @Override
-    public PipelineOptions getPipelineOptions() {
+    public PipelineOptions pipelineOptions() {
       return options;
     }
 
     @Override
-    public void output(OutputT output, Instant timestamp, BoundedWindow window) {
-      output(mainOutputTag, output, timestamp, window);
-    }
-
-    @Override
-    public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
-      getMutableOutput(tag)
-          .add(ValueInSingleWindow.of(output, timestamp, window, PaneInfo.NO_FIRING));
+    public String getErrorContext() {
+      return "DoFnTester/FinishBundle";
     }
   }
 
@@ -555,11 +552,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     @Override
     public PaneInfo pane() {
       return element.getPane();
-    }
-
-    @Override
-    public void updateWatermark(Instant watermark) {
-      throw new UnsupportedOperationException();
     }
 
     @Override

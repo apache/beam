@@ -88,12 +88,13 @@ class PipelineGraph(object):
     elif isinstance(pipeline, beam.Pipeline):
       self._pipeline_proto = pipeline.to_runner_api()
     else:
-      raise TypeError('pipeline should either be a %s or %s, while %s is given'
-                      % (beam_runner_api_pb2.Pipeline, beam.Pipeline,
-                         type(pipeline)))
+      raise TypeError(
+          'pipeline should either be a %s or %s, while %s is given' %
+          (beam_runner_api_pb2.Pipeline, beam.Pipeline, type(pipeline)))
 
     # A dict from PCollection ID to a list of its consuming Transform IDs
-    self._consumers = collections.defaultdict(list)  # type: DefaultDict[str, List[str]]
+    self._consumers = collections.defaultdict(
+        list)  # type: DefaultDict[str, List[str]]
     # A dict from PCollection ID to its producing Transform ID
     self._producers = {}  # type: Dict[str, str]
 
@@ -110,10 +111,8 @@ class PipelineGraph(object):
       default_vertex_attrs['fontcolor'] = 'blue'
 
     vertex_dict, edge_dict = self._generate_graph_dicts()
-    self._construct_graph(vertex_dict,
-                          edge_dict,
-                          default_vertex_attrs,
-                          default_edge_attrs)
+    self._construct_graph(
+        vertex_dict, edge_dict, default_vertex_attrs, default_edge_attrs)
 
     self._renderer = pipeline_graph_renderer.get_renderer(render_option)
 
@@ -122,18 +121,21 @@ class PipelineGraph(object):
     return self._get_graph().to_string()
 
   def display_graph(self):
+    """Displays the graph generated."""
     rendered_graph = self._renderer.render_pipeline_graph(self)
     if ie.current_env().is_in_notebook:
       try:
         from IPython.core import display
         display.display(display.HTML(rendered_graph))
       except ImportError:  # Unlikely to happen when is_in_notebook.
-        logging.warning('Failed to import IPython display module when current '
-                        'environment is in a notebook. Cannot display the '
-                        'pipeline graph.')
+        logging.warning(
+            'Failed to import IPython display module when current '
+            'environment is in a notebook. Cannot display the '
+            'pipeline graph.')
 
   def _top_level_transforms(self):
     # type: () -> Iterator[Tuple[str, beam_runner_api_pb2.PTransform]]
+
     """Yields all top level PTransforms (subtransforms of the root PTransform).
 
     Yields: (str, PTransform proto) ID, proto pair of top level PTransforms.
@@ -200,8 +202,7 @@ class PipelineGraph(object):
         if pcoll_id not in self._consumers:
           self._edge_to_vertex_pairs[pcoll_id].append(
               (self._decorate(transform.unique_name), pcoll_node))
-          edge_dict[(self._decorate(transform.unique_name),
-                     pcoll_node)] = {}
+          edge_dict[(self._decorate(transform.unique_name), pcoll_node)] = {}
         else:
           for consumer in self._consumers[pcoll_id]:
             producer_name = self._decorate(transform.unique_name)
@@ -227,8 +228,8 @@ class PipelineGraph(object):
     with self._lock:
       return self._graph
 
-  def _construct_graph(self, vertex_dict, edge_dict,
-                       default_vertex_attrs, default_edge_attrs):
+  def _construct_graph(
+      self, vertex_dict, edge_dict, default_vertex_attrs, default_edge_attrs):
     """Constructs the pydot.Dot object for the pipeline graph.
 
     Args:

@@ -71,7 +71,7 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --project your-gcp-project \
             --temp_location gs://<your-gcs-bucket>/tmp/ \
             --staging_location gs://<your-gcs-bucket>/binaries/ \
-            --worker_harness_container_image=apachebeam/go_sdk:latest
+            --worker_harness_container_image=apache/beam_go_sdk:latest
 ```
 
 {:.runner-nemo}

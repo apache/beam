@@ -33,7 +33,7 @@ import java.util.Collection;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
-import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer.UnsupportedRowJsonException;
+import org.apache.beam.sdk.util.RowJson.UnsupportedRowJsonException;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matcher;
@@ -335,7 +335,9 @@ public class RowJsonTest {
       Schema schema = Schema.builder().addDateTimeField("f_dateTime").build();
 
       thrown.expect(UnsupportedRowJsonException.class);
-      thrown.expectMessage("DATETIME is not supported");
+      thrown.expectMessage("DATETIME");
+      thrown.expectMessage("f_dateTime");
+      thrown.expectMessage("not supported");
 
       RowJson.RowJsonDeserializer.forSchema(schema);
     }
@@ -345,7 +347,9 @@ public class RowJsonTest {
       Schema schema = Schema.builder().addArrayField("f_dateTimeArray", FieldType.DATETIME).build();
 
       thrown.expect(UnsupportedRowJsonException.class);
-      thrown.expectMessage("DATETIME is not supported");
+      thrown.expectMessage("DATETIME");
+      thrown.expectMessage("f_dateTimeArray[]");
+      thrown.expectMessage("not supported");
 
       RowJson.RowJsonDeserializer.forSchema(schema);
     }
@@ -358,7 +362,26 @@ public class RowJsonTest {
       Schema schema = Schema.builder().addRowField("f_nestedRow", nestedSchema).build();
 
       thrown.expect(UnsupportedRowJsonException.class);
-      thrown.expectMessage("DATETIME is not supported");
+      thrown.expectMessage("DATETIME");
+      thrown.expectMessage("f_nestedRow.f_dateTimeArray[]");
+      thrown.expectMessage("not supported");
+
+      RowJson.RowJsonDeserializer.forSchema(schema);
+    }
+
+    @Test
+    public void testDeserializerThrowsForMultipleUnsupportedFieldTypes() throws Exception {
+      Schema schema =
+          Schema.builder()
+              .addInt32Field("f_int32")
+              .addDateTimeField("f_dateTime")
+              .addArrayField("f_dateTimeArray", FieldType.DATETIME)
+              .build();
+
+      thrown.expect(UnsupportedRowJsonException.class);
+      thrown.expectMessage("f_dateTime=DATETIME");
+      thrown.expectMessage("f_dateTimeArray[]=DATETIME");
+      thrown.expectMessage("not supported");
 
       RowJson.RowJsonDeserializer.forSchema(schema);
     }

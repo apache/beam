@@ -50,6 +50,7 @@ import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
@@ -95,20 +96,10 @@ public class BeamFnDataReadRunner<OutputT> {
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
         Consumer<ThrowingRunnable> tearDownFunctions,
-        BundleSplitListener splitListener)
+        BundleSplitListener splitListener,
+        BundleFinalizer bundleFinalizer)
         throws IOException {
 
-      RunnerApi.Coder coderSpec;
-      if (RemoteGrpcPortRead.fromPTransform(pTransform).getPort().getCoderId().isEmpty()) {
-        LOG.error(
-            "Missing required coder_id on grpc_port for %s; using deprecated fallback.",
-            pTransformId);
-        coderSpec =
-            coders.get(
-                pCollections.get(getOnlyElement(pTransform.getOutputsMap().values())).getCoderId());
-      } else {
-        coderSpec = null;
-      }
       FnDataReceiver<WindowedValue<OutputT>> consumer =
           (FnDataReceiver<WindowedValue<OutputT>>)
               (FnDataReceiver)
@@ -120,7 +111,6 @@ public class BeamFnDataReadRunner<OutputT> {
               pTransformId,
               pTransform,
               processBundleInstructionId,
-              coderSpec,
               coders,
               beamFnDataClient,
               consumer);
@@ -148,7 +138,6 @@ public class BeamFnDataReadRunner<OutputT> {
       String pTransformId,
       RunnerApi.PTransform grpcReadNode,
       Supplier<String> processBundleInstructionIdSupplier,
-      RunnerApi.Coder coderSpec,
       Map<String, RunnerApi.Coder> coders,
       BeamFnDataClient beamFnDataClient,
       FnDataReceiver<WindowedValue<OutputT>> consumer)
@@ -162,17 +151,9 @@ public class BeamFnDataReadRunner<OutputT> {
 
     RehydratedComponents components =
         RehydratedComponents.forComponents(Components.newBuilder().putAllCoders(coders).build());
-    @SuppressWarnings("unchecked")
-    Coder<WindowedValue<OutputT>> coder;
-    if (!port.getCoderId().isEmpty()) {
-      coder =
-          (Coder<WindowedValue<OutputT>>)
-              CoderTranslation.fromProto(coders.get(port.getCoderId()), components);
-    } else {
-      // TODO: Remove this path once it is no longer used
-      coder = (Coder<WindowedValue<OutputT>>) CoderTranslation.fromProto(coderSpec, components);
-    }
-    this.coder = coder;
+    this.coder =
+        (Coder<WindowedValue<OutputT>>)
+            CoderTranslation.fromProto(coders.get(port.getCoderId()), components);
   }
 
   public void registerInputLocation() {

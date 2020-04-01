@@ -21,7 +21,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.LegacyArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient;
@@ -41,7 +41,7 @@ public interface EnvironmentFactory {
     EnvironmentFactory createEnvironmentFactory(
         GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
         GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-        GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+        GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
         GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
         ControlClientPool clientPool,
         IdGenerator idGenerator);

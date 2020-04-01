@@ -27,21 +27,20 @@ import com.google.protobuf.Message;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.DurationNanos;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.Fixed32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.Fixed64;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SFixed32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SFixed64;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SInt32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SInt64;
-import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.TimestampNanos;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.UInt32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.UInt64;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosDuration;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
@@ -93,7 +92,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  * new TimestampNanos logical type has been introduced to allow representing nanosecond timestamp,
  * as well as a DurationNanos logical type to represent google.com.protobuf.Duration types.
  *
- * <p>Protobuf wrapper classes are translated to nullable types, as follows.
+ * <p>As primitive types are mapped to a <b>not</b> nullable scalar type their nullable counter
+ * parts "wrapper classes" are translated to nullable types, as follows.
  *
  * <ul>
  *   <li>google.protobuf.Int32Value maps to a nullable FieldType.INT32
@@ -106,28 +106,82 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  *   <li>google.protobuf.StringValue maps to a nullable FieldType.STRING
  *   <li>google.protobuf.BytesValue maps to a nullable FieldType.BYTES
  * </ul>
+ *
+ * <p>All message in Protobuf are translated to a nullable Row, except for the well known types
+ * listed above. The rest of the nullable rules are as follows.
+ *
+ * <ul>
+ *   <li>Proto3 primitive types are <b>not</b> nullable
+ *   <li>Proto2 required types are <b>not</b> nullable
+ *   <li>Proto2 optional are <b>not</b> nullable as having an optional value doesn't mean it has not
+ *       value. The spec states it has the optional value.
+ *   <li>Arrays are <b>not</b> nullable, as proto arrays always have an empty array when no value is
+ *       set.
+ *   <li>Maps are <b>not</b> nullable, as proto maps always have an empty map when no value is set
+ *   <li>Elements in an array are <b>not</b> nullable, as nulls are not allowed in an array
+ *   <li>Names and Values are <b>not</b> nullable, as nulls are not allowed. Rows are nullable, as
+ *       messages are nullable.
+ *   <li>Messages, as well as Well Known Types are nullable, unless using proto2 and the required
+ *       label is specified.
+ * </ul>
  */
-@Experimental(Experimental.Kind.SCHEMAS)
-public class ProtoSchemaTranslator {
+class ProtoSchemaTranslator {
   /** This METADATA tag is used to store the field number of a proto tag. */
   public static final String PROTO_NUMBER_METADATA_TAG = "PROTO_NUMBER";
 
+  public static final String PROTO_MESSAGE_NAME_METADATA_TAG = "PROTO_MESSAGE_NAME";
+
+  public static final String PROTO_MAP_KEY_MESSAGE_NAME_METADATA_TAG = "PROTO_MAP_KEY_MESSAGE_NAME";
+
+  public static final String PROTO_MAP_VALUE_MESSAGE_NAME_METADATA_TAG =
+      "PROTO_MAP_VALUE_MESSAGE_NAME";
+
   /** Attach a proto field number to a type. */
-  public static FieldType withFieldNumber(FieldType fieldType, int index) {
+  static FieldType withFieldNumber(FieldType fieldType, int index) {
     return fieldType.withMetadata(PROTO_NUMBER_METADATA_TAG, Long.toString(index));
   }
 
   /** Return the proto field number for a type. */
-  public static int getFieldNumber(FieldType fieldType) {
+  static int getFieldNumber(FieldType fieldType) {
     return Integer.parseInt(fieldType.getMetadataString(PROTO_NUMBER_METADATA_TAG));
   }
 
+  /** Attach the name of the message to a type. */
+  public static FieldType withMessageName(FieldType fieldType, String messageName) {
+    return fieldType.withMetadata(PROTO_MESSAGE_NAME_METADATA_TAG, messageName);
+  }
+
+  /** Return the message name for a type. */
+  public static String getMessageName(FieldType fieldType) {
+    return fieldType.getMetadataString(PROTO_MESSAGE_NAME_METADATA_TAG);
+  }
+
+  /** Attach the name of the message to a map key. */
+  public static FieldType withMapKeyMessageName(FieldType fieldType, String messageName) {
+    return fieldType.withMetadata(PROTO_MAP_KEY_MESSAGE_NAME_METADATA_TAG, messageName);
+  }
+
+  /** Return the message name for a map key. */
+  public static String getMapKeyMessageName(FieldType fieldType) {
+    return fieldType.getMetadataString(PROTO_MAP_KEY_MESSAGE_NAME_METADATA_TAG);
+  }
+
+  /** Attach the name of the message to a map value. */
+  public static FieldType withMapValueMessageName(FieldType fieldType, String messageName) {
+    return fieldType.withMetadata(PROTO_MAP_VALUE_MESSAGE_NAME_METADATA_TAG, messageName);
+  }
+
+  /** Return the message name for a map value. */
+  public static String getMapValueMessageName(FieldType fieldType) {
+    return fieldType.getMetadataString(PROTO_MAP_VALUE_MESSAGE_NAME_METADATA_TAG);
+  }
+
   /** Return a Beam scheam representing a proto class. */
-  public static Schema getSchema(Class<? extends Message> clazz) {
+  static Schema getSchema(Class<? extends Message> clazz) {
     return getSchema(ProtobufUtil.getDescriptorForClass(clazz));
   }
 
-  private static Schema getSchema(Descriptors.Descriptor descriptor) {
+  static Schema getSchema(Descriptors.Descriptor descriptor) {
     Set<Integer> oneOfFields = Sets.newHashSet();
     List<Field> fields = Lists.newArrayListWithCapacity(descriptor.getFields().size());
     for (OneofDescriptor oneofDescriptor : descriptor.getOneofs()) {
@@ -137,8 +191,7 @@ public class ProtoSchemaTranslator {
         oneOfFields.add(fieldDescriptor.getNumber());
         // Store proto field number in metadata.
         FieldType fieldType =
-            withFieldNumber(
-                beamFieldTypeFromProtoField(fieldDescriptor), fieldDescriptor.getNumber());
+            withMetaData(beamFieldTypeFromProtoField(fieldDescriptor), fieldDescriptor);
         subFields.add(Field.nullable(fieldDescriptor.getName(), fieldType));
         checkArgument(
             enumIds.putIfAbsent(fieldDescriptor.getName(), fieldDescriptor.getNumber()) == null);
@@ -151,12 +204,32 @@ public class ProtoSchemaTranslator {
       if (!oneOfFields.contains(fieldDescriptor.getNumber())) {
         // Store proto field number in metadata.
         FieldType fieldType =
-            withFieldNumber(
-                beamFieldTypeFromProtoField(fieldDescriptor), fieldDescriptor.getNumber());
+            withMetaData(beamFieldTypeFromProtoField(fieldDescriptor), fieldDescriptor);
         fields.add(Field.of(fieldDescriptor.getName(), fieldType));
       }
     }
     return Schema.builder().addFields(fields).build();
+  }
+
+  private static FieldType withMetaData(
+      FieldType inType, Descriptors.FieldDescriptor fieldDescriptor) {
+    FieldType fieldType = withFieldNumber(inType, fieldDescriptor.getNumber());
+    if (fieldDescriptor.isMapField()) {
+      FieldDescriptor keyFieldDescriptor = fieldDescriptor.getMessageType().findFieldByName("key");
+      FieldDescriptor valueFieldDescriptor =
+          fieldDescriptor.getMessageType().findFieldByName("value");
+      if ((keyFieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE)) {
+        fieldType =
+            withMapKeyMessageName(fieldType, keyFieldDescriptor.getMessageType().getFullName());
+      }
+      if ((valueFieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE)) {
+        fieldType =
+            withMapValueMessageName(fieldType, valueFieldDescriptor.getMessageType().getFullName());
+      }
+    } else if (fieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE) {
+      return withMessageName(fieldType, fieldDescriptor.getMessageType().getFullName());
+    }
+    return fieldType;
   }
 
   private static FieldType beamFieldTypeFromProtoField(
@@ -169,10 +242,12 @@ public class ProtoSchemaTranslator {
           protoFieldDescriptor.getMessageType().findFieldByName("value");
       fieldType =
           FieldType.map(
-              beamFieldTypeFromProtoField(keyFieldDescriptor),
-              beamFieldTypeFromProtoField(valueFieldDescriptor));
+              beamFieldTypeFromProtoField(keyFieldDescriptor).withNullable(false),
+              beamFieldTypeFromProtoField(valueFieldDescriptor).withNullable(false));
     } else if (protoFieldDescriptor.isRepeated()) {
-      fieldType = FieldType.array(beamFieldTypeFromSingularProtoField(protoFieldDescriptor));
+      fieldType =
+          FieldType.array(
+              beamFieldTypeFromSingularProtoField(protoFieldDescriptor).withNullable(false));
     } else {
       fieldType = beamFieldTypeFromSingularProtoField(protoFieldDescriptor);
     }
@@ -244,7 +319,7 @@ public class ProtoSchemaTranslator {
         String fullName = protoFieldDescriptor.getMessageType().getFullName();
         switch (fullName) {
           case "google.protobuf.Timestamp":
-            fieldType = FieldType.logicalType(new TimestampNanos());
+            fieldType = FieldType.logicalType(new NanosInstant());
             break;
           case "google.protobuf.Int32Value":
           case "google.protobuf.UInt32Value":
@@ -257,23 +332,23 @@ public class ProtoSchemaTranslator {
           case "google.protobuf.BytesValue":
             fieldType =
                 beamFieldTypeFromSingularProtoField(
-                        protoFieldDescriptor.getMessageType().findFieldByNumber(1))
-                    .withNullable(true);
+                    protoFieldDescriptor.getMessageType().findFieldByNumber(1));
             break;
           case "google.protobuf.Duration":
-            fieldType = FieldType.logicalType(new DurationNanos());
+            fieldType = FieldType.logicalType(new NanosDuration());
             break;
           case "google.protobuf.Any":
             throw new RuntimeException("Any not yet supported");
           default:
             fieldType = FieldType.row(getSchema(protoFieldDescriptor.getMessageType()));
         }
+        // all messages are nullable in Proto
+        if (protoFieldDescriptor.isOptional()) {
+          fieldType = fieldType.withNullable(true);
+        }
         break;
       default:
         throw new RuntimeException("Field type not matched.");
-    }
-    if (protoFieldDescriptor.isOptional()) {
-      fieldType = fieldType.withNullable(true);
     }
     return fieldType;
   }

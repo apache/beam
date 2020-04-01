@@ -125,21 +125,25 @@ artifactId=${project.name}
         classifier = null
         mergeServiceFiles()
         zip64 true
+        exclude "META-INF/INDEX.LIST"
+        exclude "META-INF/*.SF"
+        exclude "META-INF/*.DSA"
+        exclude "META-INF/*.RSA"
       }
 
       project.task('validateVendoring', dependsOn: 'shadowJar') {
         inputs.files project.configurations.shadow.artifacts.files
         doLast {
           project.configurations.shadow.artifacts.files.each {
-            FileTree exposedClasses = project.zipTree(it).matching {
+            FileTree unexpectedlyExposedClasses = project.zipTree(it).matching {
               include "**/*.class"
               exclude "org/apache/beam/vendor/**"
               // BEAM-5919: Exclude paths for Java 9 multi-release jars.
-              exclude "**/module-info.class"
+              exclude "META-INF/versions/*/module-info.class"
               exclude "META-INF/versions/*/org/apache/beam/vendor/**"
             }
-            if (exposedClasses.files) {
-              throw new GradleException("$it exposed classes outside of org.apache.beam namespace: ${exposedClasses.files}")
+            if (unexpectedlyExposedClasses.files) {
+              throw new GradleException("$it exposed classes outside of org.apache.beam namespace: ${unexpectedlyExposedClasses.files}")
             }
           }
         }

@@ -30,7 +30,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.LegacyArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
@@ -59,7 +59,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       DockerCommand docker,
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+      GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
       IdGenerator idGenerator,
@@ -78,7 +78,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
   private final DockerCommand docker;
   private final GrpcFnServer<FnApiControlClientPoolService> controlServiceServer;
   private final GrpcFnServer<GrpcLoggingService> loggingServiceServer;
-  private final GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
+  private final GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer;
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
   private final IdGenerator idGenerator;
   private final ControlClientPool.Source clientSource;
@@ -88,7 +88,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       DockerCommand docker,
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+      GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       IdGenerator idGenerator,
       ControlClientPool.Source clientSource,
@@ -119,10 +119,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     String containerImage = dockerPayload.getContainerImage();
     // TODO: https://issues.apache.org/jira/browse/BEAM-4148 The default service address will not
     // work for Docker for Mac.
-    String loggingEndpoint = loggingServiceServer.getApiServiceDescriptor().getUrl();
-    String artifactEndpoint = retrievalServiceServer.getApiServiceDescriptor().getUrl();
     String provisionEndpoint = provisioningServiceServer.getApiServiceDescriptor().getUrl();
-    String controlEndpoint = controlServiceServer.getApiServiceDescriptor().getUrl();
 
     ImmutableList.Builder<String> dockerOptsBuilder =
         ImmutableList.<String>builder()
@@ -143,10 +140,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     ImmutableList.Builder<String> argsBuilder =
         ImmutableList.<String>builder()
             .add(String.format("--id=%s", workerId))
-            .add(String.format("--logging_endpoint=%s", loggingEndpoint))
-            .add(String.format("--artifact_endpoint=%s", artifactEndpoint))
-            .add(String.format("--provision_endpoint=%s", provisionEndpoint))
-            .add(String.format("--control_endpoint=%s", controlEndpoint));
+            .add(String.format("--provision_endpoint=%s", provisionEndpoint));
     if (semiPersistDir != null) {
       argsBuilder.add(String.format("--semi_persist_dir=%s", semiPersistDir));
     }
@@ -271,7 +265,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     public EnvironmentFactory createEnvironmentFactory(
         GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
         GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-        GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+        GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
         GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
         ControlClientPool clientPool,
         IdGenerator idGenerator) {

@@ -46,6 +46,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -54,6 +55,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -84,6 +86,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.SchemaFrom
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.TableFunctionDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.CleanupOperation;
 import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.ContextContainer;
+import org.apache.beam.sdk.io.gcp.bigquery.RowWriterFactory.OutputType;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -273,12 +276,12 @@ import org.slf4j.LoggerFactory;
  *     .fromQuery("SELECT year, mean_temp FROM [samples.weather_stations]"));
  * }</pre>
  *
- * <p>Users can optionally specify a query priority using {@link TypedRead#withQueryPriority(
- * TypedRead.QueryPriority)} and a geographic location where the query will be executed using {@link
- * TypedRead#withQueryLocation(String)}. Query location must be specified for jobs that are not
- * executed in US or EU, or if you are reading from an authorized view. See <a
- * href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query">BigQuery Jobs:
- * query</a>.
+ * <p>Users can optionally specify a query priority using {@link
+ * TypedRead#withQueryPriority(TypedRead.QueryPriority)} and a geographic location where the query
+ * will be executed using {@link TypedRead#withQueryLocation(String)}. Query location must be
+ * specified for jobs that are not executed in US or EU, or if you are reading from an authorized
+ * view. See <a href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query">BigQuery
+ * Jobs: query</a>.
  *
  * <h3>Writing</h3>
  *
@@ -687,7 +690,7 @@ public class BigQueryIO {
      * <p>Use new template-compatible source implementation. This implementation is compatible with
      * repeated template invocations. It does not support dynamic work rebalancing.
      */
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     public Read withTemplateCompatibility() {
       return new Read(this.inner.withTemplateCompatibility());
     }
@@ -699,7 +702,7 @@ public class BigQueryIO {
   @AutoValue
   public abstract static class TypedRead<T> extends PTransform<PBegin, PCollection<T>> {
     /** Determines the method used to read data from BigQuery. */
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     public enum Method {
       /** The default behavior if no method is explicitly set. Currently {@link #EXPORT}. */
       DEFAULT,
@@ -741,7 +744,9 @@ public class BigQueryIO {
 
       abstract Builder<T> setQueryLocation(String location);
 
-      @Experimental(Experimental.Kind.SOURCE_SINK)
+      abstract Builder<T> setQueryTempDataset(String queryTempDataset);
+
+      @Experimental(Kind.SOURCE_SINK)
       abstract Builder<T> setMethod(Method method);
 
       /**
@@ -749,13 +754,13 @@ public class BigQueryIO {
        *     #setRowRestriction(ValueProvider)} instead.
        */
       @Deprecated
-      @Experimental(Experimental.Kind.SOURCE_SINK)
+      @Experimental(Kind.SOURCE_SINK)
       abstract Builder<T> setReadOptions(TableReadOptions readOptions);
 
-      @Experimental(Experimental.Kind.SOURCE_SINK)
+      @Experimental(Kind.SOURCE_SINK)
       abstract Builder<T> setSelectedFields(ValueProvider<List<String>> selectedFields);
 
-      @Experimental(Experimental.Kind.SOURCE_SINK)
+      @Experimental(Kind.SOURCE_SINK)
       abstract Builder<T> setRowRestriction(ValueProvider<String> rowRestriction);
 
       abstract TypedRead<T> build();
@@ -766,13 +771,13 @@ public class BigQueryIO {
 
       abstract Builder<T> setKmsKey(String kmsKey);
 
-      @Experimental(Experimental.Kind.SCHEMAS)
+      @Experimental(Kind.SCHEMAS)
       abstract Builder<T> setTypeDescriptor(TypeDescriptor<T> typeDescriptor);
 
-      @Experimental(Experimental.Kind.SCHEMAS)
+      @Experimental(Kind.SCHEMAS)
       abstract Builder<T> setToBeamRowFn(ToBeamRowFunction<T> toRowFn);
 
-      @Experimental(Experimental.Kind.SCHEMAS)
+      @Experimental(Kind.SCHEMAS)
       abstract Builder<T> setFromBeamRowFn(FromBeamRowFunction<T> fromRowFn);
     }
 
@@ -802,20 +807,23 @@ public class BigQueryIO {
     @Nullable
     abstract String getQueryLocation();
 
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Nullable
+    abstract String getQueryTempDataset();
+
+    @Experimental(Kind.SOURCE_SINK)
     abstract Method getMethod();
 
     /** @deprecated Use {@link #getSelectedFields()} and {@link #getRowRestriction()} instead. */
     @Deprecated
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     @Nullable
     abstract TableReadOptions getReadOptions();
 
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     @Nullable
     abstract ValueProvider<List<String>> getSelectedFields();
 
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     @Nullable
     abstract ValueProvider<String> getRowRestriction();
 
@@ -826,15 +834,15 @@ public class BigQueryIO {
     abstract String getKmsKey();
 
     @Nullable
-    @Experimental(Experimental.Kind.SCHEMAS)
+    @Experimental(Kind.SCHEMAS)
     abstract TypeDescriptor<T> getTypeDescriptor();
 
     @Nullable
-    @Experimental(Experimental.Kind.SCHEMAS)
+    @Experimental(Kind.SCHEMAS)
     abstract ToBeamRowFunction<T> getToBeamRowFn();
 
     @Nullable
-    @Experimental(Experimental.Kind.SCHEMAS)
+    @Experimental(Kind.SCHEMAS)
     abstract FromBeamRowFunction<T> getFromBeamRowFn();
 
     /**
@@ -890,6 +898,7 @@ public class BigQueryIO {
                 getUseLegacySql(),
                 MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
                 getQueryLocation(),
+                getQueryTempDataset(),
                 getKmsKey());
       }
       return sourceDef;
@@ -904,6 +913,7 @@ public class BigQueryIO {
           getUseLegacySql(),
           MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
           getQueryLocation(),
+          getQueryTempDataset(),
           getKmsKey(),
           getParseFn(),
           outputCoder,
@@ -968,6 +978,22 @@ public class BigQueryIO {
             throw new IllegalArgumentException(
                 String.format(QUERY_VALIDATION_FAILURE_ERROR, getQuery().get()), e);
           }
+
+          DatasetService datasetService = getBigQueryServices().getDatasetService(bqOptions);
+          // If the user provided a temp dataset, check if the dataset exists before launching the
+          // query
+          if (getQueryTempDataset() != null) {
+            Optional<String> queryTempDataset = Optional.ofNullable(getQueryTempDataset());
+
+            // The temp table is only used for dataset and project id validation, not for table name
+            // validation
+            TableReference tempTable =
+                new TableReference()
+                    .setProjectId(bqOptions.getProject())
+                    .setDatasetId(getQueryTempDataset())
+                    .setTableId("dummy table");
+            BigQueryHelpers.verifyDatasetPresence(datasetService, tempTable);
+          }
         }
       }
     }
@@ -989,6 +1015,10 @@ public class BigQueryIO {
             getUseLegacySql() == null,
             "Invalid BigQueryIO.Read: Specifies a table with a SQL dialect"
                 + " preference, which only applies to queries");
+        checkArgument(
+            getQueryTempDataset() == null,
+            "Invalid BigQueryIO.Read: Specifies a temp dataset, which can"
+                + " only be specified when using fromQuery()");
         if (table.isAccessible() && Strings.isNullOrEmpty(table.get().getProjectId())) {
           LOG.info(
               "Project of {} not set. The value of {}.getProject() at execution time will be used.",
@@ -1341,16 +1371,24 @@ public class BigQueryIO {
               BigQueryOptions options = c.getPipelineOptions().as(BigQueryOptions.class);
               String jobUuid = c.getJobId();
 
+              Optional<String> queryTempDataset = Optional.ofNullable(getQueryTempDataset());
+
               TableReference tempTable =
                   createTempTableReference(
-                      options.getProject(), createJobIdToken(options.getJobName(), jobUuid));
+                      options.getProject(),
+                      createJobIdToken(options.getJobName(), jobUuid),
+                      queryTempDataset);
 
               DatasetService datasetService = getBigQueryServices().getDatasetService(options);
               LOG.info("Deleting temporary table with query results {}", tempTable);
               datasetService.deleteTable(tempTable);
-              LOG.info(
-                  "Deleting temporary dataset with query results {}", tempTable.getDatasetId());
-              datasetService.deleteDataset(tempTable.getProjectId(), tempTable.getDatasetId());
+              // Delete dataset only if it was created by Beam
+              boolean datasetCreatedByBeam = !queryTempDataset.isPresent();
+              if (datasetCreatedByBeam) {
+                LOG.info(
+                    "Deleting temporary dataset with query results {}", tempTable.getDatasetId());
+                datasetService.deleteDataset(tempTable.getProjectId(), tempTable.getDatasetId());
+              }
             }
           };
 
@@ -1424,7 +1462,7 @@ public class BigQueryIO {
      *
      * <p>Setting these conversion functions is necessary to enable {@link Schema} support.
      */
-    @Experimental(Experimental.Kind.SCHEMAS)
+    @Experimental(Kind.SCHEMAS)
     public TypedRead<T> withBeamRowConverters(
         TypeDescriptor<T> typeDescriptor,
         ToBeamRowFunction<T> toRowFn,
@@ -1501,8 +1539,22 @@ public class BigQueryIO {
       return toBuilder().setQueryLocation(location).build();
     }
 
+    /**
+     * Temporary dataset reference when using {@link #fromQuery(String)}. When reading from a query,
+     * BigQuery will create a temporary dataset and a temporary table to store the results of the
+     * query. With this option, you can set an existing dataset to create the temporary table.
+     * BigQueryIO will create a temporary table in that dataset, and will remove it once it is not
+     * needed. No other tables in the dataset will be modified. If your job does not have
+     * permissions to create a new dataset, and you want to use {@link #fromQuery(String)} (for
+     * instance, to read from a view), you should use this option. Remember that the dataset must
+     * exist and your job needs permissions to create and remove tables inside that dataset.
+     */
+    public TypedRead<T> withQueryTempDataset(String queryTempDatasetRef) {
+      return toBuilder().setQueryTempDataset(queryTempDatasetRef).build();
+    }
+
     /** See {@link Method}. */
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     public TypedRead<T> withMethod(Method method) {
       return toBuilder().setMethod(method).build();
     }
@@ -1512,14 +1564,14 @@ public class BigQueryIO {
      *     instead.
      */
     @Deprecated
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     public TypedRead<T> withReadOptions(TableReadOptions readOptions) {
       ensureReadOptionsFieldsNotSet();
       return toBuilder().setReadOptions(readOptions).build();
     }
 
     /** See {@link #withSelectedFields(ValueProvider)}. */
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     public TypedRead<T> withSelectedFields(List<String> selectedFields) {
       return withSelectedFields(StaticValueProvider.of(selectedFields));
     }
@@ -1530,14 +1582,14 @@ public class BigQueryIO {
      *
      * <p>Requires {@link Method#DIRECT_READ}. Not compatible with {@link #fromQuery(String)}.
      */
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     public TypedRead<T> withSelectedFields(ValueProvider<List<String>> selectedFields) {
       ensureReadOptionsNotSet();
       return toBuilder().setSelectedFields(selectedFields).build();
     }
 
     /** See {@link #withRowRestriction(ValueProvider)}. */
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     public TypedRead<T> withRowRestriction(String rowRestriction) {
       return withRowRestriction(StaticValueProvider.of(rowRestriction));
     }
@@ -1549,13 +1601,13 @@ public class BigQueryIO {
      *
      * <p>Requires {@link Method#DIRECT_READ}. Not compatible with {@link #fromQuery(String)}.
      */
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     public TypedRead<T> withRowRestriction(ValueProvider<String> rowRestriction) {
       ensureReadOptionsNotSet();
       return toBuilder().setRowRestriction(rowRestriction).build();
     }
 
-    @Experimental(Experimental.Kind.SOURCE_SINK)
+    @Experimental(Kind.SOURCE_SINK)
     public TypedRead<T> withTemplateCompatibility() {
       return toBuilder().setWithTemplateCompatibility(true).build();
     }
@@ -1644,6 +1696,7 @@ public class BigQueryIO {
         .setSkipInvalidRows(false)
         .setIgnoreUnknownValues(false)
         .setIgnoreInsertIds(false)
+        .setUseAvroLogicalTypes(false)
         .setMaxFilesPerPartition(BatchLoads.DEFAULT_MAX_FILES_PER_PARTITION)
         .setMaxBytesPerPartition(BatchLoads.DEFAULT_MAX_BYTES_PER_PARTITION)
         .setOptimizeWrites(false)
@@ -1715,6 +1768,8 @@ public class BigQueryIO {
     @Nullable
     abstract SerializableFunction<TableSchema, org.apache.avro.Schema> getAvroSchemaFactory();
 
+    abstract boolean getUseAvroLogicalTypes();
+
     @Nullable
     abstract DynamicDestinations<T, ?> getDynamicDestinations();
 
@@ -1782,6 +1837,7 @@ public class BigQueryIO {
 
     abstract Boolean getOptimizeWrites();
 
+    @Experimental(Kind.SCHEMAS)
     abstract Boolean getUseBeamSchema();
 
     abstract Builder<T> toBuilder();
@@ -1800,6 +1856,8 @@ public class BigQueryIO {
 
       abstract Builder<T> setAvroSchemaFactory(
           SerializableFunction<TableSchema, org.apache.avro.Schema> avroSchemaFactory);
+
+      abstract Builder<T> setUseAvroLogicalTypes(boolean useAvroLogicalTypes);
 
       abstract Builder<T> setDynamicDestinations(DynamicDestinations<T, ?> dynamicDestinations);
 
@@ -1855,6 +1913,7 @@ public class BigQueryIO {
 
       abstract Builder<T> setOptimizeWrites(Boolean optimizeWrites);
 
+      @Experimental(Kind.SCHEMAS)
       abstract Builder<T> setUseBeamSchema(Boolean useBeamSchema);
 
       abstract Write<T> build();
@@ -2247,6 +2306,14 @@ public class BigQueryIO {
     }
 
     /**
+     * Enables interpreting logical types into their corresponding types (ie. TIMESTAMP), instead of
+     * only using their raw types (ie. LONG).
+     */
+    public Write<T> useAvroLogicalTypes() {
+      return toBuilder().setUseAvroLogicalTypes(true).build();
+    }
+
+    /**
      * Setting this option to true disables insertId based data deduplication offered by BigQuery.
      * For more information, please see
      * https://cloud.google.com/bigquery/streaming-data-into-bigquery#disabling_best_effort_de-duplication.
@@ -2273,7 +2340,7 @@ public class BigQueryIO {
      * formatFunction is set, then BigQueryIO will automatically turn the input records into
      * TableRows that match the schema.
      */
-    @Experimental
+    @Experimental(Kind.SCHEMAS)
     public Write<T> useBeamSchema() {
       return toBuilder().setUseBeamSchema(true).build();
     }
@@ -2633,6 +2700,12 @@ public class BigQueryIO {
             getFailedInsertRetryPolicy() == null,
             "Record-insert retry policies are not supported when using BigQuery load jobs.");
 
+        if (getUseAvroLogicalTypes()) {
+          checkArgument(
+              rowWriterFactory.getOutputType() == OutputType.AvroGenericRecord,
+              "useAvroLogicalTypes can only be set with Avro output.");
+        }
+
         BatchLoads<DestinationT, ElementT> batchLoads =
             new BatchLoads<>(
                 getWriteDisposition(),
@@ -2646,7 +2719,8 @@ public class BigQueryIO {
                 elementCoder,
                 rowWriterFactory,
                 getKmsKey(),
-                getClustering() != null);
+                getClustering() != null,
+                getUseAvroLogicalTypes());
         batchLoads.setTestServices(getBigQueryServices());
         if (getSchemaUpdateOptions() != null) {
           batchLoads.setSchemaUpdateOptions(getSchemaUpdateOptions());

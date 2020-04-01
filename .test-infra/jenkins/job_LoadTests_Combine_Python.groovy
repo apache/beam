@@ -25,7 +25,7 @@ def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 def loadTestConfigurations = { datasetName -> [
         [
                 title          : 'Combine Python Load test: 2GB 10 byte records',
-                test           : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
+                test           : 'apache_beam.testing.load_tests.combine_test',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-combine-1-' + now,
@@ -45,7 +45,7 @@ def loadTestConfigurations = { datasetName -> [
         ],
         [
                 title          : 'Combine Python Load test: 2GB Fanout 4',
-                test           : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
+                test           : 'apache_beam.testing.load_tests.combine_test',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-combine-4-' + now,
@@ -66,7 +66,7 @@ def loadTestConfigurations = { datasetName -> [
         ],
         [
                 title          : 'Combine Python Load test: 2GB Fanout 8',
-                test           : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
+                test           : 'apache_beam.testing.load_tests.combine_test',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-combine-5-' + now,

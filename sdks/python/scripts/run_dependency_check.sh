@@ -20,11 +20,8 @@
 set -e
 set -v
 
-# Virtualenv for the rest of the script to run setup
-rm -rf sdks/
-virtualenv sdks/python
-. sdks/python/bin/activate
-pip install -e .[gcp,test,docs]
+# Assume that python virtual env is already active
+pip install -e .[docs,test,gcp,aws,interactive]
 
 mkdir -p $WORKSPACE/src/build/dependencyUpdates
 rm -f $WORKSPACE/src/build/dependencyUpdates/python_dependency_report.txt

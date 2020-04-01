@@ -19,6 +19,8 @@ package org.apache.beam.sdk.extensions.protobuf;
 
 import static org.apache.beam.sdk.extensions.protobuf.ProtoSchemaTranslator.getFieldNumber;
 import static org.apache.beam.sdk.extensions.protobuf.ProtoSchemaTranslator.withFieldNumber;
+import static org.apache.beam.sdk.extensions.protobuf.ProtoSchemaTranslator.withMapValueMessageName;
+import static org.apache.beam.sdk.extensions.protobuf.ProtoSchemaTranslator.withMessageName;
 
 import com.google.protobuf.BoolValue;
 import com.google.protobuf.ByteString;
@@ -36,6 +38,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.protobuf.Proto2SchemaMessages.OptionalNested;
+import org.apache.beam.sdk.extensions.protobuf.Proto2SchemaMessages.OptionalPrimitive;
+import org.apache.beam.sdk.extensions.protobuf.Proto2SchemaMessages.RequiredNested;
+import org.apache.beam.sdk.extensions.protobuf.Proto2SchemaMessages.RequiredPrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.MapPrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Nested;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OneOf;
@@ -43,19 +49,19 @@ import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OuterOneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Primitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.RepeatPrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.WktMessage;
-import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.DurationNanos;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.Fixed32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.Fixed64;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SFixed32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SFixed64;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SInt32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SInt64;
-import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.TimestampNanos;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.UInt32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.UInt64;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosDuration;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -65,29 +71,39 @@ class TestProtoSchemas {
   // The schema we expect from the Primitive proto.
   static final Schema PRIMITIVE_SCHEMA =
       Schema.builder()
-          .addNullableField("primitive_double", withFieldNumber(FieldType.DOUBLE, 1))
-          .addNullableField("primitive_float", withFieldNumber(FieldType.FLOAT, 2))
-          .addNullableField("primitive_int32", withFieldNumber(FieldType.INT32, 3))
-          .addNullableField("primitive_int64", withFieldNumber(FieldType.INT64, 4))
-          .addNullableField(
-              "primitive_uint32", withFieldNumber(FieldType.logicalType(new UInt32()), 5))
-          .addNullableField(
-              "primitive_uint64", withFieldNumber(FieldType.logicalType(new UInt64()), 6))
-          .addNullableField(
-              "primitive_sint32", withFieldNumber(FieldType.logicalType(new SInt32()), 7))
-          .addNullableField(
-              "primitive_sint64", withFieldNumber(FieldType.logicalType(new SInt64()), 8))
-          .addNullableField(
-              "primitive_fixed32", withFieldNumber(FieldType.logicalType(new Fixed32()), 9))
-          .addNullableField(
-              "primitive_fixed64", withFieldNumber(FieldType.logicalType(new Fixed64()), 10))
-          .addNullableField(
+          .addField("primitive_double", withFieldNumber(FieldType.DOUBLE, 1))
+          .addField("primitive_float", withFieldNumber(FieldType.FLOAT, 2))
+          .addField("primitive_int32", withFieldNumber(FieldType.INT32, 3))
+          .addField("primitive_int64", withFieldNumber(FieldType.INT64, 4))
+          .addField("primitive_uint32", withFieldNumber(FieldType.logicalType(new UInt32()), 5))
+          .addField("primitive_uint64", withFieldNumber(FieldType.logicalType(new UInt64()), 6))
+          .addField("primitive_sint32", withFieldNumber(FieldType.logicalType(new SInt32()), 7))
+          .addField("primitive_sint64", withFieldNumber(FieldType.logicalType(new SInt64()), 8))
+          .addField("primitive_fixed32", withFieldNumber(FieldType.logicalType(new Fixed32()), 9))
+          .addField("primitive_fixed64", withFieldNumber(FieldType.logicalType(new Fixed64()), 10))
+          .addField(
               "primitive_sfixed32", withFieldNumber(FieldType.logicalType(new SFixed32()), 11))
-          .addNullableField(
+          .addField(
               "primitive_sfixed64", withFieldNumber(FieldType.logicalType(new SFixed64()), 12))
-          .addNullableField("primitive_bool", withFieldNumber(FieldType.BOOLEAN, 13))
-          .addNullableField("primitive_string", withFieldNumber(FieldType.STRING, 14))
-          .addNullableField("primitive_bytes", withFieldNumber(FieldType.BYTES, 15))
+          .addField("primitive_bool", withFieldNumber(FieldType.BOOLEAN, 13))
+          .addField("primitive_string", withFieldNumber(FieldType.STRING, 14))
+          .addField("primitive_bytes", withFieldNumber(FieldType.BYTES, 15))
+          .build();
+
+  static final Schema OPTIONAL_PRIMITIVE_SCHEMA =
+      Schema.builder()
+          .addField("primitive_int32", withFieldNumber(FieldType.INT32, 1))
+          .addField("primitive_bool", withFieldNumber(FieldType.BOOLEAN, 2))
+          .addField("primitive_string", withFieldNumber(FieldType.STRING, 3))
+          .addField("primitive_bytes", withFieldNumber(FieldType.BYTES, 4))
+          .build();
+
+  static final Schema REQUIRED_PRIMITIVE_SCHEMA =
+      Schema.builder()
+          .addField("primitive_int32", withFieldNumber(FieldType.INT32, 1))
+          .addField("primitive_bool", withFieldNumber(FieldType.BOOLEAN, 2))
+          .addField("primitive_string", withFieldNumber(FieldType.STRING, 3))
+          .addField("primitive_bytes", withFieldNumber(FieldType.BYTES, 4))
           .build();
 
   // A sample instance of the  row.
@@ -113,6 +129,32 @@ class TestProtoSchemas {
           .setPrimitiveFixed64(62)
           .setPrimitiveSfixed32(31)
           .setPrimitiveSfixed64(63)
+          .setPrimitiveBool(true)
+          .setPrimitiveString("horsey")
+          .setPrimitiveBytes(ByteString.copyFrom(BYTE_ARRAY))
+          .build();
+
+  // A sample instance of the  row.
+  static final Row OPTIONAL_PRIMITIVE_ROW =
+      Row.withSchema(OPTIONAL_PRIMITIVE_SCHEMA).addValues(32, true, "horsey", BYTE_ARRAY).build();
+
+  // A sample instance of the proto.
+  static final OptionalPrimitive OPTIONAL_PRIMITIVE_PROTO =
+      OptionalPrimitive.newBuilder()
+          .setPrimitiveInt32(32)
+          .setPrimitiveBool(true)
+          .setPrimitiveString("horsey")
+          .setPrimitiveBytes(ByteString.copyFrom(BYTE_ARRAY))
+          .build();
+
+  // A sample instance of the  row.
+  static final Row REQUIRED_PRIMITIVE_ROW =
+      Row.withSchema(REQUIRED_PRIMITIVE_SCHEMA).addValues(32, true, "horsey", BYTE_ARRAY).build();
+
+  // A sample instance of the proto.
+  static final RequiredPrimitive REQUIRED_PRIMITIVE_PROTO =
+      RequiredPrimitive.newBuilder()
+          .setPrimitiveInt32(32)
           .setPrimitiveBool(true)
           .setPrimitiveString("horsey")
           .setPrimitiveBytes(ByteString.copyFrom(BYTE_ARRAY))
@@ -195,33 +237,43 @@ class TestProtoSchemas {
               ImmutableList.of(ByteString.copyFrom(BYTE_ARRAY), ByteString.copyFrom(BYTE_ARRAY)))
           .build();
 
+  static final Row NULL_REPEATED_ROW =
+      Row.withSchema(REPEATED_SCHEMA)
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .addArray()
+          .build();
+
+  // A sample instance of the proto.
+  static final RepeatPrimitive NULL_REPEATED_PROTO = RepeatPrimitive.newBuilder().build();
+
   // The schema for the MapPrimitive proto.
   static final Schema MAP_PRIMITIVE_SCHEMA =
       Schema.builder()
           .addField(
               "string_string_map",
-              withFieldNumber(
-                  FieldType.map(
-                      FieldType.STRING.withNullable(true), FieldType.STRING.withNullable(true)),
-                  1))
+              withFieldNumber(FieldType.map(FieldType.STRING, FieldType.STRING), 1))
           .addField(
               "string_int_map",
-              withFieldNumber(
-                  FieldType.map(
-                      FieldType.STRING.withNullable(true), FieldType.INT32.withNullable(true)),
-                  2))
+              withFieldNumber(FieldType.map(FieldType.STRING, FieldType.INT32), 2))
           .addField(
               "int_string_map",
-              withFieldNumber(
-                  FieldType.map(
-                      FieldType.INT32.withNullable(true), FieldType.STRING.withNullable(true)),
-                  3))
+              withFieldNumber(FieldType.map(FieldType.INT32, FieldType.STRING), 3))
           .addField(
               "string_bytes_map",
-              withFieldNumber(
-                  FieldType.map(
-                      FieldType.STRING.withNullable(true), FieldType.BYTES.withNullable(true)),
-                  4))
+              withFieldNumber(FieldType.map(FieldType.STRING, FieldType.BYTES), 4))
           .build();
 
   // A sample instance of the row.
@@ -244,20 +296,37 @@ class TestProtoSchemas {
                   "k1", ByteString.copyFrom(BYTE_ARRAY), "k2", ByteString.copyFrom(BYTE_ARRAY)))
           .build();
 
+  // A sample instance of the row.
+  static final Row NULL_MAP_PRIMITIVE_ROW =
+      Row.withSchema(MAP_PRIMITIVE_SCHEMA)
+          .addValue(ImmutableMap.of())
+          .addValue(ImmutableMap.of())
+          .addValue(ImmutableMap.of())
+          .addValue(ImmutableMap.of())
+          .build();
+
+  // A sample instance of the proto.
+  static final MapPrimitive NULL_MAP_PRIMITIVE_PROTO = MapPrimitive.newBuilder().build();
+
   // The schema for the Nested proto.
   static final Schema NESTED_SCHEMA =
       Schema.builder()
           .addField(
-              "nested", withFieldNumber(FieldType.row(PRIMITIVE_SCHEMA).withNullable(true), 1))
+              "nested",
+              withMessageName(
+                  withFieldNumber(FieldType.row(PRIMITIVE_SCHEMA).withNullable(true), 1),
+                  "proto3_schema_messages.Primitive"))
           .addField(
-              "nested_list", withFieldNumber(FieldType.array(FieldType.row(PRIMITIVE_SCHEMA)), 2))
+              "nested_list",
+              withMessageName(
+                  withFieldNumber(FieldType.array(FieldType.row(PRIMITIVE_SCHEMA)), 2),
+                  "proto3_schema_messages.Primitive"))
           .addField(
               "nested_map",
-              withFieldNumber(
-                  FieldType.map(
-                      FieldType.STRING.withNullable(true),
-                      FieldType.row(PRIMITIVE_SCHEMA).withNullable(true)),
-                  3))
+              withMapValueMessageName(
+                  withFieldNumber(
+                      FieldType.map(FieldType.STRING, FieldType.row(PRIMITIVE_SCHEMA)), 3),
+                  "proto3_schema_messages.Primitive"))
           .build();
 
   // A sample instance of the row.
@@ -282,7 +351,11 @@ class TestProtoSchemas {
           Field.of("oneof_int32", withFieldNumber(FieldType.INT32, 2)),
           Field.of("oneof_bool", withFieldNumber(FieldType.BOOLEAN, 3)),
           Field.of("oneof_string", withFieldNumber(FieldType.STRING, 4)),
-          Field.of("oneof_primitive", withFieldNumber(FieldType.row(PRIMITIVE_SCHEMA), 5)));
+          Field.of(
+              "oneof_primitive",
+              withMessageName(
+                  withFieldNumber(FieldType.row(PRIMITIVE_SCHEMA), 5),
+                  "proto3_schema_messages.Primitive")));
   private static final Map<String, Integer> ONE_OF_ENUM_MAP =
       ONEOF_FIELDS.stream()
           .collect(Collectors.toMap(Field::getName, f -> getFieldNumber(f.getType())));
@@ -290,8 +363,8 @@ class TestProtoSchemas {
   static final Schema ONEOF_SCHEMA =
       Schema.builder()
           .addField("special_oneof", FieldType.logicalType(ONE_OF_TYPE))
-          .addField("place1", withFieldNumber(FieldType.STRING.withNullable(true), 1))
-          .addField("place2", withFieldNumber(FieldType.INT32.withNullable(true), 6))
+          .addField("place1", withFieldNumber(FieldType.STRING, 1))
+          .addField("place2", withFieldNumber(FieldType.INT32, 6))
           .build();
 
   // Sample row instances for each OneOf case.
@@ -325,7 +398,10 @@ class TestProtoSchemas {
   // The schema for the OuterOneOf proto.
   private static final List<Field> OUTER_ONEOF_FIELDS =
       ImmutableList.of(
-          Field.of("oneof_oneof", withFieldNumber(FieldType.row(ONEOF_SCHEMA), 1)),
+          Field.of(
+              "oneof_oneof",
+              withMessageName(
+                  withFieldNumber(FieldType.row(ONEOF_SCHEMA), 1), "proto3_schema_messages.OneOf")),
           Field.of("oneof_int32", withFieldNumber(FieldType.INT32, 2)));
   private static final Map<String, Integer> OUTER_ONE_OF_ENUM_MAP =
       OUTER_ONEOF_FIELDS.stream()
@@ -347,19 +423,47 @@ class TestProtoSchemas {
 
   static final Schema WKT_MESSAGE_SCHEMA =
       Schema.builder()
-          .addNullableField("double", withFieldNumber(FieldType.DOUBLE, 1))
-          .addNullableField("float", withFieldNumber(FieldType.FLOAT, 2))
-          .addNullableField("int32", withFieldNumber(FieldType.INT32, 3))
-          .addNullableField("int64", withFieldNumber(FieldType.INT64, 4))
-          .addNullableField("uint32", withFieldNumber(FieldType.logicalType(new UInt32()), 5))
-          .addNullableField("uint64", withFieldNumber(FieldType.logicalType(new UInt64()), 6))
-          .addNullableField("bool", withFieldNumber(FieldType.BOOLEAN, 13))
-          .addNullableField("string", withFieldNumber(FieldType.STRING, 14))
-          .addNullableField("bytes", withFieldNumber(FieldType.BYTES, 15))
           .addNullableField(
-              "timestamp", withFieldNumber(FieldType.logicalType(new TimestampNanos()), 16))
+              "double",
+              withMessageName(withFieldNumber(FieldType.DOUBLE, 1), "google.protobuf.DoubleValue"))
           .addNullableField(
-              "duration", withFieldNumber(FieldType.logicalType(new DurationNanos()), 17))
+              "float",
+              withMessageName(withFieldNumber(FieldType.FLOAT, 2), "google.protobuf.FloatValue"))
+          .addNullableField(
+              "int32",
+              withMessageName(withFieldNumber(FieldType.INT32, 3), "google.protobuf.Int32Value"))
+          .addNullableField(
+              "int64",
+              withMessageName(withFieldNumber(FieldType.INT64, 4), "google.protobuf.Int64Value"))
+          .addNullableField(
+              "uint32",
+              withMessageName(
+                  withFieldNumber(FieldType.logicalType(new UInt32()), 5),
+                  "google.protobuf.UInt32Value"))
+          .addNullableField(
+              "uint64",
+              withMessageName(
+                  withFieldNumber(FieldType.logicalType(new UInt64()), 6),
+                  "google.protobuf.UInt64Value"))
+          .addNullableField(
+              "bool",
+              withMessageName(withFieldNumber(FieldType.BOOLEAN, 13), "google.protobuf.BoolValue"))
+          .addNullableField(
+              "string",
+              withMessageName(withFieldNumber(FieldType.STRING, 14), "google.protobuf.StringValue"))
+          .addNullableField(
+              "bytes",
+              withMessageName(withFieldNumber(FieldType.BYTES, 15), "google.protobuf.BytesValue"))
+          .addNullableField(
+              "timestamp",
+              withMessageName(
+                  withFieldNumber(FieldType.logicalType(new NanosInstant()), 16),
+                  "google.protobuf.Timestamp"))
+          .addNullableField(
+              "duration",
+              withMessageName(
+                  withFieldNumber(FieldType.logicalType(new NanosDuration()), 17),
+                  "google.protobuf.Duration"))
           .build();
   // A sample instance of the  row.
   static final Instant JAVA_NOW = Instant.now();
@@ -368,6 +472,8 @@ class TestProtoSchemas {
           .setSeconds(JAVA_NOW.getEpochSecond())
           .setNanos(JAVA_NOW.getNano())
           .build();
+  static final java.time.Duration JAVA_DURATION =
+      java.time.Duration.ofSeconds(JAVA_NOW.getEpochSecond(), JAVA_NOW.getNano());
   static final Duration PROTO_DURATION =
       Duration.newBuilder()
           .setSeconds(JAVA_NOW.getEpochSecond())
@@ -376,7 +482,7 @@ class TestProtoSchemas {
   static final Row WKT_MESSAGE_ROW =
       Row.withSchema(WKT_MESSAGE_SCHEMA)
           .addValues(
-              1.1, 2.2F, 32, 64L, 33, 65L, true, "horsey", BYTE_ARRAY, PROTO_NOW, PROTO_DURATION)
+              1.1, 2.2F, 32, 64L, 33, 65L, true, "horsey", BYTE_ARRAY, JAVA_NOW, JAVA_DURATION)
           .build();
 
   // A sample instance of the proto.
@@ -394,4 +500,32 @@ class TestProtoSchemas {
           .setTimestamp(PROTO_NOW)
           .setDuration(PROTO_DURATION)
           .build();
+
+  // The schema for the OptionalNested proto.
+  static final Schema OPTIONAL_NESTED_SCHEMA =
+      Schema.builder()
+          .addField(
+              "nested",
+              withMessageName(
+                  withFieldNumber(FieldType.row(OPTIONAL_PRIMITIVE_SCHEMA), 1).withNullable(true),
+                  "proto2_schema_messages.OptionalPrimitive"))
+          .build();
+
+  // A sample instance of the proto.
+  static final OptionalNested OPTIONAL_NESTED =
+      OptionalNested.newBuilder().setNested(OPTIONAL_PRIMITIVE_PROTO).build();
+
+  // The schema for the Required Nested proto.
+  static final Schema REQUIRED_NESTED_SCHEMA =
+      Schema.builder()
+          .addField(
+              "nested",
+              withMessageName(
+                  withFieldNumber(FieldType.row(REQUIRED_PRIMITIVE_SCHEMA), 1).withNullable(false),
+                  "proto2_schema_messages.RequiredPrimitive"))
+          .build();
+
+  // A sample instance of the proto.
+  static final RequiredNested REQUIRED_NESTED =
+      RequiredNested.newBuilder().setNested(REQUIRED_PRIMITIVE_PROTO).build();
 }

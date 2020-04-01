@@ -58,7 +58,6 @@ try:
 except ImportError:
   pass
 
-
 # pylint: enable=wrong-import-position, unused-import
 
 __all__ = ['FileSystems']
@@ -91,22 +90,26 @@ class FileSystems(object):
   @staticmethod
   def get_filesystem(path):
     # type: (str) -> FileSystems
+
     """Get the correct filesystem for the specified path
     """
     try:
       path_scheme = FileSystems.get_scheme(path)
-      systems = [fs for fs in FileSystem.get_all_subclasses()
-                 if fs.scheme() == path_scheme]
+      systems = [
+          fs for fs in FileSystem.get_all_subclasses()
+          if fs.scheme() == path_scheme
+      ]
       if len(systems) == 0:
         raise ValueError(
             'Unable to get filesystem from specified path, please use the '
             'correct path or ensure the required dependency is installed, '
-            'e.g., pip install apache_beam[gcp]. Path specified: %s' % path)
+            'e.g., pip install apache-beam[gcp]. Path specified: %s' % path)
       elif len(systems) == 1:
         # Pipeline options could come either from the Pipeline itself (using
         # direct runner), or via RuntimeValueProvider (other runners).
-        options = (FileSystems._pipeline_options or
-                   RuntimeValueProvider.runtime_options)
+        options = (
+            FileSystems._pipeline_options or
+            RuntimeValueProvider.runtime_options)
         return systems[0](pipeline_options=options)
       else:
         raise ValueError('Found more than one filesystem for path %s' % path)
@@ -118,6 +121,7 @@ class FileSystems(object):
   @staticmethod
   def join(basepath, *paths):
     # type: (str, *str) -> str
+
     """Join two or more pathname components for the filesystem
 
     Args:
@@ -200,9 +204,12 @@ class FileSystems(object):
     return filesystem.match(patterns, limits)
 
   @staticmethod
-  def create(path, mime_type='application/octet-stream',
-             compression_type=CompressionTypes.AUTO):
+  def create(
+      path,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
     # type: (...) -> BinaryIO
+
     """Returns a write channel for the given file path.
 
     Args:
@@ -217,9 +224,12 @@ class FileSystems(object):
     return filesystem.create(path, mime_type, compression_type)
 
   @staticmethod
-  def open(path, mime_type='application/octet-stream',
-           compression_type=CompressionTypes.AUTO):
+  def open(
+      path,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
     # type: (...) -> BinaryIO
+
     """Returns a read channel for the given file path.
 
     Args:
@@ -325,8 +335,8 @@ class FileSystems(object):
       ``BeamIOError``: if any of the delete operations fail
     """
     if isinstance(paths, (str, unicode)):
-      raise BeamIOError('Delete passed string argument instead of list: %s' %
-                        paths)
+      raise BeamIOError(
+          'Delete passed string argument instead of list: %s' % paths)
     if len(paths) == 0:
       return
     filesystem = FileSystems.get_filesystem(paths[0])

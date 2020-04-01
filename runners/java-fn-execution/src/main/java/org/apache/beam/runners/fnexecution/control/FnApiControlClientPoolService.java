@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
 /** A Fn API control service which adds incoming SDK harness connections to a sink. */
 public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnControlImplBase
     implements FnService {
-  private static final Logger LOGGER = LoggerFactory.getLogger(FnApiControlClientPoolService.class);
+  private static final Logger LOG = LoggerFactory.getLogger(FnApiControlClientPoolService.class);
 
   private final Object lock = new Object();
   private final ControlClientPool.Sink clientSink;
@@ -78,10 +78,10 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
     final String workerId = headerAccessor.getSdkWorkerId();
     if (Strings.isNullOrEmpty(workerId)) {
       // TODO(BEAM-4149): Enforce proper worker id.
-      LOGGER.warn("No worker_id header provided in control request");
+      LOG.warn("No worker_id header provided in control request");
     }
 
-    LOGGER.info("Beam Fn Control client connected with id {}", workerId);
+    LOG.info("Beam Fn Control client connected with id {}", workerId);
     FnApiControlClient newClient = FnApiControlClient.forRequestObserver(workerId, requestObserver);
     try {
       // Add the client to the pool of vended clients before making it available - we should close

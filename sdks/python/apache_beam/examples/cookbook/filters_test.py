@@ -34,12 +34,22 @@ from apache_beam.testing.util import equal_to
 class FiltersTest(unittest.TestCase):
   # Note that 'removed' should be projected away by the pipeline
   input_data = [
-      {'year': 2010, 'month': 1, 'day': 1, 'mean_temp': 3, 'removed': 'a'},
-      {'year': 2012, 'month': 1, 'day': 2, 'mean_temp': 3, 'removed': 'a'},
-      {'year': 2011, 'month': 1, 'day': 3, 'mean_temp': 5, 'removed': 'a'},
-      {'year': 2013, 'month': 2, 'day': 1, 'mean_temp': 3, 'removed': 'a'},
-      {'year': 2011, 'month': 3, 'day': 3, 'mean_temp': 5, 'removed': 'a'},
-      ]
+      {
+          'year': 2010, 'month': 1, 'day': 1, 'mean_temp': 3, 'removed': 'a'
+      },
+      {
+          'year': 2012, 'month': 1, 'day': 2, 'mean_temp': 3, 'removed': 'a'
+      },
+      {
+          'year': 2011, 'month': 1, 'day': 3, 'mean_temp': 5, 'removed': 'a'
+      },
+      {
+          'year': 2013, 'month': 2, 'day': 1, 'mean_temp': 3, 'removed': 'a'
+      },
+      {
+          'year': 2011, 'month': 3, 'day': 3, 'mean_temp': 5, 'removed': 'a'
+      },
+  ]
 
   def _get_result_for_month(self, pipeline, month):
     rows = (pipeline | 'create' >> beam.Create(self.input_data))
@@ -52,8 +62,11 @@ class FiltersTest(unittest.TestCase):
       results = self._get_result_for_month(p, 1)
       assert_that(
           results,
-          equal_to([{'year': 2010, 'month': 1, 'day': 1, 'mean_temp': 3},
-                    {'year': 2012, 'month': 1, 'day': 2, 'mean_temp': 3}]))
+          equal_to([{
+              'year': 2010, 'month': 1, 'day': 1, 'mean_temp': 3
+          }, {
+              'year': 2012, 'month': 1, 'day': 2, 'mean_temp': 3
+          }]))
 
   def test_basic_empty(self):
     """Test that the correct empty result is returned for a simple dataset."""

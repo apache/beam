@@ -68,7 +68,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
   @VisibleForTesting final String bqLocation;
   private final ConversionOptions conversionOptions;
   private BeamTableStatistics rowCountStatistics = null;
-  private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryTable.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryTable.class);
   @VisibleForTesting final Method method;
 
   BigQueryTable(Table table, BigQueryUtils.ConversionOptions options) {
@@ -85,23 +85,20 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
       if (validMethods.contains(selectedMethod)) {
         method = Method.valueOf(selectedMethod);
       } else {
-        InvalidPropertyException e =
-            new InvalidPropertyException(
-                "Invalid method "
-                    + "'"
-                    + selectedMethod
-                    + "'. "
-                    + "Supported methods are: "
-                    + validMethods.toString()
-                    + ".");
-
-        throw e;
+        throw new InvalidPropertyException(
+            "Invalid method "
+                + "'"
+                + selectedMethod
+                + "'. "
+                + "Supported methods are: "
+                + validMethods.toString()
+                + ".");
       }
     } else {
-      method = Method.DEFAULT;
+      method = Method.DIRECT_READ;
     }
 
-    LOGGER.info("BigQuery method is set to: " + method.toString());
+    LOG.info("BigQuery method is set to: " + method.toString());
   }
 
   @Override
@@ -128,7 +125,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
   public PCollection<Row> buildIOReader(
       PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
     if (!method.equals(Method.DIRECT_READ)) {
-      LOGGER.info("Predicate/project push-down only available for `DIRECT_READ` method, skipping.");
+      LOG.info("Predicate/project push-down only available for `DIRECT_READ` method, skipping.");
       return buildIOReader(begin);
     }
 
@@ -143,7 +140,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
       if (!bigQueryFilter.getSupported().isEmpty()) {
         String rowRestriction = generateRowRestrictions(getSchema(), bigQueryFilter.getSupported());
         if (!rowRestriction.isEmpty()) {
-          LOGGER.info("Pushing down the following filter: " + rowRestriction);
+          LOG.info("Pushing down the following filter: " + rowRestriction);
           typedRead = typedRead.withRowRestriction(rowRestriction);
         }
       }
@@ -228,7 +225,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
       return BeamTableStatistics.createBoundedTableStatistics(rowCount.doubleValue());
 
     } catch (IOException | InterruptedException e) {
-      LOGGER.warn("Could not get the row count for the table " + bqLocation, e);
+      LOG.warn("Could not get the row count for the table " + bqLocation, e);
     }
 
     return BeamTableStatistics.BOUNDED_UNKNOWN;

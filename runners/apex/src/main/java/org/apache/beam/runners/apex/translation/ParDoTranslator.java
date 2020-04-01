@@ -36,7 +36,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -58,15 +57,19 @@ class ParDoTranslator<InputT, OutputT>
   @Override
   public void translate(ParDo.MultiOutput<InputT, OutputT> transform, TranslationContext context) {
     DoFn<InputT, OutputT> doFn = transform.getFn();
-    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
-    if (signature.processElement().isSplittable()) {
+    if (DoFnSignatures.isSplittable(doFn)) {
       throw new UnsupportedOperationException(
           String.format(
               "%s does not support splittable DoFn: %s", ApexRunner.class.getSimpleName(), doFn));
     }
-
-    if (signature.timerDeclarations().size() > 0) {
+    if (DoFnSignatures.requiresTimeSortedInput(doFn)) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s doesn't currently support @RequiresTimeSortedInput",
+              ApexRunner.class.getSimpleName()));
+    }
+    if (DoFnSignatures.usesTimers(doFn)) {
       throw new UnsupportedOperationException(
           String.format(
               "Found %s annotations on %s, but %s cannot yet be used with timers in the %s.",
@@ -135,12 +138,15 @@ class ParDoTranslator<InputT, OutputT>
     }
   }
 
-  static class SplittableProcessElementsTranslator<InputT, OutputT, RestrictionT, PositionT>
-      implements TransformTranslator<ProcessElements<InputT, OutputT, RestrictionT, PositionT>> {
+  static class SplittableProcessElementsTranslator<
+          InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
+      implements TransformTranslator<
+          ProcessElements<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>> {
 
     @Override
     public void translate(
-        ProcessElements<InputT, OutputT, RestrictionT, PositionT> transform,
+        ProcessElements<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
+            transform,
         TranslationContext context) {
 
       Map<TupleTag<?>, PValue> outputs = context.getOutputs();

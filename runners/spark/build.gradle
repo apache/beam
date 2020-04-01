@@ -136,6 +136,7 @@ task validatesRunnerBatch(type: Test) {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     includeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
     // Unbounded
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
@@ -147,6 +148,7 @@ task validatesRunnerBatch(type: Test) {
     // Portability
     excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
   jvmArgs '-Xmx3g'
 }
@@ -203,6 +205,7 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
     excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
     // Metrics
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
@@ -212,6 +215,7 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
     excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
   filter {
     // Combine with context not implemented
