@@ -108,6 +108,8 @@ def register_ipython_log_handler():
 
 class IPythonLogHandler(logging.Handler):
   """A logging handler to display logs as HTML in IPython backed frontends."""
+  # TODO(BEAM-7923): Switch to Google hosted CDN once
+  # https://code.google.com/archive/p/google-ajax-apis/issues/637 is resolved.
   log_template = """
             <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
             <div class="alert alert-{level}">{msg}</div>"""
@@ -146,6 +148,8 @@ def obfuscate(*inputs):
 
 class ProgressIndicator(object):
   """An indicator visualizing code execution in progress."""
+  # TODO(BEAM-7923): Switch to Google hosted CDN once
+  # https://code.google.com/archive/p/google-ajax-apis/issues/637 is resolved.
   spinner_template = """
             <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
             <div id="{id}" class="spinner-border text-info" role="status">
