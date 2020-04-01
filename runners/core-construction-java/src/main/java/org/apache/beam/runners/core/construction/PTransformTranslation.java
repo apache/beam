@@ -170,6 +170,9 @@ public class PTransformTranslation {
         COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN.equals(
             getUrn(CombineComponents.COMBINE_PER_KEY_EXTRACT_OUTPUTS)));
     checkState(
+        COMBINE_PER_KEY_CONVERT_TO_ACCUMULATORS_TRANSFORM_URN.equals(
+            getUrn(CombineComponents.COMBINE_PER_KEY_CONVERT_TO_ACCUMULATORS)));
+    checkState(
         COMBINE_GROUPED_VALUES_TRANSFORM_URN.equals(
             getUrn(CombineComponents.COMBINE_GROUPED_VALUES)));
 

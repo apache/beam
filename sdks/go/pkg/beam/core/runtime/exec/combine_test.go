@@ -113,6 +113,40 @@ func TestLiftedCombine(t *testing.T) {
 
 }
 
+// TestConvertToaccumulators verifies that if we just do ConvertToAccumulators instead
+// of LiftedCombine before the GBK we still get the right answer.
+func TestConvertToAccumulators(t *testing.T) {
+	withCoder := func(t *testing.T, suffix string, key interface{}, keyCoder *coder.Coder) {
+		for _, test := range tests {
+			t.Run(fnName(test.Fn)+"_"+suffix, func(t *testing.T) {
+				edge := getCombineEdge(t, test.Fn, reflectx.Int, test.AccumCoder)
+
+				out := &CaptureNode{UID: 1}
+				extract := &ExtractOutput{Combine: &Combine{UID: 2, Fn: edge.CombineFn, Out: out}}
+				merge := &MergeAccumulators{Combine: &Combine{UID: 3, Fn: edge.CombineFn, Out: extract}}
+				gbk := &simpleGBK{UID: 4, KeyCoder: keyCoder, Out: merge}
+				convertToAccumulators := &ConvertToAccumulators{Combine: &Combine{UID: 5, Fn: edge.CombineFn, Out: gbk}}
+				n := &FixedRoot{UID: 6, Elements: makeKVInput(key, test.Input...), Out: convertToAccumulators}
+
+				constructAndExecutePlan(t, []Unit{n, convertToAccumulators, gbk, merge, extract, out})
+				expected := makeKV(key, test.Expected)
+				if !equalList(out.Elements, expected) {
+					t.Errorf("liftedCombineChain(%s) = %v, want %v", edge.CombineFn.Name(), extractKeyedValues(out.Elements...), extractKeyedValues(expected...))
+				}
+			})
+		}
+	}
+	withCoder(t, "intKeys", 42, intCoder(reflectx.Int))
+	withCoder(t, "int64Keys", int64(42), intCoder(reflectx.Int64))
+
+	cc, err := coder.NewCustomCoder("codable", myCodableType, codableEncoder, codableDecoder)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	withCoder(t, "pointerKeys", &myCodable{42}, &coder.Coder{Kind: coder.Custom, T: typex.New(myCodableType), Custom: cc})
+
+}
+
 type codable interface {
 	EncodeMe() []byte
 	DecodeMe([]byte)
@@ -200,7 +234,7 @@ func constructAndExecutePlan(t *testing.T, us []Unit) {
 //   MergeAccumulators(a, b AccumT) AccumT
 //   ExtractOutput(v AccumT) OutputT
 //
-// In addition, depending there can be three distinct types, depending on where
+// In addition, there can be three distinct types, depending on where
 // they are used in the combine, the input type, InputT, the output type, OutputT,
 // and the accumulator type AccumT. Depending on the equality of the types, one
 // or more of the methods can be unspecified.
@@ -264,7 +298,7 @@ func (*MyOtherCombine) ExtractOutput(a int64) string {
 	return fmt.Sprintf("%d", a)
 }
 
-// MyThirdCombine has parses strings as Input, and doesn't specify an ExtractOutput
+// MyThirdCombine parses strings as Input, and doesn't specify an ExtractOutput
 //
 //  InputT == string
 //  AccumT == int
