@@ -58,17 +58,12 @@ from apache_beam.utils import windowed_value
 if TYPE_CHECKING:
   from apache_beam.coders.coder_impl import CoderImpl
   from apache_beam.runners.portability.fn_api_runner import worker_handlers
+  from apache_beam.runners.portability.fn_api_runner.translations import DataSideInput
   from apache_beam.transforms.window import BoundedWindow
 
 ENCODED_IMPULSE_VALUE = WindowedValueCoder(
     BytesCoder(), GlobalWindowCoder()).get_impl().encode_nested(
         GlobalWindows.windowed_value(b''))
-
-DataOutput = Dict[str, bytes]
-SideInputAccessPattern = beam_runner_api_pb2.FunctionSpec
-
-DataSideInput = Dict[translations.SideInputId,
-                     Tuple[bytes, beam_runner_api_pb2.FunctionSpec]]
 
 
 class Buffer(Protocol):
@@ -309,32 +304,59 @@ class FnApiRunnerExecutionContext(object):
   @staticmethod
   def _build_data_side_inputs_map(stages):
     # type: (Iterable[translations.Stage]) -> MutableMapping[str, DataSideInput]
+
     """Builds an index mapping stages to side input descriptors.
 
     A side input descriptor is a map of side input IDs to side input access
     patterns for all of the outputs of a stage that will be consumed as a
     side input.
     """
-    data_side_inputs_by_stage = {}
-    all_side_inputs, stage_consumers, transform_consumers = (
-        translations.get_all_side_inputs_and_consumers(stages))
+    transform_consumers = collections.defaultdict(
+        list)  # type: DefaultDict[str, List[beam_runner_api_pb2.PTransform]]
+    stage_consumers = collections.defaultdict(
+        list)  # type: DefaultDict[str, List[translations.Stage]]
+
+    def get_all_side_inputs():
+      # type: () -> Set[str]
+      all_side_inputs = set()  # type: Set[str]
+      for stage in stages:
+        for transform in stage.transforms:
+          for input in transform.inputs.values():
+            transform_consumers[input].append(transform)
+            stage_consumers[input].append(stage)
+        for si in stage.side_inputs():
+          all_side_inputs.add(si)
+      return all_side_inputs
+
+    all_side_inputs = frozenset(get_all_side_inputs())
+    data_side_inputs_by_producing_stage = {}
+
+    producing_stages_by_pcoll = {}
 
     for s in stages:
-      data_side_inputs_by_stage[s.name] = {}
+      data_side_inputs_by_producing_stage[s.name] = {}
       for transform in s.transforms:
-        for output in transform.outputs.values():
-          if output in all_side_inputs:
-            for consuming_transform in transform_consumers[output]:
-              payload = proto_utils.parse_Bytes(consuming_transform.spec.payload,
-                                                beam_runner_api_pb2.ParDoPayload)
-              for si_tag in payload.side_inputs:
-                side_input_id = (consuming_transform.unique_name, si_tag)
-                data_side_inputs_by_stage[s.name][side_input_id] = (
-                    consuming_transform.inputs[si_tag],
+        for o in transform.outputs.values():
+          if o in s.side_inputs():
+            continue
+          producing_stages_by_pcoll[o] = s
+
+    for side_pc in all_side_inputs:
+      for consuming_transform in transform_consumers[side_pc]:
+        if consuming_transform.spec.urn not in translations.PAR_DO_URNS:
+          continue
+        producing_stage = producing_stages_by_pcoll[side_pc]
+        payload = proto_utils.parse_Bytes(
+            consuming_transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        for si_tag in payload.side_inputs:
+          if consuming_transform.inputs[si_tag] == side_pc:
+            side_input_id = (consuming_transform.unique_name, si_tag)
+            data_side_inputs_by_producing_stage[
+                producing_stage.name][side_input_id] = (
+                    translations.create_buffer_id(side_pc),
                     payload.side_inputs[si_tag].access_pattern)
 
-    return data_side_inputs_by_stage
-
+    return data_side_inputs_by_producing_stage
 
   @property
   def state_servicer(self):
@@ -362,8 +384,8 @@ class FnApiRunnerExecutionContext(object):
       data_side_input,  # type: DataSideInput
   ):
     # type: (...) -> None
-    for (consuming_transform_id, tag), (buffer_id, func_spec) \
-        in data_side_input.items():
+    for (consuming_transform_id, tag), (buffer_id,
+                                        func_spec) in data_side_input.items():
       _, pcoll_id = split_buffer_id(buffer_id)
       value_coder = self.pipeline_context.coders[self.safe_coders[
           self.data_channel_coders[pcoll_id]]]
@@ -381,8 +403,7 @@ class FnApiRunnerExecutionContext(object):
                   transform_id=consuming_transform_id,
                   side_input_id=tag,
                   window=window))
-          self.worker_handler_manager.state_servicer \
-            .append_raw(state_key, elements_data)
+          self.state_servicer.append_raw(state_key, elements_data)
       elif func_spec.urn == common_urns.side_inputs.MULTIMAP.urn:
         for key, window, elements_data in elements_by_window.encoded_items():
           state_key = beam_fn_api_pb2.StateKey(
@@ -391,8 +412,7 @@ class FnApiRunnerExecutionContext(object):
                   side_input_id=tag,
                   window=window,
                   key=key))
-          self.worker_handler_manager.state_servicer \
-            .append_raw(state_key, elements_data)
+          self.state_servicer.append_raw(state_key, elements_data)
       else:
         raise ValueError("Unknown access pattern: '%s'" % func_spec.urn)
 
@@ -462,23 +482,25 @@ class BundleContextManager(object):
         state_api_service_descriptor=self.state_api_service_descriptor(),
         timer_api_service_descriptor=self.data_api_service_descriptor())
 
-  def extract_bundle_inputs(self):
-    # type: (...) -> Tuple[Dict[str, PartitionableBuffer], DataOutput]
+  def extract_bundle_inputs_and_outputs(self):
+    # type: (...) -> Tuple[Dict[str, PartitionableBuffer], DataOutput, Dict[Tuple[str, str], str]]
 
     """Returns maps of transform names to PCollection identifiers.
 
     Also mutates IO stages to point to the data ApiServiceDescriptor.
 
     Returns:
-      A tuple of (data_input, data_output) dictionaries.
+      A tuple of (data_input, data_output, expected_timer_output) dictionaries.
         `data_input` is a dictionary mapping (transform_name, output_name) to a
         PCollection buffer; `data_output` is a dictionary mapping
         (transform_name, output_name) to a PCollection ID.
+        `expected_timer_output` is a dictionary mapping transform_id and
+        timer family ID to a buffer id for timers.
     """
     data_input = {}  # type: Dict[str, PartitionableBuffer]
     data_output = {}  # type: DataOutput
     # A mapping of {(transform_id, timer_family_id) : buffer_id}
-    expected_timer_output = {}  # type: Dict[Tuple(str, str), str]
+    expected_timer_output = {}  # type: Dict[Tuple[str, str], str]
     for transform in self.stage.transforms:
       if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
                                 bundle_processor.DATA_OUTPUT_URN):
@@ -496,8 +518,8 @@ class BundleContextManager(object):
             if pcoll_id not in self.execution_context.pcoll_buffers:
               self.execution_context.pcoll_buffers[pcoll_id] = ListBuffer(
                   coder_impl=coder.get_impl())
-            data_input[transform.unique_name] = \
-              self.execution_context.pcoll_buffers[pcoll_id]
+            data_input[transform.unique_name] = (
+                self.execution_context.pcoll_buffers[pcoll_id])
         elif transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
           data_output[transform.unique_name] = pcoll_id
           coder_id = self.execution_context.data_channel_coders[only_element(
@@ -505,13 +527,14 @@ class BundleContextManager(object):
         else:
           raise NotImplementedError
         data_spec = beam_fn_api_pb2.RemoteGrpcPort(coder_id=coder_id)
-        data_api_service_descriptor = \
-          self.data_api_service_descriptor()
+        data_api_service_descriptor = self.data_api_service_descriptor()
         if data_api_service_descriptor:
           data_spec.api_service_descriptor.url = (
               data_api_service_descriptor.url)
         transform.spec.payload = data_spec.SerializeToString()
       elif transform.spec.urn in translations.PAR_DO_URNS:
+        payload = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
         for timer_family_id in payload.timer_family_specs.keys():
           expected_timer_output[(transform.unique_name, timer_family_id)] = (
               create_buffer_id(timer_family_id, 'timers'))

@@ -43,7 +43,6 @@ from typing import Optional
 from typing import Tuple
 from typing import TypeVar
 
-import apache_beam as beam  # pylint: disable=ungrouped-imports
 from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.metrics import metric
 from apache_beam.metrics import monitoring_infos
@@ -59,10 +58,8 @@ from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability.fn_api_runner import execution
 from apache_beam.runners.portability.fn_api_runner import translations
 from apache_beam.runners.portability.fn_api_runner.execution import ListBuffer
-from apache_beam.runners.portability.fn_api_runner.execution import WindowGroupingBuffer
 from apache_beam.runners.portability.fn_api_runner.translations import create_buffer_id
 from apache_beam.runners.portability.fn_api_runner.translations import only_element
-from apache_beam.runners.portability.fn_api_runner.translations import split_buffer_id
 from apache_beam.runners.portability.fn_api_runner.worker_handlers import WorkerHandlerManager
 from apache_beam.transforms import environments
 from apache_beam.utils import profiler
@@ -84,6 +81,7 @@ BundleProcessResult = Tuple[beam_fn_api_pb2.InstructionResponse,
                             List[beam_fn_api_pb2.ProcessBundleSplitResponse]]
 
 # This module is experimental. No backwards-compatibility guarantees.
+
 
 class FnApiRunner(runner.PipelineRunner):
 
@@ -280,10 +278,10 @@ class FnApiRunner(runner.PipelineRunner):
     return translations.create_and_optimize_stages(
         copy.deepcopy(pipeline_proto),
         phases=[
+            translations.annotate_downstream_side_inputs,
             translations.fix_side_input_pcoll_coders,
             translations.lift_combiners,
             translations.expand_sdf,
-            translations.annotate_downstream_side_inputs,
             translations.expand_gbk,
             translations.sink_flattens,
             translations.greedily_fuse,
@@ -338,45 +336,6 @@ class FnApiRunner(runner.PipelineRunner):
       worker_handler_manager.close_all()
     return RunnerResult(runner.PipelineState.DONE, monitoring_infos_by_stage)
 
-  def _store_side_inputs_in_state(self,
-                                  runner_execution_context,  # type: execution.FnApiRunnerExecutionContext
-                                  data_side_input,  # type: DataSideInput
-                                 ):
-    # type: (...) -> None
-    for (transform_id, tag), (buffer_id, si) in data_side_input.items():
-      _, pcoll_id = split_buffer_id(buffer_id)
-      value_coder = runner_execution_context.pipeline_context.coders[
-          runner_execution_context.safe_coders[
-              runner_execution_context.data_channel_coders[pcoll_id]]]
-      elements_by_window = WindowGroupingBuffer(si, value_coder)
-      if buffer_id not in runner_execution_context.pcoll_buffers:
-        runner_execution_context.pcoll_buffers[buffer_id] = ListBuffer(
-            coder_impl=value_coder.get_impl())
-      for element_data in runner_execution_context.pcoll_buffers[buffer_id]:
-        elements_by_window.append(element_data)
-
-      if si.urn == common_urns.side_inputs.ITERABLE.urn:
-        for _, window, elements_data in elements_by_window.encoded_items():
-          state_key = beam_fn_api_pb2.StateKey(
-              iterable_side_input=beam_fn_api_pb2.StateKey.IterableSideInput(
-                  transform_id=transform_id, side_input_id=tag, window=window))
-          (
-              runner_execution_context.worker_handler_manager.state_servicer.
-              append_raw(state_key, elements_data))
-      elif si.urn == common_urns.side_inputs.MULTIMAP.urn:
-        for key, window, elements_data in elements_by_window.encoded_items():
-          state_key = beam_fn_api_pb2.StateKey(
-              multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
-                  transform_id=transform_id,
-                  side_input_id=tag,
-                  window=window,
-                  key=key))
-          (
-              runner_execution_context.worker_handler_manager.state_servicer.
-              append_raw(state_key, elements_data))
-      else:
-        raise ValueError("Unknown access pattern: '%s'" % si.urn)
-
   def _run_bundle_multiple_times_for_testing(
       self,
       runner_execution_context,  # type: execution.FnApiRunnerExecutionContext
@@ -396,7 +355,10 @@ class FnApiRunner(runner.PipelineRunner):
       try:
         runner_execution_context.state_servicer.checkpoint()
         bundle_manager.process_bundle(
-            data_input, data_output, fired_timers, expected_output_timers,
+            data_input,
+            data_output,
+            fired_timers,
+            expected_output_timers,
             dry_run=True)
       finally:
         runner_execution_context.state_servicer.restore()
@@ -505,7 +467,7 @@ class FnApiRunner(runner.PipelineRunner):
         the stage to execute, and its context.
     """
     data_input, data_output, expected_timer_output = (
-        bundle_context_manager.extract_bundle_inputs())
+        bundle_context_manager.extract_bundle_inputs_and_outputs())
     input_timers = {}
 
     worker_handler_manager = runner_execution_context.worker_handler_manager
@@ -519,7 +481,6 @@ class FnApiRunner(runner.PipelineRunner):
     bundle_manager = ParallelBundleManager(
         bundle_context_manager,
         self._progress_frequency,
-        skip_registration=False,
         cache_token_generator=cache_token_generator)
 
     final_result = None
@@ -556,9 +517,11 @@ class FnApiRunner(runner.PipelineRunner):
 
     # Store the required downstream side inputs into state so it is accessible
     # for the worker when it runs bundles that consume this stage's output.
-    data_side_input = runner_execution_context.side_input_descriptors_by_stage[
-      bundle_context_manager.stage]
+    data_side_input = (
+        runner_execution_context.side_input_descriptors_by_stage.get(
+            bundle_context_manager.stage.name, {}))
     runner_execution_context.commit_side_inputs_to_state(data_side_input)
+
     return final_result
 
   def _run_bundle(
@@ -567,7 +530,7 @@ class FnApiRunner(runner.PipelineRunner):
       bundle_context_manager,
       data_input,
       data_output,
-      fired_timers,
+      input_timers,
       expected_timer_output,
       bundle_manager):
     """Execute a bundle, and return a result object, and deferred inputs."""
@@ -575,11 +538,12 @@ class FnApiRunner(runner.PipelineRunner):
         runner_execution_context,
         bundle_manager,
         data_input,
-        data_output, {},
+        data_output,
+        input_timers,
         expected_timer_output)
 
     result, splits = bundle_manager.process_bundle(
-        data_input, data_output, fired_timers, expected_timer_output)
+        data_input, data_output, input_timers, expected_timer_output)
     # Now we collect all the deferred inputs remaining from bundle execution.
     # Deferred inputs can be:
     # - timers
@@ -823,11 +787,11 @@ class BundleManager(object):
     return split_results
 
   def process_bundle(self,
-                     inputs,  # type: Mapping[str, PartitionableBuffer]
+                     inputs,  # type: Mapping[str, execution.PartitionableBuffer]
                      expected_outputs,  # type: DataOutput
-                     fired_timers,  # type: Mapping[Tuple[str, str], PartitionableBuffer]
-                     expected_output_timers,  # type: Dict[str, Dict[str, str]]
-                     dry_run=False
+                     fired_timers,  # type: Mapping[Tuple[str, str], execution.PartitionableBuffer]
+                     expected_output_timers,  # type: Dict[Tuple[str, str], str]
+                     dry_run=False,
                     ):
     # type: (...) -> BundleProcessResult
     # Unique id for the instruction processing this bundle.
@@ -879,9 +843,9 @@ class BundleManager(object):
           expect_reads,
           abort_callback=lambda:
           (result_future.is_done() and result_future.get().error)):
-        if isinstance(output, beam_fn_api_pb2.Elements.Timers):
+        if isinstance(output, beam_fn_api_pb2.Elements.Timers) and not dry_run:
           with BundleManager._lock:
-            self._get_buffer(
+            self.bundle_context_manager.get_buffer(
                 expected_output_timers[(
                     output.transform_id, output.timer_family_id)],
                 output.transform_id).append(output.timers)
@@ -922,15 +886,20 @@ class ParallelBundleManager(BundleManager):
     self._num_workers = bundle_context_manager.num_workers
 
   def process_bundle(self,
-                     inputs,  # type: Mapping[str, PartitionableBuffer]
+                     inputs,  # type: Mapping[str, execution.PartitionableBuffer]
                      expected_outputs,  # type: DataOutput
-                     fired_timers,  # type: Mapping[Tuple[str, str], PartitionableBuffer]
+                     fired_timers,  # type: Mapping[Tuple[str, str], execution.PartitionableBuffer]
                      expected_output_timers,  # type: Dict[Tuple[str, str], str]
-                     dry_run=False
+                     dry_run=False,
                     ):
     # type: (...) -> BundleProcessResult
     part_inputs = [{} for _ in range(self._num_workers)
                    ]  # type: List[Dict[str, List[bytes]]]
+    # Timers are only executed on the first worker
+    # TODO(BEAM-9741): Split timers to multiple workers
+    timer_inputs = [
+        fired_timers if i == 0 else {} for i in range(self._num_workers)
+    ]
     for name, input in inputs.items():
       for ix, part in enumerate(input.partition(self._num_workers)):
         part_inputs[ix][name] = part
@@ -939,19 +908,23 @@ class ParallelBundleManager(BundleManager):
     split_result_list = [
     ]  # type: List[beam_fn_api_pb2.ProcessBundleSplitResponse]
 
-    def execute(part_map):
+    def execute(part_map_input_timers):
       # type: (...) -> BundleProcessResult
+      part_map, input_timers = part_map_input_timers
       bundle_manager = BundleManager(
           self.bundle_context_manager,
           self._progress_frequency,
           cache_token_generator=self._cache_token_generator)
       return bundle_manager.process_bundle(
-          part_map, expected_outputs, fired_timers, expected_output_timers,
+          part_map,
+          expected_outputs,
+          input_timers,
+          expected_output_timers,
           dry_run)
 
     with UnboundedThreadPoolExecutor() as executor:
-      for result, split_result in executor.map(execute, part_inputs):
-
+      for result, split_result in executor.map(execute, zip(part_inputs,  # pylint: disable=zip-builtin-not-iterating
+                                                            timer_inputs)):
         split_result_list += split_result
         if merged_result is None:
           merged_result = result
