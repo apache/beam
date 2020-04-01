@@ -112,7 +112,6 @@ public class GcsUtil {
         HttpRequestInitializer httpRequestInitializer,
         ExecutorService executorService,
         @Nullable Integer uploadBufferSizeBytes) {
-      GcsOptions gcsOptions = options.as(GcsOptions.class);
       return new GcsUtil(
           storageClient,
           httpRequestInitializer,
