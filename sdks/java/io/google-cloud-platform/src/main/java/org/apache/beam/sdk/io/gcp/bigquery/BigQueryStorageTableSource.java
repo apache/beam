@@ -115,20 +115,10 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
             BigQueryOptions.class.getSimpleName());
         tableReference.setProjectId(options.getProject());
       }
-      Table table =
-          bqServices.getDatasetService(options).getTable(tableReference, getSelectedFields());
+      Table table = bqServices.getDatasetService(options).getTable(tableReference);
       cachedTable.compareAndSet(null, table);
     }
 
     return cachedTable.get();
-  }
-
-  private List<String> getSelectedFields() {
-    if (selectedFieldsProvider != null) {
-      return selectedFieldsProvider.get();
-    } else if (tableReadOptions != null && !tableReadOptions.getSelectedFieldsList().isEmpty()) {
-      return tableReadOptions.getSelectedFieldsList();
-    }
-    return null;
   }
 }
