@@ -33,7 +33,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.io.gcp.datastore.AdaptiveThrottler;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Import.ContentStructure;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Write.Result;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
@@ -202,14 +201,10 @@ public class FhirIO {
             Metrics.counter(FhirIO.Read.FetchHttpBody.HttpBodyGetFn.class, "failed-message-reads");
         private static final Logger LOG =
             LoggerFactory.getLogger(FhirIO.Read.FetchHttpBody.HttpBodyGetFn.class);
-        private final Counter throttledSeconds =
-            Metrics.counter(
-                FhirIO.Read.FetchHttpBody.HttpBodyGetFn.class, "cumulative-throttling-seconds");
         private final Counter successfulHttpBodyGets =
             Metrics.counter(
                 FhirIO.Read.FetchHttpBody.HttpBodyGetFn.class, "successful-hl7v2-message-gets");
         private HealthcareApiClient client;
-        private transient AdaptiveThrottler throttler;
 
         /** Instantiates a new Hl 7 v 2 message get fn. */
         HttpBodyGetFn() {}
@@ -222,14 +217,6 @@ public class FhirIO {
         @Setup
         public void instantiateHealthcareClient() throws IOException {
           this.client = new HttpHealthcareApiClient();
-        }
-
-        /** Start bundle. */
-        @StartBundle
-        public void startBundle() {
-          if (throttler == null) {
-            throttler = new AdaptiveThrottler(1200000, 10000, 1.25);
-          }
         }
 
         /**
@@ -255,19 +242,12 @@ public class FhirIO {
 
         private HttpBody fetchResource(HealthcareApiClient client, String resourceId)
             throws IOException, IllegalArgumentException, InterruptedException {
-          final int throttleWaitSeconds = 5;
           long startTime = System.currentTimeMillis();
           Sleeper sleeper = Sleeper.DEFAULT;
-          if (throttler.throttleRequest(startTime)) {
-            LOG.info(String.format("Delaying request for %s due to previous failures.", resourceId));
-            this.throttledSeconds.inc(throttleWaitSeconds);
-            sleeper.sleep(throttleWaitSeconds * 1000);
-          }
 
           com.google.api.services.healthcare.v1beta1.model.HttpBody resource =
               client.readFHIRResource(resourceId);
 
-          this.throttler.successfulRequest(startTime);
           if (resource == null) {
             throw new IOException(String.format("GET request for %s returned null", resourceId));
           }
