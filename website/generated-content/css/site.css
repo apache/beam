@@ -6113,17 +6113,17 @@ div.cap-toggle {
  See the License for the specific language governing permissions and
  limitations under the License.
 */
-nav.language-switcher, nav.runner-switcher {
+nav.language-switcher, nav.runner-switcher, nav.version-switcher {
   margin: 25px 0; }
-  nav.language-switcher ul, nav.runner-switcher ul {
+  nav.language-switcher ul, nav.runner-switcher ul, nav.version-switcher ul {
     display: inline;
     padding-left: 5px; }
-    nav.language-switcher ul li, nav.runner-switcher ul li {
+    nav.language-switcher ul li, nav.runner-switcher ul li, nav.version-switcher ul li {
       display: inline;
       cursor: pointer;
       padding: 10px;
       background-color: #f8f8f8; }
-      nav.language-switcher ul li.active, nav.runner-switcher ul li.active {
+      nav.language-switcher ul li.active, nav.runner-switcher ul li.active, nav.version-switcher ul li.active {
         background-color: #222c37;
         color: #fff; }
 
