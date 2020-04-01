@@ -26,7 +26,6 @@ import collections
 import functools
 import logging
 from builtins import object
-from typing import Any
 from typing import Container
 from typing import DefaultDict
 from typing import Dict
@@ -78,6 +77,14 @@ IMPULSE_BUFFER = b'impulse'
 
 # SideInputId is identified by a consumer ParDo + tag.
 SideInputId = Tuple[str, str]
+SideInputAccessPattern = beam_runner_api_pb2.FunctionSpec
+
+DataOutput = Dict[str, bytes]
+
+# DataSideInput maps SideInputIds to a tuple of the encoded bytes of the side
+# input content, and a payload specification regarding the type of side input
+# (MultiMap / Iterable).
+DataSideInput = Dict[SideInputId, Tuple[bytes, SideInputAccessPattern]]
 
 
 class Stage(object):
@@ -588,23 +595,6 @@ def optimize_pipeline(
       pipeline_proto, stages, known_runner_urns, partial)
 
 
-def get_all_side_inputs_and_consumers(stages):
-  # type: (Iterable[Stage]) -> Tuple[Set[str], Dict[str, List[Stage]], Dict[str, List[beam_runner_api_pb2.PTransform]]]
-  all_side_inputs = set()  # type: Set[str]
-  stage_consumers = collections.defaultdict(
-      list)  # type: DefaultDict[str, List[Stage]]
-  transform_consumers = collections.defaultdict(
-      list)  # type: DefaultDict[str, List[beam_runner_api_pb2.PTransform]]
-  for stage in stages:
-    for transform in stage.transforms:
-      for input in transform.inputs.values():
-        stage_consumers[input].append(stage)
-        transform_consumers[input].append(transform)
-    for si in stage.side_inputs():
-      all_side_inputs.add(si)
-  return all_side_inputs, stage_consumers, transform_consumers
-
-
 # Optimization stages.
 
 
@@ -625,7 +615,21 @@ def annotate_downstream_side_inputs(stages, pipeline_context):
 
   This representation is also amenable to simple recomputation on fusion.
   """
-  all_side_inputs, consumers, _ = get_all_side_inputs_and_consumers(stages)
+  consumers = collections.defaultdict(
+      list)  # type: DefaultDict[str, List[Stage]]
+
+  def get_all_side_inputs():
+    # type: () -> Set[str]
+    all_side_inputs = set()  # type: Set[str]
+    for stage in stages:
+      for transform in stage.transforms:
+        for input in transform.inputs.values():
+          consumers[input].append(stage)
+      for si in stage.side_inputs():
+        all_side_inputs.add(si)
+    return all_side_inputs
+
+  all_side_inputs = frozenset(get_all_side_inputs())
 
   downstream_side_inputs_by_stage = {}  # type: Dict[Stage, FrozenSet[str]]
 
@@ -647,7 +651,7 @@ def annotate_downstream_side_inputs(stages, pipeline_context):
 
   for stage in stages:
     stage.downstream_side_inputs = compute_downstream_side_inputs(stage)
-  return downstream_side_inputs_by_stage
+  return stages
 
 
 def annotate_stateful_dofns_as_roots(stages, pipeline_context):
@@ -1036,7 +1040,7 @@ def expand_gbk(stages, pipeline_context):
                       urn=bundle_processor.DATA_OUTPUT_URN,
                       payload=grouping_buffer))
           ],
-          downstream_side_inputs={},
+          downstream_side_inputs=frozenset(),
           must_follow=stage.must_follow)
       yield gbk_write
 
@@ -1089,7 +1093,7 @@ def fix_flatten_coders(stages, pipeline_context):
                           urn=bundle_processor.IDENTITY_DOFN_URN),
                       environment_id=transform.environment_id)
               ],
-              downstream_side_inputs={},
+              downstream_side_inputs=frozenset(),
               must_follow=stage.must_follow)
           pcollections[transcoded_pcollection].CopyFrom(pcollections[pcoll_in])
           pcollections[transcoded_pcollection].unique_name = (
@@ -1127,7 +1131,7 @@ def sink_flattens(stages, pipeline_context):
                         urn=bundle_processor.DATA_OUTPUT_URN,
                         payload=buffer_id))
             ],
-            downstream_side_inputs={},
+            downstream_side_inputs=frozenset(),
             must_follow=stage.must_follow)
         flatten_writes.append(flatten_write)
         yield flatten_write
