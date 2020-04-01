@@ -36,3 +36,7 @@ nav.language-switcher {
 nav.runner-switcher {
     @extend .language-switcher;
 }
+
+nav.version-switcher {
+    @extend .language-switcher;
+}

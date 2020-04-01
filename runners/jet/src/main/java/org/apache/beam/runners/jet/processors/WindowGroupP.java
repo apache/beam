@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.jet.processors;
 
+import com.hazelcast.function.SupplierEx;
 import com.hazelcast.jet.core.AbstractProcessor;
 import com.hazelcast.jet.core.AppendableTraverser;
 import com.hazelcast.jet.core.Processor;
 import com.hazelcast.jet.core.Watermark;
-import com.hazelcast.jet.function.SupplierEx;
 import com.hazelcast.jet.impl.util.ExceptionUtil;
 import java.util.ArrayList;
 import java.util.Collection;
