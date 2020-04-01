@@ -27,7 +27,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
  * https://landing.google.com/sre/book/chapters/handling-overload.html#client-side-throttling-a7sYUg
  * for a full discussion of the use case and algorithm applied.
  */
-public class AdaptiveThrottler {
+class AdaptiveThrottler {
   private final MovingFunction successfulRequests;
   private final MovingFunction allRequests;
 
