@@ -17,12 +17,12 @@
  */
 package org.apache.beam.runners.jet.processors;
 
+import com.hazelcast.function.SupplierEx;
 import com.hazelcast.jet.core.Edge;
 import com.hazelcast.jet.core.Inbox;
 import com.hazelcast.jet.core.Outbox;
 import com.hazelcast.jet.core.Processor;
 import com.hazelcast.jet.core.Watermark;
-import com.hazelcast.jet.function.SupplierEx;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -519,6 +519,11 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
     @Override
     public void remove() {
       items.remove();
+    }
+
+    @Override
+    public int size() {
+      return items.size();
     }
   }
 }
