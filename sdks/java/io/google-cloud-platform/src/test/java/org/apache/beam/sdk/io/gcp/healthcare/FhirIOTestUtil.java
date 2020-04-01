@@ -66,7 +66,8 @@ class FhirIOTestUtil {
                 httpBody.setContentType("BUNDLE");
                 httpBody.setData(data);
                 return httpBody;
-              }).collect(Collectors.toList());
+              })
+          .collect(Collectors.toList());
 
   /** Clear all resources from the FHIR store. */
   static void deleteAllFhirResources(HealthcareApiClient client, String hl7v2Store)

@@ -119,8 +119,7 @@ public interface HealthcareApiClient {
   HttpBody fhirSearch(String fhirStore, SearchResourcesRequest query) throws IOException;
 
   Operation importFhirResource(
-      String fhirStore, String gcsSourcePath, @Nullable String contentStructure)
-      throws IOException;
+      String fhirStore, String gcsSourcePath, @Nullable String contentStructure) throws IOException;
 
   /**
    * Execute fhir bundle http body.

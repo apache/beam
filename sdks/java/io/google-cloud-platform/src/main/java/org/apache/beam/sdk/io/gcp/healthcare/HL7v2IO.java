@@ -207,7 +207,9 @@ public class HL7v2IO {
       }
 
       @Override
-      public Pipeline getPipeline() {return this.pct.getPipeline();}
+      public Pipeline getPipeline() {
+        return this.pct.getPipeline();
+      }
 
       @Override
       public Map<TupleTag<?>, PValue> expand() {

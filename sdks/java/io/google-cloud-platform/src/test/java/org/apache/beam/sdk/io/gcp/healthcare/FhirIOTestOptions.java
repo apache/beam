@@ -30,15 +30,13 @@ public interface FhirIOTestOptions extends TestPipelineOptions {
 
   void setFhirStore(String value);
 
-  @Description(
-      "GCS temp path for import should be of the form gs://bucket/path/")
+  @Description("GCS temp path for import should be of the form gs://bucket/path/")
   @Required
   String getGcsTempPath();
 
   void setGcsTempPath(String value);
 
-  @Description(
-      "GCS dead letter path for import should be of the form gs://bucket/path/")
+  @Description("GCS dead letter path for import should be of the form gs://bucket/path/")
   @Required
   String getGcsDeadLetterPath();
 

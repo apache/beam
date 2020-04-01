@@ -77,12 +77,12 @@ public class FhirIOWriteIT {
     FhirIO.Write.Result result =
         pipeline
             .apply(Create.of(BUNDLES).withCoder(new HttpBodyCoder()))
-            .apply(FhirIO.Write.fhirStoresImport(
-                options.getFhirStore(),
-                options.getGcsTempPath(),
-                options.getGcsDeadLetterPath(),
-                ContentStructure.BUNDLE
-            ));
+            .apply(
+                FhirIO.Write.fhirStoresImport(
+                    options.getFhirStore(),
+                    options.getGcsTempPath(),
+                    options.getGcsDeadLetterPath(),
+                    ContentStructure.BUNDLE));
 
     PAssert.that(result.getFailedInsertsWithErr()).empty();
 
