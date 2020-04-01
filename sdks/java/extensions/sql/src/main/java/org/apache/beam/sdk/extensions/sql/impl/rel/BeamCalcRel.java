@@ -83,8 +83,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.codehaus.commons.compiler.CompileException;
 import org.codehaus.janino.ScriptEvaluator;
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
+import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
 /** BeamRelNode to replace {@code Project} and {@code Filter} node. */
@@ -166,18 +165,14 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
               new InputGetterImpl(input, upstream.getSchema()),
               null);
 
-      // Expressions.call is equivalent to: Lists.newArrayListWithCapacity();
-      Expression valueList =
-          Expressions.call(
-              Lists.class, "newArrayListWithCapacity", Expressions.constant(expressions.size()));
-      Method addToList = Types.lookupMethod(List.class, "add", Object.class);
+      List<Expression> listValues = Lists.newArrayListWithCapacity(expressions.size());
       for (int index = 0; index < expressions.size(); index++) {
         Expression value = expressions.get(index);
         FieldType toType = outputSchema.getField(index).getType();
-
-        // Expressions.call is equivalent to: .add(value)
-        valueList = Expressions.call(value, addToList, castOutput(value, toType));
+        listValues.add(castOutput(value, toType));
       }
+      Method newArrayList = Types.lookupMethod(Lists.class, "newArrayList");
+      Expression valueList = Expressions.call(newArrayList, listValues);
 
       // Expressions.call is equivalent to: output =
       // Row.withSchema(outputSchema).attachValue(values);
@@ -291,6 +286,11 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       if (rawType != null) {
         return Types.castIfNecessary(rawType, value);
       }
+    } else if (Types.isAssignableFrom(Iterable.class, value.getType())) {
+      // Passing an Iterable into newArrayList gets interpreted to mean copying each individual
+      // element. We want the
+      // entire Iterable to be treated as a single element, so we cast to Object.
+      return Expressions.convert_(value, Object.class);
     }
     return value;
   }
@@ -319,12 +319,8 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       throw new UnsupportedOperationException("Unknown DateTime type " + toType);
     }
 
-    // Second, convert to joda DateTime
-    valueDateTime =
-        Expressions.new_(
-            DateTime.class,
-            valueDateTime,
-            Expressions.parameter(DateTimeZone.class, "org.joda.time.DateTimeZone.UTC"));
+    // Second, convert to joda Instant
+    valueDateTime = Expressions.new_(Instant.class, valueDateTime);
 
     // Third, make conversion conditional on non-null input.
     if (!((Class) value.getType()).isPrimitive()) {
