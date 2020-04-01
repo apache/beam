@@ -34,6 +34,7 @@ import (
 )
 
 var intInput = []interface{}{int(1), int(2), int(3), int(4), int(5), int(6)}
+var int64Input = []interface{}{int64(1), int64(2), int64(3), int64(4), int64(5), int64(6)}
 var strInput = []interface{}{"1", "2", "3", "4", "5", "6"}
 
 var tests = []struct {
@@ -113,38 +114,40 @@ func TestLiftedCombine(t *testing.T) {
 
 }
 
-// TestConvertToaccumulators verifies that if we just do ConvertToAccumulators instead
-// of LiftedCombine before the GBK we still get the right answer.
+// TestConvertToAccumulators verifies that the ConvertToAccumulators phase
+// correctly doesn't accumulate values at all.
 func TestConvertToAccumulators(t *testing.T) {
-	withCoder := func(t *testing.T, suffix string, key interface{}, keyCoder *coder.Coder) {
-		for _, test := range tests {
-			t.Run(fnName(test.Fn)+"_"+suffix, func(t *testing.T) {
-				edge := getCombineEdge(t, test.Fn, reflectx.Int, test.AccumCoder)
-
-				out := &CaptureNode{UID: 1}
-				extract := &ExtractOutput{Combine: &Combine{UID: 2, Fn: edge.CombineFn, Out: out}}
-				merge := &MergeAccumulators{Combine: &Combine{UID: 3, Fn: edge.CombineFn, Out: extract}}
-				gbk := &simpleGBK{UID: 4, KeyCoder: keyCoder, Out: merge}
-				convertToAccumulators := &ConvertToAccumulators{Combine: &Combine{UID: 5, Fn: edge.CombineFn, Out: gbk}}
-				n := &FixedRoot{UID: 6, Elements: makeKVInput(key, test.Input...), Out: convertToAccumulators}
-
-				constructAndExecutePlan(t, []Unit{n, convertToAccumulators, gbk, merge, extract, out})
-				expected := makeKV(key, test.Expected)
-				if !equalList(out.Elements, expected) {
-					t.Errorf("liftedCombineChain(%s) = %v, want %v", edge.CombineFn.Name(), extractKeyedValues(out.Elements...), extractKeyedValues(expected...))
-				}
-			})
-		}
+	tests := []struct {
+		Fn         interface{}
+		AccumCoder *coder.Coder
+		Input      []interface{}
+		Expected   []interface{}
+	}{
+		{Fn: mergeFn, AccumCoder: intCoder(reflectx.Int), Input: intInput, Expected: intInput},
+		{Fn: nonBinaryMergeFn, AccumCoder: intCoder(reflectx.Int), Input: intInput, Expected: intInput},
+		{Fn: &MyCombine{}, AccumCoder: intCoder(reflectx.Int64), Input: intInput, Expected: int64Input},
+		{Fn: &MyOtherCombine{}, AccumCoder: intCoder(reflectx.Int64), Input: intInput, Expected: int64Input},
+		{Fn: &MyThirdCombine{}, AccumCoder: intCoder(reflectx.Int), Input: strInput, Expected: intInput},
+		{Fn: &MyContextCombine{}, AccumCoder: intCoder(reflectx.Int64), Input: intInput, Expected: int64Input},
+		{Fn: &MyErrorCombine{}, AccumCoder: intCoder(reflectx.Int64), Input: intInput, Expected: int64Input},
 	}
-	withCoder(t, "intKeys", 42, intCoder(reflectx.Int))
-	withCoder(t, "int64Keys", int64(42), intCoder(reflectx.Int64))
+	for _, test := range tests {
+		t.Run(fnName(test.Fn), func(t *testing.T) {
+			edge := getCombineEdge(t, test.Fn, reflectx.Int, test.AccumCoder)
 
-	cc, err := coder.NewCustomCoder("codable", myCodableType, codableEncoder, codableDecoder)
-	if err != nil {
-		t.Fatalf("%v", err)
+			testKey := 42
+			out := &CaptureNode{UID: 1}
+			convertToAccumulators := &ConvertToAccumulators{Combine: &Combine{UID: 2, Fn: edge.CombineFn, Out: out}}
+			n := &FixedRoot{UID: 3, Elements: makeKVInput(testKey, test.Input...), Out: convertToAccumulators}
+
+			constructAndExecutePlan(t, []Unit{n, convertToAccumulators, out})
+
+			expected := makeKVValues(testKey, test.Expected...)
+			if !equalList(out.Elements, expected) {
+				t.Errorf("convertToAccumulators(%s) = %#v, want %#v", edge.CombineFn.Name(), extractKeyedValues(out.Elements...), extractKeyedValues(expected...))
+			}
+		})
 	}
-	withCoder(t, "pointerKeys", &myCodable{42}, &coder.Coder{Kind: coder.Custom, T: typex.New(myCodableType), Custom: cc})
-
 }
 
 type codable interface {
