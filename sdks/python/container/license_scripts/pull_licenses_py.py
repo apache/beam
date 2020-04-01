@@ -67,7 +67,10 @@ def copy_license_files(dep):
     traceback.print_exc()
 
 
-@retry(wait=wait_exponential(multiplier=1, min=30, max=180))
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=2),
+    stop=stop_after_attempt(5))
 def pull_from_url(dep, configs):
   '''
   :param dep: name of a dependency
@@ -88,7 +91,7 @@ def pull_from_url(dep, configs):
       else:
         url_read = urlopen(config['license'])
         with open(cur_temp_dir + '/LICENSE', 'wb') as temp_write:
-          shutil.copyfileobj(url_read, temp_write, length=1 << 20)
+          shutil.copyfileobj(url_read, temp_write)
         print(
             'Successfully pulled license for {dep} from {url}.'.format(
                 dep=dep, url=config['license']))
@@ -97,7 +100,7 @@ def pull_from_url(dep, configs):
       if 'notice' in config:
         url_read = urlopen(config['notice'])
         with open(cur_temp_dir + '/NOTICE', 'wb') as temp_write:
-          shutil.copyfileobj(url_read, temp_write, length=1 << 20)
+          shutil.copyfileobj(url_read, temp_write)
 
       shutil.copytree(cur_temp_dir, dest_dir)
       shutil.rmtree(cur_temp_dir)
@@ -108,6 +111,7 @@ def pull_from_url(dep, configs):
           'Error occurred when pull license for {dep} from {url}.'.format(
               dep=dep, url=config))
       traceback.print_exc()
+      raise
 
 
 if __name__ == "__main__":
