@@ -4874,4 +4874,44 @@ public class ParDoTest implements Serializable {
       pipeline.run();
     }
   }
+
+  /** Tests to validate OnWindowExpiration. */
+  @RunWith(JUnit4.class)
+  public static class OnWindowExpirationTests extends SharedTestBase implements Serializable {
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+    public void testOnWindowExpirationSimple() {
+      final String stateId = "foo";
+
+      DoFn<KV<String, Integer>, Integer> fn =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @StateId(stateId)
+            private final StateSpec<ValueState<Integer>> intState =
+                StateSpecs.value(VarIntCoder.of());
+
+            @ProcessElement
+            public void processElement(
+                @AlwaysFetched @StateId(stateId) ValueState<Integer> state,
+                OutputReceiver<Integer> r) {
+              Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
+              r.output(currentValue);
+              state.write(currentValue + 1);
+            }
+
+            @OnWindowExpiration
+            public void onWindowExpiration(@StateId(stateId) ValueState<Integer> state) {
+              System.out.println(state.toString());
+            }
+          };
+
+      PCollection<Integer> output =
+          pipeline
+              .apply(Create.of(KV.of("hello", 42), KV.of("hello", 97), KV.of("hello", 84)))
+              .apply(ParDo.of(fn));
+
+      PAssert.that(output).containsInAnyOrder(0, 1, 2);
+      pipeline.run();
+    }
+  }
 }
