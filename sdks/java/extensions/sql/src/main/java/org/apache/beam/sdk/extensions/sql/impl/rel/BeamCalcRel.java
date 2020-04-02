@@ -278,7 +278,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
     Expression returnValue = value;
     if (value.getType() == Object.class || !(value.getType() instanceof Class)) {
       // fast copy path, just pass object through
-      return returnValue = value;
+      returnValue = value;
     } else if (CalciteUtils.isDateTimeType(toType)
         && !Types.isAssignableFrom(ReadableInstant.class, (Class) value.getType())) {
       returnValue = castOutputTime(value, toType);
