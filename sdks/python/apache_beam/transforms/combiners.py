@@ -878,6 +878,8 @@ class PhasedCombineFnExecutor(object):
       self.apply = self.merge_only
     elif phase == 'extract':
       self.apply = self.extract_only
+    elif phase == 'convert':
+      self.apply = self.convert_to_accumulator
     else:
       raise ValueError('Unexpected phase: %s' % phase)
 
@@ -893,6 +895,10 @@ class PhasedCombineFnExecutor(object):
 
   def extract_only(self, accumulator):
     return self.combine_fn.extract_output(accumulator)
+
+  def convert_to_accumulator(self, element):
+    return self.combine_fn.add_input(
+        self.combine_fn.create_accumulator(), element)
 
 
 class Latest(object):

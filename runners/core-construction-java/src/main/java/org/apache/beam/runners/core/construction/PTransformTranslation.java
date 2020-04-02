@@ -101,6 +101,8 @@ public class PTransformTranslation {
       "beam:transform:combine_per_key_merge_accumulators:v1";
   public static final String COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN =
       "beam:transform:combine_per_key_extract_outputs:v1";
+  public static final String COMBINE_PER_KEY_CONVERT_TO_ACCUMULATORS_TRANSFORM_URN =
+      "beam:transform:combine_per_key_convert_to_accumulators:v1";
   public static final String COMBINE_GROUPED_VALUES_TRANSFORM_URN =
       "beam:transform:combine_grouped_values:v1";
 
@@ -167,6 +169,9 @@ public class PTransformTranslation {
     checkState(
         COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN.equals(
             getUrn(CombineComponents.COMBINE_PER_KEY_EXTRACT_OUTPUTS)));
+    checkState(
+        COMBINE_PER_KEY_CONVERT_TO_ACCUMULATORS_TRANSFORM_URN.equals(
+            getUrn(CombineComponents.COMBINE_PER_KEY_CONVERT_TO_ACCUMULATORS)));
     checkState(
         COMBINE_GROUPED_VALUES_TRANSFORM_URN.equals(
             getUrn(CombineComponents.COMBINE_GROUPED_VALUES)));
