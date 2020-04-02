@@ -4061,7 +4061,6 @@ public class ZetaSQLDialectSpecTest {
         "AVG(LONG) is not supported. You might want to use AVG(CAST(expression AS DOUBLE).");
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
-
   @Test
   public void testReverseString() {
     String sql = "SELECT REVERSE('abc');";
