@@ -87,7 +87,7 @@ A typical Beam driver program works as follows:
 * Create an initial `PCollection` for pipeline data, either using the IOs
   to read data from an external storage system, or using a `Create` transform to
   build a `PCollection` from in-memory data.
-* **Apply** `PTransforms` to each `PCollection`. Transforms can change, filter,
+* **Apply** `PTransform`s to each `PCollection`. Transforms can change, filter,
   group, analyze, or otherwise process the elements in a `PCollection`. A
   transform creates a new output `PCollection` *without modifying the input
   collection*. A typical pipeline applies subsequent transforms to each new
