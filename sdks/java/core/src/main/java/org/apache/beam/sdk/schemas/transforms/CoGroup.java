@@ -35,6 +35,7 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaUtils;
 import org.apache.beam.sdk.schemas.transforms.CoGroup.ConvertCoGbkResult.ConvertType;
 import org.apache.beam.sdk.schemas.utils.RowSelector;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
@@ -399,9 +400,7 @@ public class CoGroup {
         if (keySchema == null) {
           keySchema = currentKeySchema;
         } else {
-          if (!currentKeySchema.typesEqual(keySchema)) {
-            throw new IllegalStateException("All keys must have the same schema");
-          }
+          keySchema = SchemaUtils.mergeWideningNullable(keySchema, currentKeySchema);
         }
 
         // Create a new tag for the output.
