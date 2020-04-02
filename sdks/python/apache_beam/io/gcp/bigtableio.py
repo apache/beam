@@ -258,9 +258,11 @@ class WriteToBigtable(beam.PTransform):
       table_id(str): GCP Table to write the `DirectRows`
     """
     super(WriteToBigtable, self).__init__()
-    self.beam_options = {'project_id': project_id,
-                         'instance_id': instance_id,
-                         'table_id': table_id}
+    self.beam_options = {
+      'project_id': project_id,
+      'instance_id': instance_id,
+      'table_id': table_id
+    }
 
   def expand(self, pvalue):
     beam_options = self.beam_options
