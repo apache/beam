@@ -54,7 +54,7 @@ try:
 except ImportError:
   pass
 
-__all__ = ['WriteToBigTable', 'ReadFromBigtable']
+__all__ = ['WriteToBigtable', 'ReadFromBigtable']
 
 
 class _BigtableReadFn(beam.DoFn):
@@ -243,7 +243,7 @@ class _BigTableWriteFn(beam.DoFn):
            }
 
 
-class WriteToBigTable(beam.PTransform):
+class WriteToBigtable(beam.PTransform):
   """ A transform to write to the Bigtable Table.
 
   A PTransform that write a list of `DirectRow` into the Bigtable Table
@@ -257,7 +257,7 @@ class WriteToBigTable(beam.PTransform):
       instance_id(str): GCP Instance to write the Rows
       table_id(str): GCP Table to write the `DirectRows`
     """
-    super(WriteToBigTable, self).__init__()
+    super(WriteToBigtable, self).__init__()
     self.beam_options = {'project_id': project_id,
                          'instance_id': instance_id,
                          'table_id': table_id}
