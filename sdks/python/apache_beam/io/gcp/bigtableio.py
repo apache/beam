@@ -53,8 +53,37 @@ __all__ = ['WriteToBigTable']
 
 
 class _BigtableReadFn(beam.DoFn):
+  """ A DoFn to parallelize reading from a Bigtable table
+
+  :type project_id: str
+  :param project_id: The ID of the project used for Bigtable access
+
+  :type instance_id: str
+  :param instance_id: The ID of the instance that owns the table.
+
+  :type table_id: str
+  :param table_id: The ID of the table.
+
+  :type filter_: :class:`.RowFilter`
+  :param filter_: (Optional) The filter to apply to the contents of the
+                  specified row(s). If unset, reads every column in
+                  each row.
+  """
   def __init__(self, project_id, instance_id, table_id, filter_=None):
     super(self.__class__, self).__init__()
+    self._initialize({'project_id': project_id,
+                     'instance_id': instance_id,
+                     'table_id': table_id,
+                     'filter_': filter_})
+
+  def _initialize(self, options):
+    """ The defaults initializer, to assist with pickling
+
+    :return: None
+    """
+    self._options = options
+    self._table = None
+    self._counter = Metrics.counter(self.__class__, 'Rows Read')
 
 
 class _BigTableWriteFn(beam.DoFn):
