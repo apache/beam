@@ -259,9 +259,9 @@ class WriteToBigtable(beam.PTransform):
     """
     super(WriteToBigtable, self).__init__()
     self.beam_options = {
-      'project_id': project_id,
-      'instance_id': instance_id,
-      'table_id': table_id
+        'project_id': project_id,
+        'instance_id': instance_id,
+        'table_id': table_id
     }
 
   def expand(self, pvalue):
