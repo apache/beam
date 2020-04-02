@@ -78,6 +78,9 @@ PAR_DO_URNS = frozenset([
 
 IMPULSE_BUFFER = b'impulse'
 
+# TimerFamilyId is identified by transform name + timer family
+TimerFamilyId = Tuple[str, str]
+
 # SideInputId is identified by a consumer ParDo + tag.
 SideInputId = Tuple[str, str]
 SideInputAccessPattern = beam_runner_api_pb2.FunctionSpec
@@ -105,7 +108,7 @@ class Stage(object):
     self.transforms = transforms
     self.downstream_side_inputs = downstream_side_inputs
     self.must_follow = must_follow
-    self.timers = set()  # type: Set[Tuple[str, str]]
+    self.timers = set()  # type: Set[TimerFamilyId]
     self.parent = parent
     if environment is None:
       environment = functools.reduce(
