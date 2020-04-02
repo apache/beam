@@ -65,6 +65,8 @@ public class CombineRunners {
           MapFnRunners.forValueMapFnFactory(CombineRunners::createMergeAccumulatorsMapFunction),
           PTransformTranslation.COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN,
           MapFnRunners.forValueMapFnFactory(CombineRunners::createExtractOutputsMapFunction),
+          PTransformTranslation.COMBINE_PER_KEY_CONVERT_TO_ACCUMULATORS_TRANSFORM_URN,
+          MapFnRunners.forValueMapFnFactory(CombineRunners::createConvertToAccumulatorsMapFunction),
           PTransformTranslation.COMBINE_GROUPED_VALUES_TRANSFORM_URN,
           MapFnRunners.forValueMapFnFactory(CombineRunners::createCombineGroupedValuesMapFunction));
     }
@@ -208,6 +210,19 @@ public class CombineRunners {
 
     return (KV<KeyT, AccumT> input) ->
         KV.of(input.getKey(), combineFn.extractOutput(input.getValue()));
+  }
+
+  static <KeyT, InputT, AccumT>
+      ThrowingFunction<KV<KeyT, InputT>, KV<KeyT, AccumT>> createConvertToAccumulatorsMapFunction(
+          String pTransformId, PTransform pTransform) throws IOException {
+    CombinePayload combinePayload = CombinePayload.parseFrom(pTransform.getSpec().getPayload());
+    CombineFn<InputT, AccumT, ?> combineFn =
+        (CombineFn)
+            SerializableUtils.deserializeFromByteArray(
+                combinePayload.getCombineFn().getPayload().toByteArray(), "CombineFn");
+
+    return (KV<KeyT, InputT> input) ->
+        KV.of(input.getKey(), combineFn.addInput(combineFn.createAccumulator(), input.getValue()));
   }
 
   static <KeyT, InputT, AccumT, OutputT>
