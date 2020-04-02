@@ -142,6 +142,6 @@ if __name__ == "__main__":
              'and add entries to sdks/python/container/license_scripts/' \
              'dep_urls_py.yaml.'
     raise RuntimeError(
-        'Could not retrieve licences for packages {license_list} in '
+        'Could not retrieve licences for packages [{license_list}] in '
         'Python{py_ver} environment. \n {how_to}'.format(
             py_ver=py_ver, license_list=','.join(no_licenses), how_to=how_to))
