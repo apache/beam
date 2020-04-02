@@ -113,11 +113,12 @@ class ShortIdCache(object):
         return shortId
 
   def getInfos(self, short_ids):
+    #type: (Iterable[str]) -> List[metrics_pb2.MonitoringInfo]
+
     """ Gets the base MonitoringInfo (with payload cleared) for each short ID.
 
     Throws KeyError if an unassigned short ID is encountered.
     """
-    #type: (Iterable[str]) -> List[metrics_pb2.MonitoringInfo]
     return [self._shortIdToInfo[short_id] for short_id in short_ids]
 
 

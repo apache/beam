@@ -27,6 +27,7 @@ import contextlib
 import logging
 import unittest
 from builtins import range
+from collections import namedtuple
 
 import grpc
 
@@ -38,7 +39,6 @@ from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statecache
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
-from collections import namedtuple
 
 _LOGGER = logging.getLogger(__name__)
 
