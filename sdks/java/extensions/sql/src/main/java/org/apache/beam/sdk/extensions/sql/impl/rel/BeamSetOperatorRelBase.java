@@ -65,14 +65,6 @@ public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCo
     PCollection<Row> rightRows = inputs.get(1);
     Schema leftSchema = leftRows.getSchema();
     Schema rightSchema = rightRows.getSchema();
-    if (!leftSchema.typesEqual(rightSchema)) {
-      throw new IllegalArgumentException(
-          "Can't intersect two tables with different schemas."
-              + "lhsSchema: "
-              + leftSchema
-              + "  rhsSchema: "
-              + rightSchema);
-    }
 
     WindowFn leftWindow = leftRows.getWindowingStrategy().getWindowFn();
     WindowFn rightWindow = rightRows.getWindowingStrategy().getWindowFn();

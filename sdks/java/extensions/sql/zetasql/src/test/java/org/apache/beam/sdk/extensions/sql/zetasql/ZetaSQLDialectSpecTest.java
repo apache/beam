@@ -2271,6 +2271,56 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testSelectNullIntersectDistinct() {
+    String sql = "SELECT NULL INTERSECT DISTINCT SELECT 2";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    System.err.println("SCHEMA " + stream.getSchema());
+
+    PAssert.that(stream).empty();
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testSelectNullIntersectAll() {
+    String sql = "SELECT NULL INTERSECT ALL SELECT 2";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    System.err.println("SCHEMA " + stream.getSchema());
+
+    PAssert.that(stream).empty();
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testSelectNullExceptDistinct() {
+    String sql = "SELECT NULL EXCEPT DISTINCT SELECT 2";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream).containsInAnyOrder(Row.nullRow(stream.getSchema()));
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testSelectNullExceptAll() {
+    String sql = "SELECT NULL EXCEPT ALL SELECT 2";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream).containsInAnyOrder(Row.nullRow(stream.getSchema()));
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testTimestampLiteralWithNonUTCTimeZone() {
     String sql = "SELECT TIMESTAMP '2018-12-10 10:38:59-10:00'";
 
