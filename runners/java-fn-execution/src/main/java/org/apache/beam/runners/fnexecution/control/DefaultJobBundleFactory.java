@@ -37,6 +37,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
+import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
@@ -45,6 +46,7 @@ import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemLegacyArtifact
 import org.apache.beam.runners.fnexecution.artifact.ClassLoaderLegacyArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.artifact.LegacyArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
+import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.TimerSpec;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.DockerEnvironmentFactory;
@@ -70,6 +72,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions.RetrievalServiceType;
 import org.apache.beam.sdk.util.NoopLock;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -348,7 +351,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     }
   }
 
-  private static ImmutableMap.Builder<String, RemoteOutputReceiver<?>> getOutputReceivers(
+  private static Map<String, RemoteOutputReceiver<?>> getOutputReceivers(
       ExecutableProcessBundleDescriptor processBundleDescriptor,
       OutputReceiverFactory outputReceiverFactory) {
     ImmutableMap.Builder<String, RemoteOutputReceiver<?>> outputReceivers = ImmutableMap.builder();
@@ -366,7 +369,26 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       FnDataReceiver outputReceiver = outputReceiverFactory.create(bundleOutputPCollection);
       outputReceivers.put(outputTransform, RemoteOutputReceiver.of(coder, outputReceiver));
     }
-    return outputReceivers;
+    return outputReceivers.build();
+  }
+
+  private static Map<KV<String, String>, RemoteOutputReceiver<Timer<?>>> getTimerReceivers(
+      ExecutableProcessBundleDescriptor processBundleDescriptor,
+      TimerReceiverFactory timerReceiverFactory) {
+    ImmutableMap.Builder<KV<String, String>, RemoteOutputReceiver<Timer<?>>> timerReceivers =
+        ImmutableMap.builder();
+    for (Map.Entry<String, Map<String, TimerSpec>> transformTimerSpecs :
+        processBundleDescriptor.getTimerSpecs().entrySet()) {
+      for (TimerSpec timerSpec : transformTimerSpecs.getValue().values()) {
+        FnDataReceiver<Timer<?>> receiver =
+            (FnDataReceiver)
+                timerReceiverFactory.create(timerSpec.transformId(), timerSpec.timerId());
+        timerReceivers.put(
+            KV.of(timerSpec.transformId(), timerSpec.timerId()),
+            RemoteOutputReceiver.of(timerSpec.coder(), receiver));
+      }
+    }
+    return timerReceivers.build();
   }
 
   private static class PreparedClient {
@@ -396,7 +418,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
             .getProcessor(
                 preparedClient.processBundleDescriptor.getProcessBundleDescriptor(),
                 preparedClient.processBundleDescriptor.getRemoteInputDestinations(),
-                wrappedClient.getServerInfo().getStateServer().getService());
+                wrappedClient.getServerInfo().getStateServer().getService(),
+                preparedClient.processBundleDescriptor.getTimerSpecs());
     return preparedClient;
   }
 
@@ -427,6 +450,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     @Override
     public RemoteBundle getBundle(
         OutputReceiverFactory outputReceiverFactory,
+        TimerReceiverFactory timerReceiverFactory,
         StateRequestHandler stateRequestHandler,
         BundleProgressHandler progressHandler)
         throws Exception {
@@ -485,8 +509,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
       final RemoteBundle bundle =
           currentClient.processor.newBundle(
-              getOutputReceivers(currentClient.processBundleDescriptor, outputReceiverFactory)
-                  .build(),
+              getOutputReceivers(currentClient.processBundleDescriptor, outputReceiverFactory),
+              getTimerReceivers(currentClient.processBundleDescriptor, timerReceiverFactory),
               stateRequestHandler,
               progressHandler);
       return new RemoteBundle() {
@@ -498,6 +522,11 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         @Override
         public Map<String, FnDataReceiver> getInputReceivers() {
           return bundle.getInputReceivers();
+        }
+
+        @Override
+        public Map<KV<String, String>, FnDataReceiver<Timer>> getTimerReceivers() {
+          return bundle.getTimerReceivers();
         }
 
         @Override
