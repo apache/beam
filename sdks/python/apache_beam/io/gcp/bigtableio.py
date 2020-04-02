@@ -85,6 +85,35 @@ class _BigtableReadFn(beam.DoFn):
     self._table = None
     self._counter = Metrics.counter(self.__class__, 'Rows Read')
 
+  def __getstate__(self):
+    return self._options
+
+  def __setstate__(self, options):
+    self._initialize(options)
+
+  def start_bundle(self):
+    # from google.cloud.bigtable import Client
+    if self._table is None:
+      # noinspection PyAttributeOutsideInit
+      self._table = Client(project=self._options['project_id'])\
+        .instance(self._options['instance_id'])\
+        .table(self._options['table_id'])
+
+  def process(self, source_bundle):
+    _start_key = source_bundle.start_position
+    _end_key = source_bundle.stop_position
+    for row in self._table.read_rows(_start_key, _end_key):
+      self._counter.inc()
+      yield row
+
+  def display_data(self):
+    return {'projectId': DisplayDataItem(self._options['project_id'],
+                                         label='Bigtable Project Id'),
+            'instanceId': DisplayDataItem(self._options['instance_id'],
+                                          label='Bigtable Instance Id'),
+            'tableId': DisplayDataItem(self._options['table_id'],
+                                       label='Bigtable Table Id')}
+
 
 class _BigTableWriteFn(beam.DoFn):
   """ Creates the connector can call and add_row to the batcher using each
