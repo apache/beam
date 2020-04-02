@@ -93,8 +93,8 @@ class ShortIdCache(object):
     not assigned already.
     """
     # type: (metrics_pb2.MonitoringInfo) -> str
+    key = monitoring_infos.to_key(monitoring_info)
     with self._lock:
-      key = monitoring_infos.to_key(monitoring_info)
       try:
         return self._infoKeyToShortId[key]
       except KeyError:
