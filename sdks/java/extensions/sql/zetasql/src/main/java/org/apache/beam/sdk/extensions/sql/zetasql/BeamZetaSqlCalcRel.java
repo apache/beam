@@ -29,6 +29,7 @@ import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.rel.AbstractBeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamBigQuerySqlDialect;
@@ -102,13 +103,16 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
               .collect(Collectors.toList());
       final RexNode condition = getProgram().getCondition();
 
+      boolean verifyRowValues =
+          pinput.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getVerifyRowValues();
       Schema outputSchema = CalciteUtils.toSchema(getRowType());
       CalcFn calcFn =
           new CalcFn(
               projects,
               condition == null ? null : unparseRexNode(condition),
               upstream.getSchema(),
-              outputSchema);
+              outputSchema,
+              verifyRowValues);
 
       // validate prepared expressions
       calcFn.setup();
@@ -130,6 +134,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     @Nullable private final String condition;
     private final Schema inputSchema;
     private final Schema outputSchema;
+    private final boolean verifyRowValues;
     private transient List<PreparedExpression> projectExps;
     @Nullable private transient PreparedExpression conditionExp;
 
@@ -137,12 +142,14 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
         List<String> projects,
         @Nullable String condition,
         Schema inputSchema,
-        Schema outputSchema) {
+        Schema outputSchema,
+        boolean verifyRowValues) {
       Preconditions.checkArgument(projects.size() == outputSchema.getFieldCount());
       this.projects = ImmutableList.copyOf(projects);
       this.condition = condition;
       this.inputSchema = inputSchema;
       this.outputSchema = outputSchema;
+      this.verifyRowValues = verifyRowValues;
     }
 
     @Setup
@@ -190,9 +197,15 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
       for (int i = 0; i < outputSchema.getFieldCount(); i++) {
         // TODO[BEAM-8630]: performance optimization by bundling the gRPC calls
         Value v = projectExps.get(i).execute(columns, params);
-        values.add(ZetaSqlUtils.zetaSqlValueToJavaObject(v, outputSchema.getField(i).getType()));
+        values.add(
+            ZetaSqlUtils.zetaSqlValueToJavaObject(
+                v, outputSchema.getField(i).getType(), verifyRowValues));
       }
-      c.output(Row.withSchema(outputSchema).attachValues(values));
+      Row outputRow =
+          verifyRowValues
+              ? Row.withSchema(outputSchema).addValues(values).build()
+              : Row.withSchema(outputSchema).attachValues(values);
+      c.output(outputRow);
     }
 
     @Teardown
