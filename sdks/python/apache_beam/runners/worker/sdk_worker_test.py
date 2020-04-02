@@ -27,6 +27,7 @@ import contextlib
 import logging
 import unittest
 from builtins import range
+from collections import namedtuple
 
 import grpc
 
@@ -34,6 +35,7 @@ from apache_beam.coders import VarIntCoder
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statecache
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
@@ -226,6 +228,123 @@ class CachingStateHandlerTest(unittest.TestCase):
       self.assertEqual(get_as_list(side1), [501])  # cached on side1_token2
       self.assertEqual(get_as_list(side2), [502])  # uncached
       self.assertEqual(get_as_list(side2), [502])  # cached on bundle
+
+
+class ShortIdCacheTest(unittest.TestCase):
+  def testShortIdAssignment(self):
+    TestCase = namedtuple('TestCase', ['expectedShortId', 'info'])
+    test_cases = [
+        TestCase(*args) for args in [
+            (
+                "1",
+                metrics_pb2.MonitoringInfo(
+                    urn="beam:metric:user:distribution_int64:v1",
+                    type="beam:metrics:distribution_int64:v1")),
+            (
+                "2",
+                metrics_pb2.MonitoringInfo(
+                    urn="beam:metric:element_count:v1",
+                    type="beam:metrics:sum_int64:v1")),
+            (
+                "3",
+                metrics_pb2.MonitoringInfo(
+                    urn="beam:metric:ptransform_progress:completed:v1",
+                    type="beam:metrics:progress:v1")),
+            (
+                "4",
+                metrics_pb2.MonitoringInfo(
+                    urn="beam:metric:user:distribution_double:v1",
+                    type="beam:metrics:distribution_double:v1")),
+            (
+                "5",
+                metrics_pb2.MonitoringInfo(
+                    urn="TestingSentinelUrn", type="TestingSentinelType")),
+            (
+                "6",
+                metrics_pb2.MonitoringInfo(
+                    urn=
+                    "beam:metric:pardo_execution_time:finish_bundle_msecs:v1",
+                    type="beam:metrics:sum_int64:v1")),
+            # This case and the next one validates that different labels
+            # with the same urn are in fact assigned different short ids.
+            (
+                "7",
+                metrics_pb2.MonitoringInfo(
+                    urn="beam:metric:user:sum_int64:v1",
+                    type="beam:metrics:sum_int64:v1",
+                    labels={
+                        "PTRANSFORM": "myT",
+                        "NAMESPACE": "harness",
+                        "NAME": "metricNumber7"
+                    })),
+            (
+                "8",
+                metrics_pb2.MonitoringInfo(
+                    urn="beam:metric:user:sum_int64:v1",
+                    type="beam:metrics:sum_int64:v1",
+                    labels={
+                        "PTRANSFORM": "myT",
+                        "NAMESPACE": "harness",
+                        "NAME": "metricNumber8"
+                    })),
+            (
+                "9",
+                metrics_pb2.MonitoringInfo(
+                    urn="beam:metric:user:top_n_double:v1",
+                    type="beam:metrics:top_n_double:v1",
+                    labels={
+                        "PTRANSFORM": "myT",
+                        "NAMESPACE": "harness",
+                        "NAME": "metricNumber7"
+                    })),
+            (
+                "a",
+                metrics_pb2.MonitoringInfo(
+                    urn="beam:metric:element_count:v1",
+                    type="beam:metrics:sum_int64:v1",
+                    labels={"PCOLLECTION": "myPCol"})),
+            # validate payload is ignored for shortId assignment
+            (
+                "3",
+                metrics_pb2.MonitoringInfo(
+                    urn="beam:metric:ptransform_progress:completed:v1",
+                    type="beam:metrics:progress:v1",
+                    payload=b"this is ignored!"))
+        ]
+    ]
+
+    cache = sdk_worker.ShortIdCache()
+
+    for case in test_cases:
+      self.assertEqual(
+          case.expectedShortId,
+          cache.getShortId(case.info),
+          "Got incorrect short id for monitoring info:\n%s" % case.info)
+
+    # Retrieve all of the monitoring infos by short id, and verify that the
+    # metadata (everything but the payload) matches the originals
+    actual_recovered_infos = cache.getInfos(
+        case.expectedShortId for case in test_cases)
+    for recoveredInfo, case in zip(actual_recovered_infos, test_cases):
+      self.assertEqual(
+          monitoringInfoMetadata(case.info),
+          monitoringInfoMetadata(recoveredInfo))
+
+    # Retrieve short ids one more time in reverse
+    for case in reversed(test_cases):
+      self.assertEqual(
+          case.expectedShortId,
+          cache.getShortId(case.info),
+          "Got incorrect short id on second retrieval for monitoring info:\n%s"
+          % case.info)
+
+
+def monitoringInfoMetadata(info):
+  return {
+      descriptor.name: value
+      for descriptor,
+      value in info.ListFields() if not descriptor.name == "payload"
+  }
 
 
 if __name__ == "__main__":
