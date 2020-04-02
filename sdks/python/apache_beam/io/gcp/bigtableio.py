@@ -49,7 +49,7 @@ try:
 except ImportError:
   pass
 
-__all__ = ['WriteToBigTable']
+__all__ = ['WriteToBigTable', 'ReadFromBigtable']
 
 
 class _BigtableReadFn(beam.DoFn):
