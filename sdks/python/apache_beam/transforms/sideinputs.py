@@ -42,7 +42,9 @@ if TYPE_CHECKING:
 
 WindowMappingFn = Callable[[window.BoundedWindow], window.BoundedWindow]
 
-SIDE_INPUT_REGEX = 'side([0-9]+)(-.*)?$'
+SIDE_INPUT_PREFIX = 'python_side_input'
+
+SIDE_INPUT_REGEX = SIDE_INPUT_PREFIX + '([0-9]+)(-.*)?$'
 
 
 # Top-level function so we can identify it later.

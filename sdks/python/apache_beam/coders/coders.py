@@ -368,10 +368,11 @@ class Coder(object):
           ],
           context)
     except Exception:
-      if context.allow_proto_holders:
+      if (context.allow_proto_holders and
+          coder_proto.spec.urn not in cls._known_urns):
         # ignore this typing scenario for now, since it can't be easily tracked
         return ExternalCoder(
-            ElementTypeHolder(coder_proto, context))  # type: ignore
+            CoderElementType(coder_proto, context))  # type: ignore
       raise
 
   def to_runner_api_parameter(self, context):
@@ -1388,8 +1389,8 @@ class StateBackedIterableCoder(FastCoder):
         write_state_threshold=int(payload))
 
 
-class ElementTypeHolder(typehints.TypeConstraint):
-  """A dummy element type for external coders that cannot be parsed in Python"""
+class CoderElementType(typehints.TypeConstraint):
+  """An element type that just holds a coder proto."""
   def __init__(self, coder_proto, context):
     self.coder_proto = coder_proto
     self.context = context
@@ -1414,36 +1415,17 @@ class ExternalCoder(Coder):
     coder_id = coders_context.get_by_proto(
         self.element_type_holder.coder_proto, deduplicate=True)
 
-    coder_proto = self.element_type_holder.coder_proto
-
     # 'kind:external' is just a placeholder kind. Dataflow will get the actual
     # coder from pipeline proto using the pipeline_proto_coder_id property.
-    kind_str = 'kind:external'
-    component_encodings = []
-
-    # TODO(chamikara): handle 'kind:stream' and other types here.
-    if coder_proto.spec.urn == 'beam:coder:kv:v1':
-      kind_str = 'kind:pair'
-      for component_coder_id in coder_proto.component_coder_ids:
-        component_encodings.append({
-            '@type': 'kind:external',
-            'pipeline_proto_coder_id': component_coder_id
-        })
-
-    value = {'@type': kind_str, 'pipeline_proto_coder_id': coder_id}
-    if component_encodings:
-      value['is_pair_like'] = True
-      value['component_encodings'] = component_encodings
-
-    return value
+    return {'@type': 'kind:external', 'pipeline_proto_coder_id': coder_id}
 
   @staticmethod
   def from_type_hint(typehint, unused_registry):
-    if isinstance(typehint, ElementTypeHolder):
+    if isinstance(typehint, CoderElementType):
       return ExternalCoder(typehint)
     else:
       raise ValueError((
-          'Expected an instance of ElementTypeHolder'
+          'Expected an instance of CoderElementType'
           ', but got a %s' % typehint))
 
   def to_runner_api_parameter(self, context):

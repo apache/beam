@@ -44,7 +44,6 @@ import apache_beam as beam
 from apache_beam import coders
 from apache_beam import error
 from apache_beam import pvalue
-from apache_beam.coders.coders import ElementTypeHolder
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp import json_value
 from apache_beam.options.pipeline_options import DebugOptions
@@ -65,7 +64,9 @@ from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
+from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.transforms import window
+from apache_beam.transforms.core import RunnerAPIPTransformHolder
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
 from apache_beam.utils import proto_utils
@@ -564,14 +565,6 @@ class DataflowRunner(PipelineRunner):
     result.metric_results = self._metrics
     return result
 
-  def _get_encoding_for_external_environment(self, element):
-    if not isinstance(element, ElementTypeHolder):
-      raise Exception(
-          'Expected to receive an object of type ElementTypeHolder '
-          'but received %r' % element)
-    from apache_beam.coders.coders import ExternalCoder
-    return ExternalCoder(element)
-
   def _get_typehint_based_encoding(self, typehint, window_coder):
     """Returns an encoding based on a typehint object."""
     return self._get_cloud_encoding(
@@ -613,44 +606,25 @@ class DataflowRunner(PipelineRunner):
 
   def _get_encoded_output_coder(
       self, transform_node, window_value=True, output_tag=None):
-    """Returns the cloud encoding of the coder for the output of a transform.
-
-    If output_tag is not specified, we assume all outputs to have the same
-    encoding.
-    """
-    from apache_beam.transforms.core import RunnerAPIPTransformHolder
+    """Returns the cloud encoding of the coder for the output of a transform."""
     external_transform = isinstance(
         transform_node.transform, RunnerAPIPTransformHolder)
-    if external_transform and not output_tag:
-      raise Exception('For external transforms, output_tag must be specified')
 
-    if not output_tag:
-      output_tag = next(iter(transform_node.outputs.keys()))
-
-    element_type = None
-    if external_transform:
+    if output_tag in transform_node.outputs:
       element_type = transform_node.outputs[output_tag].element_type
-      # We perform special encoding for any external coders that cannot be
-      # parsed in Python SDK.
-      if isinstance(element_type, ElementTypeHolder):
-        coder = self._get_encoding_for_external_environment(element_type)
-        if window_value:
-          window_coder = (
-              transform_node.outputs[output_tag].windowing.windowfn.
-              get_window_coder())
-          coder = coders.WindowedValueCoder(coder, window_coder=window_coder)
-
-        return self._get_cloud_encoding(coder)
+    elif len(transform_node.outputs) == 1:
+      output_tag = DataflowRunner._only_element(transform_node.outputs.keys())
+      # TODO(robertwb): Handle type hints for multi-output transforms.
+      element_type = transform_node.outputs[output_tag].element_type
+    elif external_transform:
+      raise ValueError(
+          'For external transforms, output_tag must be specified '
+          'since we cannot fallback to a Python only coder.')
     else:
-      if len(transform_node.outputs) == 1:
-        output_tag = DataflowRunner._only_element(transform_node.outputs.keys())
-        # TODO(robertwb): Handle type hints for multi-output transforms.
-        element_type = transform_node.outputs[output_tag].element_type
-      else:
-        # TODO(silviuc): Remove this branch (and assert) when typehints are
-        # propagated everywhere. Returning an 'Any' as type hint will trigger
-        # usage of the fallback coder (i.e., cPickler).
-        element_type = typehints.Any
+      # TODO(silviuc): Remove this branch (and assert) when typehints are
+      # propagated everywhere. Returning an 'Any' as type hint will trigger
+      # usage of the fallback coder (i.e., cPickler).
+      element_type = typehints.Any
 
     if window_value:
       # All outputs have the same windowing. So getting the coder from an
@@ -899,10 +873,11 @@ class DataflowRunner(PipelineRunner):
           '%s uses unsupported URN: %s' % (transform_node.full_label, urn))
 
   def run_ParDo(self, transform_node, options):
-    from apache_beam.transforms.core import RunnerAPIPTransformHolder
     transform = transform_node.transform
     input_tag = transform_node.inputs[0].tag
     input_step = self._cache.get_pvalue(transform_node.inputs[0])
+
+    external_transform = isinstance(transform, RunnerAPIPTransformHolder)
 
     # Attach side inputs.
     si_dict = {}
@@ -915,12 +890,15 @@ class DataflowRunner(PipelineRunner):
     for ix, side_pval in enumerate(transform_node.side_inputs):
       assert isinstance(side_pval, AsSideInput)
       step_name = 'SideInput-' + self._get_unique_step_name()
-      si_label = (
-          'side%d-%s' % (ix, transform_node.full_label)
-          if side_pval.pvalue not in all_input_labels else
-          all_input_labels[side_pval.pvalue])
-      old_label = 'side%d' % ix
-      label_renames[old_label] = si_label
+      si_label = ((SIDE_INPUT_PREFIX + '%d-%s') %
+                  (ix, transform_node.full_label)
+                  if side_pval.pvalue not in all_input_labels else
+                  all_input_labels[side_pval.pvalue])
+      old_label = (SIDE_INPUT_PREFIX + '%d') % ix
+
+      if not external_transform:
+        label_renames[old_label] = si_label
+
       assert old_label in named_inputs
       pcollection_label = '%s.%s' % (
           side_pval.pvalue.producer.full_label.split('/')[-1],
@@ -970,11 +948,8 @@ class DataflowRunner(PipelineRunner):
         (transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn or
          use_unified_worker)):
       # Patch side input ids to be unique across a given pipeline.
-      # This should not be done for external transforms since external SDKs may
-      # expect input IDs to be preserved.
-      if (not isinstance(transform_node.transform, RunnerAPIPTransformHolder)
-          and (label_renames and
-               transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn)):
+      if (label_renames and
+          transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
         # Patch PTransform proto.
         for old, new in iteritems(label_renames):
           transform_proto.inputs[new] = transform_proto.inputs[old]
@@ -1016,8 +991,6 @@ class DataflowRunner(PipelineRunner):
 
     all_output_tags = transform_proto.outputs.keys()
 
-    external_transform = isinstance(transform, RunnerAPIPTransformHolder)
-
     # Some external transforms require output tags to not be modified.
     # So we randomly select one of the output tags as the main output and
     # leave others as side outputs. Transform execution should not change
@@ -1045,8 +1018,7 @@ class DataflowRunner(PipelineRunner):
       # and coder as the main output. This is certainly the case right now
       # but conceivably it could change in the future.
       encoding = self._get_encoded_output_coder(
-          transform_node,
-          output_tag=side_tag) if external_transform else step.encoding
+          transform_node, output_tag=side_tag)
       outputs.append({
           PropertyNames.USER_NAME: (
               '%s.%s' % (transform_node.full_label, side_tag)),

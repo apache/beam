@@ -122,6 +122,13 @@ class _PipelineContextMap(object):
     # type: (str, message.Message) -> str
     if not ignore_duplicates and id in self._id_to_proto:
       raise ValueError("Id '%s' is already taken." % id)
+    elif (ignore_duplicates and id in self._id_to_proto and
+          self._id_to_proto[id] != proto):
+      raise ValueError(
+          'Cannot insert different protos %r and %r with the same ID %r',
+          self._id_to_proto[id],
+          proto,
+          id)
     self._id_to_proto[id] = proto
     return id
 

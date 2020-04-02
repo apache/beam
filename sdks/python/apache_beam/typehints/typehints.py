@@ -1182,7 +1182,7 @@ def get_yielded_type(type_hint):
 
 def _coerce_to_kv_type_from_external_type(element_type_holder):
   """Similar to 'coerce_to_kv_type' but for external coders"""
-  from apache_beam.coders.coders import ElementTypeHolder
+  from apache_beam.coders.coders import CoderElementType
   coder_proto = element_type_holder.coder_proto
   from apache_beam.portability import common_urns
   if coder_proto.spec.urn != common_urns.coders.KV.urn:
@@ -1198,8 +1198,8 @@ def _coerce_to_kv_type_from_external_type(element_type_holder):
       element_type_holder.context.coders.get_proto_from_id(
           coder_proto.component_coder_ids[1]))
 
-  return KV[ElementTypeHolder(key_coder_proto, element_type_holder.context),
-            ElementTypeHolder(value_coder_proto, element_type_holder.context)]
+  return KV[CoderElementType(key_coder_proto, element_type_holder.context),
+            CoderElementType(value_coder_proto, element_type_holder.context)]
 
 
 def coerce_to_kv_type(element_type, label=None, side_input_producer=None):
@@ -1212,8 +1212,8 @@ def coerce_to_kv_type(element_type, label=None, side_input_producer=None):
   else:
     consumer = '%r' % label
 
-  from apache_beam.coders.coders import ElementTypeHolder
-  if isinstance(element_type, ElementTypeHolder):
+  from apache_beam.coders.coders import CoderElementType
+  if isinstance(element_type, CoderElementType):
     return _coerce_to_kv_type_from_external_type(element_type)
 
   # If element_type is not specified, then treat it as `Any`.
