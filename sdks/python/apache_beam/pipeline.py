@@ -1103,6 +1103,13 @@ class AppliedPTransform(object):
       if transform is None:
         return None
       else:
+        # We only populate inputs information to ParDo in order to expose
+        # key_coder and window_coder to stateful DoFn.
+        if isinstance(transform, ParDo):
+          return transform.to_runner_api(
+              context,
+              has_parts=bool(self.parts),
+              named_inputs=self.named_inputs())
         return transform.to_runner_api(context, has_parts=bool(self.parts))
 
     # Iterate over inputs and outputs by sorted key order, so that ids are

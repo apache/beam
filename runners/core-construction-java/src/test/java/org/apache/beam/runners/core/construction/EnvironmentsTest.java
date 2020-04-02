@@ -34,13 +34,17 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ProcessPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -121,6 +125,7 @@ public class EnvironmentsTest implements Serializable {
 
   @Test
   public void getEnvironmentPTransform() throws IOException {
+    Pipeline p = Pipeline.create();
     SdkComponents components = SdkComponents.create();
     Environment env = Environments.createDockerEnvironment("java");
     components.registerEnvironment(env);
@@ -132,6 +137,8 @@ public class EnvironmentsTest implements Serializable {
                       public void process(ProcessContext ctxt) {}
                     })
                 .withOutputTags(new TupleTag<>(), TupleTagList.empty()),
+            PCollection.createPrimitiveOutputInternal(
+                p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, StringUtf8Coder.of()),
             DoFnSchemaInformation.create(),
             Pipeline.create(),
             components);

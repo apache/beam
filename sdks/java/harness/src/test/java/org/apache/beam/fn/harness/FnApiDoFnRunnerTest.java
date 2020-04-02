@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -37,6 +38,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.ServiceLoader;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
+import org.apache.beam.fn.harness.data.FakeBeamFnTimerClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.FakeBeamFnStateClient;
@@ -61,6 +63,7 @@ import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.metrics.Counter;
@@ -85,7 +88,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -233,6 +235,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             fakeClient,
+            null /* beamFnTimerClient */,
             TEST_TRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance("57L")::get,
@@ -409,6 +412,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             fakeClient,
+            null /* beamFnTimerClient */,
             TEST_TRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance("57L")::get,
@@ -548,6 +552,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             fakeClient,
+            null /* beamFnTimerClient */,
             TEST_TRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance("57L")::get,
@@ -664,6 +669,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             fakeClient,
+            null /* beamFnTimerClient */,
             TEST_TRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance("57L")::get,
@@ -798,20 +804,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     SdkComponents sdkComponents = SdkComponents.create();
     sdkComponents.registerEnvironment(Environment.getDefaultInstance());
-    // Note that the pipeline translation for timers creates a loop between the ParDo with
-    // the timer and the PCollection for that timer. This loop is unrolled by runners
-    // during execution which we redo here manually.
     RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
     String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
     String outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);
-    String eventTimerInputPCollectionId =
-        "pTransformId/ParMultiDo(TestTimerful)." + TimerDeclaration.PREFIX + "event";
-    String eventTimerOutputPCollectionId =
-        "pTransformId/ParMultiDo(TestTimerful)." + TimerDeclaration.PREFIX + "event.output";
-    String processingTimerInputPCollectionId =
-        "pTransformId/ParMultiDo(TestTimerful)." + TimerDeclaration.PREFIX + "processing";
-    String processingTimerOutputPCollectionId =
-        "pTransformId/ParMultiDo(TestTimerful)." + TimerDeclaration.PREFIX + "processing.output";
 
     RunnerApi.PTransform pTransform =
         pProto
@@ -819,22 +814,17 @@ public class FnApiDoFnRunnerTest implements Serializable {
             .getTransformsOrThrow(
                 pProto.getComponents().getTransformsOrThrow(TEST_TRANSFORM_ID).getSubtransforms(0))
             .toBuilder()
-            // We need to re-write the "output" PCollections that a runner would have inserted
-            // on the way to a output sink.
-            .putOutputs(TimerDeclaration.PREFIX + "event", eventTimerOutputPCollectionId)
-            .putOutputs(TimerDeclaration.PREFIX + "processing", processingTimerOutputPCollectionId)
             .build();
 
-    FakeBeamFnStateClient fakeClient =
+    FakeBeamFnStateClient fakeStateClient =
         new FakeBeamFnStateClient(
             ImmutableMap.of(
                 bagUserStateKey("bag", "X"), encode("X0"),
                 bagUserStateKey("bag", "A"), encode("A0"),
                 bagUserStateKey("bag", "C"), encode("C0")));
+    FakeBeamFnTimerClient fakeTimerClient = new FakeBeamFnTimerClient();
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
-    List<WindowedValue<KV<String, Timer>>> eventTimerOutputValues = new ArrayList<>();
-    List<WindowedValue<KV<String, Timer>>> processingTimerOutputValues = new ArrayList<>();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
@@ -843,16 +833,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
         outputPCollectionId,
         TEST_TRANSFORM_ID,
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
-    consumers.register(
-        eventTimerOutputPCollectionId,
-        TEST_TRANSFORM_ID,
-        (FnDataReceiver)
-            (FnDataReceiver<WindowedValue<KV<String, Timer>>>) eventTimerOutputValues::add);
-    consumers.register(
-        processingTimerOutputPCollectionId,
-        TEST_TRANSFORM_ID,
-        (FnDataReceiver)
-            (FnDataReceiver<WindowedValue<KV<String, Timer>>>) processingTimerOutputValues::add);
 
     PTransformFunctionRegistry startFunctionRegistry =
         new PTransformFunctionRegistry(
@@ -866,23 +846,12 @@ public class FnApiDoFnRunnerTest implements Serializable {
         .createRunnerForPTransform(
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
-            fakeClient,
+            fakeStateClient,
+            fakeTimerClient,
             TEST_TRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance("57L")::get,
-            ImmutableMap.<String, RunnerApi.PCollection>builder()
-                .putAll(pProto.getComponents().getPcollectionsMap())
-                // We need to insert the "output" PCollections that a runner would have inserted
-                // on the way to a output sink.
-                .put(
-                    eventTimerOutputPCollectionId,
-                    pProto.getComponents().getPcollectionsOrThrow(eventTimerInputPCollectionId))
-                .put(
-                    processingTimerOutputPCollectionId,
-                    pProto
-                        .getComponents()
-                        .getPcollectionsOrThrow(processingTimerInputPCollectionId))
-                .build(),
+            pProto.getComponents().getPcollectionsMap(),
             pProto.getComponents().getCodersMap(),
             pProto.getComponents().getWindowingStrategiesMap(),
             consumers,
@@ -895,34 +864,31 @@ public class FnApiDoFnRunnerTest implements Serializable {
     Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
     mainOutputValues.clear();
 
-    assertThat(
-        consumers.keySet(),
-        containsInAnyOrder(
-            inputPCollectionId,
-            outputPCollectionId,
-            eventTimerInputPCollectionId,
-            eventTimerOutputPCollectionId,
-            processingTimerInputPCollectionId,
-            processingTimerOutputPCollectionId));
+    assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
 
+    LogicalEndpoint eventTimer = LogicalEndpoint.timer("57L", TEST_TRANSFORM_ID, "ts-event");
+    LogicalEndpoint processingTimer =
+        LogicalEndpoint.timer("57L", TEST_TRANSFORM_ID, "ts-processing");
     // Ensure that bag user state that is initially empty or populated works.
     // Ensure that the key order does not matter when we traverse over KV pairs.
     FnDataReceiver<WindowedValue<?>> mainInput =
         consumers.getMultiplexingConsumer(inputPCollectionId);
-    FnDataReceiver<WindowedValue<?>> eventTimerInput =
-        consumers.getMultiplexingConsumer(eventTimerInputPCollectionId);
-    FnDataReceiver<WindowedValue<?>> processingTimerInput =
-        consumers.getMultiplexingConsumer(processingTimerInputPCollectionId);
     mainInput.accept(timestampedValueInGlobalWindow(KV.of("X", "X1"), new Instant(1000L)));
     mainInput.accept(timestampedValueInGlobalWindow(KV.of("Y", "Y1"), new Instant(1100L)));
     mainInput.accept(timestampedValueInGlobalWindow(KV.of("X", "X2"), new Instant(1200L)));
     mainInput.accept(timestampedValueInGlobalWindow(KV.of("Y", "Y2"), new Instant(1300L)));
-    eventTimerInput.accept(timerInGlobalWindow("A", new Instant(1400L), new Instant(2400L)));
-    eventTimerInput.accept(timerInGlobalWindow("B", new Instant(1500L), new Instant(2500L)));
-    eventTimerInput.accept(timerInGlobalWindow("A", new Instant(1600L), new Instant(2600L)));
-    processingTimerInput.accept(timerInGlobalWindow("X", new Instant(1700L), new Instant(2700L)));
-    processingTimerInput.accept(timerInGlobalWindow("C", new Instant(1800L), new Instant(2800L)));
-    processingTimerInput.accept(timerInGlobalWindow("B", new Instant(1900L), new Instant(2900L)));
+    fakeTimerClient.sendTimer(
+        eventTimer, timerInGlobalWindow("A", new Instant(1400L), new Instant(2400L)));
+    fakeTimerClient.sendTimer(
+        eventTimer, timerInGlobalWindow("B", new Instant(1500L), new Instant(2500L)));
+    fakeTimerClient.sendTimer(
+        eventTimer, timerInGlobalWindow("A", new Instant(1600L), new Instant(2600L)));
+    fakeTimerClient.sendTimer(
+        processingTimer, timerInGlobalWindow("X", new Instant(1700L), new Instant(2700L)));
+    fakeTimerClient.sendTimer(
+        processingTimer, timerInGlobalWindow("C", new Instant(1800L), new Instant(2800L)));
+    fakeTimerClient.sendTimer(
+        processingTimer, timerInGlobalWindow("B", new Instant(1900L), new Instant(2900L)));
     assertThat(
         mainOutputValues,
         contains(
@@ -937,7 +903,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             timestampedValueInGlobalWindow("processing[C0]", new Instant(1800L)),
             timestampedValueInGlobalWindow("processing[event]", new Instant(1900L))));
     assertThat(
-        eventTimerOutputValues,
+        fakeTimerClient.getTimers(eventTimer),
         contains(
             timerInGlobalWindow("X", new Instant(1000L), new Instant(1001L)),
             timerInGlobalWindow("Y", new Instant(1100L), new Instant(1101L)),
@@ -950,7 +916,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             timerInGlobalWindow("C", new Instant(1800L), new Instant(1821L)),
             timerInGlobalWindow("B", new Instant(1900L), new Instant(1921L))));
     assertThat(
-        processingTimerOutputValues,
+        fakeTimerClient.getTimers(processingTimer),
         contains(
             timerInGlobalWindow("X", new Instant(1000L), new Instant(10002L)),
             timerInGlobalWindow("Y", new Instant(1100L), new Instant(10002L)),
@@ -964,8 +930,16 @@ public class FnApiDoFnRunnerTest implements Serializable {
             timerInGlobalWindow("B", new Instant(1900L), new Instant(10022L))));
     mainOutputValues.clear();
 
+    assertFalse(fakeTimerClient.isOutboundClosed(eventTimer));
+    assertFalse(fakeTimerClient.isOutboundClosed(processingTimer));
+    fakeTimerClient.closeInbound(eventTimer);
+    fakeTimerClient.closeInbound(processingTimer);
+
     Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
     assertThat(mainOutputValues, empty());
+
+    assertTrue(fakeTimerClient.isOutboundClosed(eventTimer));
+    assertTrue(fakeTimerClient.isOutboundClosed(processingTimer));
 
     Iterables.getOnlyElement(teardownFunctions).run();
     assertThat(mainOutputValues, empty());
@@ -978,27 +952,22 @@ public class FnApiDoFnRunnerTest implements Serializable {
             .put(bagUserStateKey("bag", "B"), encode("event", "processing"))
             .put(bagUserStateKey("bag", "C"), encode("C0", "processing"))
             .build(),
-        fakeClient.getData());
+        fakeStateClient.getData());
   }
 
   private <T> WindowedValue<T> valueInWindow(T value, BoundedWindow window) {
-    return WindowedValue.of(value, window.maxTimestamp(), window, PaneInfo.ON_TIME_AND_ONLY_FIRING);
+    return WindowedValue.of(value, window.maxTimestamp(), window, PaneInfo.NO_FIRING);
   }
 
-  private <T>
-      WindowedValue<KV<T, org.apache.beam.runners.core.construction.Timer>> timerInGlobalWindow(
-          T value, Instant valueTimestamp, Instant scheduledTimestamp) {
-    return timestampedValueInGlobalWindow(
-        KV.of(
-            value,
-            org.apache.beam.runners.core.construction.Timer.of(
-                "",
-                "",
-                Collections.singleton(GlobalWindow.INSTANCE),
-                scheduledTimestamp,
-                scheduledTimestamp,
-                PaneInfo.NO_FIRING)),
-        valueTimestamp);
+  private <K> org.apache.beam.runners.core.construction.Timer<K> timerInGlobalWindow(
+      K userKey, Instant holdTimestamp, Instant fireTimestamp) {
+    return org.apache.beam.runners.core.construction.Timer.of(
+        userKey,
+        "",
+        Collections.singletonList(GlobalWindow.INSTANCE),
+        fireTimestamp,
+        holdTimestamp,
+        PaneInfo.NO_FIRING);
   }
 
   /**
@@ -1170,6 +1139,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             fakeClient,
+            null /* beamFnTimerClient */,
             TEST_TRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance("57L")::get,
@@ -1302,6 +1272,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             fakeClient,
+            null /* beamFnTimerClient */,
             TEST_TRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance("57L")::get,
@@ -1394,6 +1365,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             fakeClient,
+            null /* beamFnTimerClient */,
             TEST_TRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance("57L")::get,

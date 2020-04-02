@@ -17,14 +17,21 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import static org.junit.Assert.assertEquals;
 
-/** A factory that can create output receivers during an executable stage. */
-public interface OutputReceiverFactory {
-  /**
-   * Get a new {@link FnDataReceiver} for an output PCollection.
-   *
-   * <p>This call should only be invoked once per PCollection id per factory.
-   */
-  <OutputT> FnDataReceiver<OutputT> create(String pCollectionId);
+import org.apache.beam.sdk.values.KV;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+
+@RunWith(JUnit4.class)
+public class TimerReceiverFactoryTest {
+  @Test
+  public void testEncodeAndDecode() {
+    KV<String, String> expected = KV.of("123:\"ab\n'c:", "456:sdf:d");
+    assertEquals(
+        expected,
+        TimerReceiverFactory.decodeTimerDataTimerId(
+            TimerReceiverFactory.encodeToTimerDataTimerId(expected.getKey(), expected.getValue())));
+  }
 }
