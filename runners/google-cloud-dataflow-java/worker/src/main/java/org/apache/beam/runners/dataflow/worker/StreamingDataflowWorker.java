@@ -1376,7 +1376,7 @@ public class StreamingDataflowWorker {
 
       // Detect overflow of integer serialized size or if the byte limit was exceeded.
       windmillMaxObservedWorkItemCommitBytes.addValue(estimatedCommitSize);
-      if (estimatedCommitSize > byteLimit) {
+      if (commitSize < 0 || commitSize > byteLimit) {
         KeyCommitTooLargeException e =
             KeyCommitTooLargeException.causedBy(computationId, byteLimit, commitRequest);
         reportFailure(computationId, workItem, e);
