@@ -139,6 +139,37 @@ class ReadFromBigtable(beam.PTransform):
                      'table_id': table_id,
                      'filter_': filter_}
 
+  def __getstate__(self):
+    return self._options
+
+  def __setstate__(self, options):
+    self._options = options
+
+  def expand(self, pbegin):
+    table = Client(project=self._options['project_id'], admin=True) \
+      .instance(instance_id=self._options['instance_id']) \
+      .table(table_id=self._options['table_id'])
+
+    keys = list(table.sample_row_keys())
+
+    SampleRowKey = namedtuple("SampleRowKey", "row_key offset_bytes")
+    keys.insert(0, SampleRowKey(b'', 0))
+
+    def chunks():
+      for i in range(1, len(keys)):
+        key_1 = keys[i - 1].row_key
+        key_2 = keys[i].row_key
+        size = keys[i].offset_bytes - keys[i - 1].offset_bytes
+        yield iobase.SourceBundle(size, None, key_1, key_2)
+
+    return (pbegin
+            | 'Bundles' >> beam.Create(iter(chunks()))
+            | 'Reshuffle' >> util.Reshuffle()
+            | 'Read' >> beam.ParDo(_BigtableReadFn(self._options['project_id'],
+                                                   self._options['instance_id'],
+                                                   self._options['table_id'],
+                                                   self._options['filter_'])))
+
 
 class _BigTableWriteFn(beam.DoFn):
   """ Creates the connector can call and add_row to the batcher using each
