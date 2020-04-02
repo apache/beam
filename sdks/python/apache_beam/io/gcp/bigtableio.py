@@ -38,8 +38,11 @@ those generated rows in the table.
 from __future__ import absolute_import
 
 import apache_beam as beam
+from apache_beam.io import iobase
 from apache_beam.metrics import Metrics
+from apache_beam.transforms import util
 from apache_beam.transforms.display import DisplayDataItem
+from collections import namedtuple
 
 try:
   from google.cloud.bigtable import Client
