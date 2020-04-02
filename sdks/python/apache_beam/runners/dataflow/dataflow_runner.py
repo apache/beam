@@ -64,10 +64,10 @@ from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
-from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.transforms import window
 from apache_beam.transforms.core import RunnerAPIPTransformHolder
 from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.typehints import typehints
 from apache_beam.utils import proto_utils
 from apache_beam.utils.interactive_utils import is_in_notebook
@@ -625,7 +625,6 @@ class DataflowRunner(PipelineRunner):
       # propagated everywhere. Returning an 'Any' as type hint will trigger
       # usage of the fallback coder (i.e., cPickler).
       element_type = typehints.Any
-
     if window_value:
       # All outputs have the same windowing. So getting the coder from an
       # arbitrary window is fine.

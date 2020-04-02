@@ -51,8 +51,8 @@ from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import PTransformWithSideInputs
-from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
+from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.userstate import StateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.window import GlobalWindows
@@ -375,7 +375,7 @@ def get_function_args_defaults(f):
   return args, defaults
 
 
-class RunnerAPIPTransformHolder(ptransform.PTransform):
+class RunnerAPIPTransformHolder(PTransform):
   """A `PTransform` that holds a runner API `PTransform` proto.
 
   This is used for transforms, for which corresponding objects

@@ -30,7 +30,6 @@ from __future__ import absolute_import
 
 import collections
 import itertools
-import logging
 from builtins import hex
 from builtins import object
 from typing import TYPE_CHECKING
@@ -71,8 +70,6 @@ __all__ = [
 ]
 
 T = TypeVar('T')
-
-_LOGGER = logging.getLogger(__name__)
 
 
 class PValue(object):
