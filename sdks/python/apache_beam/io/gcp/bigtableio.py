@@ -15,26 +15,32 @@
 # limitations under the License.
 #
 
-"""BigTable connector
+""" This module implements IO classes to read and write data on Cloud Bigtable.
 
-This module implements writing to BigTable tables.
-The default mode is to set row data to write to BigTable tables.
-The syntax supported is described here:
-https://cloud.google.com/bigtable/docs/quickstart-cbt
+Read from Bigtable
+------------------
+:class:`ReadFromBigtable` is a ``PTransform`` that reads from a configured
+Bigtable source and returns a ``PCollection`` of Bigtable rows. To configure
+Bigtable source, the project, instance, and table IDs need to be provided.
+Example usage::
+  pipeline | ReadFromBigtable(project_id='my-project-id',
+                              instance_id='my-instance',
+                              table_id='my-table')
+Write to Bigtable
+-----------------
+:class:`WriteToBigtable` is a ``PTransform`` that writes Bigtable rows to
+configured sink, and the write is conducted through a series of Bigtable
+mutations. If the rows already existed in the Bigtable table, it results in
+an overwrite, otherwise new rows will be inserted.
+Example usage::
+  pipeline | WriteToBigtable(project_id='my-ptoject',
+                             instance_id='my-instance',
+                             table_id='my-table')
 
-BigTable connector can be used as main outputs. A main output
-(common case) is expected to be massive and will be split into
-manageable chunks and processed in parallel. In the example below
-we created a list of rows then passed to the GeneratedDirectRows
-DoFn to set the Cells and then we call the BigTableWriteFn to insert
-those generated rows in the table.
-
-  main_table = (p
-                | beam.Create(self._generate())
-                | WriteToBigTable(project_id,
-                                  instance_id,
-                                  table_id))
+There are no backward compatibility guarantees.
+Everything in this module is experimental.
 """
+
 from __future__ import absolute_import
 
 import apache_beam as beam
@@ -49,7 +55,7 @@ try:
 except ImportError:
   pass
 
-__all__ = ['WriteToBigTable', 'ReadFromBigtable']
+__all__ = ['WriteToBigtable', 'ReadFromBigtable']
 
 
 class _BigtableReadFn(beam.DoFn):
@@ -171,7 +177,7 @@ class ReadFromBigtable(beam.PTransform):
                                                    self._options['filter_'])))
 
 
-class _BigTableWriteFn(beam.DoFn):
+class _BigtableWriteFn(beam.DoFn):
   """ Creates the connector can call and add_row to the batcher using each
   row in beam pipe line
   Args:
@@ -188,7 +194,7 @@ class _BigTableWriteFn(beam.DoFn):
       instance_id(str): GCP Instance to write the Rows
       table_id(str): GCP Table to write the `DirectRows`
     """
-    super(_BigTableWriteFn, self).__init__()
+    super(_BigtableWriteFn, self).__init__()
     self.beam_options = {'project_id': project_id,
                          'instance_id': instance_id,
                          'table_id': table_id}
@@ -238,7 +244,7 @@ class _BigTableWriteFn(beam.DoFn):
            }
 
 
-class WriteToBigTable(beam.PTransform):
+class WriteToBigtable(beam.PTransform):
   """ A transform to write to the Bigtable Table.
 
   A PTransform that write a list of `DirectRow` into the Bigtable Table
@@ -252,7 +258,7 @@ class WriteToBigTable(beam.PTransform):
       instance_id(str): GCP Instance to write the Rows
       table_id(str): GCP Table to write the `DirectRows`
     """
-    super(WriteToBigTable, self).__init__()
+    super(WriteToBigtable, self).__init__()
     self.beam_options = {'project_id': project_id,
                          'instance_id': instance_id,
                          'table_id': table_id}
@@ -260,6 +266,6 @@ class WriteToBigTable(beam.PTransform):
   def expand(self, pvalue):
     beam_options = self.beam_options
     return (pvalue
-            | beam.ParDo(_BigTableWriteFn(beam_options['project_id'],
+            | beam.ParDo(_BigtableWriteFn(beam_options['project_id'],
                                           beam_options['instance_id'],
                                           beam_options['table_id'])))
