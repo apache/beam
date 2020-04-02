@@ -89,10 +89,10 @@ class ShortIdCache(object):
     self._shortIdToInfo = {}  # type: Dict[str, metrics_pb2.MonitoringInfo]
 
   def getShortId(self, monitoring_info):
+    # type: (metrics_pb2.MonitoringInfo) -> str
     """ Returns the assigned shortId for a given MonitoringInfo, assigns one if
     not assigned already.
     """
-    # type: (metrics_pb2.MonitoringInfo) -> str
     key = monitoring_infos.to_key(monitoring_info)
     with self._lock:
       try:
