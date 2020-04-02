@@ -65,6 +65,7 @@ def copy_license_files(dep):
         'Failed to copy from {source} to {dest}'.format(
             source=source_license_file, dest=dest_dir + '/LICENSE'))
     traceback.print_exc()
+    raise
 
 
 @retry(
@@ -103,16 +104,15 @@ def pull_from_url(dep, configs):
           shutil.copyfileobj(url_read, temp_write)
 
       shutil.copytree(cur_temp_dir, dest_dir)
-      shutil.rmtree(cur_temp_dir)
       return True
     except Exception as e:
-      shutil.rmtree(cur_temp_dir)
       print(
           'Error occurred when pull license for {dep} from {url}.'.format(
               dep=dep, url=config))
       traceback.print_exc()
       raise
-
+    finally:
+      shutil.rmtree(cur_temp_dir)
 
 if __name__ == "__main__":
   os.makedirs(LICENSE_DIR)
