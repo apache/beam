@@ -37,11 +37,13 @@ from builtins import object
 from typing import TYPE_CHECKING
 from typing import Callable
 from typing import Dict
+from typing import Iterable
 from typing import Iterator
 from typing import List
 from typing import Mapping
 from typing import MutableMapping
 from typing import Optional
+from typing import Set
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
@@ -64,9 +66,11 @@ from apache_beam.runners.portability.fn_api_runner.execution import ListBuffer
 from apache_beam.runners.portability.fn_api_runner.translations import create_buffer_id
 from apache_beam.runners.portability.fn_api_runner.translations import only_element
 from apache_beam.runners.portability.fn_api_runner.worker_handlers import WorkerHandlerManager
+from apache_beam.runners.worker import bundle_processor
 from apache_beam.transforms import environments
 from apache_beam.utils import proto_utils
 from apache_beam.utils import thread_pool_executor
+from apache_beam.utils import timestamp
 from apache_beam.utils.profiler import Profile
 
 if TYPE_CHECKING:
@@ -354,10 +358,27 @@ class FnApiRunner(runner.PipelineRunner):
           bundle_context_manager = execution.BundleContextManager(
               runner_execution_context, stage, self._num_workers)
 
-          stage_results = self._run_stage(
-              runner_execution_context,
-              bundle_context_manager,
+          assert (
+              runner_execution_context.watermark_manager.get_node(
+                  bundle_context_manager.stage.name
+              ).input_watermark() == timestamp.MAX_TIMESTAMP), (
+              'wrong watermark for %s' %
+              runner_execution_context.watermark_manager.get_node(
+                  bundle_context_manager.stage.name)
           )
+
+          stage_results = self._run_stage(
+              runner_execution_context, bundle_context_manager)
+
+          assert (
+              runner_execution_context.watermark_manager.get_node(
+                  bundle_context_manager.stage.name
+              ).output_watermark() == timestamp.MAX_TIMESTAMP), (
+              'wrong watermark for %s' %
+              runner_execution_context.watermark_manager.get_node(
+                  bundle_context_manager.stage.name)
+          )
+
           monitoring_infos_by_stage[stage.name] = (
               stage_results.process_bundle.monitoring_infos)
     finally:
@@ -391,16 +412,17 @@ class FnApiRunner(runner.PipelineRunner):
       finally:
         runner_execution_context.state_servicer.restore()
 
+  @staticmethod
   def _collect_written_timers_and_add_to_fired_timers(
-      self,
       bundle_context_manager,  # type: execution.BundleContextManager
       fired_timers  # type: Dict[Tuple[str, str], ListBuffer]
   ):
-    # type: (...) -> None
-
+    # type: (...) -> Dict[(str, str), timestamp.Timestamp]
+    timer_watermark_data = {}
     for (transform_id, timer_family_id) in bundle_context_manager.stage.timers:
       written_timers = bundle_context_manager.get_buffer(
           create_buffer_id(timer_family_id, kind='timers'), transform_id)
+      assert isinstance(written_timers, ListBuffer)
       timer_coder_impl = bundle_context_manager.get_timer_coder_impl(
           transform_id, timer_family_id)
       if not written_timers.cleared:
@@ -414,10 +436,18 @@ class FnApiRunner(runner.PipelineRunner):
           # Only add not cleared timer to fired timers.
           if not decoded_timer.clear_bit:
             timer_coder_impl.encode_to_stream(decoded_timer, out, True)
+            if (transform_id, timer_family_id) not in timer_watermark_data:
+              timer_watermark_data[(transform_id,
+                                    timer_family_id)] = timestamp.MAX_TIMESTAMP
+            timer_watermark_data[(transform_id, timer_family_id)] = min(
+                timer_watermark_data[(transform_id, timer_family_id)],
+                decoded_timer.fire_timestamp)
         fired_timers[(transform_id, timer_family_id)] = ListBuffer(
             coder_impl=timer_coder_impl)
         fired_timers[(transform_id, timer_family_id)].append(out.get())
         written_timers.clear()
+
+    return timer_watermark_data
 
   def _add_sdk_delayed_applications_to_deferred_inputs(
       self,
@@ -425,7 +455,10 @@ class FnApiRunner(runner.PipelineRunner):
       bundle_result,  # type: beam_fn_api_pb2.InstructionResponse
       deferred_inputs  # type: MutableMapping[str, execution.PartitionableBuffer]
   ):
-    # type: (...) -> None
+    # type: (...) -> Set[str]
+
+    """Returns a set of PCollections with delayed applications."""
+    pcolls_with_delayed_apps = set()
     for delayed_application in bundle_result.process_bundle.residual_roots:
       name = bundle_context_manager.input_for(
           delayed_application.application.transform_id,
@@ -434,6 +467,11 @@ class FnApiRunner(runner.PipelineRunner):
         deferred_inputs[name] = ListBuffer(
             coder_impl=bundle_context_manager.get_input_coder_impl(name))
       deferred_inputs[name].append(delayed_application.application.element)
+      pcolls_with_delayed_apps.add(
+          bundle_context_manager.process_bundle_descriptor.transforms[
+              delayed_application.application.transform_id].inputs[
+                  delayed_application.application.input_id])
+    return pcolls_with_delayed_apps
 
   def _add_residuals_and_channel_splits_to_deferred_inputs(
       self,
@@ -442,8 +480,16 @@ class FnApiRunner(runner.PipelineRunner):
       last_sent,  # type: Dict[str, execution.PartitionableBuffer]
       deferred_inputs  # type: MutableMapping[str, execution.PartitionableBuffer]
   ):
-    # type: (...) -> None
+    # type: (...) -> Tuple[Set[str], Set[str]]
 
+    """Returns a two sets representing PCollections with watermark holds.
+
+    The first set represents PCollections with delayed root applications.
+    The second set represents PTransforms with channel splits.
+    """
+
+    pcolls_with_delayed_apps = set()
+    transforms_with_channel_splits = set()
     prev_stops = {}  # type: Dict[str, int]
     for split in splits:
       for delayed_application in split.residual_roots:
@@ -454,10 +500,14 @@ class FnApiRunner(runner.PipelineRunner):
           deferred_inputs[name] = ListBuffer(
               coder_impl=bundle_context_manager.get_input_coder_impl(name))
         deferred_inputs[name].append(delayed_application.application.element)
+        pcolls_with_delayed_apps.add(
+            bundle_context_manager.process_bundle_descriptor.transforms[
+                delayed_application.application.transform_id].inputs[
+                    delayed_application.application.input_id])
       for channel_split in split.channel_splits:
         coder_impl = bundle_context_manager.get_input_coder_impl(
             channel_split.transform_id)
-        # TODO(SDF): This requires determanistic ordering of buffer iteration.
+        # TODO(SDF): This requires deterministic ordering of buffer iteration.
         # TODO(SDF): The return split is in terms of indices.  Ideally,
         # a runner could map these back to actual positions to effectively
         # describe the two "halves" of the now-split range.  Even if we have
@@ -477,6 +527,12 @@ class FnApiRunner(runner.PipelineRunner):
             channel_split.first_residual_element:prev_stops.
             get(channel_split.transform_id, len(all_elements)) + 1]
         if residual_elements:
+          transform = (
+              bundle_context_manager.process_bundle_descriptor.transforms[
+                  channel_split.transform_id])
+          assert transform.spec.urn == bundle_processor.DATA_INPUT_URN
+          transforms_with_channel_splits.add(transform.unique_name)
+
           if channel_split.transform_id not in deferred_inputs:
             coder_impl = bundle_context_manager.get_input_coder_impl(
                 channel_split.transform_id)
@@ -486,6 +542,7 @@ class FnApiRunner(runner.PipelineRunner):
               coder_impl.encode_all(residual_elements))
         prev_stops[
             channel_split.transform_id] = channel_split.last_primary_element
+    return pcolls_with_delayed_apps, transforms_with_channel_splits
 
   def _run_stage(self,
                  runner_execution_context,  # type: execution.FnApiRunnerExecutionContext
@@ -545,19 +602,30 @@ class FnApiRunner(runner.PipelineRunner):
               error=final_result.error or last_result.error))
 
     while True:
-      last_result, deferred_inputs, fired_timers = self._run_bundle(
+      last_result, deferred_inputs, fired_timers, watermark_updates = (
+          self._run_bundle(
               runner_execution_context,
               bundle_context_manager,
               data_input,
               data_output,
               input_timers,
               expected_timer_output,
-              bundle_manager)
+              bundle_manager))
+
+      for pc_name, watermark in watermark_updates.items():
+        runner_execution_context.watermark_manager.set_watermark(
+            pc_name, watermark)
 
       final_result = merge_results(last_result)
       if not deferred_inputs and not fired_timers:
         break
       else:
+        assert (runner_execution_context.watermark_manager.get_node(
+            bundle_context_manager.stage.name).output_watermark()
+                < timestamp.MAX_TIMESTAMP), (
+            'wrong timestamp for %s'
+            % runner_execution_context.watermark_manager.get_node(
+            bundle_context_manager.stage.name))
         data_input = deferred_inputs
         input_timers = fired_timers
 
@@ -570,6 +638,63 @@ class FnApiRunner(runner.PipelineRunner):
 
     return final_result
 
+  @staticmethod
+  def _build_watermark_updates(
+      runner_execution_context,  # type: execution.FnApiRunnerExecutionContext
+      stage_inputs,  # type: Iterable[str]
+      expected_timers,  # type: Iterable[translations.TimerFamilyId]
+      pcolls_with_da,  # type: Set[str]
+      transforms_w_splits,  # type: Set[str]
+      watermarks_by_transform_and_timer_family  # type: Dict[translations.TimerFamilyId, timestamp.Timestamp]
+  ):
+    """Builds a dictionary of PCollection (or TimerFamilyId) to timestamp.
+
+    Args:
+      stage_inputs: represent the set of expected input PCollections for a stage
+      expected_timers: represent the set of TimerFamilyIds that the stage can
+        expect to receive as inputs.
+      pcolls_with_da: represent the set of stage input PCollections that had
+        delayed applications.
+      transforms_w_splits: represent the set of transforms in the stage that had
+        input splits.
+      watermarks_by_transform_and_timer_family: represent the set of watermark
+        holds to be added for each timer family.
+    """
+    updates = {
+    }  # type: Dict[Union[str, translations.TimerFamilyId], timestamp.Timestamp]
+
+    def get_pcoll_id(transform_id):
+      buffer_id = runner_execution_context.transform_id_to_buffer_id[
+          transform_id]
+      # For IMPULSE-reading transforms, we use the transform name as buffer id.
+      if buffer_id == translations.IMPULSE_BUFFER:
+        pcollection_id = transform_id
+      else:
+        _, pcollection_id = translations.split_buffer_id(buffer_id)
+      return pcollection_id
+
+    for pcoll in pcolls_with_da:
+      updates[pcoll] = timestamp.MIN_TIMESTAMP
+
+    for tr in transforms_w_splits:
+      pcoll_id = get_pcoll_id(tr)
+      updates[pcoll_id] = timestamp.MIN_TIMESTAMP
+
+    for timer_pcoll_id, ts in watermarks_by_transform_and_timer_family.items():
+      if timer_pcoll_id not in updates:
+        updates[timer_pcoll_id] = timestamp.MAX_TIMESTAMP
+      updates[timer_pcoll_id] = min(ts, updates[timer_pcoll_id])
+
+    for timer_pcoll_id in expected_timers:
+      if timer_pcoll_id not in updates:
+        updates[timer_pcoll_id] = timestamp.MAX_TIMESTAMP
+
+    for input in stage_inputs:
+      pcoll_id = get_pcoll_id(input)
+      if pcoll_id not in updates:
+        updates[pcoll_id] = timestamp.MAX_TIMESTAMP
+    return updates
+
   def _run_bundle(
       self,
       runner_execution_context,  # type: execution.FnApiRunnerExecutionContext
@@ -577,7 +702,7 @@ class FnApiRunner(runner.PipelineRunner):
       data_input,  # type: Dict[str, execution.PartitionableBuffer]
       data_output,  # type: DataOutput
       input_timers,  # type: Mapping[Tuple[str, str], execution.PartitionableBuffer]
-      expected_timer_output,  # type: Dict[Tuple[str, str], bytes]
+      expected_timer_output,  # type: Dict[translations.TimerFamilyId, bytes]
       bundle_manager  # type: BundleManager
   ):
     # type: (...) -> Tuple[beam_fn_api_pb2.InstructionResponse, Dict[str, execution.PartitionableBuffer], Dict[Tuple[str, str], ListBuffer]]
@@ -601,14 +726,24 @@ class FnApiRunner(runner.PipelineRunner):
     deferred_inputs = {}  # type: Dict[str, execution.PartitionableBuffer]
     fired_timers = {}  # type: Dict[Tuple[str, str], ListBuffer]
 
-    self._collect_written_timers_and_add_to_fired_timers(
-        bundle_context_manager, fired_timers)
+    watermarks_by_transform_and_timer_family = (
+        self._collect_written_timers_and_add_to_fired_timers(
+            bundle_context_manager, fired_timers))
 
-    self._add_sdk_delayed_applications_to_deferred_inputs(
+    sdk_pcolls_with_da = self._add_sdk_delayed_applications_to_deferred_inputs(
         bundle_context_manager, result, deferred_inputs)
 
-    self._add_residuals_and_channel_splits_to_deferred_inputs(
-        splits, bundle_context_manager, data_input, deferred_inputs)
+    runner_pcolls_with_da, transforms_with_channel_splits = (
+        self._add_residuals_and_channel_splits_to_deferred_inputs(
+            splits, bundle_context_manager, data_input, deferred_inputs))
+
+    watermark_updates = self._build_watermark_updates(
+        runner_execution_context,
+        data_input.keys(),
+        expected_timer_output.keys(),
+        runner_pcolls_with_da.union(sdk_pcolls_with_da),
+        transforms_with_channel_splits,
+        watermarks_by_transform_and_timer_family)
 
     # After collecting deferred inputs, we 'pad' the structure with empty
     # buffers for other expected inputs.
@@ -620,7 +755,7 @@ class FnApiRunner(runner.PipelineRunner):
               coder_impl=bundle_context_manager.get_input_coder_impl(
                   other_input))
 
-    return result, deferred_inputs, fired_timers
+    return result, deferred_inputs, fired_timers, watermark_updates
 
   @staticmethod
   def get_cache_token_generator(static=True):
@@ -809,6 +944,7 @@ class BundleManager(object):
       split_fraction = next(split_manager_generator)
       done = False
     except StopIteration:
+      split_fraction = None
       done = True
 
     # Send all the data.
