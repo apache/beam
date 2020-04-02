@@ -112,7 +112,7 @@ processing task. Your Beam driver program typically starts by constructing a
 <span class="language-java">[Pipeline](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/Pipeline.html)</span>
 <span class="language-py">[Pipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/pipeline.py)</span>
 object, and then using that object as the basis for creating the pipeline's data
-sets as `PCollection`s and its operations as `Transform`s.
+sets as `PCollection`s and its operations as `PTransform`s.
 
 To use Beam, your driver program must first create an instance of the Beam SDK
 class `Pipeline` (typically in the `main()` function). When you create your
