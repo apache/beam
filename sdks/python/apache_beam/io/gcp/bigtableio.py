@@ -41,6 +41,28 @@ There are no backward compatibility guarantees.
 Everything in this module is experimental.
 """
 
+"""BigTable connector
+
+This module implements writing to BigTable tables.
+The default mode is to set row data to write to BigTable tables.
+The syntax supported is described here:
+https://cloud.google.com/bigtable/docs/quickstart-cbt
+
+BigTable connector can be used as main outputs. A main output
+(common case) is expected to be massive and will be split into
+manageable chunks and processed in parallel. In the example below
+we created a list of rows then passed to the GeneratedDirectRows
+DoFn to set the Cells and then we call the BigTableWriteFn to insert
+those generated rows in the table.
+
+  main_table = (p
+                | beam.Create(self._generate())
+                | WriteToBigTable(project_id,
+                                  instance_id,
+                                  table_id))
+"""
+
+
 from __future__ import absolute_import
 
 import apache_beam as beam
@@ -55,7 +77,7 @@ try:
 except ImportError:
   pass
 
-__all__ = ['WriteToBigtable', 'ReadFromBigtable']
+__all__ = ['WriteToBigTable', 'ReadFromBigtable']
 
 
 class _BigtableReadFn(beam.DoFn):
@@ -177,7 +199,7 @@ class ReadFromBigtable(beam.PTransform):
                                                    self._options['filter_'])))
 
 
-class _BigtableWriteFn(beam.DoFn):
+class _BigTableWriteFn(beam.DoFn):
   """ Creates the connector can call and add_row to the batcher using each
   row in beam pipe line
   Args:
@@ -194,7 +216,7 @@ class _BigtableWriteFn(beam.DoFn):
       instance_id(str): GCP Instance to write the Rows
       table_id(str): GCP Table to write the `DirectRows`
     """
-    super(_BigtableWriteFn, self).__init__()
+    super(_BigTableWriteFn, self).__init__()
     self.beam_options = {'project_id': project_id,
                          'instance_id': instance_id,
                          'table_id': table_id}
@@ -244,7 +266,7 @@ class _BigtableWriteFn(beam.DoFn):
            }
 
 
-class WriteToBigtable(beam.PTransform):
+class WriteToBigTable(beam.PTransform):
   """ A transform to write to the Bigtable Table.
 
   A PTransform that write a list of `DirectRow` into the Bigtable Table
@@ -258,7 +280,7 @@ class WriteToBigtable(beam.PTransform):
       instance_id(str): GCP Instance to write the Rows
       table_id(str): GCP Table to write the `DirectRows`
     """
-    super(WriteToBigtable, self).__init__()
+    super(WriteToBigTable, self).__init__()
     self.beam_options = {'project_id': project_id,
                          'instance_id': instance_id,
                          'table_id': table_id}
@@ -266,6 +288,6 @@ class WriteToBigtable(beam.PTransform):
   def expand(self, pvalue):
     beam_options = self.beam_options
     return (pvalue
-            | beam.ParDo(_BigtableWriteFn(beam_options['project_id'],
+            | beam.ParDo(_BigTableWriteFn(beam_options['project_id'],
                                           beam_options['instance_id'],
                                           beam_options['table_id'])))
