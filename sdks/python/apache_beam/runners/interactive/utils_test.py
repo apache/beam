@@ -149,5 +149,51 @@ class IPythonLogHandlerTest(unittest.TestCase):
     mock_emit.assert_called_once()
 
 
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
+@unittest.skipIf(
+    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
+class ProgressIndicatorTest(unittest.TestCase):
+  def setUp(self):
+    ie.new_env()
+
+  @patch('IPython.core.display.display')
+  def test_progress_in_plain_text_when_not_in_notebook(self, mocked_display):
+    ie.current_env()._is_in_notebook = False
+    mocked_display.assert_not_called()
+
+    @utils.progress_indicated
+    def progress_indicated_dummy():
+      mocked_display.assert_called_with('Processing...')
+
+    progress_indicated_dummy()
+    mocked_display.assert_called_with('Done.')
+
+  @patch('IPython.core.display.HTML')
+  @patch('IPython.core.display.Javascript')
+  @patch('IPython.core.display.display')
+  @patch('IPython.core.display.display_javascript')
+  def test_progress_in_HTML_JS_when_in_notebook(
+      self,
+      mocked_display_javascript,
+      mocked_display,
+      mocked_javascript,
+      mocked_html):
+
+    ie.current_env()._is_in_notebook = True
+    mocked_display.assert_not_called()
+    mocked_display_javascript.assert_not_called()
+
+    @utils.progress_indicated
+    def progress_indicated_dummy():
+      mocked_display.assert_called_once()
+      mocked_html.assert_called_once()
+
+    progress_indicated_dummy()
+    mocked_display_javascript.assert_called_once()
+    mocked_javascript.assert_called_once()
+
+
 if __name__ == '__main__':
   unittest.main()
