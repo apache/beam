@@ -52,100 +52,6 @@ except ImportError:
 __all__ = ['WriteToBigTable', 'ReadFromBigtable']
 
 
-class _BigTableWriteFn(beam.DoFn):
-  """ Creates the connector can call and add_row to the batcher using each
-  row in beam pipe line
-  Args:
-    project_id(str): GCP Project ID
-    instance_id(str): GCP Instance ID
-    table_id(str): GCP Table ID
-
-  """
-
-  def __init__(self, project_id, instance_id, table_id):
-    """ Constructor of the Write connector of Bigtable
-    Args:
-      project_id(str): GCP Project of to write the Rows
-      instance_id(str): GCP Instance to write the Rows
-      table_id(str): GCP Table to write the `DirectRows`
-    """
-    super(_BigTableWriteFn, self).__init__()
-    self.beam_options = {'project_id': project_id,
-                         'instance_id': instance_id,
-                         'table_id': table_id}
-    self.table = None
-    self.batcher = None
-    self.written = Metrics.counter(self.__class__, 'Written Row')
-
-  def __getstate__(self):
-    return self.beam_options
-
-  def __setstate__(self, options):
-    self.beam_options = options
-    self.table = None
-    self.batcher = None
-    self.written = Metrics.counter(self.__class__, 'Written Row')
-
-  def start_bundle(self):
-    if self.table is None:
-      client = Client(project=self.beam_options['project_id'])
-      instance = client.instance(self.beam_options['instance_id'])
-      self.table = instance.table(self.beam_options['table_id'])
-    self.batcher = self.table.mutations_batcher()
-
-  def process(self, row):
-    self.written.inc()
-    # You need to set the timestamp in the cells in this row object,
-    # when we do a retry we will mutating the same object, but, with this
-    # we are going to set our cell with new values.
-    # Example:
-    # direct_row.set_cell('cf1',
-    #                     'field1',
-    #                     'value1',
-    #                     timestamp=datetime.datetime.now())
-    self.batcher.mutate(row)
-
-  def finish_bundle(self):
-    self.batcher.flush()
-    self.batcher = None
-
-  def display_data(self):
-    return {'projectId': DisplayDataItem(self.beam_options['project_id'],
-                                         label='Bigtable Project Id'),
-            'instanceId': DisplayDataItem(self.beam_options['instance_id'],
-                                          label='Bigtable Instance Id'),
-            'tableId': DisplayDataItem(self.beam_options['table_id'],
-                                       label='Bigtable Table Id')
-           }
-
-
-class WriteToBigTable(beam.PTransform):
-  """ A transform to write to the Bigtable Table.
-
-  A PTransform that write a list of `DirectRow` into the Bigtable Table
-
-  """
-  def __init__(self, project_id=None, instance_id=None,
-               table_id=None):
-    """ The PTransform to access the Bigtable Write connector
-    Args:
-      project_id(str): GCP Project of to write the Rows
-      instance_id(str): GCP Instance to write the Rows
-      table_id(str): GCP Table to write the `DirectRows`
-    """
-    super(WriteToBigTable, self).__init__()
-    self.beam_options = {'project_id': project_id,
-                         'instance_id': instance_id,
-                         'table_id': table_id}
-
-  def expand(self, pvalue):
-    beam_options = self.beam_options
-    return (pvalue
-            | beam.ParDo(_BigTableWriteFn(beam_options['project_id'],
-                                          beam_options['instance_id'],
-                                          beam_options['table_id'])))
-
-
 class _BigtableReadFn(beam.DoFn):
   def __init__(self, project_id, instance_id, table_id, filter_=None):
     """ A DoFn to parallelize reading from a Bigtable table
@@ -264,3 +170,96 @@ class ReadFromBigtable(beam.PTransform):
                                                    self._options['table_id'],
                                                    self._options['filter_'])))
 
+
+class _BigTableWriteFn(beam.DoFn):
+  """ Creates the connector can call and add_row to the batcher using each
+  row in beam pipe line
+  Args:
+    project_id(str): GCP Project ID
+    instance_id(str): GCP Instance ID
+    table_id(str): GCP Table ID
+
+  """
+
+  def __init__(self, project_id, instance_id, table_id):
+    """ Constructor of the Write connector of Bigtable
+    Args:
+      project_id(str): GCP Project of to write the Rows
+      instance_id(str): GCP Instance to write the Rows
+      table_id(str): GCP Table to write the `DirectRows`
+    """
+    super(_BigTableWriteFn, self).__init__()
+    self.beam_options = {'project_id': project_id,
+                         'instance_id': instance_id,
+                         'table_id': table_id}
+    self.table = None
+    self.batcher = None
+    self.written = Metrics.counter(self.__class__, 'Written Row')
+
+  def __getstate__(self):
+    return self.beam_options
+
+  def __setstate__(self, options):
+    self.beam_options = options
+    self.table = None
+    self.batcher = None
+    self.written = Metrics.counter(self.__class__, 'Written Row')
+
+  def start_bundle(self):
+    if self.table is None:
+      client = Client(project=self.beam_options['project_id'])
+      instance = client.instance(self.beam_options['instance_id'])
+      self.table = instance.table(self.beam_options['table_id'])
+    self.batcher = self.table.mutations_batcher()
+
+  def process(self, row):
+    self.written.inc()
+    # You need to set the timestamp in the cells in this row object,
+    # when we do a retry we will mutating the same object, but, with this
+    # we are going to set our cell with new values.
+    # Example:
+    # direct_row.set_cell('cf1',
+    #                     'field1',
+    #                     'value1',
+    #                     timestamp=datetime.datetime.now())
+    self.batcher.mutate(row)
+
+  def finish_bundle(self):
+    self.batcher.flush()
+    self.batcher = None
+
+  def display_data(self):
+    return {'projectId': DisplayDataItem(self.beam_options['project_id'],
+                                         label='Bigtable Project Id'),
+            'instanceId': DisplayDataItem(self.beam_options['instance_id'],
+                                          label='Bigtable Instance Id'),
+            'tableId': DisplayDataItem(self.beam_options['table_id'],
+                                       label='Bigtable Table Id')
+           }
+
+
+class WriteToBigTable(beam.PTransform):
+  """ A transform to write to the Bigtable Table.
+
+  A PTransform that write a list of `DirectRow` into the Bigtable Table
+
+  """
+  def __init__(self, project_id=None, instance_id=None,
+               table_id=None):
+    """ The PTransform to access the Bigtable Write connector
+    Args:
+      project_id(str): GCP Project of to write the Rows
+      instance_id(str): GCP Instance to write the Rows
+      table_id(str): GCP Table to write the `DirectRows`
+    """
+    super(WriteToBigTable, self).__init__()
+    self.beam_options = {'project_id': project_id,
+                         'instance_id': instance_id,
+                         'table_id': table_id}
+
+  def expand(self, pvalue):
+    beam_options = self.beam_options
+    return (pvalue
+            | beam.ParDo(_BigTableWriteFn(beam_options['project_id'],
+                                          beam_options['instance_id'],
+                                          beam_options['table_id'])))
