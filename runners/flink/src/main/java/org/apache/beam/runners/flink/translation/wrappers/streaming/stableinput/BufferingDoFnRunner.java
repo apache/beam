@@ -119,7 +119,7 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
   public <KeyT> void onTimer(
       String timerId,
       String timerFamilyId,
-      KeyT Key,
+      KeyT key,
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,

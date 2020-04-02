@@ -305,7 +305,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     runner.onTimer(
         timerId,
         "",
-        "",
+        null,
         window,
         new Instant(timestamp),
         new Instant(timestamp),
@@ -500,7 +500,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
       toTrigger.onTimer(
           timer.getTimerId(),
           timer.getTimerFamilyId(),
-          "",
+          null,
           window,
           timer.getTimestamp(),
           timer.getOutputTimestamp(),

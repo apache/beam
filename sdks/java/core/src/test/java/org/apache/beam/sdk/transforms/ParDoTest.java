@@ -4906,14 +4906,8 @@ public class ParDoTest implements Serializable {
             }
           };
 
-      TestStream<KV<String, Integer>> stream =
-          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-              .addElements(KV.of("1", 37))
-              .addElements(KV.of("2", 3))
-              .advanceWatermarkTo(new Instant(3))
-              .advanceWatermarkToInfinity();
-
-      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
+      PCollection<Integer> output =
+          pipeline.apply(Create.of(KV.of("1", 37), KV.of("2", 3))).apply(ParDo.of(fn));
       PAssert.that(output).containsInAnyOrder(1, 2);
       pipeline.run();
     }
@@ -4944,15 +4938,10 @@ public class ParDoTest implements Serializable {
             }
           };
 
-      TestStream<KV<KV<String, String>, Integer>> stream =
-          TestStream.create(
-                  KvCoder.of(
-                      KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()), VarIntCoder.of()))
-              .addElements(KV.of(KV.of("1", "1"), 37))
-              .addElements(KV.of(KV.of("1", "1"), 3))
-              .advanceWatermarkTo(new Instant(3))
-              .advanceWatermarkToInfinity();
-      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
+      PCollection<Integer> output =
+          pipeline
+              .apply(Create.of(KV.of(KV.of("1", "1"), 37), KV.of(KV.of("1", "1"), 3)))
+              .apply(ParDo.of(fn));
       PAssert.that(output).containsInAnyOrder(1);
       pipeline.run();
     }
@@ -4986,16 +4975,7 @@ public class ParDoTest implements Serializable {
             public void onTimer(@Key Integer key, OutputReceiver<Integer> r) {}
           };
 
-      TestStream<KV<String, Integer>> stream =
-          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-              .addElements(KV.of("1", 37))
-              .addElements(KV.of("1", 34))
-              .addElements(KV.of("1", 33))
-              .addElements(KV.of("2", 3))
-              .advanceWatermarkTo(new Instant(3))
-              .advanceWatermarkToInfinity();
-
-      pipeline.apply(stream).apply(ParDo.of(fn));
+      pipeline.apply(Create.of(KV.of("1", 37), KV.of("1", 4), KV.of("2", 3))).apply(ParDo.of(fn));
     }
 
     @Test
@@ -5026,13 +5006,7 @@ public class ParDoTest implements Serializable {
             public void onTimer(@Key Integer key, OutputReceiver<Integer> r) {}
           };
 
-      TestStream<String> stream =
-          TestStream.create(StringUtf8Coder.of())
-              .addElements("1")
-              .advanceWatermarkTo(new Instant(3))
-              .advanceWatermarkToInfinity();
-
-      pipeline.apply(stream).apply(ParDo.of(fn));
+      pipeline.apply(Create.of("1")).apply(ParDo.of(fn));
     }
   }
 }
