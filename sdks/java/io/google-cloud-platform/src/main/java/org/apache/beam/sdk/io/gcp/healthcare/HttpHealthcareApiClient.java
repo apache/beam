@@ -278,21 +278,15 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
         .execute();
   }
 
+
   @Override
-  public HttpBody listFHIRResourceForPatient(String fhirStore, String patient) throws IOException {
-    return client
-        .projects()
-        .locations()
-        .datasets()
-        .fhirStores()
-        .fhir()
-        .patientEverything(patient)
-        .execute();
+  public HttpBody readFhirResource(String resourceId) throws IOException {
+    return client.projects().locations().datasets().fhirStores().fhir().read(resourceId).execute();
   }
 
   @Override
-  public HttpBody readFHIRResource(String resourceId) throws IOException {
-    return client.projects().locations().datasets().fhirStores().fhir().read(resourceId).execute();
+  public HttpBody deleteFhirResource(String resourceId) throws IOException {
+    return client.projects().locations().datasets().fhirStores().fhir().delete(resourceId).execute();
   }
 
   private static class AuthenticatedRetryInitializer extends RetryHttpRequestInitializer {

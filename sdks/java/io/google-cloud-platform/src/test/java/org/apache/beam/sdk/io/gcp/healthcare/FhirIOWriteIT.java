@@ -17,8 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.BUNDLES;
-import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.deleteAllFhirResources;
+import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.PRETTY_BUNDLES;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
@@ -28,7 +27,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -47,28 +45,30 @@ public class FhirIOWriteIT {
     }
     PipelineOptionsFactory.register(FhirIOTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(FhirIOTestOptions.class);
+    options.setGcsTempPath("gs://jferriero-dev/FhirIOWriteIT/temp");
+    options.setGcsDeadLetterPath("gs://jferriero-dev/FhirIOWriteIT/deadletter");
     options.setFhirStore(
-        "projects/jferriero-dev/locations/us-central1/datasets/raw-dataset/hl7V2Stores/jake-hl7");
+        "projects/jferriero-dev/locations/us-central1/datasets/raw-dataset/fhirStores/raw-fhir-store");
   }
 
-  @After
-  public void tearDown() throws Exception {
-    deleteAllFhirResources(client, options.getFhirStore());
-  }
+  // @After
+  // public void tearDown() throws Exception {
+  //   deleteAllFhirResources(client, options.getFhirStore());
+  // }
 
   @Test
   public void testFhirIO_ExecuteBundle() throws IOException {
     Pipeline pipeline = Pipeline.create(options);
-    FhirIO.Write.Result result =
+    FhirIO.Write.Result writeResult =
         pipeline
-            .apply(Create.of(BUNDLES).withCoder(new HttpBodyCoder()))
+            .apply(Create.of(PRETTY_BUNDLES).withCoder(new HttpBodyCoder()))
             .apply(FhirIO.Write.executeBundles(options.getFhirStore()));
 
-    PAssert.that(result.getFailedInsertsWithErr()).empty();
+    PAssert.that(writeResult.getFailedInsertsWithErr()).empty();
 
     pipeline.run().waitUntilFinish();
     long numWrittenMessages = client.getHL7v2MessageStream(options.getFhirStore()).count();
-    assertEquals(BUNDLES.size(), numWrittenMessages);
+    assertEquals(PRETTY_BUNDLES.size(), numWrittenMessages);
   }
 
   @Test
@@ -76,7 +76,7 @@ public class FhirIOWriteIT {
     Pipeline pipeline = Pipeline.create(options);
     FhirIO.Write.Result result =
         pipeline
-            .apply(Create.of(BUNDLES).withCoder(new HttpBodyCoder()))
+            .apply(Create.of(PRETTY_BUNDLES).withCoder(new HttpBodyCoder()))
             .apply(
                 FhirIO.Write.fhirStoresImport(
                     options.getFhirStore(),
@@ -87,7 +87,5 @@ public class FhirIOWriteIT {
     PAssert.that(result.getFailedInsertsWithErr()).empty();
 
     pipeline.run().waitUntilFinish();
-    long numWrittenMessages = client.getHL7v2MessageStream(options.getFhirStore()).count();
-    assertEquals(BUNDLES.size(), numWrittenMessages);
   }
 }

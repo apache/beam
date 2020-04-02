@@ -27,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
@@ -246,7 +247,7 @@ public class FhirIO {
           Sleeper sleeper = Sleeper.DEFAULT;
 
           com.google.api.services.healthcare.v1beta1.model.HttpBody resource =
-              client.readFHIRResource(resourceId);
+              client.readFhirResource(resourceId);
 
           if (resource == null) {
             throw new IOException(String.format("GET request for %s returned null", resourceId));
@@ -330,11 +331,11 @@ public class FhirIO {
      */
     abstract WriteMethod getWriteMethod();
 
-    abstract ContentStructure getContentStructure();
+    abstract Optional<ContentStructure> getContentStructure();
 
-    abstract String getImportGcsTempPath();
+    abstract Optional<String> getImportGcsTempPath();
 
-    abstract String getImportGcsDeadLetterPath();
+    abstract Optional<String> getImportGcsDeadLetterPath();
 
     /** The type Builder. */
     @AutoValue.Builder
@@ -415,12 +416,17 @@ public class FhirIO {
       PCollection<HealthcareIOError<String>> failedImports;
       switch (this.getWriteMethod()) {
         case IMPORT:
-          input.apply(
+          String tempPath = getImportGcsTempPath().orElseThrow(IllegalArgumentException::new);
+          String deadPath = getImportGcsDeadLetterPath().orElseThrow(IllegalArgumentException::new);
+          ContentStructure contentStructure = getContentStructure().orElseThrow(IllegalArgumentException::new);
+
+          failedBundles = input.apply(
               new Import(
                   getFhirStore(),
-                  getImportGcsTempPath(),
-                  getImportGcsDeadLetterPath(),
-                  getContentStructure()));
+                  tempPath,
+                  deadPath,
+                  contentStructure))
+              .setCoder(new HealthcareIOErrorCoder<>(new HttpBodyCoder()));
           // fall through
         case EXECUTE_BUNDLE:
         default:
@@ -479,7 +485,15 @@ public class FhirIO {
        * The source file contains one or more lines of newline-delimited JSON (ndjson). Each line is
        * a single resource.
        */
-      RESOURCE
+      RESOURCE,
+      /**
+       *The entire file is one JSON bundle. The JSON can span multiple lines.
+       */
+      BUNDLE_PRETTY,
+      /**
+       * The entire file is one JSON resource. The JSON can span multiple lines.
+       */
+      RESOURCE_PRETTY
     }
 
     static class ImportFn extends DoFn<HttpBody, HealthcareIOError<HttpBody>> {
@@ -511,12 +525,12 @@ public class FhirIO {
       }
 
       @Setup
-      void initClient() throws IOException {
+      public void initClient() throws IOException {
         this.client = new HttpHealthcareApiClient();
       }
 
       @StartBundle
-      void initBatch() throws IOException {
+      public void initBatch() throws IOException {
         // Write each bundle to newline delimited JSON file.
         String filename = String.format("fhirImportBatch-%s.ndjson", UUID.randomUUID().toString());
         this.resourceId = FileSystems.matchNewResource(this.tempGcsPath + filename, false);
@@ -529,10 +543,10 @@ public class FhirIO {
       }
 
       @ProcessElement
-      void addToBatch(ProcessContext context) throws IOException {
+      public void addToBatch(ProcessContext context) throws IOException {
         HttpBody httpBody = context.element();
         try {
-          this.mapper.readTree(httpBody.toString());
+          this.mapper.readTree(httpBody.getData());
           String ndJson = httpBody.toString() + "\n";
           this.ndJsonChannel.write(ByteBuffer.wrap(ndJson.getBytes(StandardCharsets.UTF_8)));
         } catch (JsonProcessingException e) {
@@ -548,7 +562,7 @@ public class FhirIO {
       }
 
       @FinishBundle
-      void importBatch(FinishBundleContext context) throws IOException {
+      public void importBatch(FinishBundleContext context) throws IOException {
         // Write the file with all elements in this bundle to GCS.
         this.ndJsonChannel.close();
         try {
@@ -608,7 +622,7 @@ public class FhirIO {
        * @throws IOException the io exception
        */
       @Setup
-      void initClient() throws IOException {
+      public void initClient() throws IOException {
         this.client = new HttpHealthcareApiClient();
       }
 
@@ -618,13 +632,13 @@ public class FhirIO {
        * @param context the context
        */
       @ProcessElement
-      void executeBundles(ProcessContext context) {
+      public void executeBundles(ProcessContext context) {
         HttpBody body = context.element();
         try {
           client.executeFhirBundle(fhirStore, body);
         } catch (IOException e) {
           failedBundles.inc();
-          context.output(Write.FAILED_BODY, HealthcareIOError.of(body, e));
+          context.output(HealthcareIOError.of(body, e));
         }
       }
     }

@@ -63,6 +63,7 @@ public interface HealthcareApiClient {
    */
   Stream<HL7v2Message> getHL7v2MessageStream(String hl7v2Store) throws IOException;
 
+
   /**
    * Gets hl 7 v 2 message id page iterator.
    *
@@ -132,21 +133,14 @@ public interface HealthcareApiClient {
   HttpBody executeFhirBundle(String fhirStore, HttpBody bundle) throws IOException;
 
   /**
-   * List fhir resource for patient http body.
-   *
-   * @param fhirStore the fhir store
-   * @param patient the patient
-   * @return the http body
-   * @throws IOException the io exception
-   */
-  HttpBody listFHIRResourceForPatient(String fhirStore, String patient) throws IOException;
-
-  /**
    * Read fhir resource http body.
    *
    * @param resourceId the resource
    * @return the http body
    * @throws IOException the io exception
    */
-  HttpBody readFHIRResource(String resourceId) throws IOException;
+  HttpBody readFhirResource(String resourceId) throws IOException;
+
+  HttpBody deleteFhirResource(String resourceId) throws IOException;
+
 }

@@ -17,28 +17,38 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 
-public class HttpBodyCoder extends CustomCoder<HttpBody> {
+public class HttpBodyCoder extends AtomicCoder<HttpBody> {
+
+  public static HttpBodyCoder of() {return INSTANCE;}
+  private static final Coder<String> STRING_CODER = StringUtf8Coder.of();
+  private static final ObjectMapper MAPPER =
+      new ObjectMapper().disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+
 
   public HttpBodyCoder() {}
 
   @Override
   public void encode(HttpBody value, OutputStream outStream) throws CoderException, IOException {
-    outStream.write(value.decodeData());
+    String jsonStr = MAPPER.writeValueAsString(value);
+    STRING_CODER.encode(jsonStr, outStream);
   }
 
   @Override
   public HttpBody decode(InputStream inStream) throws CoderException, IOException {
-    HttpBody httpBody = new HttpBody();
-    byte[] data = ByteStreams.toByteArray(inStream);
-    httpBody.encodeData(data);
-    return httpBody;
+    String strValue = StringUtf8Coder.of().decode(inStream);
+    return MAPPER.readValue(strValue, HttpBody.class);
   }
+
+  private static final HttpBodyCoder INSTANCE = new HttpBodyCoder();
 }
