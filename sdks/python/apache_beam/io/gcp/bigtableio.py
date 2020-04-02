@@ -115,6 +115,31 @@ class _BigtableReadFn(beam.DoFn):
                                        label='Bigtable Table Id')}
 
 
+class ReadFromBigtable(beam.PTransform):
+  def __init__(self, project_id, instance_id, table_id, filter_=None):
+    """ A PTransform wrapper for parallel reading rows from s Bigtable table.
+
+    :type project_id: str
+    :param project_id: The ID of the project used for Bigtable access
+
+    :type instance_id: str
+    :param instance_id: The ID of the instance that owns the table.
+
+    :type table_id: str
+    :param table_id: The ID of the table.
+
+    :type filter_: :class:`.RowFilter`
+    :param filter_: (Optional) The filter to apply to the contents of the
+                    specified row(s). If unset, reads every column in
+                    each row. If noe is provided, all rows are read by default.
+    """
+    super(self.__class__, self).__init__()
+    self._options = {'project_id': project_id,
+                     'instance_id': instance_id,
+                     'table_id': table_id,
+                     'filter_': filter_}
+
+
 class _BigTableWriteFn(beam.DoFn):
   """ Creates the connector can call and add_row to the batcher using each
   row in beam pipe line
