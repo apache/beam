@@ -327,7 +327,7 @@ class ArtifactServiceTest(unittest.TestCase):
     url_dep = beam_runner_api_pb2.ArtifactInformation(
         type_urn=common_urns.artifact_types.URL.urn,
         type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
-            path='file://' + __file__).SerializeToString())
+            url='file://' + __file__).SerializeToString())
     content = b''.join([
         r.data for r in retrieval_service.GetArtifact(
             beam_artifact_api_pb2.GetArtifactRequest(artifact=url_dep))
