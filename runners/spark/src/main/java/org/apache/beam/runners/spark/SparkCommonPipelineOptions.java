@@ -74,7 +74,7 @@ public interface SparkCommonPipelineOptions
   class TmpCheckpointDirFactory implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
-      return "/tmp/" + options.as(SparkPipelineOptions.class).getJobName();
+      return "/tmp/" + options.getJobName();
     }
   }
 }
