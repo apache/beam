@@ -90,6 +90,7 @@ class ShortIdCache(object):
 
   def getShortId(self, monitoring_info):
     # type: (metrics_pb2.MonitoringInfo) -> str
+
     """ Returns the assigned shortId for a given MonitoringInfo, assigns one if
     not assigned already.
     """
