@@ -54,6 +54,7 @@ from apache_beam.runners.portability.fn_api_runner.translations import create_bu
 from apache_beam.runners.portability.fn_api_runner.translations import only_element
 from apache_beam.runners.portability.fn_api_runner.translations import split_buffer_id
 from apache_beam.runners.portability.fn_api_runner.translations import unique_name
+from apache_beam.runners.portability.fn_api_runner.watermark_manager import WatermarkManager
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
@@ -345,14 +346,12 @@ class FnApiRunnerExecutionContext(object):
        ``beam.PCollection``.
  """
   def __init__(self,
-      stages,  # type: List[translations.Stage]
-      worker_handler_manager,  # type: worker_handlers.WorkerHandlerManager
-      pipeline_components,  # type: beam_runner_api_pb2.Components
-      safe_coders,  # type: Dict[str, str]
-      data_channel_coders,  # type: Dict[str, str]
-               ):
-    # type: (...) -> None
-
+               stages,  # type: List[translations.Stage]
+               worker_handler_manager,  # type: worker_handlers.WorkerHandlerManager
+               pipeline_components,  # type: beam_runner_api_pb2.Components
+               safe_coders,
+               data_channel_coders,
+              ):
     """
     :param worker_handler_manager: This class manages the set of worker
         handlers, and the communication with state / control APIs.
@@ -370,6 +369,12 @@ class FnApiRunnerExecutionContext(object):
     self.safe_coders = safe_coders
     self.data_channel_coders = data_channel_coders
 
+    self.transform_id_to_buffer_id = {
+        t.unique_name: t.spec.payload
+        for s in stages for t in s.transforms
+        if t.spec.urn == bundle_processor.DATA_INPUT_URN
+    }
+    self.watermark_manager = WatermarkManager(stages)
     self.pipeline_context = pipeline_context.PipelineContext(
         self.pipeline_components,
         iterable_state_write=self._iterable_state_write)
@@ -594,7 +599,7 @@ class BundleContextManager(object):
         timer_api_service_descriptor=self.data_api_service_descriptor())
 
   def extract_bundle_inputs_and_outputs(self):
-    # type: () -> Tuple[Dict[str, PartitionableBuffer], DataOutput, Dict[Tuple[str, str], bytes]]
+    # type: (...) -> Tuple[Dict[str, PartitionableBuffer], translations.DataOutput, Dict[translations.TimerFamilyId, bytes]]
 
     """Returns maps of transform names to PCollection identifiers.
 
