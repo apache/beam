@@ -79,7 +79,29 @@ class ImpulseSeqGenDoFn(beam.DoFn):
       element,
       restriction_tracker=beam.DoFn.RestrictionParam(
           ImpulseSeqGenRestrictionProvider())):
+    '''
+    PeriodicSequence transform receives tuple elements with three parts:
 
+    * first_timestamp = first timestamp to output element for.
+    * last_timestamp = last timestamp/time to output element for.
+    * fire_interval = how often to fire an element.
+
+    For each input element received, PeriodicSequence transform will start
+    generating output elements in following pattern:
+
+    * if element timestamp is less than current runtime then output element.
+    * if element timestamp is greater than current runtime, wait until next
+      element timestamp.
+
+    PeriodicSequence can't guarantee that each element is output at exact time.
+    PeriodicSequence guarantees that elements would not be output prior to given
+    runtime timestamp.
+
+    :param element: (start_timestamp, end_timestamp, interval)
+    :param restriction_tracker:
+    :return: yields elements at processing real-time intervals with value of
+      target output timestamp for the element.
+    '''
     _, _, interval = element
 
     assert isinstance(restriction_tracker, sdf_utils.RestrictionTrackerView)
@@ -103,22 +125,7 @@ class ImpulseSeqGenDoFn(beam.DoFn):
 
 class PeriodicSequence(PTransform):
   """
-  PeriodicSequence transform receives tuple elements with three parts:
-
-  * first_timestamp = first timestamp to output element for.
-  * last_timestamp = last timestamp/time to output element for.
-  * fire_interval = how often to fire an element.
-
-  For each input element received, PeriodicSequence transform will start
-  generating output elements in following pattern:
-
-  * if element timestamp is less than current runtime then output element.
-  * if element timestamp is greater than current runtime, wait until next
-    element timestamp.
-
-  PeriodicSequence can't guarantee that each element is output at exact time.
-  PeriodicSequence guarantees that elements would not be output prior to given
-  runtime timestamp.
+  See ImpulseSeqGenDoFn.
   """
   def __init_(self):
     pass
@@ -132,9 +139,7 @@ class PeriodicSequence(PTransform):
 
 class PeriodicImpulse(PTransform):
   """
-  See PeriodicSequence.
-
-  apply_windowing will assign each element to its own window if true.
+  See ImpulseSeqGenDoFn.
   """
   def __init__(
       self,

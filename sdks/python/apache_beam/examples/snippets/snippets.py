@@ -1456,7 +1456,7 @@ def side_input_slow_update(
     sample_main_input_elements,
     main_input_windowing_interval):
   # [START SideInputSlowUpdateSnip1]
-  from apache_beam.transforms.heartbeat import HeartbeatImpulse
+  from apache_beam.transforms.periodicsequence import PeriodicImpulse
   from apache_beam.transforms.window import TimestampedValue
   from apache_beam.transforms import window
 
@@ -1474,7 +1474,7 @@ def side_input_slow_update(
   p = beam.Pipeline(options=pipeline_options)
   side_input = (
       p
-      | 'Heartbeat' >> HeartbeatImpulse(
+      | 'PeriodicImpulse' >> PeriodicImpulse(
           first_timestamp, last_timestamp, interval, True)
       | 'MapToFileName' >> beam.Map(lambda x: src_file_pattern + str(x))
       | 'ReadFromFile' >> beam.io.ReadAllFromText())

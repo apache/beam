@@ -23,8 +23,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
-import tempfile
 import time
 import unittest
 from builtins import range
@@ -33,8 +31,8 @@ import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.transforms.periodicsequence import PeriodicSequence
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
+from apache_beam.transforms.periodicsequence import PeriodicSequence
 
 # Disable frequent lint warning due to pipe operator for chaining transforms.
 # pylint: disable=expression-not-assigned
