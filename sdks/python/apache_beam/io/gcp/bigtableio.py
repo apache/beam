@@ -38,18 +38,15 @@ those generated rows in the table.
 from __future__ import absolute_import
 
 import apache_beam as beam
-from apache_beam.io import iobase
 from apache_beam.metrics import Metrics
-from apache_beam.transforms import util
 from apache_beam.transforms.display import DisplayDataItem
-from collections import namedtuple
 
 try:
   from google.cloud.bigtable import Client
 except ImportError:
   pass
 
-__all__ = ['WriteToBigTable', 'ReadFromBigtable']
+__all__ = ['WriteToBigTable']
 
 
 class _BigTableWriteFn(beam.DoFn):
@@ -144,123 +141,3 @@ class WriteToBigTable(beam.PTransform):
             | beam.ParDo(_BigTableWriteFn(beam_options['project_id'],
                                           beam_options['instance_id'],
                                           beam_options['table_id'])))
-
-
-class _BigtableReadFn(beam.DoFn):
-  def __init__(self, project_id, instance_id, table_id, filter_=None):
-    """ A DoFn to parallelize reading from a Bigtable table
-
-    :type project_id: str
-    :param project_id: The ID of the project used for Bigtable access
-
-    :type instance_id: str
-    :param instance_id: The ID of the instance that owns the table.
-
-    :type table_id: str
-    :param table_id: The ID of the table.
-
-    :type filter_: :class:`.RowFilter`
-    :param filter_: (Optional) The filter to apply to the contents of the
-                    specified row(s). If unset, reads every column in
-                    each row.
-    """
-    super(self.__class__, self).__init__()
-    self._initialize({'project_id': project_id,
-                     'instance_id': instance_id,
-                     'table_id': table_id,
-                     'filter_': filter_})
-
-  def _initialize(self, options):
-    """ The defaults initializer, to assist with pickling
-
-    :return: None
-    """
-    self._options = options
-    self._table = None
-    self._counter = Metrics.counter(self.__class__, 'Rows Read')
-
-  def __getstate__(self):
-    return self._options
-
-  def __setstate__(self, options):
-    self._initialize(options)
-
-  def start_bundle(self):
-    # from google.cloud.bigtable import Client
-    if self._table is None:
-      # noinspection PyAttributeOutsideInit
-      self._table = Client(project=self._options['project_id'])\
-        .instance(self._options['instance_id'])\
-        .table(self._options['table_id'])
-
-  def process(self, source_bundle):
-    _start_key = source_bundle.start_position
-    _end_key = source_bundle.stop_position
-    for row in self._table.read_rows(_start_key, _end_key):
-      self._counter.inc()
-      yield row
-
-  def display_data(self):
-    return {'projectId': DisplayDataItem(self._options['project_id'],
-                                         label='Bigtable Project Id'),
-            'instanceId': DisplayDataItem(self._options['instance_id'],
-                                          label='Bigtable Instance Id'),
-            'tableId': DisplayDataItem(self._options['table_id'],
-                                       label='Bigtable Table Id')}
-
-
-class ReadFromBigtable(beam.PTransform):
-  def __init__(self, project_id, instance_id, table_id, filter_=None):
-    """ A PTransform wrapper for parallel reading rows from s Bigtable table.
-
-    :type project_id: str
-    :param project_id: The ID of the project used for Bigtable access
-
-    :type instance_id: str
-    :param instance_id: The ID of the instance that owns the table.
-
-    :type table_id: str
-    :param table_id: The ID of the table.
-
-    :type filter_: :class:`.RowFilter`
-    :param filter_: (Optional) The filter to apply to the contents of the
-                    specified row(s). If unset, reads every column in
-                    each row. If noe is provided, all rows are read by default.
-    """
-    super(self.__class__, self).__init__()
-    self._options = {'project_id': project_id,
-                     'instance_id': instance_id,
-                     'table_id': table_id,
-                     'filter_': filter_}
-
-  def __getstate__(self):
-    return self._options
-
-  def __setstate__(self, options):
-    self._options = options
-
-  def expand(self, pbegin):
-    table = Client(project=self._options['project_id'], admin=True) \
-      .instance(instance_id=self._options['instance_id']) \
-      .table(table_id=self._options['table_id'])
-
-    keys = list(table.sample_row_keys())
-
-    SampleRowKey = namedtuple("SampleRowKey", "row_key offset_bytes")
-    keys.insert(0, SampleRowKey(b'', 0))
-
-    def chunks():
-      for i in range(1, len(keys)):
-        key_1 = keys[i - 1].row_key
-        key_2 = keys[i].row_key
-        size = keys[i].offset_bytes - keys[i - 1].offset_bytes
-        yield iobase.SourceBundle(size, None, key_1, key_2)
-
-    return (pbegin
-            | 'Bundles' >> beam.Create(iter(chunks()))
-            | 'Reshuffle' >> util.Reshuffle()
-            | 'Read' >> beam.ParDo(_BigtableReadFn(self._options['project_id'],
-                                                   self._options['instance_id'],
-                                                   self._options['table_id'],
-                                                   self._options['filter_'])))
-
