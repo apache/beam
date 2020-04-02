@@ -40,29 +40,6 @@ Example usage::
 There are no backward compatibility guarantees.
 Everything in this module is experimental.
 """
-
-"""BigTable connector
-
-This module implements writing to BigTable tables.
-The default mode is to set row data to write to BigTable tables.
-The syntax supported is described here:
-https://cloud.google.com/bigtable/docs/quickstart-cbt
-
-BigTable connector can be used as main outputs. A main output
-(common case) is expected to be massive and will be split into
-manageable chunks and processed in parallel. In the example below
-we created a list of rows then passed to the GeneratedDirectRows
-DoFn to set the Cells and then we call the BigTableWriteFn to insert
-those generated rows in the table.
-
-  main_table = (p
-                | beam.Create(self._generate())
-                | WriteToBigTable(project_id,
-                                  instance_id,
-                                  table_id))
-"""
-
-
 from __future__ import absolute_import
 
 import apache_beam as beam
