@@ -30,7 +30,7 @@ import static java.util.Objects.requireNonNull
 /**
  * This class contains simple DSL for load tests configuration. Configuration as Map<String, Serializable>
  * [{@link LoadTestConfig#config config} -- returns configuration map]
- * [{@link LoadTestConfig#extend extend} -- extends LoadTestConfig object]
+ * [{@link LoadTestConfig#extendTemplate extendTemplate} -- extends LoadTestConfig object]
  * [{@link LoadTestConfig#templateConfig templateConfig} -- return LoadTestConfig reusable object]
  * [{@link LoadTestConfig#fromTemplate fromTemplate} -- returns configuration from given template].<br><br>
  *
@@ -183,7 +183,7 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
      * @see LoadTestConfig#templateConfig
      */
     static Map<String, Serializable> fromTemplate(final LoadTestConfig templateConfig, final Closure cl = {}) {
-        final def properties = extend(templateConfig, cl).propertiesMap
+        final def properties = extendTemplate(templateConfig, cl).propertiesMap
         return ConfigHelper.convertProperties(properties)
     }
 
@@ -206,7 +206,7 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
      * @param cl Closure with settings
      * @return LoadTestConfig object
      */
-    static LoadTestConfig extend(final LoadTestConfig templateConfig, final Closure cl = {}) {
+    static LoadTestConfig extendTemplate(final LoadTestConfig templateConfig, final Closure cl = {}) {
         final def newConfig = of(templateConfig)
         delegateAndInvoke(newConfig, cl)
         final def properties = newConfig.propertiesMap
