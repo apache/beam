@@ -158,6 +158,7 @@ pip install apache-beam[gcp]
 python -m apache_beam.examples.streaming_wordcount \
   --runner DataflowRunner \
   --project YOUR_GCP_PROJECT \
+  --region YOUR_GCP_REGION \
   --temp_location gs://YOUR_GCS_BUCKET/tmp/ \
   --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
   --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \

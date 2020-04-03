@@ -64,6 +64,7 @@ python game_stats.py \
 # DataflowRunner
 python game_stats.py \
     --project $PROJECT_ID \
+    --region $REGION_ID \
     --topic projects/$PROJECT_ID/topics/$PUBSUB_TOPIC \
     --dataset $BIGQUERY_DATASET \
     --runner DataflowRunner \

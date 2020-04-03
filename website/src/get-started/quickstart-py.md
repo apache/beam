@@ -203,6 +203,7 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
                                          --output gs://<your-gcs-bucket>/counts \
                                          --runner DataflowRunner \
                                          --project your-gcp-project \
+                                         --region your-gcp-region \
                                          --temp_location gs://<your-gcs-bucket>/tmp/
 ```
 
