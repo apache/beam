@@ -1179,7 +1179,7 @@ message ArtifactFilePayload {
 
 message ArtifactUrlPayload {
   // a string for an artifact URL e.g. "https://.../foo.jar" or "gs://tmp/foo.jar"
-  string path = 1;
+  string url = 1;
 }
 
 message EmbeddedFilePayload {
