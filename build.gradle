@@ -214,6 +214,13 @@ task pythonPreCommit() {
   // have caught. Note that the same tests will still run in postcommit.
 }
 
+task pythonDockerBuildPreCommit() {
+  dependsOn ":sdks:python:container:py2:docker"
+  dependsOn ":sdks:python:container:py35:docker"
+  dependsOn ":sdks:python:container:py36:docker"
+  dependsOn ":sdks:python:container:py37:docker"
+}
+
 task pythonLintPreCommit() {
   dependsOn ":sdks:python:test-suites:tox:py2:lint"
   dependsOn ":sdks:python:test-suites:tox:py37:lint"
