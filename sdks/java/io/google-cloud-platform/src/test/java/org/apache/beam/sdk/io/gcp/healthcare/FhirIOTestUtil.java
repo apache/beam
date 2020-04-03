@@ -53,7 +53,6 @@ class FhirIOTestUtil {
             (String data) -> {
               HttpBody httpBody = new HttpBody();
               httpBody.setContentType(ContentStructure.BUNDLE_PRETTY.name());
-              // httpBody.encodeData(Base64.encodeBase64URLSafe(data.getBytes(StandardCharsets.UTF_8)));
               httpBody.setData(data);
               return httpBody;
             });

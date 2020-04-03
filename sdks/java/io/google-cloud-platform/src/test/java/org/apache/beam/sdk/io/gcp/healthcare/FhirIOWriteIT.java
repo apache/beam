@@ -66,7 +66,9 @@ public class FhirIOWriteIT {
         .apply(MapElements.into(TypeDescriptors.strings()).via(
             (HealthcareIOError<HttpBody> err) -> String.format(
                 "Data: %s \n"
-                    + "Error: %s", err.getDataResource().getData(), err.getErrorMessage())))
+                    + "Error: %s \n"
+                    + "Stacktrace: %s", err.getDataResource().getData(), err.getErrorMessage(),
+                err.getStackTrace())))
         .apply(TextIO.write().to("gs://jferriero-dev/FhirIOWriteDebugging/errors"));
 
     PAssert.that(writeResult.getFailedInsertsWithErr()).empty();
