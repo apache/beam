@@ -638,7 +638,7 @@ the Pipeline Runner.</li>
   <li>Create an initial <code class="highlighter-rouge">PCollection</code> for pipeline data, either using the IOs
 to read data from an external storage system, or using a <code class="highlighter-rouge">Create</code> transform to
 build a <code class="highlighter-rouge">PCollection</code> from in-memory data.</li>
-  <li><strong>Apply</strong> <code class="highlighter-rouge">PTransforms</code> to each <code class="highlighter-rouge">PCollection</code>. Transforms can change, filter,
+  <li><strong>Apply</strong> <code class="highlighter-rouge">PTransform</code>s to each <code class="highlighter-rouge">PCollection</code>. Transforms can change, filter,
 group, analyze, or otherwise process the elements in a <code class="highlighter-rouge">PCollection</code>. A
 transform creates a new output <code class="highlighter-rouge">PCollection</code> <em>without modifying the input
 collection</em>. A typical pipeline applies subsequent transforms to each new
@@ -664,7 +664,7 @@ processing task. Your Beam driver program typically starts by constructing a
 <span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.19.0/index.html?org/apache/beam/sdk/Pipeline.html">Pipeline</a></span>
 <span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/pipeline.py">Pipeline</a></span>
 object, and then using that object as the basis for creating the pipeline’s data
-sets as <code class="highlighter-rouge">PCollection</code>s and its operations as <code class="highlighter-rouge">Transform</code>s.</p>
+sets as <code class="highlighter-rouge">PCollection</code>s and its operations as <code class="highlighter-rouge">PTransform</code>s.</p>
 
 <p>To use Beam, your driver program must first create an instance of the Beam SDK
 class <code class="highlighter-rouge">Pipeline</code> (typically in the <code class="highlighter-rouge">main()</code> function). When you create your
