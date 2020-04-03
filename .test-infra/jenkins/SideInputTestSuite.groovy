@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-import LoadTestConfig
+import static LoadTestConfig.extend
 
 
 class SideInputTestSuite {
     static def configurations = { LoadTestConfig template -> [
-        LoadTestConfig.extend(template) {
+        extend(template) {
             title 'SideInput 2MB 100 byte records: global window'
             pipelineOptions {
                 inputOptions {
@@ -35,7 +35,7 @@ class SideInputTestSuite {
                 ])
             }
         },
-        LoadTestConfig.extend(template) {
+        extend(template) {
             title 'SideInput 2MB 100 byte records: 1000 windows'
             pipelineOptions {
                 inputOptions {
@@ -50,7 +50,7 @@ class SideInputTestSuite {
                 ])
             }
         },
-        LoadTestConfig.extend(template) {
+        extend(template) {
             title 'SideInput 200MB 100 byte records: small list'
             pipelineOptions {
                 inputOptions {
@@ -64,7 +64,7 @@ class SideInputTestSuite {
                 ])
             }
         },
-        LoadTestConfig.extend(template) {
+        extend(template) {
             title 'SideInput 200MB 100 byte records: large list, 16 workers'
             pipelineOptions {
                 inputOptions {
@@ -80,7 +80,7 @@ class SideInputTestSuite {
                 ])
             }
         },
-        LoadTestConfig.extend(template) {
+        extend(template) {
             title 'SideInput 200MB 100 byte records: large list'
             pipelineOptions {
                 inputOptions {
@@ -94,7 +94,7 @@ class SideInputTestSuite {
                 ])
             }
         },
-        LoadTestConfig.extend(template) {
+        extend(template) {
             title 'SideInput 200MB 100 kilobyte records: large keys'
             pipelineOptions {
                 inputOptions {
@@ -107,7 +107,7 @@ class SideInputTestSuite {
                 ])
             }
         },
-        LoadTestConfig.extend(template) {
+        extend(template) {
             title 'SideInput 200MB 100 byte records: dictionary 1% random lookup'
             pipelineOptions {
                 inputOptions {
@@ -122,7 +122,7 @@ class SideInputTestSuite {
                 ])
             }
         },
-        LoadTestConfig.extend(template) {
+        extend(template) {
             title 'SideInput 200MB 100 byte records: dictionary 99% random lookup'
             pipelineOptions {
                 inputOptions {
@@ -137,7 +137,7 @@ class SideInputTestSuite {
                 ])
             }
         },
-        LoadTestConfig.extend(template) {
+        extend(template) {
             title 'SideInput 2MB 100 byte records: iterable 1% first lookup'
             pipelineOptions {
                 inputOptions {

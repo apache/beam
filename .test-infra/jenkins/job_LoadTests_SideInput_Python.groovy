@@ -22,8 +22,11 @@ import PhraseTriggeringPostCommitBuilder
 import LoadTestConfig
 import SideInputTestSuite
 
+import static LoadTestConfig.templateConfig
+import static LoadTestConfig.fromTemplate
 
-LoadTestConfig template = LoadTestConfig.templateConfig {
+
+LoadTestConfig template = templateConfig {
     test 'apache_beam.testing.load_tests.sideinput_test'
     dataflow()
     pipelineOptions {
@@ -44,7 +47,7 @@ def batchLoadTestJob = { scope, triggeringContext ->
     def finalConfigurations = []
     configurations.eachWithIndex { configuration, i ->
         finalConfigurations.add(
-            LoadTestConfig.fromTemplate(configuration) {
+            fromTemplate(configuration) {
                 pipelineOptions {
                     jobName "load-tests-python-dataflow-batch-sideinput-${i + 1}-" + now
                     metricsDataset datasetName

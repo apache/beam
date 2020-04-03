@@ -183,8 +183,7 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
      * @see LoadTestConfig#templateConfig
      */
     static Map<String, Serializable> fromTemplate(final LoadTestConfig templateConfig, final Closure cl = {}) {
-        final def newConfig = extend(templateConfig, cl)
-        final def properties = newConfig.propertiesMap
+        final def properties = extend(templateConfig, cl).propertiesMap
         return ConfigHelper.convertProperties(properties)
     }
 
