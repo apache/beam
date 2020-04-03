@@ -44,7 +44,7 @@ import org.apache.beam.sdk.values.PCollectionViews.TypeDescriptorSupplier;
  * ViewT}. The transforms here represent ways of converting the {@code ElemT} values in a window
  * into a {@code ViewT} for that window.
  *
- * <p>When a {@link ParDo} tranform is processing a main input element in a window {@code w} and a
+ * <p>When a {@link ParDo} transform is processing a main input element in a window {@code w} and a
  * {@link PCollectionView} is read via {@link DoFn.ProcessContext#sideInput}, the value of the view
  * for {@code w} is returned.
  *
