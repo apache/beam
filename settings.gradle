@@ -71,6 +71,7 @@ include ":sdks:java:extensions:kryo"
 include ":sdks:java:extensions:google-cloud-platform-core"
 include ":sdks:java:extensions:jackson"
 include ":sdks:java:extensions:join-library"
+include ":sdks:java:extensions:ml"
 include ":sdks:java:extensions:protobuf"
 include ":sdks:java:extensions:sketching"
 include ":sdks:java:extensions:sorter"
@@ -165,6 +166,3 @@ include "beam-test-infra-metrics"
 project(":beam-test-infra-metrics").dir = file(".test-infra/metrics")
 include "beam-test-tools"
 project(":beam-test-tools").dir = file(".test-infra/tools")
-include 'sdks:java:extensions:ml'
-findProject(':sdks:java:extensions:ml')?.name = 'ml'
-

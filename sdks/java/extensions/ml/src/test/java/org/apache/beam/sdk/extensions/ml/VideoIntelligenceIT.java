@@ -25,6 +25,7 @@ import com.google.cloud.videointelligence.v1.VideoAnnotationResults;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Consumer;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -59,21 +60,24 @@ public class VideoIntelligenceIT {
     @Override
     public Void apply(Iterable<List<VideoAnnotationResults>> input) {
       List<Boolean> labelEvaluations = new ArrayList<>();
-      input.forEach(
-          videoAnnotationResults ->
-              labelEvaluations.add(
-                  videoAnnotationResults.stream()
-                      .anyMatch(
-                          result ->
-                              result.getSegmentLabelAnnotationsList().stream()
-                                  .anyMatch(
-                                      labelAnnotation ->
-                                          labelAnnotation
-                                              .getEntity()
-                                              .getDescription()
-                                              .equals("dinosaur")))));
+      input.forEach(findStringMatchesInVideoAnnotationResultList(labelEvaluations, "dinosaur"));
       assertEquals(Boolean.TRUE, labelEvaluations.contains(Boolean.TRUE));
       return null;
+    }
+
+    private Consumer<List<VideoAnnotationResults>> findStringMatchesInVideoAnnotationResultList(
+        List<Boolean> labelEvaluations, String toMatch) {
+      return videoAnnotationResults ->
+          labelEvaluations.add(
+              videoAnnotationResults.stream()
+                  .anyMatch(result -> entityWithDescriptionFoundInSegmentLabels(toMatch, result)));
+    }
+
+    private boolean entityWithDescriptionFoundInSegmentLabels(
+        String toMatch, VideoAnnotationResults result) {
+      return result.getSegmentLabelAnnotationsList().stream()
+          .anyMatch(
+              labelAnnotation -> labelAnnotation.getEntity().getDescription().equals(toMatch));
     }
   }
 }
