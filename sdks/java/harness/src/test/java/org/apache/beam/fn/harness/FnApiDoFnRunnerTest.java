@@ -33,6 +33,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.ServiceLoader;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
@@ -988,7 +989,15 @@ public class FnApiDoFnRunnerTest implements Serializable {
       WindowedValue<KV<T, org.apache.beam.runners.core.construction.Timer>> timerInGlobalWindow(
           T value, Instant valueTimestamp, Instant scheduledTimestamp) {
     return timestampedValueInGlobalWindow(
-        KV.of(value, org.apache.beam.runners.core.construction.Timer.of(scheduledTimestamp)),
+        KV.of(
+            value,
+            org.apache.beam.runners.core.construction.Timer.of(
+                "",
+                "",
+                Collections.singleton(GlobalWindow.INSTANCE),
+                scheduledTimestamp,
+                scheduledTimestamp,
+                PaneInfo.NO_FIRING)),
         valueTimestamp);
   }
 

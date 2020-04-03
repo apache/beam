@@ -75,12 +75,10 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.MultimapSi
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.SideInputHandlerFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
@@ -106,6 +104,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -1252,25 +1251,32 @@ public class RemoteExecutionTest implements Serializable {
     return KV.of(key, CoderUtils.encodeToByteArray(BigEndianLongCoder.of(), value));
   }
 
-  private KV<String, org.apache.beam.runners.core.construction.Timer<byte[]>> timerBytes(
+  private KV<String, org.apache.beam.runners.core.construction.Timer<String>> timerBytes(
       String key, long timestampOffset) throws CoderException {
     return KV.of(
         key,
         org.apache.beam.runners.core.construction.Timer.of(
+            "",
+            "",
+            Collections.singleton(GlobalWindow.INSTANCE),
             BoundedWindow.TIMESTAMP_MIN_VALUE.plus(timestampOffset),
-            CoderUtils.encodeToByteArray(VoidCoder.of(), null, Coder.Context.NESTED)));
+            BoundedWindow.TIMESTAMP_MIN_VALUE.plus(timestampOffset),
+            PaneInfo.NO_FIRING));
   }
 
-  private Object timerStructuralValue(Object timer) {
+  private Object timerStructuralValue(WindowedValue<?> timer) {
     return WindowedValue.FullWindowedValueCoder.of(
             KvCoder.of(
                 StringUtf8Coder.of(),
-                org.apache.beam.runners.core.construction.Timer.Coder.of(ByteArrayCoder.of())),
+                org.apache.beam.runners.core.construction.Timer.Coder.of(
+                    StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)),
             GlobalWindow.Coder.INSTANCE)
-        .structuralValue(timer);
+        .structuralValue(
+            (WindowedValue<KV<String, org.apache.beam.runners.core.construction.Timer<String>>>)
+                timer);
   }
 
-  private Collection<Object> timerStructuralValues(Collection<?> timers) {
+  private Collection<Object> timerStructuralValues(Collection<WindowedValue<?>> timers) {
     return Collections2.transform(timers, this::timerStructuralValue);
   }
 }
