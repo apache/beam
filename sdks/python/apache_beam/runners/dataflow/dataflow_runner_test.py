@@ -547,8 +547,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertEqual(result, 'some-region1')
 
   @mock.patch('os.environ.get', return_value=None)
-  @mock.patch('apache_beam.utils.processes.check_output',
-              return_value=b'some-region2\n')
+  @mock.patch(
+      'apache_beam.utils.processes.check_output',
+      return_value=b'some-region2\n')
   def test_get_default_gcp_region_from_gcloud(
       self, patched_environ, patched_processes):
     runner = DataflowRunner()
@@ -556,8 +557,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertEqual(result, 'some-region2')
 
   @mock.patch('os.environ.get', return_value=None)
-  @mock.patch('apache_beam.utils.processes.check_output',
-              side_effect=RuntimeError('Executable gcloud not found'))
+  @mock.patch(
+      'apache_beam.utils.processes.check_output',
+      side_effect=RuntimeError('Executable gcloud not found'))
   def test_get_default_gcp_region_ignores_error(
       self, patched_environ, patched_processes):
     runner = DataflowRunner()
