@@ -149,6 +149,7 @@ task runPojoExample(type: JavaExec) {
 task integrationTest(type: Test) {
   group = "Verification"
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+  def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
   def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 
   // Disable Gradle cache (it should not be used because the IT's won't run).
@@ -156,6 +157,7 @@ task integrationTest(type: Test) {
 
   def pipelineOptions = [
           "--project=${gcpProject}",
+          "--region=${gcpRegion}",
           "--tempLocation=${gcsTempRoot}",
           "--blockOnRun=false"]
 
