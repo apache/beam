@@ -22,6 +22,7 @@ import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import com.google.api.services.healthcare.v1beta1.model.Message;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -52,6 +53,7 @@ class FhirIOTestUtil {
             (String data) -> {
               HttpBody httpBody = new HttpBody();
               httpBody.setContentType(ContentStructure.BUNDLE_PRETTY.name());
+              // httpBody.encodeData(Base64.encodeBase64URLSafe(data.getBytes(StandardCharsets.UTF_8)));
               httpBody.setData(data);
               return httpBody;
             });
