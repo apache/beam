@@ -140,6 +140,7 @@ if [[ -z `which gcloud` ]]; then
 
     gcloud init
     gcloud config set project ${USER_GCP_PROJECT}
+    gcloud config set compute/region ${USER_GCP_REGION}
 
     echo "-----------------Setting Up Service Account-----------------"
     if [[ ! -z "${USER_SERVICE_ACCOUNT_EMAIL}" ]]; then
@@ -468,6 +469,7 @@ if [[ ("$python_leaderboard_direct" = true \
       . ${LOCAL_BEAM_DIR}/beam_env_${py_version}/bin/activate
       python -m apache_beam.examples.complete.game.leader_board \
       --project=${USER_GCP_PROJECT} \
+      --region=${USER_GCP_REGION} \
       --topic projects/${USER_GCP_PROJECT}/topics/${SHARED_PUBSUB_TOPIC} \
       --dataset ${LEADERBOARD_DF_DATASET} \
       --runner DataflowRunner \
@@ -542,6 +544,7 @@ if [[ ("$python_leaderboard_direct" = true \
       . ${LOCAL_BEAM_DIR}/beam_env_${py_version}/bin/activate
       python -m apache_beam.examples.complete.game.game_stats \
       --project=${USER_GCP_PROJECT} \
+      --region=${USER_GCP_REGION} \
       --topic projects/${USER_GCP_PROJECT}/topics/${SHARED_PUBSUB_TOPIC} \
       --dataset ${GAMESTATS_DF_DATASET} \
       --runner DataflowRunner \

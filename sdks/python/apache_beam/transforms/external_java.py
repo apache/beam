@@ -95,6 +95,7 @@ class JavaExternalTransformTest(object):
         pipeline_options = PipelineOptions([
             '--runner=DataflowRunner',
             '--project=dummyproject',
+            '--region=some-region1',
             '--experiments=beam_fn_api',
             '--temp_location=gs://dummybucket/'
         ])

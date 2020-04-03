@@ -325,6 +325,7 @@ RC_STAGING_URL="https://dist.apache.org/repos/dist/dev/beam/$VERSION/python"
 
 # Cloud Configurations
 PROJECT_ID='apache-beam-testing'
+REGION_ID='us-central1'
 BUCKET_NAME='temp-storage-for-release-validation-tests/nightly-snapshot-validation'
 TEMP_DIR='/tmp'
 DATASET='beam_postrelease_mobile_gaming'
