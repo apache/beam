@@ -130,11 +130,8 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
             // host networking on Mac)
             .add("--env=DOCKER_MAC_CONTAINER=" + System.getenv("DOCKER_MAC_CONTAINER"));
 
-    Boolean retainDockerContainer =
+    final boolean retainDockerContainer =
         pipelineOptions.as(ManualDockerEnvironmentOptions.class).getRetainDockerContainers();
-    if (!retainDockerContainer) {
-      dockerOptsBuilder.add("--rm");
-    }
 
     String semiPersistDir = pipelineOptions.as(RemoteEnvironmentOptions.class).getSemiPersistDir();
     ImmutableList.Builder<String> argsBuilder =
