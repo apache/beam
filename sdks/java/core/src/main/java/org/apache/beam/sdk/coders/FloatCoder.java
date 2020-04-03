@@ -26,7 +26,7 @@ import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/** A {@link FloatCoder} encodes {@link Float} values in 8 bytes using Java serialization. */
+/** A {@link FloatCoder} encodes {@link Float} values in 4 bytes using Java serialization. */
 public class FloatCoder extends AtomicCoder<Float> {
 
   public static FloatCoder of() {

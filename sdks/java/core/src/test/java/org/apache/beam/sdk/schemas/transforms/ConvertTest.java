@@ -29,13 +29,12 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesSchema;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -204,12 +203,7 @@ public class ConvertTest {
   public void testFromRows() {
     PCollection<POJO1> pojos =
         pipeline
-            .apply(
-                Create.of(EXPECTED_ROW1)
-                    .withSchema(
-                        EXPECTED_SCHEMA1,
-                        SerializableFunctions.identity(),
-                        SerializableFunctions.identity()))
+            .apply(Create.of(EXPECTED_ROW1).withRowSchema(EXPECTED_SCHEMA1))
             .apply(Convert.fromRows(POJO1.class));
     PAssert.that(pojos).containsInAnyOrder(new POJO1());
     pipeline.run();

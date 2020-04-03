@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas;
 
 import static org.apache.beam.sdk.schemas.utils.AvroUtils.toBeamSchema;
 
+import java.util.List;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -37,17 +38,18 @@ public class AvroRecordSchema extends GetterBasedSchemaProvider {
   }
 
   @Override
-  public FieldValueGetterFactory fieldValueGetterFactory() {
-    return AvroUtils::getGetters;
+  public List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema) {
+    return AvroUtils.getGetters(targetClass, schema);
   }
 
   @Override
-  public UserTypeCreatorFactory schemaTypeCreatorFactory() {
-    return AvroUtils::getCreator;
+  public List<FieldValueTypeInformation> fieldValueTypeInformations(
+      Class<?> targetClass, Schema schema) {
+    return AvroUtils.getFieldTypes(targetClass, schema);
   }
 
   @Override
-  public FieldValueTypeInformationFactory fieldValueTypeInformationFactory() {
-    return AvroUtils::getFieldTypes;
+  public SchemaUserTypeCreator schemaTypeCreator(Class<?> targetClass, Schema schema) {
+    return AvroUtils.getCreator(targetClass, schema);
   }
 }

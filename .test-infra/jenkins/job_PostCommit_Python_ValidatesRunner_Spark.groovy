@@ -31,7 +31,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_VR_Spark',
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:python:sparkValidatesRunner')
+      tasks(':sdks:python:test-suites:portable:py2:sparkValidatesRunner')
       commonJobProperties.setGradleSwitches(delegate)
     }
   }

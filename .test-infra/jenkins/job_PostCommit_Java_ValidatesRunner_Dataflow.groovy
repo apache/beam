@@ -27,8 +27,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflo
 
   description('Runs the ValidatesRunner suite on the Dataflow runner.')
 
-  // Set common parameters. Sets a 3 hour timeout.
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 300)
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 270)
   previousNames(/beam_PostCommit_Java_ValidatesRunner_Dataflow_Gradle/)
 
   // Publish all test results to Jenkins

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
@@ -30,9 +30,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.Qualifier;
-import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.Qualifier.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -40,12 +40,12 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimaps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimaps;
 
 /**
  * A transform to add new nullable fields to a PCollection's schema. Elements are extended to have
@@ -63,7 +63,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Multimaps;
  *       .field("userDetails.isSpecialUser", "FieldType.BOOLEAN", false));
  * }</pre>
  */
-@Experimental(Experimental.Kind.SCHEMAS)
+@Experimental(Kind.SCHEMAS)
 public class AddFields {
   public static <T> Inner<T> create() {
     return new Inner<>();
@@ -282,7 +282,8 @@ public class AddFields {
           // Alternatives would be to always create a default key type (e.g. FieldType.STRING) or
           // extend our selector
           // syntax to allow specifying key types.
-          checkArgument(!qualifier.getKind().equals(Kind.MAP), "Map qualifiers not supported here");
+          checkArgument(
+              !qualifier.getKind().equals(Qualifier.Kind.MAP), "Map qualifiers not supported here");
           fieldType = FieldType.array(fieldType).withNullable(true);
         }
         if (!inputSchema.hasField(fieldName)) {
@@ -322,6 +323,12 @@ public class AddFields {
           addFieldsInformation =
               getAddFieldsInformation(inputFieldType.getCollectionElementType(), nestedFields);
           fieldType = Schema.FieldType.array(addFieldsInformation.getOutputFieldType());
+          break;
+
+        case ITERABLE:
+          addFieldsInformation =
+              getAddFieldsInformation(inputFieldType.getCollectionElementType(), nestedFields);
+          fieldType = Schema.FieldType.iterable(addFieldsInformation.getOutputFieldType());
           break;
 
         case MAP:
@@ -366,7 +373,7 @@ public class AddFields {
         }
       }
 
-      return Row.withSchema(outputSchema).attachValues(newValues).build();
+      return Row.withSchema(outputSchema).attachValues(newValues);
     }
 
     private static Object fillNewFields(
@@ -379,15 +386,16 @@ public class AddFields {
           return fillNewFields((Row) original, addFieldsInformation);
 
         case ARRAY:
+        case ITERABLE:
           if (original == null) {
             return Collections.emptyList();
           }
-          List<Object> list = (List<Object>) original;
-          List<Object> filledList = new ArrayList<>(list.size());
+          Iterable<Object> iterable = (Iterable<Object>) original;
+          List<Object> filledList = new ArrayList<>(Iterables.size(iterable));
           Schema.FieldType elementType = fieldType.getCollectionElementType();
           AddFieldsInformation elementAddFieldInformation =
               addFieldsInformation.toBuilder().setOutputFieldType(elementType).build();
-          for (Object element : list) {
+          for (Object element : iterable) {
             filledList.add(fillNewFields(element, elementType, elementAddFieldInformation));
           }
           return filledList;

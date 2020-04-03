@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
@@ -46,11 +47,20 @@ class DirectTimerInternals implements TimerInternals {
 
   @Override
   public void setTimer(
-      StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
-    timerUpdateBuilder.setTimer(TimerData.of(timerId, namespace, target, timeDomain));
+      StateNamespace namespace,
+      String timerId,
+      String timerFamilyId,
+      Instant target,
+      Instant outputTimestamp,
+      TimeDomain timeDomain) {
+    timerUpdateBuilder.setTimer(
+        TimerData.of(timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain));
   }
 
-  /** @deprecated use {@link #setTimer(StateNamespace, String, Instant, TimeDomain)}. */
+  /**
+   * @deprecated use {@link #setTimer(StateNamespace, String, String, Instant, Instant,
+   *     TimeDomain)}.
+   */
   @Deprecated
   @Override
   public void setTimer(TimerData timerData) {
@@ -65,7 +75,7 @@ class DirectTimerInternals implements TimerInternals {
   /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
   @Deprecated
   @Override
-  public void deleteTimer(StateNamespace namespace, String timerId) {
+  public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
     throw new UnsupportedOperationException("Canceling of timer by ID is not yet supported.");
   }
 
@@ -78,6 +88,12 @@ class DirectTimerInternals implements TimerInternals {
 
   public TimerUpdate getTimerUpdate() {
     return timerUpdateBuilder.build();
+  }
+
+  public boolean containsUpdateForTimeBefore(Instant time) {
+    TimerUpdate update = timerUpdateBuilder.build();
+    return hasTimeBefore(update.getSetTimers(), time)
+        || hasTimeBefore(update.getDeletedTimers(), time);
   }
 
   @Override
@@ -100,5 +116,10 @@ class DirectTimerInternals implements TimerInternals {
   @Nullable
   public Instant currentOutputWatermarkTime() {
     return watermarks.getOutputWatermark();
+  }
+
+  private boolean hasTimeBefore(Iterable<? extends TimerData> timers, Instant time) {
+    return StreamSupport.stream(timers.spliterator(), false)
+        .anyMatch(td -> td.getTimestamp().isBefore(time));
   }
 }

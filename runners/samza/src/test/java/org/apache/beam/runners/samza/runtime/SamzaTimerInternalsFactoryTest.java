@@ -19,20 +19,26 @@ package org.apache.beam.runners.samza.runtime;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
+import org.apache.beam.runners.samza.runtime.SamzaStoreStateInternals.ByteArray;
+import org.apache.beam.runners.samza.runtime.SamzaStoreStateInternals.ByteArraySerdeFactory;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -43,9 +49,13 @@ import org.apache.samza.config.MapConfig;
 import org.apache.samza.context.TaskContext;
 import org.apache.samza.metrics.MetricsRegistryMap;
 import org.apache.samza.operators.Scheduler;
+import org.apache.samza.serializers.ByteSerde;
+import org.apache.samza.serializers.Serde;
 import org.apache.samza.storage.kv.KeyValueStore;
 import org.apache.samza.storage.kv.KeyValueStoreMetrics;
 import org.apache.samza.storage.kv.RocksDbKeyValueStore;
+import org.apache.samza.storage.kv.SerializedKeyValueStore;
+import org.apache.samza.storage.kv.SerializedKeyValueStoreMetrics;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.rocksdb.FlushOptions;
@@ -57,23 +67,30 @@ import org.rocksdb.WriteOptions;
  * timers.
  */
 public class SamzaTimerInternalsFactoryTest {
-  private static RocksDbKeyValueStore createStore(String name) {
+  private static KeyValueStore<ByteArray, byte[]> createStore(String name) {
     final Options options = new Options();
     options.setCreateIfMissing(true);
 
-    return new RocksDbKeyValueStore(
-        new File(System.getProperty("java.io.tmpdir") + "/" + name),
-        options,
-        new MapConfig(),
-        false,
-        "beamStore",
-        new WriteOptions(),
-        new FlushOptions(),
-        new KeyValueStoreMetrics("beamStore", new MetricsRegistryMap()));
+    RocksDbKeyValueStore rocksStore =
+        new RocksDbKeyValueStore(
+            new File(System.getProperty("java.io.tmpdir") + "/" + name),
+            options,
+            new MapConfig(),
+            false,
+            "beamStore",
+            new WriteOptions(),
+            new FlushOptions(),
+            new KeyValueStoreMetrics("beamStore", new MetricsRegistryMap()));
+
+    return new SerializedKeyValueStore<>(
+        rocksStore,
+        new ByteArraySerdeFactory.ByteArraySerde(),
+        new ByteSerde(),
+        new SerializedKeyValueStoreMetrics("beamStore", new MetricsRegistryMap()));
   }
 
   private static SamzaStoreStateInternals.Factory<?> createNonKeyedStateInternalsFactory(
-      SamzaPipelineOptions pipelineOptions, RocksDbKeyValueStore store) {
+      SamzaPipelineOptions pipelineOptions, KeyValueStore<ByteArray, byte[]> store) {
     final TaskContext context = mock(TaskContext.class);
     when(context.getStore(anyString())).thenReturn((KeyValueStore) store);
     final TupleTag<?> mainOutputTag = new TupleTag<>("output");
@@ -86,7 +103,7 @@ public class SamzaTimerInternalsFactoryTest {
       Scheduler<KeyedTimerData<String>> timerRegistry,
       String timerStateId,
       SamzaPipelineOptions pipelineOptions,
-      RocksDbKeyValueStore store) {
+      KeyValueStore<ByteArray, byte[]> store) {
 
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
         createNonKeyedStateInternalsFactory(pipelineOptions, store);
@@ -119,9 +136,8 @@ public class SamzaTimerInternalsFactoryTest {
   public void testEventTimeTimers() {
     final SamzaPipelineOptions pipelineOptions =
         PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
-    pipelineOptions.setTimerBufferSize(1);
 
-    final RocksDbKeyValueStore store = createStore("store1");
+    final KeyValueStore<ByteArray, byte[]> store = createStore("store1");
     final SamzaTimerInternalsFactory<String> timerInternalsFactory =
         createTimerInternalsFactory(null, "timer", pipelineOptions, store);
 
@@ -153,17 +169,17 @@ public class SamzaTimerInternalsFactoryTest {
   }
 
   @Test
-  public void testRestore() {
+  public void testRestore() throws Exception {
     final SamzaPipelineOptions pipelineOptions =
         PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
-    pipelineOptions.setTimerBufferSize(1);
 
-    RocksDbKeyValueStore store = createStore("store2");
+    KeyValueStore<ByteArray, byte[]> store = createStore("store2");
     final SamzaTimerInternalsFactory<String> timerInternalsFactory =
         createTimerInternalsFactory(null, "timer", pipelineOptions, store);
 
+    final String key = "testKey";
     final StateNamespace nameSpace = StateNamespaces.global();
-    final TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey("testKey");
+    final TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey(key);
     final TimerInternals.TimerData timer1 =
         TimerInternals.TimerData.of("timer1", nameSpace, new Instant(10), TimeDomain.EVENT_TIME);
     timerInternals.setTimer(timer1);
@@ -183,6 +199,15 @@ public class SamzaTimerInternalsFactoryTest {
     Collection<KeyedTimerData<String>> readyTimers = restoredFactory.removeReadyTimers();
     assertEquals(2, readyTimers.size());
 
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    StringUtf8Coder.of().encode(key, baos);
+    byte[] keyBytes = baos.toByteArray();
+    assertEquals(
+        readyTimers,
+        Arrays.asList(
+            new KeyedTimerData<>(keyBytes, key, timer1),
+            new KeyedTimerData<>(keyBytes, key, timer2)));
+
     store.close();
   }
 
@@ -191,7 +216,7 @@ public class SamzaTimerInternalsFactoryTest {
     final SamzaPipelineOptions pipelineOptions =
         PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
 
-    RocksDbKeyValueStore store = createStore("store3");
+    KeyValueStore<ByteArray, byte[]> store = createStore("store3");
     TestTimerRegistry timerRegistry = new TestTimerRegistry();
 
     final SamzaTimerInternalsFactory<String> timerInternalsFactory =
@@ -228,5 +253,62 @@ public class SamzaTimerInternalsFactoryTest {
     restoredFactory.removeProcessingTimer(new KeyedTimerData(keyBytes, "testKey", timer2));
 
     store.close();
+  }
+
+  @Test
+  public void testOverride() {
+    final SamzaPipelineOptions pipelineOptions =
+        PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
+
+    KeyValueStore<ByteArray, byte[]> store = createStore("store4");
+    final SamzaTimerInternalsFactory<String> timerInternalsFactory =
+        createTimerInternalsFactory(null, "timer", pipelineOptions, store);
+
+    final StateNamespace nameSpace = StateNamespaces.global();
+    final TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey("testKey");
+    final TimerInternals.TimerData timer1 =
+        TimerInternals.TimerData.of("timerId", nameSpace, new Instant(10), TimeDomain.EVENT_TIME);
+    timerInternals.setTimer(timer1);
+
+    // this timer should override the first timer
+    final TimerInternals.TimerData timer2 =
+        TimerInternals.TimerData.of("timerId", nameSpace, new Instant(100), TimeDomain.EVENT_TIME);
+    timerInternals.setTimer(timer2);
+
+    final TimerInternals.TimerData timer3 =
+        TimerInternals.TimerData.of("timerId2", nameSpace, new Instant(200), TimeDomain.EVENT_TIME);
+    timerInternals.setTimer(timer3);
+
+    // this timer shouldn't override since it has a different id
+    timerInternalsFactory.setInputWatermark(new Instant(50));
+    Collection<KeyedTimerData<String>> readyTimers = timerInternalsFactory.removeReadyTimers();
+    assertEquals(0, readyTimers.size());
+
+    timerInternalsFactory.setInputWatermark(new Instant(150));
+    readyTimers = timerInternalsFactory.removeReadyTimers();
+    assertEquals(1, readyTimers.size());
+
+    timerInternalsFactory.setInputWatermark(new Instant(250));
+    readyTimers = timerInternalsFactory.removeReadyTimers();
+    assertEquals(1, readyTimers.size());
+
+    store.close();
+  }
+
+  @Test
+  public void testByteArray() {
+    ByteArray key1 = ByteArray.of("hello world".getBytes(StandardCharsets.UTF_8));
+    Serde<ByteArray> serde = new ByteArraySerdeFactory().getSerde("", null);
+    byte[] keyBytes = serde.toBytes(key1);
+    ByteArray key2 = serde.fromBytes(keyBytes);
+    assertEquals(key1, key2);
+
+    Map<ByteArray, String> map = new HashMap<>();
+    map.put(key1, "found it");
+    assertEquals("found it", map.get(key2));
+
+    map.remove(key1);
+    assertTrue(!map.containsKey(key2));
+    assertTrue(map.isEmpty());
   }
 }

@@ -17,10 +17,11 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,11 +36,18 @@ import java.util.NavigableSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.StateNamespace;
@@ -48,23 +56,24 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.local.Bundle;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ComparisonChain;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBasedTable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.SortedMultiset;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Table;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.TreeMultiset;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ComparisonChain;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.SortedMultiset;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeMultiset;
 import org.joda.time.Instant;
 
 /**
@@ -127,7 +136,6 @@ import org.joda.time.Instant;
  * Watermark_PCollection = Watermark_Out_ProducingPTransform
  * </pre>
  */
-@Internal
 public class WatermarkManager<ExecutableT, CollectionT> {
   // The number of updates to apply in #tryApplyPendingUpdates
   private static final int MAX_INCREMENTAL_UPDATES = 10;
@@ -235,13 +243,18 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     // This per-key sorted set allows quick retrieval of timers that should fire for a key
     private final Map<StructuralKey<?>, NavigableSet<TimerData>> objectTimers;
 
-    private AtomicReference<Instant> currentWatermark;
+    private final AtomicReference<Instant> currentWatermark;
+
+    private final Consumer<TimerData> timerUpdateNotification;
 
     public AppliedPTransformInputWatermark(
-        String name, Collection<? extends Watermark> inputWatermarks) {
-      this.name = name;
+        String name,
+        Collection<? extends Watermark> inputWatermarks,
+        Consumer<TimerData> timerUpdateNotification) {
 
+      this.name = name;
       this.inputWatermarks = inputWatermarks;
+
       // The ordering must order elements by timestamp, and must not compare two distinct elements
       // as equal. This is built on the assumption that any element added as a pending element will
       // be consumed without modifications.
@@ -253,7 +266,8 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       this.pendingTimers = TreeMultiset.create();
       this.objectTimers = new HashMap<>();
       this.existingTimers = new HashMap<>();
-      currentWatermark = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
+      this.currentWatermark = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
+      this.timerUpdateNotification = timerUpdateNotification;
     }
 
     @Override
@@ -311,8 +325,17 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       if (pendingTimers.isEmpty()) {
         return BoundedWindow.TIMESTAMP_MAX_VALUE;
       } else {
-        return pendingTimers.firstEntry().getElement().getTimestamp();
+        return getMinimumOutputTimestamp(pendingTimers);
       }
+    }
+
+    private Instant getMinimumOutputTimestamp(SortedMultiset<TimerData> timers) {
+      Instant minimumOutputTimestamp = timers.firstEntry().getElement().getOutputTimestamp();
+      for (TimerData timerData : timers) {
+        minimumOutputTimestamp =
+            INSTANT_ORDERING.min(timerData.getOutputTimestamp(), minimumOutputTimestamp);
+      }
+      return minimumOutputTimestamp;
     }
 
     @VisibleForTesting
@@ -326,19 +349,24 @@ public class WatermarkManager<ExecutableT, CollectionT> {
         if (TimeDomain.EVENT_TIME.equals(timer.getDomain())) {
           @Nullable
           TimerData existingTimer =
-              existingTimersForKey.get(timer.getNamespace(), timer.getTimerId());
+              existingTimersForKey.get(
+                  timer.getNamespace(), timer.getTimerId() + '+' + timer.getTimerFamilyId());
 
           if (existingTimer == null) {
             pendingTimers.add(timer);
             keyTimers.add(timer);
-          } else if (!existingTimer.equals(timer)) {
+          } else {
+            // reinitialize the timer even if identical,
+            // because it might be removed from objectTimers
+            // by timer push back
             pendingTimers.remove(existingTimer);
             keyTimers.remove(existingTimer);
             pendingTimers.add(timer);
             keyTimers.add(timer);
-          } // else the timer is already set identically, so noop
+          }
 
-          existingTimersForKey.put(timer.getNamespace(), timer.getTimerId(), timer);
+          existingTimersForKey.put(
+              timer.getNamespace(), timer.getTimerId() + '+' + timer.getTimerFamilyId(), timer);
         }
       }
 
@@ -346,12 +374,15 @@ public class WatermarkManager<ExecutableT, CollectionT> {
         if (TimeDomain.EVENT_TIME.equals(timer.getDomain())) {
           @Nullable
           TimerData existingTimer =
-              existingTimersForKey.get(timer.getNamespace(), timer.getTimerId());
+              existingTimersForKey.get(
+                  timer.getNamespace(), timer.getTimerId() + '+' + timer.getTimerFamilyId());
 
           if (existingTimer != null) {
             pendingTimers.remove(existingTimer);
             keyTimers.remove(existingTimer);
-            existingTimersForKey.remove(existingTimer.getNamespace(), existingTimer.getTimerId());
+            existingTimersForKey.remove(
+                existingTimer.getNamespace(),
+                existingTimer.getTimerId() + '+' + existingTimer.getTimerFamilyId());
           }
         }
       }
@@ -361,6 +392,13 @@ public class WatermarkManager<ExecutableT, CollectionT> {
           keyTimers.remove(timer);
           pendingTimers.remove(timer);
         }
+      }
+
+      if (!update.isEmpty()) {
+        // notify of TimerData update
+        Iterables.concat(
+                update.getCompletedTimers(), update.getDeletedTimers(), update.getSetTimers())
+            .forEach(timerUpdateNotification);
       }
     }
 
@@ -439,7 +477,8 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       Instant oldWatermark = currentWatermark.get();
       Instant newWatermark =
           INSTANT_ORDERING.min(
-              inputWatermark.get(), inputWatermark.getEarliestTimerTimestamp(), holds.getMinHold());
+              inputWatermark.get(), holds.getMinHold(), inputWatermark.getEarliestTimerTimestamp());
+
       newWatermark = INSTANT_ORDERING.max(oldWatermark, newWatermark);
       currentWatermark.set(newWatermark);
       return updateAndTrace(getName(), oldWatermark, newWatermark);
@@ -485,8 +524,13 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
     private AtomicReference<Instant> earliestHold;
 
+    private final Consumer<TimerData> timerUpdateNotification;
+
     public SynchronizedProcessingTimeInputWatermark(
-        String name, Collection<? extends Watermark> inputWms) {
+        String name,
+        Collection<? extends Watermark> inputWms,
+        Consumer<TimerData> timerUpdateNotification) {
+
       this.name = name;
       this.inputWms = inputWms;
       this.pendingBundles = new HashSet<>();
@@ -498,7 +542,8 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       for (Watermark wm : inputWms) {
         initialHold = INSTANT_ORDERING.min(initialHold, wm.get());
       }
-      earliestHold = new AtomicReference<>(initialHold);
+      this.earliestHold = new AtomicReference<>(initialHold);
+      this.timerUpdateNotification = timerUpdateNotification;
     }
 
     @Override
@@ -559,18 +604,27 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       Instant earliest = THE_END_OF_TIME.get();
       for (NavigableSet<TimerData> timers : processingTimers.values()) {
         if (!timers.isEmpty()) {
-          earliest = INSTANT_ORDERING.min(timers.first().getTimestamp(), earliest);
+          earliest = INSTANT_ORDERING.min(getMinimumOutputTimestamp(timers), earliest);
         }
       }
       for (NavigableSet<TimerData> timers : synchronizedProcessingTimers.values()) {
         if (!timers.isEmpty()) {
-          earliest = INSTANT_ORDERING.min(timers.first().getTimestamp(), earliest);
+          earliest = INSTANT_ORDERING.min(getMinimumOutputTimestamp(timers), earliest);
         }
       }
       if (!pendingTimers.isEmpty()) {
-        earliest = INSTANT_ORDERING.min(pendingTimers.first().getTimestamp(), earliest);
+        earliest = INSTANT_ORDERING.min(getMinimumOutputTimestamp(pendingTimers), earliest);
       }
       return earliest;
+    }
+
+    private Instant getMinimumOutputTimestamp(NavigableSet<TimerData> timers) {
+      Instant minimumOutputTimestamp = timers.first().getOutputTimestamp();
+      for (TimerData timerData : timers) {
+        minimumOutputTimestamp =
+            INSTANT_ORDERING.min(timerData.getOutputTimestamp(), minimumOutputTimestamp);
+      }
+      return minimumOutputTimestamp;
     }
 
     private synchronized void updateTimers(TimerUpdate update) {
@@ -586,7 +640,9 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
         @Nullable
         TimerData existingTimer =
-            existingTimersForKey.get(addedTimer.getNamespace(), addedTimer.getTimerId());
+            existingTimersForKey.get(
+                addedTimer.getNamespace(),
+                addedTimer.getTimerId() + '+' + addedTimer.getTimerFamilyId());
         if (existingTimer == null) {
           timerQueue.add(addedTimer);
         } else if (!existingTimer.equals(addedTimer)) {
@@ -594,7 +650,10 @@ public class WatermarkManager<ExecutableT, CollectionT> {
           timerQueue.add(addedTimer);
         } // else the timer is already set identically, so noop.
 
-        existingTimersForKey.put(addedTimer.getNamespace(), addedTimer.getTimerId(), addedTimer);
+        existingTimersForKey.put(
+            addedTimer.getNamespace(),
+            addedTimer.getTimerId() + '+' + addedTimer.getTimerFamilyId(),
+            addedTimer);
       }
 
       for (TimerData deletedTimer : update.deletedTimers) {
@@ -605,18 +664,27 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
         @Nullable
         TimerData existingTimer =
-            existingTimersForKey.get(deletedTimer.getNamespace(), deletedTimer.getTimerId());
+            existingTimersForKey.get(
+                deletedTimer.getNamespace(),
+                deletedTimer.getTimerId() + '+' + deletedTimer.getTimerFamilyId());
 
         if (existingTimer != null) {
           pendingTimers.remove(deletedTimer);
           timerQueue.remove(deletedTimer);
-          existingTimersForKey.remove(existingTimer.getNamespace(), existingTimer.getTimerId());
+          existingTimersForKey.remove(
+              existingTimer.getNamespace(),
+              existingTimer.getTimerId() + '+' + existingTimer.getTimerFamilyId());
         }
       }
 
       for (TimerData completedTimer : update.completedTimers) {
         pendingTimers.remove(completedTimer);
       }
+
+      // notify of TimerData update
+      Iterables.concat(
+              update.getCompletedTimers(), update.getDeletedTimers(), update.getSetTimers())
+          .forEach(timerUpdateNotification);
     }
 
     private synchronized Map<StructuralKey<?>, List<TimerData>> extractFiredDomainTimers(
@@ -686,13 +754,23 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     private final String name;
 
     private final SynchronizedProcessingTimeInputWatermark inputWm;
+    private final PerKeyHolds holds;
     private AtomicReference<Instant> latestRefresh;
 
     public SynchronizedProcessingTimeOutputWatermark(
         String name, SynchronizedProcessingTimeInputWatermark inputWm) {
       this.name = name;
       this.inputWm = inputWm;
+      holds = new PerKeyHolds();
       this.latestRefresh = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
+    }
+
+    public synchronized void updateHold(Object key, Instant newHold) {
+      if (newHold == null) {
+        holds.removeHold(key);
+      } else {
+        holds.updateHold(key, newHold);
+      }
     }
 
     @Override
@@ -728,7 +806,8 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       // downstream timers to.
       Instant oldRefresh = latestRefresh.get();
       Instant newTimestamp =
-          INSTANT_ORDERING.min(inputWm.get(), inputWm.getEarliestTimerTimestamp());
+          INSTANT_ORDERING.min(
+              inputWm.get(), holds.getMinHold(), inputWm.getEarliestTimerTimestamp());
       latestRefresh.set(newTimestamp);
       return updateAndTrace(getName(), oldRefresh, newTimestamp);
     }
@@ -736,6 +815,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     @Override
     public synchronized String toString() {
       return MoreObjects.toStringHelper(SynchronizedProcessingTimeOutputWatermark.class)
+          .add("holds", holds)
           .add("latestRefresh", latestRefresh)
           .toString();
     }
@@ -828,6 +908,14 @@ public class WatermarkManager<ExecutableT, CollectionT> {
   private final Set<ExecutableT> pendingRefreshes;
 
   /**
+   * A set of executables with currently extracted timers, that are to be processed. Note that, due
+   * to consistency, we can have only single extracted set of timers that are being processed by
+   * bundle processor at a time.
+   */
+  private final Map<ExecutableT, Set<String>> transformsWithAlreadyExtractedTimers =
+      new ConcurrentHashMap<>();
+
+  /**
    * Creates a new {@link WatermarkManager}. All watermarks within the newly created {@link
    * WatermarkManager} start at {@link BoundedWindow#TIMESTAMP_MIN_VALUE}, the minimum watermark,
    * with no watermark holds or pending elements.
@@ -879,13 +967,18 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     if (wms == null) {
       List<Watermark> inputCollectionWatermarks = getInputWatermarks(executable);
       AppliedPTransformInputWatermark inputWatermark =
-          new AppliedPTransformInputWatermark(name + ".in", inputCollectionWatermarks);
+          new AppliedPTransformInputWatermark(
+              name + ".in",
+              inputCollectionWatermarks,
+              timerUpdateConsumer(transformsWithAlreadyExtractedTimers, executable));
       AppliedPTransformOutputWatermark outputWatermark =
           new AppliedPTransformOutputWatermark(name + ".out", inputWatermark);
 
       SynchronizedProcessingTimeInputWatermark inputProcessingWatermark =
           new SynchronizedProcessingTimeInputWatermark(
-              name + ".inProcessing", getInputProcessingWatermarks(executable));
+              name + ".inProcessing",
+              getInputProcessingWatermarks(executable),
+              timerUpdateConsumer(transformsWithAlreadyExtractedTimers, executable));
       SynchronizedProcessingTimeOutputWatermark outputProcessingWatermark =
           new SynchronizedProcessingTimeOutputWatermark(
               name + ".outProcessing", inputProcessingWatermark);
@@ -900,6 +993,25 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       transformToWatermarks.put(executable, wms);
     }
     return wms;
+  }
+
+  private static <ExecutableT> Consumer<TimerData> timerUpdateConsumer(
+      Map<ExecutableT, Set<String>> transformsWithAlreadyExtractedTimers, ExecutableT executable) {
+
+    return update -> {
+      String timerIdWithNs = TimerUpdate.getTimerIdAndTimerFamilyIdWithNamespace(update);
+      transformsWithAlreadyExtractedTimers.compute(
+          executable,
+          (k, v) -> {
+            if (v != null) {
+              v.remove(timerIdWithNs);
+              if (v.isEmpty()) {
+                v = null;
+              }
+            }
+            return v;
+          });
+    };
   }
 
   private Collection<Watermark> getInputProcessingWatermarks(ExecutableT executable) {
@@ -1049,6 +1161,9 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     TransformWatermarks transformWms = transformToWatermarks.get(executable);
     transformWms.setEventTimeHold(
         inputBundle == null ? null : inputBundle.getKey(), pending.getEarliestHold());
+
+    transformWms.setSynchronizedProcessingTimeHold(
+        inputBundle == null ? null : inputBundle.getKey(), pending.getEarliestHold());
   }
 
   /**
@@ -1120,7 +1235,7 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     return newRefreshes;
   }
 
-  private Set<ExecutableT> refreshWatermarks(ExecutableT toRefresh) {
+  private Set<ExecutableT> refreshWatermarks(final ExecutableT toRefresh) {
     TransformWatermarks myWatermarks = transformToWatermarks.get(toRefresh);
     WatermarkUpdate updateResult = myWatermarks.refresh();
     if (updateResult.isAdvanced()) {
@@ -1143,9 +1258,29 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     try {
       for (Map.Entry<ExecutableT, TransformWatermarks> watermarksEntry :
           transformToWatermarks.entrySet()) {
-        Collection<FiredTimers<ExecutableT>> firedTimers =
-            watermarksEntry.getValue().extractFiredTimers();
-        allTimers.addAll(firedTimers);
+        ExecutableT transform = watermarksEntry.getKey();
+        if (!transformsWithAlreadyExtractedTimers.containsKey(transform)) {
+          TransformWatermarks watermarks = watermarksEntry.getValue();
+          Collection<FiredTimers<ExecutableT>> firedTimers = watermarks.extractFiredTimers();
+          if (!firedTimers.isEmpty()) {
+            List<TimerData> newTimers =
+                firedTimers.stream()
+                    .flatMap(f -> f.getTimers().stream())
+                    .collect(Collectors.toList());
+            transformsWithAlreadyExtractedTimers.compute(
+                transform,
+                (k, v) -> {
+                  if (v == null) {
+                    v = new HashSet<>();
+                  }
+                  final Set<String> toUpdate = v;
+                  newTimers.forEach(
+                      td -> toUpdate.add(TimerUpdate.getTimerIdAndTimerFamilyIdWithNamespace(td)));
+                  return v;
+                });
+            allTimers.addAll(firedTimers);
+          }
+        }
       }
       return allTimers;
     } finally {
@@ -1262,6 +1397,8 @@ public class WatermarkManager<ExecutableT, CollectionT> {
     private Instant latestSynchronizedInputWm;
     private Instant latestSynchronizedOutputWm;
 
+    private final ReadWriteLock transformWatermarkLock = new ReentrantReadWriteLock();
+
     private TransformWatermarks(
         ExecutableT executable,
         AppliedPTransformInputWatermark inputWatermark,
@@ -1316,6 +1453,10 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       return latestSynchronizedOutputWm;
     }
 
+    private ReadWriteLock getWatermarkLock() {
+      return transformWatermarkLock;
+    }
+
     private WatermarkUpdate refresh() {
       inputWatermark.refresh();
       synchronizedProcessingInputWatermark.refresh();
@@ -1326,6 +1467,10 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
     private void setEventTimeHold(Object key, Instant newHold) {
       outputWatermark.updateHold(key, newHold);
+    }
+
+    private void setSynchronizedProcessingTimeHold(Object key, Instant newHold) {
+      synchronizedProcessingOutputWatermark.updateHold(key, newHold);
     }
 
     private void removePending(Bundle<?, ?> bundle) {
@@ -1395,19 +1540,24 @@ public class WatermarkManager<ExecutableT, CollectionT> {
    *
    * <p>setTimers and deletedTimers are collections of {@link TimerData} that have been added to the
    * {@link TimerInternals} of an executed step. completedTimers are timers that were delivered as
-   * the input to the executed step.
+   * the input to the executed step. pushedBackTimers are timers that were in completedTimers at the
+   * input, but were pushed back due to processing constraints.
    */
   public static class TimerUpdate {
     private final StructuralKey<?> key;
     private final Iterable<? extends TimerData> completedTimers;
-
     private final Iterable<? extends TimerData> setTimers;
     private final Iterable<? extends TimerData> deletedTimers;
+    private final Iterable<? extends TimerData> pushedBackTimers;
 
     /** Returns a TimerUpdate for a null key with no timers. */
     public static TimerUpdate empty() {
       return new TimerUpdate(
-          null, Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
+          null,
+          Collections.emptyList(),
+          Collections.emptyList(),
+          Collections.emptyList(),
+          Collections.emptyList());
     }
 
     /**
@@ -1477,19 +1627,33 @@ public class WatermarkManager<ExecutableT, CollectionT> {
             key,
             ImmutableList.copyOf(completedTimers),
             ImmutableList.copyOf(setTimers),
-            ImmutableList.copyOf(deletedTimers));
+            ImmutableList.copyOf(deletedTimers),
+            Collections.emptyList());
       }
+    }
+
+    private static Map<String, TimerData> indexTimerData(Iterable<? extends TimerData> timerData) {
+      return StreamSupport.stream(timerData.spliterator(), false)
+          .collect(
+              Collectors.toMap(
+                  TimerUpdate::getTimerIdAndTimerFamilyIdWithNamespace, e -> e, (a, b) -> b));
+    }
+
+    private static String getTimerIdAndTimerFamilyIdWithNamespace(TimerData td) {
+      return td.getNamespace() + td.getTimerId() + td.getTimerFamilyId();
     }
 
     private TimerUpdate(
         StructuralKey<?> key,
         Iterable<? extends TimerData> completedTimers,
         Iterable<? extends TimerData> setTimers,
-        Iterable<? extends TimerData> deletedTimers) {
+        Iterable<? extends TimerData> deletedTimers,
+        Iterable<? extends TimerData> pushedBackTimers) {
       this.key = key;
       this.completedTimers = completedTimers;
       this.setTimers = setTimers;
       this.deletedTimers = deletedTimers;
+      this.pushedBackTimers = pushedBackTimers;
     }
 
     @VisibleForTesting
@@ -1512,11 +1676,45 @@ public class WatermarkManager<ExecutableT, CollectionT> {
       return deletedTimers;
     }
 
+    Iterable<? extends TimerData> getPushedBackTimers() {
+      return pushedBackTimers;
+    }
+
+    boolean isEmpty() {
+      return Iterables.isEmpty(completedTimers)
+          && Iterables.isEmpty(setTimers)
+          && Iterables.isEmpty(deletedTimers)
+          && Iterables.isEmpty(pushedBackTimers);
+    }
+
     /**
      * Returns a {@link TimerUpdate} that is like this one, but with the specified completed timers.
+     * Note that if any of the completed timers is in pushedBackTimers, then it is set instead. The
+     * pushedBackTimers are cleared afterwards.
      */
     public TimerUpdate withCompletedTimers(Iterable<TimerData> completedTimers) {
-      return new TimerUpdate(this.key, completedTimers, setTimers, deletedTimers);
+      List<TimerData> timersToComplete = new ArrayList<>();
+      Set<TimerData> pushedBack = Sets.newHashSet(pushedBackTimers);
+      Map<String, TimerData> newSetTimers = indexTimerData(setTimers);
+      for (TimerData td : completedTimers) {
+        String timerIdWithNs = getTimerIdAndTimerFamilyIdWithNamespace(td);
+        if (!pushedBack.contains(td)) {
+          timersToComplete.add(td);
+        } else if (!newSetTimers.containsKey(timerIdWithNs)) {
+          newSetTimers.put(timerIdWithNs, td);
+        }
+      }
+      return new TimerUpdate(
+          key, timersToComplete, newSetTimers.values(), deletedTimers, Collections.emptyList());
+    }
+
+    /**
+     * Returns a {@link TimerUpdate} that is like this one, but with the pushedBackTimersare removed
+     * set by provided pushedBackTimers.
+     */
+    public TimerUpdate withPushedBackTimers(Iterable<TimerData> pushedBackTimers) {
+      return new TimerUpdate(
+          key, completedTimers, setTimers, deletedTimers, Lists.newArrayList(pushedBackTimers));
     }
 
     @Override
@@ -1534,6 +1732,17 @@ public class WatermarkManager<ExecutableT, CollectionT> {
           && Objects.equals(this.completedTimers, that.completedTimers)
           && Objects.equals(this.setTimers, that.setTimers)
           && Objects.equals(this.deletedTimers, that.deletedTimers);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("key", key)
+          .add("setTimers", setTimers)
+          .add("completedTimers", completedTimers)
+          .add("deletedTimers", deletedTimers)
+          .add("pushedBackTimers", pushedBackTimers)
+          .toString();
     }
   }
 
@@ -1578,14 +1787,21 @@ public class WatermarkManager<ExecutableT, CollectionT> {
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(FiredTimers.class).add("timers", timers).toString();
+      return MoreObjects.toStringHelper(FiredTimers.class)
+          .add("key", key)
+          .add("timers", timers)
+          .toString();
     }
   }
 
   private static class BundleByElementTimestampComparator extends Ordering<Bundle<?, ?>>
       implements Serializable {
+
+    @SuppressFBWarnings(
+        value = "NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION",
+        justification = "https://github.com/google/guava/issues/920")
     @Override
-    public int compare(Bundle<?, ?> o1, Bundle<?, ?> o2) {
+    public int compare(@Nonnull Bundle<?, ?> o1, @Nonnull Bundle<?, ?> o2) {
       return ComparisonChain.start()
           .compare(o1.getMinimumTimestamp(), o2.getMinimumTimestamp())
           .result();

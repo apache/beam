@@ -43,7 +43,7 @@ type ParDo struct {
 	ctx      context.Context
 	inv      *invoker
 
-	side  SideInputReader
+	side  StateReader
 	cache *cacheElm
 
 	status Status
@@ -75,7 +75,11 @@ func (n *ParDo) Up(ctx context.Context) error {
 	n.status = Up
 	n.inv = newInvoker(n.Fn.ProcessElementFn())
 
-	if _, err := InvokeWithoutEventTime(ctx, n.Fn.SetupFn(), nil); err != nil {
+	// We can't cache the context during Setup since it runs only once per bundle.
+	// Subsequent bundles might run this same node, and the context here would be 
+	// incorrectly refering to the older bundleId.
+	setupCtx :=  metrics.SetPTransformID(ctx, n.PID)
+	if _, err := InvokeWithoutEventTime(setupCtx, n.Fn.SetupFn(), nil); err != nil {
 		return n.fail(err)
 	}
 
@@ -93,7 +97,7 @@ func (n *ParDo) StartBundle(ctx context.Context, id string, data DataContext) er
 		return errors.Errorf("invalid status for pardo %v: %v, want Up", n.UID, n.status)
 	}
 	n.status = Active
-	n.side = data.SideInput
+	n.side = data.State
 	// Allocating contexts all the time is expensive, but we seldom re-write them,
 	// and never accept modified contexts from users, so we will cache them per-bundle
 	// per-unit, to avoid the constant allocation overhead.

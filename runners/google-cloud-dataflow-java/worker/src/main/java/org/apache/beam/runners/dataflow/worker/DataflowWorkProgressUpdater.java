@@ -22,13 +22,15 @@ import static org.apache.beam.runners.dataflow.util.TimeUtil.fromCloudTime;
 
 import com.google.api.client.util.Clock;
 import com.google.api.services.dataflow.model.ApproximateSplitRequest;
+import com.google.api.services.dataflow.model.HotKeyDetection;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import java.util.concurrent.ScheduledExecutorService;
 import javax.annotation.concurrent.NotThreadSafe;
+import org.apache.beam.runners.dataflow.util.TimeUtil;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkProgressUpdater;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +41,7 @@ import org.slf4j.LoggerFactory;
  */
 @NotThreadSafe
 public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
+
   private static final Logger LOG = LoggerFactory.getLogger(DataflowWorkProgressUpdater.class);
 
   private final WorkItemStatusClient workItemStatusClient;
@@ -46,11 +49,14 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
   /** The WorkItem for which work progress updates are sent. */
   private final WorkItem workItem;
 
+  private HotKeyLogger hotKeyLogger;
+
   public DataflowWorkProgressUpdater(
       WorkItemStatusClient workItemStatusClient, WorkItem workItem, WorkExecutor worker) {
     super(worker, Integer.MAX_VALUE);
     this.workItemStatusClient = workItemStatusClient;
     this.workItem = workItem;
+    this.hotKeyLogger = new HotKeyLogger();
   }
 
   /**
@@ -64,10 +70,12 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
       WorkItem workItem,
       WorkExecutor worker,
       ScheduledExecutorService executor,
-      Clock clock) {
+      Clock clock,
+      HotKeyLogger hotKeyLogger) {
     super(worker, Integer.MAX_VALUE, executor, clock);
     this.workItemStatusClient = workItemStatusClient;
     this.workItem = workItem;
+    this.hotKeyLogger = hotKeyLogger;
   }
 
   @Override
@@ -90,7 +98,16 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
     WorkItemServiceState result =
         workItemStatusClient.reportUpdate(
             dynamicSplitResultToReport, Duration.millis(requestedLeaseDurationMs));
+
     if (result != null) {
+      if (result.getHotKeyDetection() != null
+          && result.getHotKeyDetection().getUserStepName() != null) {
+        HotKeyDetection hotKeyDetection = result.getHotKeyDetection();
+        hotKeyLogger.logHotKeyDetection(
+            hotKeyDetection.getUserStepName(),
+            TimeUtil.fromCloudDuration(hotKeyDetection.getHotKeyAge()));
+      }
+
       // Resets state after a successful progress report.
       dynamicSplitResultToReport = null;
 

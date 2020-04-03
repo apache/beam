@@ -47,7 +47,7 @@ If you have additional material that you would like to see here, please let us k
 *   **[Programming Guide](https://beam.apache.org/documentation/programming-guide/)** - The Programming Guide contains more in-depth information on most topics in the Apache Beam SDK. These include descriptions on how everything works as well as code snippets to see how to use every part. This can be used as a reference guidebook.
 *   **[The world beyond batch: Streaming 101](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101)** - Covers some basic background information, terminology, time domains, batch processing, and streaming.
 *   **[The world beyond batch: Streaming 102](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102)** - Tour of the unified batch and streaming programming model in Beam, alongside with an example to explain many of the concepts.
-*   **[Apache Beam Execution Model](https://beam.apache.org/documentation/execution-model/)** - Explanation on how runners execute an Apache Beam pipeline. This includes why serialization is important, and how a runner might distribute the work in parallel to multiple machines.
+*   **[Apache Beam Execution Model](https://beam.apache.org/documentation/runtime/model)** - Explanation on how runners execute an Apache Beam pipeline. This includes why serialization is important, and how a runner might distribute the work in parallel to multiple machines.
 
 ### Common Patterns
 
@@ -75,7 +75,7 @@ If you have additional material that you would like to see here, please let us k
 
 ### Advanced Concepts
 
-*   **[Running on AppEngine](http://amygdala.github.io/dataflow/app_engine/2017/10/24/gae_dataflow.html)** - Use a Dataflow template to launch a pipeline from Google AppEngine, and how to run the pipeline periodically via a cron job.
+*   **[Running on AppEngine](https://amygdala.github.io/dataflow/app_engine/2017/10/24/gae_dataflow.html)** - Use a Dataflow template to launch a pipeline from Google AppEngine, and how to run the pipeline periodically via a cron job.
 *   **[Stateful Processing](https://beam.apache.org/blog/2017/02/13/stateful-processing.html)** - Learn how to access a persistent mutable state while processing input elements, this allows for _side effects_ in a `DoFn`. This can be used for arbitrary-but-consistent index assignment, if you want to assign a unique incrementing index to each incoming element where order doesn't matter.
 *   **[Timely and Stateful Processing](https://beam.apache.org/blog/2017/08/28/timely-processing.html)** - An example on how to do batched RPC calls. The call requests are stored in a mutable state as they are received. Once there are either enough requests or a certain time has passed, the batch of requests is triggered to be sent.
 *   **[Running External Libraries](https://cloud.google.com/blog/products/gcp/running-external-libraries-with-cloud-dataflow-for-grid-computing-workloads)** - Call an external library written in a language that does not have a native SDK in Apache Beam such as C++.

@@ -17,7 +17,10 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyPortabilityNature(shadowJarValidationExcludes: ["org/apache/beam/model/pipeline/v1/**"])
+applyPortabilityNature(
+    automaticModuleName: 'org.apache.beam.model.pipeline',
+    shadowJarValidationExcludes: ["org/apache/beam/model/pipeline/v1/**"]
+)
 
 description = "Apache Beam :: Model :: Pipeline"
 ext.summary = "Portable definitions for building pipelines"

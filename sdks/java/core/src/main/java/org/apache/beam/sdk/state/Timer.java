@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.state;
 
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -40,7 +41,7 @@ import org.joda.time.Instant;
  * <p>Timer callbacks are not guaranteed to be called immediately according to the local view of the
  * {@link TimeDomain}, but will be called at some time after the requested time, in timestamp order.
  */
-@Experimental(Experimental.Kind.TIMERS)
+@Experimental(Kind.TIMERS)
 public interface Timer {
   /**
    * Sets or resets the time in the timer's {@link TimeDomain} at which it should fire. If the timer
@@ -66,4 +67,10 @@ public interface Timer {
    * period}.
    */
   Timer align(Duration period);
+
+  /**
+   * Sets event time timer's output timestamp. Output watermark will be held at this timestamp until
+   * the timer fires.
+   */
+  Timer withOutputTimestamp(Instant outputTime);
 }

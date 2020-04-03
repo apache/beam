@@ -36,6 +36,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.stream.LongStream;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
+import org.apache.beam.runners.flink.streaming.StreamSources;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -44,7 +46,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -70,6 +72,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 import org.mockito.Mockito;
+import org.powermock.reflect.Whitebox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -183,7 +186,8 @@ public class UnboundedSourceWrapperTest {
 
         try {
           testHarness.open();
-          sourceOperator.run(
+          StreamSources.run(
+              sourceOperator,
               testHarness.getCheckpointLock(),
               new TestStreamStatusMaintainer(),
               new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
@@ -285,7 +289,8 @@ public class UnboundedSourceWrapperTest {
           new Thread(
               () -> {
                 try {
-                  sourceOperator.run(
+                  StreamSources.run(
+                      sourceOperator,
                       testHarness.getCheckpointLock(),
                       new TestStreamStatusMaintainer(),
                       new Output<
@@ -397,7 +402,8 @@ public class UnboundedSourceWrapperTest {
 
       try {
         testHarness.open();
-        sourceOperator.run(
+        StreamSources.run(
+            sourceOperator,
             checkpointLock,
             new TestStreamStatusMaintainer(),
             new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
@@ -477,7 +483,8 @@ public class UnboundedSourceWrapperTest {
       // run again and verify that we see the other elements
       try {
         restoredTestHarness.open();
-        restoredSourceOperator.run(
+        StreamSources.run(
+            restoredSourceOperator,
             checkpointLock,
             new TestStreamStatusMaintainer(),
             new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
@@ -769,6 +776,34 @@ public class UnboundedSourceWrapperTest {
               LongStream.concat(LongStream.range(0, 250), LongStream.range(500, 750))
                   .boxed()
                   .toArray()));
+    }
+
+    @Test
+    public void testAccumulatorRegistrationOnOperatorClose() throws Exception {
+      FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+
+      TestCountingSource source = new TestCountingSource(20).withoutSplitting();
+
+      UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> sourceWrapper =
+          new UnboundedSourceWrapper<>("noReader", options, source, 2);
+
+      StreamingRuntimeContext mock = Mockito.mock(StreamingRuntimeContext.class);
+      Mockito.when(mock.getNumberOfParallelSubtasks()).thenReturn(1);
+      Mockito.when(mock.getExecutionConfig()).thenReturn(new ExecutionConfig());
+      Mockito.when(mock.getIndexOfThisSubtask()).thenReturn(0);
+      sourceWrapper.setRuntimeContext(mock);
+
+      sourceWrapper.open(new Configuration());
+
+      String metricContainerFieldName = "metricContainer";
+      FlinkMetricContainer monitoredContainer =
+          Mockito.spy(
+              (FlinkMetricContainer)
+                  Whitebox.getInternalState(sourceWrapper, metricContainerFieldName));
+      Whitebox.setInternalState(sourceWrapper, metricContainerFieldName, monitoredContainer);
+
+      sourceWrapper.close();
+      Mockito.verify(monitoredContainer).registerMetricsForPipelineResult();
     }
   }
 

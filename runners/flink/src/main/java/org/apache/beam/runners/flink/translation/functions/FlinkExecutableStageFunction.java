@@ -29,9 +29,12 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
+import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
@@ -46,7 +49,7 @@ import org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -78,22 +81,24 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
   // Main constructor fields. All must be Serializable because Flink distributes Functions to
   // task managers via java serialization.
 
+  // Pipeline options for initializing the FileSystems
+  private final SerializablePipelineOptions pipelineOptions;
   // The executable stage this function will run.
   private final RunnerApi.ExecutableStagePayload stagePayload;
   // Pipeline options. Used for provisioning api.
   private final JobInfo jobInfo;
   // Map from PCollection id to the union tag used to represent this PCollection in the output.
   private final Map<String, Integer> outputMap;
-  private final FlinkExecutableStageContext.Factory contextFactory;
+  private final FlinkExecutableStageContextFactory contextFactory;
   private final Coder windowCoder;
-  // Unique name for namespacing metrics; currently just takes the input ID
-  private final String stageName;
+  // Unique name for namespacing metrics
+  private final String stepName;
 
   // Worker-local fields. These should only be constructed and consumed on Flink TaskManagers.
   private transient RuntimeContext runtimeContext;
-  private transient FlinkMetricContainer container;
+  private transient FlinkMetricContainer metricContainer;
   private transient StateRequestHandler stateRequestHandler;
-  private transient FlinkExecutableStageContext stageContext;
+  private transient ExecutableStageContext stageContext;
   private transient StageBundleFactory stageBundleFactory;
   private transient BundleProgressHandler progressHandler;
   // Only initialized when the ExecutableStage is stateful
@@ -103,27 +108,30 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
   private transient Object currentTimerKey;
 
   public FlinkExecutableStageFunction(
+      String stepName,
+      PipelineOptions pipelineOptions,
       RunnerApi.ExecutableStagePayload stagePayload,
       JobInfo jobInfo,
       Map<String, Integer> outputMap,
-      FlinkExecutableStageContext.Factory contextFactory,
+      FlinkExecutableStageContextFactory contextFactory,
       Coder windowCoder) {
+    this.stepName = stepName;
+    this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;
     this.outputMap = outputMap;
     this.contextFactory = contextFactory;
     this.windowCoder = windowCoder;
-    this.stageName = stagePayload.getInput();
   }
 
   @Override
-  public void open(Configuration parameters) throws Exception {
+  public void open(Configuration parameters) {
+    FlinkPipelineOptions options = pipelineOptions.get().as(FlinkPipelineOptions.class);
     // Register standard file systems.
-    // TODO Use actual pipeline options.
-    FileSystems.setDefaultPipelineOptions(PipelineOptionsFactory.create());
+    FileSystems.setDefaultPipelineOptions(options);
     executableStage = ExecutableStage.fromPayload(stagePayload);
     runtimeContext = getRuntimeContext();
-    container = new FlinkMetricContainer(getRuntimeContext());
+    metricContainer = new FlinkMetricContainer(runtimeContext);
     // TODO: Wire this into the distributed cache and make it pluggable.
     stageContext = contextFactory.get(jobInfo);
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
@@ -137,12 +145,12 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
         new BundleProgressHandler() {
           @Override
           public void onProgress(ProcessBundleProgressResponse progress) {
-            container.updateMetrics(stageName, progress.getMonitoringInfosList());
+            metricContainer.updateMetrics(stepName, progress.getMonitoringInfosList());
           }
 
           @Override
           public void onCompleted(ProcessBundleResponse response) {
-            container.updateMetrics(stageName, response.getMonitoringInfosList());
+            metricContainer.updateMetrics(stepName, response.getMonitoringInfosList());
           }
         };
   }
@@ -175,7 +183,9 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
 
     EnumMap<StateKey.TypeCase, StateRequestHandler> handlerMap =
         new EnumMap<>(StateKey.TypeCase.class);
+    handlerMap.put(StateKey.TypeCase.ITERABLE_SIDE_INPUT, sideInputHandler);
     handlerMap.put(StateKey.TypeCase.MULTIMAP_SIDE_INPUT, sideInputHandler);
+    handlerMap.put(StateKey.TypeCase.MULTIMAP_KEYS_SIDE_INPUT, sideInputHandler);
     handlerMap.put(StateKey.TypeCase.BAG_USER_STATE, userStateHandler);
 
     return StateRequestHandlers.delegateBasedUponType(handlerMap);
@@ -273,6 +283,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
 
   @Override
   public void close() throws Exception {
+    metricContainer.registerMetricsForPipelineResult();
     // close may be called multiple times when an exception is thrown
     if (stageContext != null) {
       try (AutoCloseable bundleFactoryCloser = stageBundleFactory;

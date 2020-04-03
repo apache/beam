@@ -23,11 +23,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 
 /**
@@ -36,6 +37,7 @@ import org.joda.time.Instant;
  * @param <T> the type of the value
  */
 @AutoValue
+@Internal
 public abstract class ValueInSingleWindow<T> {
   /** Returns the value of this {@code ValueInSingleWindow}. */
   @Nullable

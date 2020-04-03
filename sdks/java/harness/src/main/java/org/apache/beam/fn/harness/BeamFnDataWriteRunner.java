@@ -17,11 +17,12 @@
  */
 package org.apache.beam.fn.harness;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.getOnlyElement;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
@@ -42,9 +43,11 @@ import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
+import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,27 +89,14 @@ public class BeamFnDataWriteRunner<InputT> {
         PCollectionConsumerRegistry pCollectionConsumerRegistry,
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
-        BundleSplitListener splitListener)
+        Consumer<ThrowingRunnable> tearDownFunctions,
+        BundleSplitListener splitListener,
+        BundleFinalizer bundleFinalizer)
         throws IOException {
-      RunnerApi.Coder coderSpec;
-      if (RemoteGrpcPortWrite.fromPTransform(pTransform).getPort().getCoderId().isEmpty()) {
-        LOG.error(
-            "Missing required coder_id on grpc_port for %s; using deprecated fallback.",
-            pTransformId);
-        coderSpec =
-            coders.get(
-                pCollections.get(getOnlyElement(pTransform.getInputsMap().values())).getCoderId());
-      } else {
-        coderSpec = null;
-      }
+
       BeamFnDataWriteRunner<InputT> runner =
           new BeamFnDataWriteRunner<>(
-              pTransformId,
-              pTransform,
-              processBundleInstructionId,
-              coderSpec,
-              coders,
-              beamFnDataClient);
+              pTransformId, pTransform, processBundleInstructionId, coders, beamFnDataClient);
       startFunctionRegistry.register(pTransformId, runner::registerForOutput);
       pCollectionConsumerRegistry.register(
           getOnlyElement(pTransform.getInputsMap().values()),
@@ -130,7 +120,6 @@ public class BeamFnDataWriteRunner<InputT> {
       String pTransformId,
       RunnerApi.PTransform remoteWriteNode,
       Supplier<String> processBundleInstructionIdSupplier,
-      RunnerApi.Coder coderSpec,
       Map<String, RunnerApi.Coder> coders,
       BeamFnDataClient beamFnDataClientFactory)
       throws IOException {
@@ -142,17 +131,9 @@ public class BeamFnDataWriteRunner<InputT> {
 
     RehydratedComponents components =
         RehydratedComponents.forComponents(Components.newBuilder().putAllCoders(coders).build());
-    @SuppressWarnings("unchecked")
-    Coder<WindowedValue<InputT>> coder;
-    if (!port.getCoderId().isEmpty()) {
-      coder =
-          (Coder<WindowedValue<InputT>>)
-              CoderTranslation.fromProto(coders.get(port.getCoderId()), components);
-    } else {
-      // TODO: remove this path once it is no longer used
-      coder = (Coder<WindowedValue<InputT>>) CoderTranslation.fromProto(coderSpec, components);
-    }
-    this.coder = coder;
+    this.coder =
+        (Coder<WindowedValue<InputT>>)
+            CoderTranslation.fromProto(coders.get(port.getCoderId()), components);
   }
 
   public void registerForOutput() {

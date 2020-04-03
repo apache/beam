@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import static org.apache.beam.runners.flink.translation.utils.FlinkPortableRunnerUtils.requiresTimeSortedInput;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 import java.io.IOException;
@@ -31,6 +32,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -51,15 +54,16 @@ import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
+import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.UserStateReference;
-import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
-import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
+import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContextFactory;
 import org.apache.beam.runners.flink.translation.functions.FlinkStreamingSideInputHandlerFactory;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
+import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.TimerSpec;
@@ -70,6 +74,7 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
@@ -84,12 +89,16 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -112,26 +121,31 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
   private final RunnerApi.ExecutableStagePayload payload;
   private final JobInfo jobInfo;
-  private final FlinkExecutableStageContext.Factory contextFactory;
+  private final FlinkExecutableStageContextFactory contextFactory;
   private final Map<String, TupleTag<?>> outputMap;
   private final Map<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>> sideInputIds;
   /** A lock which has to be acquired when concurrently accessing state and timers. */
   private final ReentrantLock stateBackendLock;
 
-  private transient FlinkExecutableStageContext stageContext;
+  private final boolean isStateful;
+
+  private transient ExecutableStageContext stageContext;
   private transient StateRequestHandler stateRequestHandler;
   private transient BundleProgressHandler progressHandler;
   private transient StageBundleFactory stageBundleFactory;
   private transient ExecutableStage executableStage;
   private transient SdkHarnessDoFnRunner<InputT, OutputT> sdkHarnessRunner;
-  private transient FlinkMetricContainer flinkMetricContainer;
-  private transient long backupWatermarkHold = Long.MIN_VALUE;
+
+  /**
+   * Watermark held back due to async processing. Volatile due to multiple mutually exclusive
+   * threads. Please see the description in DoFnOperator.
+   */
+  private transient volatile long backupWatermarkHold = Long.MIN_VALUE;
 
   /** Constructor. */
   public ExecutableStageDoFnOperator(
       String stepName,
       Coder<WindowedValue<InputT>> windowedInputCoder,
-      Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
@@ -142,7 +156,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       PipelineOptions options,
       RunnerApi.ExecutableStagePayload payload,
       JobInfo jobInfo,
-      FlinkExecutableStageContext.Factory contextFactory,
+      FlinkExecutableStageContextFactory contextFactory,
       Map<String, TupleTag<?>> outputMap,
       WindowingStrategy windowingStrategy,
       Coder keyCoder,
@@ -151,7 +165,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         new NoOpDoFn(),
         stepName,
         windowedInputCoder,
-        inputCoder,
         outputCoders,
         mainOutputTag,
         additionalOutputTags,
@@ -162,7 +175,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         options,
         keyCoder,
         keySelector,
-        DoFnSchemaInformation.create());
+        DoFnSchemaInformation.create(),
+        Collections.emptyMap());
+    this.isStateful = payload.getUserStatesCount() > 0 || payload.getTimersCount() > 0;
     this.payload = payload;
     this.jobInfo = jobInfo;
     this.contextFactory = contextFactory;
@@ -186,7 +201,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     // bundle "factory" (manager?) but not the job or Flink bundle factories. How do we make
     // ownership of the higher level "factories" explicit? Do we care?
     stageContext = contextFactory.get(jobInfo);
-    flinkMetricContainer = new FlinkMetricContainer(getRuntimeContext());
 
     stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
     stateRequestHandler = getStateRequestHandler(executableStage);
@@ -194,12 +208,16 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         new BundleProgressHandler() {
           @Override
           public void onProgress(ProcessBundleProgressResponse progress) {
-            flinkMetricContainer.updateMetrics(stepName, progress.getMonitoringInfosList());
+            if (flinkMetricContainer != null) {
+              flinkMetricContainer.updateMetrics(stepName, progress.getMonitoringInfosList());
+            }
           }
 
           @Override
           public void onCompleted(ProcessBundleResponse response) {
-            flinkMetricContainer.updateMetrics(stepName, response.getMonitoringInfosList());
+            if (flinkMetricContainer != null) {
+              flinkMetricContainer.updateMetrics(stepName, response.getMonitoringInfosList());
+            }
           }
         };
 
@@ -228,7 +246,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     }
 
     final StateRequestHandler userStateRequestHandler;
-    if (executableStage.getUserStates().size() > 0) {
+    if (!executableStage.getUserStates().isEmpty()) {
       if (keyedStateInternals == null) {
         throw new IllegalStateException("Input must be keyed when user state is used");
       }
@@ -236,47 +254,73 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
           StateRequestHandlers.forBagUserStateHandlerFactory(
               stageBundleFactory.getProcessBundleDescriptor(),
               new BagUserStateFactory(
-                  keyedStateInternals, getKeyedStateBackend(), stateBackendLock));
+                  () -> UUID.randomUUID().toString(),
+                  keyedStateInternals,
+                  getKeyedStateBackend(),
+                  stateBackendLock,
+                  keyCoder));
     } else {
       userStateRequestHandler = StateRequestHandler.unsupported();
     }
 
     EnumMap<TypeCase, StateRequestHandler> handlerMap = new EnumMap<>(TypeCase.class);
+    handlerMap.put(TypeCase.ITERABLE_SIDE_INPUT, sideInputStateHandler);
     handlerMap.put(TypeCase.MULTIMAP_SIDE_INPUT, sideInputStateHandler);
+    handlerMap.put(TypeCase.MULTIMAP_KEYS_SIDE_INPUT, sideInputStateHandler);
     handlerMap.put(TypeCase.BAG_USER_STATE, userStateRequestHandler);
 
     return StateRequestHandlers.delegateBasedUponType(handlerMap);
   }
 
-  private static class BagUserStateFactory<K extends ByteString, V, W extends BoundedWindow>
-      implements StateRequestHandlers.BagUserStateHandlerFactory<K, V, W> {
+  static class BagUserStateFactory<V, W extends BoundedWindow>
+      implements StateRequestHandlers.BagUserStateHandlerFactory<ByteString, V, W> {
 
     private final StateInternals stateInternals;
     private final KeyedStateBackend<ByteBuffer> keyedStateBackend;
+    /** Lock to hold whenever accessing the state backend. */
     private final Lock stateBackendLock;
+    /** For debugging: The key coder used by the Runner. */
+    @Nullable private final Coder runnerKeyCoder;
+    /** For debugging: Same as keyedStateBackend but upcasted, to access key group meta info. */
+    @Nullable private final AbstractKeyedStateBackend<ByteBuffer> keyStateBackendWithKeyGroupInfo;
+    /** Holds the valid cache token for user state for this operator. */
+    private final ByteString cacheToken;
 
-    private BagUserStateFactory(
+    BagUserStateFactory(
+        IdGenerator cacheTokenGenerator,
         StateInternals stateInternals,
         KeyedStateBackend<ByteBuffer> keyedStateBackend,
-        Lock stateBackendLock) {
-
+        Lock stateBackendLock,
+        @Nullable Coder runnerKeyCoder) {
       this.stateInternals = stateInternals;
       this.keyedStateBackend = keyedStateBackend;
       this.stateBackendLock = stateBackendLock;
+      if (keyedStateBackend instanceof AbstractKeyedStateBackend) {
+        // This will always succeed, unless a custom state backend is used which does not extend
+        // AbstractKeyedStateBackend. This is unlikely but we should still consider this case.
+        this.keyStateBackendWithKeyGroupInfo =
+            (AbstractKeyedStateBackend<ByteBuffer>) keyedStateBackend;
+      } else {
+        this.keyStateBackendWithKeyGroupInfo = null;
+      }
+      this.runnerKeyCoder = runnerKeyCoder;
+      this.cacheToken = ByteString.copyFrom(cacheTokenGenerator.getId().getBytes(Charsets.UTF_8));
     }
 
     @Override
-    public StateRequestHandlers.BagUserStateHandler<K, V, W> forUserState(
+    public StateRequestHandlers.BagUserStateHandler<ByteString, V, W> forUserState(
+        // Transform id not used because multiple operators with state will not
+        // be fused together. See GreedyPCollectionFusers
         String pTransformId,
         String userStateId,
-        Coder<K> keyCoder,
+        Coder<ByteString> keyCoder,
         Coder<V> valueCoder,
         Coder<W> windowCoder) {
-      return new StateRequestHandlers.BagUserStateHandler<K, V, W>() {
+      return new StateRequestHandlers.BagUserStateHandler<ByteString, V, W>() {
+
         @Override
-        public Iterable<V> get(K key, W window) {
-          try {
-            stateBackendLock.lock();
+        public Iterable<V> get(ByteString key, W window) {
+          try (Locker locker = Locker.locked(stateBackendLock)) {
             prepareStateBackend(key);
             StateNamespace namespace = StateNamespaces.window(windowCoder, window);
             if (LOG.isDebugEnabled()) {
@@ -289,16 +333,14 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             }
             BagState<V> bagState =
                 stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
+
             return bagState.read();
-          } finally {
-            stateBackendLock.unlock();
           }
         }
 
         @Override
-        public void append(K key, W window, Iterator<V> values) {
-          try {
-            stateBackendLock.lock();
+        public void append(ByteString key, W window, Iterator<V> values) {
+          try (Locker locker = Locker.locked(stateBackendLock)) {
             prepareStateBackend(key);
             StateNamespace namespace = StateNamespaces.window(windowCoder, window);
             if (LOG.isDebugEnabled()) {
@@ -314,15 +356,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             while (values.hasNext()) {
               bagState.add(values.next());
             }
-          } finally {
-            stateBackendLock.unlock();
           }
         }
 
         @Override
-        public void clear(K key, W window) {
-          try {
-            stateBackendLock.lock();
+        public void clear(ByteString key, W window) {
+          try (Locker locker = Locker.locked(stateBackendLock)) {
             prepareStateBackend(key);
             StateNamespace namespace = StateNamespaces.window(windowCoder, window);
             if (LOG.isDebugEnabled()) {
@@ -336,18 +375,32 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             BagState<V> bagState =
                 stateInternals.state(namespace, StateTags.bag(userStateId, valueCoder));
             bagState.clear();
-          } finally {
-            stateBackendLock.unlock();
           }
         }
 
-        private void prepareStateBackend(K key) {
-          // Key for state request is shipped already encoded as ByteString,
-          // this is mostly a wrapping with ByteBuffer. We still follow the
-          // usual key encoding procedure.
-          // final ByteBuffer encodedKey = FlinkKeyUtils.encodeKey(key, keyCoder);
-          final ByteBuffer encodedKey = ByteBuffer.wrap(key.toByteArray());
+        @Override
+        public Optional<ByteString> getCacheToken() {
+          // Cache tokens remains valid for the life time of the operator
+          return Optional.of(cacheToken);
+        }
+
+        private void prepareStateBackend(ByteString key) {
+          // Key for state request is shipped encoded with NESTED context.
+          ByteBuffer encodedKey = FlinkKeyUtils.fromEncodedKey(key);
           keyedStateBackend.setCurrentKey(encodedKey);
+          if (keyStateBackendWithKeyGroupInfo != null) {
+            int currentKeyGroupIndex = keyStateBackendWithKeyGroupInfo.getCurrentKeyGroupIndex();
+            KeyGroupRange keyGroupRange = keyStateBackendWithKeyGroupInfo.getKeyGroupRange();
+            Preconditions.checkState(
+                keyGroupRange.contains(currentKeyGroupIndex),
+                "The current key '%s' with key group index '%s' does not belong to the key group range '%s'. Runner keyCoder: %s. Ptransformid: %s Userstateid: %s",
+                Arrays.toString(key.toByteArray()),
+                currentKeyGroupIndex,
+                keyGroupRange,
+                runnerKeyCoder,
+                pTransformId,
+                userStateId);
+          }
         }
       };
     }
@@ -391,8 +444,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       ByteBuffer encodedKey = (ByteBuffer) keySelector.getKey(timerElement);
       // We have to synchronize to ensure the state backend is not concurrently accessed by the
       // state requests
-      try {
-        stateBackendLock.lock();
+      try (Locker locker = Locker.locked(stateBackendLock)) {
         getKeyedStateBackend().setCurrentKey(encodedKey);
         if (timerData.getTimestamp().isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
           timerInternals.deleteTimer(
@@ -400,8 +452,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         } else {
           timerInternals.setTimer(timerData);
         }
-      } finally {
-        stateBackendLock.unlock();
       }
     } catch (Exception e) {
       throw new RuntimeException("Couldn't set timer", e);
@@ -413,12 +463,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     final ByteBuffer encodedKey = timer.getKey();
     // We have to synchronize to ensure the state backend is not concurrently accessed by the state
     // requests
-    try {
-      stateBackendLock.lock();
+    try (Locker locker = Locker.locked(stateBackendLock)) {
       getKeyedStateBackend().setCurrentKey(encodedKey);
       super.fireTimer(timer);
-    } finally {
-      stateBackendLock.unlock();
     }
   }
 
@@ -450,9 +497,10 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
   @Override
   protected DoFnRunner<InputT, OutputT> createWrappingDoFnRunner(
-      DoFnRunner<InputT, OutputT> wrappedRunner) {
+      DoFnRunner<InputT, OutputT> wrappedRunner, StepContext stepContext) {
     sdkHarnessRunner =
         new SdkHarnessDoFnRunner<>(
+            wrappedRunner.getFn(),
             executableStage.getInputPCollection().getId(),
             stageBundleFactory,
             stateRequestHandler,
@@ -463,7 +511,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
             this::setTimer,
             () -> FlinkKeyUtils.decodeKey(getCurrentKey(), keyCoder));
 
-    return ensureStateCleanup(sdkHarnessRunner);
+    return ensureStateDoFnRunner(sdkHarnessRunner, payload, stepContext);
   }
 
   @Override
@@ -523,6 +571,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private static class SdkHarnessDoFnRunner<InputT, OutputT>
       implements DoFnRunner<InputT, OutputT> {
 
+    private final DoFn<InputT, OutputT> doFn;
     private final String mainInput;
     private final LinkedBlockingQueue<KV<String, OutputT>> outputQueue;
     private final StageBundleFactory stageBundleFactory;
@@ -537,10 +586,19 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     private final BiConsumer<WindowedValue<InputT>, TimerInternals.TimerData> timerRegistration;
     private final Supplier<Object> keyForTimer;
 
-    private RemoteBundle remoteBundle;
-    private FnDataReceiver<WindowedValue<?>> mainInputReceiver;
+    /**
+     * Current active bundle. Volatile to ensure mutually exclusive bundle processing threads see
+     * this consistent. Please see the description in DoFnOperator.
+     */
+    private volatile RemoteBundle remoteBundle;
+    /**
+     * Current main input receiver. Volatile to ensure mutually exclusive bundle processing threads
+     * see this consistent. Please see the description in DoFnOperator.
+     */
+    private volatile FnDataReceiver<WindowedValue<?>> mainInputReceiver;
 
     public SdkHarnessDoFnRunner(
+        DoFn<InputT, OutputT> doFn,
         String mainInput,
         StageBundleFactory stageBundleFactory,
         StateRequestHandler stateRequestHandler,
@@ -550,6 +608,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         Coder<BoundedWindow> windowCoder,
         BiConsumer<WindowedValue<InputT>, TimerInternals.TimerData> timerRegistration,
         Supplier<Object> keyForTimer) {
+
+      this.doFn = doFn;
       this.mainInput = mainInput;
       this.stageBundleFactory = stageBundleFactory;
       this.stateRequestHandler = stateRequestHandler;
@@ -608,7 +668,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     @Override
     public void onTimer(
-        String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+        String timerId,
+        String timerFamilyId,
+        BoundedWindow window,
+        Instant timestamp,
+        Instant outputTimestamp,
+        TimeDomain timeDomain) {
       Object timerKey = keyForTimer.get();
       Preconditions.checkNotNull(timerKey, "Key for timer needs to be set before calling onTimer");
       Preconditions.checkNotNull(remoteBundle, "Call to onTimer outside of a bundle");
@@ -621,7 +686,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       WindowedValue<KV<Object, Timer>> timerValue =
           WindowedValue.of(
               KV.of(timerKey, Timer.of(timestamp, new byte[0])),
-              timestamp,
+              outputTimestamp,
               Collections.singleton(window),
               PaneInfo.NO_FIRING);
       try {
@@ -640,6 +705,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         remoteBundle.close();
         emitResults();
       } catch (Exception e) {
+        if (e.getCause() instanceof StatusRuntimeException) {
+          throw new RuntimeException("SDK Harness connection lost.", e);
+        }
         throw new RuntimeException("Failed to finish remote bundle", e);
       } finally {
         remoteBundle = null;
@@ -691,15 +759,16 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     @Override
     public DoFn<InputT, OutputT> getFn() {
-      throw new UnsupportedOperationException();
+      return doFn;
     }
   }
 
-  private DoFnRunner<InputT, OutputT> ensureStateCleanup(
-      SdkHarnessDoFnRunner<InputT, OutputT> sdkHarnessRunner) {
-    if (keyCoder == null) {
-      // There won't be any state to clean up
-      // (stateful functions have to be keyed)
+  private DoFnRunner<InputT, OutputT> ensureStateDoFnRunner(
+      SdkHarnessDoFnRunner<InputT, OutputT> sdkHarnessRunner,
+      RunnerApi.ExecutableStagePayload payload,
+      StepContext stepContext) {
+
+    if (!isStateful) {
       return sdkHarnessRunner;
     }
     // Takes care of state cleanup via StatefulDoFnRunner
@@ -723,19 +792,33 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         new StateCleaner(userStates, windowCoder, () -> stateBackend.getCurrentKey());
 
     return new StatefulDoFnRunner<InputT, OutputT, BoundedWindow>(
-        sdkHarnessRunner, windowingStrategy, cleanupTimer, stateCleaner) {
+        sdkHarnessRunner,
+        getInputCoder(),
+        stepContext,
+        windowingStrategy,
+        cleanupTimer,
+        stateCleaner,
+        requiresTimeSortedInput(payload, true)) {
+
+      @Override
+      public void processElement(WindowedValue<InputT> input) {
+        try (Locker locker = Locker.locked(stateBackendLock)) {
+          @SuppressWarnings({"unchecked", "rawtypes"})
+          final ByteBuffer key =
+              FlinkKeyUtils.encodeKey(((KV) input.getValue()).getKey(), (Coder) keyCoder);
+          getKeyedStateBackend().setCurrentKey(key);
+          super.processElement(input);
+        }
+      }
+
       @Override
       public void finishBundle() {
         // Before cleaning up state, first finish bundle for all underlying DoFnRunners
         super.finishBundle();
         // execute cleanup after the bundle is complete
         if (!stateCleaner.cleanupQueue.isEmpty()) {
-          try {
-            stateBackendLock.lock();
-            stateCleaner.cleanupState(
-                keyedStateInternals, (key) -> stateBackend.setCurrentKey(key));
-          } finally {
-            stateBackendLock.unlock();
+          try (Locker locker = Locker.locked(stateBackendLock)) {
+            stateCleaner.cleanupState(keyedStateInternals, stateBackend::setCurrentKey);
           }
         }
       }
@@ -768,11 +851,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     }
 
     @Override
-    public Instant currentInputWatermarkTime() {
-      return timerInternals.currentInputWatermarkTime();
-    }
-
-    @Override
     public void setForWindow(InputT input, BoundedWindow window) {
       Preconditions.checkNotNull(input, "Null input passed to CleanupTimer");
       // make sure this fires after any window.maxTimestamp() timers
@@ -780,16 +858,15 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       // needs to match the encoding in prepareStateBackend for state request handler
       final ByteBuffer key = FlinkKeyUtils.encodeKey(((KV) input).getKey(), keyCoder);
       // Ensure the state backend is not concurrently accessed by the state requests
-      try {
-        stateBackendLock.lock();
+      try (Locker locker = Locker.locked(stateBackendLock)) {
         keyedStateBackend.setCurrentKey(key);
         timerInternals.setTimer(
             StateNamespaces.window(windowCoder, window),
             GC_TIMER_ID,
+            "",
             gcTime,
+            window.maxTimestamp(),
             TimeDomain.EVENT_TIME);
-      } finally {
-        stateBackendLock.unlock();
       }
     }
 
@@ -807,20 +884,20 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     private final List<String> userStateNames;
     private final Coder windowCoder;
     private final ArrayDeque<KV<ByteBuffer, BoundedWindow>> cleanupQueue;
-    private final Supplier<ByteBuffer> keyedStateBackend;
+    private final Supplier<ByteBuffer> currentKeySupplier;
 
     StateCleaner(
-        List<String> userStateNames, Coder windowCoder, Supplier<ByteBuffer> keyedStateBackend) {
+        List<String> userStateNames, Coder windowCoder, Supplier<ByteBuffer> currentKeySupplier) {
       this.userStateNames = userStateNames;
       this.windowCoder = windowCoder;
-      this.keyedStateBackend = keyedStateBackend;
+      this.currentKeySupplier = currentKeySupplier;
       this.cleanupQueue = new ArrayDeque<>();
     }
 
     @Override
     public void clearForWindow(BoundedWindow window) {
       // Executed in the context of onTimer(..) where the correct key will be set
-      cleanupQueue.add(KV.of(keyedStateBackend.get(), window));
+      cleanupQueue.add(KV.of(currentKeySupplier.get(), window));
     }
 
     @SuppressWarnings("ByteBufferBackingArray")
@@ -864,5 +941,25 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   private static class NoOpDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
     @ProcessElement
     public void doNothing(ProcessContext context) {}
+  }
+
+  private static class Locker implements AutoCloseable {
+
+    public static Locker locked(Lock lock) {
+      Locker locker = new Locker(lock);
+      lock.lock();
+      return locker;
+    }
+
+    private final Lock lock;
+
+    Locker(Lock lock) {
+      this.lock = lock;
+    }
+
+    @Override
+    public void close() {
+      lock.unlock();
+    }
   }
 }

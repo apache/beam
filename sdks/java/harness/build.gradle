@@ -27,6 +27,7 @@ def dependOnProjects = [":sdks:java:fn-execution",
                         ":runners:core-java", ":runners:core-construction-java"]
 
 applyJavaNature(
+  automaticModuleName: 'org.apache.beam.fn.harness',
   validateShadowJar: false,
   testShadowJar: true,
   shadowClosure:
@@ -56,16 +57,18 @@ dependencies {
     compile project(it)
   }
   compile library.java.jackson_databind
-  shadow library.java.vendored_guava_20_0
+  shadow library.java.vendored_guava_26_0_jre
   shadowTest library.java.powermock
+  shadowTest library.java.powermock_mockito
   compile library.java.joda_time
   compile library.java.slf4j_api
-  compile library.java.vendored_grpc_1_13_1
+  compile library.java.vendored_grpc_1_26_0
   provided library.java.error_prone_annotations
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(":runners:core-construction-java")
   shadowTestRuntimeClasspath library.java.slf4j_jdk14
 }

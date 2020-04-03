@@ -74,9 +74,9 @@ spotted, even after the merge happens.
 
 If you are merging a larger contribution, please make sure that the contributor
 has an ICLA on file with the Apache Secretary. You can view the list of
-committers [here](http://home.apache.org/phonebook.html?unix=committers), as
+committers [here](https://home.apache.org/phonebook.html?unix=committers), as
 well as [ICLA-signers who aren’t yet
-committers](http://home.apache.org/unlistedclas.html).
+committers](https://home.apache.org/unlistedclas.html).
 
 For smaller contributions, however, this is not required. In this case, we rely
 on [clause five](http://www.apache.org/licenses/LICENSE-2.0#contributions) of
@@ -106,6 +106,8 @@ rollback; it is easy to roll back many commits, or a whole pull request, but
 harder to roll back part of a commit.
 * Commit messages should tag JIRAs and be otherwise descriptive.
 It should later not be necessary to find a merge or first PR commit to find out what caused a change.
+* `CHANGES.md` file should be updated with noteworthy changes (e.g. new features, backward 
+incompatible changes, dependency changes, etc.).
 * Squash the "Fixup!", "Address comments" type of commits that resulted from review iterations.
 
 ## Merging it!

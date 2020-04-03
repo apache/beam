@@ -23,8 +23,8 @@ import static org.junit.Assert.assertTrue;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -287,19 +287,9 @@ public class FieldAccessDescriptorTest {
   }
 
   @Test
-  public void testFieldAccessIdsDefaultOrdering() {
-    FieldAccessDescriptor fieldAccessDescriptor =
-        FieldAccessDescriptor.withFieldNames("field3", "field2", "field1", "field0")
-            .resolve(SIMPLE_SCHEMA);
-
-    assertEquals(ImmutableList.of(0, 1, 2, 3), fieldAccessDescriptor.fieldIdsAccessed());
-  }
-
-  @Test
   public void testFieldInsertionOrdering() {
     FieldAccessDescriptor fieldAccessDescriptor =
         FieldAccessDescriptor.withFieldNames("field3", "field2", "field1", "field0")
-            .withOrderByFieldInsertionOrder()
             .resolve(SIMPLE_SCHEMA);
 
     assertEquals(ImmutableList.of(3, 2, 1, 0), fieldAccessDescriptor.fieldIdsAccessed());

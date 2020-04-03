@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -64,13 +64,14 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
+import org.apache.beam.sdk.values.PCollectionViews.TypeDescriptorSupplier;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
  * {@code PTransform}s for combining {@code PCollection} elements globally and per-key.
@@ -584,6 +585,11 @@ public class Combine {
     private void set(V value) {
       this.present = true;
       this.value = value;
+    }
+
+    @Override
+    public String toString() {
+      return "Combine.Holder(value=" + value + ", present=" + present + ")";
     }
   }
 
@@ -1300,9 +1306,12 @@ public class Combine {
           input.apply(Combine.<InputT, OutputT>globally(fn).withoutDefaults().withFanout(fanout));
       PCollection<KV<Void, OutputT>> materializationInput =
           combined.apply(new VoidKeyToMultimapMaterialization<>());
+      Coder<OutputT> outputCoder = combined.getCoder();
       PCollectionView<OutputT> view =
           PCollectionViews.singletonView(
               materializationInput,
+              (TypeDescriptorSupplier<OutputT>)
+                  () -> outputCoder != null ? outputCoder.getEncodedTypeDescriptor() : null,
               input.getWindowingStrategy(),
               insertDefault,
               insertDefault ? fn.defaultValue() : null,
@@ -2054,10 +2063,10 @@ public class Combine {
    * <pre>{@code
    * PCollection<KV<String, Integer>> pc = ...;
    * PCollection<KV<String, Iterable<Integer>>> groupedByKey = pc.apply(
-   *     new GroupByKey<String, Integer>());
-   * PCollection<KV<String, Integer>> sumByKey = groupedByKey.apply(
-   *     Combine.<String, Integer>groupedValues(
-   *         new Sum.SumIntegerFn()));
+   *     GroupByKey.create());
+   * PCollection<KV<String, Integer>> sumByKey =
+   *     groupedByKey.apply(Combine.groupedValues(
+   *         Sum.ofIntegers()));
    * }</pre>
    *
    * <p>See also {@link #perKey}/{@link PerKey Combine.PerKey}, which captures the common pattern of

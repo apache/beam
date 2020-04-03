@@ -186,13 +186,13 @@ SimpleFunction<Row, String> cassandraOutputValueType = SimpleFunction<Row, Strin
 To read data from Elasticsearch, use `EsInputFormat`, which needs following properties to be set:
 
 ```java
-Configuration elasticSearchConf = new Configuration();
-elasticSearchConf.set("es.nodes", ElasticsearchHostIp);
-elasticSearchConf.set("es.port", "9200");
-elasticSearchConf.set("es.resource", "ElasticIndexName/ElasticTypeName");
-elasticSearchConf.setClass("key.class", org.apache.hadoop.io.Text Text.class, Object.class);
-elasticSearchConf.setClass("value.class", org.elasticsearch.hadoop.mr.LinkedMapWritable LinkedMapWritable.class, Object.class);
-elasticSearchConf.setClass("mapreduce.job.inputformat.class", org.elasticsearch.hadoop.mr.EsInputFormat EsInputFormat.class, InputFormat.class);
+Configuration elasticsearchConf = new Configuration();
+elasticsearchConf.set("es.nodes", ElasticsearchHostIp);
+elasticsearchConf.set("es.port", "9200");
+elasticsearchConf.set("es.resource", "ElasticIndexName/ElasticTypeName");
+elasticsearchConf.setClass("key.class", org.apache.hadoop.io.Text Text.class, Object.class);
+elasticsearchConf.setClass("value.class", org.elasticsearch.hadoop.mr.LinkedMapWritable LinkedMapWritable.class, Object.class);
+elasticsearchConf.setClass("mapreduce.job.inputformat.class", org.elasticsearch.hadoop.mr.EsInputFormat EsInputFormat.class, InputFormat.class);
 ```
 
 ```py
@@ -203,7 +203,7 @@ Call Read transform as follows:
 
 ```java
 PCollection<KV<Text, LinkedMapWritable>> elasticData = p.apply("read",
-  HadoopFormatIO.<Text, LinkedMapWritable>read().withConfiguration(elasticSearchConf));
+  HadoopFormatIO.<Text, LinkedMapWritable>read().withConfiguration(elasticsearchConf));
 ```
 
 ```py

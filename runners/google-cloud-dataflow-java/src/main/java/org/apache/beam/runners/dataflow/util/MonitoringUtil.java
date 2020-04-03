@@ -35,9 +35,9 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowClient;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.PipelineResult.State;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -189,7 +189,7 @@ public class MonitoringUtil {
       // Project name is allowed in place of the project id: the user will be redirected to a URL
       // that has the project name replaced with project id.
       return String.format(
-          "https://console.cloud.google.com/dataflow/jobsDetail/locations/%s/jobs/%s?project=%s",
+          "https://console.cloud.google.com/dataflow/jobs/%s/%s?project=%s",
           URLEncoder.encode(regionId, StandardCharsets.UTF_8.name()),
           URLEncoder.encode(jobId, StandardCharsets.UTF_8.name()),
           URLEncoder.encode(projectName, StandardCharsets.UTF_8.name()));
@@ -219,6 +219,6 @@ public class MonitoringUtil {
   }
 
   public static State toState(String stateName) {
-    return MoreObjects.firstNonNull(DATAFLOW_STATE_TO_JOB_STATE.get(stateName), State.UNKNOWN);
+    return MoreObjects.firstNonNull(DATAFLOW_STATE_TO_JOB_STATE.get(stateName), State.UNRECOGNIZED);
   }
 }

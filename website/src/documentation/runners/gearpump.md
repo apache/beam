@@ -32,7 +32,7 @@ The Gearpump Runner and Gearpump are suitable for large scale, continuous jobs, 
 The [Beam Capability Matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/) documents the currently supported capabilities of the Gearpump Runner.
 
 ## Writing Beam Pipeline with Gearpump Runner
-To use the Gearpump Runner in a distributed mode, you have to setup a Gearpump cluster first by following the Gearpump [setup quickstart](http://gearpump.apache.org/releases/latest/deployment/deployment-standalone/index.html).
+To use the Gearpump Runner in a distributed mode, you have to setup a Gearpump cluster first by following the Gearpump [setup quickstart](https://gearpump.apache.org/releases/latest/deployment/deployment-standalone/index.html).
 
 Suppose you are writing a Beam pipeline, you can add a dependency on the latest version of the Gearpump runner by adding to your pom.xml to enable Gearpump runner.
 And your Beam application should also pack Beam SDK explicitly and here is a snippet of example pom.xml:
@@ -112,7 +112,7 @@ gear app -jar /path/to/{your_application}-{version}-shaded.jar com.beam.examples
 ```
 
 ## Monitoring your application
-You can monitor a running Gearpump application using Gearpump's Dashboard. Please follow the Gearpump [Start UI](http://gearpump.apache.org/releases/latest/deployment/deployment-standalone/index.html#start-ui) to start the dashboard.
+You can monitor a running Gearpump application using Gearpump's Dashboard. Please follow the Gearpump [Start UI](https://gearpump.apache.org/releases/latest/deployment/deployment-standalone/index.html#start-ui) to start the dashboard.
 
 ## Pipeline options for the Gearpump Runner
 

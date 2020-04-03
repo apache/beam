@@ -17,8 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Counter;
+import static org.apache.beam.runners.dataflow.worker.testing.GenericJsonAssert.assertEqualsAsJson;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 
@@ -28,6 +30,8 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.junit.Before;
@@ -56,14 +60,13 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformerTest {
             mockSpecValidator, pcollectionNameMapping);
     Optional<String> error = Optional.of("Error text");
     when(mockSpecValidator.validate(any())).thenReturn(error);
-    assertEquals(null, testObject.transform(null));
+    assertNull(testObject.transform(null));
   }
 
   @Test
   public void testTransformThrowsIfMonitoringInfoWithWrongUrnPrefixReceived() {
     Map<String, NameContext> pcollectionNameMapping = new HashMap<>();
-    MonitoringInfo monitoringInfo =
-        MonitoringInfo.newBuilder().setUrn("beam:user:metric:element_count:v1").build();
+    MonitoringInfo monitoringInfo = MonitoringInfo.newBuilder().setUrn(Urns.USER_SUM_INT64).build();
     ElementCountMonitoringInfoToCounterUpdateTransformer testObject =
         new ElementCountMonitoringInfoToCounterUpdateTransformer(
             mockSpecValidator, pcollectionNameMapping);
@@ -78,18 +81,20 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformerTest {
     Map<String, NameContext> pcollectionNameMapping = new HashMap<>();
     MonitoringInfo monitoringInfo =
         MonitoringInfo.newBuilder()
-            .setUrn("beam:metric:element_count:v1")
+            .setUrn(Urns.ELEMENT_COUNT)
+            .setType(TypeUrns.SUM_INT64_TYPE)
             .putLabels(MonitoringInfoConstants.Labels.PCOLLECTION, "anyValue")
             .build();
     ElementCountMonitoringInfoToCounterUpdateTransformer testObject =
         new ElementCountMonitoringInfoToCounterUpdateTransformer(
             mockSpecValidator, pcollectionNameMapping);
     when(mockSpecValidator.validate(any())).thenReturn(Optional.empty());
-    assertEquals(null, testObject.transform(monitoringInfo));
+    assertNull(testObject.transform(monitoringInfo));
   }
 
   @Test
-  public void testTransformReturnsValidCounterUpdateWhenValidMonitoringInfoReceived() {
+  public void testTransformReturnsValidCounterUpdateWhenValidMonitoringInfoReceived()
+      throws Exception {
     Map<String, NameContext> pcollectionNameMapping = new HashMap<>();
     pcollectionNameMapping.put(
         "anyValue",
@@ -97,8 +102,10 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformerTest {
 
     MonitoringInfo monitoringInfo =
         MonitoringInfo.newBuilder()
-            .setUrn("beam:metric:element_count:v1")
+            .setUrn(Urns.ELEMENT_COUNT)
+            .setType(TypeUrns.SUM_INT64_TYPE)
             .putLabels(MonitoringInfoConstants.Labels.PCOLLECTION, "anyValue")
+            .setPayload(encodeInt64Counter(1L))
             .build();
     ElementCountMonitoringInfoToCounterUpdateTransformer testObject =
         new ElementCountMonitoringInfoToCounterUpdateTransformer(
@@ -106,12 +113,12 @@ public class ElementCountMonitoringInfoToCounterUpdateTransformerTest {
     when(mockSpecValidator.validate(any())).thenReturn(Optional.empty());
 
     CounterUpdate result = testObject.transform(monitoringInfo);
-    assertNotEquals(null, result);
+    assertNotNull(result);
 
-    assertEquals(
-        "{cumulative=true, integer={highBits=0, lowBits=0}, "
-            + "nameAndKind={kind=SUM, "
-            + "name=transformedValue-ElementCount}}",
-        result.toString());
+    assertEqualsAsJson(
+        "{cumulative:true, integer:{highBits:0, lowBits:1}, "
+            + "nameAndKind:{kind:'SUM', "
+            + "name:'transformedValue-ElementCount'}}",
+        result);
   }
 }

@@ -32,6 +32,8 @@ To run a process for a certain duration, define in the code:
 
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -41,6 +43,8 @@ import threading
 import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class Command(object):
   def __init__(self, cmd, args):
@@ -49,12 +53,14 @@ class Command(object):
 
   def run(self, timeout):
     def thread_target():
-      logging.debug('Starting thread for %d seconds: %s',
-                    timeout, self.cmd.__name__)
+      logging.debug(
+          'Starting thread for %d seconds: %s', timeout, self.cmd.__name__)
 
       self.cmd(*self.args)
-      logging.info('%d seconds elapsed. Thread (%s) finished.',
-                   timeout, self.cmd.__name__)
+      _LOGGER.info(
+          '%d seconds elapsed. Thread (%s) finished.',
+          timeout,
+          self.cmd.__name__)
 
     thread = threading.Thread(target=thread_target, name='Thread-timeout')
     thread.daemon = True
@@ -81,7 +87,6 @@ class ParseEventFn(beam.DoFn):
                                         1528098831536,20180630,maria,vehicle'
     'b12345,maria,20000,1528098831536'
   """
-
   def process(self, elem):
     model_dict = {
         'p': nexmark_model.Person,

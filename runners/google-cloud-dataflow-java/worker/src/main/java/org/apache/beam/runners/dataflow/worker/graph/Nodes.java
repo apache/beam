@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.graph;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.json.JsonFactory;
@@ -42,7 +42,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /** Container class for different types of network nodes. All nodes only have reference equality. */
 public class Nodes {
@@ -349,7 +349,7 @@ public class Nodes {
   public abstract static class FetchAndFilterStreamingSideInputsNode extends Node {
     public static FetchAndFilterStreamingSideInputsNode create(
         WindowingStrategy<?, ?> windowingStrategy,
-        Map<PCollectionView<?>, RunnerApi.SdkFunctionSpec> pCollectionViewsToWindowMappingFns,
+        Map<PCollectionView<?>, RunnerApi.FunctionSpec> pCollectionViewsToWindowMappingFns,
         NameContext nameContext) {
       return new AutoValue_Nodes_FetchAndFilterStreamingSideInputsNode(
           windowingStrategy, pCollectionViewsToWindowMappingFns, nameContext);
@@ -357,7 +357,7 @@ public class Nodes {
 
     public abstract WindowingStrategy<?, ?> getWindowingStrategy();
 
-    public abstract Map<PCollectionView<?>, RunnerApi.SdkFunctionSpec>
+    public abstract Map<PCollectionView<?>, RunnerApi.FunctionSpec>
         getPCollectionViewsToWindowMappingFns();
 
     public abstract NameContext getNameContext();

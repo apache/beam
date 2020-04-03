@@ -40,9 +40,10 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:flink:1.5"' +
-              ' -Pnexmark.args="' +
+      switches('-Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              '--runner=FlinkRunner',
+              '--shutdownSourcesOnFinalWatermark=true',
               '--streaming=false',
               '--suite=SMOKE',
               '--streamTimeout=60' ,
@@ -55,9 +56,10 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:flink:1.5"' +
-              ' -Pnexmark.args="' +
+      switches('-Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              '--runner=FlinkRunner',
+              '--shutdownSourcesOnFinalWatermark=true',
               '--streaming=true',
               '--suite=SMOKE',
               '--streamTimeout=60' ,
@@ -70,9 +72,10 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:flink:1.5"' +
-              ' -Pnexmark.args="' +
+      switches('-Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              '--runner=FlinkRunner',
+              '--shutdownSourcesOnFinalWatermark=true',
               '--queryLanguage=sql',
               '--streaming=false',
               '--suite=SMOKE',
@@ -85,9 +88,10 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:flink:1.5"' +
-              ' -Pnexmark.args="' +
+      switches('-Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              '--runner=FlinkRunner',
+              '--shutdownSourcesOnFinalWatermark=true',
               '--queryLanguage=sql',
               '--streaming=true',
               '--suite=SMOKE',
@@ -107,8 +111,9 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Fl
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
   def final JOB_SPECIFIC_OPTIONS = [
-          'suite'        : 'SMOKE',
-          'streamTimeout': 60,
+          'suite' : 'SMOKE',
+          'streamTimeout' : 60,
+          'shutdownSourcesOnFinalWatermark' : true,
   ]
 
   Nexmark.standardJob(delegate, Runner.FLINK, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)

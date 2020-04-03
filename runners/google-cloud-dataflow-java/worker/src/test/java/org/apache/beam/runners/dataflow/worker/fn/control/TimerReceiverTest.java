@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
@@ -63,6 +63,7 @@ import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -70,11 +71,11 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
@@ -101,7 +102,10 @@ public class TimerReceiverTest implements Serializable {
     InProcessServerFactory serverFactory = InProcessServerFactory.create();
     dataServer =
         GrpcFnServer.allocatePortAndCreateFor(
-            GrpcDataService.create(serverExecutor, OutboundObserverFactory.serverDirect()),
+            GrpcDataService.create(
+                PipelineOptionsFactory.create(),
+                serverExecutor,
+                OutboundObserverFactory.serverDirect()),
             serverFactory);
     loggingServer =
         GrpcFnServer.allocatePortAndCreateFor(
@@ -161,6 +165,7 @@ public class TimerReceiverTest implements Serializable {
   @Test
   public void testSingleTimerScheduling() throws Exception {
     final String timerId = "timerId";
+    final String timerDeclarationId = TimerDeclaration.PREFIX + timerId;
 
     Pipeline p = Pipeline.create();
     PCollection<Integer> output =
@@ -224,14 +229,16 @@ public class TimerReceiverTest implements Serializable {
               }
             });
 
-    String timerOutputPCollection = timerSpecMap.get(timerId).outputCollectionId();
-    String timerInputPCollection = timerSpecMap.get(timerId).inputCollectionId();
+    String timerOutputPCollection = timerSpecMap.get(timerDeclarationId).outputCollectionId();
+    String timerInputPCollection = timerSpecMap.get(timerDeclarationId).inputCollectionId();
 
     // Arbitrary offset.
     long testTimerOffset = 123456;
     // Arbitrary key.
     Object timer = timerBytes("X", testTimerOffset);
-    Object windowedTimer = WindowedValue.valueInGlobalWindow(timer);
+    Object windowedTimer =
+        WindowedValue.timestampedValueInGlobalWindow(
+            timer, BoundedWindow.TIMESTAMP_MIN_VALUE.plus(testTimerOffset));
 
     // Simulate the SDK Harness sending a timer element to the Runner Harness.
     assertTrue(timerReceiver.receive(timerOutputPCollection, windowedTimer));
@@ -265,6 +272,8 @@ public class TimerReceiverTest implements Serializable {
   public void testMultiTimerScheduling() throws Exception {
     final String timerId1 = "timerId1";
     final String timerId2 = "timerId2";
+    final String timerDeclarationId1 = TimerDeclaration.PREFIX + timerId1;
+    final String timerDeclarationId2 = TimerDeclaration.PREFIX + timerId2;
 
     Pipeline p = Pipeline.create();
     PCollection<Integer> output =
@@ -346,16 +355,22 @@ public class TimerReceiverTest implements Serializable {
     long testTimerOffset = 123456;
     // Arbitrary key.
     Object timer1 = timerBytes("X", testTimerOffset);
-    Object windowedTimer1 = WindowedValue.valueInGlobalWindow(timer1);
+    Object windowedTimer1 =
+        WindowedValue.timestampedValueInGlobalWindow(
+            timer1, BoundedWindow.TIMESTAMP_MIN_VALUE.plus(testTimerOffset));
 
     Object timer2 = timerBytes("Y", testTimerOffset);
-    Object windowedTimer2 = WindowedValue.valueInGlobalWindow(timer2);
+    Object windowedTimer2 =
+        WindowedValue.timestampedValueInGlobalWindow(
+            timer2, BoundedWindow.TIMESTAMP_MIN_VALUE.plus(testTimerOffset));
 
     // Simulate the SDK Harness sending a timer element to the Runner Harness.
     assertTrue(
-        timerReceiver.receive(timerSpecMap.get(timerId1).outputCollectionId(), windowedTimer1));
+        timerReceiver.receive(
+            timerSpecMap.get(timerDeclarationId1).outputCollectionId(), windowedTimer1));
     assertTrue(
-        timerReceiver.receive(timerSpecMap.get(timerId2).outputCollectionId(), windowedTimer2));
+        timerReceiver.receive(
+            timerSpecMap.get(timerDeclarationId2).outputCollectionId(), windowedTimer2));
 
     // Expect that we get a timer element when we finish.
     Object expectedTimer1 =
@@ -374,12 +389,12 @@ public class TimerReceiverTest implements Serializable {
 
     Mockito.verify(timerReceiver, Mockito.never())
         .fireTimer(
-            timerSpecMap.get(timerId1).inputCollectionId(),
+            timerSpecMap.get(timerDeclarationId1).inputCollectionId(),
             (WindowedValue<KV<Object, org.apache.beam.runners.core.construction.Timer>>)
                 expectedTimer1);
     Mockito.verify(timerReceiver, Mockito.never())
         .fireTimer(
-            timerSpecMap.get(timerId2).inputCollectionId(),
+            timerSpecMap.get(timerDeclarationId2).inputCollectionId(),
             (WindowedValue<KV<Object, org.apache.beam.runners.core.construction.Timer>>)
                 expectedTimer2);
 
@@ -388,12 +403,12 @@ public class TimerReceiverTest implements Serializable {
     timerReceiver.finish();
     Mockito.verify(timerReceiver)
         .fireTimer(
-            timerSpecMap.get(timerId1).inputCollectionId(),
+            timerSpecMap.get(timerDeclarationId1).inputCollectionId(),
             (WindowedValue<KV<Object, org.apache.beam.runners.core.construction.Timer>>)
                 expectedTimer1);
     Mockito.verify(timerReceiver)
         .fireTimer(
-            timerSpecMap.get(timerId2).inputCollectionId(),
+            timerSpecMap.get(timerDeclarationId2).inputCollectionId(),
             (WindowedValue<KV<Object, org.apache.beam.runners.core.construction.Timer>>)
                 expectedTimer2);
   }
@@ -421,7 +436,7 @@ public class TimerReceiverTest implements Serializable {
         throws Exception {
       ImmutableMap.Builder<String, RemoteOutputReceiver<?>> outputReceivers =
           ImmutableMap.builder();
-      for (Map.Entry<String, Coder<WindowedValue<?>>> remoteOutputCoder :
+      for (Map.Entry<String, Coder> remoteOutputCoder :
           processBundleDescriptor.getRemoteOutputCoders().entrySet()) {
         String bundleOutputPCollection =
             Iterables.getOnlyElement(

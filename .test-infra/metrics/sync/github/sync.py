@@ -38,9 +38,9 @@ def findDockerNetworkIP():
   return cmd_out.split(" ")[2]
 
 
-DB_HOST = findDockerNetworkIP()
+#DB_HOST = findDockerNetworkIP()
 
-# DB_HOST = os.environ['DB_HOST']
+DB_HOST = os.environ['DB_HOST']
 DB_PORT = os.environ['DB_PORT']
 DB_NAME = os.environ['DB_DBNAME']
 DB_USER_NAME = os.environ['DB_DBUSERNAME']

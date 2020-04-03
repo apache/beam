@@ -17,7 +17,7 @@ package graphx
 
 import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
+	v1 "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -40,7 +40,9 @@ type CoderRef struct {
 const (
 	windowedValueType = "kind:windowed_value"
 	bytesType         = "kind:bytes"
+	boolType          = "kind:bool"
 	varIntType        = "kind:varint"
+	doubleType        = "kind:double"
 	streamType        = "kind:stream"
 	pairType          = "kind:pair"
 	lengthPrefixType  = "kind:length_prefix"
@@ -147,8 +149,14 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 		// TODO(herohde) 6/27/2017: add length-prefix and not assume nested by context?
 		return &CoderRef{Type: bytesType}, nil
 
+	case coder.Bool:
+		return &CoderRef{Type: boolType}, nil
+
 	case coder.VarInt:
 		return &CoderRef{Type: varIntType}, nil
+
+	case coder.Double:
+		return &CoderRef{Type: doubleType}, nil
 
 	default:
 		return nil, errors.Errorf("bad coder kind: %v", c.Kind)
@@ -174,8 +182,14 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 	case bytesType:
 		return coder.NewBytes(), nil
 
+	case boolType:
+		return coder.NewBool(), nil
+
 	case varIntType:
 		return coder.NewVarInt(), nil
+
+	case doubleType:
+		return coder.NewDouble(), nil
 
 	case pairType:
 		if len(c.Components) != 2 {

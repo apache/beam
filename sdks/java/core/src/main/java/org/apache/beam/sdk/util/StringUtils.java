@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.util;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Internal;
 
 /** Utilities for working with JSON and other human-readable string formats. */
+@Internal
 public class StringUtils {
   /**
    * Converts the given array of bytes into a legal JSON string.

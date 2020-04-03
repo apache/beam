@@ -17,7 +17,10 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyPortabilityNature(shadowJarValidationExcludes: ["org/apache/beam/model/fnexecution/v1/**"])
+applyPortabilityNature(
+    automaticModuleName: 'org.apache.beam.model.fn.execution',
+    shadowJarValidationExcludes: ["org/apache/beam/model/fnexecution/v1/**"]
+)
 
 description = "Apache Beam :: Model :: Fn Execution"
 ext.summary = "Portable definitions for execution user-defined functions."

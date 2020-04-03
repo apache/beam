@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
+	v1 "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -31,12 +31,15 @@ import (
 const (
 	// Model constants
 
-	urnBytesCoder         = "beam:coder:bytes:v1"
-	urnVarIntCoder        = "beam:coder:varint:v1"
-	urnLengthPrefixCoder  = "beam:coder:length_prefix:v1"
-	urnKVCoder            = "beam:coder:kv:v1"
-	urnIterableCoder      = "beam:coder:iterable:v1"
-	urnWindowedValueCoder = "beam:coder:windowed_value:v1"
+	urnBytesCoder               = "beam:coder:bytes:v1"
+	urnBoolCoder                = "beam:coder:bool:v1"
+	urnVarIntCoder              = "beam:coder:varint:v1"
+	urnDoubleCoder              = "beam:coder:double:v1"
+	urnLengthPrefixCoder        = "beam:coder:length_prefix:v1"
+	urnKVCoder                  = "beam:coder:kv:v1"
+	urnIterableCoder            = "beam:coder:iterable:v1"
+	urnStateBackedIterableCoder = "beam:coder:state_backed_iterable:v1"
+	urnWindowedValueCoder       = "beam:coder:windowed_value:v1"
 
 	urnGlobalWindow   = "beam:coder:global_window:v1"
 	urnIntervalWindow = "beam:coder:interval_window:v1"
@@ -46,6 +49,22 @@ const (
 	urnCustomCoder = "beam:go:coder:custom:v1"
 	urnCoGBKList   = "beam:go:coder:cogbklist:v1" // CoGBK representation. Not a coder.
 )
+
+func knownStandardCoders() []string {
+	return []string{
+		urnBytesCoder,
+		urnBoolCoder,
+		urnVarIntCoder,
+		urnDoubleCoder,
+		urnLengthPrefixCoder,
+		urnKVCoder,
+		urnIterableCoder,
+		urnStateBackedIterableCoder,
+		urnWindowedValueCoder,
+		urnGlobalWindow,
+		urnIntervalWindow,
+	}
+}
 
 // MarshalCoders marshals a list of coders into model coders.
 func MarshalCoders(coders []*coder.Coder) ([]string, map[string]*pb.Coder) {
@@ -154,8 +173,14 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 	case urnBytesCoder:
 		return coder.NewBytes(), nil
 
+	case urnBoolCoder:
+		return coder.NewBool(), nil
+
 	case urnVarIntCoder:
 		return coder.NewVarInt(), nil
+
+	case urnDoubleCoder:
+		return coder.NewDouble(), nil
 
 	case urnKVCoder:
 		if len(components) != 2 {
@@ -175,8 +200,9 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 		if err != nil {
 			return nil, err
 		}
-		isGBK := elm.GetSpec().GetUrn() == urnIterableCoder
-		if isGBK {
+
+		switch elm.GetSpec().GetUrn() {
+		case urnIterableCoder, urnStateBackedIterableCoder:
 			id = elm.GetComponentCoderIds()[0]
 			kind = coder.CoGBK
 			root = typex.CoGBKType
@@ -352,6 +378,7 @@ func (b *CoderMarshaller) Add(c *coder.Coder) string {
 			value = b.internBuiltInCoder(urnLengthPrefixCoder, union)
 		}
 
+		// SDKs always provide iterableCoder to runners, but can receive StateBackedIterables in return.
 		stream := b.internBuiltInCoder(urnIterableCoder, value)
 		return b.internBuiltInCoder(urnKVCoder, comp[0], stream)
 
@@ -364,8 +391,14 @@ func (b *CoderMarshaller) Add(c *coder.Coder) string {
 		// TODO(herohde) 6/27/2017: add length-prefix and not assume nested by context?
 		return b.internBuiltInCoder(urnBytesCoder)
 
+	case coder.Bool:
+		return b.internBuiltInCoder(urnBoolCoder)
+
 	case coder.VarInt:
 		return b.internBuiltInCoder(urnVarIntCoder)
+
+	case coder.Double:
+		return b.internBuiltInCoder(urnDoubleCoder)
 
 	default:
 		panic(fmt.Sprintf("Failed to marshal custom coder %v, unexpected coder kind: %v", c, c.Kind))

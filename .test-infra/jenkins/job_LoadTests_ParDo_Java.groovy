@@ -22,18 +22,18 @@ import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import CronJobBuilder
 
-def commonLoadTestConfig = { jobType, isStreaming ->
+def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
     [
             [
-            title        : 'Load test: ParDo 2GB 100 byte records 10 times',
-            itClass      : 'org.apache.beam.sdk.loadtests.ParDoLoadTest',
-            runner       : CommonTestProperties.Runner.DATAFLOW,
-            jobProperties: [
+            title          : 'Load test: ParDo 2GB 100 byte records 10 times',
+            test           : 'org.apache.beam.sdk.loadtests.ParDoLoadTest',
+            runner         : CommonTestProperties.Runner.DATAFLOW,
+            pipelineOptions: [
                     project             : 'apache-beam-testing',
                     appName             : "load_tests_Java_Dataflow_${jobType}_ParDo_1",
                     tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
                     publishToBigQuery   : true,
-                    bigQueryDataset     : 'load_test',
+                    bigQueryDataset     : datasetName,
                     bigQueryTable       : "java_dataflow_${jobType}_ParDo_1",
                     sourceOptions       : """
                                             {
@@ -45,22 +45,21 @@ def commonLoadTestConfig = { jobType, isStreaming ->
                     iterations          : 10,
                     numberOfCounters    : 1,
                     numberOfCounterOperations: 0,
-                    maxNumWorkers       : 5,
                     numWorkers          : 5,
                     autoscalingAlgorithm: "NONE",
                     streaming           : isStreaming
             ]
             ],
             [
-                    title        : 'Load test: ParDo 2GB 100 byte records 200  times',
-                    itClass      : 'org.apache.beam.sdk.loadtests.ParDoLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: ParDo 2GB 100 byte records 200  times',
+                    test           : 'org.apache.beam.sdk.loadtests.ParDoLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project             : 'apache-beam-testing',
                             appName             : "load_tests_Java_Dataflow_${jobType}_ParDo_2",
                             tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery   : true,
-                            bigQueryDataset     : 'load_test',
+                            bigQueryDataset     : datasetName,
                             bigQueryTable       : "java_dataflow_${jobType}_ParDo_2",
                             sourceOptions       : """
                                                     {
@@ -72,7 +71,6 @@ def commonLoadTestConfig = { jobType, isStreaming ->
                             iterations          : 200,
                             numberOfCounters    : 1,
                             numberOfCounterOperations: 0,
-                            maxNumWorkers       : 5,
                             numWorkers          : 5,
                             autoscalingAlgorithm: "NONE",
                             streaming           : isStreaming
@@ -80,15 +78,15 @@ def commonLoadTestConfig = { jobType, isStreaming ->
             ],
             [
 
-                    title        : 'Load test: ParDo 2GB 100 byte records 10 counters',
-                    itClass      : 'org.apache.beam.sdk.loadtests.ParDoLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: ParDo 2GB 100 byte records 10 counters',
+                    test           : 'org.apache.beam.sdk.loadtests.ParDoLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project             : 'apache-beam-testing',
                             appName             : "load_tests_Java_Dataflow_${jobType}_ParDo_3",
                             tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery   : true,
-                            bigQueryDataset     : 'load_test',
+                            bigQueryDataset     : datasetName,
                             bigQueryTable       : "java_dataflow_${jobType}_ParDo_3",
                             sourceOptions       : """
                                                     {
@@ -97,10 +95,9 @@ def commonLoadTestConfig = { jobType, isStreaming ->
                                                       "valueSizeBytes": 90
                                                     }
                                                """.trim().replaceAll("\\s", ""),
-                            iterations          : 10,
+                            iterations          : 1,
                             numberOfCounters    : 1,
                             numberOfCounterOperations: 10,
-                            maxNumWorkers       : 5,
                             numWorkers          : 5,
                             autoscalingAlgorithm: "NONE",
                             streaming           : isStreaming
@@ -108,15 +105,15 @@ def commonLoadTestConfig = { jobType, isStreaming ->
 
             ],
             [
-                    title        : 'Load test: ParDo 2GB 100 byte records 100 counters',
-                    itClass      : 'org.apache.beam.sdk.loadtests.ParDoLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: ParDo 2GB 100 byte records 100 counters',
+                    test           : 'org.apache.beam.sdk.loadtests.ParDoLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project             : 'apache-beam-testing',
                             appName             : "load_tests_Java_Dataflow_${jobType}_ParDo_4",
                             tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery   : true,
-                            bigQueryDataset     : 'load_test',
+                            bigQueryDataset     : datasetName,
                             bigQueryTable       : "java_dataflow_${jobType}_ParDo_4",
                             sourceOptions       : """
                                                     {
@@ -125,10 +122,9 @@ def commonLoadTestConfig = { jobType, isStreaming ->
                                                       "valueSizeBytes": 90
                                                     }
                                                """.trim().replaceAll("\\s", ""),
-                            iterations          : 10,
+                            iterations          : 1,
                             numberOfCounters    : 1,
                             numberOfCounterOperations: 100,
-                            maxNumWorkers       : 5,
                             numWorkers          : 5,
                             autoscalingAlgorithm: "NONE",
                             streaming           : isStreaming
@@ -139,16 +135,18 @@ def commonLoadTestConfig = { jobType, isStreaming ->
 
 
 def batchLoadTestJob = { scope, triggeringContext ->
-    loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, commonLoadTestConfig('batch', false), triggeringContext, "ParDo", "batch")
+    def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
+    loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, commonLoadTestConfig('batch', false, datasetName), "ParDo", "batch")
 }
 
 def streamingLoadTestJob = {scope, triggeringContext ->
     scope.description('Runs Java ParDo load tests on Dataflow runner in streaming mode')
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
-    for (testConfiguration in commonLoadTestConfig('streaming', true)) {
-        testConfiguration.jobProperties << [inputWindowDurationSec: 1200]
-        loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
+    def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
+    for (testConfiguration in commonLoadTestConfig('streaming', true, datasetName)) {
+        testConfiguration.pipelineOptions << [inputWindowDurationSec: 1200]
+        loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.pipelineOptions, testConfiguration.test)
     }
 }
 

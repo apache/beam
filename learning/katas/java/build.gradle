@@ -18,13 +18,14 @@
 
 buildscript {
   ext {
-    beamVersion = '2.13.0'
-    guavaVersion = '27.1-jre'
-    jodaTimeVersion = '2.10.2'
-    slf4jVersion = '1.7.26'
+    beamVersion = '2.19.0'
+    guavaVersion = '28.1-jre'
+    jodaTimeVersion = '2.10.4'
+    slf4jVersion = '1.7.28'
+    log4jSlf4jImpl = '2.12.1'
 
-    assertjVersion = '3.12.2'
-    hamcrestVersion = '1.3'
+    assertjVersion = '3.13.2'
+    hamcrestVersion = '2.1'
     junitVersion = '4.12'
   }
   
@@ -57,7 +58,7 @@ subprojects {
 
     compile "joda-time:joda-time:$jodaTimeVersion"
     compile "org.slf4j:slf4j-api:$slf4jVersion"
-    compile "org.slf4j:slf4j-jdk14:$slf4jVersion"
+    compile "org.apache.logging.log4j:log4j-slf4j-impl:$log4jSlf4jImpl"
     compile "com.google.guava:guava:$guavaVersion"
 
     testCompile "junit:junit:$junitVersion"
@@ -69,6 +70,7 @@ subprojects {
   sourceSets {
     main {
       java.srcDir 'src'
+      resources.srcDir 'resources'
     }
     test {
       java.srcDir 'test'
@@ -111,6 +113,6 @@ configure(subprojects.findAll { it.name != 'util' }) {
   }
 }
 
-task wrapper(type: Wrapper) {
-  gradleVersion = '4.8'
+wrapper {
+  gradleVersion = '5.0'
 }

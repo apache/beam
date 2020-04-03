@@ -20,12 +20,12 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog;
 import com.alibaba.fastjson.JSONObject;
 import java.util.Map;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.io.hcatalog.HCatalogBeamSchema;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 
 /**
  * Metastore has a structure of 'db.table'.

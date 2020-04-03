@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.reflect.Method;
 import java.sql.SQLException;
@@ -30,10 +30,12 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.udf.BeamBuiltinFunctionProvider;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.UdfUdafProvider;
@@ -42,11 +44,12 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
-import org.apache.calcite.jdbc.CalcitePrepare;
-import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.schema.Function;
-import org.apache.calcite.sql.SqlExecutableStatement;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalcitePrepare;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptUtil;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlExecutableStatement;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 
 /**
  * Contains the metadata of tables/UDF functions, and exposes APIs to
@@ -98,7 +101,12 @@ public class BeamSqlEnv {
   }
 
   public BeamRelNode parseQuery(String query) throws ParseException {
-    return planner.convertToBeamRel(query);
+    return planner.convertToBeamRel(query, QueryParameters.ofNone());
+  }
+
+  public BeamRelNode parseQuery(String query, QueryParameters queryParameters)
+      throws ParseException {
+    return planner.convertToBeamRel(query, queryParameters);
   }
 
   public boolean isDdl(String sqlStatement) throws ParseException {
@@ -120,7 +128,7 @@ public class BeamSqlEnv {
 
   public String explain(String sqlString) throws ParseException {
     try {
-      return RelOptUtil.toString(planner.convertToBeamRel(sqlString));
+      return RelOptUtil.toString(planner.convertToBeamRel(sqlString, QueryParameters.ofNone()));
     } catch (Exception e) {
       throw new ParseException("Unable to parse statement", e);
     }
@@ -138,6 +146,7 @@ public class BeamSqlEnv {
     private boolean autoLoadBuiltinFunctions;
     private boolean autoLoadUdfs;
     private PipelineOptions pipelineOptions;
+    private RuleSet[] ruleSets;
 
     private BeamSqlEnvBuilder(TableProvider tableProvider) {
       checkNotNull(tableProvider, "Table provider for the default schema must be sets.");
@@ -149,6 +158,7 @@ public class BeamSqlEnv {
       autoLoadUdfs = false;
       autoLoadBuiltinFunctions = false;
       pipelineOptions = null;
+      ruleSets = BeamRuleSets.getRuleSets();
     }
 
     /** Add a top-level schema backed by the table provider. */
@@ -167,6 +177,11 @@ public class BeamSqlEnv {
       return this;
     }
 
+    /** Set the ruleSet used for query optimizer. */
+    public BeamSqlEnvBuilder setRuleSets(RuleSet[] ruleSets) {
+      this.ruleSets = ruleSets;
+      return this;
+    }
     /** Register a UDF function which can be used in SQL expression. */
     public BeamSqlEnvBuilder addUdf(String functionName, Class<?> clazz, String method) {
       functionSet.add(new SimpleEntry<>(functionName, UdfImpl.create(clazz, method)));
@@ -233,7 +248,7 @@ public class BeamSqlEnv {
 
       addUdfsUdafs(jdbcConnection);
 
-      QueryPlanner planner = instantiatePlanner(jdbcConnection);
+      QueryPlanner planner = instantiatePlanner(jdbcConnection, ruleSets);
 
       return new BeamSqlEnv(jdbcConnection, planner);
     }
@@ -294,17 +309,12 @@ public class BeamSqlEnv {
       }
     }
 
-    private QueryPlanner instantiatePlanner(JdbcConnection jdbcConnection) {
-
-      if (queryPlannerClassName.equals(CALCITE_PLANNER)) {
-        return new CalciteQueryPlanner(jdbcConnection);
-      }
-
+    private QueryPlanner instantiatePlanner(JdbcConnection jdbcConnection, RuleSet[] ruleSets) {
       try {
         return (QueryPlanner)
             Class.forName(queryPlannerClassName)
-                .getConstructor(JdbcConnection.class)
-                .newInstance(jdbcConnection);
+                .getConstructor(JdbcConnection.class, RuleSet[].class)
+                .newInstance(jdbcConnection, ruleSets);
       } catch (Exception e) {
         throw new RuntimeException(
             String.format("Cannot construct query planner %s", queryPlannerClassName), e);

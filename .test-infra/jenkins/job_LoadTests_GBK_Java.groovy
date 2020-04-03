@@ -22,18 +22,18 @@ import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import CronJobBuilder
 
-def loadTestConfigurations = { mode, isStreaming ->
+def loadTestConfigurations = { mode, isStreaming, datasetName ->
     [
             [
-                    title        : 'Load test: 2GB of 10B records',
-                    itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: 2GB of 10B records',
+                    test           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project               : 'apache-beam-testing',
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_1",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
-                            bigQueryDataset       : 'load_test',
+                            bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_GBK_1",
                             sourceOptions         : """
                                             {
@@ -44,22 +44,21 @@ def loadTestConfigurations = { mode, isStreaming ->
                                        """.trim().replaceAll("\\s", ""),
                             fanout                : 1,
                             iterations            : 1,
-                            maxNumWorkers         : 5,
                             numWorkers            : 5,
                             autoscalingAlgorithm  : "NONE",
                             streaming             : isStreaming
                     ]
             ],
             [
-                    title        : 'Load test: 2GB of 100B records',
-                    itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: 2GB of 100B records',
+                    test           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project               : 'apache-beam-testing',
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_2",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
-                            bigQueryDataset       : 'load_test',
+                            bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_GBK_2",
                             sourceOptions         : """
                                             {
@@ -70,7 +69,6 @@ def loadTestConfigurations = { mode, isStreaming ->
                                        """.trim().replaceAll("\\s", ""),
                             fanout                : 1,
                             iterations            : 1,
-                            maxNumWorkers         : 5,
                             numWorkers            : 5,
                             autoscalingAlgorithm  : "NONE",
                             streaming             : isStreaming
@@ -78,26 +76,25 @@ def loadTestConfigurations = { mode, isStreaming ->
             ],
             [
 
-                    title        : 'Load test: 2GB of 100kB records',
-                    itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: 2GB of 100kB records',
+                    test           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project               : 'apache-beam-testing',
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_3",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
-                            bigQueryDataset       : 'load_test',
+                            bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_GBK_3",
                             sourceOptions         : """
                                             {
-                                              "numRecords": 2000,
-                                              "keySizeBytes": 100000,
-                                              "valueSizeBytes": 900000
+                                              "numRecords": 20000,
+                                              "keySizeBytes": 10000,
+                                              "valueSizeBytes": 90000
                                             }
                                        """.trim().replaceAll("\\s", ""),
                             fanout                : 1,
                             iterations            : 1,
-                            maxNumWorkers         : 5,
                             numWorkers            : 5,
                             autoscalingAlgorithm  : "NONE",
                             streaming             : isStreaming
@@ -105,15 +102,15 @@ def loadTestConfigurations = { mode, isStreaming ->
 
             ],
             [
-                    title        : 'Load test: fanout 4 times with 2GB 10-byte records total',
-                    itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: fanout 4 times with 2GB 10-byte records total',
+                    test           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project               : 'apache-beam-testing',
                             appName               : 'load_tests_Java_Dataflow_${mode}_GBK_4',
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
-                            bigQueryDataset       : 'load_test',
+                            bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_GBK_4",
                             sourceOptions         : """
                                             {
@@ -124,22 +121,21 @@ def loadTestConfigurations = { mode, isStreaming ->
                                        """.trim().replaceAll("\\s", ""),
                             fanout                : 4,
                             iterations            : 1,
-                            maxNumWorkers         : 16,
                             numWorkers            : 16,
                             autoscalingAlgorithm  : "NONE",
                             streaming             : isStreaming
                     ]
             ],
             [
-                    title        : 'Load test: fanout 8 times with 2GB 10-byte records total',
-                    itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: fanout 8 times with 2GB 10-byte records total',
+                    test           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project               : 'apache-beam-testing',
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_5",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
-                            bigQueryDataset       : 'load_test',
+                            bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_GBK_5",
                             sourceOptions         : """
                                             {
@@ -150,22 +146,21 @@ def loadTestConfigurations = { mode, isStreaming ->
                                        """.trim().replaceAll("\\s", ""),
                             fanout                : 8,
                             iterations            : 1,
-                            maxNumWorkers         : 16,
                             numWorkers            : 16,
                             autoscalingAlgorithm  : "NONE",
                             streaming             : isStreaming
                     ]
             ],
             [
-                    title        : 'Load test: reiterate 4 times 10kB values',
-                    itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: reiterate 4 times 10kB values',
+                    test           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project               : 'apache-beam-testing',
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_6",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
-                            bigQueryDataset       : 'load_test',
+                            bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_GBK_6",
                             sourceOptions         : """
                                             {
@@ -178,22 +173,21 @@ def loadTestConfigurations = { mode, isStreaming ->
                                        """.trim().replaceAll("\\s", ""),
                             fanout                : 1,
                             iterations            : 4,
-                            maxNumWorkers         : 5,
                             numWorkers            : 5,
                             autoscalingAlgorithm  : "NONE",
                             streaming             : isStreaming
                     ]
             ],
             [
-                    title        : 'Load test: reiterate 4 times 2MB values',
-                    itClass      : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
-                    runner       : CommonTestProperties.Runner.DATAFLOW,
-                    jobProperties: [
+                    title          : 'Load test: reiterate 4 times 2MB values',
+                    test           : 'org.apache.beam.sdk.loadtests.GroupByKeyLoadTest',
+                    runner         : CommonTestProperties.Runner.DATAFLOW,
+                    pipelineOptions: [
                             project               : 'apache-beam-testing',
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_7",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
-                            bigQueryDataset       : 'load_test',
+                            bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_GBK_7",
                             sourceOptions         : """
                                             {
@@ -206,7 +200,6 @@ def loadTestConfigurations = { mode, isStreaming ->
                                        """.trim().replaceAll("\\s", ""),
                             fanout                : 1,
                             iterations            : 4,
-                            maxNumWorkers         : 5,
                             numWorkers            : 5,
                             autoscalingAlgorithm  : "NONE",
                             streaming             : isStreaming
@@ -219,9 +212,10 @@ def streamingLoadTestJob = { scope, triggeringContext ->
   scope.description('Runs Java GBK load tests on Dataflow runner in streaming mode')
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
-  for (testConfiguration in loadTestConfigurations('streaming', true)) {
-    testConfiguration.jobProperties << [inputWindowDurationSec: 1200]
-    loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
+  def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
+  for (testConfiguration in loadTestConfigurations('streaming', true, datasetName)) {
+    testConfiguration.pipelineOptions << [inputWindowDurationSec: 1200]
+    loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA, testConfiguration.pipelineOptions, testConfiguration.test)
   }
 }
 
@@ -240,7 +234,8 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
 
 
 def batchLoadTestJob = { scope, triggeringContext ->
-    loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, loadTestConfigurations('batch', false), triggeringContext, "GBK", "batch")
+    def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
+    loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, loadTestConfigurations('batch', false, datasetName), "GBK", "batch")
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Java_GBK_Dataflow_Batch', 'H 14 * * *', this) {

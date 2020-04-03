@@ -25,9 +25,9 @@ import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
 import org.apache.beam.runners.core.construction.UnsupportedOverrideFactory;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
-/** {@link PTransform} overrides for Flink runner. */
+/** {@link PTransform} overrides for Spark runner. */
 class SparkTransformOverrides {
   public static List<PTransformOverride> getDefaultOverrides(boolean streaming) {
     ImmutableList.Builder<PTransformOverride> builder = ImmutableList.builder();

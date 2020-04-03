@@ -89,17 +89,32 @@ tableElement: columnName fieldType [ NOT NULL ]
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE bigquery
 LOCATION '[PROJECT_ID]:[DATASET].[TABLE]'
+TBLPROPERTIES '{"method": "DIRECT_READ"}'
 ```
 
-*   `LOCATION:`Location of the table in the BigQuery CLI format.
-    *   `PROJECT_ID`: ID of the Google Cloud Project
-    *   `DATASET`: BigQuery Dataset ID
-    *   `TABLE`: BigQuery Table ID within the Dataset
+*   `LOCATION`: Location of the table in the BigQuery CLI format.
+    *   `PROJECT_ID`: ID of the Google Cloud Project.
+    *   `DATASET`: BigQuery Dataset ID.
+    *   `TABLE`: BigQuery Table ID within the Dataset.
+*   `TBLPROPERTIES`:
+    *   `method`: Optional. Read method to use. Following options are available:
+        *   `DIRECT_READ`: Use the BigQuery Storage API.
+        *   `EXPORT`: Export data to Google Cloud Storage in Avro format and read data files from that location.
+        *   Default is `DIRECT_READ` for Beam 2.21+ (older versions use `EXPORT`).
 
 ### Read Mode
 
 Beam SQL supports reading columns with simple types (`simpleType`) and arrays of simple
 types (`ARRAY<simpleType>`).
+
+When reading using `EXPORT` method the following pipeline options should be set:
+*   `project`: ID of the Google Cloud Project.
+*   `tempLocation`: Bucket to store intermediate data in. Ex: `gs://temp-storage/temp`.
+
+When reading using `DIRECT_READ` method, an optimizer will attempt to perform
+project and predicate push-down, potentially reducing the time requited to read the data from BigQuery.
+
+More information about the BigQuery Storage API can be found [here](https://beam.apache.org/documentation/io/built-in/google-bigquery/#storage-api).
 
 ### Write Mode
 
@@ -307,6 +322,43 @@ Write Mode supports writing to a topic.
 ### Schema
 
 Only simple types are supported.
+
+## MongoDB
+
+### Syntax
+
+```
+CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
+TYPE mongodb
+LOCATION 'mongodb://[HOST]:[PORT]/[DATABASE]/[COLLECTION]'
+```
+*   `LOCATION`: Location of the collection.
+    *   `HOST`: Location of the MongoDB server. Can be localhost or an ip address.
+         When authentication is required username and password can be specified
+         as follows: `username:password@localhost`.
+    *   `PORT`: Port on which MongoDB server is listening.
+    *   `DATABASE`: Database to connect to.
+    *   `COLLECTION`: Collection within the database.
+
+### Read Mode
+
+Read Mode supports reading from a collection.
+
+### Write Mode
+
+Write Mode supports writing to a collection.
+
+### Schema
+
+Only simple types are supported. MongoDB documents are mapped to Beam SQL types via [`JsonToRow`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/JsonToRow.html) transform.
+
+### Example
+
+```
+CREATE EXTERNAL TABLE users (id INTEGER, username VARCHAR)
+TYPE mongodb
+LOCATION 'mongodb://localhost:27017/apache/users'
+```
 
 ## Text
 

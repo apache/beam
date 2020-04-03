@@ -17,13 +17,17 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Counter;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,9 +49,11 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.dataflow.worker.ByteStringCoder;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext;
@@ -61,19 +67,20 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
+import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.TextFormat;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Table;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,6 +117,8 @@ public class RegisterAndProcessBundleOperation extends Operation {
 
   private @Nullable String grpcReadTransformId = null;
   private String grpcReadTransformOutputName = null;
+  private String grpcReadTransformOutputPCollectionName = null;
+  private final Set<String> grpcReadTransformReadWritePCollectionNames;
 
   public RegisterAndProcessBundleOperation(
       IdGenerator idGenerator,
@@ -145,6 +154,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
       LOG.debug(
           "Process bundle descriptor {}", toDot(registerRequest.getProcessBundleDescriptor(0)));
     }
+
     for (Map.Entry<String, RunnerApi.PTransform> pTransform :
         registerRequest.getProcessBundleDescriptor(0).getTransformsMap().entrySet()) {
       if (pTransform.getValue().getSpec().getUrn().equals(RemoteGrpcPortRead.URN)) {
@@ -152,13 +162,45 @@ public class RegisterAndProcessBundleOperation extends Operation {
           // TODO: Handle the case of more than one input.
           grpcReadTransformId = null;
           grpcReadTransformOutputName = null;
+          grpcReadTransformOutputPCollectionName = null;
           break;
         }
         grpcReadTransformId = pTransform.getKey();
         grpcReadTransformOutputName =
             Iterables.getOnlyElement(pTransform.getValue().getOutputsMap().keySet());
+        grpcReadTransformOutputPCollectionName =
+            pTransform.getValue().getOutputsMap().get(grpcReadTransformOutputName);
       }
     }
+
+    grpcReadTransformReadWritePCollectionNames =
+        extractCrossBoundaryGrpcPCollectionNames(
+            registerRequest.getProcessBundleDescriptor(0).getTransformsMap().entrySet());
+  }
+
+  private Set<String> extractCrossBoundaryGrpcPCollectionNames(
+      final Set<Entry<String, PTransform>> ptransforms) {
+    Set<String> result = new HashSet<>();
+
+    // GRPC Read/Write expected to only have one Output/Input respectively.
+    for (Map.Entry<String, RunnerApi.PTransform> pTransform : ptransforms) {
+      if (pTransform.getValue().getSpec().getUrn().equals(RemoteGrpcPortRead.URN)) {
+        String grpcReadTransformOutputName =
+            Iterables.getOnlyElement(pTransform.getValue().getOutputsMap().keySet());
+        String pcollectionName =
+            pTransform.getValue().getOutputsMap().get(grpcReadTransformOutputName);
+        result.add(pcollectionName);
+      }
+
+      if (pTransform.getValue().getSpec().getUrn().equals(RemoteGrpcPortWrite.URN)) {
+        String grpcTransformInputName =
+            Iterables.getOnlyElement(pTransform.getValue().getInputsMap().keySet());
+        String pcollectionName = pTransform.getValue().getInputsMap().get(grpcTransformInputName);
+        result.add(pcollectionName);
+      }
+    }
+
+    return result;
   }
 
   /** Generates a dot description of the process bundle descriptor. */
@@ -239,6 +281,10 @@ public class RegisterAndProcessBundleOperation extends Operation {
     return processBundleId;
   }
 
+  public String getCurrentProcessBundleInstructionId() {
+    return processBundleId;
+  }
+
   @Override
   public void start() throws Exception {
     try (Closeable scope = context.enterStart()) {
@@ -252,7 +298,6 @@ public class RegisterAndProcessBundleOperation extends Operation {
                 .setRegister(registerRequest)
                 .build();
         registerFuture = instructionRequestHandler.handle(request);
-        getRegisterResponse(registerFuture);
       }
 
       checkState(
@@ -263,14 +308,17 @@ public class RegisterAndProcessBundleOperation extends Operation {
               .setInstructionId(getProcessBundleInstructionId())
               .setProcessBundle(
                   ProcessBundleRequest.newBuilder()
-                      .setProcessBundleDescriptorReference(
+                      .setProcessBundleDescriptorId(
                           registerRequest.getProcessBundleDescriptor(0).getId()))
               .build();
 
       deregisterStateHandler =
           beamFnStateDelegator.registerForProcessBundleInstructionId(
               getProcessBundleInstructionId(), this::delegateByStateKeyType);
-      processBundleResponse = instructionRequestHandler.handle(processBundleRequest);
+      processBundleResponse =
+          getRegisterResponse(registerFuture)
+              .thenCompose(
+                  registerResponse -> instructionRequestHandler.handle(processBundleRequest));
     }
   }
 
@@ -323,12 +371,8 @@ public class RegisterAndProcessBundleOperation extends Operation {
    * elements consumed from the upstream read operation.
    *
    * <p>May be called at any time, including before start() and after finish().
-   *
-   * @throws InterruptedException
-   * @throws ExecutionException
    */
-  public CompletionStage<BeamFnApi.ProcessBundleProgressResponse> getProcessBundleProgress()
-      throws InterruptedException, ExecutionException {
+  public CompletionStage<BeamFnApi.ProcessBundleProgressResponse> getProcessBundleProgress() {
     // processBundleId may be reset if this bundle finishes asynchronously.
     String processBundleId = this.processBundleId;
 
@@ -341,18 +385,12 @@ public class RegisterAndProcessBundleOperation extends Operation {
         InstructionRequest.newBuilder()
             .setInstructionId(idGenerator.getId())
             .setProcessBundleProgress(
-                ProcessBundleProgressRequest.newBuilder().setInstructionReference(processBundleId))
+                ProcessBundleProgressRequest.newBuilder().setInstructionId(processBundleId))
             .build();
 
     return instructionRequestHandler
         .handle(processBundleRequest)
-        .thenApply(
-            response -> {
-              if (!response.getError().isEmpty()) {
-                throw new IllegalStateException(response.getError());
-              }
-              return response.getProcessBundleProgress();
-            });
+        .thenApply(InstructionResponse::getProcessBundleProgress);
   }
 
   /** Returns the final metrics returned by the SDK harness when it completes the bundle. */
@@ -373,6 +411,48 @@ public class RegisterAndProcessBundleOperation extends Operation {
       // At the very least, we don't know that this has failed yet.
       return false;
     }
+  }
+
+  /*
+   * Returns a subset of monitoring infos that refer to grpc IO.
+   */
+  public List<MonitoringInfo> findIOPCollectionMonitoringInfos(
+      Iterable<MonitoringInfo> monitoringInfos) {
+    List<MonitoringInfo> result = new ArrayList<MonitoringInfo>();
+    if (grpcReadTransformReadWritePCollectionNames.isEmpty()) {
+      return result;
+    }
+
+    for (MonitoringInfo mi : monitoringInfos) {
+      if (mi.getUrn().equals(MonitoringInfoConstants.Urns.ELEMENT_COUNT)) {
+        String pcollection =
+            mi.getLabelsOrDefault(MonitoringInfoConstants.Labels.PCOLLECTION, null);
+        if ((pcollection != null)
+            && (grpcReadTransformReadWritePCollectionNames.contains(pcollection))) {
+          result.add(mi);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  long getInputElementsConsumed(final Iterable<MonitoringInfo> monitoringInfos) {
+    if (grpcReadTransformId == null) {
+      return 0;
+    }
+
+    for (MonitoringInfo mi : monitoringInfos) {
+      if (mi.getUrn().equals(MonitoringInfoConstants.Urns.ELEMENT_COUNT)) {
+        String pcollection =
+            mi.getLabelsOrDefault(MonitoringInfoConstants.Labels.PCOLLECTION, null);
+        if (pcollection != null && pcollection.equals(grpcReadTransformOutputPCollectionName)) {
+          return decodeInt64Counter(mi.getPayload());
+        }
+      }
+    }
+
+    return 0;
   }
 
   /** Returns the number of input elements consumed by the gRPC read, if known, otherwise 0. */
@@ -412,36 +492,36 @@ public class RegisterAndProcessBundleOperation extends Operation {
         stateRequest.getStateKey().getMultimapSideInput();
 
     SideInputReader sideInputReader =
-        ptransformIdToSideInputReader.get(multimapSideInputStateKey.getPtransformId());
+        ptransformIdToSideInputReader.get(multimapSideInputStateKey.getTransformId());
     checkState(
         sideInputReader != null,
-        String.format("Unknown PTransform '%s'", multimapSideInputStateKey.getPtransformId()));
+        String.format("Unknown PTransform '%s'", multimapSideInputStateKey.getTransformId()));
 
     PCollectionView<Materializations.MultimapView<Object, Object>> view =
         (PCollectionView<Materializations.MultimapView<Object, Object>>)
             ptransformIdToSideInputIdToPCollectionView.get(
-                multimapSideInputStateKey.getPtransformId(),
+                multimapSideInputStateKey.getTransformId(),
                 multimapSideInputStateKey.getSideInputId());
     checkState(
         view != null,
         String.format(
             "Unknown side input '%s' on PTransform '%s'",
             multimapSideInputStateKey.getSideInputId(),
-            multimapSideInputStateKey.getPtransformId()));
+            multimapSideInputStateKey.getTransformId()));
     checkState(
         Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
             view.getViewFn().getMaterialization().getUrn()),
         String.format(
             "Unknown materialization for side input '%s' on PTransform '%s' with urn '%s'",
             multimapSideInputStateKey.getSideInputId(),
-            multimapSideInputStateKey.getPtransformId(),
+            multimapSideInputStateKey.getTransformId(),
             view.getViewFn().getMaterialization().getUrn()));
     checkState(
         view.getCoderInternal() instanceof KvCoder,
         String.format(
             "Materialization of side input '%s' on PTransform '%s' expects %s but received %s.",
             multimapSideInputStateKey.getSideInputId(),
-            multimapSideInputStateKey.getPtransformId(),
+            multimapSideInputStateKey.getTransformId(),
             KvCoder.class.getSimpleName(),
             view.getCoderInternal().getClass().getSimpleName()));
     Coder<Object> keyCoder = ((KvCoder) view.getCoderInternal()).getKeyCoder();
@@ -460,7 +540,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
           String.format(
               "Unable to decode window for side input '%s' on PTransform '%s'.",
               multimapSideInputStateKey.getSideInputId(),
-              multimapSideInputStateKey.getPtransformId()),
+              multimapSideInputStateKey.getTransformId()),
           e);
     }
 
@@ -473,7 +553,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
           String.format(
               "Unable to decode user key for side input '%s' on PTransform '%s'.",
               multimapSideInputStateKey.getSideInputId(),
-              multimapSideInputStateKey.getPtransformId()),
+              multimapSideInputStateKey.getTransformId()),
           e);
     }
 
@@ -491,7 +571,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
           String.format(
               "Unable to encode values for side input '%s' on PTransform '%s'.",
               multimapSideInputStateKey.getSideInputId(),
-              multimapSideInputStateKey.getPtransformId()),
+              multimapSideInputStateKey.getTransformId()),
           e);
     }
   }
@@ -500,10 +580,10 @@ public class RegisterAndProcessBundleOperation extends Operation {
       StateRequest stateRequest) {
     StateKey.BagUserState bagUserStateKey = stateRequest.getStateKey().getBagUserState();
     DataflowStepContext userStepContext =
-        ptransformIdToUserStepContext.get(bagUserStateKey.getPtransformId());
+        ptransformIdToUserStepContext.get(bagUserStateKey.getTransformId());
     checkState(
         userStepContext != null,
-        String.format("Unknown PTransform id '%s'", bagUserStateKey.getPtransformId()));
+        String.format("Unknown PTransform id '%s'", bagUserStateKey.getTransformId()));
     // TODO: We should not be required to hold onto a pointer to the bag states for the
     // user. InMemoryStateInternals assumes that the Java garbage collector does the clean-up work
     // but instead StateInternals should hold its own references and write out any data and
@@ -547,53 +627,36 @@ public class RegisterAndProcessBundleOperation extends Operation {
     return true;
   }
 
-  private static CompletionStage<BeamFnApi.InstructionResponse> throwIfFailure(
+  private static CompletionStage<BeamFnApi.ProcessBundleResponse> getProcessBundleResponse(
       CompletionStage<InstructionResponse> responseFuture) {
     return responseFuture.thenApply(
         response -> {
-          if (!response.getError().isEmpty()) {
-            throw new IllegalStateException(
-                String.format(
-                    "Client failed to process %s with error [%s].",
-                    response.getInstructionId(), response.getError()));
+          switch (response.getResponseCase()) {
+            case PROCESS_BUNDLE:
+              return response.getProcessBundle();
+            default:
+              throw new IllegalStateException(
+                  String.format(
+                      "SDK harness returned wrong kind of response to ProcessBundleRequest: %s",
+                      TextFormat.printToString(response)));
           }
-          return response;
         });
   }
 
-  private static CompletionStage<BeamFnApi.ProcessBundleResponse> getProcessBundleResponse(
-      CompletionStage<InstructionResponse> responseFuture) {
-    return throwIfFailure(responseFuture)
-        .thenApply(
-            response -> {
-              switch (response.getResponseCase()) {
-                case PROCESS_BUNDLE:
-                  return response.getProcessBundle();
-                default:
-                  throw new IllegalStateException(
-                      String.format(
-                          "SDK harness returned wrong kind of response to ProcessBundleRequest: %s",
-                          TextFormat.printToString(response)));
-              }
-            });
-  }
-
   private static CompletionStage<BeamFnApi.RegisterResponse> getRegisterResponse(
-      CompletionStage<InstructionResponse> responseFuture)
-      throws ExecutionException, InterruptedException {
-    return throwIfFailure(responseFuture)
-        .thenApply(
-            response -> {
-              switch (response.getResponseCase()) {
-                case REGISTER:
-                  return response.getRegister();
-                default:
-                  throw new IllegalStateException(
-                      String.format(
-                          "SDK harness returned wrong kind of response to RegisterRequest: %s",
-                          TextFormat.printToString(response)));
-              }
-            });
+      CompletionStage<InstructionResponse> responseFuture) {
+    return responseFuture.thenApply(
+        response -> {
+          switch (response.getResponseCase()) {
+            case REGISTER:
+              return response.getRegister();
+            default:
+              throw new IllegalStateException(
+                  String.format(
+                      "SDK harness returned wrong kind of response to RegisterRequest: %s",
+                      TextFormat.printToString(response)));
+          }
+        });
   }
 
   private static void cancelIfNotNull(CompletionStage<?> future) {

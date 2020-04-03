@@ -18,11 +18,13 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.TableRow;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
@@ -36,6 +38,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -47,7 +50,6 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -67,9 +69,9 @@ import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -116,7 +118,9 @@ class BatchLoads<DestinationT, ElementT>
   private BigQueryServices bigQueryServices;
   private final WriteDisposition writeDisposition;
   private final CreateDisposition createDisposition;
+  private Set<SchemaUpdateOption> schemaUpdateOptions;
   private final boolean ignoreUnknownValues;
+  private final boolean useAvroLogicalTypes;
   // Indicates that we are writing to a constant single table. If this is the case, we will create
   // the table, even if there is no data in it.
   private final boolean singletonTable;
@@ -131,8 +135,9 @@ class BatchLoads<DestinationT, ElementT>
   private ValueProvider<String> customGcsTempLocation;
   private ValueProvider<String> loadJobProjectId;
   private final Coder<ElementT> elementCoder;
-  private final SerializableFunction<ElementT, TableRow> toRowFunction;
+  private final RowWriterFactory<ElementT, DestinationT> rowWriterFactory;
   private String kmsKey;
+  private boolean clusteringEnabled;
 
   // The maximum number of times to retry failed load or copy jobs.
   private int maxRetryJobs = DEFAULT_MAX_RETRY_JOBS;
@@ -147,8 +152,10 @@ class BatchLoads<DestinationT, ElementT>
       @Nullable ValueProvider<String> loadJobProjectId,
       boolean ignoreUnknownValues,
       Coder<ElementT> elementCoder,
-      SerializableFunction<ElementT, TableRow> toRowFunction,
-      @Nullable String kmsKey) {
+      RowWriterFactory<ElementT, DestinationT> rowWriterFactory,
+      @Nullable String kmsKey,
+      boolean clusteringEnabled,
+      boolean useAvroLogicalTypes) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
@@ -164,9 +171,16 @@ class BatchLoads<DestinationT, ElementT>
     this.customGcsTempLocation = customGcsTempLocation;
     this.loadJobProjectId = loadJobProjectId;
     this.ignoreUnknownValues = ignoreUnknownValues;
+    this.useAvroLogicalTypes = useAvroLogicalTypes;
     this.elementCoder = elementCoder;
-    this.toRowFunction = toRowFunction;
     this.kmsKey = kmsKey;
+    this.rowWriterFactory = rowWriterFactory;
+    this.clusteringEnabled = clusteringEnabled;
+    schemaUpdateOptions = Collections.emptySet();
+  }
+
+  void setSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions) {
+    this.schemaUpdateOptions = schemaUpdateOptions;
   }
 
   void setTestServices(BigQueryServices bigQueryServices) {
@@ -305,20 +319,20 @@ class BatchLoads<DestinationT, ElementT>
                             maxFilesPerPartition,
                             maxBytesPerPartition,
                             multiPartitionsTag,
-                            singlePartitionTag))
+                            singlePartitionTag,
+                            rowWriterFactory))
                     .withSideInputs(tempFilePrefixView)
                     .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
     PCollection<KV<TableDestination, String>> tempTables =
         writeTempTables(partitions.get(multiPartitionsTag), loadJobIdPrefixView);
+
     tempTables
         // Now that the load job has happened, we want the rename to happen immediately.
         .apply(
             Window.<KV<TableDestination, String>>into(new GlobalWindows())
                 .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1))))
         .apply(WithKeys.of((Void) null))
-        .setCoder(
-            KvCoder.of(
-                VoidCoder.of(), KvCoder.of(TableDestinationCoderV2.of(), StringUtf8Coder.of())))
+        .setCoder(KvCoder.of(VoidCoder.of(), tempTables.getCoder()))
         .apply(GroupByKey.create())
         .apply(Values.create())
         .apply(
@@ -375,7 +389,8 @@ class BatchLoads<DestinationT, ElementT>
                             maxFilesPerPartition,
                             maxBytesPerPartition,
                             multiPartitionsTag,
-                            singlePartitionTag))
+                            singlePartitionTag,
+                            rowWriterFactory))
                     .withSideInputs(tempFilePrefixView)
                     .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
     PCollection<KV<TableDestination, String>> tempTables =
@@ -383,7 +398,6 @@ class BatchLoads<DestinationT, ElementT>
 
     tempTables
         .apply("ReifyRenameInput", new ReifyAsIterable<>())
-        .setCoder(IterableCoder.of(KvCoder.of(TableDestinationCoderV2.of(), StringUtf8Coder.of())))
         .apply(
             "WriteRenameUntriggered",
             ParDo.of(
@@ -466,7 +480,7 @@ class BatchLoads<DestinationT, ElementT>
                         unwrittedRecordsTag,
                         maxNumWritersPerBundle,
                         maxFileSize,
-                        toRowFunction))
+                        rowWriterFactory))
                 .withSideInputs(tempFilePrefix)
                 .withOutputTags(writtenFilesTag, TupleTagList.of(unwrittedRecordsTag)));
     PCollection<WriteBundlesToFiles.Result<DestinationT>> writtenFiles =
@@ -535,7 +549,7 @@ class BatchLoads<DestinationT, ElementT>
             "WriteGroupedRecords",
             ParDo.of(
                     new WriteGroupedRecordsToFiles<DestinationT, ElementT>(
-                        tempFilePrefix, maxFileSize, toRowFunction))
+                        tempFilePrefix, maxFileSize, rowWriterFactory))
                 .withSideInputs(tempFilePrefix))
         .setCoder(WriteBundlesToFiles.ResultCoder.of(destinationCoder));
   }
@@ -563,6 +577,9 @@ class BatchLoads<DestinationT, ElementT>
           DynamicDestinationsHelpers.matchTableDynamicDestinations(destinations, bigQueryServices);
     }
 
+    Coder<TableDestination> tableDestinationCoder =
+        clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
+
     // If WriteBundlesToFiles produced more than DEFAULT_MAX_FILES_PER_PARTITION files or
     // DEFAULT_MAX_BYTES_PER_PARTITION bytes, then
     // the import needs to be split into multiple partitions, and those partitions will be
@@ -585,7 +602,11 @@ class BatchLoads<DestinationT, ElementT>
                 loadJobProjectId,
                 maxRetryJobs,
                 ignoreUnknownValues,
-                kmsKey));
+                kmsKey,
+                rowWriterFactory.getSourceFormat(),
+                useAvroLogicalTypes,
+                schemaUpdateOptions))
+        .setCoder(KvCoder.of(tableDestinationCoder, StringUtf8Coder.of()));
   }
 
   // In the case where the files fit into a single load job, there's no need to write temporary
@@ -618,7 +639,10 @@ class BatchLoads<DestinationT, ElementT>
                 loadJobProjectId,
                 maxRetryJobs,
                 ignoreUnknownValues,
-                kmsKey));
+                kmsKey,
+                rowWriterFactory.getSourceFormat(),
+                useAvroLogicalTypes,
+                schemaUpdateOptions));
   }
 
   private WriteResult writeResult(Pipeline p) {

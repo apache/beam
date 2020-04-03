@@ -265,7 +265,7 @@ func makeSideInputs(fn *funcx.Fn, in []*graph.Inbound, side []ReStream) ([]Reusa
 	for i := 0; i < len(side); i++ {
 		s, err := makeSideInput(in[i+1].Kind, fn.Param[param[i+offset]].T, side[i])
 		if err != nil {
-			return nil, errors.WithContextf(err, "making side input %v", i)
+			return nil, errors.WithContextf(err, "making side input %v for %v", i, fn)
 		}
 		ret = append(ret, s)
 	}
@@ -303,7 +303,7 @@ func makeSideInput(kind graph.InputKind, t reflect.Type, values ReStream) (Reusa
 			return nil, err
 		}
 		if len(elms) != 1 {
-			return nil, errors.Errorf("singleton side input %v for %v ill-defined", kind, t)
+			return nil, errors.Errorf("got %d values, want one value for %v side input of type %v", len(elms), graph.Singleton, t)
 		}
 		return &fixedValue{val: Convert(elms[0].Elm, t)}, nil
 

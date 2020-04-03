@@ -21,16 +21,15 @@ import PhraseTriggeringPostCommitBuilder
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def smokeTestConfigurations = [
+def smokeTestConfigurations = { datasetName -> [
         [
-                title        : 'GroupByKey Python load test Direct',
-                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.DIRECT,
-                sdk          : CommonTestProperties.SDK.PYTHON,
-                jobProperties: [
+                title          : 'GroupByKey Python load test Direct',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test',
+                runner         : CommonTestProperties.Runner.DIRECT,
+                pipelineOptions: [
                         publish_to_big_query: true,
                         project             : 'apache-beam-testing',
-                        metrics_dataset     : 'load_test_SMOKE',
+                        metrics_dataset     : datasetName,
                         metrics_table       : 'python_direct_gbk',
                         input_options       : '\'{"num_records": 100000,' +
                                 '"key_size": 1,' +
@@ -39,16 +38,15 @@ def smokeTestConfigurations = [
                 ]
         ],
         [
-                title        : 'GroupByKey Python load test Dataflow',
-                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                sdk          : CommonTestProperties.SDK.PYTHON,
-                jobProperties: [
+                title          : 'GroupByKey Python load test Dataflow',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test',
+                runner         : CommonTestProperties.Runner.DATAFLOW,
+                pipelineOptions: [
                         job_name            : 'load-tests-python-dataflow-batch-gbk-smoke-' + now,
                         project             : 'apache-beam-testing',
                         temp_location       : 'gs://temp-storage-for-perf-tests/smoketests',
                         publish_to_big_query: true,
-                        metrics_dataset     : 'load_test_SMOKE',
+                        metrics_dataset     : datasetName,
                         metrics_table       : 'python_dataflow_gbk',
                         input_options       : '\'{"num_records": 100000,' +
                                 '"key_size": 1,' +
@@ -56,7 +54,7 @@ def smokeTestConfigurations = [
                         max_num_workers       : 1,
                 ]
         ],
-]
+]}
 
 // Runs a tiny version load test suite to ensure nothing is broken.
 PhraseTriggeringPostCommitBuilder.postCommitJob(
@@ -65,5 +63,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         'Python Load Tests Smoke',
         this
 ) {
-    loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON, smokeTestConfigurations, CommonTestProperties.TriggeringContext.PR, "GBK", "smoke")
+    def datasetName = loadTestsBuilder.getBigQueryDataset('load_test_SMOKE', CommonTestProperties.TriggeringContext.PR)
+    loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON, smokeTestConfigurations(datasetName), "GBK", "smoke")
 }

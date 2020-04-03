@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.parquet;
 
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 
@@ -66,6 +65,8 @@ import org.junit.runners.JUnit4;
  *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
  *  "--numberOfRecords=100000",
+ *  "--datasetSize=12345",
+ *  "--expectedHash=99f23ab",
  *  "--filenamePrefix=output_file_path",
  *  ]'
  *  --tests org.apache.beam.sdk.io.parquet.ParquetIOIT
@@ -91,9 +92,11 @@ public class ParquetIOIT {
                   + "}");
 
   private static String filenamePrefix;
-  private static Integer numberOfRecords;
   private static String bigQueryDataset;
   private static String bigQueryTable;
+  private static Integer numberOfTextLines;
+  private static Integer datasetSize;
+  private static String expectedHash;
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
   private static final String PARQUET_NAMESPACE = ParquetIOIT.class.getName();
@@ -101,8 +104,9 @@ public class ParquetIOIT {
   @BeforeClass
   public static void setup() {
     FileBasedIOTestPipelineOptions options = readFileBasedIOITPipelineOptions();
-
-    numberOfRecords = options.getNumberOfRecords();
+    numberOfTextLines = options.getNumberOfRecords();
+    datasetSize = options.getDatasetSize();
+    expectedHash = options.getExpectedHash();
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     bigQueryDataset = options.getBigQueryDataset();
     bigQueryTable = options.getBigQueryTable();
@@ -112,7 +116,7 @@ public class ParquetIOIT {
   public void writeThenReadAll() {
     PCollection<String> testFiles =
         pipeline
-            .apply("Generate sequence", GenerateSequence.from(0).to(numberOfRecords))
+            .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
             .apply(
                 "Produce text lines",
                 ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
@@ -148,7 +152,6 @@ public class ParquetIOIT {
                             record -> String.valueOf(record.get("row"))))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
-    String expectedHash = getExpectedHashForLineCount(numberOfRecords);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
     testFiles.apply(
@@ -196,7 +199,10 @@ public class ParquetIOIT {
           double runTime = (readEnd - writeStart) / 1e3;
           return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
         });
-
+    if (datasetSize != null) {
+      metricSuppliers.add(
+          (ignored) -> NamedTestResult.create(uuid, timestamp, "dataset_size", datasetSize));
+    }
     return metricSuppliers;
   }
 

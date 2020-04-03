@@ -17,10 +17,12 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyPortabilityNature(shadowJarValidationExcludes:[
-    "org/apache/beam/model/expansion/v1/**",
-    "org/apache/beam/model/jobmanagement/v1/**",
-])
+applyPortabilityNature(
+    automaticModuleName: 'org.apache.beam.model.job.management',
+    shadowJarValidationExcludes: [
+        "org/apache/beam/model/expansion/v1/**",
+        "org/apache/beam/model/jobmanagement/v1/**",
+    ])
 
 description = "Apache Beam :: Model :: Job Management"
 ext.summary = "Portable definitions for submitting pipelines."

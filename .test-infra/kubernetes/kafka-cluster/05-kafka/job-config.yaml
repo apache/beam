@@ -18,7 +18,6 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: "kafka-config-eff079ec"
-  namespace: kafka
 spec:
   template:
     metadata:

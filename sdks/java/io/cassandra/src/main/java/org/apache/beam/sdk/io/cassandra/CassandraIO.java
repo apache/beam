@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.cassandra;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ColumnMetadata;
@@ -45,6 +45,7 @@ import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -57,9 +58,9 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,7 +104,7 @@ import org.slf4j.LoggerFactory;
  *        .withEntity(Person.class));
  * }</pre>
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class CassandraIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(CassandraIO.class);
@@ -375,9 +376,16 @@ public class CassandraIO {
   static class CassandraSource<T> extends BoundedSource<T> {
     final Read<T> spec;
     final List<String> splitQueries;
+    // split source ached size - can't be calculated when already split
+    Long estimatedSize;
     private static final String MURMUR3PARTITIONER = "org.apache.cassandra.dht.Murmur3Partitioner";
 
     CassandraSource(Read<T> spec, List<String> splitQueries) {
+      this(spec, splitQueries, null);
+    }
+
+    private CassandraSource(Read<T> spec, List<String> splitQueries, Long estimatedSize) {
+      this.estimatedSize = estimatedSize;
       this.spec = spec;
       this.splitQueries = splitQueries;
     }
@@ -409,7 +417,7 @@ public class CassandraIO {
               spec, desiredBundleSizeBytes, getEstimatedSizeBytes(pipelineOptions), cluster);
         } else {
           LOG.warn(
-              "Only Murmur3Partitioner is supported for splitting, using an unique source for "
+              "Only Murmur3Partitioner is supported for splitting, using a unique source for "
                   + "the read");
           return Collections.singletonList(
               new CassandraIO.CassandraSource<>(spec, Collections.singletonList(buildQuery(spec))));
@@ -450,6 +458,10 @@ public class CassandraIO {
               .map(ColumnMetadata::getName)
               .collect(Collectors.joining(","));
 
+      List<TokenRange> tokenRanges =
+          getTokenRanges(cluster, spec.keyspace().get(), spec.table().get());
+      final long estimatedSize = getEstimatedSizeBytesFromTokenRanges(tokenRanges) / splits.size();
+
       List<BoundedSource<T>> sources = new ArrayList<>();
       for (List<RingRange> split : splits) {
         List<String> queries = new ArrayList<>();
@@ -468,7 +480,7 @@ public class CassandraIO {
             queries.add(generateRangeQuery(spec, partitionKey, range.getStart(), range.getEnd()));
           }
         }
-        sources.add(new CassandraIO.CassandraSource<>(spec, queries));
+        sources.add(new CassandraIO.CassandraSource<>(spec, queries, estimatedSize));
       }
       return sources;
     }
@@ -506,28 +518,40 @@ public class CassandraIO {
       return minNumberOfSplits != null ? Math.max(numSplits, minNumberOfSplits.get()) : numSplits;
     }
 
+    /**
+     * Returns cached estimate for split or if missing calculate size for whole table. Highly
+     * innacurate if query is specified.
+     *
+     * @param pipelineOptions
+     * @return
+     */
     @Override
     public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) {
-      try (Cluster cluster =
-          getCluster(
-              spec.hosts(),
-              spec.port(),
-              spec.username(),
-              spec.password(),
-              spec.localDc(),
-              spec.consistencyLevel())) {
-        if (isMurmur3Partitioner(cluster)) {
-          try {
-            List<TokenRange> tokenRanges =
-                getTokenRanges(cluster, spec.keyspace().get(), spec.table().get());
-            return getEstimatedSizeBytesFromTokenRanges(tokenRanges);
-          } catch (Exception e) {
-            LOG.warn("Can't estimate the size", e);
+      if (estimatedSize != null) {
+        return estimatedSize;
+      } else {
+        try (Cluster cluster =
+            getCluster(
+                spec.hosts(),
+                spec.port(),
+                spec.username(),
+                spec.password(),
+                spec.localDc(),
+                spec.consistencyLevel())) {
+          if (isMurmur3Partitioner(cluster)) {
+            try {
+              List<TokenRange> tokenRanges =
+                  getTokenRanges(cluster, spec.keyspace().get(), spec.table().get());
+              this.estimatedSize = getEstimatedSizeBytesFromTokenRanges(tokenRanges);
+              return this.estimatedSize;
+            } catch (Exception e) {
+              LOG.warn("Can't estimate the size", e);
+              return 0L;
+            }
+          } else {
+            LOG.warn("Only Murmur3 partitioner is supported, can't estimate the size");
             return 0L;
           }
-        } else {
-          LOG.warn("Only Murmur3 partitioner is supported, can't estimate the size");
-          return 0L;
         }
       }
     }

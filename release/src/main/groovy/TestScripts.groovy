@@ -157,7 +157,7 @@ class TestScripts {
      pb.redirectErrorStream(true)
      def proc = pb.start()
      String output_text = ""
-     def text = StringBuilder.newInstance()
+     def text = new StringBuilder()
      proc.inputStream.eachLine {
        println it
        text.append(it + "\n")

@@ -99,7 +99,7 @@ public class ElasticsearchIOITCommon {
     ConnectionConfiguration connectionConfiguration =
         getConnectionConfiguration(options, IndexMode.READ);
     try (RestClient restClient = connectionConfiguration.createClient()) {
-      ElasticSearchIOTestUtils.insertTestDocuments(
+      ElasticsearchIOTestUtils.insertTestDocuments(
           connectionConfiguration, NUM_DOCS_ITESTS, restClient);
     }
   }

@@ -80,7 +80,6 @@ class TextSink<UserT, DestinationT> extends FileBasedSink<UserT, DestinationT, S
 
   /** A {@link Writer Writer} for text files. */
   private static class TextWriter<DestinationT> extends Writer<DestinationT, String> {
-    private static final String NEWLINE = "\n";
     @Nullable private final String header;
     @Nullable private final String footer;
     private final char[] delimiter;

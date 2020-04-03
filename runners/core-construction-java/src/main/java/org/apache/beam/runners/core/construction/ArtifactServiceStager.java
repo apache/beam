@@ -45,22 +45,22 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi.Manifest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactRequest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactResponse;
-import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
-import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceBlockingStub;
-import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceStub;
+import org.apache.beam.model.jobmanagement.v1.LegacyArtifactStagingServiceGrpc;
+import org.apache.beam.model.jobmanagement.v1.LegacyArtifactStagingServiceGrpc.LegacyArtifactStagingServiceBlockingStub;
+import org.apache.beam.model.jobmanagement.v1.LegacyArtifactStagingServiceGrpc.LegacyArtifactStagingServiceStub;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.util.ThrowingSupplier;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Channel;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hasher;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hasher;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** A client to stage files on an {@link ArtifactStagingServiceGrpc ArtifactService}. */
+/** A client to stage files on an {@link LegacyArtifactStagingServiceGrpc ArtifactService}. */
 public class ArtifactServiceStager {
   // 2 MB per file-request
   private static final int DEFAULT_BUFFER_SIZE = 2 * 1024 * 1024;
@@ -82,14 +82,14 @@ public class ArtifactServiceStager {
   }
 
   private final int bufferSize;
-  private final ArtifactStagingServiceStub stub;
-  private final ArtifactStagingServiceBlockingStub blockingStub;
+  private final LegacyArtifactStagingServiceStub stub;
+  private final LegacyArtifactStagingServiceBlockingStub blockingStub;
   private final ListeningExecutorService executorService =
       MoreExecutors.listeningDecorator(Executors.newCachedThreadPool());
 
   private ArtifactServiceStager(Channel channel, int bufferSize) {
-    this.stub = ArtifactStagingServiceGrpc.newStub(channel);
-    this.blockingStub = ArtifactStagingServiceGrpc.newBlockingStub(channel);
+    this.stub = LegacyArtifactStagingServiceGrpc.newStub(channel);
+    this.blockingStub = LegacyArtifactStagingServiceGrpc.newBlockingStub(channel);
     this.bufferSize = bufferSize;
   }
 

@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.util;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.firstNonNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.dataflow.model.DataflowPackage;
 import java.util.List;
@@ -93,9 +93,10 @@ public class GcsStager implements Stager {
   }
 
   private GcsCreateOptions buildCreateOptions() {
+    // Default is 1M, to avoid excessive memory use when uploading, but can be changed with
+    // {@link DataflowPipelineOptions#getGcsUploadBufferSizeBytes()}.
     int uploadSizeBytes = firstNonNull(options.getGcsUploadBufferSizeBytes(), 1024 * 1024);
     checkArgument(uploadSizeBytes > 0, "gcsUploadBufferSizeBytes must be > 0");
-    uploadSizeBytes = Math.min(uploadSizeBytes, 1024 * 1024);
 
     return GcsCreateOptions.builder()
         .setGcsUploadBufferSizeBytes(uploadSizeBytes)

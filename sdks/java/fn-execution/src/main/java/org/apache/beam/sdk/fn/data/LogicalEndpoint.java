@@ -30,7 +30,7 @@ public abstract class LogicalEndpoint {
 
   public abstract String getInstructionId();
 
-  public abstract String getPTransformId();
+  public abstract String getTransformId();
 
   public static LogicalEndpoint of(String instructionId, String transformId) {
     return new AutoValue_LogicalEndpoint(instructionId, transformId);

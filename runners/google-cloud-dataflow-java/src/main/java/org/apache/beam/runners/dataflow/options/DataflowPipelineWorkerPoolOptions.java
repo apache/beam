@@ -22,6 +22,8 @@ import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowRunnerInfo;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -30,7 +32,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 
 /** Options that are used to configure the Dataflow pipeline worker pool. */
 @Description("Options that are used to configure the Dataflow pipeline worker pool.")
-public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
+public interface DataflowPipelineWorkerPoolOptions extends GcpOptions {
   /**
    * Number of workers to use when executing the Dataflow job. Note that selection of an autoscaling
    * algorithm other then {@code NONE} will affect the size of the worker pool. If left unspecified,
@@ -46,7 +48,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   void setNumWorkers(int value);
 
   /** Type of autoscaling algorithm to use. */
-  @Experimental(Experimental.Kind.AUTOSCALING)
+  @Experimental(Kind.AUTOSCALING)
   enum AutoscalingAlgorithmType {
     /** Use numWorkers machines. Do not autoscale the worker pool. */
     NONE("AUTOSCALING_ALGORITHM_NONE"),
@@ -85,7 +87,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
           + "BASIC (deprecated): autoscale the worker pool size up to maxNumWorkers until the job "
           + "completes. "
           + "THROUGHPUT_BASED: autoscale the workerpool based on throughput (up to maxNumWorkers).")
-  @Experimental(Experimental.Kind.AUTOSCALING)
+  @Experimental(Kind.AUTOSCALING)
   AutoscalingAlgorithmType getAutoscalingAlgorithm();
 
   void setAutoscalingAlgorithm(AutoscalingAlgorithmType value);
@@ -165,20 +167,6 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   String getSubnetwork();
 
   void setSubnetwork(String value);
-
-  /**
-   * GCE <a href="https://developers.google.com/compute/docs/zones" >availability zone</a> for
-   * launching workers.
-   *
-   * <p>Default is up to the Dataflow service.
-   */
-  @Description(
-      "GCE availability zone for launching workers. See "
-          + "https://developers.google.com/compute/docs/zones for a list of valid options. "
-          + "Default is up to the Dataflow service.")
-  String getZone();
-
-  void setZone(String value);
 
   /**
    * Machine type to create Dataflow worker VMs as.

@@ -36,7 +36,7 @@ import org.apache.beam.sdk.fn.data.CompletableFutureInboundDataClient;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -55,7 +55,7 @@ public class BeamFnDataInboundObserverTest {
   public void testDecodingElements() throws Exception {
     Collection<WindowedValue<String>> values = new ArrayList<>();
     InboundDataClient readFuture = CompletableFutureInboundDataClient.create();
-    BeamFnDataInboundObserver<String> observer =
+    BeamFnDataInboundObserver<WindowedValue<String>> observer =
         new BeamFnDataInboundObserver<>(CODER, values::add, readFuture);
 
     // Test decoding multiple messages
@@ -79,7 +79,7 @@ public class BeamFnDataInboundObserverTest {
   @Test
   public void testConsumptionFailureCompletesReadFutureAndDiscardsMessages() throws Exception {
     InboundDataClient readClient = CompletableFutureInboundDataClient.create();
-    BeamFnDataInboundObserver<String> observer =
+    BeamFnDataInboundObserver<WindowedValue<String>> observer =
         new BeamFnDataInboundObserver<>(CODER, this::throwOnDefValue, readClient);
 
     assertFalse(readClient.isDone());
@@ -100,9 +100,7 @@ public class BeamFnDataInboundObserverTest {
 
   private BeamFnApi.Elements.Data dataWith(String... values) throws Exception {
     BeamFnApi.Elements.Data.Builder builder =
-        BeamFnApi.Elements.Data.newBuilder()
-            .setInstructionReference("777L")
-            .setPtransformId("999L");
+        BeamFnApi.Elements.Data.newBuilder().setInstructionId("777L").setTransformId("999L");
     ByteString.Output output = ByteString.newOutput();
     for (String value : values) {
       CODER.encode(valueInGlobalWindow(value), output);

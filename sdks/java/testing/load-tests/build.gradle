@@ -18,6 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+    publish: false,
     archivesBaseName: 'beam-sdks-java-load-tests',
     exportJavadoc: false
 )
@@ -29,7 +30,7 @@ def mainClassProperty = "loadTest.mainClass"
 def mainClass = project.findProperty(mainClassProperty)
 
 // When running via Gradle, this property can be used to pass commandline arguments
-// to the nexmark launch
+// to the load-tests launch
 def loadTestArgsProperty = "loadTest.args"
 
 // When running via Gradle, this property sets the runner dependency

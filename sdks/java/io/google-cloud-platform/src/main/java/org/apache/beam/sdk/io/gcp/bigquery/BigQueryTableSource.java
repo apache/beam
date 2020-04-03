@@ -25,7 +25,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,7 +69,8 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
       TableReference tableRef = tableDef.getTableReference(bqOptions);
       Table table = bqServices.getDatasetService(bqOptions).getTable(tableRef);
       Long numBytes = table.getNumBytes();
-      if (table.getStreamingBuffer() != null) {
+      if (table.getStreamingBuffer() != null
+          && table.getStreamingBuffer().getEstimatedBytes() != null) {
         numBytes += table.getStreamingBuffer().getEstimatedBytes().longValue();
       }
 

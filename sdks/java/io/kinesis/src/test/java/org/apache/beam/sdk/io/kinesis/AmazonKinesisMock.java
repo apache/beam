@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.kinesis;
 
 import static java.lang.Integer.parseInt;
 import static java.lang.Math.min;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists.transform;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists.transform;
 import static org.apache.commons.lang.builder.HashCodeBuilder.reflectionHashCode;
 
 import com.amazonaws.AmazonWebServiceRequest;
@@ -96,7 +96,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.joda.time.Instant;
 import org.mockito.Mockito;

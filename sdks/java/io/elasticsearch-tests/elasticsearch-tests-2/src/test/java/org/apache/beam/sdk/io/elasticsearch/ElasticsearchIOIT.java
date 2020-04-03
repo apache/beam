@@ -79,8 +79,8 @@ public class ElasticsearchIOIT {
 
   @AfterClass
   public static void afterClass() throws Exception {
-    ElasticSearchIOTestUtils.deleteIndex(writeConnectionConfiguration, restClient);
-    ElasticSearchIOTestUtils.deleteIndex(updateConnectionConfiguration, restClient);
+    ElasticsearchIOTestUtils.deleteIndex(writeConnectionConfiguration, restClient);
+    ElasticsearchIOTestUtils.deleteIndex(updateConnectionConfiguration, restClient);
     restClient.close();
   }
 
@@ -130,7 +130,7 @@ public class ElasticsearchIOIT {
    */
   @Test
   public void testWritePartialUpdate() throws Exception {
-    ElasticSearchIOTestUtils.copyIndex(
+    ElasticsearchIOTestUtils.copyIndex(
         restClient,
         readConnectionConfiguration.getIndex(),
         updateConnectionConfiguration.getIndex());

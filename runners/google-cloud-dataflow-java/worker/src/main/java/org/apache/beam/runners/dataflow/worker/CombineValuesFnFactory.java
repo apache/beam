@@ -46,7 +46,7 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 /**
  * A {@link ParDoFnFactory} to create instances of user {@link CombineFn} according to
@@ -92,6 +92,7 @@ class CombineValuesFnFactory implements ParDoFnFactory {
         executionContext.getStepContext(operationContext),
         operationContext,
         doFnInfo.getDoFnSchemaInformation(),
+        doFnInfo.getSideInputMapping(),
         SimpleDoFnRunnerFactory.INSTANCE);
   }
 
@@ -141,7 +142,8 @@ class CombineValuesFnFactory implements ParDoFnFactory {
           inputCoder,
           Collections.emptyMap(), // Not needed here.
           new TupleTag<>(PropertyNames.OUTPUT),
-          DoFnSchemaInformation.create());
+          DoFnSchemaInformation.create(),
+          Collections.emptyMap());
     }
 
     private final GlobalCombineFnRunner<InputT, ?, OutputT> combineFnRunner;
@@ -206,7 +208,8 @@ class CombineValuesFnFactory implements ParDoFnFactory {
           inputCoder,
           Collections.emptyMap(), // Not needed here.
           new TupleTag<>(PropertyNames.OUTPUT),
-          DoFnSchemaInformation.create());
+          DoFnSchemaInformation.create(),
+          Collections.emptyMap());
     }
 
     private final GlobalCombineFnRunner<InputT, AccumT, ?> combineFnRunner;
@@ -265,7 +268,8 @@ class CombineValuesFnFactory implements ParDoFnFactory {
           inputCoder,
           Collections.emptyMap(), // Not needed here.
           new TupleTag<>(PropertyNames.OUTPUT),
-          DoFnSchemaInformation.create());
+          DoFnSchemaInformation.create(),
+          Collections.emptyMap());
     }
 
     private final GlobalCombineFnRunner<?, AccumT, ?> combineFnRunner;
@@ -314,7 +318,8 @@ class CombineValuesFnFactory implements ParDoFnFactory {
           inputCoder,
           Collections.emptyMap(), // Not needed here.
           new TupleTag<>(PropertyNames.OUTPUT),
-          DoFnSchemaInformation.create());
+          DoFnSchemaInformation.create(),
+          Collections.emptyMap());
     }
 
     private final GlobalCombineFnRunner<?, AccumT, OutputT> combineFnRunner;

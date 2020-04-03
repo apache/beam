@@ -38,9 +38,9 @@ There are lots of opportunities to contribute:
  - review proposed design ideas on [dev@beam.apache.org]({{ site.baseurl
 }}/community/contact-us/)
  - improve the documentation
- - contribute [bug reports](https://issues.apache.org/jira/projects/BEAM/issues)
- - contribute by testing releases
- - contribute by reviewing [changes](https://github.com/apache/beam/pulls)
+ - file [bug reports](https://issues.apache.org/jira/projects/BEAM/issues)
+ - test releases
+ - review [changes](https://github.com/apache/beam/pulls)
  - write new examples
  - improve your favorite language SDK (Java, Python, Go, etc)
  - improve specific runners (Apache Apex, Apache Flink, Apache Spark, Google
@@ -58,7 +58,7 @@ Most importantly, if you have an idea of how to contribute, then do it!
 
 ## Contributing code
 
-Below is a tutorial for contributing [code to Beam](https://github.com/apache/beam), covering our tools and typical process in
+Below is a tutorial for contributing code to Beam, covering our tools and typical process in
 detail.
 
 ### Prerequisites
@@ -67,13 +67,37 @@ To contribute code, you need
 
  - a GitHub account
  - a Linux, macOS, or Microsoft Windows development environment with Java JDK 8 installed
- - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing website
+ - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing this website
    changes locally
- - [Go](https://golang.org) 1.10 or later installed for Go SDK development
- - Python, virtualenv, and tox installed for Python SDK development
+ - [Go](https://golang.org) 1.12 or later installed for Go SDK development
+ - Python 2.7, 3.5, 3.6, and 3.7. Yes, you need all four versions installed.
+    - pip, setuptools, virtualenv, and tox installed for Python development
  - for large contributions, a signed [Individual Contributor License
    Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
    Software Foundation (ASF).
+
+To install these in a Debian-based distribution:
+
+```
+sudo apt-get install \
+   openjdk-8-jdk \
+   python-setuptools \
+   python-pip \
+   virtualenv \
+   tox \
+   docker-ce
+```
+
+You also need to [install Go](https://golang.org/doc/install]).
+
+Once Go is installed, install goavro:
+
+```
+$ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
+$ go get github.com/linkedin/goavro
+```
+
+gLinux users should configure their machines for sudoless Docker.
 
 ### Connect With the Beam community
 
@@ -95,9 +119,9 @@ To contribute code, you need
    the [dev@ mailing list]({{ site.baseurl }}/community/contact-us)
    to introduce yourself and to be added as a contributor in the Beam issue tracker including your
    ASF Jira Username. For example [this welcome email](
-   https://lists.apache.org/thread.html/e6018c2aaf7dc7895091434295e5b0fafe192b975e3e3761fcf0cda7@%3Cdev.beam.apache.org%3E)
+   https://lists.apache.org/thread.html/e6018c2aaf7dc7895091434295e5b0fafe192b975e3e3761fcf0cda7@%3Cdev.beam.apache.org%3E).
 1. If your change is large or it is your first change, it is a good idea to
-   [discuss it on the dev@ mailing list]({{ site.baseurl }}/community/contact-us/)
+   [discuss it on the dev@ mailing list]({{ site.baseurl }}/community/contact-us/).
 1. For large changes create a design doc
    ([template](https://s.apache.org/beam-design-doc-template),
    [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@ mailing list]({{ site.baseurl }}/community/contact-us).
@@ -149,13 +173,17 @@ To contribute code, you need
 
 1. Make your code change. Every source file needs to include the Apache license header. Every new dependency needs to
    have an open source license [compatible](https://www.apache.org/legal/resolved.html#criteria) with Apache.
-1. Add unit tests for your change
+
+1. Add unit tests for your change.
+
+1. Use descriptive commit messages that make it easy to identify changes and provide a clear history.
+
 1. When your change is ready to be reviewed and merged, create a pull request.
-   Format commit messages and the pull request title like `[BEAM-XXX] Fixes bug in ApproximateQuantiles`,
+
+1. Format commit messages and the pull request title like `[BEAM-XXX] Fixes bug in ApproximateQuantiles`,
    where you replace BEAM-XXX with the appropriate JIRA issue.
    This will automatically link the pull request to the issue.
-   Use descriptive commit messages that make it easy to identify changes and provide a clear history.
-   To support efficient and quality review, avoid tiny or out-of-context changes and huge mega-changes.
+
 1. The pull request and any changes pushed to it will trigger [pre-commit
    jobs](https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide#ContributionTestingGuide-Pre-commit). If a test fails and appears unrelated to your
    change, you can cause tests to be re-run by adding a single line comment on your
@@ -163,9 +191,9 @@ To contribute code, you need
 
         retest this please
 
-   There are other trigger phrases for post-commit tests found in
-   .testinfra/jenkins, but use these sparingly because post-commit
-   tests consume shared development resources.
+   Pull request template has a link to a [catalog of trigger phrases](https://github.com/apache/beam/blob/master/.test-infra/jenkins/README.md)
+   that start various post-commit tests suites. Use these sparingly because post-commit tests consume shared development resources.
+
 1. Pull requests can only be merged by a
    [Beam committer]({{ site.baseurl }}/contribute/team/).
    To find a committer for your area, either:
@@ -174,11 +202,27 @@ To contribute code, you need
     - ask on [dev@beam.apache.org]({{ site.baseurl }}/community/contact-us/)
 
    Use `R: @username` in the pull request to notify a reviewer.
+
 1. If you don't get any response in 3 business days, email the [dev@ mailing list]({{ site.baseurl }}/community/contact-us) to ask for someone to look at your pull
    request.
-1. Review feedback typically leads to follow-up changes. You can add these changes as additional "fixup" commits to the
-   existing PR/branch. This will allow reviewer(s) to track the incremental progress. After review is complete and the
-   PR accepted, multiple commits should be squashed (see [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)).
+
+### Make the reviewer's job easier
+
+1. Provide context for your changes in the associated JIRA issue and/or PR description.
+
+1. Avoid huge mega-changes.
+
+1. Review feedback typically leads to follow-up changes. It is easier to review follow-up changes when they are added as additional "fixup" commits to the
+   existing PR/branch. This allows reviewer(s) to track the incremental progress and focus on new changes,
+   and keeps comment threads attached to the code.
+   Please refrain from squashing new commits into reviewed commits before review is completed.
+   Because squashing reviewed and unreviewed commits often makes it harder to
+   see the the difference between the review iterations, reviewers may ask you to unsquash new changes.
+
+1. After review is complete and the PR is accepted, fixup commits should be squashed (see [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)).
+   Beam committers [can squash](https://beam.apache.org/contribute/committer-guide/#merging-it)
+   all commits in the PR during merge, however if a PR has a mixture of independent changes that should not be squashed, and fixup commits,
+   then the PR author should help squashing fixup commits to maintain a clean commmit history.
 
 ## When will my change show up in an Apache Beam release?
 

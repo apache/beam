@@ -27,10 +27,11 @@ import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
-import org.apache.beam.runners.flink.translation.utils.FlinkClassloading;
+import org.apache.beam.runners.flink.translation.utils.Workarounds;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -40,9 +41,8 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueWithRecordId;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
@@ -63,7 +63,10 @@ import org.slf4j.LoggerFactory;
 /** Wrapper for executing {@link UnboundedSource UnboundedSources} as a Flink Source. */
 public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends RichParallelSourceFunction<WindowedValue<ValueWithRecordId<OutputT>>>
-    implements ProcessingTimeCallback, StoppableFunction, CheckpointListener, CheckpointedFunction {
+    implements ProcessingTimeCallback,
+        BeamStoppableFunction,
+        CheckpointListener,
+        CheckpointedFunction {
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceWrapper.class);
 
@@ -133,6 +136,9 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
   /** false if checkpointCoder is null or no restore state by starting first. */
   private transient boolean isRestored = false;
 
+  /** Metrics container which will be reported as Flink accumulators at the end of the job. */
+  private transient FlinkMetricContainer metricContainer;
+
   @SuppressWarnings("unchecked")
   public UnboundedSourceWrapper(
       String stepName,
@@ -172,7 +178,9 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
   /** Initialize and restore state before starting execution of the source. */
   @Override
   public void open(Configuration parameters) throws Exception {
+    FileSystems.setDefaultPipelineOptions(serializedOptions.get());
     runtimeContext = (StreamingRuntimeContext) getRuntimeContext();
+    metricContainer = new FlinkMetricContainer(runtimeContext);
 
     // figure out which split sources we're responsible for
     int subtaskIndex = runtimeContext.getIndexOfThisSubtask();
@@ -215,8 +223,6 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
   public void run(SourceContext<WindowedValue<ValueWithRecordId<OutputT>>> ctx) throws Exception {
 
     context = ctx;
-
-    FlinkMetricContainer metricContainer = new FlinkMetricContainer(getRuntimeContext());
 
     ReaderInvocationUtil<OutputT, UnboundedSource.UnboundedReader<OutputT>> readerInvoker =
         new ReaderInvocationUtil<>(stepName, serializedOptions.get(), metricContainer);
@@ -343,6 +349,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
   @Override
   public void close() throws Exception {
+    metricContainer.registerMetricsForPipelineResult();
     try {
       super.close();
       if (localReaders != null) {
@@ -351,7 +358,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
         }
       }
     } finally {
-      FlinkClassloading.deleteStaticCaches();
+      Workarounds.deleteStaticCaches();
     }
   }
 
@@ -420,6 +427,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
     }
 
     OperatorStateStore stateStore = context.getOperatorStateStore();
+    @SuppressWarnings("unchecked")
     CoderTypeInformation<KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>>
         typeInformation = (CoderTypeInformation) new CoderTypeInformation<>(checkpointCoder);
     stateForCheckpoint =

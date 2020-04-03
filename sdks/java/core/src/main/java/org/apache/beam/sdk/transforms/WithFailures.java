@@ -25,6 +25,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -32,7 +33,7 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * A collection of utilities for writing transforms that can handle exceptions raised during
@@ -67,7 +68,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap
  *      .apply("FlattenFailureCollections", Flatten.pCollections());
  * }</pre>
  */
-@Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+@Experimental(Kind.WITH_EXCEPTIONS)
 public class WithFailures {
 
   /**

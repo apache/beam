@@ -25,6 +25,9 @@ altay:
 angoenka:
     name: Ankur Goenka
     email: goenka@apache.org
+anton:
+    name: Anton Kedin
+    email: anton@apache.org
 ccy:
     name: Charles Chen
     email: ccy@apache.org
@@ -74,6 +77,14 @@ lkuligin:
     name: Leonid Kuligin
     email: kuligin@google.com
     twitter: lkulighin
+markliu:
+    name: Mark Liu
+    email: markliu@apache.org
+    twitter:
+ardagan:
+    name: Mikhail Gryzykhin
+    email: mikhail@apache.org
+    twitter:
 robertwb:
     name: Robert Bradshaw
     email: robertwb@apache.org
@@ -120,4 +131,16 @@ rez:
     name: Reza Rokni
     email: rez@google.com
     twitter: rarokni
+ttanay:
+    name: Tanay Tummalapalli
+    email: ttanay100@gmail.com
+    twitter: ttanay100
+udim:
+    name: Udi Meiri
+    email: udim@apache.org
+    twitter: udim
+boyuanzz:
+    name: Boyuan Zhang
+    email: boyuanz@apache.org
+    twitter:
 

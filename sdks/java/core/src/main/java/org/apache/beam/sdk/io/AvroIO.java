@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -33,6 +33,7 @@ import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.IndexedRecord;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -58,12 +59,15 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.joda.time.Duration;
 
 /**
@@ -74,7 +78,7 @@ import org.joda.time.Duration;
  * <p>To read a {@link PCollection} from one or more Avro files with the same schema known at
  * pipeline construction time, use {@link #read}, using {@link AvroIO.Read#from} to specify the
  * filename or filepattern to read from. If the filepatterns to be read are themselves in a {@link
- * PCollection} you can use {@link FileIO} to match them and {@link TextIO#readFiles} to read them.
+ * PCollection} you can use {@link FileIO} to match them and {@link AvroIO#readFiles} to read them.
  * If the schema is unknown at pipeline construction time, use {@link #parseGenericRecords} or
  * {@link #parseFilesGenericRecords}.
  *
@@ -148,7 +152,7 @@ import org.joda.time.Duration;
  *
  * PCollection<String> filepatterns = p.apply(...);
  * PCollection<AvroAutoGenClass> records =
- *     filepatterns.apply(AvroIO.read(AvroAutoGenClass.class));
+ *     filepatterns.apply(AvroIO.readAll(AvroAutoGenClass.class));
  * PCollection<AvroAutoGenClass> records =
  *     filepatterns
  *         .apply(FileIO.matchAll())
@@ -184,6 +188,49 @@ import org.joda.time.Duration;
  * thousands or more), use {@link Read#withHintMatchesManyFiles} for better performance and
  * scalability. Note that it may decrease performance if the filepattern matches only a small number
  * of files.
+ *
+ * <h3>Inferring Beam schemas from Avro files</h3>
+ *
+ * <p>If you want to use SQL or schema based operations on an Avro-based PCollection, you must
+ * configure the read transform to infer the Beam schema and automatically setup the Beam related
+ * coders by doing:
+ *
+ * <pre>{@code
+ * PCollection<AvroAutoGenClass> records =
+ *     p.apply(AvroIO.read(...).from(...).withBeamSchemas(true);
+ * }</pre>
+ *
+ * <h3>Inferring Beam schemas from Avro PCollections</h3>
+ *
+ * <p>If you created an Avro-based PCollection by other means e.g. reading records from Kafka or as
+ * the output of another PTransform, you may be interested on making your PCollection schema-aware
+ * so you can use the Schema-based APIs or Beam's SqlTransform.
+ *
+ * <p>If you are using Avro specific records (generated classes from an Avro schema), you can
+ * register a schema provider for the specific Avro class to make any PCollection of these objects
+ * schema-aware.
+ *
+ * <pre>{@code
+ * pipeline.getSchemaRegistry().registerSchemaProvider(AvroAutoGenClass.class, AvroAutoGenClass.getClassSchema());
+ * }</pre>
+ *
+ * You can also manually set an Avro-backed Schema coder for a PCollection using {@link
+ * org.apache.beam.sdk.schemas.utils.AvroUtils#schemaCoder(Class, Schema)} to make it schema-aware.
+ *
+ * <pre>{@code
+ * PCollection<AvroAutoGenClass> records = ...
+ * AvroCoder<AvroAutoGenClass> coder = (AvroCoder<AvroAutoGenClass>) users.getCoder();
+ * records.setCoder(AvroUtils.schemaCoder(coder.getType(), coder.getSchema()));
+ * }</pre>
+ *
+ * <p>If you are using GenericRecords you may need to set a specific Beam schema coder for each
+ * PCollection to match their internal Avro schema.
+ *
+ * <pre>{@code
+ * org.apache.avro.Schema avroSchema = ...
+ * PCollection<GenericRecord> records = ...
+ * records.setCoder(AvroUtils.schemaCoder(avroSchema));
+ * }</pre>
  *
  * <h2>Writing Avro files</h2>
  *
@@ -358,9 +405,9 @@ public class AvroIO {
    * FileIO.ReadableFile}, for example, returned by {@link FileIO#readMatches}.
    *
    * @deprecated You can achieve The functionality of {@link #readAllGenericRecords(Schema)} using
-   *     {@link FileIO} matching plus {@link #readGenericRecords(Schema)}. This is the preferred
-   *     method to make composition explicit. {@link ReadAll} will not receive upgrades and will be
-   *     removed in a future version of Beam.
+   *     {@link FileIO} matching plus {@link #readFilesGenericRecords(Schema)}. This is the
+   *     preferred method to make composition explicit. {@link ReadAll} will not receive upgrades
+   *     and will be removed in a future version of Beam.
    */
   @Deprecated
   public static ReadAll<GenericRecord> readAllGenericRecords(Schema schema) {
@@ -391,9 +438,9 @@ public class AvroIO {
    * PCollection}.
    *
    * @deprecated You can achieve The functionality of {@link #readAllGenericRecords(String)} using
-   *     {@link FileIO} matching plus {@link #readGenericRecords(String)}. This is the preferred
-   *     method to make composition explicit. {@link ReadAll} will not receive upgrades and will be
-   *     removed in a future version of Beam.
+   *     {@link FileIO} matching plus {@link #readFilesGenericRecords(String)}. This is the
+   *     preferred method to make composition explicit. {@link ReadAll} will not receive upgrades
+   *     and will be removed in a future version of Beam.
    */
   @Deprecated
   public static ReadAll<GenericRecord> readAllGenericRecords(String schema) {
@@ -516,6 +563,7 @@ public class AvroIO {
         .setNoSpilling(false);
   }
 
+  @Experimental(Kind.SCHEMAS)
   private static <T> PCollection<T> setBeamSchema(
       PCollection<T> pc, Class<T> clazz, @Nullable Schema schema) {
     org.apache.beam.sdk.schemas.Schema beamSchema =
@@ -523,6 +571,7 @@ public class AvroIO {
     if (beamSchema != null) {
       pc.setSchema(
           beamSchema,
+          TypeDescriptor.of(clazz),
           org.apache.beam.sdk.schemas.utils.AvroUtils.getToRowFunction(clazz, schema),
           org.apache.beam.sdk.schemas.utils.AvroUtils.getFromRowFunction(clazz));
     }
@@ -624,6 +673,10 @@ public class AvroIO {
       return toBuilder().setHintMatchesManyFiles(true).build();
     }
 
+    /**
+     * If set to true, a Beam schema will be inferred from the AVRO schema. This allows the output
+     * to be used by SQL and by the schema-transform library.
+     */
     @Experimental(Kind.SCHEMAS)
     public Read<T> withBeamSchemas(boolean withBeamSchemas) {
       return toBuilder().setInferBeamSchema(withBeamSchemas).build();
@@ -863,7 +916,9 @@ public class AvroIO {
 
     CreateSourceFn(Class<T> recordClass, String jsonSchema) {
       this.recordClass = recordClass;
-      this.schemaSupplier = AvroUtils.serializableSchemaSupplier(jsonSchema);
+      this.schemaSupplier =
+          Suppliers.memoize(
+              Suppliers.compose(new JsonToSchema(), Suppliers.ofInstance(jsonSchema)));
     }
 
     @Override
@@ -873,6 +928,13 @@ public class AvroIO {
           EmptyMatchTreatment.DISALLOW,
           recordClass,
           schemaSupplier.get());
+    }
+
+    private static class JsonToSchema implements Function<String, Schema>, Serializable {
+      @Override
+      public Schema apply(String input) {
+        return new Schema.Parser().parse(input);
+      }
     }
   }
 
@@ -1698,6 +1760,28 @@ public class AvroIO {
   public static <ElementT> Sink<ElementT> sink(final Class<ElementT> clazz) {
     return new AutoValue_AvroIO_Sink.Builder<ElementT>()
         .setJsonSchema(ReflectData.get().getSchema(clazz).toString())
+        .setMetadata(ImmutableMap.of())
+        .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
+        .build();
+  }
+
+  /**
+   * A {@link Sink} for use with {@link FileIO#write} and {@link FileIO#writeDynamic}, writing
+   * elements with a given (common) schema, like {@link #writeGenericRecords(Schema)}.
+   */
+  @Experimental(Kind.SOURCE_SINK)
+  public static <ElementT extends IndexedRecord> Sink<ElementT> sink(Schema schema) {
+    return sink(schema.toString());
+  }
+
+  /**
+   * A {@link Sink} for use with {@link FileIO#write} and {@link FileIO#writeDynamic}, writing
+   * elements with a given (common) schema, like {@link #writeGenericRecords(String)}.
+   */
+  @Experimental(Kind.SOURCE_SINK)
+  public static <ElementT extends IndexedRecord> Sink<ElementT> sink(String jsonSchema) {
+    return new AutoValue_AvroIO_Sink.Builder<ElementT>()
+        .setJsonSchema(jsonSchema)
         .setMetadata(ImmutableMap.of())
         .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
         .build();

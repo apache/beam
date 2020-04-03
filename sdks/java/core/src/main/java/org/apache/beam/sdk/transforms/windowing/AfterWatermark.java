@@ -17,15 +17,16 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 
 /**
@@ -55,7 +56,7 @@ import org.joda.time.Instant;
  * AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)} or {@code
  * AfterWatermark.pastEndOfWindow.withLateFirings(OnceTrigger)}.
  */
-@Experimental(Experimental.Kind.TRIGGER)
+@Experimental(Kind.TRIGGER)
 public class AfterWatermark {
 
   private static final String TO_STRING = "AfterWatermark.pastEndOfWindow()";
@@ -117,6 +118,12 @@ public class AfterWatermark {
     public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
       // Even without an early or late trigger, we'll still produce a firing at the watermark.
       return window.maxTimestamp();
+    }
+
+    /** @return true if there is no late firing set up, otherwise false */
+    @Override
+    public boolean mayFinish() {
+      return lateTrigger == null;
     }
 
     @Override

@@ -24,10 +24,10 @@ import static org.apache.beam.sdk.io.Compression.UNCOMPRESSED;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.in;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import java.io.File;
@@ -40,6 +40,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.FileIO.ReadableFile;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -48,10 +50,10 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.BaseEncoding;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.io.ByteStreams;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -101,16 +103,36 @@ public class TFRecordIOTest {
 
   @Test
   public void testReadNamed() {
-    writePipeline.enableAbandonedNodeEnforcement(false);
+    readPipeline.enableAbandonedNodeEnforcement(false);
 
     assertEquals(
         "TFRecordIO.Read/Read.out",
-        writePipeline.apply(TFRecordIO.read().from("foo.*").withoutValidation()).getName());
+        readPipeline.apply(TFRecordIO.read().from("foo.*").withoutValidation()).getName());
     assertEquals(
         "MyRead/Read.out",
-        writePipeline
+        readPipeline
             .apply("MyRead", TFRecordIO.read().from("foo.*").withoutValidation())
             .getName());
+  }
+
+  @Test
+  public void testReadFilesNamed() {
+    readPipeline.enableAbandonedNodeEnforcement(false);
+
+    Metadata metadata =
+        Metadata.builder()
+            .setResourceId(FileSystems.matchNewResource("file", false /* isDirectory */))
+            .setIsReadSeekEfficient(true)
+            .setSizeBytes(1024)
+            .build();
+    Create.Values<ReadableFile> create = Create.of(new ReadableFile(metadata, Compression.AUTO));
+
+    assertEquals(
+        "TFRecordIO.ReadFiles/Read all via FileBasedSource/Read ranges/ParMultiDo(ReadFileRanges).output",
+        readPipeline.apply(create).apply(TFRecordIO.readFiles()).getName());
+    assertEquals(
+        "MyRead/Read all via FileBasedSource/Read ranges/ParMultiDo(ReadFileRanges).output",
+        readPipeline.apply(create).apply("MyRead", TFRecordIO.readFiles()).getName());
   }
 
   @Test
@@ -200,6 +222,7 @@ public class TFRecordIOTest {
     runTestRead(BaseEncoding.base64().decode(base64), expected);
   }
 
+  /** Tests both {@link TFRecordIO.Read} and {@link TFRecordIO.ReadFiles}. */
   private void runTestRead(byte[] data, String[] expected) throws IOException {
     File tmpFile =
         Files.createTempFile(tempFolder.getRoot().toPath(), "file", ".tfrecords").toFile();
@@ -210,10 +233,20 @@ public class TFRecordIOTest {
     }
 
     TFRecordIO.Read read = TFRecordIO.read().from(filename);
-    PCollection<String> output = writePipeline.apply(read).apply(ParDo.of(new ByteArrayToString()));
-
+    PCollection<String> output = readPipeline.apply(read).apply(ParDo.of(new ByteArrayToString()));
     PAssert.that(output).containsInAnyOrder(expected);
-    writePipeline.run();
+
+    Compression compression = AUTO;
+    PAssert.that(
+            readPipeline
+                .apply("Create_Paths_ReadFiles_" + tmpFile, Create.of(tmpFile.getPath()))
+                .apply("Match_" + tmpFile, FileIO.matchAll())
+                .apply("ReadMatches_" + tmpFile, FileIO.readMatches().withCompression(compression))
+                .apply("ReadFiles_" + compression.toString(), TFRecordIO.readFiles())
+                .apply("ToString", ParDo.of(new ByteArrayToString())))
+        .containsInAnyOrder(expected);
+
+    readPipeline.run();
   }
 
   private void runTestWrite(String[] elems, String... base64) throws IOException {
@@ -346,7 +379,7 @@ public class TFRecordIOTest {
                     TFRecordIO.read()
                         .from(baseFilenameViaWrite + "*")
                         .withCompression(readCompression))
-                .apply("To string first", ParDo.of(new ByteArrayToString())))
+                .apply("To string read from write", ParDo.of(new ByteArrayToString())))
         .containsInAnyOrder(elems);
     PAssert.that(
             readPipeline
@@ -355,7 +388,28 @@ public class TFRecordIOTest {
                     TFRecordIO.read()
                         .from(baseFilenameViaSink + "*")
                         .withCompression(readCompression))
-                .apply("To string second", ParDo.of(new ByteArrayToString())))
+                .apply("To string read from sink", ParDo.of(new ByteArrayToString())))
+        .containsInAnyOrder(elems);
+    PAssert.that(
+            readPipeline
+                .apply(
+                    "Create_Paths_ReadFiles_" + baseFilenameViaWrite,
+                    Create.of(baseFilenameViaWrite + "*"))
+                .apply("Match_" + baseFilenameViaWrite, FileIO.matchAll())
+                .apply(
+                    "ReadMatches_" + baseFilenameViaWrite,
+                    FileIO.readMatches().withCompression(readCompression))
+                .apply("ReadFiles written by TFRecordIO.write", TFRecordIO.readFiles())
+                .apply("To string readFiles from write", ParDo.of(new ByteArrayToString())))
+        .containsInAnyOrder(elems);
+    PAssert.that(
+            readPipeline
+                .apply(
+                    "ReadFiles written by TFRecordIO.sink",
+                    TFRecordIO.read()
+                        .from(baseFilenameViaSink + "*")
+                        .withCompression(readCompression))
+                .apply("To string readFiles from sink", ParDo.of(new ByteArrayToString())))
         .containsInAnyOrder(elems);
     readPipeline.run();
   }

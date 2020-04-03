@@ -17,16 +17,17 @@
  */
 package org.apache.beam.sdk.options;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /** Options that are used to control configuration of the SDK harness. */
-@Experimental
+@Experimental(Kind.PORTABILITY)
 @Description("Options that are used to control configuration of the SDK harness.")
 public interface SdkHarnessOptions extends PipelineOptions {
   /** The set of log levels that can be used in the SDK harness. */

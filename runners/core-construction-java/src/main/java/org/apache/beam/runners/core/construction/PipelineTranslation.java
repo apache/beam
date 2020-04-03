@@ -31,9 +31,9 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ArrayListMultimap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ListMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
 
 /** Utilities for going to/from Runner API pipelines. */
 public class PipelineTranslation {
@@ -94,6 +94,7 @@ public class PipelineTranslation {
     RunnerApi.Pipeline res =
         RunnerApi.Pipeline.newBuilder()
             .setComponents(components.toComponents())
+            .addAllRequirements(components.requirements())
             .addAllRootTransformIds(rootIds)
             .build();
     if (!useDeprecatedViewTransforms) {

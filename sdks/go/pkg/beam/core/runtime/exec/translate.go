@@ -17,7 +17,7 @@ package exec
 
 import (
 	"fmt"
-	"path"
+	"math/rand"
 	"strconv"
 	"strings"
 
@@ -38,11 +38,12 @@ import (
 
 // TODO(lostluck): 2018/05/28 Extract these from the canonical enums in beam_runner_api.proto
 const (
-	urnDataSource           = "beam:source:runner:0.1"
-	urnDataSink             = "beam:sink:runner:0.1"
+	urnDataSource           = "beam:runner:source:v1"
+	urnDataSink             = "beam:runner:sink:v1"
 	urnPerKeyCombinePre     = "beam:transform:combine_per_key_precombine:v1"
 	urnPerKeyCombineMerge   = "beam:transform:combine_per_key_merge_accumulators:v1"
 	urnPerKeyCombineExtract = "beam:transform:combine_per_key_extract_outputs:v1"
+	urnPerKeyCombineConvert = "beam:transform:combine_per_key_convert_to_accumulators:v1"
 )
 
 // UnmarshalPlan converts a model bundle descriptor into an execution Plan.
@@ -65,30 +66,24 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 		}
 
 		u := &DataSource{UID: b.idgen.New()}
+		u.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
+		if err != nil {
+			return nil, err
+		}
+		if !coder.IsW(u.Coder) {
+			return nil, errors.Errorf("unwindowed coder %v on DataSource %v: %v", cid, id, u.Coder)
+		}
 
+		// There's only a single pair in this map, but a for loop range statement
+		// is the easiest way to extract it, so this loop will iterate only once.
 		for key, pid := range transform.GetOutputs() {
 			u.SID = StreamID{PtransformID: id, Port: port}
 			u.Name = key
+			u.outputPID = pid
 
 			u.Out, err = b.makePCollection(pid)
 			if err != nil {
 				return nil, err
-			}
-
-			if cid == "" {
-				c, wc, err := b.makeCoderForPCollection(pid)
-				if err != nil {
-					return nil, err
-				}
-				u.Coder = coder.NewW(c, wc)
-			} else {
-				u.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
-				if err != nil {
-					return nil, err
-				}
-				if !coder.IsW(u.Coder) {
-					return nil, errors.Errorf("unwindowed coder %v on DataSource %v: %v", cid, id, u.Coder)
-				}
 			}
 		}
 
@@ -169,7 +164,7 @@ func (b *builder) makeWindowingStrategy(id string) (*window.WindowingStrategy, e
 	if !ok {
 		return nil, errors.Errorf("windowing strategy %v not found", id)
 	}
-	wfn, err := unmarshalWindowFn(ws.GetWindowFn().GetSpec())
+	wfn, err := unmarshalWindowFn(ws.GetWindowFn())
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +205,7 @@ func unmarshalWindowFn(wfn *pb.FunctionSpec) (*window.Fn, error) {
 		return window.NewSlidingWindows(period, size), nil
 
 	case graphx.URNSessionsWindowFn:
-		var payload pb.SessionsPayload
+		var payload pb.SessionWindowsPayload
 		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
 			return nil, err
 		}
@@ -338,7 +333,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 	var u Node
 	switch urn {
-	case graphx.URNParDo, graphx.URNJavaDoFn, urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract:
+	case graphx.URNParDo, graphx.URNJavaDoFn, urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract, urnPerKeyCombineConvert:
 		var data string
 		switch urn {
 		case graphx.URNParDo:
@@ -346,13 +341,13 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			if err := proto.Unmarshal(payload, &pardo); err != nil {
 				return nil, errors.Wrapf(err, "invalid ParDo payload for %v", transform)
 			}
-			data = string(pardo.GetDoFn().GetSpec().GetPayload())
-		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract:
+			data = string(pardo.GetDoFn().GetPayload())
+		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract, urnPerKeyCombineConvert:
 			var cmb pb.CombinePayload
 			if err := proto.Unmarshal(payload, &cmb); err != nil {
 				return nil, errors.Wrapf(err, "invalid CombinePayload payload for %v", transform)
 			}
-			data = string(cmb.GetCombineFn().GetSpec().GetPayload())
+			data = string(cmb.GetCombineFn().GetPayload())
 		default:
 			// TODO(herohde) 12/4/2017: we see DoFns directly with Dataflow. Handle that
 			// case here, for now, so that the harness can use this logic.
@@ -378,13 +373,11 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			switch op {
 			case graph.ParDo:
 				n := &ParDo{UID: b.idgen.New(), Inbound: in, Out: out}
-				n.Fn, err = graph.AsDoFn(fn)
+				n.Fn, err = graph.AsDoFn(fn, graph.MainUnknown)
 				if err != nil {
 					return nil, err
 				}
-				// transform.UniqueName may be per-bundle, which isn't useful for metrics.
-				// Use the short name for the DoFn instead.
-				n.PID = path.Base(n.Fn.Name())
+				n.PID = transform.GetUniqueName()
 
 				input := unmarshalKeyedValues(transform.GetInputs())
 				for i := 1; i < len(input); i++ {
@@ -414,9 +407,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				}
 				cn.UsesKey = typex.IsKV(in[0].Type)
 
-				// transform.UniqueName may be per-bundle, which isn't useful for metrics.
-				// Use the short name for the DoFn instead.
-				cn.PID = path.Base(cn.Fn.Name())
+				cn.PID = transform.GetUniqueName()
 
 				switch urn {
 				case urnPerKeyCombinePre:
@@ -436,6 +427,8 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					u = &MergeAccumulators{Combine: cn}
 				case urnPerKeyCombineExtract:
 					u = &ExtractOutput{Combine: cn}
+				case urnPerKeyCombineConvert:
+					u = &ConvertToAccumulators{Combine: cn}
 				default: // For unlifted combines
 					u = cn
 				}
@@ -475,6 +468,26 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			}
 			u = &Expand{UID: b.idgen.New(), ValueDecoders: decoders, Out: out[0]}
 
+		case graphx.URNReshuffleInput:
+			c, w, err := b.makeCoderForPCollection(from)
+			if err != nil {
+				return nil, err
+			}
+			u = &ReshuffleInput{UID: b.idgen.New(), Seed: rand.Int63(), Coder: coder.NewW(c, w), Out: out[0]}
+
+		case graphx.URNReshuffleOutput:
+			var pid string
+			// There's only one output PCollection, and iterating through the map
+			// is the only way to extract it.
+			for _, id := range transform.GetOutputs() {
+				pid = id
+			}
+			c, w, err := b.makeCoderForPCollection(pid)
+			if err != nil {
+				return nil, err
+			}
+			u = &ReshuffleOutput{UID: b.idgen.New(), Coder: coder.NewW(c, w), Out: out[0]}
+
 		default:
 			return nil, errors.Errorf("unexpected payload: %v", tp)
 		}
@@ -484,7 +497,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		if err := proto.Unmarshal(payload, &wp); err != nil {
 			return nil, errors.Wrapf(err, "invalid WindowInto payload for %v", transform)
 		}
-		wfn, err := unmarshalWindowFn(wp.GetWindowFn().GetSpec())
+		wfn, err := unmarshalWindowFn(wp.GetWindowFn())
 		if err != nil {
 			return nil, err
 		}
@@ -493,6 +506,11 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 	case graphx.URNFlatten:
 		u = &Flatten{UID: b.idgen.New(), N: len(transform.Inputs), Out: out[0]}
 
+		// Use the same flatten instance for all the inputs links to this transform.
+		for i := 0; i < len(transform.Inputs); i++ {
+			b.links[linkID{id.to, i}] = u
+		}
+
 	case urnDataSink:
 		port, cid, err := unmarshalPort(payload)
 		if err != nil {
@@ -500,25 +518,13 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		}
 
 		sink := &DataSink{UID: b.idgen.New()}
-
-		for _, pid := range transform.GetInputs() {
-			sink.SID = StreamID{PtransformID: id.to, Port: port}
-
-			if cid == "" {
-				c, wc, err := b.makeCoderForPCollection(pid)
-				if err != nil {
-					return nil, err
-				}
-				sink.Coder = coder.NewW(c, wc)
-			} else {
-				sink.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
-				if err != nil {
-					return nil, err
-				}
-				if !coder.IsW(sink.Coder) {
-					return nil, errors.Errorf("unwindowed coder %v on DataSink %v: %v", cid, id, sink.Coder)
-				}
-			}
+		sink.SID = StreamID{PtransformID: id.to, Port: port}
+		sink.Coder, err = b.coders.Coder(cid) // Expected to be windowed coder
+		if err != nil {
+			return nil, err
+		}
+		if !coder.IsW(sink.Coder) {
+			return nil, errors.Errorf("unwindowed coder %v on DataSink %v: %v", cid, id, sink.Coder)
 		}
 		u = sink
 

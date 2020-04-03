@@ -84,7 +84,7 @@ public class SparkRunnerDebuggerTest {
             + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
             + "_.combineByKey(..., new org.apache.beam.sdk.transforms.Count$CountFn(), ...)\n"
             + "_.groupByKey()\n"
-            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Combine$GroupedValues$1())\n"
+            + "_.map(new org.apache.beam.sdk.transforms.Sum$SumLongFn())\n"
             + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
             + "sparkContext.union(...)\n"
             + "_.mapPartitions("
@@ -141,7 +141,7 @@ public class SparkRunnerDebuggerTest {
             + "SparkRunnerDebuggerTest$FormatKVFn())\n"
             + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
             + "_.groupByKey()\n"
-            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Combine$GroupedValues$1())\n"
+            + "_.map(new org.apache.beam.sdk.transforms.Combine$IterableCombineFn())\n"
             + "_.mapPartitions(new org.apache.beam.sdk.transforms.Distinct$3())\n"
             + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
             + "_.<org.apache.beam.sdk.io.kafka.AutoValue_KafkaIO_Write>";

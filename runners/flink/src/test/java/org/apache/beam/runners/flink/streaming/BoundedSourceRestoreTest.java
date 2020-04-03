@@ -102,7 +102,8 @@ public class BoundedSourceRestoreTest {
     boolean readFirstBatchOfElements = false;
     try {
       testHarness.open();
-      sourceOperator.run(
+      StreamSources.run(
+          sourceOperator,
           checkpointLock,
           new TestStreamStatusMaintainer(),
           new PartialCollector<>(emittedElements, firstBatchSize));
@@ -147,7 +148,8 @@ public class BoundedSourceRestoreTest {
     boolean readSecondBatchOfElements = false;
     try {
       restoredTestHarness.open();
-      restoredSourceOperator.run(
+      StreamSources.run(
+          restoredSourceOperator,
           checkpointLock,
           new TestStreamStatusMaintainer(),
           new PartialCollector<>(emittedElements, secondBatchSize));

@@ -26,9 +26,9 @@ import static com.google.datastore.v1.client.DatastoreHelper.makeFilter;
 import static com.google.datastore.v1.client.DatastoreHelper.makeOrder;
 import static com.google.datastore.v1.client.DatastoreHelper.makeUpsert;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Verify.verify;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify.verify;
 
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.auth.Credentials;
@@ -91,11 +91,11 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -368,18 +368,9 @@ public class DatastoreV1 {
       return entity.getProperties().get("timestamp").getTimestampValue().getSeconds() * 1000000;
     }
 
-    /**
-     * Get the estimated size of the data returned by the given query.
-     *
-     * <p>Cloud Datastore provides no way to get a good estimate of how large the result of a query
-     * entity kind being queried, using the __Stat_Kind__ system table, assuming exactly 1 kind is
-     * specified in the query.
-     *
-     * <p>See https://cloud.google.com/datastore/docs/concepts/stats.
-     */
-    static long getEstimatedSizeBytes(Datastore datastore, Query query, @Nullable String namespace)
-        throws DatastoreException {
-      String ourKind = query.getKind(0).getName();
+    /** Retrieve latest table statistics for a given kind, namespace, and datastore. */
+    private static Entity getLatestTableStats(
+        String ourKind, @Nullable String namespace, Datastore datastore) throws DatastoreException {
       long latestTimestamp = queryLatestStatisticsTimestamp(datastore, namespace);
       LOG.info("Latest stats timestamp for kind {} is {}", ourKind, latestTimestamp);
 
@@ -406,7 +397,22 @@ public class DatastoreV1 {
         throw new NoSuchElementException(
             "Datastore statistics for kind " + ourKind + " unavailable");
       }
-      Entity entity = batch.getEntityResults(0).getEntity();
+      return batch.getEntityResults(0).getEntity();
+    }
+
+    /**
+     * Get the estimated size of the data returned by the given query.
+     *
+     * <p>Cloud Datastore provides no way to get a good estimate of how large the result of a query
+     * entity kind being queried, using the __Stat_Kind__ system table, assuming exactly 1 kind is
+     * specified in the query.
+     *
+     * <p>See https://cloud.google.com/datastore/docs/concepts/stats.
+     */
+    static long getEstimatedSizeBytes(Datastore datastore, Query query, @Nullable String namespace)
+        throws DatastoreException {
+      String ourKind = query.getKind(0).getName();
+      Entity entity = getLatestTableStats(ourKind, namespace, datastore);
       return entity.getProperties().get("entity_bytes").getIntegerValue();
     }
 
@@ -598,6 +604,23 @@ public class DatastoreV1 {
      */
     public DatastoreV1.Read withLocalhost(String localhost) {
       return toBuilder().setLocalhost(localhost).build();
+    }
+
+    /** Returns Number of entities available for reading. */
+    public long getNumEntities(
+        PipelineOptions options, String ourKind, @Nullable String namespace) {
+      try {
+        V1Options v1Options = V1Options.from(getProjectId(), getNamespace(), getLocalhost());
+        V1DatastoreFactory datastoreFactory = new V1DatastoreFactory();
+        Datastore datastore =
+            datastoreFactory.getDatastore(
+                options, v1Options.getProjectId(), v1Options.getLocalhost());
+
+        Entity entity = getLatestTableStats(ourKind, namespace, datastore);
+        return entity.getProperties().get("count").getIntegerValue();
+      } catch (Exception e) {
+        return -1;
+      }
     }
 
     @Override

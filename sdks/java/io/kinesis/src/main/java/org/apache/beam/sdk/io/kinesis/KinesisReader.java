@@ -17,11 +17,12 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -39,26 +40,32 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   private final KinesisSource source;
   private final CheckpointGenerator initialCheckpointGenerator;
   private final WatermarkPolicyFactory watermarkPolicyFactory;
+  private final RateLimitPolicyFactory rateLimitPolicyFactory;
   private final Duration upToDateThreshold;
   private final Duration backlogBytesCheckThreshold;
   private CustomOptional<KinesisRecord> currentRecord = CustomOptional.absent();
   private long lastBacklogBytes;
   private Instant backlogBytesLastCheckTime = new Instant(0L);
   private ShardReadersPool shardReadersPool;
+  private final Integer maxCapacityPerShard;
 
   KinesisReader(
       SimplifiedKinesisClient kinesis,
       CheckpointGenerator initialCheckpointGenerator,
       KinesisSource source,
       WatermarkPolicyFactory watermarkPolicyFactory,
-      Duration upToDateThreshold) {
+      RateLimitPolicyFactory rateLimitPolicyFactory,
+      Duration upToDateThreshold,
+      Integer maxCapacityPerShard) {
     this(
         kinesis,
         initialCheckpointGenerator,
         source,
         watermarkPolicyFactory,
+        rateLimitPolicyFactory,
         upToDateThreshold,
-        Duration.standardSeconds(30));
+        Duration.standardSeconds(30),
+        maxCapacityPerShard);
   }
 
   KinesisReader(
@@ -66,15 +73,19 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
       CheckpointGenerator initialCheckpointGenerator,
       KinesisSource source,
       WatermarkPolicyFactory watermarkPolicyFactory,
+      RateLimitPolicyFactory rateLimitPolicyFactory,
       Duration upToDateThreshold,
-      Duration backlogBytesCheckThreshold) {
+      Duration backlogBytesCheckThreshold,
+      Integer maxCapacityPerShard) {
     this.kinesis = checkNotNull(kinesis, "kinesis");
     this.initialCheckpointGenerator =
         checkNotNull(initialCheckpointGenerator, "initialCheckpointGenerator");
     this.watermarkPolicyFactory = watermarkPolicyFactory;
+    this.rateLimitPolicyFactory = rateLimitPolicyFactory;
     this.source = source;
     this.upToDateThreshold = upToDateThreshold;
     this.backlogBytesCheckThreshold = backlogBytesCheckThreshold;
+    this.maxCapacityPerShard = maxCapacityPerShard;
   }
 
   /** Generates initial checkpoint and instantiates iterators for shards. */
@@ -141,13 +152,19 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   }
 
   /**
-   * Returns total size of all records that remain in Kinesis stream after current watermark. When
-   * currently processed record is not further behind than {@link #upToDateThreshold} then this
-   * method returns 0.
+   * Returns total size of all records that remain in Kinesis stream after current watermark. If the
+   * watermark was not already set then it returns {@link
+   * UnboundedSource.UnboundedReader#BACKLOG_UNKNOWN}. When currently processed record is not
+   * further behind than {@link #upToDateThreshold} then this method returns 0.
    */
   @Override
   public long getTotalBacklogBytes() {
     Instant watermark = getWatermark();
+
+    if (watermark.equals(BoundedWindow.TIMESTAMP_MIN_VALUE)) {
+      return UnboundedSource.UnboundedReader.BACKLOG_UNKNOWN;
+    }
+
     if (watermark.plus(upToDateThreshold).isAfterNow()) {
       return 0L;
     }
@@ -170,6 +187,10 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
   ShardReadersPool createShardReadersPool() throws TransientKinesisException {
     return new ShardReadersPool(
-        kinesis, initialCheckpointGenerator.generate(kinesis), watermarkPolicyFactory);
+        kinesis,
+        initialCheckpointGenerator.generate(kinesis),
+        watermarkPolicyFactory,
+        rateLimitPolicyFactory,
+        maxCapacityPerShard);
   }
 }

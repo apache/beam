@@ -21,6 +21,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
@@ -40,12 +41,12 @@ import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
 import org.apache.beam.sdk.fn.IdGenerators;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Graphs;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.MutableNetwork;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.Network;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.graph.NetworkBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Graphs;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Network;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.NetworkBuilder;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Test;
@@ -79,9 +80,10 @@ public class CreateRegisterFnOperationFunctionTest {
     MutableNetwork<Node, Edge> expectedNetwork = createEmptyNetwork();
 
     assertNetworkMaintainsBipartiteStructure(appliedNetwork);
-    assertTrue(
+    assertEquals(
         String.format("Expected network %s but got network %s", expectedNetwork, appliedNetwork),
-        Graphs.equivalent(expectedNetwork, appliedNetwork));
+        expectedNetwork,
+        appliedNetwork);
   }
 
   @Test
@@ -108,9 +110,10 @@ public class CreateRegisterFnOperationFunctionTest {
         createRegisterFnOperation.apply(Graphs.copyOf(expectedNetwork));
 
     assertNetworkMaintainsBipartiteStructure(appliedNetwork);
-    assertTrue(
+    assertEquals(
         String.format("Expected network %s but got network %s", expectedNetwork, appliedNetwork),
-        Graphs.equivalent(expectedNetwork, appliedNetwork));
+        expectedNetwork,
+        appliedNetwork);
   }
 
   @Test
@@ -148,12 +151,14 @@ public class CreateRegisterFnOperationFunctionTest {
 
     assertNetworkMaintainsBipartiteStructure(appliedNetwork);
     assertNetworkMaintainsBipartiteStructure(networkCapture.getValue());
-    assertTrue(
+    assertEquals(
         String.format("Expected network %s but got network %s", expectedNetwork, appliedNetwork),
-        Graphs.equivalent(expectedNetwork, appliedNetwork));
-    assertTrue(
+        expectedNetwork,
+        appliedNetwork);
+    assertEquals(
         String.format("Expected network %s but got network %s", network, networkCapture.getValue()),
-        Graphs.equivalent(network, networkCapture.getValue()));
+        network,
+        networkCapture.getValue());
   }
 
   @Test

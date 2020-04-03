@@ -58,7 +58,7 @@ public interface Op<InT, OutT, K> extends Serializable {
 
   default void processSideInputWatermark(Instant watermark, OpEmitter<OutT> emitter) {}
 
-  default void processTimer(KeyedTimerData<K> keyedTimerData) {};
+  default void processTimer(KeyedTimerData<K> keyedTimerData, OpEmitter<OutT> emitter) {}
 
   default void close() {}
 }

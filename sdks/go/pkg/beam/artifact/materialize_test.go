@@ -42,7 +42,7 @@ func TestRetrieve(t *testing.T) {
 	dst := makeTempDir(t)
 	defer os.RemoveAll(dst)
 
-	client := pb.NewArtifactRetrievalServiceClient(cc)
+	client := pb.NewLegacyArtifactRetrievalServiceClient(cc)
 	for _, a := range artifacts {
 		filename := makeFilename(dst, a.Name)
 		if err := Retrieve(ctx, client, a, rt, dst); err != nil {
@@ -67,7 +67,7 @@ func TestMultiRetrieve(t *testing.T) {
 	dst := makeTempDir(t)
 	defer os.RemoveAll(dst)
 
-	client := pb.NewArtifactRetrievalServiceClient(cc)
+	client := pb.NewLegacyArtifactRetrievalServiceClient(cc)
 	if err := MultiRetrieve(ctx, client, 10, artifacts, rt, dst); err != nil {
 		t.Errorf("failed to retrieve: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestMultiRetrieve(t *testing.T) {
 // populate stages a set of artifacts with the given keys, each with
 // slightly different sizes and chucksizes.
 func populate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys []string, size int, st string) (string, []*pb.ArtifactMetadata) {
-	scl := pb.NewArtifactStagingServiceClient(cc)
+	scl := pb.NewLegacyArtifactStagingServiceClient(cc)
 
 	var artifacts []*pb.ArtifactMetadata
 	for i, key := range keys {
@@ -97,7 +97,7 @@ func populate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys []str
 
 // stage stages an artifact with the given key, size and chuck size. The content is
 // always 'z's.
-func stage(ctx context.Context, scl pb.ArtifactStagingServiceClient, t *testing.T, key string, size, chunkSize int, st string) *pb.ArtifactMetadata {
+func stage(ctx context.Context, scl pb.LegacyArtifactStagingServiceClient, t *testing.T, key string, size, chunkSize int, st string) *pb.ArtifactMetadata {
 	data := make([]byte, size)
 	for i := 0; i < size; i++ {
 		data[i] = 'z'

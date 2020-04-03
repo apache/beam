@@ -22,6 +22,8 @@ the other unit tests. In this file we choose to test only aspects related to
 caching and clearing values that are not tested elsewhere.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import unittest
@@ -39,24 +41,19 @@ class RunnerTest(unittest.TestCase):
       '--project=test-project',
       '--staging_location=ignored',
       '--temp_location=/dev/null',
-      '--no_auth=True']
+      '--no_auth'
+  ]
 
   def test_create_runner(self):
-    self.assertTrue(
-        isinstance(create_runner('DirectRunner'), DirectRunner))
+    self.assertTrue(isinstance(create_runner('DirectRunner'), DirectRunner))
     self.assertRaises(ValueError, create_runner, 'xyz')
 
   def test_create_runner_shorthand(self):
-    self.assertTrue(
-        isinstance(create_runner('DiReCtRuNnEr'), DirectRunner))
-    self.assertTrue(
-        isinstance(create_runner('directrunner'), DirectRunner))
-    self.assertTrue(
-        isinstance(create_runner('direct'), DirectRunner))
-    self.assertTrue(
-        isinstance(create_runner('DiReCt'), DirectRunner))
-    self.assertTrue(
-        isinstance(create_runner('Direct'), DirectRunner))
+    self.assertTrue(isinstance(create_runner('DiReCtRuNnEr'), DirectRunner))
+    self.assertTrue(isinstance(create_runner('directrunner'), DirectRunner))
+    self.assertTrue(isinstance(create_runner('direct'), DirectRunner))
+    self.assertTrue(isinstance(create_runner('DiReCt'), DirectRunner))
+    self.assertTrue(isinstance(create_runner('Direct'), DirectRunner))
 
   def test_run_api(self):
     my_metric = Metrics.counter('namespace', 'my_metric')
@@ -72,9 +69,11 @@ class RunnerTest(unittest.TestCase):
     my_metric = Metrics.counter('namespace', 'my_metric')
 
     def fn(start):
-      return (start
-              | beam.Create([1, 10, 100])
-              | beam.Map(lambda x: my_metric.inc(x)))
+      return (
+          start
+          | beam.Create([1, 10, 100])
+          | beam.Map(lambda x: my_metric.inc(x)))
+
     runner = DirectRunner()
     result = runner.run(fn)
     result.wait_until_finish()

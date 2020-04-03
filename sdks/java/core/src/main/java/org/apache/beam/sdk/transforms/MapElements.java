@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -182,7 +182,7 @@ public class MapElements<InputT, OutputT>
    * <p>See {@link WithFailures} documentation for usage patterns of the returned {@link
    * WithFailures.Result}.
    */
-  @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+  @Experimental(Kind.WITH_EXCEPTIONS)
   public <NewFailureT> MapWithFailures<InputT, OutputT, NewFailureT> exceptionsInto(
       TypeDescriptor<NewFailureT> failureTypeDescriptor) {
     return new MapWithFailures<>(
@@ -212,7 +212,7 @@ public class MapElements<InputT, OutputT>
    * PCollection<String> failures = result.failures();
    * }</pre>
    */
-  @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+  @Experimental(Kind.WITH_EXCEPTIONS)
   public <FailureT> MapWithFailures<InputT, OutputT, FailureT> exceptionsVia(
       InferableFunction<ExceptionElement<InputT>, FailureT> exceptionHandler) {
     return new MapWithFailures<>(

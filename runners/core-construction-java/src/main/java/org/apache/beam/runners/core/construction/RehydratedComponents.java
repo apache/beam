@@ -17,9 +17,10 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
@@ -30,9 +31,9 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheLoader;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 
 /**
  * Vends Java SDK objects rehydrated from a Runner API {@link Components} collection.
@@ -44,7 +45,7 @@ public class RehydratedComponents {
   private final Components components;
 
   /**
-   * This class may be used in the context of a pipeline or not. If not, then it cannot rehydrated
+   * This class may be used in the context of a pipeline or not. If not, then it cannot rehydrate
    * {@link PCollection PCollections}.
    */
   @Nullable private final Pipeline pipeline;
@@ -175,13 +176,14 @@ public class RehydratedComponents {
     return components;
   }
 
-  public SdkComponents getSdkComponents() {
+  public SdkComponents getSdkComponents(Collection<String> requirements) {
     return SdkComponents.create(
         components,
         Collections.emptyMap(),
         pCollections.asMap(),
         windowingStrategies.asMap(),
         coders.asMap(),
-        Collections.emptyMap());
+        Collections.emptyMap(),
+        requirements);
   }
 }

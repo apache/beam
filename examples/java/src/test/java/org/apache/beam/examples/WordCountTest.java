@@ -28,11 +28,9 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -46,15 +44,12 @@ public class WordCountTest {
   /** Example test that tests a specific {@link DoFn}. */
   @Test
   public void testExtractWordsFn() throws Exception {
-    DoFnTester<String, String> extractWordsFn = DoFnTester.of(new ExtractWordsFn());
-
-    Assert.assertThat(
-        extractWordsFn.processBundle(" some  input  words "),
-        CoreMatchers.hasItems("some", "input", "words"));
-    Assert.assertThat(extractWordsFn.processBundle(" "), CoreMatchers.hasItems());
-    Assert.assertThat(
-        extractWordsFn.processBundle(" some ", " input", " words"),
-        CoreMatchers.hasItems("some", "input", "words"));
+    List<String> words = Arrays.asList(" some  input  words ", " ", " cool ", " foo", " bar");
+    PCollection<String> output =
+        p.apply(Create.of(words).withCoder(StringUtf8Coder.of()))
+            .apply(ParDo.of(new ExtractWordsFn()));
+    PAssert.that(output).containsInAnyOrder("some", "input", "words", "cool", "foo", "bar");
+    p.run().waitUntilFinish();
   }
 
   static final String[] WORDS_ARRAY =

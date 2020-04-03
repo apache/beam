@@ -25,8 +25,10 @@ import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
-import org.apache.beam.runners.flink.translation.utils.FlinkClassloading;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
+import org.apache.beam.runners.flink.translation.utils.Workarounds;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
@@ -37,7 +39,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
@@ -67,8 +69,10 @@ public class FlinkDoFnFunction<InputT, OutputT>
   private final Coder<InputT> inputCoder;
   private final Map<TupleTag<?>, Coder<?>> outputCoderMap;
   private final DoFnSchemaInformation doFnSchemaInformation;
+  private final Map<String, PCollectionView<?>> sideInputMapping;
 
   private transient DoFnInvoker<InputT, OutputT> doFnInvoker;
+  private transient FlinkMetricContainer metricContainer;
 
   public FlinkDoFnFunction(
       DoFn<InputT, OutputT> doFn,
@@ -80,7 +84,8 @@ public class FlinkDoFnFunction<InputT, OutputT>
       TupleTag<OutputT> mainOutputTag,
       Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoderMap,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
 
     this.doFn = doFn;
     this.stepName = stepName;
@@ -92,6 +97,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
     this.inputCoder = inputCoder;
     this.outputCoderMap = outputCoderMap;
     this.doFnSchemaInformation = doFnSchemaInformation;
+    this.sideInputMapping = sideInputMapping;
   }
 
   @Override
@@ -123,10 +129,12 @@ public class FlinkDoFnFunction<InputT, OutputT>
             inputCoder,
             outputCoderMap,
             windowingStrategy,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
 
-    if ((serializedOptions.get().as(FlinkPipelineOptions.class)).getEnableMetrics()) {
-      doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
+    FlinkPipelineOptions pipelineOptions = serializedOptions.get().as(FlinkPipelineOptions.class);
+    if (!pipelineOptions.getDisableMetrics()) {
+      doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, metricContainer);
     }
 
     doFnRunner.startBundle();
@@ -139,16 +147,22 @@ public class FlinkDoFnFunction<InputT, OutputT>
   }
 
   @Override
-  public void open(Configuration parameters) throws Exception {
+  public void open(Configuration parameters) {
+    // Note that the SerializablePipelineOptions already initialize FileSystems in the readObject()
+    // deserialization method. However, this is a hack, and we want to properly initialize the
+    // options where they are needed.
+    FileSystems.setDefaultPipelineOptions(serializedOptions.get());
     doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn);
+    metricContainer = new FlinkMetricContainer(getRuntimeContext());
   }
 
   @Override
   public void close() throws Exception {
     try {
+      metricContainer.registerMetricsForPipelineResult();
       Optional.ofNullable(doFnInvoker).ifPresent(DoFnInvoker::invokeTeardown);
     } finally {
-      FlinkClassloading.deleteStaticCaches();
+      Workarounds.deleteStaticCaches();
     }
   }
 

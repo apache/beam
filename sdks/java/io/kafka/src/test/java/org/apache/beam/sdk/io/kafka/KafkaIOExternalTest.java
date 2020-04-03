@@ -30,29 +30,27 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.ReadTranslation;
-import org.apache.beam.runners.core.construction.expansion.ExpansionService;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.expansion.service.ExpansionService;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.internal.util.reflection.Whitebox;
+import org.powermock.reflect.Whitebox;
 
 /** Tests for building {@link KafkaIO} externally via the ExpansionService. */
 @RunWith(JUnit4.class)
@@ -76,7 +74,7 @@ public class KafkaIOExternalTest {
                 "topics",
                 ExternalTransforms.ConfigValue.newBuilder()
                     .addCoderUrn("beam:coder:iterable:v1")
-                    .addCoderUrn("beam:coder:bytes:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(listAsBytes(topics)))
                     .build())
             .putConfiguration(
@@ -84,20 +82,20 @@ public class KafkaIOExternalTest {
                 ExternalTransforms.ConfigValue.newBuilder()
                     .addCoderUrn("beam:coder:iterable:v1")
                     .addCoderUrn("beam:coder:kv:v1")
-                    .addCoderUrn("beam:coder:bytes:v1")
-                    .addCoderUrn("beam:coder:bytes:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(mapAsBytes(consumerConfig)))
                     .build())
             .putConfiguration(
                 "key_deserializer",
                 ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:bytes:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(encodeString(keyDeserializer)))
                     .build())
             .putConfiguration(
                 "value_deserializer",
                 ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:bytes:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(encodeString(valueDeserializer)))
                     .build())
             .build();
@@ -141,8 +139,18 @@ public class KafkaIOExternalTest {
 
     assertThat(spec.getConsumerConfig(), Matchers.is(consumerConfig));
     assertThat(spec.getTopics(), Matchers.is(topics));
-    assertThat(spec.getKeyDeserializer().getName(), Matchers.is(keyDeserializer));
-    assertThat(spec.getValueDeserializer().getName(), Matchers.is(valueDeserializer));
+    assertThat(
+        spec.getKeyDeserializerProvider()
+            .getDeserializer(spec.getConsumerConfig(), true)
+            .getClass()
+            .getName(),
+        Matchers.is(keyDeserializer));
+    assertThat(
+        spec.getValueDeserializerProvider()
+            .getDeserializer(spec.getConsumerConfig(), false)
+            .getClass()
+            .getName(),
+        Matchers.is(valueDeserializer));
   }
 
   @Test
@@ -161,7 +169,7 @@ public class KafkaIOExternalTest {
             .putConfiguration(
                 "topic",
                 ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:bytes:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(encodeString(topic)))
                     .build())
             .putConfiguration(
@@ -169,20 +177,20 @@ public class KafkaIOExternalTest {
                 ExternalTransforms.ConfigValue.newBuilder()
                     .addCoderUrn("beam:coder:iterable:v1")
                     .addCoderUrn("beam:coder:kv:v1")
-                    .addCoderUrn("beam:coder:bytes:v1")
-                    .addCoderUrn("beam:coder:bytes:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(mapAsBytes(producerConfig)))
                     .build())
             .putConfiguration(
                 "key_serializer",
                 ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:bytes:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(encodeString(keySerializer)))
                     .build())
             .putConfiguration(
                 "value_serializer",
                 ExternalTransforms.ConfigValue.newBuilder()
-                    .addCoderUrn("beam:coder:bytes:v1")
+                    .addCoderUrn("beam:coder:string_utf8:v1")
                     .setPayload(ByteString.copyFrom(encodeString(valueSerializer)))
                     .build())
             .build();
@@ -248,35 +256,28 @@ public class KafkaIOExternalTest {
   }
 
   private static byte[] listAsBytes(List<String> stringList) throws IOException {
-    IterableCoder<byte[]> coder = IterableCoder.of(ByteArrayCoder.of());
-    List<byte[]> bytesList =
-        stringList.stream().map(KafkaIOExternalTest::utf8Bytes).collect(Collectors.toList());
+    IterableCoder<String> coder = IterableCoder.of(StringUtf8Coder.of());
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    coder.encode(bytesList, baos);
+    coder.encode(stringList, baos);
     return baos.toByteArray();
   }
 
   private static byte[] mapAsBytes(Map<String, String> stringMap) throws IOException {
-    IterableCoder<KV<byte[], byte[]>> coder =
-        IterableCoder.of(KvCoder.of(ByteArrayCoder.of(), ByteArrayCoder.of()));
-    List<KV<byte[], byte[]>> bytesList =
+    IterableCoder<KV<String, String>> coder =
+        IterableCoder.of(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
+    List<KV<String, String>> stringList =
         stringMap.entrySet().stream()
-            .map(kv -> KV.of(utf8Bytes(kv.getKey()), utf8Bytes(kv.getValue())))
+            .map(kv -> KV.of(kv.getKey(), kv.getValue()))
             .collect(Collectors.toList());
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    coder.encode(bytesList, baos);
+    coder.encode(stringList, baos);
     return baos.toByteArray();
   }
 
   private static byte[] encodeString(String str) throws IOException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    ByteArrayCoder.of().encode(utf8Bytes(str), baos);
+    StringUtf8Coder.of().encode(str, baos);
     return baos.toByteArray();
-  }
-
-  private static byte[] utf8Bytes(String str) {
-    Preconditions.checkNotNull(str, "String must not be null.");
-    return str.getBytes(Charsets.UTF_8);
   }
 
   private static class TestStreamObserver<T> implements StreamObserver<T> {

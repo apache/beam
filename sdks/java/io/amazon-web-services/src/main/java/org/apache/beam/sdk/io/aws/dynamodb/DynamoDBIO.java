@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.aws.dynamodb;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
@@ -38,6 +38,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.MapCoder;
@@ -59,16 +60,16 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.http.HttpStatus;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link PTransform}s to read/write from/to <a
- * href="https://aws.amazon.com/dynamodb/">DynamoDB</a>.
+ * {@link PTransform}s to read/write from/to <a href="https://aws.amazon.com/dynamodb/">Amazon
+ * DynamoDB</a>.
  *
  * <h3>Writing to DynamoDB</h3>
  *
@@ -84,14 +85,14 @@ import org.slf4j.LoggerFactory;
  *                       t -> KV.of(tableName, writeRequest))
  *               .withRetryConfiguration(
  *                    DynamoDBIO.RetryConfiguration.create(5, Duration.standardMinutes(1)))
- *               .withAwsClientsProvider(new BasicSnsProvider(accessKey, secretKey, region));
+ *               .withAwsClientsProvider(new BasicDynamoDbProvider(accessKey, secretKey, region));
  * }</pre>
  *
  * <p>As a client, you need to provide at least the following things:
  *
  * <ul>
  *   <li>Retry configuration
- *   <li>Specify AwsClientsProvider. You can pass on the default one BasicSnsProvider
+ *   <li>Specify AwsClientsProvider. You can pass on the default one BasicDynamoDbProvider
  *   <li>Mapper function with a table name to map or transform your object into KV<tableName,
  *       writeRequest>
  * </ul>
@@ -104,7 +105,7 @@ import org.slf4j.LoggerFactory;
  * PCollection<List<Map<String, AttributeValue>>> output =
  *     pipeline.apply(
  *             DynamoDBIO.<List<Map<String, AttributeValue>>>read()
- *                 .withAwsClientsProvider(new BasicSnsProvider(accessKey, secretKey, region))
+ *                 .withAwsClientsProvider(new BasicDynamoDBProvider(accessKey, secretKey, region))
  *                 .withScanRequestFn(
  *                     (SerializableFunction<Void, ScanRequest>)
  *                         input -> new ScanRequest(tableName).withTotalSegments(1))
@@ -114,12 +115,12 @@ import org.slf4j.LoggerFactory;
  * <p>As a client, you need to provide at least the following things:
  *
  * <ul>
- *   <li>Specify AwsClientsProvider. You can pass on the default one BasicSnsProvider
+ *   <li>Specify AwsClientsProvider. You can pass on the default one BasicDynamoDBProvider
  *   <li>ScanRequestFn, which you build a ScanRequest object with at least table name and total
  *       number of segment. Note This number should base on the number of your workers
  * </ul>
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public final class DynamoDBIO {
   public static <T> Read<T> read() {
     return new AutoValue_DynamoDBIO_Read.Builder().build();
@@ -268,7 +269,7 @@ public final class DynamoDBIO {
   }
 
   /**
-   * A POJO encapsulating a configuration for retry behavior when issuing requests to dynamodb. A
+   * A POJO encapsulating a configuration for retry behavior when issuing requests to DynamoDB. A
    * retry will be attempted until the maxAttempts or maxDuration is exceeded, whichever comes
    * first, for any of the following exceptions:
    *
@@ -316,7 +317,7 @@ public final class DynamoDBIO {
     /**
      * An interface used to control if we retry the BatchWriteItemRequest call when a {@link
      * Throwable} occurs. If {@link RetryPredicate#test(Object)} returns true, {@link Write} tries
-     * to resend the requests to the dynamodb server if the {@link RetryConfiguration} permits it.
+     * to resend the requests to the DynamoDB server if the {@link RetryConfiguration} permits it.
      */
     @FunctionalInterface
     interface RetryPredicate extends Predicate<Throwable>, Serializable {}
@@ -335,7 +336,7 @@ public final class DynamoDBIO {
     }
   }
 
-  /** Write a PCollection<T> data into Dynamodb. */
+  /** Write a PCollection<T> data into DynamoDB. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PCollection<Void>> {
 
@@ -504,13 +505,13 @@ public final class DynamoDBIO {
                     "Unable to write batch items {} due to {} ",
                     batchRequest.getRequestItems().entrySet(),
                     ex);
-                throw new IOException("Error writing to DyanmoDB (no attempt made to retry)", ex);
+                throw new IOException("Error writing to DynamoDB (no attempt made to retry)", ex);
               }
 
               if (!BackOffUtils.next(sleeper, backoff)) {
                 throw new IOException(
                     String.format(
-                        "Error writing to DyanmoDB after %d attempt(s). No more attempts allowed",
+                        "Error writing to DynamoDB after %d attempt(s). No more attempts allowed",
                         attempt),
                     ex);
               } else {

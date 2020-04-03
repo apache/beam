@@ -19,16 +19,20 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static org.apache.beam.sdk.schemas.Schema.FieldType;
 import static org.apache.beam.sdk.schemas.Schema.TypeName;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
+import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.util.AbstractList;
+import java.util.AbstractMap;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamJavaTypeFactory;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -44,42 +48,46 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.calcite.DataContext;
-import org.apache.calcite.adapter.enumerable.JavaRowFormat;
-import org.apache.calcite.adapter.enumerable.PhysType;
-import org.apache.calcite.adapter.enumerable.PhysTypeImpl;
-import org.apache.calcite.adapter.enumerable.RexToLixTranslator;
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.linq4j.QueryProvider;
-import org.apache.calcite.linq4j.tree.BlockBuilder;
-import org.apache.calcite.linq4j.tree.Expression;
-import org.apache.calcite.linq4j.tree.Expressions;
-import org.apache.calcite.linq4j.tree.GotoExpressionKind;
-import org.apache.calcite.linq4j.tree.ParameterExpression;
-import org.apache.calcite.linq4j.tree.Types;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptPredicateList;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Calc;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexProgram;
-import org.apache.calcite.rex.RexSimplify;
-import org.apache.calcite.rex.RexUtil;
-import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.sql.validate.SqlConformance;
-import org.apache.calcite.sql.validate.SqlConformanceEnum;
-import org.apache.calcite.util.BuiltInMethod;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.DataContext;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.JavaRowFormat;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.PhysType;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.PhysTypeImpl;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.RexToLixTranslator;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.QueryProvider;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.BlockBuilder;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Expression;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Expressions;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.GotoExpressionKind;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.MemberDeclaration;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.ParameterExpression;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Types;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPredicateList;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexProgram;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexSimplify;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexUtil;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlConformance;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlConformanceEnum;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.BuiltInMethod;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.codehaus.commons.compiler.CompileException;
 import org.codehaus.janino.ScriptEvaluator;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.ReadableInstant;
 
-/** BeamRelNode to replace a {@code Project} node. */
-public class BeamCalcRel extends Calc implements BeamRelNode {
+/** BeamRelNode to replace {@code Project} and {@code Filter} node. */
+public class BeamCalcRel extends AbstractBeamCalcRel {
 
   private static final ParameterExpression outputSchemaParam =
       Expressions.parameter(Schema.class, "outputSchema");
@@ -134,8 +142,8 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
       final RexBuilder rexBuilder = getCluster().getRexBuilder();
       final RelMetadataQuery mq = RelMetadataQuery.instance();
       final RelOptPredicateList predicates = mq.getPulledUpPredicates(getInput());
-      final RexSimplify simplify = new RexSimplify(rexBuilder, predicates, false, RexUtil.EXECUTOR);
-      final RexProgram program = BeamCalcRel.this.program.normalize(rexBuilder, simplify);
+      final RexSimplify simplify = new RexSimplify(rexBuilder, predicates, RexUtil.EXECUTOR);
+      final RexProgram program = getProgram().normalize(rexBuilder, simplify);
 
       Expression condition =
           RexToLixTranslator.translateCondition(
@@ -198,18 +206,6 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
     }
   }
 
-  public int getLimitCountOfSortRel() {
-    if (input instanceof BeamSortRel) {
-      return ((BeamSortRel) input).getCount();
-    }
-
-    throw new RuntimeException("Could not get the limit count from a non BeamSortRel input.");
-  }
-
-  public boolean isInputSortRelAndLimitOnly() {
-    return (input instanceof BeamSortRel) && ((BeamSortRel) input).isLimitOnly();
-  }
-
   /** {@code CalcFn} is the executor for a {@link BeamCalcRel} step. */
   private static class CalcFn extends DoFn<Row, Row> {
     private final String processElementBlock;
@@ -233,7 +229,8 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
       try {
         se.cook(processElementBlock);
       } catch (CompileException e) {
-        throw new RuntimeException("Could not compile CalcFn: " + processElementBlock, e);
+        throw new UnsupportedOperationException(
+            "Could not compile CalcFn: " + processElementBlock, e);
       }
       return se;
     }
@@ -265,7 +262,7 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
           .put(TypeName.DOUBLE, Double.class)
           .build();
 
-  private Expression castOutput(Expression value, FieldType toType) {
+  private static Expression castOutput(Expression value, FieldType toType) {
     if (value.getType() == Object.class || !(value.getType() instanceof Class)) {
       // fast copy path, just pass object through
       return value;
@@ -276,7 +273,13 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
     } else if (toType.getTypeName() == TypeName.DECIMAL
         && !Types.isAssignableFrom(BigDecimal.class, (Class) value.getType())) {
       return Expressions.new_(BigDecimal.class, value);
+    } else if (toType.getTypeName() == TypeName.BYTES
+        && Types.isAssignableFrom(ByteString.class, (Class) value.getType())) {
 
+      return Expressions.condition(
+          Expressions.equal(value, Expressions.constant(null)),
+          Expressions.constant(null),
+          Expressions.call(value, "getBytes"));
     } else if (((Class) value.getType()).isPrimitive()
         || Types.isAssignableFrom(Number.class, (Class) value.getType())) {
       Type rawType = rawTypeMap.get(toType.getTypeName());
@@ -287,25 +290,28 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
     return value;
   }
 
-  private Expression castOutputTime(Expression value, FieldType toType) {
+  private static Expression castOutputTime(Expression value, FieldType toType) {
     Expression valueDateTime = value;
 
     // First, convert to millis
-    if (CalciteUtils.TIMESTAMP.typesEqual(toType)) {
+    if (CalciteUtils.TIMESTAMP.typesEqual(toType)
+        || CalciteUtils.NULLABLE_TIMESTAMP.typesEqual(toType)) {
       if (value.getType() == java.sql.Timestamp.class) {
         valueDateTime = Expressions.call(BuiltInMethod.TIMESTAMP_TO_LONG.method, valueDateTime);
       }
-    } else if (CalciteUtils.TIME.typesEqual(toType)) {
+    } else if (CalciteUtils.TIME.typesEqual(toType)
+        || CalciteUtils.NULLABLE_TIME.typesEqual(toType)) {
       if (value.getType() == java.sql.Time.class) {
         valueDateTime = Expressions.call(BuiltInMethod.TIME_TO_INT.method, valueDateTime);
       }
-    } else if (CalciteUtils.DATE.typesEqual(toType)) {
+    } else if (CalciteUtils.DATE.typesEqual(toType)
+        || CalciteUtils.NULLABLE_DATE.typesEqual(toType)) {
       if (value.getType() == java.sql.Date.class) {
         valueDateTime = Expressions.call(BuiltInMethod.DATE_TO_INT.method, valueDateTime);
       }
       valueDateTime = Expressions.multiply(valueDateTime, Expressions.constant(MILLIS_PER_DAY));
     } else {
-      throw new IllegalArgumentException("Unknown DateTime type " + toType);
+      throw new UnsupportedOperationException("Unknown DateTime type " + toType);
     }
 
     // Second, convert to joda DateTime
@@ -328,31 +334,32 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
   }
 
   private static class InputGetterImpl implements RexToLixTranslator.InputGetter {
-    private static final Map<TypeName, String> typeGetterMap =
-        ImmutableMap.<TypeName, String>builder()
-            .put(TypeName.BYTE, "getByte")
-            .put(TypeName.BYTES, "getBytes")
-            .put(TypeName.INT16, "getInt16")
-            .put(TypeName.INT32, "getInt32")
-            .put(TypeName.INT64, "getInt64")
-            .put(TypeName.DECIMAL, "getDecimal")
-            .put(TypeName.FLOAT, "getFloat")
-            .put(TypeName.DOUBLE, "getDouble")
-            .put(TypeName.STRING, "getString")
-            .put(TypeName.DATETIME, "getDateTime")
-            .put(TypeName.BOOLEAN, "getBoolean")
-            .put(TypeName.MAP, "getMap")
-            .put(TypeName.ARRAY, "getArray")
-            .put(TypeName.ROW, "getRow")
+    private static final Map<TypeName, Class> TYPE_CONVERSION_MAP =
+        ImmutableMap.<TypeName, Class>builder()
+            .put(TypeName.BYTE, Byte.class)
+            .put(TypeName.BYTES, byte[].class)
+            .put(TypeName.INT16, Short.class)
+            .put(TypeName.INT32, Integer.class)
+            .put(TypeName.INT64, Long.class)
+            .put(TypeName.DECIMAL, BigDecimal.class)
+            .put(TypeName.FLOAT, Float.class)
+            .put(TypeName.DOUBLE, Double.class)
+            .put(TypeName.STRING, String.class)
+            .put(TypeName.DATETIME, ReadableInstant.class)
+            .put(TypeName.BOOLEAN, Boolean.class)
+            .put(TypeName.MAP, Map.class)
+            .put(TypeName.ARRAY, Collection.class)
+            .put(TypeName.ITERABLE, Iterable.class)
+            .put(TypeName.ROW, Row.class)
             .build();
 
-    private static final Map<String, String> logicalTypeGetterMap =
-        ImmutableMap.<String, String>builder()
-            .put(DateType.IDENTIFIER, "getDateTime")
-            .put(TimeType.IDENTIFIER, "getDateTime")
-            .put(TimeWithLocalTzType.IDENTIFIER, "getDateTime")
-            .put(TimestampWithLocalTzType.IDENTIFIER, "getDateTime")
-            .put(CharType.IDENTIFIER, "getString")
+    private static final Map<String, Class> LOGICAL_TYPE_CONVERSION_MAP =
+        ImmutableMap.<String, Class>builder()
+            .put(DateType.IDENTIFIER, ReadableInstant.class)
+            .put(TimeType.IDENTIFIER, ReadableInstant.class)
+            .put(TimeWithLocalTzType.IDENTIFIER, ReadableInstant.class)
+            .put(TimestampWithLocalTzType.IDENTIFIER, ReadableInstant.class)
+            .put(CharType.IDENTIFIER, String.class)
             .build();
 
     private final Expression input;
@@ -365,48 +372,148 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
 
     @Override
     public Expression field(BlockBuilder list, int index, Type storageType) {
-      if (index >= inputSchema.getFieldCount() || index < 0) {
-        throw new IllegalArgumentException("Unable to find field #" + index);
+      return value(list, index, storageType, input, inputSchema);
+    }
+
+    private static Expression value(
+        BlockBuilder list, int index, Type storageType, Expression input, Schema schema) {
+      if (index >= schema.getFieldCount() || index < 0) {
+        throw new IllegalArgumentException("Unable to find value #" + index);
       }
 
-      final Expression expression = list.append("current", input);
+      final Expression expression = list.append(list.newName("current"), input);
+
+      FieldType fromType = schema.getField(index).getType();
+      Class convertTo = null;
       if (storageType == Object.class) {
-        return Expressions.convert_(
-            Expressions.call(expression, "getValue", Expressions.constant(index)), Object.class);
-      }
-      FieldType fromType = inputSchema.getField(index).getType();
-      String getter;
-      if (fromType.getTypeName().isLogicalType()) {
-        getter = logicalTypeGetterMap.get(fromType.getLogicalType().getIdentifier());
+        convertTo = Object.class;
+      } else if (fromType.getTypeName().isLogicalType()) {
+        convertTo = LOGICAL_TYPE_CONVERSION_MAP.get(fromType.getLogicalType().getIdentifier());
       } else {
-        getter = typeGetterMap.get(fromType.getTypeName());
+        convertTo = TYPE_CONVERSION_MAP.get(fromType.getTypeName());
       }
-      if (getter == null) {
-        throw new IllegalArgumentException("Unable to get " + fromType.getTypeName());
+      if (convertTo == null) {
+        throw new UnsupportedOperationException("Unable to get " + fromType.getTypeName());
       }
-      Expression field = Expressions.call(expression, getter, Expressions.constant(index));
-      if (fromType.getTypeName().isLogicalType()) {
-        field = Expressions.call(field, "getMillis");
-        String logicalId = fromType.getLogicalType().getIdentifier();
-        if (logicalId.equals(TimeType.IDENTIFIER)) {
-          field = Expressions.convert_(field, int.class);
-        } else if (logicalId.equals(DateType.IDENTIFIER)) {
-          field =
-              Expressions.convert_(
-                  Expressions.modulo(field, Expressions.constant(MILLIS_PER_DAY)), int.class);
-        } else if (!logicalId.equals(CharType.IDENTIFIER)) {
-          throw new IllegalArgumentException(
-              "Unknown LogicalType " + fromType.getLogicalType().getIdentifier());
-        }
-      } else if (CalciteUtils.isDateTimeType(fromType)) {
-        field = Expressions.call(field, "getMillis");
-      } else if (fromType.getTypeName().isCompositeType()
-          || (fromType.getTypeName().isCollectionType()
-              && fromType.getCollectionElementType().getTypeName().isCompositeType())) {
-        field = Expressions.call(WrappedList.class, "of", field);
-      }
-      return field;
+
+      Expression value =
+          Expressions.convert_(
+              Expressions.call(
+                  expression,
+                  "getBaseValue",
+                  Expressions.constant(index),
+                  Expressions.constant(convertTo)),
+              convertTo);
+      return (storageType != Object.class) ? value(value, fromType) : value;
     }
+
+    private static Expression value(Expression value, Schema.FieldType type) {
+      if (type.getTypeName().isLogicalType()) {
+        Expression millisField = Expressions.call(value, "getMillis");
+        String logicalId = type.getLogicalType().getIdentifier();
+        if (logicalId.equals(TimeType.IDENTIFIER)) {
+          return nullOr(value, Expressions.convert_(millisField, int.class));
+        } else if (logicalId.equals(DateType.IDENTIFIER)) {
+          value =
+              nullOr(
+                  value,
+                  Expressions.convert_(
+                      Expressions.divide(millisField, Expressions.constant(MILLIS_PER_DAY)),
+                      int.class));
+        } else if (!logicalId.equals(CharType.IDENTIFIER)) {
+          throw new UnsupportedOperationException(
+              "Unknown LogicalType " + type.getLogicalType().getIdentifier());
+        }
+      } else if (type.getTypeName().isMapType()) {
+        return nullOr(value, map(value, type.getMapValueType()));
+      } else if (CalciteUtils.isDateTimeType(type)) {
+        return nullOr(value, Expressions.call(value, "getMillis"));
+      } else if (type.getTypeName().isCompositeType()) {
+        return nullOr(value, row(value, type.getRowSchema()));
+      } else if (type.getTypeName().isCollectionType()) {
+        return nullOr(value, list(value, type.getCollectionElementType()));
+      } else if (type.getTypeName() == TypeName.BYTES) {
+        return nullOr(
+            value, Expressions.new_(ByteString.class, Types.castIfNecessary(byte[].class, value)));
+      }
+
+      return value;
+    }
+
+    private static Expression list(Expression input, FieldType elementType) {
+      ParameterExpression value = Expressions.parameter(Object.class);
+
+      BlockBuilder block = new BlockBuilder();
+      block.add(value(value, elementType));
+
+      return Expressions.new_(
+          WrappedList.class,
+          ImmutableList.of(Types.castIfNecessary(List.class, input)),
+          ImmutableList.<MemberDeclaration>of(
+              Expressions.methodDecl(
+                  Modifier.PUBLIC,
+                  Object.class,
+                  "value",
+                  ImmutableList.of(value),
+                  block.toBlock())));
+    }
+
+    private static Expression map(Expression input, FieldType mapValueType) {
+      ParameterExpression value = Expressions.parameter(Object.class);
+
+      BlockBuilder block = new BlockBuilder();
+      block.add(value(value, mapValueType));
+
+      return Expressions.new_(
+          WrappedMap.class,
+          ImmutableList.of(Types.castIfNecessary(Map.class, input)),
+          ImmutableList.<MemberDeclaration>of(
+              Expressions.methodDecl(
+                  Modifier.PUBLIC,
+                  Object.class,
+                  "value",
+                  ImmutableList.of(value),
+                  block.toBlock())));
+    }
+
+    private static Expression row(Expression input, Schema schema) {
+      ParameterExpression row = Expressions.parameter(Row.class);
+      ParameterExpression index = Expressions.parameter(int.class);
+      BlockBuilder body = new BlockBuilder(/* optimizing= */ false);
+
+      for (int i = 0; i < schema.getFieldCount(); i++) {
+        BlockBuilder list = new BlockBuilder(/* optimizing= */ false, body);
+        Expression returnValue = value(list, i, /* storageType= */ null, row, schema);
+
+        list.append(returnValue);
+
+        body.append(
+            "if i=" + i,
+            Expressions.block(
+                Expressions.ifThen(
+                    Expressions.equal(index, Expressions.constant(i, int.class)), list.toBlock())));
+      }
+
+      body.add(Expressions.throw_(Expressions.new_(IndexOutOfBoundsException.class)));
+
+      return Expressions.new_(
+          WrappedRow.class,
+          ImmutableList.of(Types.castIfNecessary(Row.class, input)),
+          ImmutableList.<MemberDeclaration>of(
+              Expressions.methodDecl(
+                  Modifier.PUBLIC,
+                  Object.class,
+                  "field",
+                  ImmutableList.of(row, index),
+                  body.toBlock())));
+    }
+  }
+
+  private static Expression nullOr(Expression field, Expression ifNotNull) {
+    return Expressions.condition(
+        Expressions.equal(field, Expressions.constant(null)),
+        Expressions.constant(null),
+        Expressions.box(ifNotNull));
   }
 
   private static final DataContext CONTEXT_INSTANCE = new SlimDataContext();
@@ -439,40 +546,73 @@ public class BeamCalcRel extends Calc implements BeamRelNode {
     }
   }
 
-  /** WrappedList translates {@code Row} and {@code List} on access. */
-  public static class WrappedList extends AbstractList<Object> {
+  /** WrappedRow translates {@code Row} on access. */
+  public abstract static class WrappedRow extends AbstractList<Object> {
+    private final Row row;
 
-    private final List<Object> list;
-
-    private WrappedList(List<Object> list) {
-      this.list = list;
-    }
-
-    public static List<Object> of(List list) {
-      if (list instanceof WrappedList) {
-        return list;
-      }
-      return new WrappedList(list);
-    }
-
-    public static List<Object> of(Row row) {
-      return new WrappedList(row.getValues());
+    protected WrappedRow(Row row) {
+      this.row = row;
     }
 
     @Override
     public Object get(int index) {
-      Object obj = list.get(index);
-      if (obj instanceof Row) {
-        obj = of((Row) obj);
-      } else if (obj instanceof List) {
-        obj = of((List) obj);
-      }
-      return obj;
+      return field(row, index);
     }
+
+    // we could override get(int index) if we knew how to access `this.row` in linq4j
+    // for now we keep it consistent with WrappedList
+    protected abstract Object field(Row row, int index);
 
     @Override
     public int size() {
-      return list.size();
+      return row.getFieldCount();
+    }
+  }
+
+  /** WrappedMap translates {@code Map} on access. */
+  public abstract static class WrappedMap<V> extends AbstractMap<Object, V> {
+    private final Map<Object, Object> map;
+
+    protected WrappedMap(Map<Object, Object> map) {
+      this.map = map;
+    }
+
+    // TODO transform keys, in this case, we need to do lookup, so it should be both ways:
+    //
+    // public abstract Object fromKey(K key)
+    // public abstract K toKey(Object key)
+
+    @Override
+    public Set<Entry<Object, V>> entrySet() {
+      return Maps.transformValues(map, val -> (val == null) ? null : value(val)).entrySet();
+    }
+
+    @Override
+    public V get(Object key) {
+      return value(map.get(key));
+    }
+
+    protected abstract V value(Object value);
+  }
+
+  /** WrappedList translates {@code List} on access. */
+  public abstract static class WrappedList<T> extends AbstractList<T> {
+    private final List<Object> values;
+
+    protected WrappedList(List<Object> values) {
+      this.values = values;
+    }
+
+    @Override
+    public T get(int index) {
+      return value(values.get(index));
+    }
+
+    protected abstract T value(Object value);
+
+    @Override
+    public int size() {
+      return values.size();
     }
   }
 }

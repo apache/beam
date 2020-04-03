@@ -31,6 +31,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hbase.HBaseIO.HBaseSource;
@@ -43,7 +44,6 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
@@ -549,11 +549,8 @@ public class HBaseIOTest {
   private PCollection<Result> applyRead(HBaseIO.Read read, boolean useSdf) {
     final String transformId = read.getTableId() + "_" + read.getKeyRange();
     return useSdf
-        ? p.apply(
-                "Create" + transformId, Create.of(HBaseQuery.of(read.getTableId(), read.getScan())))
-            .apply(
-                "ReadAll" + transformId,
-                HBaseIO.readAll().withConfiguration(read.getConfiguration()))
+        ? p.apply("Create" + transformId, Create.of(read))
+            .apply("ReadAll" + transformId, HBaseIO.readAll())
         : p.apply("Read" + transformId, read);
   }
 

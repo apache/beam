@@ -19,7 +19,7 @@ package org.apache.beam.runners.core.metrics;
 
 import static java.util.Collections.singleton;
 import static java.util.stream.Collectors.toList;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables.concat;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.concat;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -82,6 +82,14 @@ public class MetricsContainerStepMap implements Serializable {
    */
   public void update(String step, MetricsContainerImpl container) {
     getContainer(step).update(container);
+  }
+
+  /** Reset the metric containers. */
+  public void reset() {
+    for (MetricsContainerImpl metricsContainer : metricsContainers.values()) {
+      metricsContainer.reset();
+    }
+    unboundContainer.reset();
   }
 
   @Override

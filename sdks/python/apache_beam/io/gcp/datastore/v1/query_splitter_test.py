@@ -17,11 +17,16 @@
 
 """Cloud Datastore query splitter test."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import sys
 import unittest
+from typing import Type
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 from mock import MagicMock
 from mock import call
 
@@ -35,7 +40,7 @@ try:
   from google.cloud.proto.datastore.v1.query_pb2 import PropertyFilter
 except (ImportError, TypeError):
   datastore_pb2 = None
-  query_splitter = None
+  query_splitter = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -47,8 +52,13 @@ class QuerySplitterTest(unittest.TestCase):
   def setUp(self):
     pass
 
-  def create_query(self, kinds=(), order=False, limit=None, offset=None,
-                   inequality_filter=False):
+  def create_query(
+      self,
+      kinds=(),
+      order=False,
+      limit=None,
+      offset=None,
+      inequality_filter=False):
     query = query_pb2.Query()
     for kind in kinds:
       query.kind.add().name = kind
@@ -63,32 +73,32 @@ class QuerySplitterTest(unittest.TestCase):
       test_filter.property_filter.op = PropertyFilter.GREATER_THAN
     return query
 
-  split_error = ValueError
+  split_error = ValueError  # type: Type[Exception]
   query_splitter = query_splitter
 
   def test_get_splits_query_with_multiple_kinds(self):
     query = self.create_query(kinds=['a', 'b'])
-    with self.assertRaisesRegexp(self.split_error, r'one kind'):
+    with self.assertRaisesRegex(self.split_error, r'one kind'):
       self.query_splitter.get_splits(None, query, 4)
 
   def test_get_splits_query_with_order(self):
     query = self.create_query(kinds=['a'], order=True)
-    with self.assertRaisesRegexp(self.split_error, r'sort orders'):
+    with self.assertRaisesRegex(self.split_error, r'sort orders'):
       self.query_splitter.get_splits(None, query, 3)
 
   def test_get_splits_query_with_unsupported_filter(self):
     query = self.create_query(kinds=['a'], inequality_filter=True)
-    with self.assertRaisesRegexp(self.split_error, r'inequality filters'):
+    with self.assertRaisesRegex(self.split_error, r'inequality filters'):
       self.query_splitter.get_splits(None, query, 2)
 
   def test_get_splits_query_with_limit(self):
     query = self.create_query(kinds=['a'], limit=10)
-    with self.assertRaisesRegexp(self.split_error, r'limit set'):
+    with self.assertRaisesRegex(self.split_error, r'limit set'):
       self.query_splitter.get_splits(None, query, 2)
 
   def test_get_splits_query_with_offset(self):
     query = self.create_query(kinds=['a'], offset=10)
-    with self.assertRaisesRegexp(self.split_error, r'offset set'):
+    with self.assertRaisesRegex(self.split_error, r'offset set'):
       self.query_splitter.get_splits(None, query, 2)
 
   def test_create_scatter_query(self):
@@ -96,12 +106,14 @@ class QuerySplitterTest(unittest.TestCase):
     num_splits = 10
     scatter_query = self.query_splitter._create_scatter_query(query, num_splits)
     self.assertEqual(scatter_query.kind[0], query.kind[0])
-    self.assertEqual(scatter_query.limit.value,
-                     (num_splits -1) * self.query_splitter.KEYS_PER_SPLIT)
-    self.assertEqual(scatter_query.order[0].direction,
-                     query_pb2.PropertyOrder.ASCENDING)
-    self.assertEqual(scatter_query.projection[0].property.name,
-                     self.query_splitter.KEY_PROPERTY_NAME)
+    self.assertEqual(
+        scatter_query.limit.value,
+        (num_splits - 1) * self.query_splitter.KEYS_PER_SPLIT)
+    self.assertEqual(
+        scatter_query.order[0].direction, query_pb2.PropertyOrder.ASCENDING)
+    self.assertEqual(
+        scatter_query.projection[0].property.name,
+        self.query_splitter.KEY_PROPERTY_NAME)
 
   def test_get_splits_with_two_splits(self):
     query = self.create_query(kinds=['shakespeare-demo'])
@@ -171,11 +183,16 @@ class QuerySplitterTest(unittest.TestCase):
       batch_size: the number of entities returned by fake datastore in one req.
     """
 
-    # Test for both random long ids and string ids.
-    id_or_name = [True, False]
+    # Test for random long ids, string ids, and a mix of both.
+    id_or_name = [True, False, None]
 
     for id_type in id_or_name:
-      entities = fake_datastore.create_entities(num_entities, id_type)
+      if id_type is None:
+        entities = fake_datastore.create_entities(num_entities, False)
+        entities.extend(fake_datastore.create_entities(num_entities, True))
+        num_entities *= 2
+      else:
+        entities = fake_datastore.create_entities(num_entities, id_type)
       mock_datastore = MagicMock()
       # Assign a fake run_query method as a side_effect to the mock.
       mock_datastore.run_query.side_effect = \
@@ -198,8 +215,8 @@ class QuerySplitterTest(unittest.TestCase):
 
       self.assertEqual(expected_calls, mock_datastore.run_query.call_args_list)
 
-  def create_scatter_requests(self, query, num_splits, batch_size,
-                              num_entities):
+  def create_scatter_requests(
+      self, query, num_splits, batch_size, num_entities):
     """Creates a list of expected scatter requests from the query splitter.
 
     This list of requests returned is used to verify that the query splitter

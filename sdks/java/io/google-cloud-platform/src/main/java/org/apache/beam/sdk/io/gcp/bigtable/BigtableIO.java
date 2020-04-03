@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.Mutation;
@@ -34,11 +34,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -53,15 +55,17 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects.ToStringHelper;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.ToStringHelper;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -131,6 +135,33 @@ import org.slf4j.LoggerFactory;
  *         .withTableId("table"));
  * }</pre>
  *
+ * <p>Optionally, BigtableIO.write() may be configured to emit {@link BigtableWriteResult} elements
+ * after each group of inputs is written to Bigtable. These can be used to then trigger user code
+ * after writes have completed. See {@link org.apache.beam.sdk.transforms.Wait} for details on the
+ * windowing requirements of the signal and input PCollections.
+ *
+ * <pre>{@code
+ * // See Wait.on
+ * PCollection<KV<ByteString, Iterable<Mutation>>> data = ...;
+ *
+ * PCollection<BigtableWriteResult> writeResults =
+ *     data.apply("write",
+ *         BigtableIO.write()
+ *             .withProjectId("project")
+ *             .withInstanceId("instance")
+ *             .withTableId("table"))
+ *             .withWriteResults();
+ *
+ * // The windowing of `moreData` must be compatible with `data`, see {@link org.apache.beam.sdk.transforms.Wait#on}
+ * // for details.
+ * PCollection<...> moreData = ...;
+ *
+ * moreData
+ *     .apply("wait for writes", Wait.on(writeResults))
+ *     .apply("do something", ParDo.of(...))
+ *
+ * }</pre>
+ *
  * <h3>Experimental</h3>
  *
  * <p>This connector for Cloud Bigtable is considered experimental and may break or receive
@@ -143,7 +174,7 @@ import org.slf4j.LoggerFactory;
  * pipeline. Please refer to the documentation of corresponding {@link PipelineRunner
  * PipelineRunners} for more details.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class BigtableIO {
   private static final Logger LOG = LoggerFactory.getLogger(BigtableIO.class);
 
@@ -176,7 +207,6 @@ public class BigtableIO {
    *
    * @see BigtableIO
    */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<Row>> {
 
@@ -463,7 +493,6 @@ public class BigtableIO {
    *
    * @see BigtableIO
    */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   @AutoValue
   public abstract static class Write
       extends PTransform<PCollection<KV<ByteString, Iterable<Mutation>>>, PDone> {
@@ -660,118 +689,179 @@ public class BigtableIO {
       return toBuilder().setBigtableConfig(config.withBigtableService(bigtableService)).build();
     }
 
+    /**
+     * Returns a {@link BigtableIO.WriteWithResults} that will emit a {@link BigtableWriteResult}
+     * for each batch of rows written.
+     */
+    @Experimental
+    public WriteWithResults withWriteResults() {
+      return new WriteWithResults(getBigtableConfig());
+    }
+
     @Override
     public PDone expand(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
-      getBigtableConfig().validate();
-
-      input.apply(ParDo.of(new BigtableWriterFn(getBigtableConfig())));
+      input.apply(withWriteResults());
       return PDone.in(input.getPipeline());
     }
 
     @Override
     public void validate(PipelineOptions options) {
-      validateTableExists(getBigtableConfig(), options);
+      withWriteResults().validate(options);
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      super.populateDisplayData(builder);
-      getBigtableConfig().populateDisplayData(builder);
+      withWriteResults().populateDisplayData(builder);
     }
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(Write.class).add("config", getBigtableConfig()).toString();
     }
+  }
 
-    private class BigtableWriterFn extends DoFn<KV<ByteString, Iterable<Mutation>>, Void> {
+  /**
+   * A {@link PTransform} that writes to Google Cloud Bigtable and emits a {@link
+   * BigtableWriteResult} for each batch written. See the class-level Javadoc on {@link BigtableIO}
+   * for more information.
+   *
+   * @see BigtableIO
+   */
+  public static class WriteWithResults
+      extends PTransform<
+          PCollection<KV<ByteString, Iterable<Mutation>>>, PCollection<BigtableWriteResult>> {
 
-      public BigtableWriterFn(BigtableConfig bigtableConfig) {
-        this.config = bigtableConfig;
-        this.failures = new ConcurrentLinkedQueue<>();
+    private final BigtableConfig bigtableConfig;
+
+    WriteWithResults(BigtableConfig bigtableConfig) {
+      this.bigtableConfig = bigtableConfig;
+    }
+
+    @Override
+    public PCollection<BigtableWriteResult> expand(
+        PCollection<KV<ByteString, Iterable<Mutation>>> input) {
+      bigtableConfig.validate();
+
+      return input.apply(ParDo.of(new BigtableWriterFn(bigtableConfig)));
+    }
+
+    @Override
+    public void validate(PipelineOptions options) {
+      validateTableExists(bigtableConfig, options);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      bigtableConfig.populateDisplayData(builder);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(WriteWithResults.class)
+          .add("config", bigtableConfig)
+          .toString();
+    }
+  }
+
+  private static class BigtableWriterFn
+      extends DoFn<KV<ByteString, Iterable<Mutation>>, BigtableWriteResult> {
+
+    BigtableWriterFn(BigtableConfig bigtableConfig) {
+      this.config = bigtableConfig;
+      this.failures = new ConcurrentLinkedQueue<>();
+    }
+
+    @StartBundle
+    public void startBundle(StartBundleContext c) throws IOException {
+      if (bigtableWriter == null) {
+        bigtableWriter =
+            config
+                .getBigtableService(c.getPipelineOptions())
+                .openForWriting(config.getTableId().get());
+      }
+      recordsWritten = 0;
+      this.seenWindows = Maps.newHashMapWithExpectedSize(1);
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
+      checkForFailures();
+      bigtableWriter
+          .writeRecord(c.element())
+          .whenComplete(
+              (mutationResult, exception) -> {
+                if (exception != null) {
+                  failures.add(new BigtableWriteException(c.element(), exception));
+                }
+              });
+      ++recordsWritten;
+      seenWindows.compute(window, (key, count) -> (count != null ? count : 0) + 1);
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext c) throws Exception {
+      bigtableWriter.flush();
+      checkForFailures();
+      LOG.debug("Wrote {} records", recordsWritten);
+
+      for (Map.Entry<BoundedWindow, Long> entry : seenWindows.entrySet()) {
+        c.output(
+            BigtableWriteResult.create(entry.getValue()),
+            entry.getKey().maxTimestamp(),
+            entry.getKey());
+      }
+    }
+
+    @Teardown
+    public void tearDown() throws Exception {
+      if (bigtableWriter != null) {
+        bigtableWriter.close();
+        bigtableWriter = null;
+      }
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      config.populateDisplayData(builder);
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////
+    private final BigtableConfig config;
+    private BigtableService.Writer bigtableWriter;
+    private long recordsWritten;
+    private final ConcurrentLinkedQueue<BigtableWriteException> failures;
+    private Map<BoundedWindow, Long> seenWindows;
+
+    /** If any write has asynchronously failed, fail the bundle with a useful error. */
+    private void checkForFailures() throws IOException {
+      // Note that this function is never called by multiple threads and is the only place that
+      // we remove from failures, so this code is safe.
+      if (failures.isEmpty()) {
+        return;
       }
 
-      @StartBundle
-      public void startBundle(StartBundleContext c) throws IOException {
-        if (bigtableWriter == null) {
-          bigtableWriter =
-              config
-                  .getBigtableService(c.getPipelineOptions())
-                  .openForWriting(config.getTableId().get());
+      StringBuilder logEntry = new StringBuilder();
+      int i = 0;
+      List<BigtableWriteException> suppressed = Lists.newArrayList();
+      for (; i < 10 && !failures.isEmpty(); ++i) {
+        BigtableWriteException exc = failures.remove();
+        logEntry.append("\n").append(exc.getMessage());
+        if (exc.getCause() != null) {
+          logEntry.append(": ").append(exc.getCause().getMessage());
         }
-        recordsWritten = 0;
+        suppressed.add(exc);
       }
-
-      @ProcessElement
-      public void processElement(ProcessContext c) throws Exception {
-        checkForFailures();
-        bigtableWriter
-            .writeRecord(c.element())
-            .whenComplete(
-                (mutationResult, exception) -> {
-                  if (exception != null) {
-                    failures.add(new BigtableWriteException(c.element(), exception));
-                  }
-                });
-        ++recordsWritten;
+      String message =
+          String.format(
+              "At least %d errors occurred writing to Bigtable. First %d errors: %s",
+              i + failures.size(), i, logEntry.toString());
+      LOG.error(message);
+      IOException exception = new IOException(message);
+      for (BigtableWriteException e : suppressed) {
+        exception.addSuppressed(e);
       }
-
-      @FinishBundle
-      public void finishBundle() throws Exception {
-        bigtableWriter.flush();
-        checkForFailures();
-        LOG.debug("Wrote {} records", recordsWritten);
-      }
-
-      @Teardown
-      public void tearDown() throws Exception {
-        if (bigtableWriter != null) {
-          bigtableWriter.close();
-          bigtableWriter = null;
-        }
-      }
-
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        builder.delegate(Write.this);
-      }
-
-      ///////////////////////////////////////////////////////////////////////////////
-      private final BigtableConfig config;
-      private BigtableService.Writer bigtableWriter;
-      private long recordsWritten;
-      private final ConcurrentLinkedQueue<BigtableWriteException> failures;
-
-      /** If any write has asynchronously failed, fail the bundle with a useful error. */
-      private void checkForFailures() throws IOException {
-        // Note that this function is never called by multiple threads and is the only place that
-        // we remove from failures, so this code is safe.
-        if (failures.isEmpty()) {
-          return;
-        }
-
-        StringBuilder logEntry = new StringBuilder();
-        int i = 0;
-        List<BigtableWriteException> suppressed = Lists.newArrayList();
-        for (; i < 10 && !failures.isEmpty(); ++i) {
-          BigtableWriteException exc = failures.remove();
-          logEntry.append("\n").append(exc.getMessage());
-          if (exc.getCause() != null) {
-            logEntry.append(": ").append(exc.getCause().getMessage());
-          }
-          suppressed.add(exc);
-        }
-        String message =
-            String.format(
-                "At least %d errors occurred writing to Bigtable. First %d errors: %s",
-                i + failures.size(), i, logEntry.toString());
-        LOG.error(message);
-        IOException exception = new IOException(message);
-        for (BigtableWriteException e : suppressed) {
-          exception.addSuppressed(e);
-        }
-        throw exception;
-      }
+      throw exception;
     }
   }
 

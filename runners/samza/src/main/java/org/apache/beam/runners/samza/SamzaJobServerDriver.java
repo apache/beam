@@ -26,14 +26,14 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
+import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemLegacyArtifactStagingService;
 import org.apache.beam.runners.fnexecution.jobsubmission.InMemoryJobService;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,14 +94,15 @@ public class SamzaJobServerDriver {
         null,
         (String session) -> {
           try {
-            return BeamFileSystemArtifactStagingService.generateStagingSessionToken(
+            return BeamFileSystemLegacyArtifactStagingService.generateStagingSessionToken(
                 session, "/tmp/beam-artifact-staging");
           } catch (Exception exn) {
             throw new RuntimeException(exn);
           }
         },
         stagingSessionToken -> {},
-        jobInvoker);
+        jobInvoker,
+        InMemoryJobService.DEFAULT_MAX_INVOCATION_HISTORY);
   }
 
   public void run() throws Exception {

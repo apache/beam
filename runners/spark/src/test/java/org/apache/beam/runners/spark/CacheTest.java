@@ -22,6 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
+import java.util.List;
 import org.apache.beam.runners.spark.translation.Dataset;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
@@ -32,8 +33,12 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Create.Values;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.junit.Test;
 
@@ -49,12 +54,28 @@ public class CacheTest {
     SparkPipelineOptions options = createOptions();
     Pipeline pipeline = Pipeline.create(options);
     PCollection<String> pCollection = pipeline.apply(Create.of("foo", "bar"));
-    // first read
+
+    // First use of pCollection.
     pCollection.apply(Count.globally());
-    // second read
-    // as we access the same PCollection two times, the Spark runner does optimization and so
-    // will cache the RDD representing this PCollection
-    pCollection.apply(Count.globally());
+    // Second use of pCollection.
+    PCollectionView<List<String>> view = pCollection.apply(View.asList());
+
+    // Internally View.asList() creates a PCollection that underlies the PCollectionView, that
+    // PCollection should not be cached as the SparkRunner does not access that PCollection to
+    // access the PCollectionView.
+    pipeline
+        .apply(Create.of("foo", "baz"))
+        .apply(
+            ParDo.of(
+                    new DoFn<String, String>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext processContext) {
+                        if (processContext.sideInput(view).contains(processContext.element())) {
+                          processContext.output(processContext.element());
+                        }
+                      }
+                    })
+                .withSideInputs(view));
 
     JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
     EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, options);
@@ -62,6 +83,7 @@ public class CacheTest {
         new SparkRunner.CacheVisitor(new TransformTranslator.Translator(), ctxt);
     pipeline.traverseTopologically(cacheVisitor);
     assertEquals(2L, (long) ctxt.getCacheCandidates().get(pCollection));
+    assertEquals(1L, ctxt.getCacheCandidates().values().stream().filter(l -> l > 1).count());
   }
 
   @Test

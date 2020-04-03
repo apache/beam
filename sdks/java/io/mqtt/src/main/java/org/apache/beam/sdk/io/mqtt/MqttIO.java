@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.mqtt;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -32,6 +32,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -44,7 +45,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.fusesource.mqtt.client.BlockingConnection;
 import org.fusesource.mqtt.client.MQTT;
 import org.fusesource.mqtt.client.Message;
@@ -99,7 +100,7 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class MqttIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(MqttIO.class);
@@ -152,7 +153,7 @@ public class MqttIO {
     }
 
     /**
-     * Describe a connection configuration to the MQTT broker. This method creates an unique random
+     * Describe a connection configuration to the MQTT broker. This method creates a unique random
      * MQTT client ID.
      *
      * @param serverUri The MQTT broker URI.
@@ -173,7 +174,7 @@ public class MqttIO {
      *
      * @param serverUri The MQTT broker URI.
      * @param topic The MQTT getTopic pattern.
-     * @param clientId A client ID prefix, used to construct an unique client ID.
+     * @param clientId A client ID prefix, used to construct a unique client ID.
      * @return A connection configuration to the MQTT broker.
      * @deprecated This constructor will be removed in a future version of Beam, please use
      *     #create(String, String)} and {@link #withClientId(String)} instead.
@@ -196,7 +197,7 @@ public class MqttIO {
       return builder().setTopic(topic).build();
     }
 
-    /** Set up the client ID prefix, which is used to construct an unique client ID. */
+    /** Set up the client ID prefix, which is used to construct a unique client ID. */
     public ConnectionConfiguration withClientId(String clientId) {
       checkArgument(clientId != null, "clientId can not be null");
       return builder().setClientId(clientId).build();

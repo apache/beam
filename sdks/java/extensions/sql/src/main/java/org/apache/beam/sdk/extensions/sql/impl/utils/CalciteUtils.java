@@ -21,18 +21,18 @@ import java.lang.reflect.Type;
 import java.util.Date;
 import java.util.Map;
 import java.util.stream.IntStream;
-import org.apache.beam.sdk.schemas.LogicalTypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableBiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.calcite.avatica.util.ByteString;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableBiMap;
+import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.ByteString;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.Instant;
 import org.joda.time.base.AbstractInstant;
 
@@ -48,7 +48,7 @@ public class CalciteUtils {
     public static final String IDENTIFIER = "SqlDateType";
 
     public DateType() {
-      super(IDENTIFIER, "", FieldType.DATETIME);
+      super(IDENTIFIER, FieldType.STRING, "", FieldType.DATETIME);
     }
   }
 
@@ -57,7 +57,7 @@ public class CalciteUtils {
     public static final String IDENTIFIER = "SqlTimeType";
 
     public TimeType() {
-      super(IDENTIFIER, "", FieldType.DATETIME);
+      super(IDENTIFIER, FieldType.STRING, "", FieldType.DATETIME);
     }
   }
 
@@ -66,7 +66,7 @@ public class CalciteUtils {
     public static final String IDENTIFIER = "SqlTimeWithLocalTzType";
 
     public TimeWithLocalTzType() {
-      super(IDENTIFIER, "", FieldType.DATETIME);
+      super(IDENTIFIER, FieldType.STRING, "", FieldType.DATETIME);
     }
   }
 
@@ -75,7 +75,7 @@ public class CalciteUtils {
     public static final String IDENTIFIER = "SqlTimestampWithLocalTzType";
 
     public TimestampWithLocalTzType() {
-      super(IDENTIFIER, "", FieldType.DATETIME);
+      super(IDENTIFIER, FieldType.STRING, "", FieldType.DATETIME);
     }
   }
 
@@ -84,7 +84,7 @@ public class CalciteUtils {
     public static final String IDENTIFIER = "SqlCharType";
 
     public CharType() {
-      super(IDENTIFIER, "", FieldType.STRING);
+      super(IDENTIFIER, FieldType.STRING, "", FieldType.STRING);
     }
   }
 
@@ -129,10 +129,15 @@ public class CalciteUtils {
   public static final FieldType VARCHAR = FieldType.STRING;
   public static final FieldType CHAR = FieldType.logicalType(new CharType());
   public static final FieldType DATE = FieldType.logicalType(new DateType());
+  public static final FieldType NULLABLE_DATE =
+      FieldType.logicalType(new DateType()).withNullable(true);
   public static final FieldType TIME = FieldType.logicalType(new TimeType());
+  public static final FieldType NULLABLE_TIME =
+      FieldType.logicalType(new TimeType()).withNullable(true);
   public static final FieldType TIME_WITH_LOCAL_TZ =
       FieldType.logicalType(new TimeWithLocalTzType());
   public static final FieldType TIMESTAMP = FieldType.DATETIME;
+  public static final FieldType NULLABLE_TIMESTAMP = FieldType.DATETIME.withNullable(true);
   public static final FieldType TIMESTAMP_WITH_LOCAL_TZ =
       FieldType.logicalType(new TimestampWithLocalTzType());
 
@@ -194,6 +199,7 @@ public class CalciteUtils {
       case ROW:
         return SqlTypeName.ROW;
       case ARRAY:
+      case ITERABLE:
         return SqlTypeName.ARRAY;
       case MAP:
         return SqlTypeName.MAP;
@@ -264,6 +270,7 @@ public class CalciteUtils {
   public static RelDataType toRelDataType(RelDataTypeFactory dataTypeFactory, FieldType fieldType) {
     switch (fieldType.getTypeName()) {
       case ARRAY:
+      case ITERABLE:
         return dataTypeFactory.createArrayType(
             toRelDataType(dataTypeFactory, fieldType.getCollectionElementType()),
             UNLIMITED_ARRAY_SIZE);

@@ -32,7 +32,7 @@ const iterableSideInputKey = ""
 // SideInputAdapter provides a concrete ReStream from a low-level side input reader. It
 // encapsulates StreamID and coding as needed.
 type SideInputAdapter interface {
-	NewIterable(ctx context.Context, reader SideInputReader, w typex.Window) (ReStream, error)
+	NewIterable(ctx context.Context, reader StateReader, w typex.Window) (ReStream, error)
 }
 
 type sideInputAdapter struct {
@@ -56,7 +56,7 @@ func NewSideInputAdapter(sid StreamID, sideInputID string, c *coder.Coder) SideI
 	return &sideInputAdapter{sid: sid, sideInputID: sideInputID, wc: wc, kc: kc, ec: ec}
 }
 
-func (s *sideInputAdapter) NewIterable(ctx context.Context, reader SideInputReader, w typex.Window) (ReStream, error) {
+func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, w typex.Window) (ReStream, error) {
 	key, err := EncodeElement(s.kc, []byte(iterableSideInputKey))
 	if err != nil {
 		return nil, err
@@ -67,7 +67,7 @@ func (s *sideInputAdapter) NewIterable(ctx context.Context, reader SideInputRead
 	}
 	return &proxyReStream{
 		open: func() (Stream, error) {
-			r, err := reader.Open(ctx, s.sid, s.sideInputID, key, win)
+			r, err := reader.OpenSideInput(ctx, s.sid, s.sideInputID, key, win)
 			if err != nil {
 				return nil, err
 			}

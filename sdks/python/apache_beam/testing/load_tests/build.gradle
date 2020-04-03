@@ -20,6 +20,10 @@
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 
+dependencies {
+    distTarBall project(path: ":sdks:python", configuration: "distTarBall")
+}
+
 description = "Apache Beam :: SDKs :: Python :: Load Tests"
 
 def mainClassProperty = "loadTest.mainClass"
@@ -34,14 +38,12 @@ task run(type: Exec, dependsOn: installGcpTest) {
 
     def runnerArg = project.findProperty(runnerProperty) ?: ""
     if (runnerArg == 'DataflowRunner' || runnerArg == 'TestDataflowRunner') {
-        dependsOn 'sdist'
-        loadTestArgs +=" --sdk_location=${project.buildDir}/apache-beam.tar.gz"
+        dependsOn ':sdks:python:sdist'
+        loadTestArgs +=" --sdk_location=${files(configurations.distTarBall.files).singleFile}"
     }
 
-    environment "LOAD_TEST_ENABLED", 'true'
     setWorkingDir "${project.rootDir}/sdks/python"
-
-    commandLine 'sh', '-c', "${project.ext.envdir}/bin/python setup.py nosetests --test-pipeline-options=\"${parseOptions(loadTestArgs)}\" --tests ${mainClass}"
+    commandLine 'sh', '-c', "${project.ext.envdir}/bin/python -m ${mainClass} --test-pipeline-options=\"${parseOptions(loadTestArgs)}\" --ignore-files \'.*py3\\d?\\.py\$\'"
     ignoreExitValue true
 
     doLast {

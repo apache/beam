@@ -32,7 +32,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
  * This transform reads from Cloud Spanner using the {@link com.google.cloud.spanner.BatchClient}.
@@ -93,7 +93,7 @@ abstract class BatchSpannerRead
 
     @Setup
     public void setup() throws Exception {
-      spannerAccessor = config.connectToSpanner();
+      spannerAccessor = SpannerAccessor.create(config);
     }
 
     @Teardown
@@ -146,7 +146,7 @@ abstract class BatchSpannerRead
 
     @Setup
     public void setup() throws Exception {
-      spannerAccessor = config.connectToSpanner();
+      spannerAccessor = SpannerAccessor.create(config);
     }
 
     @Teardown

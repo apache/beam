@@ -22,7 +22,7 @@ job('beam_PostRelease_Python_Candidate') {
     description('Runs verification of the Python release candidate.')
 
     // Set common parameters.
-    commonJobProperties.setTopLevelMainJobProperties(delegate)
+    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 360)
 
     // Allows triggering this build against pull requests.
     commonJobProperties.enablePhraseTriggeringFromPullRequest(

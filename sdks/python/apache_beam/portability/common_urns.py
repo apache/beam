@@ -17,72 +17,48 @@
 
 """ Accessors for URNs of common Beam entities. """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
-from builtins import object
+from apache_beam.portability.api.beam_runner_api_pb2_urns import BeamConstants
+from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardArtifacts
+from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardCoders
+from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardEnvironments
+from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardProtocols
+from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardPTransforms
+from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardRequirements
+from apache_beam.portability.api.beam_runner_api_pb2_urns import StandardSideInputTypes
+from apache_beam.portability.api.metrics_pb2_urns import MonitoringInfo
+from apache_beam.portability.api.metrics_pb2_urns import MonitoringInfoSpecs
+from apache_beam.portability.api.metrics_pb2_urns import MonitoringInfoTypeUrns
+from apache_beam.portability.api.standard_window_fns_pb2_urns import FixedWindowsPayload
+from apache_beam.portability.api.standard_window_fns_pb2_urns import GlobalWindowsPayload
+from apache_beam.portability.api.standard_window_fns_pb2_urns import SessionWindowsPayload
+from apache_beam.portability.api.standard_window_fns_pb2_urns import SlidingWindowsPayload
 
-from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.portability.api import metrics_pb2
-from apache_beam.portability.api import standard_window_fns_pb2
+primitives = StandardPTransforms.Primitives
+deprecated_primitives = StandardPTransforms.DeprecatedPrimitives
+composites = StandardPTransforms.Composites
+combine_components = StandardPTransforms.CombineComponents
+sdf_components = StandardPTransforms.SplittableParDoComponents
 
+side_inputs = StandardSideInputTypes.Enum
+coders = StandardCoders.Enum
+constants = BeamConstants.Constants
 
-class PropertiesFromEnumValue(object):
-  def __init__(self, value_descriptor):
-    self.urn = (value_descriptor.GetOptions().Extensions[
-        beam_runner_api_pb2.beam_urn])
-    self.constant = (value_descriptor.GetOptions().Extensions[
-        beam_runner_api_pb2.beam_constant])
-    self.spec = (value_descriptor.GetOptions().Extensions[
-        metrics_pb2.monitoring_info_spec])
-    self.label_props = (value_descriptor.GetOptions().Extensions[
-        metrics_pb2.label_props])
+environments = StandardEnvironments.Environments
+artifact_types = StandardArtifacts.Types
+artifact_roles = StandardArtifacts.Roles
 
+global_windows = GlobalWindowsPayload.Enum.PROPERTIES
+fixed_windows = FixedWindowsPayload.Enum.PROPERTIES
+sliding_windows = SlidingWindowsPayload.Enum.PROPERTIES
+session_windows = SessionWindowsPayload.Enum.PROPERTIES
 
-class PropertiesFromEnumType(object):
-  def __init__(self, enum_type):
-    for v in enum_type.DESCRIPTOR.values:
-      setattr(self, v.name, PropertiesFromEnumValue(v))
+monitoring_info_specs = MonitoringInfoSpecs.Enum
+monitoring_info_types = MonitoringInfoTypeUrns.Enum
+monitoring_info_labels = MonitoringInfo.MonitoringInfoLabels
 
-
-primitives = PropertiesFromEnumType(
-    beam_runner_api_pb2.StandardPTransforms.Primitives)
-deprecated_primitives = PropertiesFromEnumType(
-    beam_runner_api_pb2.StandardPTransforms.DeprecatedPrimitives)
-composites = PropertiesFromEnumType(
-    beam_runner_api_pb2.StandardPTransforms.Composites)
-combine_components = PropertiesFromEnumType(
-    beam_runner_api_pb2.StandardPTransforms.CombineComponents)
-sdf_components = PropertiesFromEnumType(
-    beam_runner_api_pb2.StandardPTransforms.SplittableParDoComponents)
-
-side_inputs = PropertiesFromEnumType(
-    beam_runner_api_pb2.StandardSideInputTypes.Enum)
-
-coders = PropertiesFromEnumType(beam_runner_api_pb2.StandardCoders.Enum)
-
-constants = PropertiesFromEnumType(
-    beam_runner_api_pb2.BeamConstants.Constants)
-
-environments = PropertiesFromEnumType(
-    beam_runner_api_pb2.StandardEnvironments.Environments)
-
-
-def PropertiesFromPayloadType(payload_type):
-  return PropertiesFromEnumType(payload_type.Enum).PROPERTIES
-
-
-global_windows = PropertiesFromPayloadType(
-    standard_window_fns_pb2.GlobalWindowsPayload)
-fixed_windows = PropertiesFromPayloadType(
-    standard_window_fns_pb2.FixedWindowsPayload)
-sliding_windows = PropertiesFromPayloadType(
-    standard_window_fns_pb2.SlidingWindowsPayload)
-session_windows = PropertiesFromPayloadType(
-    standard_window_fns_pb2.SessionsPayload)
-
-monitoring_info_specs = PropertiesFromEnumType(
-    metrics_pb2.MonitoringInfoSpecs.Enum)
-monitoring_info_types = PropertiesFromEnumType(
-    metrics_pb2.MonitoringInfoTypeUrns.Enum)
-monitoring_info_labels = PropertiesFromEnumType(
-    metrics_pb2.MonitoringInfo.MonitoringInfoLabels)
+protocols = StandardProtocols.Enum
+requirements = StandardRequirements.Enum

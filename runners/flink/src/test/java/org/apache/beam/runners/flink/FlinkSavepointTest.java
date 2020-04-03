@@ -52,16 +52,15 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.ListeningExecutorService;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.MoreExecutors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
@@ -135,7 +134,7 @@ public class FlinkSavepointTest implements Serializable {
   @After
   public void afterTest() throws Exception {
     for (JobStatusMessage jobStatusMessage : flinkCluster.listJobs().get()) {
-      if (jobStatusMessage.getJobState() == JobStatus.RUNNING) {
+      if (jobStatusMessage.getJobState().name().equals("RUNNING")) {
         flinkCluster.cancelJob(jobStatusMessage.getJobId()).get();
       }
     }
@@ -206,16 +205,17 @@ public class FlinkSavepointTest implements Serializable {
 
     ListeningExecutorService executorService =
         MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(1));
+    FlinkPipelineOptions pipelineOptions = pipeline.getOptions().as(FlinkPipelineOptions.class);
     try {
       JobInvocation jobInvocation =
-          FlinkJobInvoker.createJobInvocation(
-              "id",
-              "none",
-              executorService,
-              pipelineProto,
-              pipeline.getOptions().as(FlinkPipelineOptions.class),
-              null,
-              Collections.emptyList());
+          FlinkJobInvoker.create(null)
+              .createJobInvocation(
+                  "id",
+                  "none",
+                  executorService,
+                  pipelineProto,
+                  pipelineOptions,
+                  new FlinkPipelineRunner(pipelineOptions, null, Collections.emptyList()));
 
       jobInvocation.start();
 
@@ -244,7 +244,7 @@ public class FlinkSavepointTest implements Serializable {
   private JobID waitForJobToBeReady() throws InterruptedException, ExecutionException {
     while (true) {
       JobStatusMessage jobStatus = Iterables.getFirst(flinkCluster.listJobs().get(), null);
-      if (jobStatus != null && jobStatus.getJobState() == JobStatus.RUNNING) {
+      if (jobStatus != null && jobStatus.getJobState().name().equals("RUNNING")) {
         return jobStatus.getJobId();
       }
       Thread.sleep(100);

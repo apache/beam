@@ -25,7 +25,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.ServerFactory;
+import org.apache.beam.runners.fnexecution.artifact.LegacyArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
@@ -33,7 +34,7 @@ import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,11 +42,14 @@ import org.slf4j.LoggerFactory;
 public class ExternalEnvironmentFactory implements EnvironmentFactory {
 
   private static final Logger LOG = LoggerFactory.getLogger(ExternalEnvironmentFactory.class);
+  // setting the environment variable allows to connect to worker pool running in Docker on Mac
+  private static final boolean IS_WORKER_POOL_IN_DOCKER_VM =
+      System.getenv().containsKey("BEAM_WORKER_POOL_IN_DOCKER_VM");
 
   public static ExternalEnvironmentFactory create(
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+      GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
       IdGenerator idGenerator) {
@@ -60,7 +64,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
 
   private final GrpcFnServer<FnApiControlClientPoolService> controlServiceServer;
   private final GrpcFnServer<GrpcLoggingService> loggingServiceServer;
-  private final GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
+  private final GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer;
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
   private final IdGenerator idGenerator;
   private final ControlClientPool.Source clientSource;
@@ -68,7 +72,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
   private ExternalEnvironmentFactory(
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+      GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       IdGenerator idGenerator,
       ControlClientPool.Source clientSource) {
@@ -92,8 +96,8 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
         RunnerApi.ExternalPayload.parseFrom(environment.getPayload());
     final String workerId = idGenerator.getId();
 
-    BeamFnApi.NotifyRunnerAvailableRequest notifyRunnerAvailableRequest =
-        BeamFnApi.NotifyRunnerAvailableRequest.newBuilder()
+    BeamFnApi.StartWorkerRequest startWorkerRequest =
+        BeamFnApi.StartWorkerRequest.newBuilder()
             .setWorkerId(workerId)
             .setControlEndpoint(controlServiceServer.getApiServiceDescriptor())
             .setLoggingEndpoint(loggingServiceServer.getApiServiceDescriptor())
@@ -103,12 +107,12 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
             .build();
 
     LOG.debug("Requesting worker ID {}", workerId);
-    BeamFnApi.NotifyRunnerAvailableResponse notifyRunnerAvailableResponse =
+    BeamFnApi.StartWorkerResponse startWorkerResponse =
         BeamFnExternalWorkerPoolGrpc.newBlockingStub(
                 ManagedChannelFactory.createDefault().forDescriptor(externalPayload.getEndpoint()))
-            .notifyRunnerAvailable(notifyRunnerAvailableRequest);
-    if (!notifyRunnerAvailableResponse.getError().isEmpty()) {
-      throw new RuntimeException(notifyRunnerAvailableResponse.getError());
+            .startWorker(startWorkerRequest);
+    if (!startWorkerResponse.getError().isEmpty()) {
+      throw new RuntimeException(startWorkerResponse.getError());
     }
 
     // Wait on a client from the gRPC server.
@@ -138,6 +142,22 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
       public InstructionRequestHandler getInstructionRequestHandler() {
         return finalInstructionHandler;
       }
+
+      @Override
+      public void close() throws Exception {
+        finalInstructionHandler.close();
+        BeamFnApi.StopWorkerRequest stopWorkerRequest =
+            BeamFnApi.StopWorkerRequest.newBuilder().setWorkerId(workerId).build();
+        LOG.debug("Closing worker ID {}", workerId);
+        BeamFnApi.StopWorkerResponse stopWorkerResponse =
+            BeamFnExternalWorkerPoolGrpc.newBlockingStub(
+                    ManagedChannelFactory.createDefault()
+                        .forDescriptor(externalPayload.getEndpoint()))
+                .stopWorker(stopWorkerRequest);
+        if (!stopWorkerResponse.getError().isEmpty()) {
+          throw new RuntimeException(stopWorkerResponse.getError());
+        }
+      }
     };
   }
 
@@ -147,7 +167,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
     public EnvironmentFactory createEnvironmentFactory(
         GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
         GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-        GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+        GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
         GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
         ControlClientPool clientPool,
         IdGenerator idGenerator) {
@@ -158,6 +178,14 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
           provisioningServiceServer,
           clientPool.getSource(),
           idGenerator);
+    }
+
+    @Override
+    public ServerFactory getServerFactory() {
+      if (IS_WORKER_POOL_IN_DOCKER_VM) {
+        return DockerEnvironmentFactory.DockerOnMac.getServerFactory();
+      }
+      return ServerFactory.createDefault();
     }
   }
 }

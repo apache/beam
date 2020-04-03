@@ -30,7 +30,7 @@ A good starting point for new users is our set of
 
 1. [`MinimalWordCount`](https://github.com/apache/beam/blob/master/examples/kotlin/src/main/java/org/apache/beam/examples/kotlin/MinimalWordCount.kt) is the simplest word count pipeline and introduces basic concepts like [Pipelines](https://beam.apache.org/documentation/programming-guide/#pipeline),
 [PCollections](https://beam.apache.org/documentation/programming-guide/#pcollection),
-[ParDo](https://beam.apache.org/documentation/programming-guide/#transforms-pardo),
+[ParDo](https://beam.apache.org/documentation/programming-guide/#pardo),
 and [reading and writing data](https://beam.apache.org/documentation/programming-guide/#io) from external storage.
 
 1. [`WordCount`](https://github.com/apache/beam/blob/master/examples/kotlin/src/main/java/org/apache/beam/examples/kotlin/WordCount.kt) introduces best practices like [PipelineOptions](https://beam.apache.org/documentation/programming-guide/#pipeline) and custom [PTransforms](https://beam.apache.org/documentation/programming-guide/#transforms-composite).

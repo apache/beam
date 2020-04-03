@@ -28,7 +28,6 @@ import java.util.Map;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.runners.dataflow.worker.DataflowPortabilityPCollectionView;
 import org.apache.beam.runners.dataflow.worker.NameContextsForTests;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
@@ -48,8 +47,8 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -146,12 +145,10 @@ public class NodesTest {
   @Test
   public void testFetchReadySideInputsAndFilterBlockedStreamingSideInputsNode() {
     WindowingStrategy windowingStrategy = WindowingStrategy.globalDefault();
-    Map<PCollectionView<?>, RunnerApi.SdkFunctionSpec> pcollectionViewsToWindowMappingFns =
+    Map<PCollectionView<?>, RunnerApi.FunctionSpec> pcollectionViewsToWindowMappingFns =
         ImmutableMap.of(
             mock(PCollectionView.class),
-            SdkFunctionSpec.newBuilder()
-                .setSpec(FunctionSpec.newBuilder().setUrn("beam:test:urn:1.0"))
-                .build());
+            FunctionSpec.newBuilder().setUrn("beam:test:urn:1.0").build());
     NameContext nameContext = NameContextsForTests.nameContextForTest();
     assertSame(
         FetchAndFilterStreamingSideInputsNode.create(

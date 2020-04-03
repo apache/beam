@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer;
+import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.samza.translation.ConfigBuilder;
 import org.apache.beam.runners.samza.translation.PViewToIdMapper;
 import org.apache.beam.runners.samza.translation.PortableTranslationContext;
@@ -35,8 +36,9 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.samza.application.StreamApplication;
 import org.apache.samza.config.Config;
 import org.apache.samza.context.ExternalContext;
@@ -53,9 +55,11 @@ import org.slf4j.LoggerFactory;
  */
 public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaRunner.class);
+  private static final String BEAM_DOT_GRAPH = "beamDotGraph";
 
   public static SamzaRunner fromOptions(PipelineOptions opts) {
-    final SamzaPipelineOptions samzaOptions = SamzaPipelineOptionsValidator.validate(opts);
+    final SamzaPipelineOptions samzaOptions =
+        PipelineOptionsValidator.validate(SamzaPipelineOptions.class, opts);
     return new SamzaRunner(samzaOptions);
   }
 
@@ -70,9 +74,13 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
         listenerReg.hasNext() ? Iterators.getOnlyElement(listenerReg).getLifeCycleListener() : null;
   }
 
-  public SamzaPipelineResult runPortablePipeline(RunnerApi.Pipeline pipeline) {
+  public PortablePipelineResult runPortablePipeline(RunnerApi.Pipeline pipeline) {
+    final String dotGraph = PipelineDotRenderer.toDotString(pipeline);
+    LOG.info("Portable pipeline to run:\n{}", dotGraph);
+
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
     SamzaPortablePipelineTranslator.createConfig(pipeline, configBuilder, options);
+    configBuilder.put(BEAM_DOT_GRAPH, dotGraph);
 
     final Config config = configBuilder.build();
     options.setConfigOverride(config);
@@ -92,7 +100,8 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
               pipeline, new PortableTranslationContext(appDescriptor, options));
         };
 
-    return runSamzaApp(app, config, executionContext);
+    ApplicationRunner runner = runSamzaApp(app, config);
+    return new SamzaPortablePipelineResult(app, runner, executionContext, listener, config);
   }
 
   @Override
@@ -105,12 +114,14 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
     pipeline.replaceAll(SamzaTransformOverrides.getDefaultOverrides());
 
-    LOG.info("Beam pipeline DOT graph:\n{}", PipelineDotRenderer.toDotString(pipeline));
+    final String dotGraph = PipelineDotRenderer.toDotString(pipeline);
+    LOG.info("Beam pipeline DOT graph:\n{}", dotGraph);
 
     final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
-
     final ConfigBuilder configBuilder = new ConfigBuilder(options);
+
     SamzaPipelineTranslator.createConfig(pipeline, options, idMap, configBuilder);
+    configBuilder.put(BEAM_DOT_GRAPH, dotGraph);
 
     final Config config = configBuilder.build();
     options.setConfigOverride(config);
@@ -131,7 +142,11 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
               pipeline, new TranslationContext(appDescriptor, idMap, options));
         };
 
-    return runSamzaApp(app, config, executionContext);
+    // perform a final round of validation for the pipeline options now that all configs are
+    // generated
+    SamzaPipelineOptionsValidator.validate(options);
+    ApplicationRunner runner = runSamzaApp(app, config);
+    return new SamzaPipelineResult(app, runner, executionContext, listener, config);
   }
 
   private Map<String, MetricsReporterFactory> getMetricsReporters() {
@@ -150,12 +165,9 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
     }
   }
 
-  private SamzaPipelineResult runSamzaApp(
-      StreamApplication app, Config config, SamzaExecutionContext executionContext) {
+  private ApplicationRunner runSamzaApp(StreamApplication app, Config config) {
 
     final ApplicationRunner runner = ApplicationRunners.getApplicationRunner(app, config);
-    final SamzaPipelineResult result =
-        new SamzaPipelineResult(app, runner, executionContext, listener, config);
 
     ExternalContext externalContext = null;
     if (listener != null) {
@@ -169,6 +181,6 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
       listener.onSubmit();
     }
 
-    return result;
+    return runner;
   }
 }

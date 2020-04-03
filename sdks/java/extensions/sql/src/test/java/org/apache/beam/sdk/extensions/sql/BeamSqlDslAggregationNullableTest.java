@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import static org.apache.beam.sdk.extensions.sql.utils.RowAsserts.matchesScalar;
-import static org.apache.beam.sdk.transforms.SerializableFunctions.identity;
 import static org.junit.Assert.assertEquals;
 
 import java.util.List;
@@ -60,8 +59,7 @@ public class BeamSqlDslAggregationNullableTest {
             .addRows(3, 2, 1)
             .getRows();
 
-    boundedInput =
-        PBegin.in(pipeline).apply(Create.of(rows).withSchema(schema, identity(), identity()));
+    boundedInput = PBegin.in(pipeline).apply(Create.of(rows).withRowSchema(schema));
   }
 
   @Test

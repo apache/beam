@@ -1,0 +1,51 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Protocol Buffers describing any Interactive Beam specific protos.
+ *
+ * TestStreamFileHeader: A record written at the top of a cached of TestStream
+ *                       events. This is used as metadata for the entire
+ *                       stream.
+ */
+
+syntax = "proto3";
+
+package org.apache.beam.model.interactive.v1;
+
+option go_package = "interactive_v1";
+option java_package = "org.apache.beam.model.interactive.v1";
+option java_outer_classname = "InteractiveApi";
+
+import "beam_runner_api.proto";
+import "google/protobuf/timestamp.proto";
+
+// The first record. This contains metadata about the stream and how to
+// properly process it.
+message TestStreamFileHeader {
+  // The PCollection tag this stream is associated with.
+  string tag = 1;
+}
+
+// A record is a recorded element that a source produced. Its function is to
+// give enough information to create a faithful recreation of the original
+// stream of data.
+message TestStreamFileRecord {
+  // The recorded event from an element stream.
+  org.apache.beam.model.pipeline.v1.TestStreamPayload.Event recorded_event = 1;
+}

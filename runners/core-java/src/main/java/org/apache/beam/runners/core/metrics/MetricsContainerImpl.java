@@ -17,7 +17,13 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.DISTRIBUTION_INT64_TYPE;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.LATEST_INT64_TYPE;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.SUM_INT64_TYPE;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Counter;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Distribution;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Gauge;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -25,21 +31,14 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import javax.annotation.Nullable;
-import org.apache.beam.model.pipeline.v1.MetricsApi;
-import org.apache.beam.model.pipeline.v1.MetricsApi.CounterData;
-import org.apache.beam.model.pipeline.v1.MetricsApi.ExtremaData;
-import org.apache.beam.model.pipeline.v1.MetricsApi.IntDistributionData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metric;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,9 +55,7 @@ import org.slf4j.LoggerFactory;
  * <p>For consistency, all threads that update metrics should finish before getting the final
  * cumulative values/updates.
  */
-@Experimental(Kind.METRICS)
 public class MetricsContainerImpl implements Serializable, MetricsContainer {
-
   private static final Logger LOG = LoggerFactory.getLogger(MetricsContainerImpl.class);
 
   @Nullable private final String stepName;
@@ -73,6 +70,19 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   /** Create a new {@link MetricsContainerImpl} associated with the given {@code stepName}. */
   public MetricsContainerImpl(@Nullable String stepName) {
     this.stepName = stepName;
+  }
+
+  /** Reset the metrics. */
+  public void reset() {
+    reset(counters);
+    reset(distributions);
+    reset(gauges);
+  }
+
+  private void reset(MetricsMap<MetricName, ? extends MetricCell<?>> cells) {
+    for (MetricCell<?> cell : cells.values()) {
+      cell.reset();
+    }
   }
 
   /**
@@ -171,7 +181,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       }
 
       builder
-          .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+          .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
           .setLabel(
               MonitoringInfoConstants.Labels.NAMESPACE,
               metricUpdate.getKey().metricName().getNamespace())
@@ -180,8 +190,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
           .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, metricUpdate.getKey().stepName());
     }
 
-    builder.setInt64Value(metricUpdate.getUpdate());
-    builder.setTimestampToNow();
+    builder.setInt64SumValue(metricUpdate.getUpdate());
 
     return builder.build();
   }
@@ -205,7 +214,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     } else { // Note: (metricName instanceof MetricName) is always True.
       // Represents a user counter.
       builder
-          .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_COUNTER)
+          .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64)
           .setLabel(
               MonitoringInfoConstants.Labels.NAMESPACE,
               metricUpdate.getKey().metricName().getNamespace())
@@ -221,7 +230,6 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, metricUpdate.getKey().stepName());
     }
     builder.setInt64DistributionValue(metricUpdate.getUpdate());
-    builder.setTimestampToNow();
     return builder.build();
   }
 
@@ -292,43 +300,50 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     updateGauges(gauges, other.gauges);
   }
 
+  private void updateForSumInt64Type(MonitoringInfo monitoringInfo) {
+    MetricName metricName = MonitoringInfoMetricName.of(monitoringInfo);
+    CounterCell counter = getCounter(metricName);
+    counter.inc(decodeInt64Counter(monitoringInfo.getPayload()));
+  }
+
+  private void updateForDistributionInt64Type(MonitoringInfo monitoringInfo) {
+    MetricName metricName = MonitoringInfoMetricName.of(monitoringInfo);
+    Distribution distribution = getDistribution(metricName);
+
+    DistributionData data = decodeInt64Distribution(monitoringInfo.getPayload());
+    distribution.update(data.sum(), data.count(), data.min(), data.max());
+  }
+
+  private void updateForLatestInt64Type(MonitoringInfo monitoringInfo) {
+    MetricName metricName = MonitoringInfoMetricName.of(monitoringInfo);
+    GaugeCell gauge = getGauge(metricName);
+    gauge.update(decodeInt64Gauge(monitoringInfo.getPayload()));
+  }
+
   /** Update values of this {@link MetricsContainerImpl} by reading from {@code monitoringInfos}. */
   public void update(Iterable<MonitoringInfo> monitoringInfos) {
-    monitoringInfos.forEach(
-        monitoringInfo -> {
-          if (!monitoringInfo.hasMetric()) {
-            return;
-          }
+    for (MonitoringInfo monitoringInfo : monitoringInfos) {
+      if (monitoringInfo.getPayload().isEmpty()) {
+        return;
+      }
 
-          MetricName metricName = MonitoringInfoMetricName.of(monitoringInfo);
+      switch (monitoringInfo.getType()) {
+        case SUM_INT64_TYPE:
+          updateForSumInt64Type(monitoringInfo);
+          break;
 
-          MetricsApi.Metric metric = monitoringInfo.getMetric();
-          if (metric.hasCounterData()) {
-            CounterData counterData = metric.getCounterData();
-            if (counterData.getValueCase() == CounterData.ValueCase.INT64_VALUE) {
-              Counter counter = getCounter(metricName);
-              counter.inc(counterData.getInt64Value());
-            } else {
-              LOG.warn("Unsupported CounterData type: {}", counterData);
-            }
-          } else if (metric.hasDistributionData()) {
-            MetricsApi.DistributionData distributionData = metric.getDistributionData();
-            if (distributionData.hasIntDistributionData()) {
-              Distribution distribution = getDistribution(metricName);
-              IntDistributionData intDistributionData = distributionData.getIntDistributionData();
-              distribution.update(
-                  intDistributionData.getSum(),
-                  intDistributionData.getCount(),
-                  intDistributionData.getMin(),
-                  intDistributionData.getMax());
-            } else {
-              LOG.warn("Unsupported DistributionData type: {}", distributionData);
-            }
-          } else if (metric.hasExtremaData()) {
-            ExtremaData extremaData = metric.getExtremaData();
-            LOG.warn("Extrema metric unsupported: {}", extremaData);
-          }
-        });
+        case DISTRIBUTION_INT64_TYPE:
+          updateForDistributionInt64Type(monitoringInfo);
+          break;
+
+        case LATEST_INT64_TYPE:
+          updateForLatestInt64Type(monitoringInfo);
+          break;
+
+        default:
+          LOG.warn("Unsupported metric type {}", monitoringInfo.getType());
+      }
+    }
   }
 
   private void updateCounters(

@@ -25,11 +25,12 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.FieldValueTypeSupplier;
 import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
  * A {@link SchemaProvider} for Java Bean objects.
@@ -64,6 +65,16 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
               })
           .collect(Collectors.toList());
     }
+
+    @Override
+    public int hashCode() {
+      return System.identityHashCode(this);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj != null && this.getClass() == obj.getClass();
+    }
   }
 
   /** {@link FieldValueTypeSupplier} that's based on setter methods. */
@@ -78,6 +89,16 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
           .filter(m -> !m.isAnnotationPresent(SchemaIgnore.class))
           .map(FieldValueTypeInformation::forSetter)
           .collect(Collectors.toList());
+    }
+
+    @Override
+    public int hashCode() {
+      return System.identityHashCode(this);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj != null && this.getClass() == obj.getClass();
     }
   }
 
@@ -99,46 +120,64 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
   }
 
   @Override
-  public FieldValueGetterFactory fieldValueGetterFactory() {
-    return (Class<?> targetClass, Schema schema) ->
-        JavaBeanUtils.getGetters(targetClass, schema, GetterTypeSupplier.INSTANCE);
+  public List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema) {
+    return JavaBeanUtils.getGetters(
+        targetClass, schema, GetterTypeSupplier.INSTANCE, new DefaultTypeConversionsFactory());
   }
 
   @Override
-  UserTypeCreatorFactory schemaTypeCreatorFactory() {
-    UserTypeCreatorFactory setterBasedFactory =
+  public List<FieldValueTypeInformation> fieldValueTypeInformations(
+      Class<?> targetClass, Schema schema) {
+    return JavaBeanUtils.getFieldTypes(targetClass, schema, GetterTypeSupplier.INSTANCE);
+  }
+
+  @Override
+  public SchemaUserTypeCreator schemaTypeCreator(Class<?> targetClass, Schema schema) {
+    // If a static method is marked with @SchemaCreate, use that.
+    Method annotated = ReflectUtils.getAnnotatedCreateMethod(targetClass);
+    if (annotated != null) {
+      return JavaBeanUtils.getStaticCreator(
+          targetClass,
+          annotated,
+          schema,
+          GetterTypeSupplier.INSTANCE,
+          new DefaultTypeConversionsFactory());
+    }
+
+    // If a Constructor was tagged with @SchemaCreate, invoke that constructor.
+    Constructor<?> constructor = ReflectUtils.getAnnotatedConstructor(targetClass);
+    if (constructor != null) {
+      return JavaBeanUtils.getConstructorCreator(
+          targetClass,
+          constructor,
+          schema,
+          GetterTypeSupplier.INSTANCE,
+          new DefaultTypeConversionsFactory());
+    }
+
+    // Else try to make a setter-based creator
+    Factory<SchemaUserTypeCreator> setterBasedFactory =
         new SetterBasedCreatorFactory(new JavaBeanSetterFactory());
-
-    return (Class<?> targetClass, Schema schema) -> {
-      // If a static method is marked with @SchemaCreate, use that.
-      Method annotated = ReflectUtils.getAnnotatedCreateMethod(targetClass);
-      if (annotated != null) {
-        return JavaBeanUtils.getStaticCreator(
-            targetClass, annotated, schema, GetterTypeSupplier.INSTANCE);
-      }
-
-      // If a Constructor was tagged with @SchemaCreate, invoke that constructor.
-      Constructor<?> constructor = ReflectUtils.getAnnotatedConstructor(targetClass);
-      if (constructor != null) {
-        return JavaBeanUtils.getConstructorCreator(
-            targetClass, constructor, schema, GetterTypeSupplier.INSTANCE);
-      }
-
-      return setterBasedFactory.create(targetClass, schema);
-    };
-  }
-
-  @Override
-  public FieldValueTypeInformationFactory fieldValueTypeInformationFactory() {
-    return (Class<?> targetClass, Schema schema) ->
-        JavaBeanUtils.getFieldTypes(targetClass, schema, GetterTypeSupplier.INSTANCE);
+    return setterBasedFactory.create(targetClass, schema);
   }
 
   /** A factory for creating {@link FieldValueSetter} objects for a JavaBean object. */
-  public static class JavaBeanSetterFactory implements FieldValueSetterFactory {
+  @Experimental(Kind.SCHEMAS)
+  private static class JavaBeanSetterFactory implements Factory<List<FieldValueSetter>> {
     @Override
     public List<FieldValueSetter> create(Class<?> targetClass, Schema schema) {
-      return JavaBeanUtils.getSetters(targetClass, schema, SetterTypeSupplier.INSTANCE);
+      return JavaBeanUtils.getSetters(
+          targetClass, schema, SetterTypeSupplier.INSTANCE, new DefaultTypeConversionsFactory());
     }
+  }
+
+  @Override
+  public int hashCode() {
+    return System.identityHashCode(this);
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    return obj != null && this.getClass() == obj.getClass();
   }
 }

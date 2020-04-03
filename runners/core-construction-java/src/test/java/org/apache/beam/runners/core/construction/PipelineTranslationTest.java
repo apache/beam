@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
@@ -52,7 +53,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -96,7 +97,7 @@ public class PipelineTranslationTest {
             Window.<Long>into(FixedWindows.of(Duration.standardMinutes(7)))
                 .triggering(
                     AfterWatermark.pastEndOfWindow()
-                        .withEarlyFirings(AfterPane.elementCountAtLeast(19)))
+                        .withLateFirings(AfterPane.elementCountAtLeast(19)))
                 .accumulatingFiredPanes()
                 .withAllowedLateness(Duration.standardMinutes(3L)));
     final WindowingStrategy<?, ?> windowedStrategy = windowed.getWindowingStrategy();
@@ -227,5 +228,23 @@ public class PipelineTranslationTest {
     } else {
       return Optional.empty();
     }
+  }
+
+  // Static, out-of-line for serialization.
+  private static class DoFnRequiringStableInput extends DoFn<Integer, String> {
+    @RequiresStableInput
+    @ProcessElement
+    public void process(ProcessContext c) {
+      // actually never executed and no effect on translation
+    }
+  }
+
+  @Test
+  public void testRequirements() {
+    Pipeline pipeline = Pipeline.create();
+    pipeline.apply(Create.of(1, 2, 3)).apply(ParDo.of(new DoFnRequiringStableInput()));
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, false);
+    assertThat(
+        pipelineProto.getRequirementsList(), hasItem(ParDoTranslation.REQUIRES_STABLE_INPUT_URN));
   }
 }

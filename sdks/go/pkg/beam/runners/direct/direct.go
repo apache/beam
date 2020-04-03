@@ -72,7 +72,9 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err = plan.Down(ctx); err != nil {
 		return err
 	}
-	metrics.DumpToLog(ctx)
+	// TODO(lostluck) 2020/01/24: What's the right way to expose the
+	// metrics store for the direct runner?
+	metrics.DumpToLogFromStore(ctx, plan.Store())
 	return nil
 }
 
@@ -291,6 +293,12 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 			b.links[linkID{edge.ID(), i}] = n
 		}
 
+		return b.links[id], nil
+
+	case graph.Reshuffle:
+		// Reshuffle is a no-op in the direct runner, as there's only a single bundle
+		// on a single worker. Hoist the next node up in the cache.
+		b.links[id] = out[0]
 		return b.links[id], nil
 
 	case graph.Flatten:

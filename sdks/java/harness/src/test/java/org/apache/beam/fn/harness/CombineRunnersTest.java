@@ -48,7 +48,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -156,6 +156,8 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            null,
+            null,
             null);
 
     Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
@@ -230,6 +232,8 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            null,
+            null,
             null);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());
@@ -292,6 +296,8 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            null,
+            null,
             null);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());
@@ -314,6 +320,69 @@ public class CombineRunnersTest {
             valueInGlobalWindow(KV.of("C", -7))));
   }
 
+  /**
+   * Create a Convert To Accumulators function that is given keyed accumulators and validates that
+   * the input values were turned into the accumulator type.
+   */
+  @Test
+  public void testConvertToAccumulators() throws Exception {
+    // Create a map of consumers and an output target to check output values.
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    Deque<WindowedValue<KV<String, Integer>>> mainOutputValues = new ArrayDeque<>();
+    consumers.register(
+        Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
+        TEST_COMBINE_ID,
+        (FnDataReceiver)
+            (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
+
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
+
+    // Create runner.
+    MapFnRunners.forValueMapFnFactory(CombineRunners::createConvertToAccumulatorsMapFunction)
+        .createRunnerForPTransform(
+            PipelineOptionsFactory.create(),
+            null,
+            null,
+            TEST_COMBINE_ID,
+            pTransform,
+            null,
+            Collections.emptyMap(),
+            Collections.emptyMap(),
+            Collections.emptyMap(),
+            consumers,
+            startFunctionRegistry,
+            finishFunctionRegistry,
+            null,
+            null,
+            null);
+
+    assertThat(startFunctionRegistry.getFunctions(), empty());
+    assertThat(finishFunctionRegistry.getFunctions(), empty());
+
+    // Send elements to runner and check outputs.
+    mainOutputValues.clear();
+    assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
+
+    FnDataReceiver<WindowedValue<?>> input = consumers.getMultiplexingConsumer(inputPCollectionId);
+    input.accept(valueInGlobalWindow(KV.of("A", "9")));
+    input.accept(valueInGlobalWindow(KV.of("B", "5")));
+    input.accept(valueInGlobalWindow(KV.of("C", "7")));
+
+    assertThat(
+        mainOutputValues,
+        contains(
+            valueInGlobalWindow(KV.of("A", 9)),
+            valueInGlobalWindow(KV.of("B", 5)),
+            valueInGlobalWindow(KV.of("C", 7))));
+  }
   /**
    * Create a Combine Grouped Values function that is given lists of values that are grouped by key
    * and validates that the lists are properly combined.
@@ -354,6 +423,8 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            null,
+            null,
             null);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());

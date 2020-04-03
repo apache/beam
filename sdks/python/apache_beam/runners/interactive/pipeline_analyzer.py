@@ -20,6 +20,8 @@
 This module is experimental. No backwards-compatibility guarantees.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -32,8 +34,13 @@ from apache_beam.runners.interactive import cache_manager as cache
 
 
 class PipelineAnalyzer(object):
-  def __init__(self, cache_manager, pipeline_proto, underlying_runner,
-               options=None, desired_cache_labels=None):
+  def __init__(
+      self,
+      cache_manager,
+      pipeline_proto,
+      underlying_runner,
+      options=None,
+      desired_cache_labels=None):
     """Constructor of PipelineAnanlyzer.
 
     Args:
@@ -49,9 +56,7 @@ class PipelineAnalyzer(object):
     self._desired_cache_labels = desired_cache_labels or []
 
     self._pipeline = beam.pipeline.Pipeline.from_runner_api(
-        self._pipeline_proto,
-        runner=underlying_runner,
-        options=options)
+        self._pipeline_proto, runner=underlying_runner, options=options)
     # context returned from to_runner_api is more informative than that returned
     # from from_runner_api.
     _, self._context = self._pipeline.to_runner_api(
@@ -79,7 +84,7 @@ class PipelineAnalyzer(object):
       1. Start from target PCollections and recursively insert the producing
          PTransforms of those PCollections, where the producing PTransforms are
          either ReadCache or PTransforms in the original pipeline.
-      2. Append WriteCache PTransforsm in the pipeline.
+      2. Append WriteCache PTransforms in the pipeline.
 
     After running this function, the following variables will be set:
       self._pipeline_proto_to_execute
@@ -97,9 +102,8 @@ class PipelineAnalyzer(object):
 
     for pcoll_id in desired_pcollections:
       # TODO(qinyeli): Collections consumed by no-output transforms.
-      self._insert_producing_transforms(pcoll_id,
-                                        required_transforms,
-                                        top_level_required_transforms)
+      self._insert_producing_transforms(
+          pcoll_id, required_transforms, top_level_required_transforms)
 
     top_level_referenced_pcoll_ids = self._referenced_pcoll_ids(
         top_level_required_transforms)
@@ -108,24 +112,23 @@ class PipelineAnalyzer(object):
       if not pcoll_id in top_level_referenced_pcoll_ids:
         continue
 
-      if (pcoll_id in desired_pcollections
-          and not pcoll_id in self._caches_used):
-        self._insert_caching_transforms(pcoll_id,
-                                        required_transforms,
-                                        top_level_required_transforms)
+      if (pcoll_id in desired_pcollections and
+          not pcoll_id in self._caches_used):
+        self._insert_caching_transforms(
+            pcoll_id, required_transforms, top_level_required_transforms)
 
       if not self._cache_manager.exists(
           'sample', self._pipeline_info.cache_label(pcoll_id)):
-        self._insert_caching_transforms(pcoll_id,
-                                        required_transforms,
-                                        top_level_required_transforms,
-                                        sample=True)
+        self._insert_caching_transforms(
+            pcoll_id,
+            required_transforms,
+            top_level_required_transforms,
+            sample=True)
 
     required_transforms['_root'] = beam_runner_api_pb2.PTransform(
         subtransforms=list(top_level_required_transforms))
 
-    referenced_pcoll_ids = self._referenced_pcoll_ids(
-        required_transforms)
+    referenced_pcoll_ids = self._referenced_pcoll_ids(required_transforms)
     referenced_pcollections = {}
     for pcoll_id in referenced_pcoll_ids:
       obj = self._context.pcollections.get_by_id(pcoll_id)
@@ -134,14 +137,16 @@ class PipelineAnalyzer(object):
 
     pipeline_to_execute = beam_runner_api_pb2.Pipeline()
     pipeline_to_execute.root_transform_ids[:] = ['_root']
-    set_proto_map(pipeline_to_execute.components.transforms,
-                  required_transforms)
-    set_proto_map(pipeline_to_execute.components.pcollections,
-                  referenced_pcollections)
-    set_proto_map(pipeline_to_execute.components.coders,
-                  self._context.to_runner_api().coders)
-    set_proto_map(pipeline_to_execute.components.windowing_strategies,
-                  self._context.to_runner_api().windowing_strategies)
+    set_proto_map(
+        pipeline_to_execute.components.transforms, required_transforms)
+    set_proto_map(
+        pipeline_to_execute.components.pcollections, referenced_pcollections)
+    set_proto_map(
+        pipeline_to_execute.components.coders,
+        self._context.to_runner_api().coders)
+    set_proto_map(
+        pipeline_to_execute.components.windowing_strategies,
+        self._context.to_runner_api().windowing_strategies)
 
     self._pipeline_proto_to_execute = pipeline_to_execute
     self._top_level_referenced_pcoll_ids = top_level_referenced_pcoll_ids
@@ -190,11 +195,12 @@ class PipelineAnalyzer(object):
   # Helper methods for _analyze_pipeline()
   # -------------------------------------------------------------------------- #
 
-  def _insert_producing_transforms(self,
-                                   pcoll_id,
-                                   required_transforms,
-                                   top_level_required_transforms,
-                                   leaf=False):
+  def _insert_producing_transforms(
+      self,
+      pcoll_id,
+      required_transforms,
+      top_level_required_transforms,
+      leaf=False):
     """Inserts PTransforms producing the given PCollection into the dicts.
 
     Args:
@@ -219,9 +225,10 @@ class PipelineAnalyzer(object):
       self._caches_used.add(pcoll_id)
 
       cache_label = self._pipeline_info.cache_label(pcoll_id)
-      dummy_pcoll = (self._pipeline
-                     | 'Load%s' % cache_label >> cache.ReadCache(
-                         self._cache_manager, cache_label))
+      dummy_pcoll = (
+          self._pipeline
+          | 'Load%s' % cache_label >> cache.ReadCache(
+              self._cache_manager, cache_label))
 
       read_cache = self._top_level_producer(dummy_pcoll)
       read_cache_id = self._context.transforms.get_id(read_cache)
@@ -247,9 +254,8 @@ class PipelineAnalyzer(object):
 
         # Inserting ancestor PTransforms.
         for input_id in transform_proto.inputs.values():
-          self._insert_producing_transforms(input_id,
-                                            required_transforms,
-                                            top_level_required_transforms)
+          self._insert_producing_transforms(
+              input_id, required_transforms, top_level_required_transforms)
         required_transforms[transform_id] = transform_proto
 
       # Must be inserted after inserting ancestor PTransforms.
@@ -257,11 +263,12 @@ class PipelineAnalyzer(object):
       top_level_proto = self._context.transforms.get_proto(top_level_transform)
       top_level_required_transforms[top_level_id] = top_level_proto
 
-  def _insert_caching_transforms(self,
-                                 pcoll_id,
-                                 required_transforms,
-                                 top_level_required_transforms,
-                                 sample=False):
+  def _insert_caching_transforms(
+      self,
+      pcoll_id,
+      required_transforms,
+      top_level_required_transforms,
+      sample=False):
     """Inserts PTransforms caching the given PCollection into the dicts.
 
     Args:
@@ -283,8 +290,7 @@ class PipelineAnalyzer(object):
           self._cache_manager, cache_label)
     else:
       pdone = pcoll | 'CacheSample%s' % cache_label >> cache.WriteCache(
-          self._cache_manager, cache_label, sample=True,
-          sample_size=10)
+          self._cache_manager, cache_label, sample=True, sample_size=10)
 
     write_cache = self._top_level_producer(pdone)
     write_cache_id = self._context.transforms.get_id(write_cache)
@@ -343,7 +349,7 @@ class PipelineAnalyzer(object):
       pcoll: (PCollection)
 
     Returns:
-      (PTransform) top level producing PTransform of pcoll.
+      (AppliedPTransform) top level producing AppliedPTransform of pcoll.
     """
     top_level_transform = pcoll.producer
     while top_level_transform.parent.parent:
@@ -354,10 +360,10 @@ class PipelineAnalyzer(object):
     """Depth-first yield the PTransform itself and its sub transforms.
 
     Args:
-      transform: (PTransform)
+      transform: (AppliedPTransform)
 
     Yields:
-      The input PTransform itself and all its sub transforms.
+      The input AppliedPTransform itself and all its sub transforms.
     """
     yield transform
     for subtransform in transform.parts[::-1]:
@@ -367,7 +373,6 @@ class PipelineAnalyzer(object):
 
 class PipelineInfo(object):
   """Provides access to pipeline metadata."""
-
   def __init__(self, proto):
     self._proto = proto
     self._producers = {}
@@ -375,9 +380,18 @@ class PipelineInfo(object):
     for transform_id, transform_proto in self._proto.transforms.items():
       if transform_proto.subtransforms:
         continue
+      # Identify producers of each PCollection. A PTransform is a producer of
+      # a PCollection if it outputs the PCollection but does not consume the
+      # same PCollection as input. The latter part of the definition is to avoid
+      # infinite recursions when constructing the PCollection's derivation.
+      transform_inputs = set(transform_proto.inputs.values())
       for tag, pcoll_id in transform_proto.outputs.items():
+        if pcoll_id in transform_inputs:
+          # A transform is not the producer of a PCollection if it consumes the
+          # PCollection as an input.
+          continue
         self._producers[pcoll_id] = transform_id, tag
-      for pcoll_id in transform_proto.inputs.values():
+      for pcoll_id in transform_inputs:
         self._consumers[pcoll_id].append(transform_id)
     self._derivations = {}
 
@@ -402,13 +416,15 @@ class PipelineInfo(object):
       transform_proto = self._proto.transforms[transform_id]
       self._derivations[pcoll_id] = self.Derivation({
           input_tag: self._derivation(input_id)
-          for input_tag, input_id in transform_proto.inputs.items()
-      }, transform_proto, output_tag)
+          for input_tag,
+          input_id in transform_proto.inputs.items()
+      },
+                                                    transform_proto,
+                                                    output_tag)
     return self._derivations[pcoll_id]
 
   class Derivation(object):
     """Records derivation info of a PCollection. Helper for PipelineInfo."""
-
     def __init__(self, inputs, transform_proto, output_tag):
       """Constructor of Derivation.
 
@@ -430,8 +446,9 @@ class PipelineInfo(object):
     def __eq__(self, other):
       if isinstance(other, self.Derivation):
         # pylint: disable=protected-access
-        return (self._inputs == other._inputs and
-                self._transform_info == other._transform_info)
+        return (
+            self._inputs == other._inputs and
+            self._transform_info == other._transform_info)
 
     def __ne__(self, other):
       # TODO(BEAM-5949): Needed for Python 2 compatibility.
@@ -439,10 +456,11 @@ class PipelineInfo(object):
 
     def __hash__(self):
       if self._hash is None:
-        self._hash = (hash(tuple(sorted(self._transform_info.items())))
-                      + sum(hash(tag) * hash(input)
-                            for tag, input in self._inputs.items())
-                      + hash(self._output_tag))
+        self._hash = (
+            hash(tuple(sorted(self._transform_info.items()))) +
+            sum(hash(tag) * hash(input)
+                for tag, input in self._inputs.items()) +
+            hash(self._output_tag))
       return self._hash
 
     def cache_label(self):

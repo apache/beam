@@ -17,6 +17,8 @@ package beam
 
 import (
 	"fmt"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -35,7 +37,12 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 		return nil, addParDoCtx(err, s)
 	}
 
-	fn, err := graph.NewDoFn(dofn)
+	num := graph.MainSingle
+	// Check the PCollection for any keyed type (not just KV specifically).
+	if typex.IsKV(col.Type()) || typex.IsCoGBK(col.Type()) {
+		num = graph.MainKv
+	}
+	fn, err := graph.NewDoFn(dofn, graph.NumMainInputs(num))
 	if err != nil {
 		return nil, addParDoCtx(err, s)
 	}
@@ -44,7 +51,17 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 	for _, s := range side {
 		in = append(in, s.Input.n)
 	}
-	edge, err := graph.NewParDo(s.real, s.scope, fn, in, typedefs)
+
+	var rc *coder.Coder
+	if fn.IsSplittable() {
+		sdf := (*graph.SplittableDoFn)(fn)
+		rc, err = inferCoder(typex.New(sdf.RestrictionT()))
+		if err != nil {
+			return nil, addParDoCtx(err, s)
+		}
+	}
+
+	edge, err := graph.NewParDo(s.real, s.scope, fn, in, rc, typedefs)
 	if err != nil {
 		return nil, addParDoCtx(err, s)
 	}
@@ -123,7 +140,7 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 //    words := beam.ParDo(s, &Foo{...}, ...)
 //    lengths := beam.ParDo(s, func (word string) int) {
 //          return len(word)
-//    }, works)
+//    }, words)
 //
 //
 // Each output element has the same timestamp and is in the same windows as its
@@ -252,7 +269,7 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 // Beam makes heavy use of this modular, composable style, trusting to the
 // runner to "flatten out" all the compositions into highly optimized stages.
 //
-// See https://beam.apache.org/documentation/programming-guide/#transforms-pardo"
+// See https://beam.apache.org/documentation/programming-guide/#pardo
 // for the web documentation for ParDo
 func ParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) PCollection {
 	ret := MustN(TryParDo(s, dofn, col, opts...))

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
@@ -26,8 +26,8 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /** Tracks the current state of a single execution thread. */
 @SuppressFBWarnings(value = "IS2_INCONSISTENT_SYNC", justification = "Intentional for performance.")
@@ -135,6 +135,17 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
 
   public ExecutionStateTracker(ExecutionStateSampler sampler) {
     this.sampler = sampler;
+  }
+
+  /** Reset the execution status. */
+  public void reset() {
+    trackedThread = null;
+    currentState = null;
+    numTransitions = 0;
+    millisSinceLastTransition = 0;
+    transitionsAtLastSample = 0;
+    nextLullReportMs = LULL_REPORT_MS;
+    CURRENT_TRACKERS.entrySet().removeIf(entry -> entry.getValue() == this);
   }
 
   @VisibleForTesting
@@ -259,6 +270,16 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   /** Return the time since the last transition. */
   public long getMillisSinceLastTransition() {
     return millisSinceLastTransition;
+  }
+
+  /** Return the number of transitions since the last sample. */
+  public long getTransitionsAtLastSample() {
+    return transitionsAtLastSample;
+  }
+
+  /** Return the time of the next lull report. */
+  public long getNextLullReportMs() {
+    return nextLullReportMs;
   }
 
   protected void takeSample(long millisSinceLastSample) {

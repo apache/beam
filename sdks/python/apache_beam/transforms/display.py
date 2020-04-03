@@ -36,6 +36,8 @@ Available classes:
   and communicate it to the API.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import calendar
@@ -44,8 +46,13 @@ import json
 from builtins import object
 from datetime import datetime
 from datetime import timedelta
+from typing import TYPE_CHECKING
+from typing import List
 
 from past.builtins import unicode
+
+if TYPE_CHECKING:
+  from apache_beam.options.pipeline_options import PipelineOptions
 
 __all__ = ['HasDisplayData', 'DisplayDataItem', 'DisplayData']
 
@@ -55,8 +62,9 @@ class HasDisplayData(object):
 
   It implements only the display_data method and a _namespace method.
   """
-
   def display_data(self):
+    # type: () -> dict
+
     """ Returns the display data associated to a pipeline component.
 
     It should be reimplemented in pipeline components that wish to have
@@ -80,16 +88,21 @@ class HasDisplayData(object):
     return {}
 
   def _namespace(self):
+    # type: () -> str
     return '{}.{}'.format(self.__module__, self.__class__.__name__)
 
 
 class DisplayData(object):
   """ Static display data associated with a pipeline component.
   """
-
-  def __init__(self, namespace, display_data_dict):
+  def __init__(
+      self,
+      namespace,  # type: str
+      display_data_dict  # type: dict
+  ):
+    # type: (...) -> None
     self.namespace = namespace
-    self.items = []
+    self.items = []  # type: List[DisplayDataItem]
     self._populate_items(display_data_dict)
 
   def _populate_items(self, display_data_dict):
@@ -97,8 +110,8 @@ class DisplayData(object):
     """
     for key, element in display_data_dict.items():
       if isinstance(element, HasDisplayData):
-        subcomponent_display_data = DisplayData(element._namespace(),
-                                                element.display_data())
+        subcomponent_display_data = DisplayData(
+            element._namespace(), element.display_data())
         self.items += subcomponent_display_data.items
         continue
 
@@ -113,53 +126,58 @@ class DisplayData(object):
       # If it's not a HasDisplayData element,
       # nor a dictionary, then it's a simple value
       self.items.append(
-          DisplayDataItem(element,
-                          namespace=self.namespace,
-                          key=key))
+          DisplayDataItem(element, namespace=self.namespace, key=key))
 
   @classmethod
   def create_from_options(cls, pipeline_options):
-    """ Creates :class:`DisplayData` from a
+    """ Creates :class:`~apache_beam.transforms.display.DisplayData` from a
     :class:`~apache_beam.options.pipeline_options.PipelineOptions` instance.
 
-    When creating :class:`DisplayData`, this method will convert the value of
-    any item of a non-supported type to its string representation.
+    When creating :class:`~apache_beam.transforms.display.DisplayData`, this
+    method will convert the value of any item of a non-supported type to its
+    string representation.
     The normal :meth:`.create_from()` method rejects those items.
 
     Returns:
-      DisplayData: A :class:`DisplayData` instance with populated items.
+      ~apache_beam.transforms.display.DisplayData:
+        A :class:`~apache_beam.transforms.display.DisplayData` instance with
+        populated items.
 
     Raises:
-      ~exceptions.ValueError: If the **has_display_data** argument is
+      ValueError: If the **has_display_data** argument is
         not an instance of :class:`HasDisplayData`.
     """
     from apache_beam.options.pipeline_options import PipelineOptions
     if not isinstance(pipeline_options, PipelineOptions):
       raise ValueError(
-          'Element of class {}.{} does not subclass PipelineOptions'
-          .format(pipeline_options.__module__,
-                  pipeline_options.__class__.__name__))
+          'Element of class {}.{} does not subclass PipelineOptions'.format(
+              pipeline_options.__module__, pipeline_options.__class__.__name__))
 
-    items = {k: (v if DisplayDataItem._get_value_type(v) is not None
-                 else str(v))
-             for k, v in pipeline_options.display_data().items()}
+    items = {
+        k: (v if DisplayDataItem._get_value_type(v) is not None else str(v))
+        for k,
+        v in pipeline_options.display_data().items()
+    }
     return cls(pipeline_options._namespace(), items)
 
   @classmethod
   def create_from(cls, has_display_data):
-    """ Creates :class:`DisplayData` from a :class:`HasDisplayData` instance.
+    """ Creates :class:`~apache_beam.transforms.display.DisplayData` from a
+    :class:`HasDisplayData` instance.
 
     Returns:
-      DisplayData: A :class:`DisplayData` instance with populated items.
+      ~apache_beam.transforms.display.DisplayData:
+        A :class:`~apache_beam.transforms.display.DisplayData` instance with
+        populated items.
 
     Raises:
-      ~exceptions.ValueError: If the **has_display_data** argument is
+      ValueError: If the **has_display_data** argument is
         not an instance of :class:`HasDisplayData`.
     """
     if not isinstance(has_display_data, HasDisplayData):
-      raise ValueError('Element of class {}.{} does not subclass HasDisplayData'
-                       .format(has_display_data.__module__,
-                               has_display_data.__class__.__name__))
+      raise ValueError(
+          'Element of class {}.{} does not subclass HasDisplayData'.format(
+              has_display_data.__module__, has_display_data.__class__.__name__))
     return cls(has_display_data._namespace(), has_display_data.display_data())
 
 
@@ -169,21 +187,30 @@ class DisplayDataItem(object):
   Each item is identified by a key and the namespace of the component the
   display item belongs to.
   """
-  typeDict = {str:'STRING',
-              unicode:'STRING',
-              int:'INTEGER',
-              float:'FLOAT',
-              bool: 'BOOLEAN',
-              timedelta:'DURATION',
-              datetime:'TIMESTAMP'}
+  typeDict = {
+      str: 'STRING',
+      unicode: 'STRING',
+      int: 'INTEGER',
+      float: 'FLOAT',
+      bool: 'BOOLEAN',
+      timedelta: 'DURATION',
+      datetime: 'TIMESTAMP'
+  }
 
-  def __init__(self, value, url=None, label=None,
-               namespace=None, key=None, shortValue=None):
+  def __init__(
+      self,
+      value,
+      url=None,
+      label=None,
+      namespace=None,
+      key=None,
+      shortValue=None):
     self.namespace = namespace
     self.key = key
     self.type = self._get_value_type(value)
-    self.shortValue = (shortValue if shortValue is not None else
-                       self._get_short_value(value, self.type))
+    self.shortValue = (
+        shortValue if shortValue is not None else self._get_short_value(
+            value, self.type))
     self.value = value
     self.url = url
     self.label = label
@@ -191,6 +218,8 @@ class DisplayDataItem(object):
     self._drop_if_default = False
 
   def drop_if_none(self):
+    # type: () -> DisplayDataItem
+
     """ The item should be dropped if its value is None.
 
     Returns:
@@ -200,6 +229,8 @@ class DisplayDataItem(object):
     return self
 
   def drop_if_default(self, default):
+    # type: (...) -> DisplayDataItem
+
     """ The item should be dropped if its value is equal to its default.
 
     Returns:
@@ -210,6 +241,8 @@ class DisplayDataItem(object):
     return self
 
   def should_drop(self):
+    # type: () -> bool
+
     """ Return True if the item should be dropped, or False if it should not
     be dropped. This depends on the drop_if_none, and drop_if_default calls.
 
@@ -223,12 +256,14 @@ class DisplayDataItem(object):
     return False
 
   def is_valid(self):
+    # type: () -> None
+
     """ Checks that all the necessary fields of the :class:`DisplayDataItem`
     are filled in. It checks that neither key, namespace, value or type are
     :data:`None`.
 
     Raises:
-      ~exceptions.ValueError: If the item does not have a key, namespace,
+      ValueError: If the item does not have a key, namespace,
         value or type.
     """
     if self.key is None:
@@ -242,13 +277,15 @@ class DisplayDataItem(object):
           'Invalid DisplayDataItem %s. Value must not be None' % self)
     if self.type is None:
       raise ValueError(
-          'Invalid DisplayDataItem. Value {} is of an unsupported type.'
-          .format(self.value))
+          'Invalid DisplayDataItem. Value {} is of an unsupported type.'.format(
+              self.value))
 
   def _get_dict(self):
-    res = {'key': self.key,
-           'namespace': self.namespace,
-           'type': self.type if self.type != 'CLASS' else 'STRING'}
+    res = {
+        'key': self.key,
+        'namespace': self.namespace,
+        'type': self.type if self.type != 'CLASS' else 'STRING'
+    }
     # TODO: Python Class types should not be special-cased once
     # the Fn API is in.
     if self.url is not None:
@@ -261,6 +298,8 @@ class DisplayDataItem(object):
     return res
 
   def get_dict(self):
+    # type: () -> dict
+
     """ Returns the internal-API dictionary representing the
     :class:`DisplayDataItem`.
 
@@ -269,7 +308,7 @@ class DisplayDataItem(object):
       the :class:`DisplayDataItem`.
 
     Raises:
-      ~exceptions.ValueError: if the item is not valid.
+      ValueError: if the item is not valid.
     """
     self.is_valid()
     return self._get_dict()
@@ -304,9 +343,10 @@ class DisplayDataItem(object):
     if type_ == 'CLASS':
       res = '{}.{}'.format(value.__module__, value.__name__)
     elif type_ == 'DURATION':
-      res = value.total_seconds()*1000
+      res = value.total_seconds() * 1000
     elif type_ == 'TIMESTAMP':
-      res = calendar.timegm(value.timetuple())*1000 + value.microsecond//1000
+      res = calendar.timegm(
+          value.timetuple()) * 1000 + value.microsecond // 1000
     return res
 
   @classmethod

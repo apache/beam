@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.core;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.NavigableSet;
 import java.util.NoSuchElementException;
@@ -28,9 +28,9 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowTracing;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBasedTable;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Table;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
 import org.joda.time.Instant;
 
 /** {@link TimerInternals} with all watermarks and processing clock simulated in-memory. */
@@ -103,20 +103,33 @@ public class InMemoryTimerInternals implements TimerInternals {
 
   @Override
   public void setTimer(
-      StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
-    setTimer(TimerData.of(timerId, namespace, target, timeDomain));
+      StateNamespace namespace,
+      String timerId,
+      String timerFamilyId,
+      Instant target,
+      Instant outputTimestamp,
+      TimeDomain timeDomain) {
+    setTimer(TimerData.of(timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain));
   }
 
-  /** @deprecated use {@link #setTimer(StateNamespace, String, Instant, TimeDomain)}. */
+  /**
+   * @deprecated use {@link #setTimer(StateNamespace, String, String, Instant, Instant,
+   *     TimeDomain)}.
+   */
   @Deprecated
   @Override
   public void setTimer(TimerData timerData) {
     WindowTracing.trace("{}.setTimer: {}", getClass().getSimpleName(), timerData);
 
     @Nullable
-    TimerData existing = existingTimers.get(timerData.getNamespace(), timerData.getTimerId());
+    TimerData existing =
+        existingTimers.get(
+            timerData.getNamespace(), timerData.getTimerId() + '+' + timerData.getTimerFamilyId());
     if (existing == null) {
-      existingTimers.put(timerData.getNamespace(), timerData.getTimerId(), timerData);
+      existingTimers.put(
+          timerData.getNamespace(),
+          timerData.getTimerId() + '+' + timerData.getTimerFamilyId(),
+          timerData);
       timersForDomain(timerData.getDomain()).add(timerData);
     } else {
       checkArgument(
@@ -130,7 +143,10 @@ public class InMemoryTimerInternals implements TimerInternals {
         NavigableSet<TimerData> timers = timersForDomain(timerData.getDomain());
         timers.remove(existing);
         timers.add(timerData);
-        existingTimers.put(timerData.getNamespace(), timerData.getTimerId(), timerData);
+        existingTimers.put(
+            timerData.getNamespace(),
+            timerData.getTimerId() + '+' + timerData.getTimerFamilyId(),
+            timerData);
       }
     }
   }
@@ -143,8 +159,8 @@ public class InMemoryTimerInternals implements TimerInternals {
   /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
   @Deprecated
   @Override
-  public void deleteTimer(StateNamespace namespace, String timerId) {
-    TimerData existing = existingTimers.get(namespace, timerId);
+  public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
+    TimerData existing = existingTimers.get(namespace, timerId + '+' + timerFamilyId);
     if (existing != null) {
       deleteTimer(existing);
     }
@@ -155,7 +171,8 @@ public class InMemoryTimerInternals implements TimerInternals {
   @Override
   public void deleteTimer(TimerData timer) {
     WindowTracing.trace("{}.deleteTimer: {}", getClass().getSimpleName(), timer);
-    existingTimers.remove(timer.getNamespace(), timer.getTimerId());
+    existingTimers.remove(
+        timer.getNamespace(), timer.getTimerId() + '+' + timer.getTimerFamilyId());
     timersForDomain(timer.getDomain()).remove(timer);
   }
 
@@ -313,7 +330,8 @@ public class InMemoryTimerInternals implements TimerInternals {
 
     if (!timers.isEmpty() && currentTime.isAfter(timers.first().getTimestamp())) {
       TimerData timer = timers.pollFirst();
-      existingTimers.remove(timer.getNamespace(), timer.getTimerId());
+      existingTimers.remove(
+          timer.getNamespace(), timer.getTimerId() + '+' + timer.getTimerFamilyId());
       return timer;
     } else {
       return null;

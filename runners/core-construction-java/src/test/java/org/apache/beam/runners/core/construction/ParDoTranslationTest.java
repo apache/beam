@@ -20,7 +20,9 @@ package org.apache.beam.runners.core.construction;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -47,6 +49,8 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine.BinaryCombineLongFn;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
@@ -62,14 +66,17 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
+import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link ParDoTranslation}. */
+@RunWith(Enclosed.class)
 public class ParDoTranslationTest {
 
   /** Tests for translating various {@link ParDo} transforms to/from {@link ParDoPayload} protos. */
@@ -122,9 +129,13 @@ public class ParDoTranslationTest {
 
       assertThat(ParDoTranslation.getDoFn(payload), equalTo(parDo.getFn()));
       assertThat(ParDoTranslation.getMainOutputTag(payload), equalTo(parDo.getMainOutputTag()));
-      for (PCollectionView<?> view : parDo.getSideInputs()) {
+      for (PCollectionView<?> view : parDo.getSideInputs().values()) {
         payload.getSideInputsOrThrow(view.getTagInternal().getId());
       }
+      assertFalse(payload.getRequestsFinalization());
+      assertEquals(
+          parDo.getFn() instanceof StateTimerDropElementsFn,
+          components.requirements().contains(ParDoTranslation.REQUIRES_STATEFUL_PROCESSING_URN));
     }
 
     @Test
@@ -148,7 +159,7 @@ public class ParDoTranslationTest {
 
       // Decode
       ParDoPayload parDoPayload = ParDoPayload.parseFrom(protoTransform.getSpec().getPayload());
-      for (PCollectionView<?> view : parDo.getSideInputs()) {
+      for (PCollectionView<?> view : parDo.getSideInputs().values()) {
         SideInput sideInput = parDoPayload.getSideInputsOrThrow(view.getTagInternal().getId());
         PCollectionView<?> restoredView =
             PCollectionViewTranslation.viewFromProto(
@@ -260,12 +271,12 @@ public class ParDoTranslationTest {
     }
 
     @GetInitialRestriction
-    public Integer restriction(KV<Long, String> elem) {
+    public Integer restriction(@Element KV<Long, String> elem) {
       return 42;
     }
 
     @NewTracker
-    public RestrictionTracker<Integer, ?> newTracker(Integer restriction) {
+    public RestrictionTracker<Integer, ?> newTracker(@Restriction Integer restriction) {
       throw new UnsupportedOperationException("Should never be called; only to test translation");
     }
 
@@ -336,6 +347,75 @@ public class ParDoTranslationTest {
     @Override
     public int hashCode() {
       return StateTimerDropElementsFn.class.hashCode();
+    }
+  }
+
+  @RunWith(JUnit4.class)
+  public static class BundleFinalizerTranslation {
+    private static class StartBundleDoFn extends DoFn<String, String> {
+      @StartBundle
+      public void startBundle(BundleFinalizer bundleFinalizer) {}
+
+      @ProcessElement
+      public void processElement() {}
+    }
+
+    private static class ProcessContextDoFn extends DoFn<String, String> {
+      @ProcessElement
+      public void processElement(BundleFinalizer finalizer) {}
+    }
+
+    private static class FinishBundleDoFn extends DoFn<String, String> {
+      @FinishBundle
+      public void finishBundle(BundleFinalizer bundleFinalizer) {}
+
+      @ProcessElement
+      public void processElement(BundleFinalizer finalizer) {}
+    }
+
+    @Test
+    public void testStartBundle() throws Exception {
+      SdkComponents sdkComponents = SdkComponents.create();
+      sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
+      ParDoPayload payload =
+          ParDoTranslation.translateParDo(
+              ParDo.of(new StartBundleDoFn())
+                  .withOutputTags(new TupleTag<>(), TupleTagList.empty()),
+              DoFnSchemaInformation.create(),
+              TestPipeline.create(),
+              sdkComponents);
+
+      assertTrue(payload.getRequestsFinalization());
+    }
+
+    @Test
+    public void testProcessContext() throws Exception {
+      SdkComponents sdkComponents = SdkComponents.create();
+      sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
+      ParDoPayload payload =
+          ParDoTranslation.translateParDo(
+              ParDo.of(new ProcessContextDoFn())
+                  .withOutputTags(new TupleTag<>(), TupleTagList.empty()),
+              DoFnSchemaInformation.create(),
+              TestPipeline.create(),
+              sdkComponents);
+
+      assertTrue(payload.getRequestsFinalization());
+    }
+
+    @Test
+    public void testFinishBundle() throws Exception {
+      SdkComponents sdkComponents = SdkComponents.create();
+      sdkComponents.registerEnvironment(Environments.createDockerEnvironment("java"));
+      ParDoPayload payload =
+          ParDoTranslation.translateParDo(
+              ParDo.of(new FinishBundleDoFn())
+                  .withOutputTags(new TupleTag<>(), TupleTagList.empty()),
+              DoFnSchemaInformation.create(),
+              TestPipeline.create(),
+              sdkComponents);
+
+      assertTrue(payload.getRequestsFinalization());
     }
   }
 }

@@ -20,12 +20,12 @@ package org.apache.beam.runners.fnexecution.jobsubmission;
 import java.io.IOException;
 import java.nio.file.Paths;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.runners.core.construction.expansion.ExpansionServer;
-import org.apache.beam.runners.core.construction.expansion.ExpansionService;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemLegacyArtifactStagingService;
+import org.apache.beam.sdk.expansion.service.ExpansionServer;
+import org.apache.beam.sdk.expansion.service.ExpansionService;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.kohsuke.args4j.Option;
 import org.kohsuke.args4j.spi.ExplicitBooleanOptionHandler;
 import org.slf4j.Logger;
@@ -40,18 +40,21 @@ public abstract class JobServerDriver implements Runnable {
 
   private final ServerFactory jobServerFactory;
   private final ServerFactory artifactServerFactory;
+  private final JobInvokerFactory jobInvokerFactory;
 
   private volatile GrpcFnServer<InMemoryJobService> jobServer;
-  private volatile GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingServer;
+  private volatile GrpcFnServer<BeamFileSystemLegacyArtifactStagingService> artifactStagingServer;
   private volatile ExpansionServer expansionServer;
 
-  protected abstract JobInvoker createJobInvoker();
+  public interface JobInvokerFactory {
+    JobInvoker create();
+  }
 
   protected InMemoryJobService createJobService() throws IOException {
-    artifactStagingServer = createArtifactStagingService();
+    artifactStagingServer = createLegacyArtifactStagingService();
     expansionServer = createExpansionService();
 
-    JobInvoker invoker = createJobInvoker();
+    JobInvoker invoker = jobInvokerFactory.create();
     return InMemoryJobService.create(
         artifactStagingServer.getApiServiceDescriptor(),
         this::createSessionToken,
@@ -60,7 +63,8 @@ public abstract class JobServerDriver implements Runnable {
             artifactStagingServer.getService().removeArtifacts(stagingSessionToken);
           }
         },
-        invoker);
+        invoker,
+        configuration.getMaxInvocationHistory());
   }
 
   /** Configuration for the jobServer. */
@@ -94,14 +98,8 @@ public abstract class JobServerDriver implements Runnable {
         handler = ExplicitBooleanOptionHandler.class)
     private boolean cleanArtifactsPerJob = true;
 
-    @Option(
-        name = "--sdk-worker-parallelism",
-        usage =
-            "Default parallelism for SDK worker processes. This option is only applied when the "
-                + "pipeline option sdkWorkerParallelism is set to 0."
-                + "Default is 1, If 0, worker parallelism will be dynamically decided by runner."
-                + "See also: sdkWorkerParallelism Pipeline Option")
-    private long sdkWorkerParallelism = 1L;
+    @Option(name = "--history-size", usage = "The maximum number of completed jobs to keep.")
+    private int maxInvocationHistory = 10;
 
     public String getHost() {
       return host;
@@ -127,8 +125,8 @@ public abstract class JobServerDriver implements Runnable {
       return cleanArtifactsPerJob;
     }
 
-    public long getSdkWorkerParallelism() {
-      return this.sdkWorkerParallelism;
+    public int getMaxInvocationHistory() {
+      return maxInvocationHistory;
     }
   }
 
@@ -143,10 +141,17 @@ public abstract class JobServerDriver implements Runnable {
   protected JobServerDriver(
       ServerConfiguration configuration,
       ServerFactory jobServerFactory,
-      ServerFactory artifactServerFactory) {
+      ServerFactory artifactServerFactory,
+      JobInvokerFactory jobInvokerFactory) {
     this.configuration = configuration;
     this.jobServerFactory = jobServerFactory;
     this.artifactServerFactory = artifactServerFactory;
+    this.jobInvokerFactory = jobInvokerFactory;
+  }
+
+  // Can be used to discover the address of the job server, and if it is ready
+  public String getJobServerUrl() {
+    return (jobServer != null) ? jobServer.getApiServiceDescriptor().getUrl() : null;
   }
 
   // This method is executed by TestPortableRunner via Reflection
@@ -206,7 +211,7 @@ public abstract class JobServerDriver implements Runnable {
   }
 
   protected String createSessionToken(String session) {
-    return BeamFileSystemArtifactStagingService.generateStagingSessionToken(
+    return BeamFileSystemLegacyArtifactStagingService.generateStagingSessionToken(
         session, configuration.artifactStagingPath);
   }
 
@@ -226,10 +231,11 @@ public abstract class JobServerDriver implements Runnable {
     return jobServiceGrpcFnServer;
   }
 
-  private GrpcFnServer<BeamFileSystemArtifactStagingService> createArtifactStagingService()
-      throws IOException {
-    BeamFileSystemArtifactStagingService service = new BeamFileSystemArtifactStagingService();
-    final GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingService;
+  private GrpcFnServer<BeamFileSystemLegacyArtifactStagingService>
+      createLegacyArtifactStagingService() throws IOException {
+    BeamFileSystemLegacyArtifactStagingService service =
+        new BeamFileSystemLegacyArtifactStagingService();
+    final GrpcFnServer<BeamFileSystemLegacyArtifactStagingService> artifactStagingService;
     if (configuration.artifactPort == 0) {
       artifactStagingService =
           GrpcFnServer.allocatePortAndCreateFor(service, artifactServerFactory);
@@ -241,7 +247,7 @@ public abstract class JobServerDriver implements Runnable {
       artifactStagingService = GrpcFnServer.create(service, descriptor, artifactServerFactory);
     }
     LOG.info(
-        "ArtifactStagingService started on {}",
+        "LegacyArtifactStagingService started on {}",
         artifactStagingService.getApiServiceDescriptor().getUrl());
     return artifactStagingService;
   }

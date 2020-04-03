@@ -17,16 +17,17 @@
  */
 package org.apache.beam.sdk.io.elasticsearch;
 
-import static org.apache.beam.sdk.io.elasticsearch.ElasticSearchIOTestUtils.FAMOUS_SCIENTISTS;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticSearchIOTestUtils.NUM_SCIENTISTS;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticSearchIOTestUtils.countByMatch;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticSearchIOTestUtils.countByScientistName;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticSearchIOTestUtils.refreshIndexAndGetCurrentNumDocs;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BoundedElasticsearchSource;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.DEFAULT_RETRY_PREDICATE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Write;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.getBackendVersion;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.FAMOUS_SCIENTISTS;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.NUM_SCIENTISTS;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.countByMatch;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.countByScientistName;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.refreshIndexAndGetCurrentNumDocs;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
@@ -45,11 +46,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.BiFunction;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.DefaultRetryPredicate;
 import org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.RetryPredicate;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -61,6 +64,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.nio.entity.NStringEntity;
+import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.hamcrest.CustomMatcher;
@@ -129,7 +133,7 @@ class ElasticsearchIOTestCommon implements Serializable {
 
   void testSplit(final int desiredBundleSizeBytes) throws Exception {
     if (!useAsITests) {
-      ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
+      ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
     }
     PipelineOptions options = PipelineOptionsFactory.create();
     Read read = ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
@@ -166,7 +170,7 @@ class ElasticsearchIOTestCommon implements Serializable {
 
   void testSizes() throws Exception {
     if (!useAsITests) {
-      ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
+      ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
     }
     PipelineOptions options = PipelineOptionsFactory.create();
     Read read = ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
@@ -181,7 +185,7 @@ class ElasticsearchIOTestCommon implements Serializable {
 
   void testRead() throws Exception {
     if (!useAsITests) {
-      ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
+      ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
     }
 
     PCollection<String> output =
@@ -196,9 +200,19 @@ class ElasticsearchIOTestCommon implements Serializable {
     pipeline.run();
   }
 
-  void testReadWithQuery() throws Exception {
+  void testReadWithQueryString() throws Exception {
+    testReadWithQueryInternal(Read::withQuery);
+  }
+
+  void testReadWithQueryValueProvider() throws Exception {
+    testReadWithQueryInternal(
+        (read, query) -> read.withQuery(ValueProvider.StaticValueProvider.of(query)));
+  }
+
+  private void testReadWithQueryInternal(BiFunction<Read, String, Read> queryConfigurer)
+      throws IOException {
     if (!useAsITests) {
-      ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
+      ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
     }
 
     String query =
@@ -212,11 +226,12 @@ class ElasticsearchIOTestCommon implements Serializable {
             + "  }\n"
             + "}";
 
-    PCollection<String> output =
-        pipeline.apply(
-            ElasticsearchIO.read()
-                .withConnectionConfiguration(connectionConfiguration)
-                .withQuery(query));
+    Read read = ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
+
+    read = queryConfigurer.apply(read, query);
+
+    PCollection<String> output = pipeline.apply(read);
+
     PAssert.thatSingleton(output.apply("Count", Count.globally()))
         .isEqualTo(numDocs / NUM_SCIENTISTS);
     pipeline.run();
@@ -225,7 +240,7 @@ class ElasticsearchIOTestCommon implements Serializable {
   /** Test reading metadata by reading back the id of a document after writing it. */
   void testReadWithMetadata() throws Exception {
     if (!useAsITests) {
-      ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, 1, restClient);
+      ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, 1, restClient);
     }
 
     PCollection<String> output =
@@ -248,8 +263,8 @@ class ElasticsearchIOTestCommon implements Serializable {
             .withConnectionConfiguration(connectionConfiguration)
             .withMaxBatchSize(BATCH_SIZE);
     List<String> input =
-        ElasticSearchIOTestUtils.createDocuments(
-            numDocs, ElasticSearchIOTestUtils.InjectionMode.INJECT_SOME_INVALID_DOCS);
+        ElasticsearchIOTestUtils.createDocuments(
+            numDocs, ElasticsearchIOTestUtils.InjectionMode.INJECT_SOME_INVALID_DOCS);
     expectedException.expect(isA(IOException.class));
     expectedException.expectMessage(
         new CustomMatcher<String>("RegExp matcher") {
@@ -286,8 +301,8 @@ class ElasticsearchIOTestCommon implements Serializable {
     // so we test the Writer as a DoFn outside of a runner.
     try (DoFnTester<String, Void> fnTester = DoFnTester.of(new Write.WriteFn(write))) {
       List<String> input =
-          ElasticSearchIOTestUtils.createDocuments(
-              numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+          ElasticsearchIOTestUtils.createDocuments(
+              numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
       long numDocsProcessed = 0;
       long numDocsInserted = 0;
       for (String document : input) {
@@ -327,8 +342,8 @@ class ElasticsearchIOTestCommon implements Serializable {
     // so we test the Writer as a DoFn outside of a runner.
     try (DoFnTester<String, Void> fnTester = DoFnTester.of(new Write.WriteFn(write))) {
       List<String> input =
-          ElasticSearchIOTestUtils.createDocuments(
-              numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+          ElasticsearchIOTestUtils.createDocuments(
+              numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
       long numDocsProcessed = 0;
       long sizeProcessed = 0;
       long numDocsInserted = 0;
@@ -383,8 +398,8 @@ class ElasticsearchIOTestCommon implements Serializable {
    */
   void testWriteWithIdFn() throws Exception {
     List<String> data =
-        ElasticSearchIOTestUtils.createDocuments(
-            numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+        ElasticsearchIOTestUtils.createDocuments(
+            numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
     pipeline
         .apply(Create.of(data))
         .apply(
@@ -413,8 +428,8 @@ class ElasticsearchIOTestCommon implements Serializable {
     long adjustedNumDocs = docsPerScientist * FAMOUS_SCIENTISTS.length;
 
     List<String> data =
-        ElasticSearchIOTestUtils.createDocuments(
-            adjustedNumDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+        ElasticsearchIOTestUtils.createDocuments(
+            adjustedNumDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
     pipeline
         .apply(Create.of(data))
         .apply(
@@ -427,7 +442,11 @@ class ElasticsearchIOTestCommon implements Serializable {
     for (String scientist : FAMOUS_SCIENTISTS) {
       String index = scientist.toLowerCase();
       long count =
-          refreshIndexAndGetCurrentNumDocs(restClient, index, connectionConfiguration.getType());
+          refreshIndexAndGetCurrentNumDocs(
+              restClient,
+              index,
+              connectionConfiguration.getType(),
+              getBackendVersion(connectionConfiguration));
       assertEquals(scientist + " index holds incorrect count", docsPerScientist, count);
     }
   }
@@ -459,8 +478,8 @@ class ElasticsearchIOTestCommon implements Serializable {
     long adjustedNumDocs = (numDocs & 1) == 0 ? numDocs : numDocs + 1;
 
     List<String> data =
-        ElasticSearchIOTestUtils.createDocuments(
-            adjustedNumDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+        ElasticsearchIOTestUtils.createDocuments(
+            adjustedNumDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
     pipeline
         .apply(Create.of(data))
         .apply(
@@ -472,7 +491,11 @@ class ElasticsearchIOTestCommon implements Serializable {
     for (int i = 0; i < 2; i++) {
       String type = "TYPE_" + i;
       long count =
-          refreshIndexAndGetCurrentNumDocs(restClient, connectionConfiguration.getIndex(), type);
+          refreshIndexAndGetCurrentNumDocs(
+              restClient,
+              connectionConfiguration.getIndex(),
+              type,
+              getBackendVersion(connectionConfiguration));
       assertEquals(type + " holds incorrect count", adjustedNumDocs / 2, count);
     }
   }
@@ -485,8 +508,8 @@ class ElasticsearchIOTestCommon implements Serializable {
    */
   void testWriteWithFullAddressing() throws Exception {
     List<String> data =
-        ElasticSearchIOTestUtils.createDocuments(
-            numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+        ElasticsearchIOTestUtils.createDocuments(
+            numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
     pipeline
         .apply(Create.of(data))
         .apply(
@@ -501,7 +524,9 @@ class ElasticsearchIOTestCommon implements Serializable {
       String index = scientist.toLowerCase();
       for (int i = 0; i < 2; i++) {
         String type = "TYPE_" + scientist.hashCode() % 2;
-        long count = refreshIndexAndGetCurrentNumDocs(restClient, index, type);
+        long count =
+            refreshIndexAndGetCurrentNumDocs(
+                restClient, index, type, getBackendVersion(connectionConfiguration));
         assertEquals("Incorrect count for " + index + "/" + type, numDocs / NUM_SCIENTISTS, count);
       }
     }
@@ -514,7 +539,7 @@ class ElasticsearchIOTestCommon implements Serializable {
    */
   void testWritePartialUpdate() throws Exception {
     if (!useAsITests) {
-      ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
+      ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
     }
 
     // defensive coding to ensure our initial state is as expected
@@ -550,41 +575,6 @@ class ElasticsearchIOTestCommon implements Serializable {
     assertEquals(numDocs / 2, countByMatch(connectionConfiguration, restClient, "group", "1"));
   }
 
-  /** Tests partial updates with errors by adding some invalid info to test set. */
-  void testWritePartialUpdateWithErrors() throws Exception {
-    // put a mapping to simulate error of insertion
-    ElasticSearchIOTestUtils.setIndexMapping(connectionConfiguration, restClient);
-
-    if (!useAsITests) {
-      ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
-    }
-
-    // try to partial update a document with an incompatible date format for the age to generate
-    // an update error
-    List<String> data = new ArrayList<>();
-    data.add("{\"id\" : 1, \"age\" : \"2018-08-10:00:00\"}");
-
-    try {
-      pipeline
-          .apply(Create.of(data))
-          .apply(
-              ElasticsearchIO.write()
-                  .withConnectionConfiguration(connectionConfiguration)
-                  .withIdFn(new ExtractValueFn("id"))
-                  .withUsePartialUpdate(true));
-      pipeline.run();
-    } catch (Exception e) {
-      boolean matches =
-          e.getLocalizedMessage()
-              .matches(
-                  "(?is).*Error writing to Elasticsearch, some elements could not be inserted:"
-                      + ".*Document id .+: failed to parse .*Caused by: .*"
-                      + ".*For input string: \"2018-08-10:00:00\".*");
-
-      assertTrue(matches);
-    }
-  }
-
   /**
    * Function for checking if any string in iterable contains expected substring. Fails if no match
    * is found.
@@ -614,13 +604,15 @@ class ElasticsearchIOTestCommon implements Serializable {
   void testDefaultRetryPredicate(RestClient restClient) throws IOException {
 
     HttpEntity entity1 = new NStringEntity(BAD_REQUEST, ContentType.APPLICATION_JSON);
-    Response response1 =
-        restClient.performRequest("POST", "/_bulk", Collections.emptyMap(), entity1);
+    Request request = new Request("POST", "/_bulk");
+    request.addParameters(Collections.emptyMap());
+    request.setEntity(entity1);
+    Response response1 = restClient.performRequest(request);
     assertTrue(CUSTOM_RETRY_PREDICATE.test(response1.getEntity()));
 
     HttpEntity entity2 = new NStringEntity(OK_REQUEST, ContentType.APPLICATION_JSON);
-    Response response2 =
-        restClient.performRequest("POST", "/_bulk", Collections.emptyMap(), entity2);
+    request.setEntity(entity2);
+    Response response2 = restClient.performRequest(request);
     assertFalse(DEFAULT_RETRY_PREDICATE.test(response2.getEntity()));
   }
 
@@ -660,8 +652,8 @@ class ElasticsearchIOTestCommon implements Serializable {
 
   private void executeWriteTest(ElasticsearchIO.Write write) throws Exception {
     List<String> data =
-        ElasticSearchIOTestUtils.createDocuments(
-            numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+        ElasticsearchIOTestUtils.createDocuments(
+            numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
     pipeline.apply(Create.of(data)).apply(write);
     pipeline.run();
 

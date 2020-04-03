@@ -103,7 +103,9 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
     EnumMap<BeamFnApi.StateKey.TypeCase, StateRequestHandler> handlerMap =
         new EnumMap<BeamFnApi.StateKey.TypeCase, StateRequestHandler>(
             BeamFnApi.StateKey.TypeCase.class);
+    handlerMap.put(BeamFnApi.StateKey.TypeCase.ITERABLE_SIDE_INPUT, sideInputHandler);
     handlerMap.put(BeamFnApi.StateKey.TypeCase.MULTIMAP_SIDE_INPUT, sideInputHandler);
+    handlerMap.put(BeamFnApi.StateKey.TypeCase.MULTIMAP_KEYS_SIDE_INPUT, sideInputHandler);
 
     return StateRequestHandlers.delegateBasedUponType(handlerMap);
   }

@@ -21,6 +21,8 @@ Important: streaming pipeline support in Python Dataflow is in development
 and is not yet available for use.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse
@@ -31,8 +33,9 @@ from past.builtins import unicode
 import apache_beam as beam
 import apache_beam.transforms.window as window
 
-TABLE_SCHEMA = ('word:STRING, count:INTEGER, '
-                'window_start:TIMESTAMP, window_end:TIMESTAMP')
+TABLE_SCHEMA = (
+    'word:STRING, count:INTEGER, '
+    'window_start:TIMESTAMP, window_end:TIMESTAMP')
 
 
 def find_words(element):
@@ -45,10 +48,12 @@ class FormatDoFn(beam.DoFn):
     ts_format = '%Y-%m-%d %H:%M:%S.%f UTC'
     window_start = window.start.to_utc_datetime().strftime(ts_format)
     window_end = window.end.to_utc_datetime().strftime(ts_format)
-    return [{'word': element[0],
-             'count': element[1],
-             'window_start':window_start,
-             'window_end':window_end}]
+    return [{
+        'word': element[0],
+        'count': element[1],
+        'window_start': window_start,
+        'window_end': window_end
+    }]
 
 
 def run(argv=None):
@@ -56,13 +61,15 @@ def run(argv=None):
 
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      '--input_topic', required=True,
+      '--input_topic',
+      required=True,
       help='Input PubSub topic of the form "/topics/<PROJECT>/<TOPIC>".')
   parser.add_argument(
-      '--output_table', required=True,
-      help=
-      ('Output BigQuery table for results specified as: PROJECT:DATASET.TABLE '
-       'or DATASET.TABLE.'))
+      '--output_table',
+      required=True,
+      help=(
+          'Output BigQuery table for results specified as: '
+          'PROJECT:DATASET.TABLE or DATASET.TABLE.'))
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   with beam.Pipeline(argv=pipeline_args) as p:
@@ -75,14 +82,14 @@ def run(argv=None):
       (word, ones) = word_ones
       return (word, sum(ones))
 
-    transformed = (lines
-                   | 'Split' >> (beam.FlatMap(find_words)
-                                 .with_output_types(unicode))
-                   | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
-                   | beam.WindowInto(window.FixedWindows(2*60, 0))
-                   | 'Group' >> beam.GroupByKey()
-                   | 'Count' >> beam.Map(count_ones)
-                   | 'Format' >> beam.ParDo(FormatDoFn()))
+    transformed = (
+        lines
+        | 'Split' >> (beam.FlatMap(find_words).with_output_types(unicode))
+        | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
+        | beam.WindowInto(window.FixedWindows(2 * 60, 0))
+        | 'Group' >> beam.GroupByKey()
+        | 'Count' >> beam.Map(count_ones)
+        | 'Format' >> beam.ParDo(FormatDoFn()))
 
     # Write to BigQuery.
     # pylint: disable=expression-not-assigned

@@ -20,9 +20,9 @@ package org.apache.beam.runners.fnexecution.environment;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.anyList;
 import static org.mockito.Matchers.anyMap;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -33,13 +33,15 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.LegacyArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.RemoteEnvironmentOptions;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -64,7 +66,7 @@ public class ProcessEnvironmentFactoryTest {
 
   @Mock private GrpcFnServer<FnApiControlClientPoolService> controlServiceServer;
   @Mock private GrpcFnServer<GrpcLoggingService> loggingServiceServer;
-  @Mock private GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
+  @Mock private GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer;
   @Mock private GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
 
   @Mock private InstructionRequestHandler client;
@@ -88,7 +90,8 @@ public class ProcessEnvironmentFactoryTest {
             retrievalServiceServer,
             provisioningServiceServer,
             (workerId, timeout) -> client,
-            ID_GENERATOR);
+            ID_GENERATOR,
+            PipelineOptionsFactory.as(RemoteEnvironmentOptions.class));
   }
 
   @Test

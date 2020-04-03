@@ -17,6 +17,7 @@ package funcx
 
 import (
 	"fmt"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
@@ -66,6 +67,9 @@ const (
 	FnType FnParamKind = 0x40
 	// FnWindow indicates a function input parameter that implements typex.Window.
 	FnWindow FnParamKind = 0x80
+	// FnRTracker indicates a function input parameter that implements
+	// sdf.RTracker.
+	FnRTracker FnParamKind = 0x100
 )
 
 func (k FnParamKind) String() string {
@@ -86,6 +90,8 @@ func (k FnParamKind) String() string {
 		return "Type"
 	case FnWindow:
 		return "Window"
+	case FnRTracker:
+		return "RTracker"
 	default:
 		return fmt.Sprintf("%v", int(k))
 	}
@@ -147,6 +153,55 @@ func (u *Fn) Context() (pos int, exists bool) {
 	return -1, false
 }
 
+// Emits returns (index, num, true) iff the function expects one or more
+// emitters. The index returned is the index of the first emitter param in the
+// signature. The num return value is the number of emitters in the signature.
+// When there are multiple emitters in the signature, they will all be located
+// contiguously, so the range of emitter params is [index, index+num).
+func (u *Fn) Emits() (pos int, num int, exists bool) {
+	pos = -1
+	exists = false
+	for i, p := range u.Param {
+		if !exists && p.Kind == FnEmit {
+			// This should execute when hitting the first emitter.
+			pos = i
+			num = 1
+			exists = true
+		} else if exists && p.Kind == FnEmit {
+			// Subsequent emitters after the first.
+			num++
+		} else if exists {
+			// Breaks out when no emitters are left.
+			break
+		}
+	}
+	return pos, num, exists
+}
+
+// Inputs returns (index, num, true) iff the function expects one or more
+// inputs, consisting of the main input followed by any number of side inputs.
+// The index returned is the index of the first input, which is always the main
+// input. The num return value is the number of total inputs in the signature.
+// The main input and all side inputs are located contiguously
+func (u *Fn) Inputs() (pos int, num int, exists bool) {
+	pos = -1
+	exists = false
+	for i, p := range u.Param {
+		if !exists && (p.Kind == FnValue || p.Kind == FnIter || p.Kind == FnReIter) {
+			// This executes on hitting the first input.
+			pos = i
+			num = 1
+			exists = true
+		} else if exists && (p.Kind == FnValue || p.Kind == FnIter || p.Kind == FnReIter) {
+			// Subsequent inputs after the first.
+			num++
+		} else if exists {
+			break
+		}
+	}
+	return pos, num, exists
+}
+
 // Type returns (index, true) iff the function expects a reflect.FullType.
 func (u *Fn) Type() (pos int, exists bool) {
 	for i, p := range u.Param {
@@ -171,6 +226,16 @@ func (u *Fn) EventTime() (pos int, exists bool) {
 func (u *Fn) Window() (pos int, exists bool) {
 	for i, p := range u.Param {
 		if p.Kind == FnWindow {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
+// RTracker returns (index, true) iff the function expects an sdf.RTracker.
+func (u *Fn) RTracker() (pos int, exists bool) {
+	for i, p := range u.Param {
+		if p.Kind == FnRTracker {
 			return i, true
 		}
 	}
@@ -241,6 +306,8 @@ func New(fn reflectx.Func) (*Fn, error) {
 			kind = FnWindow
 		case t == reflectx.Type:
 			kind = FnType
+		case t.Implements(reflect.TypeOf((*sdf.RTracker)(nil)).Elem()):
+			kind = FnRTracker
 		case typex.IsContainer(t), typex.IsConcrete(t), typex.IsUniversal(t):
 			kind = FnValue
 		case IsEmit(t):
@@ -304,7 +371,7 @@ func SubReturns(list []ReturnParam, indices ...int) []ReturnParam {
 }
 
 // The order of present parameters and return values must be as follows:
-// func(FnContext?, FnWindow?, FnEventTime?, FnType?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetEventTime?, RetError?)
+// func(FnContext?, FnWindow?, FnEventTime?, FnType?, FnRTracker?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetOutput?, RetError?)
 //     where ? indicates 0 or 1, and * indicates any number.
 //     and  a SideInput is one of FnValue or FnIter or FnReIter
 // Note: Fns with inputs must have at least one FnValue as the main input.
@@ -332,7 +399,7 @@ var (
 	errWindowParamPrecedence    = errors.New("may only have a single Window parameter and it must precede the EventTime and main input parameter")
 	errEventTimeParamPrecedence = errors.New("may only have a single beam.EventTime parameter and it must precede the main input parameter")
 	errReflectTypePrecedence    = errors.New("may only have a single reflect.Type parameter and it must precede the main input parameter")
-	errSideInputPrecedence      = errors.New("side input parameters must follow main input parameter")
+	errRTrackerPrecedence       = errors.New("may only have a single sdf.RTracker parameter and it must precede the main input parameter")
 	errInputPrecedence          = errors.New("inputs parameters must precede emit function parameters")
 )
 
@@ -346,6 +413,7 @@ const (
 	psType
 	psInput
 	psOutput
+	psRTracker
 )
 
 func nextParamState(cur paramState, transition FnParamKind) (paramState, error) {
@@ -360,6 +428,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psEventTime, nil
 		case FnType:
 			return psType, nil
+		case FnRTracker:
+			return psRTracker, nil
 		}
 	case psContext:
 		switch transition {
@@ -369,6 +439,8 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psEventTime, nil
 		case FnType:
 			return psType, nil
+		case FnRTracker:
+			return psRTracker, nil
 		}
 	case psWindow:
 		switch transition {
@@ -376,13 +448,22 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 			return psEventTime, nil
 		case FnType:
 			return psType, nil
+		case FnRTracker:
+			return psRTracker, nil
 		}
 	case psEventTime:
 		switch transition {
 		case FnType:
 			return psType, nil
+		case FnRTracker:
+			return psRTracker, nil
 		}
 	case psType:
+		switch transition {
+		case FnRTracker:
+			return psRTracker, nil
+		}
+	case psRTracker:
 		// Completely handled by the default clause
 	case psInput:
 		switch transition {
@@ -405,10 +486,10 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 		return -1, errEventTimeParamPrecedence
 	case FnType:
 		return -1, errReflectTypePrecedence
-	case FnValue:
+	case FnRTracker:
+		return -1, errRTrackerPrecedence
+	case FnIter, FnReIter, FnValue:
 		return psInput, nil
-	case FnIter, FnReIter:
-		return -1, errSideInputPrecedence
 	case FnEmit:
 		return psOutput, nil
 	default:

@@ -20,9 +20,9 @@ package org.apache.beam.sdk.transforms;
 import static org.apache.beam.sdk.transforms.Contextful.Fn.Context.wrapProcessContext;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -38,6 +38,7 @@ import java.util.Objects;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -55,8 +56,11 @@ import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.Watch.Growth.PollResult;
+import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.KV;
@@ -65,16 +69,16 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.TypeDescriptors.TypeVariableExtractor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Ordering;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Funnel;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Funnels;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.HashCode;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Funnel;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Funnels;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDuration;
@@ -121,7 +125,7 @@ import org.slf4j.LoggerFactory;
  * <p>Note: This transform works only in runners supporting Splittable DoFn: see <a
  * href="https://beam.apache.org/documentation/runners/capability-matrix/">capability matrix</a>.
  */
-@Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
+@Experimental(Kind.SPLITTABLE_DO_FN)
 public class Watch {
   private static final Logger LOG = LoggerFactory.getLogger(Watch.class);
 
@@ -752,18 +756,29 @@ public class Watch {
       while (tracker.tryClaim(position)) {
         TimestampedValue<OutputT> value = c.element().getValue().get((int) position);
         c.outputWithTimestamp(KV.of(c.element().getKey(), value.getValue()), value.getTimestamp());
-        c.updateWatermark(value.getTimestamp());
         position += 1L;
       }
     }
 
+    @GetInitialWatermarkEstimatorState
+    public Instant getInitialWatermarkEstimatorState(@Timestamp Instant currentElementTimestamp) {
+      return currentElementTimestamp;
+    }
+
+    @NewWatermarkEstimator
+    public WatermarkEstimators.MonotonicallyIncreasing newWatermarkEstimator(
+        @WatermarkEstimatorState Instant watermarkEstimatorState) {
+      return new WatermarkEstimators.MonotonicallyIncreasing(watermarkEstimatorState);
+    }
+
     @GetInitialRestriction
-    public OffsetRange getInitialRestriction(KV<InputT, List<TimestampedValue<OutputT>>> element) {
+    public OffsetRange getInitialRestriction(
+        @Element KV<InputT, List<TimestampedValue<OutputT>>> element) {
       return new OffsetRange(0, element.getValue().size());
     }
 
     @NewTracker
-    public OffsetRangeTracker newTracker(OffsetRange restriction) {
+    public OffsetRangeTracker newTracker(@Restriction OffsetRange restriction) {
       return restriction.newTracker();
     }
 
@@ -803,10 +818,22 @@ public class Watch {
           };
     }
 
+    @GetInitialWatermarkEstimatorState
+    public Instant getInitialWatermarkEstimatorState(@Timestamp Instant currentElementTimestamp) {
+      return currentElementTimestamp;
+    }
+
+    @NewWatermarkEstimator
+    public WatermarkEstimators.Manual newWatermarkEstimator(
+        @WatermarkEstimatorState Instant watermarkEstimatorState) {
+      return new WatermarkEstimators.Manual(watermarkEstimatorState);
+    }
+
     @ProcessElement
     public ProcessContinuation process(
         ProcessContext c,
-        RestrictionTracker<GrowthState, KV<Growth.PollResult<OutputT>, TerminationStateT>> tracker)
+        RestrictionTracker<GrowthState, KV<Growth.PollResult<OutputT>, TerminationStateT>> tracker,
+        ManualWatermarkEstimator<Instant> watermarkEstimator)
         throws Exception {
 
       GrowthState currentRestriction = tracker.currentRestriction();
@@ -821,9 +848,7 @@ public class Watch {
                 priorPoll.getOutputs().size());
             c.output(KV.of(c.element(), priorPoll.getOutputs()));
           }
-          if (priorPoll.getWatermark() != null) {
-            c.updateWatermark(priorPoll.getWatermark());
-          }
+          watermarkEstimator.setWatermark(priorPoll.getWatermark());
         }
         return stop();
       }
@@ -865,7 +890,7 @@ public class Watch {
       }
 
       if (newResults.getWatermark() != null) {
-        c.updateWatermark(newResults.getWatermark());
+        watermarkEstimator.setWatermark(newResults.getWatermark());
       }
 
       Instant currentTime = Instant.now();
@@ -923,12 +948,13 @@ public class Watch {
     }
 
     @GetInitialRestriction
-    public GrowthState getInitialRestriction(InputT element) {
+    public GrowthState getInitialRestriction(@Element InputT element) {
       return PollingGrowthState.of(getTerminationCondition().forNewInput(Instant.now(), element));
     }
 
     @NewTracker
-    public GrowthTracker<OutputT, TerminationStateT> newTracker(GrowthState restriction) {
+    public GrowthTracker<OutputT, TerminationStateT> newTracker(
+        @Restriction GrowthState restriction) {
       return new GrowthTracker<>(restriction, coderFunnel);
     }
 
@@ -1028,7 +1054,10 @@ public class Watch {
     }
 
     @Override
-    public GrowthState checkpoint() {
+    public SplitResult<GrowthState> trySplit(double fractionOfRemainder) {
+      // TODO(BEAM-8873): Add support for splitting off a fixed amount of work for this restriction
+      // instead of only supporting checkpointing.
+
       // residual should contain exactly the work *not* claimed in the current ProcessElement call -
       // unclaimed pending outputs or future polling output
       GrowthState residual;
@@ -1061,7 +1090,7 @@ public class Watch {
       }
 
       shouldStop = true;
-      return residual;
+      return SplitResult.of(state, residual);
     }
 
     private HashCode hash128(OutputT value) {

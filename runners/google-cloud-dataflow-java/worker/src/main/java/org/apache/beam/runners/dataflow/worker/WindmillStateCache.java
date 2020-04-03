@@ -32,13 +32,13 @@ import org.apache.beam.runners.dataflow.worker.status.BaseStatusServlet;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.util.Weighted;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Equivalence;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.Cache;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.RemovalCause;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.cache.Weigher;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashMultimap;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Equivalence;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalCause;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Weigher;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
 
 /**
  * Process-wide cache of per-key state.
@@ -106,10 +106,9 @@ public class WindmillStateCache implements StatusDataProvider {
     public void invalidate(ByteString processingKey) {
       synchronized (this) {
         ComputationKey key = new ComputationKey(computation, processingKey);
-        for (StateId id : keyIndex.get(key)) {
+        for (StateId id : keyIndex.removeAll(key)) {
           stateCache.invalidate(id);
         }
-        keyIndex.removeAll(key);
       }
     }
 

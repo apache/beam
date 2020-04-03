@@ -45,9 +45,9 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -142,11 +142,11 @@ public class PubsubGrpcClientTest {
       List<IncomingMessage> acutalMessages = client.pull(REQ_TIME, SUBSCRIPTION, 10, true);
       assertEquals(1, acutalMessages.size());
       IncomingMessage actualMessage = acutalMessages.get(0);
-      assertEquals(ACK_ID, actualMessage.ackId);
-      assertEquals(DATA, new String(actualMessage.elementBytes, StandardCharsets.UTF_8));
-      assertEquals(RECORD_ID, actualMessage.recordId);
-      assertEquals(REQ_TIME, actualMessage.requestTimeMsSinceEpoch);
-      assertEquals(MESSAGE_TIME, actualMessage.timestampMsSinceEpoch);
+      assertEquals(ACK_ID, actualMessage.ackId());
+      assertEquals(DATA, actualMessage.message().getData().toStringUtf8());
+      assertEquals(RECORD_ID, actualMessage.recordId());
+      assertEquals(REQ_TIME, actualMessage.requestTimeMsSinceEpoch());
+      assertEquals(MESSAGE_TIME, actualMessage.timestampMsSinceEpoch());
       assertEquals(expectedRequest, Iterables.getOnlyElement(requestsReceived));
     } finally {
       server.shutdownNow();
@@ -187,8 +187,13 @@ public class PubsubGrpcClientTest {
         InProcessServerBuilder.forName(channelName).addService(publisherImplBase).build().start();
     try {
       OutgoingMessage actualMessage =
-          new OutgoingMessage(
-              DATA.getBytes(StandardCharsets.UTF_8), ATTRIBUTES, MESSAGE_TIME, RECORD_ID);
+          OutgoingMessage.of(
+              com.google.pubsub.v1.PubsubMessage.newBuilder()
+                  .setData(ByteString.copyFromUtf8(DATA))
+                  .putAllAttributes(ATTRIBUTES)
+                  .build(),
+              MESSAGE_TIME,
+              RECORD_ID);
       int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
       assertEquals(1, n);
       assertEquals(expectedRequest, Iterables.getOnlyElement(requestsReceived));

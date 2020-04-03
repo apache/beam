@@ -20,6 +20,8 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import cProfile  # pylint: disable=bad-python3-import
@@ -33,8 +35,12 @@ import time
 import warnings
 from builtins import object
 from threading import Timer
+from typing import Callable
+from typing import Optional
 
 from apache_beam.io import filesystems
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class Profile(object):
@@ -42,8 +48,13 @@ class Profile(object):
 
   SORTBY = 'cumulative'
 
-  def __init__(self, profile_id, profile_location=None, log_results=False,
-               file_copy_fn=None, time_prefix='%Y-%m-%d_%H_%M_%S-'):
+  def __init__(
+      self,
+      profile_id,
+      profile_location=None,
+      log_results=False,
+      file_copy_fn=None,
+      time_prefix='%Y-%m-%d_%H_%M_%S-'):
     self.stats = None
     self.profile_id = str(profile_id)
     self.profile_location = profile_location
@@ -53,14 +64,14 @@ class Profile(object):
     self.profile_output = None
 
   def __enter__(self):
-    logging.info('Start profiling: %s', self.profile_id)
+    _LOGGER.info('Start profiling: %s', self.profile_id)
     self.profile = cProfile.Profile()
     self.profile.enable()
     return self
 
   def __exit__(self, *args):
     self.profile.disable()
-    logging.info('Stop profiling: %s', self.profile_id)
+    _LOGGER.info('Stop profiling: %s', self.profile_id)
 
     if self.profile_location:
       dump_location = os.path.join(
@@ -70,18 +81,22 @@ class Profile(object):
       try:
         os.close(fd)
         self.profile.dump_stats(filename)
-        logging.info('Copying profiler data to: [%s]', dump_location)
+        _LOGGER.info('Copying profiler data to: [%s]', dump_location)
         self.file_copy_fn(filename, dump_location)
       finally:
         os.remove(filename)
       self.profile_output = dump_location
 
     if self.log_results:
-      s = io.StringIO()
+      try:
+        import StringIO  # Python 2
+        s = StringIO.StringIO()
+      except ImportError:
+        s = io.StringIO()
       self.stats = pstats.Stats(
           self.profile, stream=s).sort_stats(Profile.SORTBY)
       self.stats.print_stats()
-      logging.info('Profiler data: [%s]', s.getvalue())
+      _LOGGER.info('Profiler data: [%s]', s.getvalue())
 
   @staticmethod
   def default_file_copy_fn(src, dest):
@@ -95,11 +110,15 @@ class Profile(object):
 
   @staticmethod
   def factory_from_options(options):
+    # type: (...) -> Optional[Callable[..., Profile]]
     if options.profile_cpu:
+
       def create_profiler(profile_id, **kwargs):
         if random.random() < options.profile_sample_rate:
           return Profile(profile_id, options.profile_location, **kwargs)
+
       return create_profiler
+    return None
 
 
 class MemoryReporter(object):
@@ -127,9 +146,10 @@ class MemoryReporter(object):
     <do something>
     mr.report_once()
   """
-
   def __init__(self, interval_second=60.0):
-    # guppy might not have installed. http://pypi.python.org/pypi/guppy/0.1.10
+    # guppy might not be installed.
+    # Python 2.7: https://pypi.org/project/guppy/0.1.10
+    # Python 3.x: https://pypi.org/project/guppy3/3.0.9
     # The reporter can be set up only when guppy is installed (and guppy cannot
     # be added to the required packages in setup.py, since it's not available
     # in all platforms).
@@ -176,5 +196,7 @@ class MemoryReporter(object):
       return
     report_start_time = time.time()
     heap_profile = self._hpy().heap()
-    logging.info('*** MemoryReport Heap:\n %s\n MemoryReport took %.1f seconds',
-                 heap_profile, time.time() - report_start_time)
+    _LOGGER.info(
+        '*** MemoryReport Heap:\n %s\n MemoryReport took %.1f seconds',
+        heap_profile,
+        time.time() - report_start_time)

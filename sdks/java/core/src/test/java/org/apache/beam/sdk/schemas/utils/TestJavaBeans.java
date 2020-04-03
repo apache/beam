@@ -313,6 +313,205 @@ public class TestJavaBeans {
           .addStringField("stringBuilder")
           .build();
 
+  /** A simple Bean containing basic nullable types. * */
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class AllNullableBean {
+    @Nullable private String str;
+    @Nullable private Byte aByte;
+    @Nullable private Short aShort;
+    @Nullable private Integer anInt;
+    @Nullable private Long aLong;
+    @Nullable private Boolean aBoolean;
+    @Nullable private DateTime dateTime;
+    @Nullable private Instant instant;
+    @Nullable private byte[] bytes;
+    @Nullable private ByteBuffer byteBuffer;
+    @Nullable private BigDecimal bigDecimal;
+    @Nullable private StringBuilder stringBuilder;
+
+    public AllNullableBean() {
+      this.str = null;
+      this.aByte = null;
+      this.aShort = null;
+      this.anInt = null;
+      this.aLong = null;
+      this.aBoolean = null;
+      this.dateTime = null;
+      this.instant = null;
+      this.bytes = null;
+      this.byteBuffer = null;
+      this.bigDecimal = null;
+      this.stringBuilder = null;
+    }
+
+    @Nullable
+    public String getStr() {
+      return str;
+    }
+
+    public void setStr(@Nullable String str) {
+      this.str = str;
+    }
+
+    @Nullable
+    public Byte getaByte() {
+      return aByte;
+    }
+
+    public void setaByte(@Nullable Byte aByte) {
+      this.aByte = aByte;
+    }
+
+    @Nullable
+    public Short getaShort() {
+      return aShort;
+    }
+
+    public void setaShort(@Nullable Short aShort) {
+      this.aShort = aShort;
+    }
+
+    @Nullable
+    public Integer getAnInt() {
+      return anInt;
+    }
+
+    public void setAnInt(@Nullable Integer anInt) {
+      this.anInt = anInt;
+    }
+
+    @Nullable
+    public Long getaLong() {
+      return aLong;
+    }
+
+    public void setaLong(@Nullable Long aLong) {
+      this.aLong = aLong;
+    }
+
+    @Nullable
+    public Boolean isaBoolean() {
+      return aBoolean;
+    }
+
+    public void setaBoolean(@Nullable Boolean aBoolean) {
+      this.aBoolean = aBoolean;
+    }
+
+    @Nullable
+    public DateTime getDateTime() {
+      return dateTime;
+    }
+
+    public void setDateTime(@Nullable DateTime dateTime) {
+      this.dateTime = dateTime;
+    }
+
+    @Nullable
+    public byte[] getBytes() {
+      return bytes;
+    }
+
+    public void setBytes(@Nullable byte[] bytes) {
+      this.bytes = bytes;
+    }
+
+    @Nullable
+    public ByteBuffer getByteBuffer() {
+      return byteBuffer;
+    }
+
+    public void setByteBuffer(@Nullable ByteBuffer byteBuffer) {
+      this.byteBuffer = byteBuffer;
+    }
+
+    @Nullable
+    public Instant getInstant() {
+      return instant;
+    }
+
+    public void setInstant(@Nullable Instant instant) {
+      this.instant = instant;
+    }
+
+    @Nullable
+    public BigDecimal getBigDecimal() {
+      return bigDecimal;
+    }
+
+    public void setBigDecimal(@Nullable BigDecimal bigDecimal) {
+      this.bigDecimal = bigDecimal;
+    }
+
+    @Nullable
+    public StringBuilder getStringBuilder() {
+      return stringBuilder;
+    }
+
+    public void setStringBuilder(@Nullable StringBuilder stringBuilder) {
+      this.stringBuilder = stringBuilder;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      SimpleBean that = (SimpleBean) o;
+      return Objects.equals(aByte, that.aByte)
+          && Objects.equals(aShort, that.aShort)
+          && Objects.equals(anInt, that.anInt)
+          && Objects.equals(aLong, that.aLong)
+          && Objects.equals(aBoolean, that.aBoolean)
+          && Objects.equals(str, that.str)
+          && Objects.equals(dateTime, that.dateTime)
+          && Objects.equals(instant, that.instant)
+          && Arrays.equals(bytes, that.bytes)
+          && Objects.equals(byteBuffer, that.byteBuffer)
+          && Objects.equals(bigDecimal, that.bigDecimal)
+          && Objects.equals(stringBuilder, that.stringBuilder);
+    }
+
+    @Override
+    public int hashCode() {
+      int result =
+          Objects.hash(
+              str,
+              aByte,
+              aShort,
+              anInt,
+              aLong,
+              aBoolean,
+              dateTime,
+              instant,
+              byteBuffer,
+              bigDecimal,
+              stringBuilder);
+      result = 31 * result + Arrays.hashCode(bytes);
+      return result;
+    }
+  }
+
+  /** The schema for {@link AllNullableBean}. * */
+  public static final Schema ALL_NULLABLE_BEAN_SCHEMA =
+      Schema.builder()
+          .addNullableField("str", FieldType.STRING)
+          .addNullableField("aByte", FieldType.BYTE)
+          .addNullableField("aShort", FieldType.INT16)
+          .addNullableField("anInt", FieldType.INT32)
+          .addNullableField("aLong", FieldType.INT64)
+          .addNullableField("aBoolean", FieldType.BOOLEAN)
+          .addNullableField("dateTime", FieldType.DATETIME)
+          .addNullableField("instant", FieldType.DATETIME)
+          .addNullableField("bytes", FieldType.BYTES)
+          .addNullableField("byteBuffer", FieldType.BYTES)
+          .addNullableField("bigDecimal", FieldType.DECIMAL)
+          .addNullableField("stringBuilder", FieldType.STRING)
+          .build();
+
   /** A simple Bean containing basic types. * */
   @DefaultSchema(JavaBeanSchema.class)
   public static class SimpleBeanWithAnnotations {
@@ -652,9 +851,11 @@ public class TestJavaBeans {
   @DefaultSchema(JavaBeanSchema.class)
   public static class NestedCollectionBean {
     private List<SimpleBean> simples;
+    private Iterable<SimpleBean> iterableSimples;
 
     public NestedCollectionBean(List<SimpleBean> simples) {
       this.simples = simples;
+      this.iterableSimples = simples;
     }
 
     public NestedCollectionBean() {}
@@ -663,8 +864,16 @@ public class TestJavaBeans {
       return simples;
     }
 
+    public Iterable<SimpleBean> getIterableSimples() {
+      return iterableSimples;
+    }
+
     public void setSimples(List<SimpleBean> simples) {
       this.simples = simples;
+    }
+
+    public void setIterableSimples(Iterable<SimpleBean> iterableSimples) {
+      this.iterableSimples = iterableSimples;
     }
 
     @Override
@@ -676,7 +885,8 @@ public class TestJavaBeans {
         return false;
       }
       NestedCollectionBean that = (NestedCollectionBean) o;
-      return Objects.equals(simples, that.simples);
+      return Objects.equals(simples, that.simples)
+          && Objects.equals(iterableSimples, that.iterableSimples);
     }
 
     @Override
@@ -687,7 +897,10 @@ public class TestJavaBeans {
 
   /** The schema for {@link NestedCollectionBean}. * */
   public static final Schema NESTED_COLLECTION_BEAN_SCHEMA =
-      Schema.builder().addArrayField("simples", FieldType.row(SIMPLE_BEAN_SCHEMA)).build();
+      Schema.builder()
+          .addArrayField("simples", FieldType.row(SIMPLE_BEAN_SCHEMA))
+          .addIterableField("iterableSimples", FieldType.row(SIMPLE_BEAN_SCHEMA))
+          .build();
 
   /** A Bean containing a simple {@link Map}. * */
   @DefaultSchema(JavaBeanSchema.class)
@@ -917,4 +1130,86 @@ public class TestJavaBeans {
   /** The schema for {@link BeanWithByteArray}. * */
   public static final Schema BEAN_WITH_BYTE_ARRAY_SCHEMA =
       Schema.builder().addByteArrayField("bytes1").addByteArrayField("bytes2").build();
+
+  /** A bean containing an Iterable. * */
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class IterableBean {
+    private Iterable<String> strings;
+
+    public IterableBean(Iterable<String> strings) {
+      this.strings = strings;
+    }
+
+    public IterableBean() {}
+
+    public Iterable<String> getStrings() {
+      return strings;
+    }
+
+    public void setStrings(Iterable<String> strings) {
+      this.strings = strings;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      IterableBean that = (IterableBean) o;
+      return Objects.equals(strings, that.strings);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(strings);
+    }
+  }
+
+  /** The schema for {@link NestedArrayBean}. * */
+  public static final Schema ITERABLE_BEAM_SCHEMA =
+      Schema.builder().addIterableField("strings", FieldType.STRING).build();
+
+  /** A bean containing an Array of ByteArray. * */
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class ArrayOfByteArray {
+    private List<ByteBuffer> byteBuffers;
+
+    public ArrayOfByteArray(List<ByteBuffer> byteBuffers) {
+      this.byteBuffers = byteBuffers;
+    }
+
+    public ArrayOfByteArray() {}
+
+    public List<ByteBuffer> getByteBuffers() {
+      return byteBuffers;
+    }
+
+    public void setByteBuffers(List<ByteBuffer> byteBuffers) {
+      this.byteBuffers = byteBuffers;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      ArrayOfByteArray that = (ArrayOfByteArray) o;
+      return Objects.equals(byteBuffers, that.byteBuffers);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(byteBuffers);
+    }
+  }
+
+  /** The schema for {@link NestedArrayBean}. * */
+  public static final Schema ARRAY_OF_BYTE_ARRAY_BEAM_SCHEMA =
+      Schema.builder().addArrayField("byteBuffers", FieldType.BYTES).build();
 }

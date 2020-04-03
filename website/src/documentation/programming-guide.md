@@ -39,6 +39,9 @@ how to implement Beam concepts in your pipelines.
   </ul>
 </nav>
 
+{:.language-py}
+The Python SDK supports Python 2.7, 3.5, 3.6, and 3.7. New Python SDK releases will stop supporting Python 2.7 in 2020 ([BEAM-8371](https://issues.apache.org/jira/browse/BEAM-8371)). For best results, use Beam with Python 3.
+
 ## 1. Overview {#overview}
 
 To use Beam, you need to first create a driver program using the classes in one
@@ -224,7 +227,7 @@ public interface MyOptions extends PipelineOptions {
     void setInput(String input);
 
     @Description("Output for the pipeline")
-    @Default.String("gs://my-bucket/input")
+    @Default.String("gs://my-bucket/output")
     String getOutput();
     void setOutput(String output);
 }
@@ -494,9 +497,7 @@ nested within (called [composite transforms](#composite-transforms) in the Beam
 SDKs).
 
 How you apply your pipeline's transforms determines the structure of your
-pipeline. The best way to think of your pipeline is as a directed acyclic graph,
-where the nodes are `PCollection`s and the edges are transforms. For example,
-you can chain transforms to create a sequential pipeline, like this one:
+pipeline. The best way to think of your pipeline is as a directed acyclic graph, where `PTransform` nodes are subroutines that accept `PCollection` nodes as inputs and emit `PCollection` nodes as outputs. For example, you can chain together transforms to create a pipeline that successively modifies input data:
 
 ```java
 [Final Output PCollection] = [Initial Input PCollection].apply([First Transform])
@@ -509,13 +510,13 @@ you can chain transforms to create a sequential pipeline, like this one:
               | [Third Transform])
 ```
 
-The resulting workflow graph of the above pipeline looks like this.
+The graph of this pipeline looks like the following:
 
 ![This linear pipeline starts with one input collection, sequentially applies
   three transforms, and ends with one output collection.](
-  {{ "/images/design-your-pipeline-linear.png" | prepend: site.baseurl }})
+  {{ "/images/design-your-pipeline-linear.svg" | prepend: site.baseurl }})
 
-*Figure: A linear pipeline with three sequential transforms.*
+*Figure 1: A linear pipeline with three sequential transforms.*
 
 However, note that a transform *does not consume or otherwise alter* the input
 collection--remember that a `PCollection` is immutable by definition. This means
@@ -533,13 +534,13 @@ a branching pipeline, like so:
 [PCollection of 'B' names] = [PCollection of database table rows] | [Transform B]
 ```
 
-The resulting workflow graph from the branching pipeline above looks like this.
+The graph of this branching pipeline looks like the following:
 
 ![This pipeline applies two transforms to a single input collection. Each
   transform produces an output collection.](
-  {{ "/images/design-your-pipeline-multiple-pcollections.png" | prepend: site.baseurl }})
+  {{ "/images/design-your-pipeline-multiple-pcollections.svg" | prepend: site.baseurl }})
 
-*Figure: A branching pipeline. Two transforms are applied to a single
+*Figure 2: A branching pipeline. Two transforms are applied to a single
 PCollection of database table rows.*
 
 You can also build your own [composite transforms](#composite-transforms) that
@@ -798,6 +799,17 @@ words = ...
 {:.language-java}
 > **Note:** You can use Java 8 lambda functions with several other Beam
 > transforms, including `Filter`, `FlatMapElements`, and `Partition`.
+
+##### 4.2.1.4. DoFn lifecycle {#dofn}
+Here is a sequence diagram that shows the lifecycle of the DoFn during
+ the execution of the ParDo transform. The comments give useful 
+ information to pipeline developers such as the constraints that 
+ apply to the objects or particular cases such as failover or 
+ instance reuse. They also give instanciation use cases.
+ 
+<!-- The source for the sequence diagram can be found in the the SVG resource. -->
+![This is a sequence diagram that shows the lifecycle of the DoFn](
+  {{ "/images/dofn-sequence-diagram.svg" | prepend: site.baseurl }})
 
 #### 4.2.2. GroupByKey {#groupbykey}
 
@@ -1090,12 +1102,6 @@ pc = ...
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:combine_custom_average_define
 %}```
 
-If you are combining a `PCollection` of key-value pairs, [per-key
-combining](#combining-values-in-a-keyed-pcollection) is often enough. If
-you need the combining strategy to change based on the key (for example, MIN for
-some users and MAX for other users), you can define a `KeyedCombineFn` to access
-the key within the combining strategy.
-
 ##### 4.2.4.3. Combining a PCollection into a single value {#combining-pcollection}
 
 Use the global combine to transform all of the elements in a given `PCollection`
@@ -1371,7 +1377,7 @@ In addition to the main input `PCollection`, you can provide additional inputs
 to a `ParDo` transform in the form of side inputs. A side input is an additional
 input that your `DoFn` can access each time it processes an element in the input
 `PCollection`. When you specify a side input, you create a view of some other
-data that can be read from within the `ParDo` transform's `DoFn` while procesing
+data that can be read from within the `ParDo` transform's `DoFn` while processing
 each element.
 
 Side inputs are useful if your `ParDo` needs to inject additional data when
@@ -1571,16 +1577,23 @@ together.
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_with_undeclared_outputs
 %}```
 
-{:.language-java}
 #### 4.5.3. Accessing additional parameters in your DoFn {#other-dofn-parameters}
 
 {:.language-java}
 In addition to the element and the `OutputReceiver`, Beam will populate other parameters to your DoFn's `@ProcessElement` method.
 Any combination of these parameters can be added to your process method in any order.
 
+{:.language-py}
+In addition to the element, Beam will populate other parameters to your DoFn's `process` method.
+Any combination of these parameters can be added to your process method in any order.
+
 {:.language-java}
 **Timestamp:**
 To access the timestamp of an input element, add a parameter annotated with `@Timestamp` of type `Instant`. For example:
+
+{:.language-py}
+**Timestamp:**
+To access the timestamp of an input element, add a keyword parameter default to `DoFn.TimestampParam`. For example:
 
 ```java
 .of(new DoFn<String, String>() {
@@ -1588,6 +1601,16 @@ To access the timestamp of an input element, add a parameter annotated with `@Ti
   }})
 ```
 
+```py
+import apache_beam as beam
+
+class ProcessRecord(beam.DoFn):
+
+  def process(self, element, timestamp=beam.DoFn.TimestampParam):
+     # access timestamp of element.
+     pass  
+  
+```
 
 {:.language-java}
 **Window:**
@@ -1597,11 +1620,18 @@ will be raised. If an element falls in multiple windows (for example, this will 
 `@ProcessElement` method will be invoked multiple time for the element, once for each window. For example, when fixed windows
 are being used, the window is of type `IntervalWindow`.
 
+{:.language-py}
+**Window:**
+To access the window an input element falls into, add a keyword parameter default to `DoFn.WindowParam`.
+If an element falls in multiple windows (for example, this will happen when using `SlidingWindows`), then the
+`process` method will be invoked multiple time for the element, once for each window. 
+
 ```java
 .of(new DoFn<String, String>() {
      public void processElement(@Element String word, IntervalWindow window) {
   }})
 ```
+
 ```py
 import apache_beam as beam
 
@@ -1612,15 +1642,33 @@ class ProcessRecord(beam.DoFn):
      pass  
   
 ```
+
 {:.language-java}
 **PaneInfo:**
 When triggers are used, Beam provides a `PaneInfo` object that contains information about the current firing. Using `PaneInfo`
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key.
 
+{:.language-py}
+**PaneInfo:**
+When triggers are used, Beam provides a `DoFn.PaneInfoParam` object that contains information about the current firing. Using `DoFn.PaneInfoParam`
+you can determine whether this is an early or a late firing, and how many times this window has already fired for this key. 
+This feature implementation in python sdk is not fully completed, see more at [BEAM-3759](https://issues.apache.org/jira/browse/BEAM-3759).
+
 ```java
 .of(new DoFn<String, String>() {
      public void processElement(@Element String word, PaneInfo paneInfo) {
   }})
+```
+
+```py
+import apache_beam as beam
+
+class ProcessRecord(beam.DoFn):
+
+  def process(self, element, pane_info=beam.DoFn.PaneInfoParam):
+     # access pane info e.g pane_info.is_first, pane_info.is_last, pane_info.timing
+     pass  
+  
 ```
 
 {:.language-java}
@@ -1638,6 +1686,13 @@ The `PipelineOptions` for the current pipeline can always be accessed in a proce
 a parameter of type `TimeDomain` which tells whether the timer is based on event time or processing time.
 Timers are explained in more detail in the
 [Timely (and Stateful) Processing with Apache Beam]({{ site.baseurl }}/blog/2017/08/28/timely-processing.html) blog post.
+
+{:.language-py}
+**Timer and State:**
+In addition to aforementioned parameters, user defined Timer and State parameters can be used in a Stateful DoFn.
+Timers and States are explained in more detail in the
+[Timely (and Stateful) Processing with Apache Beam]({{ site.baseurl }}/blog/2017/08/28/timely-processing.html) blog post.
+
 ```py
 
 class StatefulDoFn(beam.DoFn):
@@ -1875,8 +1930,8 @@ operator (\*) to read all matching input files that have prefix "input-" and the
 suffix ".csv" in the given location:
 
 ```java
-p.apply(“ReadFromText”,
-    TextIO.read().from("protocol://my_bucket/path/to/input-*.csv");
+p.apply("ReadFromText",
+    TextIO.read().from("protocol://my_bucket/path/to/input-*.csv"));
 ```
 
 ```py
@@ -2258,9 +2313,9 @@ windows are not considered until `GroupByKey` or `Combine` aggregates across a
 window and key. This can have different effects on your pipeline.  Consider the
 example pipeline in the figure below:
 
-![Diagram of pipeline applying windowing]({{ "/images/windowing-pipeline-unbounded.png" | prepend: site.baseurl }} "Pipeline applying windowing")
+![Diagram of pipeline applying windowing]({{ "/images/windowing-pipeline-unbounded.svg" | prepend: site.baseurl }} "Pipeline applying windowing")
 
-**Figure:** Pipeline applying windowing
+**Figure 3:** Pipeline applying windowing
 
 In the above pipeline, we create an unbounded `PCollection` by reading a set of
 key/value pairs using `KafkaIO`, and then apply a windowing function to that
@@ -2288,9 +2343,9 @@ transform in the Beam SDK for Java).
 To illustrate how windowing with a bounded `PCollection` can affect how your
 pipeline processes data, consider the following pipeline:
 
-![Diagram of GroupByKey and ParDo without windowing, on a bounded collection]({{ "/images/unwindowed-pipeline-bounded.png" | prepend: site.baseurl }} "GroupByKey and ParDo without windowing, on a bounded collection")
+![Diagram of GroupByKey and ParDo without windowing, on a bounded collection]({{ "/images/unwindowed-pipeline-bounded.svg" | prepend: site.baseurl }} "GroupByKey and ParDo without windowing, on a bounded collection")
 
-**Figure:** `GroupByKey` and `ParDo` without windowing, on a bounded collection.
+**Figure 4:** `GroupByKey` and `ParDo` without windowing, on a bounded collection.
 
 In the above pipeline, we create a bounded `PCollection` by reading a set of
 key/value pairs using `TextIO`. We then group the collection using `GroupByKey`,
@@ -2303,9 +2358,9 @@ all elements in your `PCollection` are assigned to a single global window.
 
 Now, consider the same pipeline, but using a windowing function:
 
-![Diagram of GroupByKey and ParDo with windowing, on a bounded collection]({{ "/images/windowing-pipeline-bounded.png" | prepend: site.baseurl }} "GroupByKey and ParDo with windowing, on a bounded collection")
+![Diagram of GroupByKey and ParDo with windowing, on a bounded collection]({{ "/images/windowing-pipeline-bounded.svg" | prepend: site.baseurl }} "GroupByKey and ParDo with windowing, on a bounded collection")
 
-**Figure:** `GroupByKey` and `ParDo` with windowing, on a bounded collection.
+**Figure 5:** `GroupByKey` and `ParDo` with windowing, on a bounded collection.
 
 As before, the pipeline creates a bounded `PCollection` of key/value pairs. We
 then set a [windowing function](#setting-your-pcollections-windowing-function)
@@ -2337,38 +2392,38 @@ windows.
 
 The simplest form of windowing is using **fixed time windows**: given a
 timestamped `PCollection` which might be continuously updating, each window
-might capture (for example) all elements with timestamps that fall into a five
-minute interval.
+might capture (for example) all elements with timestamps that fall into a 30
+second interval.
 
 A fixed time window represents a consistent duration, non overlapping time
-interval in the data stream. Consider windows with a five-minute duration: all
+interval in the data stream. Consider windows with a 30 second duration: all
 of the elements in your unbounded `PCollection` with timestamp values from
-0:00:00 up to (but not including) 0:05:00 belong to the first window, elements
-with timestamp values from 0:05:00 up to (but not including) 0:10:00 belong to
+0:00:00 up to (but not including) 0:00:30 belong to the first window, elements
+with timestamp values from 0:00:30 up to (but not including) 0:01:00 belong to
 the second window, and so on.
 
 ![Diagram of fixed time windows, 30s in duration]({{ "/images/fixed-time-windows.png" | prepend: site.baseurl }} "Fixed time windows, 30s in duration")
 
-**Figure:** Fixed time windows, 30s in duration.
+**Figure 6:** Fixed time windows, 30s in duration.
 
 #### 7.2.2. Sliding time windows {#sliding-time-windows}
 
 A **sliding time window** also represents time intervals in the data stream;
 however, sliding time windows can overlap. For example, each window might
-capture five minutes worth of data, but a new window starts every ten seconds.
+capture 60 seconds worth of data, but a new window starts every 30 seconds.
 The frequency with which sliding windows begin is called the _period_.
-Therefore, our example would have a window _duration_ of five minutes and a
-_period_ of ten seconds.
+Therefore, our example would have a window _duration_ of 60 seconds and a
+_period_ of 30 seconds.
 
 Because multiple windows overlap, most elements in a data set will belong to
 more than one window. This kind of windowing is useful for taking running
 averages of data; using sliding time windows, you can compute a running average
-of the past five minutes' worth of data, updated every ten seconds, in our
+of the past 60 seconds' worth of data, updated every 30 seconds, in our
 example.
 
 ![Diagram of sliding time windows, with 1 minute window duration and 30s window period]({{ "/images/sliding-time-windows.png" | prepend: site.baseurl }} "Sliding time windows, with 1 minute window duration and 30s window period")
 
-**Figure:** Sliding time windows, with 1 minute window duration and 30s window
+**Figure 7:** Sliding time windows, with 1 minute window duration and 30s window
 period.
 
 #### 7.2.3. Session windows {#session-windows}
@@ -2383,7 +2438,7 @@ the start of a new window.
 
 ![Diagram of session windows with a minimum gap duration]({{ "/images/session-windows.png" | prepend: site.baseurl }} "Session windows, with a minimum gap duration")
 
-**Figure:** Session windows, with a minimum gap duration. Note how each data key
+**Figure 8:** Session windows, with a minimum gap duration. Note how each data key
 has different windows, according to its data distribution.
 
 #### 7.2.4. The single global window {#single-global-window}
@@ -2512,7 +2567,7 @@ Note: For simplicity, we've assumed that we're using a very straightforward
 watermark that estimates the lag time. In practice, your `PCollection`'s data
 source determines the watermark, and watermarks can be more precise or complex.
 
-Beam's default windowing configuration tries to determines when all data has
+Beam's default windowing configuration tries to determine when all data has
 arrived (based on the type of data source) and then advances the watermark past
 the end of the window. This default configuration does _not_ allow late data.
 [Triggers](#triggers) allow you to modify and refine the windowing strategy for
@@ -2522,7 +2577,6 @@ elements.
 
 #### 7.4.1. Managing late data {#managing-late-data}
 
-> **Note:** Managing late data is not supported in the Beam SDK for Python.
 
 You can allow late data by invoking the `.withAllowedLateness` operation when
 you set your `PCollection`'s windowing strategy. The following code example
@@ -2536,6 +2590,15 @@ the end of a window.
               .withAllowedLateness(Duration.standardDays(2)));
 ```
 
+```py
+   pc = [Initial PCollection]
+   pc | beam.WindowInto(
+              FixedWindows(60),
+              trigger=trigger_fn,
+              accumulation_mode=accumulation_mode,
+              timestamp_combiner=timestamp_combiner,
+              allowed_lateness=Duration(seconds=2*24*60*60)) # 2 days
+```
 When you set `.withAllowedLateness` on a `PCollection`, that allowed lateness
 propagates forward to any subsequent `PCollection` derived from the first
 `PCollection` you applied allowed lateness to. If you want to change the allowed
@@ -2803,7 +2866,6 @@ on each firing:
 
 #### 8.4.2. Handling late data {#handling-late-data}
 
-> The Beam SDK for Python does not currently support allowed lateness.
 
 If you want your pipeline to process data that arrives after the watermark
 passes the end of the window, you can apply an *allowed lateness* when you set
@@ -2822,7 +2884,13 @@ windowing function:
                               .withAllowedLateness(Duration.standardMinutes(30));
 ```
 ```py
-  # The Beam SDK for Python does not currently support allowed lateness.
+  pc = [Initial PCollection]
+  pc | beam.WindowInto(
+            FixedWindows(60),
+            trigger=AfterProcessingTime(60),
+            allowed_lateness=1800) # 30 minutes
+     | ...
+  
 ```
 
 This allowed lateness propagates to all `PCollection`s derived as a result of
@@ -2913,3 +2981,694 @@ elements, or after a minute.
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_other_composite_triggers
 %}```
+
+## 9. Metrics {#metrics}
+In the Beam model, metrics provide some insight into the current state of a user pipeline, 
+potentially while the pipeline is running. There could be different reasons for that, for instance:
+*   Check the number of errors encountered while running a specific step in the pipeline;
+*   Monitor the number of RPCs made to backend service;
+*   Retrieve an accurate count of the number of elements that have been processed;
+*   ...and so on.
+
+### 9.1 The main concepts of Beam metrics
+*   **Named**. Each metric has a name which consists of a namespace and an actual name. The 
+    namespace can be used to differentiate between multiple metrics with the same name and also 
+    allows querying for all metrics within a specific namespace. 
+*   **Scoped**. Each metric is reported against a specific step in the pipeline, indicating what 
+    code was running when the metric was incremented.
+*   **Dynamically Created**. Metrics may be created during runtime without pre-declaring them, in 
+    much the same way a logger could be created. This makes it easier to produce metrics in utility 
+    code and have them usefully reported. 
+*   **Degrade Gracefully**. If a runner doesn’t support some part of reporting metrics, the 
+    fallback behavior is to drop the metric updates rather than failing the pipeline. If a runner 
+    doesn’t support some part of querying metrics, the runner will not return the associated data.
+
+Reported metrics are implicitly scoped to the transform within the pipeline that reported them. 
+This allows reporting the same metric name in multiple places and identifying the value each 
+transform reported, as well as aggregating the metric across the entire pipeline.
+
+> **Note:** It is runner-dependent whether metrics are accessible during pipeline execution or only 
+after jobs have completed.
+
+### 9.2 Types of metrics {#types-of-metrics}
+There are three types of metrics that are supported for the moment: `Counter`, `Distribution` and 
+`Gauge`.
+
+**Counter**: A metric that reports a single long value and can be incremented or decremented.
+
+```java
+Counter counter = Metrics.counter( "namespace", "counter1");
+
+@ProcessElement
+public void processElement(ProcessContext context) {
+  // count the elements
+  counter.inc();
+  ...
+}
+```
+
+**Distribution**: A metric that reports information about the distribution of reported values.
+
+```java
+Distribution distribution = Metrics.distribution( "namespace", "distribution1");
+
+@ProcessElement
+public void processElement(ProcessContext context) {
+  Integer element = context.element();
+    // create a distribution (histogram) of the values 
+    distribution.update(element);
+    ...
+}
+```
+
+**Gauge**: A metric that reports the latest value out of reported values. Since metrics are 
+collected from many workers the value may not be the absolute last, but one of the latest values.
+
+```java
+Gauge gauge = Metrics.gauge( "namespace", "gauge1");
+
+@ProcessElement
+public void processElement(ProcessContext context) {
+  Integer element = context.element();
+  // create a gauge (latest value received) of the values 
+  gauge.set(element);
+  ...
+}
+```
+
+### 9.3 Querying metrics {#querying-metrics}
+`PipelineResult` has a method `metrics()` which returns a `MetricResults` object that allows 
+accessing metrics. The main method available in `MetricResults` allows querying for all metrics 
+matching a given filter.
+
+```java
+public interface PipelineResult {
+  MetricResults metrics();
+}
+
+public abstract class MetricResults {
+  public abstract MetricQueryResults queryMetrics(@Nullable MetricsFilter filter);
+}
+
+public interface MetricQueryResults {
+  Iterable<MetricResult<Long>> getCounters();
+  Iterable<MetricResult<DistributionResult>> getDistributions();
+  Iterable<MetricResult<GaugeResult>> getGauges();
+}
+
+public interface MetricResult<T> {
+  MetricName getName();
+  String getStep();
+  T getCommitted();
+  T getAttempted();
+}
+```
+
+### 9.4 Using metrics in pipeline {#using-metrics}
+Below, there is a simple example of how to use a `Counter` metric in a user pipeline.
+
+```java
+// creating a pipeline with custom metrics DoFn
+pipeline
+    .apply(...)
+    .apply(ParDo.of(new MyMetricsDoFn()));
+
+pipelineResult = pipeline.run().waitUntilFinish(...);
+
+// request the metric called "counter1" in namespace called "namespace"
+MetricQueryResults metrics =
+    pipelineResult
+        .metrics()
+        .queryMetrics(
+            MetricsFilter.builder()
+                .addNameFilter(MetricNameFilter.named("namespace", "counter1"))
+                .build());
+
+// print the metric value - there should be only one line because there is only one metric 
+// called "counter1" in the namespace called "namespace"
+for (MetricResult<Long> counter: metrics.getCounters()) {
+  System.out.println(counter.getName() + ":" + counter.getAttempted());
+}
+
+public class MyMetricsDoFn extends DoFn<Integer, Integer> {
+  private final Counter counter = Metrics.counter( "namespace", "counter1");
+
+  @ProcessElement
+  public void processElement(ProcessContext context) {
+    // count the elements
+    counter.inc();
+    context.output(context.element());
+  }
+}
+```  
+### 9.5 Export metrics {#export-metrics}
+Beam metrics can be exported to external sinks. If a metrics sink is set up in the configuration, the runner will push metrics to it at a default 5s period. 
+The configuration is held in the [MetricsOptions](https://beam.apache.org/releases/javadoc/2.19.0/org/apache/beam/sdk/metrics/MetricsOptions.html) class.
+It contains push period configuration and also sink specific options such as type and URL. As for now only the REST HTTP and the Graphite sinks are supported and only
+Flink and Spark runners support metrics export.
+
+Also Beam metrics are exported to inner Spark and Flink dashboards to be consulted in their respective UI.
+
+
+
+## 10. State and Timers {#state-and-timers}
+Beam's windowing and triggering facilities provide a powerful abstraction for grouping and aggregating unbounded input
+data based on timestamps. However there are aggregation use cases for which developers may require a higher degree of
+control than provided by windows and triggers. Beam provides an API for manually managing per-key state, allowing for 
+fine-grained control over aggregations.
+
+Beam's state API models state per key. To use the state API, you start out with a keyed `PCollection`, which in Java
+is modeled as a `PCollection<KV<K, V>>`. A `ParDo` processing this `PCollection` can now declare state variables. Inside
+the `ParDo` these state variables can be used to write or update state for the current key or to read previous state
+written for that key. State is always fully scoped only to the current processing key.
+
+Windowing can still be used together with stateful processing. All state for a key is scoped to the current window. This
+means that the first time a key is seen for a given window any state reads will return empty, and that a runner can
+garbage collect state when a window is completed. It's also often useful to use Beam's windowed aggegations prior to
+the stateful operator. For example, using a combiner to preaggregate data, and then storing aggregated data inside of
+state. Merging windows are not currently supported when using state and timers.
+
+Sometimes stateful processing is used to implement state-machine style processing inside a `DoFn`. When doing this,
+care must be taken to remember that the elements in input PCollection have no guaranteed order and to ensure that the
+program logic is resilient to this. Unit tests written using the DirectRunner will shuffle the order of element
+processing, and are recommended to test for correctness.
+
+In Java DoFn declares states to be accessed by creating final `StateSpec` member variables representing each state. Each
+state must be named using the `StateId` annotation; this name is unique to a ParDo in the graph and has no relation
+to other nodes in the graph. A `DoFn` can declare multiple state variables.
+
+### 10.1 Types of state {#types-of-state}
+Beam provides several types of state:
+
+#### ValueState
+A ValueState is a scalar state value. For each key in the input, a ValueState will store a typed value that can be
+read and modified inside the DoFn's `@ProcessElement` or `@OnTimer` methods. If the type of the ValueState has a coder 
+registered, then Beam will automatically infer the coder for the state value. Otherwise, a coder can be explicitly
+specified when creating the ValueState. For example, the following ParDo creates a  single state variable that 
+accumulates the number of elements seen.
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @StateId("state") private final StateSpec<ValueState<Integer>> numElements = StateSpecs.value();
+  
+  @ProcessElement public void process(@StateId("state") ValueState<Integer> state) {
+    // Read the number element seen so far for this user key.
+    // state.read() returns null if it was never set. The below code allows us to have a default value of 0.
+    int currentValue = MoreObjects.firstNonNull(state.read(), 0);
+    // Update the state.
+    state.write(currentValue + 1);
+  }
+}));
+```
+
+Beam also allows explicitly specifying a coder for `ValueState` values. For example:
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @StateId("state") private final StateSpec<ValueState<MyType>> numElements = StateSpecs.value(new MyTypeCoder());
+                 ...
+}));
+```
+
+#### CombiningState
+`CombiningState` allows you to create a state object that is updated using a Beam combiner. For example, the previous
+`ValueState` example could be rewritten to use `CombiningState`
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @StateId("state") private final StateSpec<CombiningState<Integer, int[], Integer>> numElements = 
+      StateSpecs.combining(Sum.ofIntegers());
+  
+  @ProcessElement public void process(@StateId("state") ValueState<Integer> state) {
+    state.add(1);
+  }
+}));
+```
+
+#### BagState
+A common use case for state is to accumulate multiple elements. `BagState` allows for accumulating an unordered set
+ofelements. This allows for addition of elements to the collection without requiring the reading of the entire
+collection first, which is an efficiency gain. In addition, runners that support paged reads can allow individual
+bags larger than available memory.
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @StateId("state") private final StateSpec<BagState<ValueT>> numElements = StateSpecs.bag();
+  
+  @ProcessElement public void process(
+    @Element KV<String, ValueT> element, 
+    @StateId("state") BagState<ValueT> state) {
+    // Add the current element to the bag for this key.
+    state.add(element.getValue());
+    if (shouldFetch()) {
+      // Occasionally we fetch and process the values.
+      Iterable<ValueT> values = state.read();
+      processValues(values);
+      state.clear();  // Clear the state for this key.
+    }
+  }
+}));
+```
+### 10.2 Deferred state reads {#deferred-state-reads}
+When a `DoFn` contains multiple state specifications, reading each one in order can be slow. Calling the `read()` function
+on a state can cause the runner to perform a blocking read. Performing multiple blocking reads in sequence adds latency
+to element processing. If you know that a state will always be read, you can annotate it as @AlwaysFetched, and then the
+runner can prefetch all of the states necessary. For example:
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+   @StateId("state1") private final StateSpec<ValueState<Integer>> state1 = StateSpecs.value();
+   @StateId("state2") private final StateSpec<ValueState<String>> state2 = StateSpecs.value();
+   @StateId("state3") private final StateSpec<BagState<ValueT>> state3 = StateSpecs.bag();
+
+  @ProcessElement public void process(
+    @AlwaysFetched @StateId("state1") ValueState<Integer> state1,
+    @AlwaysFetched @StateId("state2") ValueState<String> state2,
+    @AlwaysFetched @StateId("state3") BagState<ValueT> state3) {
+    state1.read();
+    state2.read();
+    state3.read();
+  }
+}));
+```
+
+If however there are code paths in which the states are not fetched, then annotating with @AlwaysFetched will add
+unnecessary fetching for those paths. In this case, the readLater method allows the runner to know that the state will
+be read in the future, allowing multiple state reads to be batched together.
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @StateId("state1") private final StateSpec<ValueState<Integer>> state1 = StateSpecs.value();
+  @StateId("state2") private final StateSpec<ValueState<String>> state2 = StateSpecs.value();
+  @StateId("state3") private final StateSpec<BagState<ValueT>> state3 = StateSpecs.bag();
+
+  @ProcessElement public void process(
+    @StateId("state1") ValueState<Integer> state1,
+    @StateId("state2") ValueState<String> state2,
+    @StateId("state3") BagState<ValueT> state3) {
+    if (/* should read state */) {
+      state1.readLater();
+      state2.readLater();
+      state3.readLater();
+    }
+   
+    // The runner can now batch all three states into a single read, reducing latency.
+     processState1(state1.read());
+    processState2(state2.read());
+    processState3(state3.read());
+  }
+}));
+```
+
+### 10.3 Timers {#timers}
+Beam provides a per-key timer callback API. This allows for delayed processing of data stored using the state API.
+Timers can be set to callback at either an event-time or a processing-time timestamp. Every timer is identified with a
+TimerId. A given timer for a key can only be set for a single timestamp. Calling set on a timer overwrites the previous
+firing time for that key's timer.
+
+#### 10.3.1 Event-time timers {#event-time-timers}
+Event-time timers fire when the input watermark for the DoFn passes the time at which the timer is set, meaning that 
+the runner believes that there are no more elements to be processed with timestamps before the timer timestamp. This
+allows for event-time aggregations. 
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @StateId("state") private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
+  @TimerId("timer") private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+  @ProcessElement public void process(
+      @Element KV<String, ValueT> element,
+      @Timestamp Instant elementTs,
+      @StateId("state") ValueState<Integer> state, 
+      @TimerId("timer") Timer timer) {
+     ...
+     // Set an event-time timer to the element timestamp.
+     timer.set(elementTs);
+  }
+  
+   @OnTimer("timer") public void onTimer() {
+      //Process timer.
+   }
+}));
+
+```
+#### 10.3.2 Processing-time timers {#processing-time-timers}
+Processing-time timers fire when the real wall-clock time passes. This is often used to create larger batches of data
+before processing. It can also be used to schedule events that should occur at a specific time. Just like with
+event-time timers, processing-time timers are per key - each key has a separate copy of the timer.
+
+While processing-time timers can be set to an absolute timestamp, it is very common to set them to an offset relative 
+to the current time. The `Timer.offset` and `Timer.setRelative` methods can be used to accomplish this.
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @TimerId("timer") private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+  @ProcessElement public void process(@TimerId("timer") Timer timer) {
+     ...
+     // Set a timer to go off 30 seconds in the future.
+     timer.offset(Duration.standardSeconds(30)).setRelative();
+  }
+  
+   @OnTimer("timer") public void onTimer() {
+      //Process timer.
+   }
+}));
+
+```
+
+#### 10.3.3 Dynamic timer tags {#dynamic-timer-tags}
+Beam also supports dynamically setting a timer tag using `TimerMap`. This allows for setting multiple different timers
+in a `DoFn` and allowing for the timer tags to be dynamically chosen - e.g. based on data in the input elements. A
+timer with a specific tag can only be set to a single timestamp, so setting the timer again has the effect of
+overwriting the previous expiration time for the timer with that tag. Each `TimerMap` is identified with a timer family
+id, and timers in different timer families are independent.
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @TimerFamily("actionTimers") private final TimerSpec timer =
+    TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
+
+  @ProcessElement public void process(
+      @Element KV<String, ValueT> element, 
+      @Timestamp Instant elementTs,
+      @TimerFamily("actionTimers") TimerMap timers) {
+     timers.set(element.getValue().getActionType(), elementTs);
+  }
+  
+   @OnTimerFamily("actionTimers") public void onTimer(@TimerId String timerId) {
+     LOG.info("Timer fired with id " + timerId);
+   }
+}));
+
+```
+
+#### 10.3.4 Timer output timestamps {#timer-output-timestamps}
+By default, event-time timers will hold the output watermark of the `ParDo` to the timestamp of the timer. This means
+that if a timer is set to 12pm, any windowed aggregations or event-time timers later in the pipeline graph that finish  
+after 12pm will not expire. The timestamp of the timer is also the default output timestamp for the timer callback. This
+means that any elements output from the onTimer method will have a timestamp equal to the timestamp of the timer firing.
+For processing-time timers, the default output timestamp and watermark hold is the value of the input watermark at the
+time the timer was set.
+
+In some cases, a DoFn needs to output timestamps earlier than the timer expiration time, and therefore also needs to
+hold its output watermark to those timestamps. For example, consider the following pipeline that temporarily batches 
+records into state, and sets a timer to drain the state. This code may appear correct, but will not work properly.
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @StateId("elementBag") private final StateSpec<BagState<ValueT>> elementBag = StateSpecs.bag();
+  @StateId("timerSet") private final StateSpec<ValueState<Boolean>> timerSet = StateSpecs.value();
+  @TimerId("outputState") private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+  
+  @ProcessElement public void process(
+      @Element KV<String, ValueT> element, 
+      @StateId("elementBag") BagState<ValueT> elementBag,
+      @StateId("timerSet") ValueState<Boolean> timerSet,
+      @TimerId("outputState") Timer timer) {
+    // Add the current element to the bag for this key.
+    elementBag.add(element.getValue());
+    if (!MoreObjects.firstNonNull(timerSet.read(), false)) {
+      // If the timer is not current set, then set it to go off in a minute.
+      timer.offset(Duration.standardMinutes(1)).setRelative();
+      timerSet.write(true);
+    }
+  }
+  
+  @OnTimer("outputState") public void onTimer(
+      @StateId("elementBag") BagState<ValueT> elementBag,
+      @StateId("timerSet") ValueState<Boolean> timerSet,
+      OutputReceiver<ValueT> output) {
+    for (ValueT bufferedElement : elementBag.read()) {
+      // Output each element.
+      output.outputWithTimestamp(bufferedElement, bufferedElement.timestamp());
+    }
+    elementBag.clear();
+    // Note that the timer has now fired.
+    timerSet.clear();
+  }
+}));
+```
+The problem with this code is that the ParDo is buffering elements, however nothing is preventing the watermark
+from advancing past the timestamp of those elements, so all those elements might be dropped as late data. In order
+to prevent this from happening, an output timestamp needs to be set on the timer to prevent the watermark from advancing
+past the timestamp of the minimum element. The following code demonstrates this.
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  // The bag of elements accumulated.
+  @StateId("elementBag") private final StateSpec<BagState<ValueT>> elementBag = StateSpecs.bag();
+  // The timestamp of the timer set.
+  @StateId("timerTimestamp") private final StateSpec<ValueState<Long>> timerTimestamp = StateSpecs.value();
+  // The minimum timestamp stored in the bag.
+  @StateId("minTimestampInBag") private final StateSpec<CombiningState<Long, long[], Long>> 
+     minTimestampInBag = StateSpecs.combining(Min.ofLongs());
+
+  @TimerId("outputState") private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+  
+  @ProcessElement public void process(
+      @Element KV<String, ValueT> element, 
+      @StateId("elementBag") BagState<ValueT> elementBag,
+      @AlwaysFetched @StateId("timerTimestamp") ValueState<Long> timerTimestamp,
+      @AlwaysFetched @StateId("minTimestampInBag") CombiningState<Long, long[], Long> minTimestamp,
+      @TimerId("outputState") Timer timer) {
+    // Add the current element to the bag for this key.
+    elementBag.add(element.getValue());
+    // Keep track of the minimum element timestamp currently stored in the bag.
+    minTimestamp.add(element.getValue().timestamp());
+
+    // If the timer is already set, then reset it at the same time but with an updated output timestamp (otherwise
+    // we would keep resetting the timer to the future). If there is no timer set, then set one to expire in a minute.
+    Long timerTimestampMs = timerTimestamp.read();
+    Instant timerToSet = (timerTimestamp.isEmpty().read())
+        ? Instant.now().plus(Duration.standardMinutes(1)) : new Instant(timerTimestampMs);
+    // Setting the outputTimestamp to the minimum timestamp in the bag holds the watermark to that timestamp until the
+    // timer fires. This allows outputting all the elements with their timestamp.
+    timer.withOutputTimestamp(minTimestamp.read()).set(timerToSet).
+    timerTimestamp.write(timerToSet.getMillis());
+  }
+  
+  @OnTimer("outputState") public void onTimer(
+      @StateId("elementBag") BagState<ValueT> elementBag,
+      @StateId("timerTimestamp") ValueState<Long> timerTimestamp,
+      OutputReceiver<ValueT> output) {
+    for (ValueT bufferedElement : elementBag.read()) {
+      // Output each element.
+      output.outputWithTimestamp(bufferedElement, bufferedElement.timestamp());
+    }
+    // Note that the timer has now fired.
+    timerTimestamp.clear();
+  }
+}));
+```
+### 10.4 Garbage collecting state {#garbage-collecting-state}
+Per-key state needs to be garbage collected, or eventually the increasing size of state may negatively impact 
+performance. There are two common strategies for garbage collecting state.
+
+##### 10.4.1 **Using windows for garbage collection** {#using-windows-for-garbage-collection}
+All state and timers for a key is scoped to the window it is in. This means that depending on the timestamp of the 
+input element the ParDo will see different values for the state depending on the window that element falls into. In
+addition, once the input watermark passes the end of the window, the runner should garbage collect all state for that
+window. (note: if allowed lateness is set to a positive value for the window, the runner must wait for the watemark to
+pass the end of the window plus the allowed lateness before garbage collecting state). This can be used as a 
+garbage-collection strategy.
+
+For example, given the following:
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(Window.into(CalendarWindows.days(1)
+   .withTimeZone(DateTimeZone.forID("America/Los_Angeles"))));
+       .apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+           @StateId("state") private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
+                              ...
+           @ProcessElement public void process(@Timestamp Instant ts, @StateId("state") ValueState<Integer> state) {
+              // The state is scoped to a calendar day window. That means that if the input timestamp ts is after
+              // midnight PST, then a new copy of the state will be seen for the next day.
+           }
+         }));
+```
+
+This `ParDo` stores state per day. Once the pipeline is done processing data for a given day, all the state for that
+day is garbage collected.
+
+##### 10.4.1 **Using timers For garbage collection** {#using-timers-for-garbage-collection}
+In some cases, it is difficult to find a windowing strategy that models the desired garbage-collection strategy. For 
+example, a common desire is to garbage collect state for a key once no activity has been seen on the key for some time.
+This can be done by updating a timer that garbage collects state. For example
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  // The state for the key.
+  @StateId("state") private final StateSpec<ValueState<ValueT>> state = StateSpecs.value();
+
+  // The maximum element timestamp seen so far.
+  @StateId("maxTimestampSeen") private final StateSpec<CombiningState<Long, long[], Long>> 
+     maxTimestamp = StateSpecs.combining(Max.ofLongs());
+
+  @TimerId("gcTimer") private final TimerSpec gcTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+  @ProcessElement public void process(
+      @Element KV<String, ValueT> element,
+      @Timestamp Instant ts,
+      @StateId("state") ValueState<ValueT> state,
+      @StateId("maxTimestampSeen") CombiningState<Long, long[], Long> maxTimestamp,
+      @TimerId("gcTimer") gcTimer) { 
+    updateState(state, element);
+    maxTimestamp.add(ts.getMillis());
+    
+    // Set the timer to be one hour after the maximum timestamp seen. This will keep overwriting the same timer, so 
+    // as long as there is activity on this key the state will stay active. Once the key goes inactive for one hour's
+    // worth of event time (as measured by the watermark), then the gc timer will fire.
+    Instant expirationTime = new Instant(maxTimestamp.read()).plus(Duration.standardHours(1));
+    timer.set(expirationTime);
+  }
+
+  @OnTimer("gcTimer") public void onTimer(
+      @StateId("state") ValueState<ValueT> state,
+      @StateId("maxTimestampSeen") CombiningState<Long, long[], Long> maxTimestamp) {
+       // Clear all state for the key.
+       state.clear();
+       maxTimestamp.clear();
+    }
+ }
+````
+
+### 10.5 State and timers examples {#state-timers-examples}
+Following are some example uses of state and timers
+
+#### 10.5.1. Joining clicks and views {#joining-clicks-and-views}
+In this example, the pipeline is processing data from an e-commerce site's home page. There are two input streams:
+a stream of views, representing suggested product links displayed to the user on the home page, and a stream of 
+clicks, representing actual user clicks on these links. The goal of the pipeline is to join click events with view
+events, outputting a new joined event that contains information from both events. Each link has a unique identifier
+that is present in both the view event and the join event.
+
+Many view events will never be followed up with clicks. This pipeline will wait one hour for a click, after which it 
+will give up on this join. While every click event should have a view event, some small number of view events may be
+lost and never make it to the Beam pipeline; the pipeline will similarly wait one hour after seeing a click event, and
+give up if the view event does not arrive in that time. Input events are not ordered - it is possible to see the click 
+event before the view event. The one hour join timeout should be based on event time, not on processing time.
+
+```java
+// Read the event stream and key it by the link id.
+PCollection<KV<String, Event>> eventsPerLinkId = 
+    readEvents()
+    .apply(WithKeys.of(Event::getLinkId).withKeyType(TypeDescriptors.strings()));
+
+perUser.apply(ParDo.of(new DoFn<KV<String, Event>, JoinedEvent>() {
+  // Store the view event.
+  @StateId("view") private final StateSpec<ValueState<Event>> viewState = StateSpecs.value();
+  // Store the click event.
+  @StateId("click") private final StateSpec<ValueState<Event>> clickState = StateSpecs.value();
+
+  // The maximum element timestamp seen so far.
+  @StateId("maxTimestampSeen") private final StateSpec<CombiningState<Long, long[], Long>> 
+     maxTimestamp = StateSpecs.combining(Max.ofLongs());
+
+  // Timer that fires when an hour goes by with an incomplete join.
+  @TimerId("gcTimer") private final TimerSpec gcTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+  @ProcessElement public void process(
+      @Element KV<String, Event> element,
+      @Timestamp Instant ts,
+      @AlwaysFetched @StateId("view") ValueState<Event> viewState,
+      @AlwaysFetched @StateId("click") ValueState<Event> clickState,
+      @AlwaysFetched @StateId("maxTimestampSeen") CombiningState<Long, long[], Long> maxTimestampState,
+      @TimerId("gcTimer") gcTimer,
+      OutputReceiver<JoinedEvent> output) { 
+    // Store the event into the correct state variable.
+    Event event = element.getValue();
+    ValueState<Event> valueState = event.getType().equals(VIEW) ? viewState : clickState;
+    valueState.write(event);
+  
+    Event view = viewState.read();
+    Event click = clickState.read();
+    (if view != null && click != null) {
+      // We've seen both a view and a click. Output a joined event and clear state.
+      output.output(JoinedEvent.of(view, click));
+      clearState(viewState, clickState, maxTimestampState);
+    } else {
+       // We've only seen on half of the join.
+       // Set the timer to be one hour after the maximum timestamp seen. This will keep overwriting the same timer, so 
+       // as long as there is activity on this key the state will stay active. Once the key goes inactive for one hour's
+       // worth of event time (as measured by the watermark), then the gc timer will fire.
+        maxTimestampState.add(ts.getMillis());
+       Instant expirationTime = new Instant(maxTimestampState.read()).plus(Duration.standardHours(1));
+       gcTimer.set(expirationTime);
+    }
+  }
+
+  @OnTimer("gcTimer") public void onTimer(
+      @StateId("view") ValueState<Event> viewState,
+      @StateId("click") ValueState<Event> clickState,
+      @StateId("maxTimestampSeen") CombiningState<Long, long[], Long> maxTimestampState) {
+       // An hour has gone by with an incomplete join. Give up and clear the state.
+       clearState(viewState, clickState, maxTimestampState);
+    }
+   
+    private void clearState(
+      @StateId("view") ValueState<Event> viewState,
+      @StateId("click") ValueState<Event> clickState,
+      @StateId("maxTimestampSeen") CombiningState<Long, long[], Long> maxTimestampState) {
+      viewState.clear();
+      clickState.clear();
+      maxTimestampState.clear();
+    }
+ }));
+````
+
+#### 10.5.2 Batching RPCs {#batching-rpcs}
+
+In this example, input elements are being forwarded to an external RPC service. The RPC accepts batch requests - 
+multiple events for the same user can be batched in a single RPC call. Since this RPC service also imposes rate limits,
+we want to batch ten seconds worth of events together in order to reduce the number of calls.
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  // Store the elements buffered so far.
+  @StateId("state") private final StateSpec<BagState<ValueT>> elements = StateSpecs.bag();
+  // Keep track of whether a timer is currently set or not.
+  @StateId("isTimerSet") private final StateSpec<ValueState<Boolean>> isTimerSet = StateSpecs.value();
+  // The processing-time timer user to publish the RPC.
+  @TimerId("outputState") private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+  
+  @ProcessElement public void process(
+    @Element KV<String, ValueT> element, 
+    @StateId("state") BagState<ValueT> elementsState,
+    @StateId("isTimerSet") ValueState<Boolean> isTimerSetState,
+    @TimerId("outputState") Timer timer) {
+    // Add the current element to the bag for this key.
+    state.add(element.getValue());
+    if (!MoreObjects.firstNonNull(isTimerSetState.read(), false)) {
+      // If there is no timer currently set, then set one to go off in 10 seconds.
+      timer.offset(Duration.standardSeconds(10)).setRelative();
+      isTimerSetState.write(true);
+   }
+  }
+ 
+  @OnTimer("outputState") public void onTimer(
+    @StateId("state") BagState<ValueT> elementsState,
+    @StateId("isTimerSet") ValueState<Boolean> isTimerSetState) {
+    // Send an RPC containing the batched elements and clear state.
+    sendRPC(elementsState.read());
+    elementsState.clear();
+    isTimerSetState.clear();
+  }
+}));
+```
+ 
+
+

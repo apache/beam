@@ -22,12 +22,14 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
@@ -37,6 +39,7 @@ import static org.mockito.Mockito.when;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -45,10 +48,13 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import javax.annotation.Nullable;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.SerializationUtils;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.StateNamespace;
@@ -58,20 +64,24 @@ import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
-import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContext;
+import org.apache.beam.runners.flink.streaming.FlinkStateInternalsTest;
+import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContextFactory;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
+import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
+import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
@@ -80,16 +90,19 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.NoopLock;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.commons.lang3.SerializationUtils;
-import org.apache.commons.lang3.mutable.MutableObject;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -110,7 +123,7 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.mockito.internal.util.reflection.Whitebox;
+import org.powermock.reflect.Whitebox;
 
 /** Tests for {@link ExecutableStageDoFnOperator}. */
 @RunWith(JUnit4.class)
@@ -119,7 +132,7 @@ public class ExecutableStageDoFnOperatorTest {
 
   @Mock private RuntimeContext runtimeContext;
   @Mock private DistributedCache distributedCache;
-  @Mock private FlinkExecutableStageContext stageContext;
+  @Mock private ExecutableStageContext stageContext;
   @Mock private StageBundleFactory stageBundleFactory;
   @Mock private StateRequestHandler stateRequestHandler;
   @Mock private ProcessBundleDescriptors.ExecutableProcessBundleDescriptor processBundleDescriptor;
@@ -169,6 +182,7 @@ public class ExecutableStageDoFnOperatorTest {
     when(runtimeContext.getDistributedCache()).thenReturn(distributedCache);
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
     when(processBundleDescriptor.getTimerSpecs()).thenReturn(Collections.emptyMap());
+    when(processBundleDescriptor.getBagUserStateSpecs()).thenReturn(Collections.emptyMap());
     when(stageBundleFactory.getProcessBundleDescriptor()).thenReturn(processBundleDescriptor);
   }
 
@@ -292,12 +306,17 @@ public class ExecutableStageDoFnOperatorTest {
               }
 
               @Override
-              public Map<String, FnDataReceiver<WindowedValue<?>>> getInputReceivers() {
+              public Map<String, FnDataReceiver> getInputReceivers() {
                 return ImmutableMap.of(
                     "input",
                     input -> {
                       /* Ignore input*/
                     });
+              }
+
+              @Override
+              public void split(double fractionOfRemainder) {
+                throw new UnsupportedOperationException();
               }
 
               @Override
@@ -389,10 +408,6 @@ public class ExecutableStageDoFnOperatorTest {
     verify(stageBundleFactory).getProcessBundleDescriptor();
     verify(stageBundleFactory).close();
     verify(stageContext).close();
-    // DoFnOperator generates a final watermark, which triggers a new bundle..
-    verify(stageBundleFactory).getBundle(any(), any(), any());
-    verify(bundle).getInputReceivers();
-    verify(bundle).close();
     verifyNoMoreInteractions(stageBundleFactory);
 
     // close() will also call dispose(), but call again to verify no new bundle
@@ -639,6 +654,133 @@ public class ExecutableStageDoFnOperatorTest {
   }
 
   @Test
+  public void testCacheTokenHandling() throws Exception {
+    InMemoryStateInternals test = InMemoryStateInternals.forKey("test");
+    KeyedStateBackend<ByteBuffer> stateBackend = FlinkStateInternalsTest.createStateBackend();
+
+    // User state the cache token is valid for the lifetime of the operator
+    for (String expectedToken : new String[] {"first token", "second token"}) {
+      final IdGenerator cacheTokenGenerator = () -> expectedToken;
+      ExecutableStageDoFnOperator.BagUserStateFactory<Integer, GlobalWindow> bagUserStateFactory =
+          new ExecutableStageDoFnOperator.BagUserStateFactory<>(
+              cacheTokenGenerator, test, stateBackend, NoopLock.get(), null);
+
+      ByteString key1 = ByteString.copyFrom("key1", Charsets.UTF_8);
+      ByteString key2 = ByteString.copyFrom("key2", Charsets.UTF_8);
+
+      Map<String, Map<String, ProcessBundleDescriptors.BagUserStateSpec>> userStateMapMock =
+          Mockito.mock(Map.class);
+      Map<String, ProcessBundleDescriptors.BagUserStateSpec> transformMap = Mockito.mock(Map.class);
+
+      final String userState1 = "userstate1";
+      ProcessBundleDescriptors.BagUserStateSpec bagUserStateSpec1 = mockBagUserState(userState1);
+      when(transformMap.get(userState1)).thenReturn(bagUserStateSpec1);
+
+      final String userState2 = "userstate2";
+      ProcessBundleDescriptors.BagUserStateSpec bagUserStateSpec2 = mockBagUserState(userState2);
+      when(transformMap.get(userState2)).thenReturn(bagUserStateSpec2);
+
+      when(userStateMapMock.get(anyString())).thenReturn(transformMap);
+      when(processBundleDescriptor.getBagUserStateSpecs()).thenReturn(userStateMapMock);
+      StateRequestHandler stateRequestHandler =
+          StateRequestHandlers.forBagUserStateHandlerFactory(
+              processBundleDescriptor, bagUserStateFactory);
+
+      // There should be no cache token available before any requests have been made
+      assertThat(stateRequestHandler.getCacheTokens(), iterableWithSize(0));
+
+      // Make a request to generate initial cache token
+      stateRequestHandler.handle(getRequest(key1, userState1));
+      BeamFnApi.ProcessBundleRequest.CacheToken cacheTokenStruct =
+          Iterables.getOnlyElement(stateRequestHandler.getCacheTokens());
+      assertThat(cacheTokenStruct.hasUserState(), is(true));
+      ByteString cacheToken = cacheTokenStruct.getToken();
+      final ByteString expectedCacheToken =
+          ByteString.copyFrom(expectedToken.getBytes(Charsets.UTF_8));
+      assertThat(cacheToken, is(expectedCacheToken));
+
+      List<RequestGenerator> generators =
+          Arrays.asList(
+              ExecutableStageDoFnOperatorTest::getRequest,
+              ExecutableStageDoFnOperatorTest::getAppend,
+              ExecutableStageDoFnOperatorTest::getClear);
+
+      for (RequestGenerator req : generators) {
+        // For every state read the tokens remains unchanged
+        stateRequestHandler.handle(req.makeRequest(key1, userState1));
+        assertThat(
+            Iterables.getOnlyElement(stateRequestHandler.getCacheTokens()).getToken(),
+            is(expectedCacheToken));
+
+        // The token is still valid for another key in the same key range
+        stateRequestHandler.handle(req.makeRequest(key2, userState1));
+        assertThat(
+            Iterables.getOnlyElement(stateRequestHandler.getCacheTokens()).getToken(),
+            is(expectedCacheToken));
+
+        // The token is still valid for another state cell in the same key range
+        stateRequestHandler.handle(req.makeRequest(key2, userState2));
+        assertThat(
+            Iterables.getOnlyElement(stateRequestHandler.getCacheTokens()).getToken(),
+            is(expectedCacheToken));
+      }
+    }
+  }
+
+  private interface RequestGenerator {
+    BeamFnApi.StateRequest makeRequest(ByteString key, String userStateId) throws Exception;
+  }
+
+  private static BeamFnApi.StateRequest getRequest(ByteString key, String userStateId)
+      throws Exception {
+    BeamFnApi.StateRequest.Builder builder = stateRequest(key, userStateId);
+    builder.setGet(BeamFnApi.StateGetRequest.newBuilder().build());
+    return builder.build();
+  }
+
+  private static BeamFnApi.StateRequest getAppend(ByteString key, String userStateId)
+      throws Exception {
+    BeamFnApi.StateRequest.Builder builder = stateRequest(key, userStateId);
+    builder.setAppend(BeamFnApi.StateAppendRequest.newBuilder().build());
+    return builder.build();
+  }
+
+  private static BeamFnApi.StateRequest getClear(ByteString key, String userStateId)
+      throws Exception {
+    BeamFnApi.StateRequest.Builder builder = stateRequest(key, userStateId);
+    builder.setClear(BeamFnApi.StateClearRequest.newBuilder().build());
+    return builder.build();
+  }
+
+  private static BeamFnApi.StateRequest.Builder stateRequest(ByteString key, String userStateId)
+      throws Exception {
+    return BeamFnApi.StateRequest.newBuilder()
+        .setStateKey(
+            BeamFnApi.StateKey.newBuilder()
+                .setBagUserState(
+                    BeamFnApi.StateKey.BagUserState.newBuilder()
+                        .setTransformId("transform")
+                        .setKey(key)
+                        .setUserStateId(userStateId)
+                        .setWindow(
+                            ByteString.copyFrom(
+                                CoderUtils.encodeToByteArray(
+                                    GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE)))
+                        .build()));
+  }
+
+  private static ProcessBundleDescriptors.BagUserStateSpec mockBagUserState(String userStateId) {
+    ProcessBundleDescriptors.BagUserStateSpec bagUserStateMock =
+        Mockito.mock(ProcessBundleDescriptors.BagUserStateSpec.class);
+    when(bagUserStateMock.keyCoder()).thenReturn(ByteStringCoder.of());
+    when(bagUserStateMock.valueCoder()).thenReturn(ByteStringCoder.of());
+    when(bagUserStateMock.transformId()).thenReturn("transformId");
+    when(bagUserStateMock.userStateId()).thenReturn(userStateId);
+    when(bagUserStateMock.windowCoder()).thenReturn(GlobalWindow.Coder.INSTANCE);
+    return bagUserStateMock;
+  }
+
+  @Test
   public void testSerialization() {
     WindowedValue.ValueOnlyWindowedValueCoder<Integer> coder =
         WindowedValue.getValueOnlyCoder(VarIntCoder.of());
@@ -671,8 +813,7 @@ public class ExecutableStageDoFnOperatorTest {
     ExecutableStageDoFnOperator<Integer, Integer> operator =
         new ExecutableStageDoFnOperator<>(
             "transform",
-            null,
-            null,
+            WindowedValue.getValueOnlyCoder(VarIntCoder.of()),
             Collections.emptyMap(),
             mainOutput,
             ImmutableList.of(additionalOutput),
@@ -683,7 +824,7 @@ public class ExecutableStageDoFnOperatorTest {
             options,
             stagePayload,
             jobInfo,
-            FlinkExecutableStageContext.factory(options),
+            FlinkExecutableStageContextFactory.getInstance(),
             createOutputMap(mainOutput, ImmutableList.of(additionalOutput)),
             WindowingStrategy.globalDefault(),
             null,
@@ -718,10 +859,10 @@ public class ExecutableStageDoFnOperatorTest {
       DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory,
       WindowingStrategy windowingStrategy,
       @Nullable Coder keyCoder,
-      @Nullable Coder windowedInputCoder) {
+      Coder windowedInputCoder) {
 
-    FlinkExecutableStageContext.Factory contextFactory =
-        Mockito.mock(FlinkExecutableStageContext.Factory.class);
+    FlinkExecutableStageContextFactory contextFactory =
+        Mockito.mock(FlinkExecutableStageContextFactory.class);
     when(contextFactory.get(any())).thenReturn(stageContext);
 
     final ExecutableStagePayload stagePayload;
@@ -735,7 +876,6 @@ public class ExecutableStageDoFnOperatorTest {
         new ExecutableStageDoFnOperator<>(
             "transform",
             windowedInputCoder,
-            null,
             Collections.emptyMap(),
             mainOutput,
             additionalOutputs,

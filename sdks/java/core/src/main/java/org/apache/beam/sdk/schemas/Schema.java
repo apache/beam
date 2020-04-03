@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.sdk.values.SchemaVerification.verifyFieldValue;
+
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
@@ -24,10 +26,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
@@ -36,12 +40,13 @@ import javax.annotation.concurrent.Immutable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.BiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.HashBiMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBiMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /** {@link Schema} describes the fields in {@link Row}. */
 @Experimental(Kind.SCHEMAS)
@@ -75,6 +80,11 @@ public class Schema implements Serializable {
     public int hashCode() {
       return Arrays.hashCode(array);
     }
+
+    @Override
+    public String toString() {
+      return Arrays.toString(array);
+    }
   }
   // A mapping between field names an indices.
   private final BiMap<String, Integer> fieldIndices = HashBiMap.create();
@@ -88,9 +98,12 @@ public class Schema implements Serializable {
   // equal, so we can short circuit comparison.
   @Nullable private UUID uuid = null;
 
+  private final Options options;
+
   /** Builder class for building {@link Schema} objects. */
   public static class Builder {
     List<Field> fields;
+    Options options = Options.none();
 
     public Builder() {
       this.fields = Lists.newArrayList();
@@ -186,6 +199,11 @@ public class Schema implements Serializable {
       return this;
     }
 
+    public Builder addIterableField(String name, FieldType collectionElementType) {
+      fields.add(Field.of(name, FieldType.iterable(collectionElementType)));
+      return this;
+    }
+
     public Builder addRowField(String name, Schema fieldSchema) {
       fields.add(Field.of(name, FieldType.row(fieldSchema)));
       return this;
@@ -196,12 +214,23 @@ public class Schema implements Serializable {
       return this;
     }
 
+    /** Returns a copy of the Field with isNullable set. */
+    public Builder setOptions(Options options) {
+      this.options = options;
+      return this;
+    }
+
+    public Builder setOptions(Options.Builder optionsBuilder) {
+      this.options = optionsBuilder.build();
+      return this;
+    }
+
     public int getLastFieldId() {
       return fields.size() - 1;
     }
 
     public Schema build() {
-      return new Schema(fields);
+      return new Schema(fields, options);
     }
   }
 
@@ -210,21 +239,35 @@ public class Schema implements Serializable {
   }
 
   public Schema(List<Field> fields) {
+    this(fields, Options.none());
+  }
+
+  public Schema(List<Field> fields, Options options) {
     this.fields = fields;
     int index = 0;
     for (Field field : fields) {
-      if (fieldIndices.get(field.getName()) != null) {
-        throw new IllegalArgumentException(
-            "Duplicate field " + field.getName() + " added to schema");
-      }
+      Preconditions.checkArgument(
+          fieldIndices.get(field.getName()) == null,
+          "Duplicate field " + field.getName() + " added to schema");
       encodingPositions.put(field.getName(), index);
       fieldIndices.put(field.getName(), index++);
     }
     this.hashCode = Objects.hash(fieldIndices, fields);
+    this.options = options;
   }
 
   public static Schema of(Field... fields) {
     return Schema.builder().addFields(fields).build();
+  }
+
+  /** Returns a copy of the Schema with the options set. */
+  public Schema withOptions(Options options) {
+    return new Schema(fields, getOptions().toBuilder().addOptions(options).build());
+  }
+
+  /** Returns a copy of the Schema with the options set. */
+  public Schema withOptions(Options.Builder optionsBuilder) {
+    return withOptions(optionsBuilder.build());
   }
 
   /** Set this schema's UUID. All schemas with the same UUID must be guaranteed to be identical. */
@@ -260,10 +303,13 @@ public class Schema implements Serializable {
     Schema other = (Schema) o;
     // If both schemas have a UUID set, we can simply compare the UUIDs.
     if (uuid != null && other.uuid != null) {
-      return Objects.equals(uuid, other.uuid);
+      if (Objects.equals(uuid, other.uuid)) {
+        return true;
+      }
     }
     return Objects.equals(fieldIndices, other.fieldIndices)
-        && Objects.equals(getFields(), other.getFields());
+        && Objects.equals(getFields(), other.getFields())
+        && Objects.equals(getOptions(), other.getOptions());
   }
 
   /** Returns true if two schemas are equal ignoring field names and descriptions. */
@@ -290,7 +336,7 @@ public class Schema implements Serializable {
     SAME,
     WEAKEN,
     IGNORE
-  };
+  }
 
   /** Returns true if two Schemas have the same fields, but possibly in different orders. */
   public boolean equivalent(Schema other) {
@@ -302,7 +348,7 @@ public class Schema implements Serializable {
     return equivalent(other, EquivalenceNullablePolicy.WEAKEN);
   }
 
-  /** Returns true if this Schema can be assigned to another Schema, igmoring nullable. * */
+  /** Returns true if this Schema can be assigned to another Schema, ignoring nullable. * */
   public boolean assignableToIgnoreNullable(Schema other) {
     return equivalent(other, EquivalenceNullablePolicy.IGNORE);
   }
@@ -334,13 +380,16 @@ public class Schema implements Serializable {
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder();
-    builder.append("Fields:\n");
+    builder.append("Fields:");
+    builder.append(System.lineSeparator());
     for (Field field : fields) {
       builder.append(field);
-      builder.append("\n");
+      builder.append(System.lineSeparator());
     }
+    builder.append("Options:");
+    builder.append(options);
     return builder.toString();
-  };
+  }
 
   @Override
   public int hashCode() {
@@ -374,6 +423,7 @@ public class Schema implements Serializable {
     BOOLEAN, // Boolean.
     BYTES, // Byte array.
     ARRAY,
+    ITERABLE, // Iterable. Different than array in that it might not fit completely in memory.
     MAP,
     ROW, // The field is itself a nested row.
     LOGICAL_TYPE;
@@ -382,7 +432,7 @@ public class Schema implements Serializable {
         ImmutableSet.of(BYTE, INT16, INT32, INT64, DECIMAL, FLOAT, DOUBLE);
     public static final Set<TypeName> STRING_TYPES = ImmutableSet.of(STRING);
     public static final Set<TypeName> DATE_TYPES = ImmutableSet.of(DATETIME);
-    public static final Set<TypeName> COLLECTION_TYPES = ImmutableSet.of(ARRAY);
+    public static final Set<TypeName> COLLECTION_TYPES = ImmutableSet.of(ARRAY, ITERABLE);
     public static final Set<TypeName> MAP_TYPES = ImmutableSet.of(MAP);
     public static final Set<TypeName> COMPOSITE_TYPES = ImmutableSet.of(ROW);
 
@@ -490,15 +540,18 @@ public class Schema implements Serializable {
     /** The unique identifier for this type. */
     String getIdentifier();
 
+    /** A schema type representing how to interpret the argument. */
+    FieldType getArgumentType();
+
     /** An optional argument to configure the type. */
-    default String getArgument() {
-      return "";
+    @SuppressWarnings("TypeParameterUnusedInFormals")
+    default <T> T getArgument() {
+      return null;
     }
 
     /** The base {@link FieldType} used to store values of this type. */
     FieldType getBaseType();
 
-    /** Convert the input Java type to one appropriate for the base {@link FieldType}. */
     BaseT toBaseType(InputT input);
 
     /** Convert the Java type used by the base {@link FieldType} to the input type. */
@@ -522,7 +575,7 @@ public class Schema implements Serializable {
     @Nullable
     public abstract LogicalType getLogicalType();
 
-    // For container types (e.g. ARRAY), returns the type of the contained element.
+    // For container types (e.g. ARRAY or ITERABLE), returns the type of the contained element.
     @Nullable
     public abstract FieldType getCollectionElementType();
 
@@ -540,12 +593,18 @@ public class Schema implements Serializable {
 
     /** Returns optional extra metadata. */
     @SuppressWarnings("mutable")
-    protected abstract Map<String, ByteArrayWrapper> getMetadata();
+    abstract Map<String, ByteArrayWrapper> getMetadata();
 
-    abstract FieldType.Builder toBuilder();
+    public abstract FieldType.Builder toBuilder();
+
+    public boolean isLogicalType(String logicalTypeIdentifier) {
+      return getTypeName().isLogicalType()
+          && getLogicalType().getIdentifier().equals(logicalTypeIdentifier);
+    }
 
     /** Helper function for retrieving the concrete logical type subclass. */
-    public <LogicalTypeT> LogicalTypeT getLogicalType(Class<LogicalTypeT> logicalTypeClass) {
+    public <LogicalTypeT extends LogicalType> LogicalTypeT getLogicalType(
+        Class<LogicalTypeT> logicalTypeClass) {
       return logicalTypeClass.cast(getLogicalType());
     }
 
@@ -616,20 +675,24 @@ public class Schema implements Serializable {
     public static final FieldType DATETIME = FieldType.of(TypeName.DATETIME);
 
     /** Create an array type for the given field type. */
-    public static final FieldType array(FieldType elementType) {
+    public static FieldType array(FieldType elementType) {
       return FieldType.forTypeName(TypeName.ARRAY).setCollectionElementType(elementType).build();
     }
 
     /** @deprecated Set the nullability on the elementType instead */
     @Deprecated
-    public static final FieldType array(FieldType elementType, boolean nullable) {
+    public static FieldType array(FieldType elementType, boolean nullable) {
       return FieldType.forTypeName(TypeName.ARRAY)
           .setCollectionElementType(elementType.withNullable(nullable))
           .build();
     }
 
+    public static FieldType iterable(FieldType elementType) {
+      return FieldType.forTypeName(TypeName.ITERABLE).setCollectionElementType(elementType).build();
+    }
+
     /** Create a map type for the given key and value types. */
-    public static final FieldType map(FieldType keyType, FieldType valueType) {
+    public static FieldType map(FieldType keyType, FieldType valueType) {
       return FieldType.forTypeName(TypeName.MAP)
           .setMapKeyType(keyType)
           .setMapValueType(valueType)
@@ -638,8 +701,7 @@ public class Schema implements Serializable {
 
     /** @deprecated Set the nullability on the valueType instead */
     @Deprecated
-    public static final FieldType map(
-        FieldType keyType, FieldType valueType, boolean valueTypeNullable) {
+    public static FieldType map(FieldType keyType, FieldType valueType, boolean valueTypeNullable) {
       return FieldType.forTypeName(TypeName.MAP)
           .setMapKeyType(keyType)
           .setMapValueType(valueType.withNullable(valueTypeNullable))
@@ -647,18 +709,13 @@ public class Schema implements Serializable {
     }
 
     /** Create a map type for the given key and value types. */
-    public static final FieldType row(Schema schema) {
+    public static FieldType row(Schema schema) {
       return FieldType.forTypeName(TypeName.ROW).setRowSchema(schema).build();
     }
 
     /** Creates a logical type based on a primitive field type. */
-    public static final <InputT, BaseT> FieldType logicalType(
-        LogicalType<InputT, BaseT> logicalType) {
-      return FieldType.forTypeName(TypeName.LOGICAL_TYPE)
-          .setLogicalType(logicalType)
-          .build()
-          .withMetadata(LOGICAL_TYPE_IDENTIFIER, logicalType.getIdentifier())
-          .withMetadata(LOGICAL_TYPE_ARGUMENT, logicalType.getArgument());
+    public static <InputT, BaseT> FieldType logicalType(LogicalType<InputT, BaseT> logicalType) {
+      return FieldType.forTypeName(TypeName.LOGICAL_TYPE).setLogicalType(logicalType).build();
     }
 
     /** Set the metadata map for the type, overriding any existing metadata.. */
@@ -685,6 +742,11 @@ public class Schema implements Serializable {
       return withMetadata(key, metadata.getBytes(StandardCharsets.UTF_8));
     }
 
+    public Map<String, byte[]> getAllMetadata() {
+      return getMetadata().entrySet().stream()
+          .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().array));
+    }
+
     @Nullable
     public byte[] getMetadata(String key) {
       ByteArrayWrapper metadata = getMetadata().get(key);
@@ -709,10 +771,26 @@ public class Schema implements Serializable {
       if (!(o instanceof FieldType)) {
         return false;
       }
-      // Logical type not included here, since the logical type identifier is included in the
-      // metadata. The LogicalType class is cached in this object just for convenience.
-      // TODO: this is wrong, since LogicalTypes have metadata associated.
+
       FieldType other = (FieldType) o;
+      if (getTypeName().isLogicalType()) {
+        if (!other.getTypeName().isLogicalType()) {
+          return false;
+        }
+        if (!Objects.equals(
+            getLogicalType().getIdentifier(), other.getLogicalType().getIdentifier())) {
+          return false;
+        }
+        if (!getLogicalType().getArgumentType().equals(other.getLogicalType().getArgumentType())) {
+          return false;
+        }
+        if (!Row.Equals.deepEquals(
+            getLogicalType().getArgument(),
+            other.getLogicalType().getArgument(),
+            getLogicalType().getArgumentType())) {
+          return false;
+        }
+      }
       return Objects.equals(getTypeName(), other.getTypeName())
           && Objects.equals(getNullable(), other.getNullable())
           && Objects.equals(getCollectionElementType(), other.getCollectionElementType())
@@ -727,13 +805,35 @@ public class Schema implements Serializable {
       if (!Objects.equals(getTypeName(), other.getTypeName())) {
         return false;
       }
+      if (getTypeName().isLogicalType()) {
+        if (!other.getTypeName().isLogicalType()) {
+          return false;
+        }
+        if (!Objects.equals(
+            getLogicalType().getIdentifier(), other.getLogicalType().getIdentifier())) {
+          return false;
+        }
+        if (!getLogicalType().getArgumentType().equals(other.getLogicalType().getArgumentType())) {
+          return false;
+        }
+        if (!Row.Equals.deepEquals(
+            getLogicalType().getArgument(),
+            other.getLogicalType().getArgument(),
+            getLogicalType().getArgumentType())) {
+          return false;
+        }
+      }
+      if (!Objects.equals(getNullable(), other.getNullable())) {
+        return false;
+      }
       if (!Objects.equals(getMetadata(), other.getMetadata())) {
         return false;
       }
-      if (getTypeName() == TypeName.ARRAY
+      if (getTypeName().isCollectionType()
           && !getCollectionElementType().typesEqual(other.getCollectionElementType())) {
         return false;
       }
+
       if (getTypeName() == TypeName.MAP
           && (!getMapValueType().typesEqual(other.getMapValueType())
               || !getMapKeyType().typesEqual(other.getMapKeyType()))) {
@@ -759,9 +859,6 @@ public class Schema implements Serializable {
       if (!getTypeName().equals(other.getTypeName())) {
         return false;
       }
-      if (!Objects.equals(getMetadata(), other.getMetadata())) {
-        return false;
-      }
 
       switch (getTypeName()) {
         case ROW:
@@ -770,6 +867,7 @@ public class Schema implements Serializable {
           }
           break;
         case ARRAY:
+        case ITERABLE:
           if (!getCollectionElementType()
               .equivalent(other.getCollectionElementType(), nullablePolicy)) {
             return false;
@@ -814,6 +912,9 @@ public class Schema implements Serializable {
     /** Returns the fields {@link FieldType}. */
     public abstract FieldType getType();
 
+    /** Returns the fields {@link Options}. */
+    public abstract Options getOptions();
+
     public abstract Builder toBuilder();
 
     /** Builder for {@link Field}. */
@@ -825,6 +926,13 @@ public class Schema implements Serializable {
 
       public abstract Builder setType(FieldType fieldType);
 
+      public abstract Builder setOptions(Options options);
+
+      public Builder setOptions(Options.Builder optionsBuilder) {
+        setOptions(optionsBuilder.build());
+        return this;
+      }
+
       public abstract Field build();
     }
 
@@ -834,6 +942,7 @@ public class Schema implements Serializable {
           .setName(name)
           .setDescription("")
           .setType(fieldType)
+          .setOptions(Options.none())
           .build();
     }
 
@@ -843,6 +952,7 @@ public class Schema implements Serializable {
           .setName(name)
           .setDescription("")
           .setType(fieldType.withNullable(true))
+          .setOptions(Options.none())
           .build();
     }
 
@@ -866,6 +976,16 @@ public class Schema implements Serializable {
       return toBuilder().setType(getType().withNullable(isNullable)).build();
     }
 
+    /** Returns a copy of the Field with the options set. */
+    public Field withOptions(Options options) {
+      return toBuilder().setOptions(getOptions().toBuilder().addOptions(options).build()).build();
+    }
+
+    /** Returns a copy of the Field with the options set. */
+    public Field withOptions(Options.Builder optionsBuilder) {
+      return withOptions(optionsBuilder.build());
+    }
+
     @Override
     public boolean equals(Object o) {
       if (!(o instanceof Field)) {
@@ -874,7 +994,8 @@ public class Schema implements Serializable {
       Field other = (Field) o;
       return Objects.equals(getName(), other.getName())
           && Objects.equals(getDescription(), other.getDescription())
-          && Objects.equals(getType(), other.getType());
+          && Objects.equals(getType(), other.getType())
+          && Objects.equals(getOptions(), other.getOptions());
     }
 
     /** Returns true if two fields are equal, ignoring name and description. */
@@ -890,6 +1011,205 @@ public class Schema implements Serializable {
     @Override
     public int hashCode() {
       return Objects.hash(getName(), getDescription(), getType());
+    }
+  }
+
+  public static class Options implements Serializable {
+    private final Map<String, Option> options;
+
+    @Override
+    public String toString() {
+      TreeMap sorted = new TreeMap(options);
+      return "{" + sorted + '}';
+    }
+
+    Map<String, Option> getAllOptions() {
+      return options;
+    }
+
+    public Set<String> getOptionNames() {
+      return options.keySet();
+    }
+
+    public boolean hasOptions() {
+      return options.size() > 0;
+    }
+
+    public boolean hasOption(String name) {
+      return options.containsKey(name);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      Options options1 = (Options) o;
+      if (!options.keySet().equals(options1.options.keySet())) {
+        return false;
+      }
+      for (Map.Entry<String, Option> optionEntry : options.entrySet()) {
+        Option thisOption = optionEntry.getValue();
+        Option otherOption = options1.options.get(optionEntry.getKey());
+        if (!thisOption.equals(otherOption)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(options);
+    }
+
+    static class Option implements Serializable {
+      Option(FieldType type, Object value) {
+        this.type = type;
+        this.value = value;
+      }
+
+      private FieldType type;
+      private Object value;
+
+      @SuppressWarnings("TypeParameterUnusedInFormals")
+      <T> T getValue() {
+        return (T) value;
+      }
+
+      FieldType getType() {
+        return type;
+      }
+
+      @Override
+      public String toString() {
+        return "Option{type=" + type + ", value=" + value + '}';
+      }
+
+      @Override
+      public boolean equals(Object o) {
+        if (this == o) {
+          return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+          return false;
+        }
+        Option option = (Option) o;
+        return Objects.equals(type, option.type)
+            && Row.Equals.deepEquals(value, option.value, type);
+      }
+
+      @Override
+      public int hashCode() {
+        return Row.Equals.deepHashCode(value, type);
+      }
+    }
+
+    public static class Builder {
+      private Map<String, Option> options;
+
+      Builder(Map<String, Option> init) {
+        this.options = new HashMap<>(init);
+      }
+
+      Builder() {
+        this(new HashMap<>());
+      }
+
+      public Builder setOption(String optionName, Row value) {
+        setOption(optionName, FieldType.row(value.getSchema()), value);
+        return this;
+      }
+
+      public Builder setOption(String optionName, FieldType fieldType, Object value) {
+        if (value == null) {
+          if (fieldType.getNullable()) {
+            options.put(optionName, new Option(fieldType, null));
+          } else {
+            throw new IllegalArgumentException(
+                String.format("Option %s is not nullable", optionName));
+          }
+        } else {
+          options.put(
+              optionName, new Option(fieldType, verifyFieldValue(value, fieldType, optionName)));
+        }
+        return this;
+      }
+
+      public Options build() {
+        return new Options(this.options);
+      }
+
+      public Builder addOptions(Options options) {
+        this.options.putAll(options.options);
+        return this;
+      }
+    }
+
+    Options(Map<String, Option> options) {
+      this.options = options;
+    }
+
+    Options() {
+      this.options = new HashMap<>();
+    }
+
+    Options.Builder toBuilder() {
+      return new Builder(new HashMap<>(this.options));
+    }
+
+    public static Options.Builder builder() {
+      return new Builder();
+    }
+
+    public static Options none() {
+      return new Options();
+    }
+
+    /** Get the value of an option. If the option is not found null is returned. */
+    @SuppressWarnings("TypeParameterUnusedInFormals")
+    public <T> T getValue(String optionName) {
+      Option option = options.get(optionName);
+      if (option != null) {
+        return option.getValue();
+      }
+      throw new IllegalArgumentException(
+          String.format("No option found with name %s.", optionName));
+    }
+
+    /** Get the value of an option. If the option is not found null is returned. */
+    public <T> T getValue(String optionName, Class<T> valueClass) {
+      return getValue(optionName);
+    }
+
+    /** Get the value of an option. If the option is not found the default value is returned. */
+    public <T> T getValueOrDefault(String optionName, T defaultValue) {
+      Option option = options.get(optionName);
+      if (option != null) {
+        return option.getValue();
+      }
+      return defaultValue;
+    }
+
+    /** Get the type of an option. */
+    public FieldType getType(String optionName) {
+      Option option = options.get(optionName);
+      if (option != null) {
+        return option.getType();
+      }
+      throw new IllegalArgumentException(
+          String.format("No option found with name %s.", optionName));
+    }
+
+    public static Options.Builder setOption(String optionName, FieldType fieldType, Object value) {
+      return Options.builder().setOption(optionName, fieldType, value);
+    }
+
+    public static Options.Builder setOption(String optionName, Row value) {
+      return Options.builder().setOption(optionName, value);
     }
   }
 
@@ -926,10 +1246,8 @@ public class Schema implements Serializable {
   /** Find the index of a given field. */
   public int indexOf(String fieldName) {
     Integer index = fieldIndices.get(fieldName);
-    if (index == null) {
-      throw new IllegalArgumentException(
-          String.format("Cannot find field %s in schema %s", fieldName, this));
-    }
+    Preconditions.checkArgument(
+        index != null, String.format("Cannot find field %s in schema %s", fieldName, this));
     return index;
   }
 
@@ -941,14 +1259,16 @@ public class Schema implements Serializable {
   /** Return the name of field by index. */
   public String nameOf(int fieldIndex) {
     String name = fieldIndices.inverse().get(fieldIndex);
-    if (name == null) {
-      throw new IllegalArgumentException(String.format("Cannot find field %d", fieldIndex));
-    }
+    Preconditions.checkArgument(name != null, String.format("Cannot find field %d", fieldIndex));
     return name;
   }
 
   /** Return the count of fields. */
   public int getFieldCount() {
     return getFields().size();
+  }
+
+  public Options getOptions() {
+    return this.options;
   }
 }

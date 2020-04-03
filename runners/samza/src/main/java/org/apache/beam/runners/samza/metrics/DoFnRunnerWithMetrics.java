@@ -47,25 +47,32 @@ public class DoFnRunnerWithMetrics<InT, OutT> implements DoFnRunner<InT, OutT> {
 
   @Override
   public void startBundle() {
-    withMetrics(() -> underlying.startBundle());
+    withMetrics(underlying::startBundle, false);
   }
 
   @Override
   public void processElement(WindowedValue<InT> elem) {
-    withMetrics(() -> underlying.processElement(elem));
+    withMetrics(() -> underlying.processElement(elem), false);
   }
 
   @Override
   public void onTimer(
-      String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
-    withMetrics(() -> underlying.onTimer(timerId, window, timestamp, timeDomain));
+      String timerId,
+      String timerFamilyId,
+      BoundedWindow window,
+      Instant timestamp,
+      Instant outputTimestamp,
+      TimeDomain timeDomain) {
+    withMetrics(
+        () ->
+            underlying.onTimer(
+                timerId, timerFamilyId, window, timestamp, outputTimestamp, timeDomain),
+        false);
   }
 
   @Override
   public void finishBundle() {
-    withMetrics(() -> underlying.finishBundle());
-
-    metricsContainer.updateMetrics();
+    withMetrics(underlying::finishBundle, true);
   }
 
   @Override
@@ -73,13 +80,14 @@ public class DoFnRunnerWithMetrics<InT, OutT> implements DoFnRunner<InT, OutT> {
     return underlying.getFn();
   }
 
-  private void withMetrics(Runnable runnable) {
+  private void withMetrics(Runnable runnable, boolean shouldUpdateMetrics) {
     try {
       metricsWrapper.wrap(
           () -> {
             runnable.run();
             return (Void) null;
-          });
+          },
+          shouldUpdateMetrics);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

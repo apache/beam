@@ -17,6 +17,8 @@
 
 """PubSub verifier used for end-to-end test."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -29,7 +31,6 @@ from apache_beam.io.gcp.pubsub import PubsubMessage
 
 __all__ = ['PubSubMessageMatcher']
 
-
 # Protect against environments where pubsub library is not available.
 try:
   from google.cloud import pubsub
@@ -39,6 +40,8 @@ except ImportError:
 DEFAULT_TIMEOUT = 5 * 60
 MAX_MESSAGES_IN_ONE_PULL = 50
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class PubSubMessageMatcher(BaseMatcher):
   """Matcher that verifies messages from given subscription.
@@ -46,10 +49,15 @@ class PubSubMessageMatcher(BaseMatcher):
   This matcher can block the test and keep pulling messages from given
   subscription until all expected messages are shown or timeout.
   """
-
-  def __init__(self, project, sub_name, expected_msg,
-               timeout=DEFAULT_TIMEOUT, with_attributes=False,
-               strip_attributes=None):
+  def __init__(
+      self,
+      project,
+      sub_name,
+      expected_msg=None,
+      expected_msg_len=None,
+      timeout=DEFAULT_TIMEOUT,
+      with_attributes=False,
+      strip_attributes=None):
     """Initialize PubSubMessageMatcher object.
 
     Args:
@@ -67,18 +75,24 @@ class PubSubMessageMatcher(BaseMatcher):
         value to prevent a successful match.
     """
     if pubsub is None:
-      raise ImportError(
-          'PubSub dependencies are not installed.')
+      raise ImportError('PubSub dependencies are not installed.')
     if not project:
       raise ValueError('Invalid project %s.' % project)
     if not sub_name:
       raise ValueError('Invalid subscription %s.' % sub_name)
-    if not isinstance(expected_msg, list):
+    if not expected_msg_len and not expected_msg:
+      raise ValueError(
+          'Required expected_msg: {} or expected_msg_len: {}.'.format(
+              expected_msg, expected_msg_len))
+    if expected_msg and not isinstance(expected_msg, list):
       raise ValueError('Invalid expected messages %s.' % expected_msg)
+    if expected_msg_len and not isinstance(expected_msg_len, int):
+      raise ValueError('Invalid expected messages %s.' % expected_msg_len)
 
     self.project = project
     self.sub_name = sub_name
     self.expected_msg = expected_msg
+    self.expected_msg_len = expected_msg_len or len(self.expected_msg)
     self.timeout = timeout
     self.messages = None
     self.with_attributes = with_attributes
@@ -86,9 +100,12 @@ class PubSubMessageMatcher(BaseMatcher):
 
   def _matches(self, _):
     if self.messages is None:
-      self.messages = self._wait_for_messages(len(self.expected_msg),
-                                              self.timeout)
-    return Counter(self.messages) == Counter(self.expected_msg)
+      self.messages = self._wait_for_messages(
+          self.expected_msg_len, self.timeout)
+    if self.expected_msg:
+      return Counter(self.messages) == Counter(self.expected_msg)
+    else:
+      return len(self.messages) == self.expected_msg_len
 
   def _wait_for_messages(self, expected_num, timeout):
     """Wait for messages from given subscription."""
@@ -97,13 +114,14 @@ class PubSubMessageMatcher(BaseMatcher):
     sub_client = pubsub.SubscriberClient()
     start_time = time.time()
     while time.time() - start_time <= timeout:
-      response = sub_client.pull(self.sub_name,
-                                 max_messages=MAX_MESSAGES_IN_ONE_PULL,
-                                 return_immediately=True)
+      response = sub_client.pull(
+          self.sub_name,
+          max_messages=MAX_MESSAGES_IN_ONE_PULL,
+          return_immediately=True)
       for rm in response.received_messages:
         msg = PubsubMessage._from_message(rm.message)
         if not self.with_attributes:
-          total_messages.append(msg.data.decode('utf-8'))
+          total_messages.append(msg.data)
           continue
 
         if self.strip_attributes:
@@ -111,8 +129,9 @@ class PubSubMessageMatcher(BaseMatcher):
             try:
               del msg.attributes[attr]
             except KeyError:
-              msg.attributes[attr] = ('PubSubMessageMatcher error: '
-                                      'expected attribute not found.')
+              msg.attributes[attr] = (
+                  'PubSubMessageMatcher error: '
+                  'expected attribute not found.')
         total_messages.append(msg)
 
       ack_ids = [rm.ack_id for rm in response.received_messages]
@@ -123,24 +142,26 @@ class PubSubMessageMatcher(BaseMatcher):
       time.sleep(1)
 
     if time.time() - start_time > timeout:
-      logging.error('Timeout after %d sec. Received %d messages from %s.',
-                    timeout, len(total_messages), self.sub_name)
+      _LOGGER.error(
+          'Timeout after %d sec. Received %d messages from %s.',
+          timeout,
+          len(total_messages),
+          self.sub_name)
     return total_messages
 
   def describe_to(self, description):
-    description.append_text(
-        'Expected %d messages.' % len(self.expected_msg))
+    description.append_text('Expected %d messages.' % self.expected_msg_len)
 
   def describe_mismatch(self, _, mismatch_description):
     c_expected = Counter(self.expected_msg)
     c_actual = Counter(self.messages)
-    mismatch_description.append_text(
-        "Got %d messages. "
-        "Diffs (item, count):\n"
-        "  Expected but not in actual: %s\n"
-        "  Unexpected: %s" % (
-            len(self.messages), (c_expected - c_actual).items(),
-            (c_actual - c_expected).items()))
+    mismatch_description.append_text("Got %d messages. " % (len(self.messages)))
+    if self.expected_msg:
+      mismatch_description.append_text(
+          "Diffs (item, count):\n"
+          "  Expected but not in actual: %s\n"
+          "  Unexpected: %s" % ((c_expected - c_actual).items(),
+                                (c_actual - c_expected).items()))
     if self.with_attributes and self.strip_attributes:
       mismatch_description.append_text(
           '\n  Stripped attributes: %r' % self.strip_attributes)

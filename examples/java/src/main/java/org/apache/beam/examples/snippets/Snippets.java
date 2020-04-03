@@ -23,7 +23,9 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -31,6 +33,7 @@ import java.util.Map;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.io.Compression;
@@ -61,16 +64,21 @@ import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.transforms.windowing.WindowFn.MergeContext;
+import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
@@ -528,22 +536,23 @@ public class Snippets {
         TextIO.read()
             .from("<path-to-files>/*")
             .watchForNewFiles(
-                // Check for new files every minute
+                // Check for new files every minute.
                 Duration.standardMinutes(1),
-                // Stop watching the filepattern if no new files appear within an hour
+                // Stop watching the file pattern if no new files appear for an hour.
                 Watch.Growth.afterTimeSinceNewOutput(Duration.standardHours(1))));
     // [END FileProcessPatternProcessNewFilesSnip2]
 
     // [START FileProcessPatternAccessMetadataSnip1]
     p.apply(FileIO.match().filepattern("hdfs://path/to/*.gz"))
-        // withCompression can be omitted - by default compression is detected from the filename.
+        // The withCompression method is optional. By default, the Beam SDK detects compression from
+        // the filename.
         .apply(FileIO.readMatches().withCompression(Compression.GZIP))
         .apply(
             ParDo.of(
                 new DoFn<FileIO.ReadableFile, String>() {
                   @ProcessElement
                   public void process(@Element FileIO.ReadableFile file) {
-                    // We now have access to the file and its metadata
+                    // We can now access the file and its metadata.
                     LOG.info("File Metadata resourceId is {} ", file.getMetadata().resourceId());
                   }
                 }));
@@ -555,12 +564,11 @@ public class Snippets {
 
   // [START SideInputPatternSlowUpdateGlobalWindowSnip1]
   public static void sideInputPatterns() {
-    // Using View.asSingleton, this pipeline uses a dummy external service as illustration.
-    // Run in debug mode to see the output
+    // This pipeline uses View.asSingleton for a placeholder external service.
+    // Run in debug mode to see the output.
     Pipeline p = Pipeline.create();
 
-    // Create slowly updating sideinput
-
+    // Create a side input that updates each second.
     PCollectionView<Map<String, String>> map =
         p.apply(GenerateSequence.from(0).withRate(1, Duration.standardSeconds(5L)))
             .apply(
@@ -574,20 +582,15 @@ public class Snippets {
                       @ProcessElement
                       public void process(
                           @Element Long input, OutputReceiver<Map<String, String>> o) {
-                        // Do any external reads needed here...
-                        // We will make use of our dummy external service.
-                        // Every time this triggers, the complete map will be replaced with that
-                        // read from
-                        // the service.
-                        o.output(DummyExternalService.readDummyData());
+                        // Replace map with test data from the placeholder external service.
+                        // Add external reads here.
+                        o.output(PlaceholderExternalService.readTestData());
                       }
                     }))
             .apply(View.asSingleton());
 
-    // ---- Consume slowly updating sideinput
-
-    // GenerateSequence is only used here to generate dummy data for this illustration.
-    // You would use your real source for example PubSubIO, KafkaIO etc...
+    // Consume side input. GenerateSequence generates test data.
+    // Use a real source (like PubSubIO or KafkaIO) in production.
     p.apply(GenerateSequence.from(0).withRate(1, Duration.standardSeconds(1L)))
         .apply(Window.into(FixedWindows.of(Duration.standardSeconds(1))))
         .apply(Sum.longsGlobally().withoutDefaults())
@@ -601,7 +604,7 @@ public class Snippets {
                         c.outputWithTimestamp(KV.of(1L, c.element()), Instant.now());
 
                         LOG.debug(
-                            "Value is {} key A is {} and key B is {}",
+                            "Value is {}, key A is {}, and key B is {}.",
                             c.element(),
                             keyMap.get("Key_A"),
                             keyMap.get("Key_B"));
@@ -610,10 +613,10 @@ public class Snippets {
                 .withSideInputs(map));
   }
 
-  /** Dummy class representing a pretend external service. */
-  public static class DummyExternalService {
+  /** Placeholder class that represents an external service generating test data. */
+  public static class PlaceholderExternalService {
 
-    public static Map<String, String> readDummyData() {
+    public static Map<String, String> readTestData() {
 
       Map<String, String> map = new HashMap<>();
       Instant now = Instant.now();
@@ -672,4 +675,114 @@ public class Snippets {
   }
 
   // [END AccessingValueProviderInfoAfterRunSnip1]
+
+  private static final Duration gapDuration = Duration.standardSeconds(10L);
+
+  // [START CustomSessionWindow1]
+
+  public Collection<IntervalWindow> assignWindows(WindowFn.AssignContext c) {
+
+    // Assign each element into a window from its timestamp until gapDuration in the
+    // future.  Overlapping windows (representing elements within gapDuration of
+    // each other) will be merged.
+    return Arrays.asList(new IntervalWindow(c.timestamp(), gapDuration));
+  }
+  // [END CustomSessionWindow1]
+
+  // [START CustomSessionWindow2]
+  public static class DynamicSessions extends WindowFn<TableRow, IntervalWindow> {
+    /** Duration of the gaps between sessions. */
+    private final Duration gapDuration;
+
+    /** Creates a {@code DynamicSessions} {@link WindowFn} with the specified gap duration. */
+    private DynamicSessions(Duration gapDuration) {
+      this.gapDuration = gapDuration;
+    }
+
+    // [END CustomSessionWindow2]
+
+    // [START CustomSessionWindow3]
+    @Override
+    public Collection<IntervalWindow> assignWindows(AssignContext c) {
+      // Assign each element into a window from its timestamp until gapDuration in the
+      // future.  Overlapping windows (representing elements within gapDuration of
+      // each other) will be merged.
+      Duration dataDrivenGap;
+      TableRow message = c.element();
+
+      try {
+        dataDrivenGap = Duration.standardSeconds(Long.parseLong(message.get("gap").toString()));
+      } catch (Exception e) {
+        dataDrivenGap = gapDuration;
+      }
+      return Arrays.asList(new IntervalWindow(c.timestamp(), dataDrivenGap));
+    }
+    // [END CustomSessionWindow3]
+
+    // [START CustomSessionWindow4]
+    /** Creates a {@code DynamicSessions} {@link WindowFn} with the specified gap duration. */
+    public static DynamicSessions withDefaultGapDuration(Duration gapDuration) {
+      return new DynamicSessions(gapDuration);
+    }
+
+    // [END CustomSessionWindow4]
+
+    @Override
+    public void mergeWindows(MergeContext c) throws Exception {}
+
+    @Override
+    public boolean isCompatible(WindowFn<?, ?> other) {
+      return false;
+    }
+
+    @Override
+    public Coder<IntervalWindow> windowCoder() {
+      return null;
+    }
+
+    @Override
+    public WindowMappingFn<IntervalWindow> getDefaultWindowMappingFn() {
+      return null;
+    }
+  }
+
+  public static class CustomSessionPipeline {
+
+    public static void main(String[] args) {
+
+      // [START CustomSessionWindow5]
+
+      PCollection<TableRow> p =
+          Pipeline.create()
+              .apply(
+                  "Create data",
+                  Create.timestamped(
+                      TimestampedValue.of(
+                          new TableRow().set("user", "mobile").set("score", 12).set("gap", 5),
+                          new Instant()),
+                      TimestampedValue.of(
+                          new TableRow().set("user", "desktop").set("score", 4), new Instant()),
+                      TimestampedValue.of(
+                          new TableRow().set("user", "mobile").set("score", -3).set("gap", 5),
+                          new Instant().plus(2000)),
+                      TimestampedValue.of(
+                          new TableRow().set("user", "mobile").set("score", 2).set("gap", 5),
+                          new Instant().plus(9000)),
+                      TimestampedValue.of(
+                          new TableRow().set("user", "mobile").set("score", 7).set("gap", 5),
+                          new Instant().plus(12000)),
+                      TimestampedValue.of(
+                          new TableRow().set("user", "desktop").set("score", 10),
+                          new Instant().plus(12000))));
+      // [END CustomSessionWindow5]
+
+      // [START CustomSessionWindow6]
+      p.apply(
+          "Window into sessions",
+          Window.<TableRow>into(
+              DynamicSessions.withDefaultGapDuration(Duration.standardSeconds(10))));
+      // [END CustomSessionWindow6]
+
+    }
+  }
 }

@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -31,8 +32,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.PriorityQueue;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -56,9 +57,9 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
-import org.apache.beam.runners.flink.translation.utils.FlinkClassloading;
-import org.apache.beam.runners.flink.translation.utils.NoopLock;
+import org.apache.beam.runners.flink.translation.utils.Workarounds;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.stableinput.BufferingDoFnRunner;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkBroadcastStateInternals;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
@@ -77,15 +78,16 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.NoopLock;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -97,6 +99,7 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -150,19 +153,12 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   private transient DoFnInvoker<InputT, OutputT> doFnInvoker;
 
-  protected transient long currentInputWatermark;
-
-  protected transient long currentSideInputWatermark;
-
-  protected transient long currentOutputWatermark;
-
   protected transient FlinkStateInternals<?> keyedStateInternals;
+  protected transient FlinkTimerInternals timerInternals;
 
   protected final String stepName;
 
   private final Coder<WindowedValue<InputT>> windowedInputCoder;
-
-  private final Coder<InputT> inputCoder;
 
   private final Map<TupleTag<?>, Coder<?>> outputCoders;
 
@@ -170,7 +166,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   final KeySelector<WindowedValue<InputT>, ?> keySelector;
 
-  private final TimerInternals.TimerDataCoder timerCoder;
+  private final TimerInternals.TimerDataCoderV2 timerCoder;
 
   /** Max number of elements to include in a bundle. */
   private final long maxBundleSize;
@@ -179,34 +175,51 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   private final DoFnSchemaInformation doFnSchemaInformation;
 
+  private final Map<String, PCollectionView<?>> sideInputMapping;
+
   /** If true, we must process elements only after a checkpoint is finished. */
   private final boolean requiresStableInput;
 
   protected transient InternalTimerService<TimerData> timerService;
 
-  protected transient FlinkTimerInternals timerInternals;
-
-  private transient long pushedBackWatermark;
-
   private transient PushedBackElementsHandler<WindowedValue<InputT>> pushedBackElementsHandler;
 
-  /** Use an AtomicBoolean because we start/stop bundles by a timer thread (see below). */
-  private transient AtomicBoolean bundleStarted;
-  /** Number of processed elements in the current bundle. */
-  private transient long elementCount;
+  /** Metrics container for reporting Beam metrics to Flink (null if metrics are disabled). */
+  @Nullable transient FlinkMetricContainer flinkMetricContainer;
+
   /** A timer that finishes the current bundle after a fixed amount of time. */
   private transient ScheduledFuture<?> checkFinishBundleTimer;
+
+  /**
+   * This and the below fields need to be volatile because we use multiple threads to access these.
+   * (a) the main processing thread (b) a timer thread to finish bundles by a timeout instead of the
+   * number of element However, we do not need a lock because Flink makes sure to acquire the
+   * "checkpointing" lock for the main processing but also for timer set via its {@code
+   * timerService}.
+   *
+   * <p>The volatile flag can be removed once https://issues.apache.org/jira/browse/FLINK-12481 has
+   * been addressed.
+   */
+  private transient volatile boolean bundleStarted;
+  /** Number of processed elements in the current bundle. */
+  private transient volatile long elementCount;
   /** Time that the last bundle was finished (to set the timer). */
-  private transient long lastFinishBundleTime;
+  private transient volatile long lastFinishBundleTime;
   /** Callback to be executed after the current bundle was finished. */
-  private transient Runnable bundleFinishedCallback;
+  private transient volatile Runnable bundleFinishedCallback;
+
+  // Watermark state.
+  // Volatile because these can be set in two mutually exclusive threads (see above).
+  protected transient volatile long currentInputWatermark;
+  protected transient volatile long currentSideInputWatermark;
+  protected transient volatile long currentOutputWatermark;
+  private transient volatile long pushedBackWatermark;
 
   /** Constructor for DoFnOperator. */
   public DoFnOperator(
       DoFn<InputT, OutputT> doFn,
       String stepName,
       Coder<WindowedValue<InputT>> inputWindowedCoder,
-      Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
@@ -217,11 +230,11 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       PipelineOptions options,
       Coder<?> keyCoder,
       KeySelector<WindowedValue<InputT>, ?> keySelector,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     this.doFn = doFn;
     this.stepName = stepName;
     this.windowedInputCoder = inputWindowedCoder;
-    this.inputCoder = inputCoder;
     this.outputCoders = outputCoders;
     this.mainOutputTag = mainOutputTag;
     this.additionalOutputTags = additionalOutputTags;
@@ -237,7 +250,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     this.keySelector = keySelector;
 
     this.timerCoder =
-        TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
+        TimerInternals.TimerDataCoderV2.of(windowingStrategy.getWindowFn().windowCoder());
 
     FlinkPipelineOptions flinkOptions = options.as(FlinkPipelineOptions.class);
 
@@ -246,6 +259,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     this.maxBundleTimeMills = flinkOptions.getMaxBundleTimeMills();
     Preconditions.checkArgument(maxBundleTimeMills > 0, "Bundle time must be at least 1");
     this.doFnSchemaInformation = doFnSchemaInformation;
+    this.sideInputMapping = sideInputMapping;
 
     this.requiresStableInput =
         // WindowDoFnOperator does not use a DoFn
@@ -254,7 +268,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     if (requiresStableInput) {
       Preconditions.checkState(
-          flinkOptions.getCheckpointingMode() == CheckpointingMode.EXACTLY_ONCE,
+          CheckpointingMode.valueOf(flinkOptions.getCheckpointingMode())
+              == CheckpointingMode.EXACTLY_ONCE,
           "Checkpointing mode is not set to exactly once but @RequiresStableInput is used.");
       Preconditions.checkState(
           flinkOptions.getCheckpointingInterval() > 0,
@@ -277,7 +292,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   // stateful DoFn runner because ProcessFn, which is used for executing a Splittable DoFn
   // doesn't play by the normal DoFn rules and WindowDoFnOperator uses LateDataDroppingDoFnRunner
   protected DoFnRunner<InputT, OutputT> createWrappingDoFnRunner(
-      DoFnRunner<InputT, OutputT> wrappedRunner) {
+      DoFnRunner<InputT, OutputT> wrappedRunner, StepContext stepContext) {
 
     if (keyCoder != null) {
       StatefulDoFnRunner.CleanupTimer cleanupTimer =
@@ -293,7 +308,14 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
               doFn, keyedStateInternals, windowCoder);
 
       return DoFnRunners.defaultStatefulDoFnRunner(
-          doFn, wrappedRunner, windowingStrategy, cleanupTimer, stateCleaner);
+          doFn,
+          getInputCoder(),
+          wrappedRunner,
+          stepContext,
+          windowingStrategy,
+          cleanupTimer,
+          stateCleaner,
+          true /* requiresTimeSortedInput is supported */);
 
     } else {
       return doFnRunner;
@@ -307,8 +329,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       Output<StreamRecord<WindowedValue<OutputT>>> output) {
 
     // make sure that FileSystems is initialized correctly
-    FlinkPipelineOptions options = serializedOptions.get().as(FlinkPipelineOptions.class);
-    FileSystems.setDefaultPipelineOptions(options);
+    FileSystems.setDefaultPipelineOptions(serializedOptions.get());
 
     super.setup(containingTask, config, output);
   }
@@ -359,17 +380,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       keyedStateInternals =
           new FlinkStateInternals<>((KeyedStateBackend) getKeyedStateBackend(), keyCoder);
 
-      if (doFn != null) {
-        DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
-        FlinkStateInternals.EarlyBinder earlyBinder =
-            new FlinkStateInternals.EarlyBinder(getKeyedStateBackend());
-        for (DoFnSignature.StateDeclaration value : signature.stateDeclarations().values()) {
-          StateSpec<?> spec =
-              (StateSpec<?>) signature.stateDeclarations().get(value.id()).field().get(doFn);
-          spec.bind(value.id(), earlyBinder);
-        }
-      }
-
       if (timerService == null) {
         timerService =
             getInternalTimerService("beam-timer", new CoderTypeSerializer<>(timerCoder), this);
@@ -380,11 +390,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     outputManager =
         outputManagerFactory.create(
-            output,
-            getLockToAcquireForStateAccessDuringBundles(),
-            getOperatorStateBackend(),
-            getKeyedStateBackend(),
-            keySelector);
+            output, getLockToAcquireForStateAccessDuringBundles(), getOperatorStateBackend());
   }
 
   /**
@@ -405,6 +411,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     doFnInvoker.invokeSetup();
 
     FlinkPipelineOptions options = serializedOptions.get().as(FlinkPipelineOptions.class);
+    StepContext stepContext = new FlinkStepContext();
     doFnRunner =
         DoFnRunners.simpleRunner(
             options,
@@ -413,11 +420,12 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
             outputManager,
             mainOutputTag,
             additionalOutputTags,
-            new FlinkStepContext(),
-            inputCoder,
+            stepContext,
+            getInputCoder(),
             outputCoders,
             windowingStrategy,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
 
     if (requiresStableInput) {
       // put this in front of the root FnRunner before any additional wrappers
@@ -431,13 +439,14 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
                   getOperatorStateBackend(),
                   getKeyedStateBackend());
     }
-    doFnRunner = createWrappingDoFnRunner(doFnRunner);
+    doFnRunner = createWrappingDoFnRunner(doFnRunner, stepContext);
+    earlyBindStateIfNeeded();
 
-    if (options.getEnableMetrics()) {
-      doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
+    if (!options.getDisableMetrics()) {
+      flinkMetricContainer = new FlinkMetricContainer(getRuntimeContext());
+      doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, flinkMetricContainer);
     }
 
-    bundleStarted = new AtomicBoolean(false);
     elementCount = 0L;
     lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
 
@@ -457,11 +466,31 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     }
   }
 
+  private void earlyBindStateIfNeeded() throws IllegalArgumentException, IllegalAccessException {
+    if (keyCoder != null) {
+      if (doFn != null) {
+        DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
+        FlinkStateInternals.EarlyBinder earlyBinder =
+            new FlinkStateInternals.EarlyBinder(getKeyedStateBackend());
+        for (DoFnSignature.StateDeclaration value : signature.stateDeclarations().values()) {
+          StateSpec<?> spec =
+              (StateSpec<?>) signature.stateDeclarations().get(value.id()).field().get(doFn);
+          spec.bind(value.id(), earlyBinder);
+        }
+        if (doFnRunner instanceof StatefulDoFnRunner) {
+          ((StatefulDoFnRunner<InputT, OutputT, BoundedWindow>) doFnRunner)
+              .getSystemStateTags()
+              .forEach(tag -> tag.getSpec().bind(tag.getId(), earlyBinder));
+        }
+      }
+    }
+  }
+
   @Override
   public void dispose() throws Exception {
     try {
       Optional.ofNullable(checkFinishBundleTimer).ifPresent(timer -> timer.cancel(true));
-      FlinkClassloading.deleteStaticCaches();
+      Workarounds.deleteStaticCaches();
       Optional.ofNullable(doFnInvoker).ifPresent(DoFnInvoker::invokeTeardown);
     } finally {
       // This releases all task's resources. We need to call this last
@@ -474,6 +503,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   @Override
   public void close() throws Exception {
     try {
+      flinkMetricContainer.registerMetricsForPipelineResult();
       // This is our last change to block shutdown of this operator while
       // there are still remaining processing-time timers. Flink will ignore pending
       // processing-time timers when upstream operators have shut down and will also
@@ -491,15 +521,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       processWatermark(new Watermark(Long.MAX_VALUE));
       invokeFinishBundle();
       if (currentOutputWatermark < Long.MAX_VALUE) {
-        if (keyedStateInternals == null) {
-          throw new RuntimeException("Current watermark is still " + currentOutputWatermark + ".");
-
-        } else {
-          throw new RuntimeException(
-              "There are still watermark holds. Watermark held at "
-                  + keyedStateInternals.watermarkHold().getMillis()
-                  + ".");
-        }
+        throw new RuntimeException(
+            "There are still watermark holds. Watermark held at " + currentOutputWatermark);
       }
     } finally {
       super.close();
@@ -620,7 +643,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   @Override
   public void processWatermark1(Watermark mark) throws Exception {
-    checkInvokeStartBundle();
     // We do the check here because we are guaranteed to at least get the +Inf watermark on the
     // main input when the job finishes.
     if (currentSideInputWatermark >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
@@ -647,7 +669,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       Instant watermarkHold = keyedStateInternals.watermarkHold();
 
       long combinedWatermarkHold = Math.min(watermarkHold.getMillis(), getPushbackWatermarkHold());
-
+      combinedWatermarkHold =
+          Math.min(combinedWatermarkHold, timerInternals.getMinOutputTimestampMs());
       long potentialOutputWatermark = Math.min(pushedBackInputWatermark, combinedWatermarkHold);
 
       if (potentialOutputWatermark > currentOutputWatermark) {
@@ -667,7 +690,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   @Override
   public void processWatermark2(Watermark mark) throws Exception {
-    checkInvokeStartBundle();
 
     setCurrentSideInputWatermark(mark.getTimestamp());
     if (mark.getTimestamp() >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
@@ -688,6 +710,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     Iterator<WindowedValue<InputT>> it = pushedBackElementsHandler.getElements().iterator();
 
     while (it.hasNext()) {
+      checkInvokeStartBundle();
       WindowedValue<InputT> element = it.next();
       // we need to set the correct key in case the operator is
       // a (keyed) window operator
@@ -712,14 +735,21 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
    * processWatermark.
    */
   private void checkInvokeStartBundle() {
-    if (bundleStarted.compareAndSet(false, true)) {
+    if (!bundleStarted) {
       outputManager.flushBuffer();
       pushbackDoFnRunner.startBundle();
+      bundleStarted = true;
     }
   }
 
   /** Check whether invoke finishBundle by elements count. Called in processElement. */
+  @SuppressWarnings("NonAtomicVolatileUpdate")
+  @SuppressFBWarnings("VO_VOLATILE_INCREMENT")
   private void checkInvokeFinishBundleByCount() {
+    // We do not access this statement concurrently but we want to make sure that each thread
+    // sees the latest value, which is why we use volatile. See the class field section above
+    // for more information.
+    //noinspection NonAtomicOperationOnVolatileField
     elementCount++;
     if (elementCount >= maxBundleSize) {
       invokeFinishBundle();
@@ -735,10 +765,11 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   }
 
   protected final void invokeFinishBundle() {
-    if (bundleStarted.compareAndSet(true, false)) {
+    if (bundleStarted) {
       pushbackDoFnRunner.finishBundle();
       elementCount = 0L;
       lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
+      bundleStarted = false;
       // callback only after current bundle was fully finalized
       // it could start a new bundle, for example resulting from timer processing
       if (bundleFinishedCallback != null) {
@@ -758,12 +789,20 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
     // We can't output here anymore because the checkpoint barrier has already been
     // sent downstream. This is going to change with 1.6/1.7's prepareSnapshotBarrier.
-    outputManager.openBuffer();
-    // Ensure that no new bundle gets started as part of finishing a bundle
-    while (bundleStarted.get()) {
-      invokeFinishBundle();
+    try {
+      outputManager.openBuffer();
+      // Ensure that no new bundle gets started as part of finishing a bundle
+      while (bundleStarted) {
+        invokeFinishBundle();
+      }
+      outputManager.closeBuffer();
+    } catch (Exception e) {
+      // https://jira.apache.org/jira/browse/FLINK-14653
+      // Any regular exception during checkpointing will be tolerated by Flink because those
+      // typically do not affect the execution flow. We need to fail hard here because errors
+      // in bundle execution are application errors which are not related to checkpointing.
+      throw new Error("Checkpointing failed because bundle failed to finalize.", e);
     }
-    outputManager.closeBuffer();
 
     super.snapshotState(context);
   }
@@ -779,14 +818,13 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   }
 
   @Override
-  public void onEventTime(InternalTimer<ByteBuffer, TimerData> timer) throws Exception {
-    // We don't have to cal checkInvokeStartBundle() because it's already called in
-    // processWatermark*().
+  public void onEventTime(InternalTimer<ByteBuffer, TimerData> timer) {
+    checkInvokeStartBundle();
     fireTimer(timer);
   }
 
   @Override
-  public void onProcessingTime(InternalTimer<ByteBuffer, TimerData> timer) throws Exception {
+  public void onProcessingTime(InternalTimer<ByteBuffer, TimerData> timer) {
     checkInvokeStartBundle();
     fireTimer(timer);
   }
@@ -798,9 +836,14 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     // This is a user timer, so namespace must be WindowNamespace
     checkArgument(namespace instanceof WindowNamespace);
     BoundedWindow window = ((WindowNamespace) namespace).getWindow();
-    timerInternals.cleanupPendingTimer(timer.getNamespace());
+    timerInternals.onFiredOrDeletedTimer(timer.getNamespace());
     pushbackDoFnRunner.onTimer(
-        timerData.getTimerId(), window, timerData.getTimestamp(), timerData.getDomain());
+        timerData.getTimerId(),
+        timerData.getTimerFamilyId(),
+        window,
+        timerData.getTimestamp(),
+        timerData.getOutputTimestamp(),
+        timerData.getDomain());
   }
 
   private void setCurrentInputWatermark(long currentInputWatermark) {
@@ -815,14 +858,17 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     this.currentOutputWatermark = currentOutputWatermark;
   }
 
+  @SuppressWarnings("unchecked")
+  Coder<InputT> getInputCoder() {
+    return (Coder<InputT>) Iterables.getOnlyElement(windowedInputCoder.getCoderArguments());
+  }
+
   /** Factory for creating an {@link BufferedOutputManager} from a Flink {@link Output}. */
   interface OutputManagerFactory<OutputT> extends Serializable {
     BufferedOutputManager<OutputT> create(
         Output<StreamRecord<WindowedValue<OutputT>>> output,
         Lock bufferLock,
-        @Nullable OperatorStateBackend operatorStateBackend,
-        @Nullable KeyedStateBackend keyedStateBackend,
-        @Nullable KeySelector keySelector)
+        OperatorStateBackend operatorStateBackend)
         throws Exception;
   }
 
@@ -906,6 +952,10 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
      * by a lock.
      */
     void flushBuffer() {
+      if (openBuffer) {
+        // Buffering currently in progress, do not proceed
+        return;
+      }
       try {
         pushedBackElementsHandler
             .getElements()
@@ -1010,35 +1060,19 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     public BufferedOutputManager<OutputT> create(
         Output<StreamRecord<WindowedValue<OutputT>>> output,
         Lock bufferLock,
-        OperatorStateBackend operatorStateBackend,
-        @Nullable KeyedStateBackend keyedStateBackend,
-        @Nullable KeySelector keySelector)
+        OperatorStateBackend operatorStateBackend)
         throws Exception {
       Preconditions.checkNotNull(output);
       Preconditions.checkNotNull(bufferLock);
       Preconditions.checkNotNull(operatorStateBackend);
-      Preconditions.checkState(
-          (keyedStateBackend == null) == (keySelector == null),
-          "Either both KeyedStatebackend and Keyselector are provided or none.");
 
       TaggedKvCoder taggedKvCoder = buildTaggedKvCoder();
       ListStateDescriptor<KV<Integer, WindowedValue<?>>> taggedOutputPushbackStateDescriptor =
           new ListStateDescriptor<>("bundle-buffer-tag", new CoderTypeSerializer<>(taggedKvCoder));
-
-      final PushedBackElementsHandler<KV<Integer, WindowedValue<?>>> pushedBackElementsHandler;
-      if (keyedStateBackend != null) {
-        // build a key selector for the tagged output
-        KeySelector<KV<Integer, WindowedValue<?>>, ?> taggedValueKeySelector =
-            (KeySelector<KV<Integer, WindowedValue<?>>, Object>)
-                value -> keySelector.getKey(value.getValue());
-        pushedBackElementsHandler =
-            KeyedPushedBackElementsHandler.create(
-                taggedValueKeySelector, keyedStateBackend, taggedOutputPushbackStateDescriptor);
-      } else {
-        ListState<KV<Integer, WindowedValue<?>>> listState =
-            operatorStateBackend.getListState(taggedOutputPushbackStateDescriptor);
-        pushedBackElementsHandler = NonKeyedPushedBackElementsHandler.create(listState);
-      }
+      ListState<KV<Integer, WindowedValue<?>>> listStateBuffer =
+          operatorStateBackend.getListState(taggedOutputPushbackStateDescriptor);
+      PushedBackElementsHandler<KV<Integer, WindowedValue<?>>> pushedBackElementsHandler =
+          NonKeyedPushedBackElementsHandler.create(listStateBuffer);
 
       return new BufferedOutputManager<>(
           output, mainTag, tagsToOutputTags, tagsToIds, bufferLock, pushedBackElementsHandler);
@@ -1073,27 +1107,122 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   class FlinkTimerInternals implements TimerInternals {
 
+    private static final String PENDING_TIMERS_STATE_NAME = "pending-timers";
+
     /**
      * Pending Timers (=not been fired yet) by context id. The id is generated from the state
      * namespace of the timer and the timer's id. Necessary for supporting removal of existing
      * timers. In Flink removal of timers can only be done by providing id and time of the timer.
+     *
+     * <p>CAUTION: This map is scoped by the current active key. Do not attempt to perform any
+     * calculations which span across keys.
      */
-    final MapState<String, TimerData> pendingTimersById;
+    @VisibleForTesting final MapState<String, TimerData> pendingTimersById;
+
+    /**
+     * Sorted cache of the output timestamps for timers which have an earlier output time than the
+     * fire time of the timer. Used for calculating the output watermark hold. This avoids fetching
+     * timer data from the state backend which is expensive if done for each timer.
+     */
+    private final PriorityQueue<Long> outputTimestampQueue;
 
     private FlinkTimerInternals() {
       MapStateDescriptor<String, TimerData> pendingTimersByIdStateDescriptor =
           new MapStateDescriptor<>(
-              "pending-timers", new StringSerializer(), new CoderTypeSerializer<>(timerCoder));
+              PENDING_TIMERS_STATE_NAME,
+              new StringSerializer(),
+              new CoderTypeSerializer<>(timerCoder));
       this.pendingTimersById = getKeyedStateStore().getMapState(pendingTimersByIdStateDescriptor);
+      this.outputTimestampQueue = new PriorityQueue<>();
+      populateOutputTimestampQueue();
+    }
+
+    /** Gets the current minimum output timestamp across all registered timers. */
+    long getMinOutputTimestampMs() {
+      if (outputTimestampQueue.isEmpty()) {
+        return Long.MAX_VALUE;
+      } else {
+        return outputTimestampQueue.peek();
+      }
+    }
+
+    /** Keeps a minimum output timestamp across all event timers. */
+    private void onNewEventTimer(TimerData newTimer) {
+      Preconditions.checkState(
+          newTimer.getDomain() == TimeDomain.EVENT_TIME,
+          "Timer with id %s is not an event time timer!",
+          newTimer.getTimerId());
+      if (timerUsesOutputTimestamp(newTimer)) {
+        outputTimestampQueue.add(newTimer.getOutputTimestamp().getMillis());
+      }
+    }
+
+    private void onRemovedEventTimer(TimerData removedTimer) {
+      Preconditions.checkState(
+          removedTimer.getDomain() == TimeDomain.EVENT_TIME,
+          "Timer with id %s is not an event time timer!",
+          removedTimer.getTimerId());
+      // Remove the first occurrence of the output timestamp, if cached
+      // Note: There may be duplicate timestamps from other timers, that's ok.
+      if (timerUsesOutputTimestamp(removedTimer)) {
+        outputTimestampQueue.remove(removedTimer.getOutputTimestamp().getMillis());
+      }
+    }
+
+    private void populateOutputTimestampQueue() {
+      Preconditions.checkState(
+          outputTimestampQueue.isEmpty(),
+          "Output timestamp queue should be empty when recomputing the minimum output timestamp across all timers.");
+      final KeyedStateBackend<Object> keyedStateBackend = getKeyedStateBackend();
+      final Object currentKey = keyedStateBackend.getCurrentKey();
+      try (Stream<Object> keys =
+          keyedStateBackend.getKeys(PENDING_TIMERS_STATE_NAME, VoidNamespace.INSTANCE)) {
+        keys.forEach(
+            key -> {
+              keyedStateBackend.setCurrentKey(key);
+              try {
+                for (TimerData timerData : pendingTimersById.values()) {
+                  if (timerData.getDomain() == TimeDomain.EVENT_TIME) {
+                    long outputTimeStampMs = timerData.getOutputTimestamp().getMillis();
+                    if (timerUsesOutputTimestamp(timerData)) {
+                      outputTimestampQueue.add(outputTimeStampMs);
+                    }
+                  }
+                }
+              } catch (Exception e) {
+                throw new RuntimeException(
+                    "Exception while reading set of timers for key: " + key, e);
+              }
+            });
+      } finally {
+        if (currentKey != null) {
+          keyedStateBackend.setCurrentKey(currentKey);
+        }
+      }
+    }
+
+    private boolean timerUsesOutputTimestamp(TimerData timer) {
+      // If a timer's output timestamp is earlier than the timer timestamp,
+      // we have to hold back the output watermark.
+      return timer.getOutputTimestamp().isBefore(timer.getTimestamp());
     }
 
     @Override
     public void setTimer(
-        StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
-      setTimer(TimerData.of(timerId, namespace, target, timeDomain));
+        StateNamespace namespace,
+        String timerId,
+        String timerFamilyId,
+        Instant target,
+        Instant outputTimestamp,
+        TimeDomain timeDomain) {
+      setTimer(
+          TimerData.of(timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain));
     }
 
-    /** @deprecated use {@link #setTimer(StateNamespace, String, Instant, TimeDomain)}. */
+    /**
+     * @deprecated use {@link #setTimer(StateNamespace, String, String, Instant, Instant,
+     *     TimeDomain)}.
+     */
     @Deprecated
     @Override
     public void setTimer(TimerData timer) {
@@ -1111,10 +1240,12 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     }
 
     private void registerTimer(TimerData timer, String contextTimerId) throws Exception {
+      pendingTimersById.put(contextTimerId, timer);
       long time = timer.getTimestamp().getMillis();
       switch (timer.getDomain()) {
         case EVENT_TIME:
           timerService.registerEventTimeTimer(timer, adjustTimestampForFlink(time));
+          onNewEventTimer(timer);
           break;
         case PROCESSING_TIME:
         case SYNCHRONIZED_PROCESSING_TIME:
@@ -1123,33 +1254,39 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
         default:
           throw new UnsupportedOperationException("Unsupported time domain: " + timer.getDomain());
       }
-      pendingTimersById.put(contextTimerId, timer);
     }
 
+    /**
+     * Looks up a timer by its id. This is necessary to support canceling existing timers with the
+     * same id. Flink does not provide this functionality.
+     */
     private void cancelPendingTimerById(String contextTimerId) throws Exception {
       TimerData oldTimer = pendingTimersById.get(contextTimerId);
       if (oldTimer != null) {
-        deleteTimer(oldTimer);
+        deleteTimerInternal(oldTimer);
       }
     }
 
-    void cleanupPendingTimer(TimerData timer) {
+    /**
+     * Hook which must be called when a timer is fired or deleted to perform cleanup. Note: Make
+     * sure that the state backend key is set correctly. It is best to run this in the fireTimer()
+     * method.
+     */
+    void onFiredOrDeletedTimer(TimerData timer) {
       try {
         pendingTimersById.remove(getContextTimerId(timer.getTimerId(), timer.getNamespace()));
+        if (timer.getDomain() == TimeDomain.EVENT_TIME) {
+          onRemovedEventTimer(timer);
+        }
       } catch (Exception e) {
-        throw new RuntimeException("Failed to cleanup state with pending timers", e);
+        throw new RuntimeException("Failed to cleanup pending timers state.", e);
       }
-    }
-
-    /** Unique contextual id of a timer. Used to look up any existing timers in a context. */
-    private String getContextTimerId(String timerId, StateNamespace namespace) {
-      return timerId + namespace.stringKey();
     }
 
     /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
     @Deprecated
     @Override
-    public void deleteTimer(StateNamespace namespace, String timerId) {
+    public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
       throw new UnsupportedOperationException("Canceling of a timer by ID is not yet supported.");
     }
 
@@ -1163,23 +1300,26 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     }
 
     /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
-    @Deprecated
     @Override
-    public void deleteTimer(TimerData timerKey) {
-      cleanupPendingTimer(timerKey);
-      long time = timerKey.getTimestamp().getMillis();
-      switch (timerKey.getDomain()) {
+    @Deprecated
+    public void deleteTimer(TimerData timer) {
+      deleteTimer(timer.getNamespace(), timer.getTimerId(), timer.getDomain());
+    }
+
+    void deleteTimerInternal(TimerData timer) {
+      long time = timer.getTimestamp().getMillis();
+      switch (timer.getDomain()) {
         case EVENT_TIME:
-          timerService.deleteEventTimeTimer(timerKey, adjustTimestampForFlink(time));
+          timerService.deleteEventTimeTimer(timer, adjustTimestampForFlink(time));
           break;
         case PROCESSING_TIME:
         case SYNCHRONIZED_PROCESSING_TIME:
-          timerService.deleteProcessingTimeTimer(timerKey, adjustTimestampForFlink(time));
+          timerService.deleteProcessingTimeTimer(timer, adjustTimestampForFlink(time));
           break;
         default:
-          throw new UnsupportedOperationException(
-              "Unsupported time domain: " + timerKey.getDomain());
+          throw new UnsupportedOperationException("Unsupported time domain: " + timer.getDomain());
       }
+      onFiredOrDeletedTimer(timer);
     }
 
     @Override
@@ -1202,6 +1342,11 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     @Override
     public Instant currentOutputWatermarkTime() {
       return new Instant(currentOutputWatermark);
+    }
+
+    /** Unique contextual id of a timer. Used to look up any existing timers in a context. */
+    private String getContextTimerId(String timerId, StateNamespace namespace) {
+      return timerId + namespace.stringKey();
     }
 
     /**

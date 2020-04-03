@@ -17,32 +17,42 @@ package harness
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
+	"strings"
 	"testing"
+	"time"
 
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 )
 
-type fakeClient struct {
-	t     *testing.T
-	done  chan bool
-	calls int
+const extraData = 2
+
+// fakeDataClient attempts to mimic the semantics of a GRPC stream
+// and also permit configurability.
+type fakeDataClient struct {
+	t              *testing.T
+	done           chan bool
+	calls          int
+	err            error
+	skipFirstError bool
 }
 
-func (f *fakeClient) Recv() (*pb.Elements, error) {
+func (f *fakeDataClient) Recv() (*pb.Elements, error) {
 	f.calls++
 	data := []byte{1, 2, 3, 4}
 	elemData := pb.Elements_Data{
-		InstructionReference: "inst_ref",
-		Data:                 data,
-		PtransformId:         "ptr",
+		InstructionId: "inst_ref",
+		Data:          data,
+		TransformId:   "ptr",
 	}
 
 	msg := pb.Elements{}
 
-	for i := 0; i < bufElements+1; i++ {
+	// Send extraData more than the number of elements buffered in the channel.
+	for i := 0; i < bufElements+extraData; i++ {
 		msg.Data = append(msg.Data, &elemData)
 	}
 
@@ -51,47 +61,184 @@ func (f *fakeClient) Recv() (*pb.Elements, error) {
 	// Subsequent calls return no data.
 	switch f.calls {
 	case 1:
-		return &msg, nil
+		return &msg, f.err
 	case 2:
-		return &msg, nil
+		return &msg, f.err
 	case 3:
 		elemData.Data = []byte{}
 		msg.Data = []*pb.Elements_Data{&elemData}
 		// Broadcasting done here means that this code providing messages
 		// has not been blocked by the bug blocking the dataReader
 		// from getting more messages.
-		return &msg, nil
+		return &msg, f.err
 	default:
 		f.done <- true
 		return nil, io.EOF
 	}
 }
 
-func (f *fakeClient) Send(*pb.Elements) error {
+func (f *fakeDataClient) Send(*pb.Elements) error {
+	// We skip errors on the first call to test that  errors can be returned
+	// on the sentinel value send in dataWriter.Close
+	// Otherwise, we return an io.EOF similar to semantics documented
+	// in https://godoc.org/google.golang.org/grpc#ClientConn.NewStream
+	if f.skipFirstError && f.err != nil {
+		f.skipFirstError = false
+		return nil
+	} else if f.err != nil {
+		return io.EOF
+	}
 	return nil
 }
 
-func TestDataChannelTerminateOnClose(t *testing.T) {
+func TestDataChannelTerminate_dataReader(t *testing.T) {
 	// The logging of channels closed is quite noisy for this test
 	log.SetOutput(ioutil.Discard)
-	done := make(chan bool, 1)
-	client := &fakeClient{t: t, done: done}
-	c := makeDataChannel(context.Background(), "id", client)
 
-	r := c.OpenRead(context.Background(), "ptr", "inst_ref")
-	var read = make([]byte, 4)
+	expectedError := fmt.Errorf("EXPECTED ERROR")
 
-	// We don't read up all the buffered data, but immediately close the reader.
-	// Previously, since nothing was consuming the incoming gRPC data, the whole
-	// data channel would get stuck, and the client.Recv() call was eventually
-	// no longer called.
-	_, err := r.Read(read)
-	if err != nil {
-		t.Errorf("Unexpected error from read: %v", err)
+	tests := []struct {
+		name          string
+		expectedError error
+		caseFn        func(t *testing.T, r io.ReadCloser, client *fakeDataClient, c *DataChannel)
+	}{
+		{
+			name:          "onClose",
+			expectedError: io.EOF,
+			caseFn: func(t *testing.T, r io.ReadCloser, client *fakeDataClient, c *DataChannel) {
+				// We don't read up all the buffered data, but immediately close the reader.
+				// Previously, since nothing was consuming the incoming gRPC data, the whole
+				// data channel would get stuck, and the client.Recv() call was eventually
+				// no longer called.
+				r.Close()
+
+				// If done is signaled, that means client.Recv() has been called to flush the
+				// channel, meaning consumer code isn't stuck.
+				<-client.done
+			},
+		}, {
+			name:          "onSentinel",
+			expectedError: io.EOF,
+			caseFn: func(t *testing.T, r io.ReadCloser, client *fakeDataClient, c *DataChannel) {
+				// fakeDataClient eventually returns a sentinel element.
+			},
+		}, {
+			name:          "onRecvError",
+			expectedError: expectedError,
+			caseFn: func(t *testing.T, r io.ReadCloser, client *fakeDataClient, c *DataChannel) {
+				// The SDK starts reading in a goroutine immeadiately after open.
+				// Set the 2nd Recv call to have an error.
+				client.err = expectedError
+			},
+		},
 	}
-	r.Close()
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			done := make(chan bool, 1)
+			client := &fakeDataClient{t: t, done: done}
+			ctx, cancelFn := context.WithCancel(context.Background())
+			c := makeDataChannel(ctx, "id", client, cancelFn)
 
-	// If done is signaled, that means client.Recv() has been called to flush the
-	// channel, meaning consumer code isn't stuck.
-	<-done
+			r := c.OpenRead(ctx, "ptr", "inst_ref")
+
+			n, err := r.Read(make([]byte, 4))
+			if err != nil {
+				t.Errorf("Unexpected error from read: %v, read %d bytes.", err, n)
+			}
+			test.caseFn(t, r, client, c)
+			// Drain the reader.
+			i := 1 // For the earlier Read.
+			for err == nil {
+				read := make([]byte, 4)
+				_, err = r.Read(read)
+				i++
+			}
+
+			if got, want := err, test.expectedError; got != want {
+				t.Errorf("Unexpected error from read %d: got %v, want %v", i, got, want)
+			}
+			// Verify that new readers return the same error on their reads after client.Recv is done.
+			if n, err := c.OpenRead(ctx, "ptr", "inst_ref").Read(make([]byte, 4)); err != test.expectedError {
+				t.Errorf("Unexpected error from read: got %v, want, %v read %d bytes.", err, test.expectedError, n)
+			}
+
+			select {
+			case <-ctx.Done(): // Assert that the context must have been cancelled on read failures.
+				return
+			case <-time.After(time.Second * 5):
+				t.Fatal("context wasn't cancelled")
+			}
+		})
+	}
+
+}
+
+func TestDataChannelTerminate_Writes(t *testing.T) {
+	// The logging of channels closed is quite noisy for this test
+	log.SetOutput(ioutil.Discard)
+
+	expectedError := fmt.Errorf("EXPECTED ERROR")
+
+	tests := []struct {
+		name   string
+		caseFn func(t *testing.T, w io.WriteCloser, client *fakeDataClient) error
+	}{
+		{
+			name: "onClose_Flush",
+			caseFn: func(t *testing.T, w io.WriteCloser, client *fakeDataClient) error {
+				return w.Close()
+			},
+		}, {
+			name: "onClose_Sentinel",
+			caseFn: func(t *testing.T, w io.WriteCloser, client *fakeDataClient) error {
+				client.skipFirstError = true
+				return w.Close()
+			},
+		}, {
+			name: "onWrite",
+			caseFn: func(t *testing.T, w io.WriteCloser, client *fakeDataClient) error {
+				_, err := w.Write([]byte{'d', 'o', 'n', 'e'})
+				return err
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			done := make(chan bool, 1)
+			client := &fakeDataClient{t: t, done: done, err: expectedError}
+			ctx, cancelFn := context.WithCancel(context.Background())
+			c := makeDataChannel(ctx, "id", client, cancelFn)
+
+			w := c.OpenWrite(ctx, "ptr", "inst_ref")
+
+			msg := []byte{'b', 'y', 't', 'e'}
+			var bufSize int
+			for bufSize+len(msg) <= chunkSize {
+				bufSize += len(msg)
+				n, err := w.Write(msg)
+				if err != nil {
+					t.Errorf("Unexpected error from write: %v, wrote %d bytes, after %d total bytes", err, n, bufSize)
+				}
+			}
+
+			err := test.caseFn(t, w, client)
+
+			if got, want := err, expectedError; err == nil || !strings.Contains(err.Error(), expectedError.Error()) {
+				t.Errorf("Unexpected error: got %v, want %v", got, want)
+			}
+			// Verify that new readers return the same error for writes after stream termination.
+			// TODO(lostluck) 2019.11.26: use the the go 1.13 errors package to check this rather
+			// than a strings.Contains check once testing infrastructure can use go 1.13.
+			if n, err := c.OpenWrite(ctx, "ptr", "inst_ref").Write(msg); err != nil && !strings.Contains(err.Error(), expectedError.Error()) {
+				t.Errorf("Unexpected error from write: got %v, want, %v read %d bytes.", err, expectedError, n)
+			}
+			select {
+			case <-ctx.Done(): // Assert that the context must have been cancelled on write failures.
+				return
+			case <-time.After(time.Second * 5):
+				t.Fatal("context wasn't cancelled")
+			}
+		})
+	}
+
 }

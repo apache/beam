@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -24,7 +25,7 @@ import static org.hamcrest.core.Is.is;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,8 +43,7 @@ public class FlinkJobServerDriverTest {
     assertThat(config.getPort(), is(8099));
     assertThat(config.getArtifactPort(), is(8098));
     assertThat(config.getExpansionPort(), is(8097));
-    assertThat(config.getFlinkMasterUrl(), is("[auto]"));
-    assertThat(config.getSdkWorkerParallelism(), is(1L));
+    assertThat(config.getFlinkMaster(), is("[auto]"));
     assertThat(config.isCleanArtifactsPerJob(), is(true));
     FlinkJobServerDriver flinkJobServerDriver = FlinkJobServerDriver.fromConfig(config);
     assertThat(flinkJobServerDriver, is(not(nullValue())));
@@ -51,8 +51,8 @@ public class FlinkJobServerDriverTest {
 
   @Test
   public void testConfigurationFromArgs() {
-    FlinkJobServerDriver driver =
-        FlinkJobServerDriver.fromParams(
+    FlinkJobServerDriver.FlinkServerConfiguration config =
+        FlinkJobServerDriver.parseArgs(
             new String[] {
               "--job-host=test",
               "--job-port",
@@ -61,19 +61,26 @@ public class FlinkJobServerDriverTest {
               "43",
               "--expansion-port",
               "44",
-              "--flink-master-url=jobmanager",
-              "--sdk-worker-parallelism=4",
+              "--flink-master=jobmanager",
               "--clean-artifacts-per-job=false",
             });
-    FlinkJobServerDriver.FlinkServerConfiguration config =
-        (FlinkJobServerDriver.FlinkServerConfiguration) driver.configuration;
     assertThat(config.getHost(), is("test"));
     assertThat(config.getPort(), is(42));
     assertThat(config.getArtifactPort(), is(43));
     assertThat(config.getExpansionPort(), is(44));
-    assertThat(config.getFlinkMasterUrl(), is("jobmanager"));
-    assertThat(config.getSdkWorkerParallelism(), is(4L));
+    assertThat(config.getFlinkMaster(), is("jobmanager"));
     assertThat(config.isCleanArtifactsPerJob(), is(false));
+  }
+
+  @Test
+  public void testLegacyMasterUrlParameter() {
+    FlinkJobServerDriver.FlinkServerConfiguration config =
+        FlinkJobServerDriver.parseArgs(
+            new String[] {
+              // for backwards-compatibility
+              "--flink-master-url=jobmanager",
+            });
+    assertThat(config.getFlinkMaster(), is("jobmanager"));
   }
 
   @Test
@@ -103,13 +110,15 @@ public class FlinkJobServerDriverTest {
         newErr.flush();
         String output = baos.toString(Charsets.UTF_8.name());
         if (output.contains("JobService started on localhost:")
-            && output.contains("ArtifactStagingService started on localhost:")
+            && output.contains("LegacyArtifactStagingService started on localhost:")
             && output.contains("ExpansionService started on localhost:")) {
           success = true;
         } else {
           Thread.sleep(100);
         }
       }
+      assertThat(driver.getJobServerUrl(), is(not(nullValue())));
+      assertThat(baos.toString(Charsets.UTF_8.name()), containsString(driver.getJobServerUrl()));
       assertThat(driverThread.isAlive(), is(true));
     } catch (Throwable t) {
       // restore to print exception

@@ -121,7 +121,7 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
     assertThat(stateInternals.watermarkHold(), is(noHold));
   }
 
-  private KeyedStateBackend<ByteBuffer> createStateBackend() throws Exception {
+  public static KeyedStateBackend<ByteBuffer> createStateBackend() throws Exception {
     MemoryStateBackend backend = new MemoryStateBackend();
 
     AbstractKeyedStateBackend<ByteBuffer> keyedStateBackend =
@@ -143,7 +143,8 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
     return keyedStateBackend;
   }
 
-  private void changeKey(KeyedStateBackend<ByteBuffer> keyedStateBackend) throws CoderException {
+  public static void changeKey(KeyedStateBackend<ByteBuffer> keyedStateBackend)
+      throws CoderException {
     keyedStateBackend.setCurrentKey(
         ByteBuffer.wrap(
             CoderUtils.encodeToByteArray(StringUtf8Coder.of(), UUID.randomUUID().toString())));

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -26,15 +26,15 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.runners.fnexecution.HeaderAccessor;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A Fn API control service which adds incoming SDK harness connections to a sink. */
 public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnControlImplBase
     implements FnService {
-  private static final Logger LOGGER = LoggerFactory.getLogger(FnApiControlClientPoolService.class);
+  private static final Logger LOG = LoggerFactory.getLogger(FnApiControlClientPoolService.class);
 
   private final Object lock = new Object();
   private final ControlClientPool.Sink clientSink;
@@ -78,10 +78,10 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
     final String workerId = headerAccessor.getSdkWorkerId();
     if (Strings.isNullOrEmpty(workerId)) {
       // TODO(BEAM-4149): Enforce proper worker id.
-      LOGGER.warn("No worker_id header provided in control request");
+      LOG.warn("No worker_id header provided in control request");
     }
 
-    LOGGER.info("Beam Fn Control client connected with id {}", workerId);
+    LOG.info("Beam Fn Control client connected with id {}", workerId);
     FnApiControlClient newClient = FnApiControlClient.forRequestObserver(workerId, requestObserver);
     try {
       // Add the client to the pool of vended clients before making it available - we should close
@@ -99,9 +99,6 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
       // We do not attempt to transactionally add the client to our internal list and offer it to
       // the sink.
       clientSink.put(headerAccessor.getSdkWorkerId(), newClient);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new RuntimeException(e);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

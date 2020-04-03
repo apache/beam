@@ -17,4 +17,7 @@
  */
 
 /** Example how to use Data Catalog table provider. */
+@Experimental
 package org.apache.beam.sdk.extensions.sql.example;
+
+import org.apache.beam.sdk.annotations.Experimental;

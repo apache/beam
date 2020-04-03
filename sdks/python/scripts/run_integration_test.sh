@@ -18,10 +18,10 @@
 
 ###########################################################################
 #
-# This script is useful to run single or a set of Python integration tests
-# manually or through Gradle. Note, this script doesn't setup python
-# environment which is required before running tests. Use Gradle task
-# `:sdks:python:integrationTests` to do both together.
+# This script is used in Gradle to run single or a set of Python integration tests
+# locally or on Jenkins. Note, this script doesn't setup python environment which is
+# required for integration test. In order to do so, run Gradle tasks defined in
+# :sdks:python:test-suites instead.
 #
 # In order to run test with customer options, use following commandline flags:
 #
@@ -48,6 +48,9 @@
 #                      during execution. Commonly used options like `--attr`,
 #                      `--tests`, `--nologcapture`. More can be found in
 #                      https://nose.readthedocs.io/en/latest/man.html#options
+#     suite         -> Namespace for this run of tests. Required if running
+#                      under Jenkins. Used to differentiate runs of the same
+#                      tests with different interpreters/dependencies/etc.
 #
 # Example usages:
 #     - Run full set of PostCommit tests with default pipeline options:
@@ -72,6 +75,7 @@ SLEEP_SECS=20
 STREAMING=false
 WORKER_JAR=""
 KMS_KEY_NAME="projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
+SUITE=""
 
 # Default test (nose) options.
 # Run WordCountIT.test_wordcount_it by default if no test options are
@@ -122,6 +126,11 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --runner_v2)
+        RUNNER_V2="$2"
+        shift # past argument
+        shift # past value
+        ;;
     --kms_key_name)
         KMS_KEY_NAME="$2"
         shift # past argument
@@ -142,12 +151,23 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --suite)
+        SUITE="$2"
+        shift # past argument
+        shift # past value
+        ;;
     *)    # unknown option
         echo "Unknown option: $1"
         exit 1
         ;;
 esac
 done
+
+if [[ "$JENKINS_HOME" != "" && "$SUITE" == "" ]]; then
+    echo "Argument --suite is required in a Jenkins environment."
+    exit 1
+fi
+XUNIT_FILE="nosetests-$SUITE.xml"
 
 set -o errexit
 
@@ -179,8 +199,11 @@ if [[ -z $PIPELINE_OPTS ]]; then
   fi
 
   # Install test dependencies for ValidatesRunner tests.
-  echo "pyhamcrest" > postcommit_requirements.txt
-  echo "mock" >> postcommit_requirements.txt
+  # pyhamcrest==1.10.0 doesn't work on Py2.
+  # See: https://github.com/hamcrest/PyHamcrest/issues/131.
+  echo "pyhamcrest!=1.10.0,<2.0.0" > postcommit_requirements.txt
+  echo "mock<3.0.0" >> postcommit_requirements.txt
+  echo "parameterized>=0.7.1,<0.8.0" >> postcommit_requirements.txt
 
   # Options used to run testing pipeline on Cloud Dataflow Service. Also used for
   # running on DirectRunner (some options ignored).
@@ -206,6 +229,20 @@ if [[ -z $PIPELINE_OPTS ]]; then
     opts+=("--dataflow_worker_jar=$WORKER_JAR")
   fi
 
+  # Add --runner_v2 if provided
+  if [[ "$RUNNER_V2" = true ]]; then
+    opts+=("--experiments=use_runner_v2")
+    # Cleanup jira BEAM-9391
+    opts+=("--experiments=runner_harness_container_image=gcr.io/cloud-dataflow/v1beta3/unified-harness:20200227-rc01")
+    if [[ "$STREAMING" = true ]]; then
+      # Dataflow Runner V2 only supports streaming engine.
+      opts+=("--enable_streaming_engine")
+    else
+      opts+=("--experiments=beam_fn_api")
+    fi
+
+  fi
+
   if [[ ! -z "$KMS_KEY_NAME" ]]; then
     opts+=(
       "--kms_key_name=$KMS_KEY_NAME"
@@ -226,6 +263,10 @@ fi
 
 echo ">>> RUNNING integration tests with pipeline options: $PIPELINE_OPTS"
 echo ">>>   test options: $TEST_OPTS"
+# TODO(BEAM-3713): Pass $SUITE once migrated to pytest. xunitmp doesn't support
+#   suite names.
 python setup.py nosetests \
   --test-pipeline-options="$PIPELINE_OPTS" \
+  --with-xunitmp --xunitmp-file=$XUNIT_FILE \
+  --ignore-files '.*py3\d?\.py$' \
   $TEST_OPTS

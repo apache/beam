@@ -56,6 +56,9 @@ readonly START_FLINK_YARN_SESSION_DEFAULT=true
 # Set this to install flink from a snapshot URL instead of apt
 readonly FLINK_SNAPSHOT_URL_METADATA_KEY='flink-snapshot-url'
 
+# Set this to install pre-packaged Hadoop jar
+readonly HADOOP_JAR_URL_METADATA_KEY='hadoop-jar-url'
+
 # Set this to define how many task slots are there per flink task manager
 readonly FLINK_TASKMANAGER_SLOTS_METADATA_KEY='flink-taskmanager-slots'
 
@@ -88,6 +91,7 @@ function install_apt_get() {
 function install_flink_snapshot() {
   local work_dir="$(mktemp -d)"
   local flink_url="$(/usr/share/google/get_metadata_value "attributes/${FLINK_SNAPSHOT_URL_METADATA_KEY}")"
+  local hadoop_url="$(/usr/share/google/get_metadata_value "attributes/${HADOOP_JAR_URL_METADATA_KEY}")"
   local flink_local="${work_dir}/flink.tgz"
   local flink_toplevel_pattern="${work_dir}/flink-*"
 
@@ -103,6 +107,9 @@ function install_flink_snapshot() {
 
   popd # work_dir
 
+  if [[ ! -z "${hadoop_url}" ]]; then
+    cd "${FLINK_INSTALL_DIR}/lib"; curl -O "${hadoop_url}"
+  fi
 }
 
 function configure_flink() {
@@ -127,15 +134,15 @@ function configure_flink() {
 
   # Determine the default parallelism.
   local flink_parallelism=$(python -c \
-    "print ${num_taskmanagers} * ${flink_taskmanager_slots}")
+    "print(${num_taskmanagers} * ${flink_taskmanager_slots})")
 
   # Get worker memory from yarn config.
   local worker_total_mem="$(hdfs getconf \
     -confKey yarn.nodemanager.resource.memory-mb)"
   local flink_jobmanager_memory=$(python -c \
-    "print int(${worker_total_mem} * ${FLINK_JOBMANAGER_MEMORY_FRACTION})")
+    "print(int(${worker_total_mem} * ${FLINK_JOBMANAGER_MEMORY_FRACTION}))")
   local flink_taskmanager_memory=$(python -c \
-    "print int(${worker_total_mem} * ${FLINK_TASKMANAGER_MEMORY_FRACTION})")
+    "print(int(${worker_total_mem} * ${FLINK_TASKMANAGER_MEMORY_FRACTION}))")
 
   # Fetch the primary master name from metadata.
   local master_hostname="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
@@ -161,7 +168,6 @@ set -exuo pipefail
 sudo -u yarn -i \
 HADOOP_CONF_DIR=${HADOOP_CONF_DIR} \
   ${FLINK_INSTALL_DIR}/bin/yarn-session.sh \
-  -n "${num_taskmanagers}" \
   -s "${flink_taskmanager_slots}" \
   -jm "${flink_jobmanager_memory}" \
   -tm "${flink_taskmanager_memory}" \

@@ -18,7 +18,7 @@
 
 package org.apache.beam.learning.katas.coretransforms.groupbykey;
 
-import static test.util.ContainsKvs.containsKvs;
+import static org.apache.beam.learning.katas.util.ContainsKvs.containsKvs;
 
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.testing.PAssert;

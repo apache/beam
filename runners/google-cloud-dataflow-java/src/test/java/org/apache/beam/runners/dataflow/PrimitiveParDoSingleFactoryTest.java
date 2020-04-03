@@ -37,7 +37,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -115,7 +115,7 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
         factory.getReplacementTransform(application);
     ParDoSingle<Integer, Long> parDoSingle =
         (ParDoSingle<Integer, Long>) replacementTransform.getTransform();
-    assertThat(parDoSingle.getSideInputs(), containsInAnyOrder(sideStrings, sideLong));
+    assertThat(parDoSingle.getSideInputs().values(), containsInAnyOrder(sideStrings, sideLong));
   }
 
   @Test

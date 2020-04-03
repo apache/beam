@@ -65,8 +65,8 @@ public class GroupByKeyOp<K, InputT, OutputT>
   private final OutputManagerFactory<KV<K, OutputT>> outputManagerFactory;
   private final Coder<K> keyCoder;
   private final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn;
-  private final String stepName;
-  private final String stepId;
+  private final String transformFullName;
+  private final String transformId;
   private final IsBounded isBounded;
 
   private transient StateInternalsFactory<K> stateInternalsFactory;
@@ -80,14 +80,14 @@ public class GroupByKeyOp<K, InputT, OutputT>
       SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn,
       WindowingStrategy<?, BoundedWindow> windowingStrategy,
       OutputManagerFactory<KV<K, OutputT>> outputManagerFactory,
-      String stepName,
-      String stepId,
+      String transformFullName,
+      String transformId,
       IsBounded isBounded) {
     this.mainOutputTag = mainOutputTag;
     this.windowingStrategy = windowingStrategy;
     this.outputManagerFactory = outputManagerFactory;
-    this.stepName = stepName;
-    this.stepId = stepId;
+    this.transformFullName = transformFullName;
+    this.transformId = transformId;
     this.isBounded = isBounded;
 
     if (!(inputCoder instanceof KeyedWorkItemCoder)) {
@@ -115,13 +115,13 @@ public class GroupByKeyOp<K, InputT, OutputT>
 
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
-            stepId, null, context.getTaskContext(), pipelineOptions, null);
+            transformId, null, context.getTaskContext(), pipelineOptions, null);
 
     final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
 
     this.stateInternalsFactory =
         new SamzaStoreStateInternals.Factory<>(
-            stepId,
+            transformId,
             Collections.singletonMap(
                 SamzaStoreStateInternals.BEAM_STORE,
                 SamzaStoreStateInternals.getBeamStore(context.getTaskContext())),
@@ -176,12 +176,14 @@ public class GroupByKeyOp<K, InputT, OutputT>
             null,
             Collections.emptyMap(),
             windowingStrategy,
-            DoFnSchemaInformation.create());
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
     final SamzaExecutionContext executionContext =
         (SamzaExecutionContext) context.getApplicationContainerContext();
     this.fnRunner =
-        DoFnRunnerWithMetrics.wrap(doFnRunner, executionContext.getMetricsContainer(), stepName);
+        DoFnRunnerWithMetrics.wrap(
+            doFnRunner, executionContext.getMetricsContainer(), transformFullName);
   }
 
   @Override
@@ -193,7 +195,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
   }
 
   @Override
-  public void processWatermark(Instant watermark, OpEmitter<KV<K, OutputT>> ctx) {
+  public void processWatermark(Instant watermark, OpEmitter<KV<K, OutputT>> emitter) {
     timerInternalsFactory.setInputWatermark(watermark);
 
     fnRunner.startBundle();
@@ -205,12 +207,12 @@ public class GroupByKeyOp<K, InputT, OutputT>
     if (timerInternalsFactory.getOutputWatermark() == null
         || timerInternalsFactory.getOutputWatermark().isBefore(watermark)) {
       timerInternalsFactory.setOutputWatermark(watermark);
-      ctx.emitWatermark(timerInternalsFactory.getOutputWatermark());
+      emitter.emitWatermark(timerInternalsFactory.getOutputWatermark());
     }
   }
 
   @Override
-  public void processTimer(KeyedTimerData<K> keyedTimerData) {
+  public void processTimer(KeyedTimerData<K> keyedTimerData, OpEmitter<KV<K, OutputT>> emitter) {
     fnRunner.startBundle();
     fireTimer(keyedTimerData.getKey(), keyedTimerData.getTimerData());
     fnRunner.finishBundle();

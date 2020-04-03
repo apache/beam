@@ -28,17 +28,19 @@ def dependOnProjects = [":runners:core-construction-java",
                         ":runners:java-fn-execution",
                         ":sdks:java:fn-execution"]
 
-applyJavaNature(shadowClosure: {
-  dependencies {
-    dependOnProjects.each {
-      include(project(path: it, configuration: "shadow"))
-    }
-  }
-  relocate "org.apache.beam.runners.core", getJavaRelocatedPath("runners.core")
-  relocate "org.apache.beam.runners.fnexecution", getJavaRelocatedPath("runners.fnexecution")
-  relocate "org.apache.beam.sdk.fn", getJavaRelocatedPath("sdk.fn")
-  relocate "org.apache.beam.runners.local", getJavaRelocatedPath("runners.local")
-})
+applyJavaNature(
+        automaticModuleName: 'org.apache.beam.runners.direct',
+        shadowClosure: {
+          dependencies {
+            dependOnProjects.each {
+              include(project(path: it, configuration: "shadow"))
+            }
+          }
+          relocate "org.apache.beam.runners.core", getJavaRelocatedPath("runners.core")
+          relocate "org.apache.beam.runners.fnexecution", getJavaRelocatedPath("runners.fnexecution")
+          relocate "org.apache.beam.sdk.fn", getJavaRelocatedPath("sdk.fn")
+          relocate "org.apache.beam.runners.local", getJavaRelocatedPath("runners.local")
+        })
 
 description = "Apache Beam :: Runners :: Direct Java"
 
@@ -57,13 +59,13 @@ configurations {
 }
 
 dependencies {
-  shadow library.java.vendored_guava_20_0
+  shadow library.java.vendored_guava_26_0_jre
   shadow project(path: ":model:pipeline", configuration: "shadow")
   dependOnProjects.each {
     compile project(it)
   }
   shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow library.java.vendored_grpc_1_13_1
+  shadow library.java.vendored_grpc_1_26_0
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   shadow library.java.args4j
@@ -108,6 +110,7 @@ task needsRunnerTests(type: Test) {
     // MetricsPusher isn't implemented in direct runner
     excludeCategories "org.apache.beam.sdk.testing.UsesMetricsPusher"
     excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
 }
 
@@ -132,6 +135,7 @@ task validatesRunner(type: Test) {
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
 }
 

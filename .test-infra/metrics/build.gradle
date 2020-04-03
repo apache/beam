@@ -31,11 +31,18 @@ dependencies {
 }
 
 task testMetricsStack {
-  doLast { // TODO(BEAM-5837): Add some actual validation of the metrics stack
+  doLast {
+    // TODO(BEAM-5837): Add some actual validation of the metrics stack
     println "Hello world!" }
 }
 dockerCompose.isRequiredBy(testMetricsStack)
 
 task preCommit { dependsOn testMetricsStack }
 
-task checkProber { dependsOn test }
+task checkProber(type:Test) {
+  include "**/ProberTests.class"
+}
+
+project.test {
+  exclude "**/ProberTests.class"
+}

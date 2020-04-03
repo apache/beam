@@ -24,6 +24,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,6 +46,7 @@ public class SqlQuery0Test {
         testPipeline.apply(
             TestStream.create(
                     registry.getSchema(Event.class),
+                    TypeDescriptor.of(Event.class),
                     registry.getToRowFunction(Event.class),
                     registry.getFromRowFunction(Event.class))
                 .addElements(new Event(BID1))

@@ -19,6 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
     exportJavadoc: false,
+    automaticModuleName: 'org.apache.beam.sdk.testutils',
     archivesBaseName: 'beam-sdks-java-test-utils'
 )
 
@@ -26,8 +27,10 @@ description = "Apache Beam :: SDKs :: Java :: Test Utils"
 
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.vendored_guava_20_0
+  compile library.java.vendored_guava_26_0_jre
   compile library.java.google_cloud_bigquery
+  // google_cloud_bigquery is not declaring google_http_client_jackson dependency correctly
+  compile library.java.google_http_client_jackson
   compile project(":sdks:java:extensions:google-cloud-platform-core")
 
   testCompile library.java.junit

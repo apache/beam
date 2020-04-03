@@ -17,17 +17,18 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import java.math.BigDecimal;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Bytes;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes;
 
 /**
  * A {@link RestrictionTracker} for claiming {@link ByteKey}s in a {@link ByteKeyRange} in a
@@ -37,8 +38,9 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.primitives.Bytes;
  * <p>Note, one can complete a range by claiming the {@link ByteKey#EMPTY} once one runs out of keys
  * to process.
  */
+@Experimental(Kind.SPLITTABLE_DO_FN)
 public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKey>
-    implements Backlogs.HasBacklog {
+    implements Sizes.HasSize {
   /* An empty range which contains no keys. */
   @VisibleForTesting
   static final ByteKeyRange NO_KEYS = ByteKeyRange.of(ByteKey.EMPTY, ByteKey.of(0x00));
@@ -61,20 +63,23 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   }
 
   @Override
-  public ByteKeyRange checkpoint() {
+  public SplitResult<ByteKeyRange> trySplit(double fractionOfRemainder) {
+    // TODO(BEAM-8871): Add support for splitting off a fixed amount of work for this restriction
+    // instead of only supporting checkpointing.
+
     // If we haven't done any work, we should return the original range we were processing
     // as the checkpoint.
     if (lastAttemptedKey == null) {
       ByteKeyRange rval = range;
       // We update our current range to an interval that contains no elements.
       range = NO_KEYS;
-      return rval;
+      return SplitResult.of(range, rval);
     }
 
     // Return an empty range if the current range is done.
     if (lastAttemptedKey.isEmpty()
         || !(range.getEndKey().isEmpty() || range.getEndKey().compareTo(lastAttemptedKey) > 0)) {
-      return NO_KEYS;
+      return SplitResult.of(range, NO_KEYS);
     }
 
     // Otherwise we compute the "remainder" of the range from the last key.
@@ -83,7 +88,7 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
     ByteKey nextKey = next(lastAttemptedKey);
     ByteKeyRange res = ByteKeyRange.of(nextKey, range.getEndKey());
     this.range = ByteKeyRange.of(range.getStartKey(), nextKey);
-    return res;
+    return SplitResult.of(range, res);
   }
 
   /**
@@ -184,28 +189,26 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   private static final byte[] ZERO_BYTE_ARRAY = new byte[] {0};
 
   @Override
-  public Backlog getBacklog() {
+  public double getSize() {
     // Return 0 for the empty range which is implicitly done.
     // This case can occur if the range tracker is checkpointed before any keys have been claimed
     // or if the range tracker is checkpointed once the range is done.
     if (NO_KEYS.equals(range)) {
-      return Backlog.of(BigDecimal.ZERO);
+      return 0;
     }
 
     // If we are attempting to get the backlog without processing a single key, we return 1.0
     if (lastAttemptedKey == null) {
-      return Backlog.of(BigDecimal.ONE);
+      return 1;
     }
 
     // Return 0 if the last attempted key was the empty key representing the end of range for
     // all ranges or the last attempted key is beyond the end of the range.
     if (lastAttemptedKey.isEmpty()
         || !(range.getEndKey().isEmpty() || range.getEndKey().compareTo(lastAttemptedKey) > 0)) {
-      return Backlog.of(BigDecimal.ZERO);
+      return 0;
     }
 
-    // TODO: Use the ability of BigDecimal's additional precision to more accurately report backlog
-    // for keys which are long.
-    return Backlog.of(BigDecimal.valueOf(range.estimateFractionForKey(lastAttemptedKey)));
+    return range.estimateFractionForKey(lastAttemptedKey);
   }
 }

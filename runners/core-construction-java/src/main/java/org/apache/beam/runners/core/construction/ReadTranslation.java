@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -27,7 +27,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.IsBounded;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Read;
@@ -39,9 +38,9 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * Methods for translating {@link Read.Bounded} and {@link Read.Unbounded} {@link PTransform
@@ -65,7 +64,7 @@ public class ReadTranslation {
         .build();
   }
 
-  public static SdkFunctionSpec toProto(Source<?> source, SdkComponents components) {
+  public static FunctionSpec toProto(Source<?> source, SdkComponents components) {
     if (source instanceof BoundedSource) {
       return toProto((BoundedSource) source, components);
     } else if (source instanceof UnboundedSource) {
@@ -76,14 +75,10 @@ public class ReadTranslation {
     }
   }
 
-  private static SdkFunctionSpec toProto(BoundedSource<?> source, SdkComponents components) {
-    return SdkFunctionSpec.newBuilder()
-        .setEnvironmentId(components.getOnlyEnvironmentId())
-        .setSpec(
-            FunctionSpec.newBuilder()
-                .setUrn(JAVA_SERIALIZED_BOUNDED_SOURCE)
-                .setPayload(ByteString.copyFrom(SerializableUtils.serializeToByteArray(source)))
-                .build())
+  private static FunctionSpec toProto(BoundedSource<?> source, SdkComponents components) {
+    return FunctionSpec.newBuilder()
+        .setUrn(JAVA_SERIALIZED_BOUNDED_SOURCE)
+        .setPayload(ByteString.copyFrom(SerializableUtils.serializeToByteArray(source)))
         .build();
   }
 
@@ -92,7 +87,7 @@ public class ReadTranslation {
     checkArgument(payload.getIsBounded().equals(IsBounded.Enum.BOUNDED));
     return (BoundedSource<?>)
         SerializableUtils.deserializeFromByteArray(
-            payload.getSource().getSpec().getPayload().toByteArray(), "BoundedSource");
+            payload.getSource().getPayload().toByteArray(), "BoundedSource");
   }
 
   public static <T> BoundedSource<T> boundedSourceFromTransform(
@@ -118,23 +113,18 @@ public class ReadTranslation {
             .getPayload());
   }
 
-  private static SdkFunctionSpec toProto(UnboundedSource<?, ?> source, SdkComponents components) {
-    return SdkFunctionSpec.newBuilder()
-        .setEnvironmentId(components.getOnlyEnvironmentId())
-        .setSpec(
-            FunctionSpec.newBuilder()
-                .setUrn(JAVA_SERIALIZED_UNBOUNDED_SOURCE)
-                .setPayload(ByteString.copyFrom(SerializableUtils.serializeToByteArray(source)))
-                .build())
+  private static FunctionSpec toProto(UnboundedSource<?, ?> source, SdkComponents components) {
+    return FunctionSpec.newBuilder()
+        .setUrn(JAVA_SERIALIZED_UNBOUNDED_SOURCE)
+        .setPayload(ByteString.copyFrom(SerializableUtils.serializeToByteArray(source)))
         .build();
   }
 
-  public static UnboundedSource<?, ?> unboundedSourceFromProto(ReadPayload payload)
-      throws InvalidProtocolBufferException {
+  public static UnboundedSource<?, ?> unboundedSourceFromProto(ReadPayload payload) {
     checkArgument(payload.getIsBounded().equals(IsBounded.Enum.UNBOUNDED));
     return (UnboundedSource<?, ?>)
         SerializableUtils.deserializeFromByteArray(
-            payload.getSource().getSpec().getPayload().toByteArray(), "UnboundedSource");
+            payload.getSource().getPayload().toByteArray(), "UnboundedSource");
   }
 
   public static PCollection.IsBounded sourceIsBounded(AppliedPTransform<?, ?, ?> transform) {

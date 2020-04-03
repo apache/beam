@@ -24,9 +24,10 @@ import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.joda.time.Instant;
 
 /**
@@ -69,7 +70,7 @@ import org.joda.time.Instant;
  *       have fired at least once. An {@link AfterAll} trigger finishes after it fires once.
  * </ul>
  */
-@Experimental(Experimental.Kind.TRIGGER)
+@Experimental(Kind.TRIGGER)
 public abstract class Trigger implements Serializable {
 
   @Nullable protected final List<Trigger> subTriggers;
@@ -133,6 +134,15 @@ public abstract class Trigger implements Serializable {
    */
   @Internal
   public abstract Instant getWatermarkThatGuaranteesFiring(BoundedWindow window);
+
+  /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Indicates whether this trigger may "finish". A top level trigger that finishes can cause
+   * data loss, so is rejected by GroupByKey validation.
+   */
+  @Internal
+  public abstract boolean mayFinish();
 
   /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
@@ -227,6 +237,11 @@ public abstract class Trigger implements Serializable {
   public abstract static class OnceTrigger extends Trigger {
     protected OnceTrigger(@Nullable List<Trigger> subTriggers) {
       super(subTriggers);
+    }
+
+    @Override
+    public final boolean mayFinish() {
+      return true;
     }
 
     @Override

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.Table;
@@ -36,10 +36,10 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /**
  * Creates any tables needed before performing streaming writes to the tables. This is a side-effect
@@ -130,6 +130,16 @@ public class CreateTables<DestinationT, ElementT>
           dynamicDestinations,
           tableDestination,
           destination);
+      boolean destinationCoderSupportsClustering =
+          !(dynamicDestinations.getDestinationCoder() instanceof TableDestinationCoderV2);
+      checkArgument(
+          tableDestination.getClustering() == null || destinationCoderSupportsClustering,
+          "DynamicDestinations.getTable() may only return destinations with clustering configured"
+              + " if a destination coder is supplied that supports clustering, but %s is configured"
+              + " to use TableDestinationCoderV2. Set withClustering() on BigQueryIO.write() and, "
+              + " if you provided a custom DynamicDestinations instance, override"
+              + " getDestinationCoder() to return TableDestinationCoderV3.",
+          dynamicDestinations);
       TableReference tableReference = tableDestination.getTableReference().clone();
       if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
         tableReference.setProjectId(
@@ -185,6 +195,9 @@ public class CreateTables<DestinationT, ElementT>
                   .setDescription(tableDestination.getTableDescription());
           if (tableDestination.getTimePartitioning() != null) {
             table.setTimePartitioning(tableDestination.getTimePartitioning());
+            if (tableDestination.getClustering() != null) {
+              table.setClustering(tableDestination.getClustering());
+            }
           }
           if (kmsKey != null) {
             table.setEncryptionConfiguration(new EncryptionConfiguration().setKmsKeyName(kmsKey));

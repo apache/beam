@@ -47,12 +47,12 @@ deps:
   com.amazonaws:amazon-kinesis-client:
     group: com.amazonaws
     artifact: amazon-kinesis-client
-    owners:
+    owners: aromanenko-dev
 
   com.amazonaws:amazon-kinesis-producer:
     group: com.amazonaws
     artifact: amazon-kinesis-producer
-    owners:
+    owners: aromanenko-dev
 
   com.amazonaws:aws-java-sdk-cloudwatch:
     group: com.amazonaws
@@ -62,11 +62,6 @@ deps:
   com.amazonaws:aws-java-sdk-core:
     group: com.amazonaws
     artifact: aws-java-sdk-core
-    owners:
-
-  com.amazonaws:aws-java-sdk-kinesis:
-    group: com.amazonaws
-    artifact: aws-java-sdk-kinesis
     owners:
 
   com.amazonaws:aws-java-sdk-kinesis:
@@ -262,11 +257,6 @@ deps:
   com.google.cloud:google-cloud-core-grpc:
     group: com.google.cloud
     artifact: google-cloud-core-grpc
-    owners:
-
-  com.google.cloud:google-cloud-spanner:
-    group: com.google.cloud
-    artifact: google-cloud-spanner
     owners:
 
   com.google.cloud:google-cloud-spanner:
@@ -522,11 +512,6 @@ deps:
   io.opencensus:opencensus-contrib-grpc-metrics:
     group: io.opencensus
     artifact: opencensus-contrib-grpc-metrics
-    owners:
-
-  io.spring.gradle:propdeps-plugin:
-    group: io.spring.gradle
-    artifact: propdeps-plugin
     owners:
 
   io.spring.gradle:propdeps-plugin:

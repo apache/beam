@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -48,6 +49,9 @@ import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
+import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
+import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
+import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -68,9 +72,9 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -133,8 +137,9 @@ public class BigQueryIOReadTest implements Serializable {
     checkReadQueryObjectWithValidate(read, query, true);
   }
 
-  private void checkTypedReadQueryObject(BigQueryIO.TypedRead read, String query, String kmsKey) {
-    checkTypedReadQueryObjectWithValidate(read, query, kmsKey, true);
+  private void checkTypedReadQueryObject(
+      BigQueryIO.TypedRead read, String query, String kmsKey, String tempDataset) {
+    checkTypedReadQueryObjectWithValidate(read, query, kmsKey, tempDataset, true);
   }
 
   private void checkReadTableObjectWithValidate(
@@ -154,10 +159,15 @@ public class BigQueryIOReadTest implements Serializable {
   }
 
   private void checkTypedReadQueryObjectWithValidate(
-      BigQueryIO.TypedRead read, String query, String kmsKey, boolean validate) {
+      BigQueryIO.TypedRead read,
+      String query,
+      String kmsKey,
+      String tempDataset,
+      boolean validate) {
     assertNull(read.getTable());
     assertEquals(query, read.getQuery().get());
     assertEquals(kmsKey, read.getKmsKey());
+    assertEquals(tempDataset, read.getQueryTempDataset());
     assertEquals(validate, read.getValidate());
   }
 
@@ -217,8 +227,11 @@ public class BigQueryIOReadTest implements Serializable {
   @Test
   public void testBuildQueryBasedTypedReadSource() {
     BigQueryIO.TypedRead read =
-        BigQueryIO.readTableRows().fromQuery("foo_query").withKmsKey("kms_key");
-    checkTypedReadQueryObject(read, "foo_query", "kms_key");
+        BigQueryIO.readTableRows()
+            .fromQuery("foo_query")
+            .withKmsKey("kms_key")
+            .withQueryTempDataset("temp_dataset");
+    checkTypedReadQueryObject(read, "foo_query", "kms_key", "temp_dataset");
   }
 
   @Test
@@ -624,7 +637,11 @@ public class BigQueryIOReadTest implements Serializable {
             .toSource(stepUuid, TableRowJsonCoder.of(), BigQueryIO.TableRowParser.INSTANCE);
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    assertEquals(108, bqSource.getEstimatedSizeBytes(options));
+
+    // Each row should have 24 bytes (See StringUtf8Coder in detail):
+    //   first 1 byte indicating length and following 23 bytes: {"name":"a","number":1}
+    long expectedSize = 24L * data.size();
+    assertEquals(expectedSize, bqSource.getEstimatedSizeBytes(options));
   }
 
   @Test
@@ -658,7 +675,12 @@ public class BigQueryIOReadTest implements Serializable {
             .toSource(stepUuid, TableRowJsonCoder.of(), BigQueryIO.TableRowParser.INSTANCE);
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    assertEquals(118, bqSource.getEstimatedSizeBytes(options));
+
+    // Each row should have 24 bytes (See StringUtf8Coder in detail):
+    //   first 1 byte indicating length and following 23 bytes: {"name":"a","number":1}
+    // 10 bytes comes from the estimated bytes of the Streamingbuffer
+    long expectedSize = 24L * data.size() + 10;
+    assertEquals(expectedSize, bqSource.getEstimatedSizeBytes(options));
   }
 
   @Test
@@ -678,6 +700,7 @@ public class BigQueryIOReadTest implements Serializable {
                 true, /* flattenResults */
                 true, /* useLegacySql */
                 QueryPriority.BATCH,
+                null,
                 null,
                 null)
             .toSource(stepUuid, TableRowJsonCoder.of(), BigQueryIO.TableRowParser.INSTANCE);
@@ -733,7 +756,9 @@ public class BigQueryIOReadTest implements Serializable {
 
     TableReference tempTableReference =
         createTempTableReference(
-            bqOptions.getProject(), createJobIdToken(options.getJobName(), stepUuid));
+            bqOptions.getProject(),
+            createJobIdToken(options.getJobName(), stepUuid),
+            Optional.empty());
 
     fakeJobService.expectDryRunQuery(
         bqOptions.getProject(),
@@ -751,6 +776,7 @@ public class BigQueryIOReadTest implements Serializable {
                 true /* flattenResults */,
                 true /* useLegacySql */,
                 QueryPriority.BATCH,
+                null,
                 null,
                 null)
             .toSource(stepUuid, TableRowJsonCoder.of(), BigQueryIO.TableRowParser.INSTANCE);
@@ -816,6 +842,7 @@ public class BigQueryIOReadTest implements Serializable {
                 true /* flattenResults */,
                 true /* useLegacySql */,
                 QueryPriority.BATCH,
+                null,
                 null,
                 null)
             .toSource(stepUuid, TableRowJsonCoder.of(), BigQueryIO.TableRowParser.INSTANCE);

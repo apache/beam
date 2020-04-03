@@ -187,10 +187,10 @@ public class ImpulseSourceFunctionTest {
     return mock;
   }
 
-  private static class ImpulseElementMatcher extends ArgumentMatcher<WindowedValue<byte[]>> {
+  private static class ImpulseElementMatcher implements ArgumentMatcher<WindowedValue<byte[]>> {
 
     @Override
-    public boolean matches(Object o) {
+    public boolean matches(WindowedValue<byte[]> o) {
       return o instanceof WindowedValue
           && Arrays.equals((byte[]) ((WindowedValue) o).getValue(), new byte[] {});
     }

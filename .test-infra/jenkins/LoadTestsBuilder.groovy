@@ -22,61 +22,64 @@ import CommonTestProperties.SDK
 import CommonTestProperties.TriggeringContext
 
 class LoadTestsBuilder {
-  static void loadTests(scope, CommonTestProperties.SDK sdk, List testConfigurations, TriggeringContext triggeringContext, String test, String mode){
+  final static String DOCKER_CONTAINER_REGISTRY = 'gcr.io/apache-beam-testing/beam_portability'
+
+  static void loadTests(scope, CommonTestProperties.SDK sdk, List testConfigurations, String test, String mode){
     scope.description("Runs ${sdk.toString().toLowerCase().capitalize()} ${test} load tests in ${mode} mode")
 
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
     for (testConfiguration in testConfigurations) {
-        loadTest(scope, testConfiguration.title, testConfiguration.runner, sdk, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
+        loadTest(scope, testConfiguration.title, testConfiguration.runner, sdk, testConfiguration.pipelineOptions, testConfiguration.test)
     }
   }
 
 
-  static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options, String mainClass, TriggeringContext triggeringContext) {
+  static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options, String mainClass) {
     options.put('runner', runner.option)
-
-    String datasetKey = 'bigQueryDataset'
-    String datasetValue = options.get(datasetKey)
-
-    if (datasetValue) {
-      options.put(datasetKey, setContextualDatasetName(datasetValue, triggeringContext))
-    }
 
     context.steps {
       shell("echo *** ${title} ***")
       gradle {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
-        tasks(getGradleTaskName(sdk))
+        setGradleTask(delegate, runner, sdk, options, mainClass)
         commonJobProperties.setGradleSwitches(delegate)
-        switches("-PloadTest.mainClass=\"${mainClass}\"")
-        switches("-Prunner=${runner.getDepenedencyBySDK(sdk)}")
-        switches("-PloadTest.args=\"${parseOptions(options)}\"")
       }
+    }
+  }
+
+  static String parseOptions(Map<String, ?> options) {
+    options.collect {
+      "--${it.key}=$it.value".replace('\"', '\\\"').replace('\'', '\\\'')
+    }.join(' ')
+  }
+
+  static String getBigQueryDataset(String baseName, TriggeringContext triggeringContext) {
+    if (triggeringContext == TriggeringContext.PR) {
+      return baseName + '_PRs'
+    } else {
+      return baseName
+    }
+  }
+
+  private static void setGradleTask(context, Runner runner, SDK sdk, Map<String, ?> options, String mainClass) {
+    context.tasks(getGradleTaskName(sdk))
+    context.switches("-PloadTest.mainClass=\"${mainClass}\"")
+    context.switches("-Prunner=${runner.getDependencyBySDK(sdk)}")
+    context.switches("-PloadTest.args=\"${parseOptions(options)}\"")
+
+    if (sdk == SDK.PYTHON_37) {
+      context.switches("-PpythonVersion=3.7")
     }
   }
 
   private static String getGradleTaskName(SDK sdk) {
     if (sdk == SDK.JAVA) {
       return ':sdks:java:testing:load-tests:run'
-    } else if (sdk == SDK.PYTHON) {
+    } else if (sdk == SDK.PYTHON || sdk == SDK.PYTHON_37) {
       return ':sdks:python:apache_beam:testing:load_tests:run'
     } else {
       throw new RuntimeException("No task name defined for SDK: $SDK")
-    }
-  }
-
-  private static String parseOptions(Map<String, ?> options) {
-    options.collect {
-      "--${it.key}=$it.value".replace('\"', '\\\"').replace('\'', '\\\'')
-    }.join(' ')
-  }
-
-  private static String setContextualDatasetName(String baseName, TriggeringContext triggeringContext) {
-    if (triggeringContext == TriggeringContext.PR) {
-      return baseName + '_PRs'
-    } else {
-      return baseName
     }
   }
 }

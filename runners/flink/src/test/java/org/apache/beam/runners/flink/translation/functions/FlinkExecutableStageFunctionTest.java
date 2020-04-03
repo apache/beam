@@ -32,7 +32,9 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
+import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
@@ -40,10 +42,11 @@ import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.Struct;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
@@ -57,7 +60,7 @@ import org.junit.runners.Parameterized;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.mockito.internal.util.reflection.Whitebox;
+import org.powermock.reflect.Whitebox;
 
 /** Tests for {@link FlinkExecutableStageFunction}. */
 @RunWith(Parameterized.class)
@@ -75,7 +78,7 @@ public class FlinkExecutableStageFunctionTest {
   @Mock private RuntimeContext runtimeContext;
   @Mock private DistributedCache distributedCache;
   @Mock private Collector<RawUnionValue> collector;
-  @Mock private FlinkExecutableStageContext stageContext;
+  @Mock private ExecutableStageContext stageContext;
   @Mock private StageBundleFactory stageBundleFactory;
   @Mock private StateRequestHandler stateRequestHandler;
   @Mock private ProcessBundleDescriptors.ExecutableProcessBundleDescriptor processBundleDescriptor;
@@ -186,12 +189,17 @@ public class FlinkExecutableStageFunctionTest {
               }
 
               @Override
-              public Map<String, FnDataReceiver<WindowedValue<?>>> getInputReceivers() {
+              public Map<String, FnDataReceiver> getInputReceivers() {
                 return ImmutableMap.of(
                     "input",
                     input -> {
                       /* Ignore input*/
                     });
+              }
+
+              @Override
+              public void split(double fractionOfRemainder) {
+                throw new UnsupportedOperationException();
               }
 
               @Override
@@ -246,17 +254,39 @@ public class FlinkExecutableStageFunctionTest {
     verifyNoMoreInteractions(stageBundleFactory);
   }
 
+  @Test
+  public void testAccumulatorRegistrationOnOperatorClose() throws Exception {
+    FlinkExecutableStageFunction<Integer> function = getFunction(Collections.emptyMap());
+    function.open(new Configuration());
+
+    String metricContainerFieldName = "metricContainer";
+    FlinkMetricContainer monitoredContainer =
+        Mockito.spy(
+            (FlinkMetricContainer) Whitebox.getInternalState(function, metricContainerFieldName));
+    Whitebox.setInternalState(function, metricContainerFieldName, monitoredContainer);
+
+    function.close();
+    Mockito.verify(monitoredContainer).registerMetricsForPipelineResult();
+  }
+
   /**
    * Creates a {@link FlinkExecutableStageFunction}. Sets the runtime context to {@link
    * #runtimeContext}. The context factory is mocked to return {@link #stageContext} every time. The
    * behavior of the stage context itself is unchanged.
    */
   private FlinkExecutableStageFunction<Integer> getFunction(Map<String, Integer> outputMap) {
-    FlinkExecutableStageContext.Factory contextFactory =
-        Mockito.mock(FlinkExecutableStageContext.Factory.class);
+    FlinkExecutableStageContextFactory contextFactory =
+        Mockito.mock(FlinkExecutableStageContextFactory.class);
     when(contextFactory.get(any())).thenReturn(stageContext);
     FlinkExecutableStageFunction<Integer> function =
-        new FlinkExecutableStageFunction<>(stagePayload, jobInfo, outputMap, contextFactory, null);
+        new FlinkExecutableStageFunction<>(
+            "step",
+            PipelineOptionsFactory.create(),
+            stagePayload,
+            jobInfo,
+            outputMap,
+            contextFactory,
+            null);
     function.setRuntimeContext(runtimeContext);
     Whitebox.setInternalState(function, "stateRequestHandler", stateRequestHandler);
     return function;

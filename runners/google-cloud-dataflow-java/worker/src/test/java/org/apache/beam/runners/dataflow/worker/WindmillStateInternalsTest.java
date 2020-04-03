@@ -50,11 +50,11 @@ import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.vendor.grpc.v1p13p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.Futures;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.util.concurrent.SettableFuture;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.After;
@@ -407,12 +407,12 @@ public class WindmillStateInternalsTest {
   public void testCombiningAddPersistWithCompact() throws Exception {
     forceCompactOnWrite();
 
-    Mockito.stub(
+    Mockito.when(
             mockReader.bagFuture(
                 org.mockito.Matchers.<ByteString>any(),
                 org.mockito.Matchers.<String>any(),
                 org.mockito.Matchers.<Coder<int[]>>any()))
-        .toReturn(
+        .thenReturn(
             Futures.<Iterable<int[]>>immediateFuture(
                 ImmutableList.of(new int[] {40}, new int[] {60})));
 

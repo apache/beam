@@ -80,4 +80,15 @@ public class CounterCellTest {
     Assert.assertNotEquals(counterCell, differentName);
     Assert.assertNotEquals(counterCell.hashCode(), differentName.hashCode());
   }
+
+  @Test
+  public void testReset() {
+    CounterCell counterCell = new CounterCell(MetricName.named("namespace", "name"));
+    counterCell.inc(1);
+    assertThat(counterCell.getCumulative(), equalTo(1L));
+
+    counterCell.reset();
+    assertThat(counterCell.getCumulative(), equalTo(0L));
+    assertThat(counterCell.getDirty(), equalTo(new DirtyState()));
+  }
 }

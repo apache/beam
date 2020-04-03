@@ -26,11 +26,12 @@ import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.schemas.LogicalTypes;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 
 /** A descriptor for ClickHouse table schema. */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 @AutoValue
 public abstract class TableSchema implements Serializable {
 
@@ -76,7 +77,7 @@ public abstract class TableSchema implements Serializable {
 
       case FIXEDSTRING:
         int size = columnType.fixedStringSize(); // non-null for fixed strings
-        return Schema.FieldType.logicalType(LogicalTypes.FixedBytes.of(size));
+        return Schema.FieldType.logicalType(FixedBytes.of(size));
 
       case FLOAT32:
         return Schema.FieldType.FLOAT;

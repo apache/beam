@@ -17,11 +17,16 @@
 
 """Unit tests for the type-hint objects and decorators."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import sys
 import typing
 import unittest
+
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 
 import apache_beam as beam
 from apache_beam import pvalue
@@ -31,7 +36,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.typehints import WithTypeHints
-from apache_beam.typehints.decorators import getfullargspec
+from apache_beam.typehints.decorators import get_signature
 
 # These test often construct a pipeline as value | PTransform to test side
 # effects (e.g. errors).
@@ -39,11 +44,11 @@ from apache_beam.typehints.decorators import getfullargspec
 
 
 class MainInputTest(unittest.TestCase):
-
   def test_bad_main_input(self):
     @typehints.with_input_types(str, int)
     def repeat(s, times):
       return s * times
+
     with self.assertRaises(typehints.TypeCheckError):
       [1, 2, 3] | beam.Map(repeat, 3)
 
@@ -69,10 +74,11 @@ class MainInputTest(unittest.TestCase):
       [1, 2, 3] | beam.Map(str.upper)
 
   def test_loose_bounds(self):
-    @typehints.with_input_types(typehints.Union[int, float])
+    @typehints.with_input_types(typing.Union[int, float])
     @typehints.with_output_types(str)
     def format_number(x):
       return '%g' % x
+
     result = [1, 2, 3] | beam.Map(format_number)
     self.assertEqual(['1', '2', '3'], sorted(result))
 
@@ -86,16 +92,31 @@ class MainInputTest(unittest.TestCase):
     result = [1, 2, 3] | beam.ParDo(MyDoFn())
     self.assertEqual(['1', '2', '3'], sorted(result))
 
-    with self.assertRaises(typehints.TypeCheckError):
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'requires.*int.*got.*str'):
       ['a', 'b', 'c'] | beam.ParDo(MyDoFn())
 
-    with self.assertRaises(typehints.TypeCheckError):
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'requires.*int.*got.*str'):
       [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
+
+  @unittest.skip('BEAM-7981: Iterable in output type should not be removed.')
+  def test_typed_callable_iterable_output(self):
+    # TODO(BEAM-7981): 2.7 and 3.x both erroneously strip the Iterable, but the
+    #   test only fails in 3.x.
+    @typehints.with_input_types(int)
+    @typehints.with_output_types(typehints.Iterable[str])
+    def do_fn(element):
+      return [[str(element)] * 2]
+
+    result = [1, 2] | beam.ParDo(do_fn)
+    self.assertEqual([['1', '1'], ['2', '2']], sorted(result))
 
   def test_typed_dofn_instance(self):
     class MyDoFn(beam.DoFn):
       def process(self, element):
         return [str(element)]
+
     my_do_fn = MyDoFn().with_input_types(int).with_output_types(str)
 
     result = [1, 2, 3] | beam.ParDo(my_do_fn)
@@ -114,14 +135,90 @@ class MainInputTest(unittest.TestCase):
 
     self.assertEqual([1, 3], [1, 2, 3] | beam.Filter(filter_fn))
 
+  def test_partition(self):
+    with TestPipeline() as p:
+      even, odd = (p
+                   | beam.Create([1, 2, 3])
+                   | 'even_odd' >> beam.Partition(lambda e, _: e % 2, 2))
+      self.assertIsNotNone(even.element_type)
+      self.assertIsNotNone(odd.element_type)
+      res_even = (
+          even
+          | 'IdEven' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+      res_odd = (
+          odd
+          | 'IdOdd' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+      assert_that(res_even, equal_to([2]), label='even_check')
+      assert_that(res_odd, equal_to([1, 3]), label='odd_check')
+
+  def test_typed_dofn_multi_output(self):
+    class MyDoFn(beam.DoFn):
+      def process(self, element):
+        if element % 2:
+          yield beam.pvalue.TaggedOutput('odd', element)
+        else:
+          yield beam.pvalue.TaggedOutput('even', element)
+
+    p = TestPipeline()
+    res = (
+        p
+        | beam.Create([1, 2, 3])
+        | beam.ParDo(MyDoFn()).with_outputs('odd', 'even'))
+    self.assertIsNotNone(res[None].element_type)
+    self.assertIsNotNone(res['even'].element_type)
+    self.assertIsNotNone(res['odd'].element_type)
+    res_main = (
+        res[None]
+        | 'id_none' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+    res_even = (
+        res['even']
+        | 'id_even' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+    res_odd = (
+        res['odd']
+        | 'id_odd' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+    assert_that(res_main, equal_to([]), label='none_check')
+    assert_that(res_even, equal_to([2]), label='even_check')
+    assert_that(res_odd, equal_to([1, 3]), label='odd_check')
+    p.run()
+
+    with self.assertRaises(ValueError):
+      _ = res['undeclared tag']
+
+  def test_typed_dofn_multi_output_no_tags(self):
+    class MyDoFn(beam.DoFn):
+      def process(self, element):
+        if element % 2:
+          yield beam.pvalue.TaggedOutput('odd', element)
+        else:
+          yield beam.pvalue.TaggedOutput('even', element)
+
+    p = TestPipeline()
+    res = (p | beam.Create([1, 2, 3]) | beam.ParDo(MyDoFn()).with_outputs())
+    self.assertIsNotNone(res[None].element_type)
+    self.assertIsNotNone(res['even'].element_type)
+    self.assertIsNotNone(res['odd'].element_type)
+    res_main = (
+        res[None]
+        | 'id_none' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+    res_even = (
+        res['even']
+        | 'id_even' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+    res_odd = (
+        res['odd']
+        | 'id_odd' >> beam.ParDo(lambda e: [e]).with_input_types(int))
+    assert_that(res_main, equal_to([]), label='none_check')
+    assert_that(res_even, equal_to([2]), label='even_check')
+    assert_that(res_odd, equal_to([1, 3]), label='odd_check')
+    p.run()
+
 
 class NativeTypesTest(unittest.TestCase):
-
   def test_good_main_input(self):
     @typehints.with_input_types(typing.Tuple[str, int])
     def munge(s_i):
       (s, i) = s_i
       return (s + 's', i * 2)
+
     result = [('apple', 5), ('pear', 3)] | beam.Map(munge)
     self.assertEqual([('apples', 10), ('pears', 6)], sorted(result))
 
@@ -130,6 +227,7 @@ class NativeTypesTest(unittest.TestCase):
     def munge(s_i):
       (s, i) = s_i
       return (s + 's', i * 2)
+
     with self.assertRaises(typehints.TypeCheckError):
       [('apple', 5), ('pear', 3)] | beam.Map(munge)
 
@@ -139,12 +237,12 @@ class NativeTypesTest(unittest.TestCase):
     def munge(a_b):
       (a, b) = a_b
       return (str(a), str(b))
+
     with self.assertRaises(typehints.TypeCheckError):
       [(5, 4), (3, 2)] | beam.Map(munge) | 'Again' >> beam.Map(munge)
 
 
 class SideInputTest(unittest.TestCase):
-
   def _run_repeat_test(self, repeat):
     self._run_repeat_test_good(repeat)
     self._run_repeat_test_bad(repeat)
@@ -167,32 +265,38 @@ class SideInputTest(unittest.TestCase):
       ['a', 'bb', 'c'] | beam.Map(repeat, times='z')
     with self.assertRaises(typehints.TypeCheckError):
       ['a', 'bb', 'c'] | beam.Map(repeat, 3, 4)
-    if not getfullargspec(repeat).defaults:
-      with self.assertRaises(typehints.TypeCheckError):
+    if all(param.default == param.empty
+           for param in get_signature(repeat).parameters.values()):
+      with self.assertRaisesRegex(typehints.TypeCheckError,
+                                  r'(takes exactly|missing a required)'):
         ['a', 'bb', 'c'] | beam.Map(repeat)
 
   def test_basic_side_input_hint(self):
     @typehints.with_input_types(str, int)
     def repeat(s, times):
       return s * times
+
     self._run_repeat_test(repeat)
 
   def test_keyword_side_input_hint(self):
     @typehints.with_input_types(str, times=int)
     def repeat(s, times):
       return s * times
+
     self._run_repeat_test(repeat)
 
   def test_default_typed_hint(self):
     @typehints.with_input_types(str, int)
     def repeat(s, times=3):
       return s * times
+
     self._run_repeat_test(repeat)
 
   def test_default_untyped_hint(self):
     @typehints.with_input_types(str)
     def repeat(s, times=3):
       return s * times
+
     # No type checking on default arg.
     self._run_repeat_test_good(repeat)
 
@@ -205,14 +309,64 @@ class SideInputTest(unittest.TestCase):
     result = ['a', 'bb', 'c'] | beam.Map(repeat, 3)
     self.assertEqual(['aaa', 'bbbbbb', 'ccc'], sorted(result))
 
-  # TODO(robertwb): Support partially defined varargs.
-  # with self.assertRaises(typehints.TypeCheckError):
-  #   ['a', 'bb', 'c'] | beam.Map(repeat, 'z')
+    if sys.version_info >= (3, ):
+      with self.assertRaisesRegex(
+          typehints.TypeCheckError,
+          r'requires Tuple\[int, ...\] but got Tuple\[str, ...\]'):
+        ['a', 'bb', 'c'] | beam.Map(repeat, 'z')
+
+  def test_var_positional_only_side_input_hint(self):
+    # Test that a lambda that accepts only a VAR_POSITIONAL can accept
+    # side-inputs.
+    # TODO(BEAM-8247): There's a bug with trivial_inference inferring the output
+    #   type when side-inputs are used (their type hints are not passed). Remove
+    #   with_output_types(...) when this bug is fixed.
+    result = (['a', 'b', 'c']
+              | beam.Map(lambda *args: args, 5).with_input_types(
+                  int, str).with_output_types(typehints.Tuple[str, int]))
+    self.assertEqual([('a', 5), ('b', 5), ('c', 5)], sorted(result))
+
+    # Type hint order doesn't matter for VAR_POSITIONAL.
+    result = (['a', 'b', 'c']
+              | beam.Map(lambda *args: args, 5).with_input_types(
+                  int, str).with_output_types(typehints.Tuple[str, int]))
+    self.assertEqual([('a', 5), ('b', 5), ('c', 5)], sorted(result))
+
+    if sys.version_info >= (3, ):
+      with self.assertRaisesRegex(
+          typehints.TypeCheckError,
+          r'requires Tuple\[Union\[int, str\], ...\] but got '
+          r'Tuple\[Union\[float, int\], ...\]'):
+        _ = [1.2] | beam.Map(lambda *_: 'a', 5).with_input_types(int, str)
+
+  def test_var_keyword_side_input_hint(self):
+    # Test that a lambda that accepts a VAR_KEYWORD can accept
+    # side-inputs.
+    result = (['a', 'b', 'c']
+              | beam.Map(lambda e, **kwargs:
+                         (e, kwargs), kw=5).with_input_types(str, ignored=int))
+    self.assertEqual([('a', {
+        'kw': 5
+    }), ('b', {
+        'kw': 5
+    }), ('c', {
+        'kw': 5
+    })],
+                     sorted(result))
+
+    if sys.version_info >= (3, ):
+      with self.assertRaisesRegex(
+          typehints.TypeCheckError,
+          r'requires Dict\[str, str\] but got Dict\[str, int\]'):
+        _ = (['a', 'b', 'c']
+             | beam.Map(lambda e, **_: 'a', kw=5).with_input_types(
+                 str, ignored=str))
 
   def test_deferred_side_inputs(self):
     @typehints.with_input_types(str, int)
     def repeat(s, times):
       return s * times
+
     with TestPipeline() as p:
       main_input = p | beam.Create(['a', 'bb', 'c'])
       side_input = p | 'side' >> beam.Create([3])
@@ -224,9 +378,10 @@ class SideInputTest(unittest.TestCase):
       main_input | 'bis' >> beam.Map(repeat, pvalue.AsSingleton(bad_side_input))
 
   def test_deferred_side_input_iterable(self):
-    @typehints.with_input_types(str, typehints.Iterable[str])
+    @typehints.with_input_types(str, typing.Iterable[str])
     def concat(glue, items):
       return glue.join(sorted(items))
+
     with TestPipeline() as p:
       main_input = p | beam.Create(['a', 'bb', 'c'])
       side_input = p | 'side' >> beam.Create(['x', 'y', 'z'])
@@ -239,9 +394,7 @@ class SideInputTest(unittest.TestCase):
 
 
 class CustomTransformTest(unittest.TestCase):
-
   class CustomTransform(beam.PTransform):
-
     def _extract_input_pvalues(self, pvalueish):
       return pvalueish, (pvalueish['in0'], pvalueish['in1'])
 
@@ -266,13 +419,13 @@ class CustomTransformTest(unittest.TestCase):
 
   def test_keyword_type_hints(self):
     self.check_output(
-        self.test_input | self.CustomTransform().with_input_types(
-            in0=str, in1=int))
+        self.test_input
+        | self.CustomTransform().with_input_types(in0=str, in1=int))
     self.check_output(
         self.test_input | self.CustomTransform().with_input_types(in0=str))
     self.check_output(
-        self.test_input | self.CustomTransform().with_output_types(
-            out0=str, out1=int))
+        self.test_input
+        | self.CustomTransform().with_output_types(out0=str, out1=int))
     with self.assertRaises(typehints.TypeCheckError):
       self.test_input | self.CustomTransform().with_input_types(in0=int)
     with self.assertRaises(typehints.TypeCheckError):
@@ -280,7 +433,9 @@ class CustomTransformTest(unittest.TestCase):
 
   def test_flat_type_hint(self):
     # Type hint is applied to both.
-    ({'in0': ['a', 'b', 'c'], 'in1': ['x', 'y', 'z']}
+    ({
+        'in0': ['a', 'b', 'c'], 'in1': ['x', 'y', 'z']
+    }
      | self.CustomTransform().with_input_types(str))
     with self.assertRaises(typehints.TypeCheckError):
       self.test_input | self.CustomTransform().with_input_types(str)
@@ -288,6 +443,37 @@ class CustomTransformTest(unittest.TestCase):
       self.test_input | self.CustomTransform().with_input_types(int)
     with self.assertRaises(typehints.TypeCheckError):
       self.test_input | self.CustomTransform().with_output_types(int)
+
+
+class AnnotationsTest(unittest.TestCase):
+  def test_pardo_wrapper_builtin_method(self):
+    th = beam.ParDo(str.strip).get_type_hints()
+    if sys.version_info < (3, 7):
+      self.assertEqual(th.input_types, ((str, ), {}))
+    else:
+      # Python 3.7+ has annotations for CPython builtins
+      # (_MethodDescriptorType).
+      self.assertEqual(th.input_types, ((str, typehints.Any), {}))
+    self.assertEqual(th.output_types, ((typehints.Any, ), {}))
+
+  def test_pardo_wrapper_builtin_type(self):
+    th = beam.ParDo(list).get_type_hints()
+    if sys.version_info < (3, 7):
+      self.assertEqual(
+          th.input_types,
+          ((typehints.Any, typehints.decorators._ANY_VAR_POSITIONAL), {
+              '__unknown__keywords': typehints.decorators._ANY_VAR_KEYWORD
+          }))
+    else:
+      # Python 3.7+ supports signatures for builtins like 'list'.
+      self.assertEqual(th.input_types, ((typehints.Any, ), {}))
+
+    self.assertEqual(th.output_types, ((typehints.Any, ), {}))
+
+  def test_pardo_wrapper_builtin_func(self):
+    th = beam.ParDo(len).get_type_hints()
+    self.assertIsNone(th.input_types)
+    self.assertIsNone(th.output_types)
 
 
 if __name__ == '__main__':

@@ -26,6 +26,7 @@ import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import org.apache.beam.sdk.coders.CoderException;
@@ -41,7 +42,8 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -49,7 +51,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.testng.collections.Sets;
 
 /** Tests for {@link BigQueryHelpers}. */
 @RunWith(JUnit4.class)
@@ -204,5 +205,27 @@ public class BigQueryHelpersTest {
     Set<String> expectedJobs =
         ImmutableSet.of("JOB_0-5", "JOB_1-5", "JOB_2-5", "JOB_3-5", "JOB_4-5");
     assertEquals(expectedJobs, succeeded);
+  }
+
+  @Test
+  public void testCreateTempTableReference() {
+    String projectId = "this-is-my-project";
+    String jobUuid = "this-is-my-job";
+    TableReference noDataset =
+        BigQueryHelpers.createTempTableReference(projectId, jobUuid, Optional.empty());
+
+    assertEquals(noDataset.getProjectId(), projectId);
+    assertEquals(noDataset.getDatasetId(), "temp_dataset_" + jobUuid);
+    assertEquals(noDataset.getTableId(), "temp_table_" + jobUuid);
+
+    Optional<String> dataset = Optional.ofNullable("my-tmp-dataset");
+    TableReference tempTableReference =
+        BigQueryHelpers.createTempTableReference(projectId, jobUuid, dataset);
+
+    assertEquals(tempTableReference.getProjectId(), noDataset.getProjectId());
+    assertEquals(tempTableReference.getDatasetId(), dataset.get());
+    assertEquals(tempTableReference.getTableId(), noDataset.getTableId());
+
+    assertEquals(dataset.get(), noDataset.setDatasetId(dataset.get()).getDatasetId());
   }
 }

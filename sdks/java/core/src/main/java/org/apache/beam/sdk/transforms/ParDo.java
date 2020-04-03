@@ -17,15 +17,16 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
@@ -46,12 +47,12 @@ import org.apache.beam.sdk.transforms.DoFn.WindowedContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.DisplayData.ItemSpec;
-import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.MethodWithExtraParameters;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -64,7 +65,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * {@link ParDo} is the core element-wise transform in Apache Beam, invoking a user-specified
@@ -223,18 +224,18 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
  *             public void processElement(@Element String word, MultiOutputReceiver r) {
  *               if (word.length() <= wordLengthCutOff) {
  *                 // Emit this short word to the main output.
- *                 r.output(wordsBelowCutOffTag, word);
+ *                 r.get(wordsBelowCutOffTag).output(word);
  *               } else {
  *                 // Emit this long word's length to a specified output.
- *                 r.output(wordLengthsAboveCutOffTag, word.length());
+ *                 r.get(wordLengthsAboveCutOffTag).output(word.length());
  *               }
  *               if (word.startsWith("MARKER")) {
  *                 // Emit this word to a different specified output.
- *                 r.output(markedWordsTag, word);
+ *                 r.get(markedWordsTag).output(word);
  *               }
  *               if (word.startsWith("SPECIAL")) {
  *                 // Emit this word to the unconsumed output.
- *                 r.output(specialWordsTag, word);
+ *                 r.get(specialWordsTag).output(word);
  *               }
  *             }}})
  *             // Specify the main and consumed output tags of the
@@ -321,10 +322,10 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
  *       {@link DoFn}. This is good if the state needs to be computed by the pipeline, or if the
  *       state is very large and so is best read from file(s) rather than sent as part of the {@link
  *       DoFn DoFn's} serialized state.
- *   <li>Initialize the state in each {@link DoFn} instance, in a {@link DoFn.StartBundle} method.
- *       This is good if the initialization doesn't depend on any information known only by the main
- *       program or computed by earlier pipeline operations, but is the same for all instances of
- *       this {@link DoFn} for all program executions, say setting up empty caches or initializing
+ *   <li>Initialize the state in each {@link DoFn} instance, in a {@link DoFn.Setup} method. This is
+ *       good if the initialization doesn't depend on any information known only by the main program
+ *       or computed by earlier pipeline operations, but is the same for all instances of this
+ *       {@link DoFn} for all program executions, say setting up empty caches or initializing
  *       constant data.
  * </ul>
  *
@@ -382,8 +383,8 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableLis
  * Beam makes heavy use of this modular, composable style, trusting to the runner to "flatten out"
  * all the compositions into highly optimized stages.
  *
- * @see <a href= "https://beam.apache.org/documentation/programming-guide/#transforms-pardo"> the
- *     web documentation for ParDo</a>
+ * @see <a href= "https://beam.apache.org/documentation/programming-guide/#pardo"> the web
+ *     documentation for ParDo</a>
  */
 public class ParDo {
 
@@ -395,7 +396,7 @@ public class ParDo {
    */
   public static <InputT, OutputT> SingleOutput<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
     validate(fn);
-    return new SingleOutput<>(fn, Collections.emptyList(), displayDataForFn(fn));
+    return new SingleOutput<>(fn, Collections.emptyMap(), displayDataForFn(fn));
   }
 
   private static <T> DisplayData.ItemSpec<? extends Class<?>> displayDataForFn(T fn) {
@@ -433,6 +434,29 @@ public class ParDo {
           String.format(
               "%s requires a deterministic key coder in order to use state and timers",
               ParDo.class.getSimpleName()));
+    }
+  }
+
+  private static void validateSideInputTypes(
+      Map<String, PCollectionView<?>> sideInputs, DoFn<?, ?> fn) {
+    DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
+    DoFnSignature.ProcessElementMethod processElementMethod = signature.processElement();
+    for (SideInputParameter sideInput : processElementMethod.getSideInputParameters()) {
+      PCollectionView<?> view = sideInputs.get(sideInput.sideInputId());
+      checkArgument(
+          view != null,
+          "the ProcessElement method expects a side input identified with the tag %s, but no such side input was"
+              + " supplied. Use withSideInput(String, PCollectionView) to supply this side input.",
+          sideInput.sideInputId());
+      TypeDescriptor<?> viewType = view.getViewFn().getTypeDescriptor();
+
+      // Currently check that the types exactly match, even if the types are convertible.
+      checkArgument(
+          viewType.equals(sideInput.elementT()),
+          "Side Input with tag %s and type %s cannot be bound to ProcessElement parameter with type %s",
+          sideInput.sideInputId(),
+          viewType,
+          sideInput.elementT());
     }
   }
 
@@ -523,6 +547,9 @@ public class ParDo {
     for (OnTimerMethod method : signature.onTimerMethods().values()) {
       validateWindowTypeForMethod(actualWindowT, method);
     }
+    for (DoFnSignature.OnTimerFamilyMethod method : signature.onTimerFamilyMethods().values()) {
+      validateWindowTypeForMethod(actualWindowT, method);
+    }
   }
 
   private static void validateWindowTypeForMethod(
@@ -555,14 +582,23 @@ public class ParDo {
     }
 
     // Timers are semantically incompatible with splitting
-    if (!signature.timerDeclarations().isEmpty() && signature.processElement().isSplittable()) {
+    if ((!signature.timerDeclarations().isEmpty() || !signature.timerFamilyDeclarations().isEmpty())
+        && signature.processElement().isSplittable()) {
       throw new UnsupportedOperationException(
           String.format(
               "%s is splittable and uses timers, but these are not compatible",
               fn.getClass().getName()));
     }
-  }
 
+    // TimerFamily is semantically incompatible with splitting
+    if (!signature.timerFamilyDeclarations().isEmpty()
+        && signature.processElement().isSplittable()) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s is splittable and uses timer family, but these are not compatible",
+              fn.getClass().getName()));
+    }
+  }
   /**
    * Extract information on how the DoFn uses schemas. In particular, if the schema of an element
    * parameter does not match the input PCollection's schema, convert.
@@ -629,19 +665,18 @@ public class ParDo {
 
     private static final String MAIN_OUTPUT_TAG = "output";
 
-    private final List<PCollectionView<?>> sideInputs;
+    private final Map<String, PCollectionView<?>> sideInputs;
     private final DoFn<InputT, OutputT> fn;
     private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
 
     SingleOutput(
         DoFn<InputT, OutputT> fn,
-        List<PCollectionView<?>> sideInputs,
+        Map<String, PCollectionView<?>> sideInputs,
         DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
       this.fn = fn;
       this.fnDisplayData = fnDisplayData;
       this.sideInputs = sideInputs;
     }
-
     /**
      * Returns a new {@link ParDo} {@link PTransform} that's like this {@link PTransform} but with
      * the specified additional side inputs. Does not modify this {@link PTransform}.
@@ -660,13 +695,36 @@ public class ParDo {
      */
     public SingleOutput<InputT, OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
+      Map<String, PCollectionView<?>> mappedInputs =
+          StreamSupport.stream(sideInputs.spliterator(), false)
+              .collect(Collectors.toMap(v -> v.getTagInternal().getId(), v -> v));
+      return withSideInputs(mappedInputs);
+    }
+
+    /**
+     * Returns a new {@link ParDo} {@link PTransform} that's like this {@link PTransform} but with
+     * the specified additional side inputs. Does not modify this {@link PTransform}.
+     *
+     * <p>See the discussion of Side Inputs above for more explanation.
+     */
+    public SingleOutput<InputT, OutputT> withSideInputs(
+        Map<String, PCollectionView<?>> sideInputs) {
       return new SingleOutput<>(
           fn,
-          ImmutableList.<PCollectionView<?>>builder()
-              .addAll(this.sideInputs)
-              .addAll(sideInputs)
+          ImmutableMap.<String, PCollectionView<?>>builder()
+              .putAll(this.sideInputs)
+              .putAll(sideInputs)
               .build(),
           fnDisplayData);
+    }
+
+    /**
+     * Returns a new {@link ParDo} {@link PTransform} that's like this {@link PTransform} but with
+     * the specified additional side inputs. Does not modify this {@link PTransform}.
+     */
+    public SingleOutput<InputT, OutputT> withSideInput(
+        String tagId, PCollectionView<?> pCollectionView) {
+      return withSideInputs(Collections.singletonMap(tagId, pCollectionView));
     }
 
     /**
@@ -685,21 +743,22 @@ public class ParDo {
       SchemaRegistry schemaRegistry = input.getPipeline().getSchemaRegistry();
       CoderRegistry registry = input.getPipeline().getCoderRegistry();
       finishSpecifyingStateSpecs(fn, registry, input.getCoder());
-
       TupleTag<OutputT> mainOutput = new TupleTag<>(MAIN_OUTPUT_TAG);
       PCollection<OutputT> res =
           input.apply(withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);
 
+      TypeDescriptor<OutputT> outputTypeDescriptor = getFn().getOutputTypeDescriptor();
       try {
         res.setSchema(
-            schemaRegistry.getSchema(getFn().getOutputTypeDescriptor()),
-            schemaRegistry.getToRowFunction(getFn().getOutputTypeDescriptor()),
-            schemaRegistry.getFromRowFunction(getFn().getOutputTypeDescriptor()));
+            schemaRegistry.getSchema(outputTypeDescriptor),
+            outputTypeDescriptor,
+            schemaRegistry.getToRowFunction(outputTypeDescriptor),
+            schemaRegistry.getFromRowFunction(outputTypeDescriptor));
       } catch (NoSuchSchemaException e) {
         try {
           res.setCoder(
               registry.getCoder(
-                  getFn().getOutputTypeDescriptor(),
+                  outputTypeDescriptor,
                   getFn().getInputTypeDescriptor(),
                   ((PCollection<InputT>) input).getCoder()));
         } catch (CannotProvideCoderException e2) {
@@ -725,14 +784,14 @@ public class ParDo {
     @Override
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
-      ParDo.populateDisplayData(builder, (HasDisplayData) fn, fnDisplayData);
+      ParDo.populateDisplayData(builder, fn, fnDisplayData);
     }
 
     public DoFn<InputT, OutputT> getFn() {
       return fn;
     }
 
-    public List<PCollectionView<?>> getSideInputs() {
+    public Map<String, PCollectionView<?>> getSideInputs() {
       return sideInputs;
     }
 
@@ -743,7 +802,7 @@ public class ParDo {
      */
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      return PCollectionViews.toAdditionalInputs(sideInputs);
+      return PCollectionViews.toAdditionalInputs(sideInputs.values());
     }
 
     @Override
@@ -763,7 +822,7 @@ public class ParDo {
    */
   public static class MultiOutput<InputT, OutputT>
       extends PTransform<PCollection<? extends InputT>, PCollectionTuple> {
-    private final List<PCollectionView<?>> sideInputs;
+    private final Map<String, PCollectionView<?>> sideInputs;
     private final TupleTag<OutputT> mainOutputTag;
     private final TupleTagList additionalOutputTags;
     private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
@@ -771,7 +830,7 @@ public class ParDo {
 
     MultiOutput(
         DoFn<InputT, OutputT> fn,
-        List<PCollectionView<?>> sideInputs,
+        Map<String, PCollectionView<?>> sideInputs,
         TupleTag<OutputT> mainOutputTag,
         TupleTagList additionalOutputTags,
         ItemSpec<? extends Class<?>> fnDisplayData) {
@@ -793,6 +852,14 @@ public class ParDo {
       return withSideInputs(Arrays.asList(sideInputs));
     }
 
+    public MultiOutput<InputT, OutputT> withSideInputs(
+        Iterable<? extends PCollectionView<?>> sideInputs) {
+      Map<String, PCollectionView<?>> mappedInputs =
+          StreamSupport.stream(sideInputs.spliterator(), false)
+              .collect(Collectors.toMap(v -> v.getTagInternal().getId(), v -> v));
+      return withSideInputs(mappedInputs);
+    }
+
     /**
      * Returns a new multi-output {@link ParDo} {@link PTransform} that's like this {@link
      * PTransform} but with the specified additional side inputs. Does not modify this {@link
@@ -800,17 +867,26 @@ public class ParDo {
      *
      * <p>See the discussion of Side Inputs above for more explanation.
      */
-    public MultiOutput<InputT, OutputT> withSideInputs(
-        Iterable<? extends PCollectionView<?>> sideInputs) {
+    public MultiOutput<InputT, OutputT> withSideInputs(Map<String, PCollectionView<?>> sideInputs) {
       return new MultiOutput<>(
           fn,
-          ImmutableList.<PCollectionView<?>>builder()
-              .addAll(this.sideInputs)
-              .addAll(sideInputs)
+          ImmutableMap.<String, PCollectionView<?>>builder()
+              .putAll(this.sideInputs)
+              .putAll(sideInputs)
               .build(),
           mainOutputTag,
           additionalOutputTags,
           fnDisplayData);
+    }
+
+    /**
+     * Returns a new multi-output {@link ParDo} {@link PTransform} that's like this {@link
+     * PTransform} but with the specified additional side inputs. Does not modify this {@link
+     * PTransform}.
+     */
+    public MultiOutput<InputT, OutputT> withSideInput(
+        String tagId, PCollectionView<?> pCollectionView) {
+      return withSideInputs(Collections.singletonMap(tagId, pCollectionView));
     }
 
     @Override
@@ -826,6 +902,8 @@ public class ParDo {
       if (signature.usesState() || signature.usesTimers()) {
         validateStateApplicableForInput(fn, input);
       }
+
+      validateSideInputTypes(sideInputs, fn);
 
       // TODO: We should validate OutputReceiver<Row> only happens if the output PCollection
       // as schema. However coder/schema inference may not have happened yet at this point.
@@ -883,7 +961,7 @@ public class ParDo {
       return additionalOutputTags;
     }
 
-    public List<PCollectionView<?>> getSideInputs() {
+    public Map<String, PCollectionView<?>> getSideInputs() {
       return sideInputs;
     }
 
@@ -894,7 +972,7 @@ public class ParDo {
      */
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      return PCollectionViews.toAdditionalInputs(sideInputs);
+      return PCollectionViews.toAdditionalInputs(sideInputs.values());
     }
 
     @Override
@@ -903,11 +981,53 @@ public class ParDo {
     }
   }
 
+  private static String stateDescription(StateSpec<?> spec) {
+    return spec.match(
+        new StateSpec.Cases<String>() {
+          @Override
+          public String dispatchValue(Coder<?> valueCoder) {
+            return "ValueState<" + valueCoder + ">";
+          }
+
+          @Override
+          public String dispatchBag(Coder<?> elementCoder) {
+            return "BagState<" + elementCoder + ">";
+          }
+
+          @Override
+          public String dispatchCombining(
+              Combine.CombineFn<?, ?, ?> combineFn, Coder<?> accumCoder) {
+            return "CombiningState<" + accumCoder + ">";
+          }
+
+          @Override
+          public String dispatchMap(Coder<?> keyCoder, Coder<?> valueCoder) {
+            return "MapState<" + keyCoder + ", " + valueCoder + ">";
+          }
+
+          @Override
+          public String dispatchSet(Coder<?> elementCoder) {
+            return "SetState<" + elementCoder + ">";
+          }
+        });
+  }
+
   private static void populateDisplayData(
       DisplayData.Builder builder,
-      HasDisplayData fn,
+      DoFn<?, ?> fn,
       DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
     builder.include("fn", fn).add(fnDisplayData);
+    for (DoFnSignature.StateDeclaration stateDeclaration :
+        DoFnSignatures.signatureForDoFn(fn).stateDeclarations().values()) {
+      try {
+        StateSpec<?> stateSpec = (StateSpec<?>) stateDeclaration.field().get(fn);
+        builder.add(
+            DisplayData.item("state_" + stateDeclaration.id(), stateDescription(stateSpec))
+                .withLabel("State \"" + stateDeclaration.id() + "\""));
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+    }
   }
 
   private static boolean isSplittable(DoFn<?, ?> fn) {

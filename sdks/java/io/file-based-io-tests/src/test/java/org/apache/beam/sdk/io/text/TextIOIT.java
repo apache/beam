@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.text;
 
 import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readFileBasedIOITPipelineOptions;
 
 import com.google.cloud.Timestamp;
@@ -64,6 +63,8 @@ import org.slf4j.LoggerFactory;
  *  ./gradlew integrationTest -p sdks/java/io/file-based-io-tests
  *  -DintegrationTestPipelineOptions='[
  *  "--numberOfRecords=100000",
+ *  "--datasetSize=12345",
+ *  "--expectedHash=99f23ab",
  *  "--filenamePrefix=output_file_path",
  *  "--compressionType=GZIP"
  *  ]'
@@ -80,6 +81,8 @@ public class TextIOIT {
 
   private static String filenamePrefix;
   private static Integer numberOfTextLines;
+  private static Integer datasetSize;
+  private static String expectedHash;
   private static Compression compressionType;
   private static Integer numShards;
   private static String bigQueryDataset;
@@ -92,10 +95,11 @@ public class TextIOIT {
   @BeforeClass
   public static void setup() {
     FileBasedIOTestPipelineOptions options = readFileBasedIOITPipelineOptions();
-
+    datasetSize = options.getDatasetSize();
+    expectedHash = options.getExpectedHash();
     numberOfTextLines = options.getNumberOfRecords();
-    filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     compressionType = Compression.valueOf(options.getCompressionType());
+    filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     numShards = options.getNumberOfShards();
     bigQueryDataset = options.getBigQueryDataset();
     bigQueryTable = options.getBigQueryTable();
@@ -137,7 +141,6 @@ public class TextIOIT {
                 "Collect read end time", ParDo.of(new TimeMonitor<>(FILEIOIT_NAMESPACE, "endTime")))
             .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
-    String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
     testFilenames.apply(
@@ -189,7 +192,10 @@ public class TextIOIT {
           double runTime = (readEndTime - writeStartTime) / 1e3;
           return NamedTestResult.create(uuid, timestamp, "run_time", runTime);
         });
-
+    if (datasetSize != null) {
+      metricSuppliers.add(
+          (ignored) -> NamedTestResult.create(uuid, timestamp, "dataset_size", datasetSize));
+    }
     if (gatherGcsPerformanceMetrics) {
       metricSuppliers.add(
           reader -> {

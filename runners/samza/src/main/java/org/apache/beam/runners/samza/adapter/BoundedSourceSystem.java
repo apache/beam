@@ -44,7 +44,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.samza.Partition;
 import org.apache.samza.SamzaException;
 import org.apache.samza.config.Config;
@@ -101,7 +101,8 @@ public class BoundedSourceSystem {
     @Override
     public Map<SystemStreamPartition, String> getOffsetsAfter(
         Map<SystemStreamPartition, String> offsets) {
-      return offsets.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, null));
+      // BEAM checkpoints the next offset so here we just need to return the map itself
+      return offsets;
     }
 
     @Override
@@ -302,7 +303,7 @@ public class BoundedSourceSystem {
 
       private <X> X invoke(FnWithMetricsWrapper.SupplierWithException<X> fn) throws Exception {
         if (metricsWrapper != null) {
-          return metricsWrapper.wrap(fn);
+          return metricsWrapper.wrap(fn, true);
         } else {
           return fn.get();
         }

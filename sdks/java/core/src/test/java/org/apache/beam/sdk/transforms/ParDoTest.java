@@ -19,12 +19,14 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLabel;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
@@ -36,6 +38,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -46,19 +49,26 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.function.IntFunction;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.LongStream;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -72,6 +82,7 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
@@ -81,12 +92,18 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesMapState;
+import org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput;
 import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesSideInputs;
+import org.apache.beam.sdk.testing.UsesSideInputsWithDifferentCoders;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
+import org.apache.beam.sdk.testing.UsesStrictTimerOrdering;
 import org.apache.beam.sdk.testing.UsesTestStream;
+import org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp;
 import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
+import org.apache.beam.sdk.testing.UsesTimerMap;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
+import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
@@ -98,24 +115,30 @@ import org.apache.beam.sdk.transforms.display.DisplayDataMatchers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Sets;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -472,6 +495,49 @@ public class ParDoTest implements Serializable {
       assertThat(displayData, hasDisplayItem("fn", fn.getClass()));
     }
 
+    private static class SerializableClass implements Serializable {}
+
+    @Test
+    public void testStatefulDoFnDisplayData() {
+      DoFn<KV<String, String>, String> fn =
+          new DoFn<KV<String, String>, String>() {
+            @StateId("int")
+            final StateSpec<ValueState<Integer>> intState = StateSpecs.value();
+
+            @StateId("map")
+            final StateSpec<MapState<String, SerializableClass>> mapState = StateSpecs.map();
+
+            @ProcessElement
+            public void proccessElement(ProcessContext c) {}
+          };
+
+      SingleOutput<KV<String, String>, String> parDo = ParDo.of(fn);
+
+      // Use the parDo in a pipeline to cause state coders to be inferred.
+      pipeline.apply(Create.of(KV.of("input", "value"))).apply(parDo);
+
+      DisplayData displayData = DisplayData.from(parDo);
+      assertThat(
+          displayData,
+          hasDisplayItem(
+              allOf(
+                  hasKey("state_int"),
+                  hasType(DisplayData.Type.STRING),
+                  hasValue("ValueState<VarIntCoder>"),
+                  hasLabel("State \"int\""))));
+      assertThat(
+          displayData,
+          hasDisplayItem(
+              allOf(
+                  hasKey("state_map"),
+                  hasType(DisplayData.Type.STRING),
+                  hasValue(
+                      "MapState<StringUtf8Coder, "
+                          + "SerializableCoder(org.apache.beam.sdk.transforms.ParDoTest"
+                          + "$BasicTests$SerializableClass)>"),
+                  hasLabel("State \"map\""))));
+    }
+
     @Test
     public void testRejectsWrongWindowType() {
 
@@ -734,6 +800,290 @@ public class ParDoTest implements Serializable {
 
       PAssert.that(output)
           .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs).andSideInputs(11, 222));
+
+      pipeline.run();
+    }
+
+    @Test
+    @Category({NeedsRunner.class, UsesSideInputs.class})
+    public void testSideInputAnnotationFailedValidationMissing() {
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      DoFn<Integer, List<Integer>> fn =
+          new DoFn<Integer, List<Integer>>() {
+            @ProcessElement
+            public void processElement(@SideInput(sideInputTag1) String tag1) {}
+          };
+
+      thrown.expect(IllegalArgumentException.class);
+      PCollection<List<Integer>> output =
+          pipeline.apply("Create main input", Create.of(2)).apply(ParDo.of(fn));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({NeedsRunner.class, UsesSideInputs.class})
+    public void testSideInputAnnotationFailedValidationSingletonType() {
+
+      final PCollectionView<Integer> sideInput1 =
+          pipeline
+              .apply("CreateSideInput1", Create.of(2))
+              .apply("ViewSideInput1", View.asSingleton());
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      DoFn<Integer, List<Integer>> fn =
+          new DoFn<Integer, List<Integer>>() {
+            @ProcessElement
+            public void processElement(@SideInput(sideInputTag1) String tag1) {}
+          };
+
+      thrown.expect(IllegalArgumentException.class);
+      PCollection<List<Integer>> output =
+          pipeline
+              .apply("Create main input", Create.of(2))
+              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({NeedsRunner.class, UsesSideInputs.class})
+    public void testSideInputAnnotationFailedValidationListType() {
+
+      final PCollectionView<List<Integer>> sideInput1 =
+          pipeline
+              .apply("CreateSideInput1", Create.of(2, 1, 0))
+              .apply("ViewSideInput1", View.asList());
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      DoFn<Integer, List<Integer>> fn =
+          new DoFn<Integer, List<Integer>>() {
+            @ProcessElement
+            public void processElement(@SideInput(sideInputTag1) List<String> tag1) {}
+          };
+
+      thrown.expect(IllegalArgumentException.class);
+      PCollection<List<Integer>> output =
+          pipeline
+              .apply("Create main input", Create.of(2))
+              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({NeedsRunner.class, UsesSideInputs.class})
+    public void testSideInputAnnotationFailedValidationIterableType() {
+
+      final PCollectionView<Iterable<Integer>> sideInput1 =
+          pipeline
+              .apply("CreateSideInput1", Create.of(2, 1, 0))
+              .apply("ViewSideInput1", View.asIterable());
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      DoFn<Integer, List<Integer>> fn =
+          new DoFn<Integer, List<Integer>>() {
+            @ProcessElement
+            public void processElement(@SideInput(sideInputTag1) List<String> tag1) {}
+          };
+
+      thrown.expect(IllegalArgumentException.class);
+      PCollection<List<Integer>> output =
+          pipeline
+              .apply("Create main input", Create.of(2))
+              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({NeedsRunner.class, UsesSideInputs.class})
+    public void testSideInputAnnotationFailedValidationMapType() {
+
+      final PCollectionView<Map<Integer, Integer>> sideInput1 =
+          pipeline
+              .apply("CreateSideInput1", Create.of(KV.of(1, 2), KV.of(2, 3), KV.of(3, 4)))
+              .apply("ViewSideInput1", View.asMap());
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      DoFn<Integer, List<Integer>> fn =
+          new DoFn<Integer, List<Integer>>() {
+            @ProcessElement
+            public void processElement(@SideInput(sideInputTag1) Map<String, String> tag1) {}
+          };
+
+      thrown.expect(IllegalArgumentException.class);
+      PCollection<List<Integer>> output =
+          pipeline
+              .apply("Create main input", Create.of(2))
+              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({NeedsRunner.class, UsesSideInputs.class})
+    public void testSideInputAnnotationFailedValidationMultiMapType() {
+
+      final PCollectionView<Map<Integer, Iterable<Integer>>> sideInput1 =
+          pipeline
+              .apply("CreateSideInput1", Create.of(KV.of(1, 2), KV.of(1, 3), KV.of(3, 4)))
+              .apply("ViewSideInput1", View.asMultimap());
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      DoFn<Integer, List<Integer>> fn =
+          new DoFn<Integer, List<Integer>>() {
+            @ProcessElement
+            public void processElement(@SideInput(sideInputTag1) Map<Integer, Integer> tag1) {}
+          };
+
+      thrown.expect(IllegalArgumentException.class);
+      PCollection<List<Integer>> output =
+          pipeline
+              .apply("Create main input", Create.of(2))
+              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
+    public void testSideInputAnnotation() {
+
+      final PCollectionView<List<Integer>> sideInput1 =
+          pipeline
+              .apply("CreateSideInput1", Create.of(2, 1, 0))
+              .apply("ViewSideInput1", View.asList());
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      DoFn<Integer, List<Integer>> fn =
+          new DoFn<Integer, List<Integer>>() {
+            @ProcessElement
+            public void processElement(
+                OutputReceiver<List<Integer>> r, @SideInput(sideInputTag1) List<Integer> tag1) {
+
+              List<Integer> sideSorted = Lists.newArrayList(tag1);
+              Collections.sort(sideSorted);
+              r.output(sideSorted);
+            }
+          };
+
+      PCollection<List<Integer>> output =
+          pipeline
+              .apply("Create main input", Create.of(2))
+              .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput1));
+
+      PAssert.that(output).containsInAnyOrder(Lists.newArrayList(0, 1, 2));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesSideInputs.class,
+      UsesSideInputsWithDifferentCoders.class
+    })
+    public void testSideInputAnnotationWithMultipleSideInputs() {
+
+      final List<Integer> side1Data = ImmutableList.of(2, 0);
+      final PCollectionView<List<Integer>> sideInput1 =
+          pipeline
+              .apply("CreateSideInput1", Create.of(side1Data))
+              .apply("ViewSideInput1", View.asList());
+
+      final Integer side2Data = 5;
+      final PCollectionView<Integer> sideInput2 =
+          pipeline
+              .apply("CreateSideInput2", Create.of(side2Data))
+              .apply("ViewSideInput2", View.asSingleton());
+
+      final List<Integer> side3Data = ImmutableList.of(1, 3);
+      final PCollectionView<Iterable<Integer>> sideInput3 =
+          pipeline
+              .apply("CreateSideInput3", Create.of(side3Data))
+              .apply("ViewSideInput3", View.asIterable());
+
+      final List<KV<Integer, Integer>> side4Data =
+          ImmutableList.of(KV.of(1, 2), KV.of(2, 3), KV.of(3, 4));
+      final PCollectionView<Map<Integer, Integer>> sideInput4 =
+          pipeline
+              .apply("CreateSideInput4", Create.of(side4Data))
+              .apply("ViewSideInput4", View.asMap());
+
+      final List<KV<Integer, Integer>> side5Data =
+          ImmutableList.of(KV.of(1, 2), KV.of(1, 3), KV.of(3, 4));
+      final PCollectionView<Map<Integer, Iterable<Integer>>> sideInput5 =
+          pipeline
+              .apply("CreateSideInput5", Create.of(side5Data))
+              .apply("ViewSideInput5", View.asMultimap());
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+      final String sideInputTag2 = "tag2";
+      final String sideInputTag3 = "tag3";
+      final String sideInputTag4 = "tag4";
+      final String sideInputTag5 = "tag5";
+
+      final TupleTag<Integer> outputTag1 = new TupleTag<>();
+      final TupleTag<Integer> outputTag2 = new TupleTag<>();
+      final TupleTag<Integer> outputTag3 = new TupleTag<>();
+      final TupleTag<KV<Integer, Integer>> outputTag4 = new TupleTag<>();
+      final TupleTag<KV<Integer, Integer>> outputTag5 = new TupleTag<>();
+
+      DoFn<Integer, Integer> fn =
+          new DoFn<Integer, Integer>() {
+            @ProcessElement
+            public void processElement(
+                MultiOutputReceiver r,
+                @SideInput(sideInputTag1) List<Integer> side1,
+                @SideInput(sideInputTag2) Integer side2,
+                @SideInput(sideInputTag3) Iterable<Integer> side3,
+                @SideInput(sideInputTag4) Map<Integer, Integer> side4,
+                @SideInput(sideInputTag5) Map<Integer, Iterable<Integer>> side5) {
+              side1.forEach(i -> r.get(outputTag1).output(i));
+              r.get(outputTag2).output(side2);
+              side3.forEach(i -> r.get(outputTag3).output(i));
+              side4.forEach((k, v) -> r.get(outputTag4).output(KV.of(k, v)));
+              side5.forEach((k, v) -> v.forEach(v2 -> r.get(outputTag5).output(KV.of(k, v2))));
+            }
+          };
+
+      PCollectionTuple output =
+          pipeline
+              .apply("Create main input", Create.of(2))
+              .apply(
+                  ParDo.of(fn)
+                      .withSideInput(sideInputTag1, sideInput1)
+                      .withSideInput(sideInputTag2, sideInput2)
+                      .withSideInput(sideInputTag3, sideInput3)
+                      .withSideInput(sideInputTag4, sideInput4)
+                      .withSideInput(sideInputTag5, sideInput5)
+                      .withOutputTags(
+                          outputTag1,
+                          TupleTagList.of(outputTag2)
+                              .and(outputTag3)
+                              .and(outputTag4)
+                              .and(outputTag5)));
+
+      output.get(outputTag1).setCoder(VarIntCoder.of());
+      output.get(outputTag2).setCoder(VarIntCoder.of());
+      output.get(outputTag3).setCoder(VarIntCoder.of());
+      output.get(outputTag4).setCoder(KvCoder.of(VarIntCoder.of(), VarIntCoder.of()));
+      output.get(outputTag5).setCoder(KvCoder.of(VarIntCoder.of(), VarIntCoder.of()));
+
+      PAssert.that(output.get(outputTag1)).containsInAnyOrder(side1Data);
+      PAssert.that(output.get(outputTag2)).containsInAnyOrder(side2Data);
+      PAssert.that(output.get(outputTag3)).containsInAnyOrder(side3Data);
+      PAssert.that(output.get(outputTag4)).containsInAnyOrder(side4Data);
+      PAssert.that(output.get(outputTag5)).containsInAnyOrder(side5Data);
 
       pipeline.run();
     }
@@ -1411,7 +1761,8 @@ public class ParDoTest implements Serializable {
 
             @ProcessElement
             public void processElement(
-                @StateId(stateId) ValueState<Integer> state, OutputReceiver<Integer> r) {
+                @AlwaysFetched @StateId(stateId) ValueState<Integer> state,
+                OutputReceiver<Integer> r) {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
               r.output(currentValue);
               state.write(currentValue + 1);
@@ -1967,7 +2318,6 @@ public class ParDoTest implements Serializable {
 
       final PCollectionView<List<Integer>> listView =
           pipeline.apply("Create list for side input", Create.of(2, 1, 0)).apply(View.asList());
-
       final String stateId = "foo";
       DoFn<KV<String, Integer>, List<Integer>> fn =
           new DoFn<KV<String, Integer>, List<Integer>>() {
@@ -2010,6 +2360,284 @@ public class ParDoTest implements Serializable {
       PAssert.that(output)
           .containsInAnyOrder(Lists.newArrayList(12, 42, 84, 97), Lists.newArrayList(0, 1, 2));
       pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesSideInputs.class})
+    public void testStateSideInput() {
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+      pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, myIntegerCoder);
+      final PCollectionView<Integer> sideInput =
+          pipeline
+              .apply("CreateSideInput1", Create.of(2))
+              .apply("ViewSideInput1", View.asSingleton());
+
+      TestSimpleStatefulDoFn fn = new TestSimpleStatefulDoFn(sideInput);
+      pipeline
+          .apply(Create.of(KV.of(1, 2)))
+          .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput));
+
+      pipeline.run();
+    }
+
+    private static class TestSimpleStatefulDoFn extends DoFn<KV<Integer, Integer>, Integer> {
+
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+      private final PCollectionView<Integer> view;
+
+      final String stateId = "foo";
+      Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+
+      @StateId(stateId)
+      private final StateSpec<BagState<MyInteger>> bufferState = StateSpecs.bag();
+
+      private TestSimpleStatefulDoFn(PCollectionView<Integer> view) {
+        this.view = view;
+      }
+
+      @ProcessElement
+      public void processElem(
+          ProcessContext c,
+          @SideInput(sideInputTag1) Integer sideInputTag,
+          @StateId(stateId) BagState<MyInteger> state) {
+        state.add(new MyInteger(sideInputTag));
+        c.output(sideInputTag);
+      }
+
+      @Override
+      public boolean equals(Object other) {
+        return other instanceof TestSimpleStatefulDoFn;
+      }
+
+      @Override
+      public int hashCode() {
+        return getClass().hashCode();
+      }
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesRequiresTimeSortedInput.class,
+      UsesStrictTimerOrdering.class
+    })
+    public void testRequiresTimeSortedInput() {
+      // generate list long enough to rule out random shuffle in sorted order
+      int numElements = 1000;
+      List<Long> eventStamps =
+          LongStream.range(0, numElements)
+              .mapToObj(i -> numElements - i)
+              .collect(Collectors.toList());
+      testTimeSortedInput(numElements, pipeline.apply(Create.of(eventStamps)));
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesRequiresTimeSortedInput.class,
+      UsesStrictTimerOrdering.class,
+      UsesTestStream.class
+    })
+    public void testRequiresTimeSortedInputWithTestStream() {
+      // generate list long enough to rule out random shuffle in sorted order
+      int numElements = 1000;
+      List<Long> eventStamps =
+          LongStream.range(0, numElements)
+              .mapToObj(i -> numElements - i)
+              .collect(Collectors.toList());
+      TestStream.Builder<Long> stream = TestStream.create(VarLongCoder.of());
+      for (Long stamp : eventStamps) {
+        stream = stream.addElements(stamp);
+      }
+      testTimeSortedInput(numElements, pipeline.apply(stream.advanceWatermarkToInfinity()));
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesRequiresTimeSortedInput.class,
+      UsesStrictTimerOrdering.class,
+      UsesTestStream.class
+    })
+    public void testRequiresTimeSortedInputWithLateDataAndAllowedLateness() {
+      // generate list long enough to rule out random shuffle in sorted order
+      int numElements = 1000;
+      List<Long> eventStamps =
+          LongStream.range(0, numElements)
+              .mapToObj(i -> numElements - i)
+              .collect(Collectors.toList());
+      TestStream.Builder<Long> input = TestStream.create(VarLongCoder.of());
+      for (Long stamp : eventStamps) {
+        input = input.addElements(TimestampedValue.of(stamp, Instant.ofEpochMilli(stamp)));
+        if (stamp == 100) {
+          // advance watermark when we have 100 remaining elements
+          // all the rest are going to be late elements
+          input = input.advanceWatermarkTo(Instant.ofEpochMilli(stamp));
+        }
+      }
+      testTimeSortedInput(
+          numElements,
+          pipeline
+              .apply(input.advanceWatermarkToInfinity())
+              .apply(
+                  Window.<Long>into(new GlobalWindows())
+                      .withAllowedLateness(Duration.millis(5000))));
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesRequiresTimeSortedInput.class,
+      UsesStrictTimerOrdering.class,
+      UsesTestStream.class
+    })
+    public void testRequiresTimeSortedInputWithLateData() {
+      // generate list long enough to rule out random shuffle in sorted order
+      int numElements = 1000;
+      List<Long> eventStamps =
+          LongStream.range(0, numElements)
+              .mapToObj(i -> numElements - i)
+              .collect(Collectors.toList());
+      TestStream.Builder<Long> input = TestStream.create(VarLongCoder.of());
+      for (Long stamp : eventStamps) {
+        input = input.addElements(TimestampedValue.of(stamp, Instant.ofEpochMilli(stamp)));
+        if (stamp == 100) {
+          // advance watermark when we have 100 remaining elements
+          // all the rest are going to be late elements
+          input = input.advanceWatermarkTo(Instant.ofEpochMilli(stamp));
+        }
+      }
+      testTimeSortedInput(
+          numElements - 100,
+          numElements - 1,
+          pipeline.apply(input.advanceWatermarkToInfinity()),
+          // cannot validate exactly which data gets dropped, because that is runner dependent
+          false);
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesRequiresTimeSortedInput.class,
+      UsesStrictTimerOrdering.class,
+      UsesTestStream.class
+    })
+    public void testTwoRequiresTimeSortedInputWithLateData() {
+      // generate list long enough to rule out random shuffle in sorted order
+      int numElements = 1000;
+      List<Long> eventStamps =
+          LongStream.range(0, numElements)
+              .mapToObj(i -> numElements - i)
+              .collect(Collectors.toList());
+      TestStream.Builder<Long> input = TestStream.create(VarLongCoder.of());
+      for (Long stamp : eventStamps) {
+        input = input.addElements(TimestampedValue.of(stamp, Instant.ofEpochMilli(stamp)));
+        if (stamp == 100) {
+          // advance watermark when we have 100 remaining elements
+          // all the rest are going to be late elements
+          input = input.advanceWatermarkTo(Instant.ofEpochMilli(stamp));
+        }
+      }
+      // apply the sorted function for the first time
+      PCollection<Long> first =
+          pipeline
+              .apply(input.advanceWatermarkToInfinity())
+              .apply(WithTimestamps.of(e -> Instant.ofEpochMilli(e)))
+              .apply(
+                  "first.MapElements",
+                  MapElements.into(
+                          TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.longs()))
+                      .via(e -> KV.of("", e)))
+              .apply("first.ParDo", ParDo.of(timeSortedDoFn()))
+              .apply(MapElements.into(TypeDescriptors.longs()).via(e -> (long) e));
+      // apply the test to the already sorted outcome so that we test that we don't loose any
+      // more data
+      testTimeSortedInputAlreadyHavingStamps(
+          numElements - 100,
+          numElements - 1,
+          first,
+          // cannot validate exactly which data gets dropped, because that is runner dependent
+          false);
+    }
+
+    private static void testTimeSortedInput(int exactNumExpectedElements, PCollection<Long> input) {
+      testTimeSortedInput(exactNumExpectedElements, exactNumExpectedElements, input, true);
+    }
+
+    private static void testTimeSortedInput(
+        int minNumExpectedElements,
+        int maxNumExpectedElements,
+        PCollection<Long> input,
+        boolean validateContents) {
+      testTimeSortedInputAlreadyHavingStamps(
+          minNumExpectedElements,
+          maxNumExpectedElements,
+          input.apply(WithTimestamps.of(e -> Instant.ofEpochMilli(e))),
+          validateContents);
+    }
+
+    private static void testTimeSortedInputAlreadyHavingStamps(
+        int minNumExpectedElements,
+        int maxNumExpectedElements,
+        PCollection<Long> input,
+        boolean validateContents) {
+
+      PCollection<Integer> output =
+          input
+              .apply(
+                  "sorted.MapElements",
+                  MapElements.into(
+                          TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.longs()))
+                      .via(e -> KV.of("", e)))
+              .apply("sorted.ParDo", ParDo.of(timeSortedDoFn()));
+      PAssert.that(output)
+          .satisfies(
+              values -> {
+                // validate that sum equals count, so that the whole list is made of ones
+                long numElements = StreamSupport.stream(values.spliterator(), false).count();
+                assertTrue(
+                    "Expected at least " + minNumExpectedElements + ", got " + numElements,
+                    minNumExpectedElements <= numElements);
+                assertTrue(
+                    "Expected at most " + maxNumExpectedElements + ", got " + numElements,
+                    maxNumExpectedElements >= numElements);
+                if (validateContents) {
+                  assertFalse(
+                      "Expected all ones in " + values,
+                      StreamSupport.stream(values.spliterator(), false).anyMatch(e -> e != 1));
+                }
+                return null;
+              });
+      input.getPipeline().run();
+    }
+
+    private static DoFn<KV<String, Long>, Integer> timeSortedDoFn() {
+      return new DoFn<KV<String, Long>, Integer>() {
+
+        @StateId("last")
+        private final StateSpec<ValueState<Long>> lastSpec = StateSpecs.value();
+
+        @RequiresTimeSortedInput
+        @ProcessElement
+        public void process(
+            @Element KV<String, Long> element,
+            @StateId("last") ValueState<Long> last,
+            OutputReceiver<Integer> output) {
+          long lastVal = MoreObjects.firstNonNull(last.read(), element.getValue() - 1);
+          last.write(element.getValue());
+          output.output((int) (element.getValue() - lastVal));
+        }
+      };
     }
   }
 
@@ -2511,29 +3139,28 @@ public class ParDoTest implements Serializable {
     public void testEventTimeTimerBounded() throws Exception {
       final String timerId = "foo";
 
-      DoFn<KV<String, Integer>, Integer> fn =
-          new DoFn<KV<String, Integer>, Integer>() {
+      DoFn<KV<String, Long>, Long> fn =
+          new DoFn<KV<String, Long>, Long>() {
 
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
             @ProcessElement
-            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
+            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Long> r) {
               timer.offset(Duration.standardSeconds(1)).setRelative();
-              r.output(3);
+              r.output(3L);
             }
 
             @OnTimer(timerId)
-            public void onTimer(TimeDomain timeDomain, OutputReceiver<Integer> r) {
+            public void onTimer(TimeDomain timeDomain, OutputReceiver<Long> r) {
               if (timeDomain.equals(TimeDomain.EVENT_TIME)) {
-                r.output(42);
+                r.output(42L);
               }
             }
           };
 
-      PCollection<Integer> output =
-          pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
-      PAssert.that(output).containsInAnyOrder(3, 42);
+      PCollection<Long> output = pipeline.apply(Create.of(KV.of("hello", 37L))).apply(ParDo.of(fn));
+      PAssert.that(output).containsInAnyOrder(3L, 42L);
       pipeline.run();
     }
 
@@ -2589,8 +3216,8 @@ public class ParDoTest implements Serializable {
     public void testEventTimeTimerAlignBounded() throws Exception {
       final String timerId = "foo";
 
-      DoFn<KV<String, Integer>, KV<Integer, Instant>> fn =
-          new DoFn<KV<String, Integer>, KV<Integer, Instant>>() {
+      DoFn<KV<String, Long>, KV<Long, Instant>> fn =
+          new DoFn<KV<String, Long>, KV<Long, Instant>>() {
 
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
@@ -2599,24 +3226,23 @@ public class ParDoTest implements Serializable {
             public void processElement(
                 @TimerId(timerId) Timer timer,
                 @Timestamp Instant timestamp,
-                OutputReceiver<KV<Integer, Instant>> r) {
+                OutputReceiver<KV<Long, Instant>> r) {
               timer.align(Duration.standardSeconds(1)).offset(Duration.millis(1)).setRelative();
-              r.output(KV.of(3, timestamp));
+              r.output(KV.of(3L, timestamp));
             }
 
             @OnTimer(timerId)
-            public void onTimer(
-                @Timestamp Instant timestamp, OutputReceiver<KV<Integer, Instant>> r) {
-              r.output(KV.of(42, timestamp));
+            public void onTimer(@Timestamp Instant timestamp, OutputReceiver<KV<Long, Instant>> r) {
+              r.output(KV.of(42L, timestamp));
             }
           };
 
-      PCollection<KV<Integer, Instant>> output =
-          pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+      PCollection<KV<Long, Instant>> output =
+          pipeline.apply(Create.of(KV.of("hello", 37L))).apply(ParDo.of(fn));
       PAssert.that(output)
           .containsInAnyOrder(
-              KV.of(3, BoundedWindow.TIMESTAMP_MIN_VALUE),
-              KV.of(42, BoundedWindow.TIMESTAMP_MIN_VALUE.plus(1774)));
+              KV.of(3L, BoundedWindow.TIMESTAMP_MIN_VALUE),
+              KV.of(42L, BoundedWindow.TIMESTAMP_MIN_VALUE.plus(1774)));
       pipeline.run();
     }
 
@@ -2683,28 +3309,27 @@ public class ParDoTest implements Serializable {
     public void testEventTimeTimerAbsolute() throws Exception {
       final String timerId = "foo";
 
-      DoFn<KV<String, Integer>, Integer> fn =
-          new DoFn<KV<String, Integer>, Integer>() {
+      DoFn<KV<String, Long>, Long> fn =
+          new DoFn<KV<String, Long>, Long>() {
 
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
             @ProcessElement
             public void processElement(
-                @TimerId(timerId) Timer timer, BoundedWindow window, OutputReceiver<Integer> r) {
+                @TimerId(timerId) Timer timer, BoundedWindow window, OutputReceiver<Long> r) {
               timer.set(window.maxTimestamp());
-              r.output(3);
+              r.output(3L);
             }
 
             @OnTimer(timerId)
-            public void onTimer(OutputReceiver<Integer> r) {
-              r.output(42);
+            public void onTimer(OutputReceiver<Long> r) {
+              r.output(42L);
             }
           };
 
-      PCollection<Integer> output =
-          pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
-      PAssert.that(output).containsInAnyOrder(3, 42);
+      PCollection<Long> output = pipeline.apply(Create.of(KV.of("hello", 37L))).apply(ParDo.of(fn));
+      PAssert.that(output).containsInAnyOrder(3L, 42L);
       pipeline.run();
     }
 
@@ -2770,10 +3395,10 @@ public class ParDoTest implements Serializable {
       final String stateId = "sizzle";
 
       final int offset = 5000;
-      final int timerOutput = 4093;
+      final long timerOutput = 4093;
 
-      DoFn<KV<String, Integer>, KV<String, Integer>> fn =
-          new DoFn<KV<String, Integer>, KV<String, Integer>>() {
+      DoFn<KV<String, Long>, KV<String, Long>> fn =
+          new DoFn<KV<String, Long>, KV<String, Long>>() {
 
             @TimerId(timerId)
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
@@ -2796,21 +3421,21 @@ public class ParDoTest implements Serializable {
 
             @OnTimer(timerId)
             public void onTimer(
-                @StateId(stateId) ValueState<String> state, OutputReceiver<KV<String, Integer>> r) {
+                @StateId(stateId) ValueState<String> state, OutputReceiver<KV<String, Long>> r) {
               r.output(KV.of(state.read(), timerOutput));
             }
           };
 
       // Enough keys that we exercise interesting code paths
       int numKeys = 50;
-      List<KV<String, Integer>> input = new ArrayList<>();
-      List<KV<String, Integer>> expectedOutput = new ArrayList<>();
+      List<KV<String, Long>> input = new ArrayList<>();
+      List<KV<String, Long>> expectedOutput = new ArrayList<>();
 
-      for (Integer key = 0; key < numKeys; ++key) {
+      for (Long key = 0L; key < numKeys; ++key) {
         // Each key should have just one final output at GC time
         expectedOutput.add(KV.of(key.toString(), timerOutput));
 
-        for (int i = 0; i < 15; ++i) {
+        for (long i = 0; i < 15; ++i) {
           // Each input should be output with the offset added
           input.add(KV.of(key.toString(), i));
           expectedOutput.add(KV.of(key.toString(), i + offset));
@@ -2819,8 +3444,7 @@ public class ParDoTest implements Serializable {
 
       Collections.shuffle(input);
 
-      PCollection<KV<String, Integer>> output =
-          pipeline.apply(Create.of(input)).apply(ParDo.of(fn));
+      PCollection<KV<String, Long>> output = pipeline.apply(Create.of(input)).apply(ParDo.of(fn));
       PAssert.that(output).containsInAnyOrder(expectedOutput);
       pipeline.run();
     }
@@ -3147,6 +3771,158 @@ public class ParDoTest implements Serializable {
       pipeline.run();
     }
 
+    /** A test makes sure that an event time timers are correctly ordered. */
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesTestStream.class,
+      UsesStatefulParDo.class,
+      UsesStrictTimerOrdering.class
+    })
+    public void testEventTimeTimerOrdering() throws Exception {
+      final int numTestElements = 100;
+      final Instant now = new Instant(1500000000000L);
+      TestStream.Builder<KV<String, String>> builder =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+              .advanceWatermarkTo(new Instant(0));
+
+      for (int i = 0; i < numTestElements; i++) {
+        builder = builder.addElements(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i)));
+        builder = builder.advanceWatermarkTo(now.plus(i / 10 * 10));
+      }
+
+      testEventTimeTimerOrderingWithInputPTransform(
+          now, numTestElements, builder.advanceWatermarkToInfinity());
+    }
+
+    /** A test makes sure that an event time timers are correctly ordered using Create transform. */
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesStatefulParDo.class,
+      UsesStrictTimerOrdering.class
+    })
+    public void testEventTimeTimerOrderingWithCreate() throws Exception {
+      final int numTestElements = 100;
+      final Instant now = new Instant(1500000000000L);
+
+      List<TimestampedValue<KV<String, String>>> elements = new ArrayList<>();
+      for (int i = 0; i < numTestElements; i++) {
+        elements.add(TimestampedValue.of(KV.of("dummy", "" + i), now.plus(i)));
+      }
+
+      testEventTimeTimerOrderingWithInputPTransform(
+          now, numTestElements, Create.timestamped(elements));
+    }
+
+    private void testEventTimeTimerOrderingWithInputPTransform(
+        Instant now,
+        int numTestElements,
+        PTransform<PBegin, PCollection<KV<String, String>>> transform)
+        throws Exception {
+
+      final String timerIdBagAppend = "append";
+      final String timerIdGc = "gc";
+      final String bag = "bag";
+      final String minTimestamp = "minTs";
+      final Instant gcTimerStamp = now.plus(numTestElements + 1);
+
+      DoFn<KV<String, String>, String> fn =
+          new DoFn<KV<String, String>, String>() {
+
+            @TimerId(timerIdBagAppend)
+            private final TimerSpec appendSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @TimerId(timerIdGc)
+            private final TimerSpec gcSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @StateId(bag)
+            private final StateSpec<BagState<TimestampedValue<String>>> bagStateSpec =
+                StateSpecs.bag();
+
+            @StateId(minTimestamp)
+            private final StateSpec<ValueState<Instant>> minTimestampSpec = StateSpecs.value();
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext context,
+                @TimerId(timerIdBagAppend) Timer bagTimer,
+                @TimerId(timerIdGc) Timer gcTimer,
+                @StateId(bag) BagState<TimestampedValue<String>> bagState,
+                @StateId(minTimestamp) ValueState<Instant> minStampState) {
+
+              Instant currentMinStamp =
+                  MoreObjects.firstNonNull(minStampState.read(), BoundedWindow.TIMESTAMP_MAX_VALUE);
+              if (currentMinStamp.equals(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+                gcTimer.set(gcTimerStamp);
+              }
+              if (currentMinStamp.isAfter(context.timestamp())) {
+                minStampState.write(context.timestamp());
+                bagTimer.set(context.timestamp());
+              }
+              bagState.add(TimestampedValue.of(context.element().getValue(), context.timestamp()));
+            }
+
+            @OnTimer(timerIdBagAppend)
+            public void onTimer(
+                OnTimerContext context,
+                @TimerId(timerIdBagAppend) Timer timer,
+                @StateId(bag) BagState<TimestampedValue<String>> bagState) {
+
+              List<TimestampedValue<String>> flush = new ArrayList<>();
+              Instant flushTime = context.timestamp();
+              for (TimestampedValue<String> val : bagState.read()) {
+                if (!val.getTimestamp().isAfter(flushTime)) {
+                  flush.add(val);
+                }
+              }
+              flush.sort(Comparator.comparing(TimestampedValue::getTimestamp));
+              context.output(
+                  Joiner.on(":").join(flush.stream().map(TimestampedValue::getValue).iterator()));
+              Instant newMinStamp = flushTime.plus(1);
+              if (flush.size() < numTestElements) {
+                timer.set(newMinStamp);
+              }
+            }
+
+            @OnTimer(timerIdGc)
+            public void onTimer(
+                OnTimerContext context, @StateId(bag) BagState<TimestampedValue<String>> bagState) {
+
+              String output =
+                  Joiner.on(":")
+                          .join(
+                              StreamSupport.stream(bagState.read().spliterator(), false)
+                                  .sorted(Comparator.comparing(TimestampedValue::getTimestamp))
+                                  .map(TimestampedValue::getValue)
+                                  .iterator())
+                      + ":cleanup";
+              context.output(output);
+              bagState.clear();
+            }
+          };
+
+      PCollection<String> output = pipeline.apply(transform).apply(ParDo.of(fn));
+      List<String> expected =
+          IntStream.rangeClosed(0, numTestElements)
+              .mapToObj(expandFn(numTestElements))
+              .collect(Collectors.toList());
+      PAssert.that(output).containsInAnyOrder(expected);
+      pipeline.run();
+    }
+
+    private IntFunction<String> expandFn(int numTestElements) {
+      return i ->
+          Joiner.on(":")
+                  .join(
+                      IntStream.rangeClosed(0, Math.min(numTestElements - 1, i))
+                          .mapToObj(String::valueOf)
+                          .iterator())
+              + (i == numTestElements ? ":cleanup" : "");
+    }
+
     @Test
     @Category({
       ValidatesRunner.class,
@@ -3158,10 +3934,10 @@ public class ParDoTest implements Serializable {
 
       PCollection<String> results =
           pipeline
-              .apply(Create.of(KV.of(0, 0)))
+              .apply(Create.of(KV.of(0L, 0L)))
               .apply(
                   ParDo.of(
-                      new DoFn<KV<Integer, Integer>, String>() {
+                      new DoFn<KV<Long, Long>, String>() {
                         @TimerId(timerId)
                         private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
@@ -3196,6 +3972,301 @@ public class ParDoTest implements Serializable {
       PAssert.that(result).containsInAnyOrder("It works");
 
       pipeline.run().waitUntilFinish();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesTestStream.class,
+      UsesStrictTimerOrdering.class
+    })
+    public void testTwoTimersSettingEachOther() {
+      Instant now = new Instant(1500000000000L);
+      Instant end = now.plus(100);
+      TestStream<KV<Void, Void>> input =
+          TestStream.create(KvCoder.of(VoidCoder.of(), VoidCoder.of()))
+              .addElements(KV.of(null, null))
+              .advanceWatermarkToInfinity();
+      pipeline.apply(TwoTimerTest.of(now, end, input));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesStrictTimerOrdering.class})
+    public void testTwoTimersSettingEachOtherWithCreateAsInput() {
+      Instant now = new Instant(1500000000000L);
+      Instant end = now.plus(100);
+      pipeline.apply(TwoTimerTest.of(now, end, Create.of(KV.of(null, null))));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesTimersInParDo.class,
+      UsesTestStream.class,
+    })
+    public void testOutputTimestamp() {
+      final String timerId = "bar";
+      DoFn<KV<String, Long>, KV<String, Long>> fn1 =
+          new DoFn<KV<String, Long>, KV<String, Long>>() {
+
+            @TimerId(timerId)
+            private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(
+                @TimerId(timerId) Timer timer,
+                @Timestamp Instant timestamp,
+                OutputReceiver<KV<String, Long>> o) {
+              timer
+                  .withOutputTimestamp(timestamp.plus(Duration.millis(5)))
+                  .set(timestamp.plus(Duration.millis(10)));
+              // Output a message. This will cause the next DoFn to set a timer as well.
+              o.output(KV.of("foo", 100L));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(OnTimerContext c, BoundedWindow w) {}
+          };
+
+      DoFn<KV<String, Long>, Long> fn2 =
+          new DoFn<KV<String, Long>, Long>() {
+
+            @TimerId(timerId)
+            private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @StateId("timerFired")
+            final StateSpec<ValueState<Boolean>> timerFiredState = StateSpecs.value();
+
+            @ProcessElement
+            public void processElement(
+                @TimerId(timerId) Timer timer,
+                @Timestamp Instant timestamp,
+                @StateId("timerFired") ValueState<Boolean> timerFiredState) {
+              Boolean timerFired = timerFiredState.read();
+              assertTrue(timerFired == null || !timerFired);
+              // Set a timer to 8. This is earlier than the previous DoFn's timer, but after the
+              // previous
+              // DoFn timer's watermark hold. This timer should not fire until the previous timer
+              // fires and removes
+              // the watermark hold.
+              timer.set(timestamp.plus(Duration.millis(8)));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(
+                @StateId("timerFired") ValueState<Boolean> timerFiredState,
+                OutputReceiver<Long> o) {
+              timerFiredState.write(true);
+              o.output(100L);
+            }
+          };
+
+      TestStream<KV<String, Long>> stream =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()))
+              .advanceWatermarkTo(new Instant(0))
+              // Cause fn2 to set a timer.
+              .addElements(KV.of("key", 1L))
+              // Normally this would case fn2's timer to expire, but it shouldn't here because of
+              // the output timestamp.
+              .advanceWatermarkTo(new Instant(9))
+              // If the timer fired, then this would case fn2 to fail with an assertion error.
+              .addElements(KV.of("key", 1L))
+              .advanceWatermarkToInfinity();
+      PCollection<Long> output =
+          pipeline.apply(stream).apply("first", ParDo.of(fn1)).apply("second", ParDo.of(fn2));
+
+      PAssert.that(output).containsInAnyOrder(100L); // result output
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesTimersInParDo.class,
+      UsesTestStreamWithProcessingTime.class,
+      UsesTestStreamWithOutputTimestamp.class
+    })
+    public void testOutputTimestampWithProcessingTime() {
+      final String timerId = "foo";
+      DoFn<KV<String, Integer>, KV<String, Integer>> fn1 =
+          new DoFn<KV<String, Integer>, KV<String, Integer>>() {
+
+            @TimerId(timerId)
+            private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+            @ProcessElement
+            public void processElement(
+                @TimerId(timerId) Timer timer,
+                @Timestamp Instant timestamp,
+                OutputReceiver<KV<String, Integer>> o) {
+              timer
+                  .withOutputTimestamp(timestamp.plus(Duration.standardSeconds(5)))
+                  .offset(Duration.standardSeconds(10))
+                  .setRelative();
+              // Output a message. This will cause the next DoFn to set a timer as well.
+              o.output(KV.of("foo", 100));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(OnTimerContext c, BoundedWindow w) {}
+          };
+
+      DoFn<KV<String, Integer>, Integer> fn2 =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @StateId("timerFired")
+            final StateSpec<ValueState<Boolean>> timerFiredState = StateSpecs.value();
+
+            @ProcessElement
+            public void processElement(
+                @TimerId(timerId) Timer timer,
+                @StateId("timerFired") ValueState<Boolean> timerFiredState) {
+              Boolean timerFired = timerFiredState.read();
+              assertTrue(timerFired == null || !timerFired);
+              // Set a timer to 8. This is earlier than the previous DoFn's timer, but after the
+              // previous
+              // DoFn timer's watermark hold. This timer should not fire until the previous timer
+              // fires and removes
+              // the watermark hold.
+              timer.set(new Instant(8));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(
+                @StateId("timerFired") ValueState<Boolean> timerFiredState,
+                OutputReceiver<Integer> o) {
+              timerFiredState.write(true);
+              o.output(100);
+            }
+          };
+
+      TestStream<KV<String, Integer>> stream =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+              .advanceProcessingTime(Duration.standardSeconds(1))
+              // Cause fn2 to set a timer.
+              .addElements(KV.of("key", 1))
+              // Normally this would case fn2's timer to expire, but it shouldn't here because of
+              // the output timestamp.
+              .advanceProcessingTime(Duration.standardSeconds(9))
+              .advanceWatermarkTo(new Instant(11))
+              // If the timer fired, then this would case fn2 to fail with an assertion error.
+              .addElements(KV.of("key", 1))
+              .advanceProcessingTime(Duration.standardSeconds(100))
+              .advanceWatermarkToInfinity();
+      PCollection<Integer> output =
+          pipeline.apply(stream).apply("first", ParDo.of(fn1)).apply("second", ParDo.of(fn2));
+
+      PAssert.that(output).containsInAnyOrder(100); // result output
+      pipeline.run();
+    }
+
+    private static class TwoTimerTest extends PTransform<PBegin, PDone> {
+
+      private static PTransform<PBegin, PDone> of(
+          Instant start, Instant end, PTransform<PBegin, PCollection<KV<Void, Void>>> input) {
+        return new TwoTimerTest(start, end, input);
+      }
+
+      private final Instant start;
+      private final Instant end;
+      private final transient PTransform<PBegin, PCollection<KV<Void, Void>>> inputPTransform;
+
+      public TwoTimerTest(
+          Instant start, Instant end, PTransform<PBegin, PCollection<KV<Void, Void>>> input) {
+        this.start = start;
+        this.end = end;
+        this.inputPTransform = input;
+      }
+
+      @Override
+      public PDone expand(PBegin input) {
+
+        final String timerName1 = "t1";
+        final String timerName2 = "t2";
+        final String countStateName = "count";
+        PCollection<String> result =
+            input
+                .apply(inputPTransform)
+                .apply(
+                    ParDo.of(
+                        new DoFn<KV<Void, Void>, String>() {
+
+                          @TimerId(timerName1)
+                          final TimerSpec timerSpec1 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+                          @TimerId(timerName2)
+                          final TimerSpec timerSpec2 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+                          @StateId(countStateName)
+                          final StateSpec<ValueState<Integer>> countStateSpec = StateSpecs.value();
+
+                          @ProcessElement
+                          public void processElement(
+                              ProcessContext context,
+                              @TimerId(timerName1) Timer t1,
+                              @TimerId(timerName2) Timer t2,
+                              @StateId(countStateName) ValueState<Integer> state) {
+
+                            state.write(0);
+                            t1.set(start);
+                            // set the t2 timer after end, so that we test that
+                            // timers are correctly ordered in this case
+                            t2.set(end.plus(1));
+                          }
+
+                          @OnTimer(timerName1)
+                          public void onTimer1(
+                              OnTimerContext context,
+                              @TimerId(timerName2) Timer t2,
+                              @StateId(countStateName) ValueState<Integer> state) {
+
+                            Integer current = state.read();
+                            t2.set(context.timestamp());
+
+                            context.output(
+                                "t1:"
+                                    + current
+                                    + ":"
+                                    + context.timestamp().minus(start.getMillis()).getMillis());
+                          }
+
+                          @OnTimer(timerName2)
+                          public void onTimer2(
+                              OnTimerContext context,
+                              @TimerId(timerName1) Timer t1,
+                              @StateId(countStateName) ValueState<Integer> state) {
+                            Integer current = state.read();
+                            if (context.timestamp().isBefore(end)) {
+                              state.write(current + 1);
+                              t1.set(context.timestamp().plus(1));
+                            } else {
+                              state.write(-1);
+                            }
+                            context.output(
+                                "t2:"
+                                    + current
+                                    + ":"
+                                    + context.timestamp().minus(start.getMillis()).getMillis());
+                          }
+                        }));
+
+        List<String> expected =
+            LongStream.rangeClosed(0, 100)
+                .mapToObj(e -> (Long) e)
+                .flatMap(e -> Arrays.asList("t1:" + e + ":" + e, "t2:" + e + ":" + e).stream())
+                .collect(Collectors.toList());
+        PAssert.that(result).containsInAnyOrder(expected);
+
+        return PDone.in(input.getPipeline());
+      }
     }
   }
 
@@ -3337,11 +4408,10 @@ public class ParDoTest implements Serializable {
     }
 
     @Override
-    public void encode(TestDummy value, OutputStream outStream)
-        throws CoderException, IOException {}
+    public void encode(TestDummy value, OutputStream outStream) throws IOException {}
 
     @Override
-    public TestDummy decode(InputStream inStream) throws CoderException, IOException {
+    public TestDummy decode(InputStream inStream) throws IOException {
       return new TestDummy();
     }
 
@@ -3445,12 +4515,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Override
-    public void encode(MyInteger value, OutputStream outStream) throws CoderException, IOException {
+    public void encode(MyInteger value, OutputStream outStream) throws IOException {
       delegate.encode(value.getValue(), outStream);
     }
 
     @Override
-    public MyInteger decode(InputStream inStream) throws CoderException, IOException {
+    public MyInteger decode(InputStream inStream) throws IOException {
       return new MyInteger(delegate.decode(inStream));
     }
   }
@@ -3576,6 +4646,232 @@ public class ParDoTest implements Serializable {
     @OnTimer("timer")
     public void onTimer(OutputReceiver<String> r, @TimerId("timer") Timer timer) {
       r.output("It works");
+    }
+  }
+
+  /** Tests to validate ParDo timerFamily. */
+  @RunWith(JUnit4.class)
+  public static class TimerFamilyTests extends SharedTestBase implements Serializable {
+
+    @Test
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTimerMap.class})
+    public void testTimerFamilyEventTimeBounded() throws Exception {
+      runTestTimerFamilyEventTime(false);
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesUnboundedPCollections.class,
+      UsesTimersInParDo.class,
+      UsesTimerMap.class
+    })
+    public void testTimerFamilyEventTimeUnbounded() throws Exception {
+      runTestTimerFamilyEventTime(true);
+    }
+
+    public void runTestTimerFamilyEventTime(boolean useStreaming) {
+      final String timerFamilyId = "foo";
+
+      DoFn<KV<String, Integer>, String> fn =
+          new DoFn<KV<String, Integer>, String>() {
+
+            @TimerFamily(timerFamilyId)
+            private final TimerSpec spec = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(
+                @TimerFamily(timerFamilyId) TimerMap timers, OutputReceiver<String> r) {
+              timers.set("timer1", new Instant(1));
+              timers.set("timer2", new Instant(2));
+              r.output("process");
+            }
+
+            @OnTimerFamily(timerFamilyId)
+            public void onTimer(
+                @TimerId String timerId,
+                @Timestamp Instant ts,
+                @TimerFamily(timerFamilyId) TimerMap timerMap,
+                OutputReceiver<String> r) {
+              System.out.println("timer Id : " + timerId);
+              System.out.println("timerMap : " + timerMap.toString());
+              r.output(timerId);
+            }
+          };
+
+      PCollection<String> output =
+          pipeline
+              .apply(Create.of(KV.of("hello", 37)))
+              .setIsBoundedInternal(useStreaming ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
+              .apply(ParDo.of(fn));
+      PAssert.that(output).containsInAnyOrder("process", "timer1", "timer2");
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTimerMap.class})
+    public void testTimerWithMultipleTimerFamilyBounded() throws Exception {
+      runTestTimerWithMultipleTimerFamily(false);
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesUnboundedPCollections.class,
+      UsesTimersInParDo.class,
+      UsesTimerMap.class
+    })
+    public void testTimerWithMultipleTimerFamilyUnbounded() throws Exception {
+      runTestTimerWithMultipleTimerFamily(true);
+    }
+
+    public void runTestTimerWithMultipleTimerFamily(boolean useStreaming) throws Exception {
+      final String timerFamilyId1 = "foo";
+      final String timerFamilyId2 = "bar";
+
+      DoFn<KV<String, Integer>, String> fn =
+          new DoFn<KV<String, Integer>, String>() {
+
+            @TimerFamily(timerFamilyId1)
+            private final TimerSpec spec1 = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
+
+            @TimerFamily(timerFamilyId2)
+            private final TimerSpec spec2 = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(
+                @TimerFamily(timerFamilyId1) TimerMap timerMap1,
+                @TimerFamily(timerFamilyId2) TimerMap timerMap2,
+                OutputReceiver<String> r) {
+              timerMap1.set("timer", new Instant(1));
+              timerMap2.set("timer", new Instant(2));
+              r.output("process");
+            }
+
+            @OnTimerFamily(timerFamilyId1)
+            public void onTimer1(
+                @TimerId String timerId, @Timestamp Instant ts, OutputReceiver<String> r) {
+              r.output(timerId);
+            }
+
+            @OnTimerFamily(timerFamilyId2)
+            public void onTimer2(
+                @TimerId String timerId, @Timestamp Instant ts, OutputReceiver<String> r) {
+              r.output(timerId);
+            }
+          };
+
+      PCollection<String> output =
+          pipeline
+              .apply(Create.of(KV.of("hello", 37)))
+              .setIsBoundedInternal(useStreaming ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
+              .apply(ParDo.of(fn));
+      PAssert.that(output).containsInAnyOrder("process", "timer", "timer");
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTimerMap.class})
+    public void testTimerFamilyAndTimerBounded() throws Exception {
+      runTestTimerFamilyAndTimer(false);
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesUnboundedPCollections.class,
+      UsesTimersInParDo.class,
+      UsesTimerMap.class
+    })
+    public void testTimerFamilyAndTimerUnbounded() throws Exception {
+      runTestTimerFamilyAndTimer(true);
+    }
+
+    public void runTestTimerFamilyAndTimer(boolean useStreaming) throws Exception {
+      final String timerFamilyId = "foo";
+      final String timerId = "timer";
+
+      DoFn<KV<String, Integer>, String> fn =
+          new DoFn<KV<String, Integer>, String>() {
+
+            @TimerFamily(timerFamilyId)
+            private final TimerSpec spec1 = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
+
+            @TimerId(timerId)
+            private final TimerSpec spec2 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(
+                @TimerFamily(timerFamilyId) TimerMap timerMap,
+                @TimerId(timerId) Timer timer,
+                OutputReceiver<String> r) {
+              timerMap.set("timer", new Instant(1));
+              timer.set(new Instant(2));
+              r.output("process");
+            }
+
+            @OnTimerFamily(timerFamilyId)
+            public void onTimer1(
+                @TimerId String timerId, @Timestamp Instant ts, OutputReceiver<String> r) {
+              r.output("family:" + timerFamilyId + ":" + timerId);
+            }
+
+            @OnTimer(timerId)
+            public void onTimer2(@Timestamp Instant ts, OutputReceiver<String> r) {
+              r.output(timerId);
+            }
+          };
+
+      PCollection<String> output =
+          pipeline
+              .apply(Create.of(KV.of("hello", 37)))
+              .setIsBoundedInternal(useStreaming ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
+              .apply(ParDo.of(fn));
+      PAssert.that(output).containsInAnyOrder("process", "family:foo:timer", "timer");
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesTestStreamWithProcessingTime.class,
+      UsesTimerMap.class
+    })
+    public void testTimerFamilyProcessingTime() throws Exception {
+      final String timerId = "foo";
+
+      DoFn<KV<String, Integer>, Integer> fn =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @TimerFamily(timerId)
+            private final TimerSpec spec = TimerSpecs.timerMap(TimeDomain.PROCESSING_TIME);
+
+            @ProcessElement
+            public void processElement(
+                @TimerFamily(timerId) TimerMap timerMap, OutputReceiver<Integer> r) {
+              Timer timer = timerMap.get("timerId1");
+              timer.offset(Duration.standardSeconds(1)).setRelative();
+              r.output(3);
+            }
+
+            @OnTimerFamily(timerId)
+            public void onTimer(TimeDomain timeDomain, OutputReceiver<Integer> r) {
+              if (timeDomain.equals(TimeDomain.PROCESSING_TIME)) {
+                r.output(42);
+              }
+            }
+          };
+
+      TestStream<KV<String, Integer>> stream =
+          TestStream.create(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+              .addElements(KV.of("hello", 37))
+              .advanceProcessingTime(Duration.standardSeconds(2))
+              .advanceWatermarkToInfinity();
+
+      PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
+      PAssert.that(output).containsInAnyOrder(3, 42);
+      pipeline.run();
     }
   }
 }

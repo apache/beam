@@ -27,11 +27,13 @@ If you're interested in contributing to the Apache Beam Python codebase, see the
 * TOC
 {:toc}
 
+The Python SDK supports Python 2.7, 3.5, 3.6, and 3.7. New Python SDK releases will stop supporting Python 2.7 in 2020 ([BEAM-8371](https://issues.apache.org/jira/browse/BEAM-8371)). For best results, use Beam with Python 3.
+
 ## Set up your environment
 
 ### Check your Python version
 
-The Beam SDK for Python requires Python version 2.7.x. Check that you have version 2.7.x by running:
+The Beam SDK requires Python 2 users to use Python 2.7 and Python 3 users to use Python 3.5 or higher. Check your version by running:
 
 ```
 python --version
@@ -61,7 +63,7 @@ PS> python -m pip install --upgrade pip
 
 ### Install Python virtual environment
 
-It is recommended that you install a [Python virtual environment](http://docs.python-guide.org/en/latest/dev/virtualenvs/)
+It is recommended that you install a [Python virtual environment](https://docs.python-guide.org/en/latest/dev/virtualenvs/)
 for initial experiments. If you do not have `virtualenv` version 13.1.0 or
 newer, run the following command to install it. This command might require
 administrative privileges.
@@ -176,17 +178,20 @@ This runner is not yet available for the Python SDK.
 
 {:.runner-flink-local}
 ```
-This runner is not yet available for the Python SDK.
+Currently, running wordcount.py on Flink requires a full download of the Beam source code.
+See https://beam.apache.org/roadmap/portability/#python-on-flink for more information.
 ```
 
 {:.runner-flink-cluster}
 ```
-This runner is not yet available for the Python SDK.
+Currently, running wordcount.py on Flink requires a full download of the Beam source code.
+See https://beam.apache.org/documentation/runners/flink/ for more information.
 ```
 
 {:.runner-spark}
 ```
-This runner is not yet available for the Python SDK.
+Currently, running wordcount.py on Spark requires a full download of the Beam source code.
+See https://beam.apache.org/roadmap/portability/#python-on-spark for more information.
 ```
 
 {:.runner-dataflow}

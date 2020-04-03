@@ -20,54 +20,132 @@ import CommonJobProperties as commonJobProperties
 import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
-import Infrastructure as infra
+import Flink
+import Docker
 
-String jenkinsJobName = 'beam_LoadTests_Python_GBK_Flink_Batch'
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
-String dockerRegistryRoot = 'gcr.io/apache-beam-testing/beam_portability'
-String dockerTag = 'latest'
-String jobServerImageTag = "${dockerRegistryRoot}/flink-job-server:${dockerTag}"
-String pythonHarnessImageTag = "${dockerRegistryRoot}/python:${dockerTag}"
 
-String flinkVersion = '1.7'
-String flinkDownloadUrl = 'https://archive.apache.org/dist/flink/flink-1.7.0/flink-1.7.0-bin-hadoop28-scala_2.11.tgz'
-
-int parallelism = 5
-
-def testConfiguration =
+def scenarios = { datasetName, sdkHarnessImageTag -> [
         [
-                title        : 'Load test: 2GB of 10B records',
-                itClass      : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.PORTABLE,
-                sdk          : CommonTestProperties.SDK.PYTHON,
-                jobProperties: [
+                title          : 'Load test: 2GB of 10B records',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
                         job_name            : "load_tests_Python_Flink_Batch_GBK_1_${now}",
-                        publish_to_big_query: false,
+                        publish_to_big_query: true,
                         project             : 'apache-beam-testing',
-                        metrics_dataset     : 'load_test',
+                        metrics_dataset     : datasetName,
                         metrics_table       : "python_flink_batch_GBK_1",
                         input_options       : '\'{"num_records": 200000000,"key_size": 1,"value_size":9}\'',
                         iterations          : 1,
                         fanout              : 1,
-                        parallelism         : parallelism,
-                        job_endpoint: 'localhost:8099',
-                        environment_config : pythonHarnessImageTag,
-                        environment_type: 'DOCKER'
-
+                        parallelism         : 5,
+                        job_endpoint        : 'localhost:8099',
+                        environment_config  : sdkHarnessImageTag,
+                        environment_type    : 'DOCKER'
                 ]
-        ]
+        ],
+        [
+                title          : 'Load test: 2GB of 100B records',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
+                        job_name            : "load_tests_Python_Flink_Batch_GBK_2_${now}",
+                        publish_to_big_query: true,
+                        project             : 'apache-beam-testing',
+                        metrics_dataset     : datasetName,
+                        metrics_table       : "python_flink_batch_GBK_2",
+                        input_options       : '\'{"num_records": 20000000,"key_size": 10,"value_size":90}\'',
+                        iterations          : 1,
+                        fanout              : 1,
+                        parallelism         : 5,
+                        job_endpoint        : 'localhost:8099',
+                        environment_config  : sdkHarnessImageTag,
+                        environment_type    : 'DOCKER'
+                ]
+        ],
+        [
+                title          : 'Load test: fanout 4 times with 2GB 10-byte records total',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
+                        job_name            : "load_tests_Python_Flink_Batch_GBK_4_${now}",
+                        publish_to_big_query: true,
+                        project             : 'apache-beam-testing',
+                        metrics_dataset     : datasetName,
+                        metrics_table       : "python_flink_batch_GBK_4",
+                        input_options       : '\'{"num_records": 5000000,"key_size": 10,"value_size":90}\'',
+                        iterations          : 1,
+                        fanout              : 4,
+                        parallelism         : 16,
+                        job_endpoint        : 'localhost:8099',
+                        environment_config  : sdkHarnessImageTag,
+                        environment_type    : 'DOCKER'
+                ]
+        ],
+        [
+                title          : 'Load test: fanout 8 times with 2GB 10-byte records total',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
+                        job_name            : "load_tests_Python_Flink_Batch_GBK_5_${now}",
+                        publish_to_big_query: true,
+                        project             : 'apache-beam-testing',
+                        metrics_dataset     : datasetName,
+                        metrics_table       : "python_flink_batch_GBK_5",
+                        input_options       : '\'{"num_records": 2500000,"key_size": 10,"value_size":90}\'',
+                        iterations          : 1,
+                        fanout              : 8,
+                        parallelism         : 16,
+                        job_endpoint        : 'localhost:8099',
+                        environment_config  : sdkHarnessImageTag,
+                        environment_type    : 'DOCKER'
+                ]
+        ],
+        [
+                title          : 'Load test: reiterate 4 times 10kB values',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test',
+                runner         : CommonTestProperties.Runner.PORTABLE,
+                pipelineOptions: [
+                        job_name            : "load_tests_Python_Flink_Batch_GBK_6_${now}",
+                        publish_to_big_query: true,
+                        project             : 'apache-beam-testing',
+                        metrics_dataset     : datasetName,
+                        metrics_table       : "python_flink_batch_GBK_6",
+                        input_options       : '\'{"num_records": 20000000,"key_size": 10,"value_size":90, "num_hot_keys": 200, "hot_key_fraction": 1}\'',
+                        iterations          : 4,
+                        fanout              : 1,
+                        parallelism         : 5,
+                        job_endpoint        : 'localhost:8099',
+                        environment_config  : sdkHarnessImageTag,
+                        environment_type    : 'DOCKER'
+                ]
+        ],
+    ]}
+
 
 def loadTest = { scope, triggeringContext ->
-  scope.description('Runs Java GBK load tests on Flink runner in batch mode')
-  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
+  Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
+  def sdk = CommonTestProperties.SDK.PYTHON
+  String pythonHarnessImageTag = publisher.getFullImageName('beam_python2.7_sdk')
 
-  infra.prepareSDKHarness(scope, testConfiguration.sdk, dockerRegistryRoot, 'latest')
-  infra.prepareFlinkJobServer(scope, flinkVersion, dockerRegistryRoot, 'latest')
-  infra.setupFlinkCluster(scope, jenkinsJobName, flinkDownloadUrl, pythonHarnessImageTag, jobServerImageTag, parallelism)
+  def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
+  def numberOfWorkers = 16
+  List<Map> testScenarios = scenarios(datasetName, pythonHarnessImageTag)
 
-  loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, testConfiguration.sdk, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
+  publisher.publish(':sdks:python:container:py2:docker', 'beam_python2.7_sdk')
+  publisher.publish(':runners:flink:1.10:job-server-container:docker', 'beam_flink1.10_job_server')
+  def flink = new Flink(scope, 'beam_LoadTests_Python_GBK_Flink_Batch')
+  flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('beam_flink1.10_job_server'))
 
-  infra.teardownDataproc(scope, jenkinsJobName)
+  def configurations = testScenarios.findAll { it.pipelineOptions?.parallelism?.value == numberOfWorkers }
+  loadTestsBuilder.loadTests(scope, sdk, configurations, "GBK", "batch")
+
+  numberOfWorkers = 5
+  flink.scaleCluster(numberOfWorkers)
+
+  configurations = testScenarios.findAll { it.pipelineOptions?.parallelism?.value == numberOfWorkers }
+  loadTestsBuilder.loadTests(scope, sdk, configurations, "GBK", "batch")
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(

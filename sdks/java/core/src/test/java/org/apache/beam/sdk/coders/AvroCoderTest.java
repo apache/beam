@@ -73,6 +73,8 @@ import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -85,18 +87,27 @@ import org.objenesis.strategy.StdInstantiatorStrategy;
 @RunWith(JUnit4.class)
 public class AvroCoderTest {
 
+  public static final DateTime DATETIME_A =
+      new DateTime().withDate(1994, 10, 31).withZone(DateTimeZone.UTC);
+  public static final DateTime DATETIME_B =
+      new DateTime().withDate(1997, 4, 25).withZone(DateTimeZone.UTC);
+
   @DefaultCoder(AvroCoder.class)
   private static class Pojo {
     public String text;
     public int count;
 
+    @AvroSchema("{\"type\": \"long\", \"logicalType\": \"timestamp-millis\"}")
+    public DateTime timestamp;
+
     // Empty constructor required for Avro decoding.
     @SuppressWarnings("unused")
     public Pojo() {}
 
-    public Pojo(String text, int count) {
+    public Pojo(String text, int count, DateTime timestamp) {
       this.text = text;
       this.count = count;
+      this.timestamp = timestamp;
     }
 
     // auto-generated
@@ -117,6 +128,9 @@ public class AvroCoderTest {
       if (text != null ? !text.equals(pojo.text) : pojo.text != null) {
         return false;
       }
+      if (timestamp != null ? !timestamp.equals(pojo.timestamp) : pojo.timestamp != null) {
+        return false;
+      }
 
       return true;
     }
@@ -128,7 +142,15 @@ public class AvroCoderTest {
 
     @Override
     public String toString() {
-      return "Pojo{" + "text='" + text + '\'' + ", count=" + count + '}';
+      return "Pojo{"
+          + "text='"
+          + text
+          + '\''
+          + ", count="
+          + count
+          + ", timestamp="
+          + timestamp
+          + '}';
     }
   }
 
@@ -147,9 +169,9 @@ public class AvroCoderTest {
     CoderProperties.coderSerializable(coder);
     AvroCoder<Pojo> copy = SerializableUtils.clone(coder);
 
-    Pojo pojo = new Pojo("foo", 3);
-    Pojo equalPojo = new Pojo("foo", 3);
-    Pojo otherPojo = new Pojo("bar", -19);
+    Pojo pojo = new Pojo("foo", 3, DATETIME_A);
+    Pojo equalPojo = new Pojo("foo", 3, DATETIME_A);
+    Pojo otherPojo = new Pojo("bar", -19, DATETIME_B);
     CoderProperties.coderConsistentWithEquals(coder, pojo, equalPojo);
     CoderProperties.coderConsistentWithEquals(copy, pojo, equalPojo);
     CoderProperties.coderConsistentWithEquals(coder, pojo, otherPojo);
@@ -205,7 +227,7 @@ public class AvroCoderTest {
    */
   @Test
   public void testTransientFieldInitialization() throws Exception {
-    Pojo value = new Pojo("Hello", 42);
+    Pojo value = new Pojo("Hello", 42, DATETIME_A);
     AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
 
     // Serialization of object
@@ -228,7 +250,7 @@ public class AvroCoderTest {
    */
   @Test
   public void testKryoSerialization() throws Exception {
-    Pojo value = new Pojo("Hello", 42);
+    Pojo value = new Pojo("Hello", 42, DATETIME_A);
     AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
 
     // Kryo instantiation
@@ -266,7 +288,7 @@ public class AvroCoderTest {
 
   @Test
   public void testPojoEncoding() throws Exception {
-    Pojo value = new Pojo("Hello", 42);
+    Pojo value = new Pojo("Hello", 42, DATETIME_A);
     AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
 
     CoderProperties.coderDecodeEncodeEqual(coder, value);
@@ -302,7 +324,7 @@ public class AvroCoderTest {
     // This test ensures that the coder doesn't read ahead and buffer data.
     // Reading ahead causes a problem if the stream consists of records of different
     // types.
-    Pojo before = new Pojo("Hello", 42);
+    Pojo before = new Pojo("Hello", 42, DATETIME_A);
 
     AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
     SerializableCoder<Integer> intCoder = SerializableCoder.of(Integer.class);
@@ -329,7 +351,7 @@ public class AvroCoderTest {
     // a coder (this uses the default coders, which may not be AvroCoder).
     PCollection<String> output =
         pipeline
-            .apply(Create.of(new Pojo("hello", 1), new Pojo("world", 2)))
+            .apply(Create.of(new Pojo("hello", 1, DATETIME_A), new Pojo("world", 2, DATETIME_B)))
             .apply(ParDo.of(new GetTextFn()));
 
     PAssert.that(output).containsInAnyOrder("hello", "world");

@@ -45,7 +45,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /** Gearpump {@link FlatMapFunction} wrapper over Beam {@link DoFn}. */
 @SuppressWarnings("unchecked")
@@ -74,7 +74,8 @@ public class DoFnFunction<InputT, OutputT>
       TupleTag<OutputT> mainOutput,
       Map<TupleTag<?>, Coder<?>> outputCoders,
       List<TupleTag<?>> sideOutputs,
-      DoFnSchemaInformation doFnSchemaInformation) {
+      DoFnSchemaInformation doFnSchemaInformation,
+      Map<String, PCollectionView<?>> sideInputMapping) {
     this.doFn = doFn;
     this.outputManager = new DoFnOutputManager();
     this.doFnRunnerFactory =
@@ -88,7 +89,8 @@ public class DoFnFunction<InputT, OutputT>
             new NoOpStepContext(),
             outputCoders,
             windowingStrategy,
-            doFnSchemaInformation);
+            doFnSchemaInformation,
+            sideInputMapping);
     this.sideInputs = sideInputs;
     this.tagsToSideInputs = sideInputTagMapping;
     this.mainOutput = mainOutput;

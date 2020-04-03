@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 
@@ -51,5 +52,22 @@ class CachingFactory<CreatedT> implements Factory<CreatedT> {
     cached = innerFactory.create(clazz, schema);
     cache.put(clazz, cached);
     return cached;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    CachingFactory<?> that = (CachingFactory<?>) o;
+    return innerFactory.equals(that.innerFactory);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(innerFactory);
   }
 }

@@ -17,6 +17,7 @@
 
 cimport cython
 
+from apache_beam.runners.common cimport DoFnRunner
 from apache_beam.runners.common cimport Receiver
 from apache_beam.runners.worker cimport opcounters
 from apache_beam.utils.windowed_value cimport WindowedValue
@@ -88,8 +89,7 @@ cdef class ImpulseReadOperation(Operation):
 
 
 cdef class DoOperation(Operation):
-  cdef object dofn_runner
-  cdef Receiver dofn_receiver
+  cdef DoFnRunner dofn_runner
   cdef object tagged_receivers
   cdef object side_input_maps
   cdef object user_state_context
@@ -111,11 +111,13 @@ cdef class PGBKCVOperation(Operation):
   cdef public object combine_fn
   cdef public object combine_fn_add_input
   cdef public object combine_fn_compact
+  cdef public bint is_default_windowing
+  cdef public object timestamp_combiner
   cdef dict table
   cdef long max_keys
   cdef long key_count
 
-  cpdef output_key(self, tuple wkey, value)
+  cpdef output_key(self, wkey, value, timestamp)
 
 
 cdef class FlattenOperation(Operation):

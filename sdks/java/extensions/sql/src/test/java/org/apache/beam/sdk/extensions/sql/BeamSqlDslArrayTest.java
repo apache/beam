@@ -22,7 +22,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
@@ -113,13 +112,7 @@ public class BeamSqlDslArrayTest {
     Row inputRow = Row.withSchema(INPUT_SCHEMA).addValues(1).addArray(Arrays.asList("111")).build();
 
     PCollection<Row> input =
-        pipeline.apply(
-            "boundedInput1",
-            Create.of(inputRow)
-                .withSchema(
-                    INPUT_SCHEMA,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+        pipeline.apply("boundedInput1", Create.of(inputRow).withRowSchema(INPUT_SCHEMA));
 
     Schema resultType = Schema.builder().addStringField("f_arrElem").build();
 
@@ -154,11 +147,7 @@ public class BeamSqlDslArrayTest {
     PCollection<Row> input =
         pipeline.apply(
             "boundedInput1",
-            Create.empty(TypeDescriptor.of(Row.class))
-                .withSchema(
-                    INPUT_SCHEMA,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+            Create.empty(TypeDescriptor.of(Row.class)).withRowSchema(INPUT_SCHEMA));
 
     // Because we have a multi-part FROM the DSL considers it multi-input
     TupleTag<Row> mainTag = new TupleTag<Row>("main") {};
@@ -184,11 +173,7 @@ public class BeamSqlDslArrayTest {
     PCollection<Row> input =
         pipeline.apply(
             "boundedInput1",
-            Create.empty(TypeDescriptor.of(Row.class))
-                .withSchema(
-                    INPUT_SCHEMA,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+            Create.empty(TypeDescriptor.of(Row.class)).withRowSchema(INPUT_SCHEMA));
 
     // Because we have a multi-part FROM the DSL considers it multi-input
     TupleTag<Row> mainTag = new TupleTag<Row>("main") {};
@@ -222,13 +207,7 @@ public class BeamSqlDslArrayTest {
         Row.withSchema(INPUT_SCHEMA).addValues(13).addArray(Arrays.asList("444", "555")).build();
 
     PCollection<Row> input =
-        pipeline.apply(
-            "boundedInput1",
-            Create.of(row1, row2)
-                .withSchema(
-                    INPUT_SCHEMA,
-                    SerializableFunctions.identity(),
-                    SerializableFunctions.identity()));
+        pipeline.apply("boundedInput1", Create.of(row1, row2).withRowSchema(INPUT_SCHEMA));
 
     // Because we have a multi-part FROM the DSL considers it multi-input
     TupleTag<Row> mainTag = new TupleTag<Row>("main") {};
@@ -287,8 +266,7 @@ public class BeamSqlDslArrayTest {
                                 Row.withSchema(elementSchema).addValues("CC", 33).build(),
                                 Row.withSchema(elementSchema).addValues("DD", 44).build()))
                         .build())
-                .withSchema(
-                    inputType, SerializableFunctions.identity(), SerializableFunctions.identity()));
+                .withRowSchema(inputType));
 
     PCollection<Row> result =
         input
@@ -343,8 +321,7 @@ public class BeamSqlDslArrayTest {
                                 Row.withSchema(elementSchema).addValues("CC", 33).build(),
                                 Row.withSchema(elementSchema).addValues("DD", 44).build()))
                         .build())
-                .withSchema(
-                    inputType, SerializableFunctions.identity(), SerializableFunctions.identity()));
+                .withRowSchema(inputType));
 
     PCollection<Row> result =
         input
@@ -389,8 +366,7 @@ public class BeamSqlDslArrayTest {
                                 Row.withSchema(elementSchema).addValues("CC", 33).build(),
                                 Row.withSchema(elementSchema).addValues("DD", 44).build()))
                         .build())
-                .withSchema(
-                    inputType, SerializableFunctions.identity(), SerializableFunctions.identity()));
+                .withRowSchema(inputType));
 
     PCollection<Row> result =
         input
@@ -417,7 +393,6 @@ public class BeamSqlDslArrayTest {
                     .addValues(2)
                     .addArray(Arrays.asList("33", "44", "55"))
                     .build())
-            .withSchema(
-                INPUT_SCHEMA, SerializableFunctions.identity(), SerializableFunctions.identity()));
+            .withRowSchema(INPUT_SCHEMA));
   }
 }

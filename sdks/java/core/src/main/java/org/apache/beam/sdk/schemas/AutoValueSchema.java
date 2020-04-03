@@ -22,16 +22,20 @@ import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.sdk.schemas.utils.AutoValueUtils;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.FieldValueTypeSupplier;
 import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /** A {@link SchemaProvider} for AutoValue classes. */
+@Experimental(Kind.SCHEMAS)
 public class AutoValueSchema extends GetterBasedSchemaProvider {
   /** {@link FieldValueTypeSupplier} that's based on AutoValue getters. */
   @VisibleForTesting
@@ -60,47 +64,51 @@ public class AutoValueSchema extends GetterBasedSchemaProvider {
   }
 
   @Override
-  FieldValueGetterFactory fieldValueGetterFactory() {
-    return (Class<?> targetClass, Schema schema) ->
-        JavaBeanUtils.getGetters(targetClass, schema, AbstractGetterTypeSupplier.INSTANCE);
+  public List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema) {
+    return JavaBeanUtils.getGetters(
+        targetClass,
+        schema,
+        AbstractGetterTypeSupplier.INSTANCE,
+        new DefaultTypeConversionsFactory());
   }
 
   @Override
-  FieldValueTypeInformationFactory fieldValueTypeInformationFactory() {
-    return (Class<?> targetClass, Schema schema) ->
-        JavaBeanUtils.getFieldTypes(targetClass, schema, AbstractGetterTypeSupplier.INSTANCE);
+  public List<FieldValueTypeInformation> fieldValueTypeInformations(
+      Class<?> targetClass, Schema schema) {
+    return JavaBeanUtils.getFieldTypes(targetClass, schema, AbstractGetterTypeSupplier.INSTANCE);
   }
 
   @Override
-  UserTypeCreatorFactory schemaTypeCreatorFactory() {
-    return (Class<?> targetClass, Schema schema) -> {
-      // If a static method is marked with @SchemaCreate, use that.
-      Method annotated = ReflectUtils.getAnnotatedCreateMethod(targetClass);
-      if (annotated != null) {
-        return JavaBeanUtils.getStaticCreator(
-            targetClass, annotated, schema, AbstractGetterTypeSupplier.INSTANCE);
-      }
+  public SchemaUserTypeCreator schemaTypeCreator(Class<?> targetClass, Schema schema) {
+    // If a static method is marked with @SchemaCreate, use that.
+    Method annotated = ReflectUtils.getAnnotatedCreateMethod(targetClass);
+    if (annotated != null) {
+      return JavaBeanUtils.getStaticCreator(
+          targetClass,
+          annotated,
+          schema,
+          AbstractGetterTypeSupplier.INSTANCE,
+          new DefaultTypeConversionsFactory());
+    }
 
-      // Try to find a generated builder class. If one exists, use that to generate a
-      // SchemaTypeCreator for creating AutoValue objects.
-      SchemaUserTypeCreator creatorFactory =
-          AutoValueUtils.getBuilderCreator(
-              targetClass, schema, AbstractGetterTypeSupplier.INSTANCE);
-      if (creatorFactory != null) {
-        return creatorFactory;
-      }
-
-      // If there is no builder, there should be a package-private constructor in the generated
-      // class. Use that for creating AutoValue objects.
-      creatorFactory =
-          AutoValueUtils.getConstructorCreator(
-              targetClass, schema, AbstractGetterTypeSupplier.INSTANCE);
-      if (creatorFactory == null) {
-        throw new RuntimeException("Could not find a way to create AutoValue class " + targetClass);
-      }
-
+    // Try to find a generated builder class. If one exists, use that to generate a
+    // SchemaTypeCreator for creating AutoValue objects.
+    SchemaUserTypeCreator creatorFactory =
+        AutoValueUtils.getBuilderCreator(targetClass, schema, AbstractGetterTypeSupplier.INSTANCE);
+    if (creatorFactory != null) {
       return creatorFactory;
-    };
+    }
+
+    // If there is no builder, there should be a package-private constructor in the generated
+    // class. Use that for creating AutoValue objects.
+    creatorFactory =
+        AutoValueUtils.getConstructorCreator(
+            targetClass, schema, AbstractGetterTypeSupplier.INSTANCE);
+    if (creatorFactory == null) {
+      throw new RuntimeException("Could not find a way to create AutoValue class " + targetClass);
+    }
+
+    return creatorFactory;
   }
 
   @Nullable

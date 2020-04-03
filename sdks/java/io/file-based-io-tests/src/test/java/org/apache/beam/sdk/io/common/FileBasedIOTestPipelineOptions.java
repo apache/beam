@@ -48,4 +48,16 @@ public interface FileBasedIOTestPipelineOptions extends IOTestPipelineOptions {
   boolean getReportGcsPerformanceMetrics();
 
   void setReportGcsPerformanceMetrics(boolean performanceMetrics);
+
+  @Validation.Required
+  @Description(
+      "Precomputed hashcode to assert IO test pipeline content identity after writing and reading back the dataset")
+  String getExpectedHash();
+
+  void setExpectedHash(String hash);
+
+  @Description("Size of data saved on the target filesystem (bytes)")
+  Integer getDatasetSize();
+
+  void setDatasetSize(Integer size);
 }

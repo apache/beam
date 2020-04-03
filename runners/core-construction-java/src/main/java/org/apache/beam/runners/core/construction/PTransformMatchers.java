@@ -23,8 +23,6 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -39,7 +37,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /**
  * A {@link PTransformMatcher} that matches {@link PTransform PTransforms} based on the class of the
@@ -48,7 +46,6 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
  * <p>Once {@link PTransform PTransforms} have URNs, this will be removed and replaced with a
  * UrnPTransformMatcher.
  */
-@Experimental(Kind.CORE_RUNNERS_ONLY)
 public class PTransformMatchers {
   private PTransformMatchers() {}
 

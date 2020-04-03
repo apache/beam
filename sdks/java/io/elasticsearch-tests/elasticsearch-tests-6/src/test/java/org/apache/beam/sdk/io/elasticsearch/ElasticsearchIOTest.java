@@ -19,8 +19,6 @@ package org.apache.beam.sdk.io.elasticsearch;
 
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_TYPE;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.UPDATE_INDEX;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.UPDATE_TYPE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.getEsIndex;
 import static org.elasticsearch.test.ESIntegTestCase.Scope.SUITE;
 
@@ -95,7 +93,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
     if (connectionConfiguration == null) {
       connectionConfiguration =
           ConnectionConfiguration.create(fillAddresses(), getEsIndex(), ES_TYPE)
-              .withSocketAndRetryTimeout(120000)
+              .withSocketTimeout(120000)
               .withConnectTimeout(5000);
       elasticsearchIOTestCommon =
           new ElasticsearchIOTestCommon(connectionConfiguration, getRestClient(), false);
@@ -122,12 +120,21 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   }
 
   @Test
-  public void testReadWithQuery() throws Exception {
+  public void testReadWithQueryString() throws Exception {
     // need to create the index using the helper method (not create it at first insertion)
     // for the indexSettings() to be run
     createIndex(getEsIndex());
     elasticsearchIOTestCommon.setPipeline(pipeline);
-    elasticsearchIOTestCommon.testReadWithQuery();
+    elasticsearchIOTestCommon.testReadWithQueryString();
+  }
+
+  @Test
+  public void testReadWithQueryValueProvider() throws Exception {
+    // need to create the index using the helper method (not create it at first insertion)
+    // for the indexSettings() to be run
+    createIndex(getEsIndex());
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testReadWithQueryValueProvider();
   }
 
   @Test
@@ -184,17 +191,6 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   public void testWritePartialUpdate() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWritePartialUpdate();
-  }
-
-  @Test
-  public void testWritePartialUpdateWithErrors() throws Exception {
-    // cannot share elasticsearchIOTestCommon because tests run in parallel.
-    ConnectionConfiguration connectionConfiguration =
-        ConnectionConfiguration.create(fillAddresses(), UPDATE_INDEX, UPDATE_TYPE);
-    ElasticsearchIOTestCommon elasticsearchIOTestCommonWithErrors =
-        new ElasticsearchIOTestCommon(connectionConfiguration, getRestClient(), false);
-    elasticsearchIOTestCommonWithErrors.setPipeline(pipeline);
-    elasticsearchIOTestCommonWithErrors.testWritePartialUpdateWithErrors();
   }
 
   @Test

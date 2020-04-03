@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature()
+applyJavaNature(automaticModuleName: 'org.apache.beam.runners.core.construction')
 
 description = "Apache Beam :: Runners :: Core Construction Java"
 ext.summary = """Beam Runners Core provides utilities to aid runner authors interact with a Pipeline
@@ -36,8 +36,9 @@ dependencies {
   compile project(path: ":model:pipeline", configuration: "shadow")
   compile project(path: ":model:job-management", configuration: "shadow")
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.vendored_grpc_1_13_1
-  compile library.java.vendored_guava_20_0
+  compile library.java.vendored_grpc_1_26_0
+  compile library.java.vendored_guava_26_0_jre
+  compile library.java.classgraph
   compile library.java.jackson_core
   compile library.java.jackson_databind
   compile library.java.joda_time
@@ -49,32 +50,6 @@ dependencies {
   testCompile library.java.jackson_annotations
   testCompile library.java.jackson_dataformat_yaml
   testCompile project(path: ":model:fn-execution", configuration: "shadow")
+  testCompile project(path: ":sdks:java:core", configuration: "testRuntime")
   testRuntimeOnly library.java.slf4j_jdk14
-}
-
-task runExpansionService (type: JavaExec) {
-  main = "org.apache.beam.runners.core.construction.expansion.ExpansionService"
-  classpath = sourceSets.main.runtimeClasspath
-  args = [project.findProperty("constructionService.port") ?: "8097"]
-}
-
-task runTestExpansionService (type: JavaExec) {
-  main = "org.apache.beam.runners.core.construction.expansion.TestExpansionService"
-  classpath = sourceSets.test.runtimeClasspath
-  args = [project.findProperty("constructionService.port") ?: "8097"]
-}
-
-task buildTestExpansionServiceJar(type: Jar) {
-  dependsOn = [jar, testJar]
-  appendix = "testExpansionService"
-  // Use zip64 mode to avoid "Archive contains more than 65535 entries".
-  zip64 = true
-  manifest {
-    attributes(
-            'Main-Class': 'org.apache.beam.runners.core.construction.expansion.TestExpansionService'
-    )
-  }
-  from { configurations.testRuntime.collect { it.isDirectory() ? it : zipTree(it) }}
-  from sourceSets.main.output
-  from sourceSets.test.output
 }

@@ -21,7 +21,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.coders.Coder;
@@ -29,7 +28,6 @@ import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,12 +55,12 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
   public <T> InboundDataClient receive(
       ApiServiceDescriptor apiServiceDescriptor,
       LogicalEndpoint inputLocation,
-      Coder<WindowedValue<T>> coder,
-      FnDataReceiver<WindowedValue<T>> consumer) {
+      Coder<T> coder,
+      FnDataReceiver<T> consumer) {
     LOG.debug(
         "Registering consumer for instruction {} and transform {}",
         inputLocation.getInstructionId(),
-        inputLocation.getPTransformId());
+        inputLocation.getTransformId());
 
     QueueingFnDataReceiver<T> queueingConsumer = new QueueingFnDataReceiver<T>(consumer);
     InboundDataClient inboundDataClient =
@@ -73,7 +71,7 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
     return inboundDataClient;
   }
 
-  // Returns true if all the InboundDataClients have finished or cancelled and no WindowedValues
+  // Returns true if all the InboundDataClients have finished or cancelled and no values
   // remain on the queue.
   private boolean allDone() {
     for (InboundDataClient inboundDataClient : inboundDataClients.keySet()) {
@@ -88,16 +86,16 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
   }
 
   /**
-   * Drains the internal queue of this class, by waiting for all WindowedValues to be passed to
-   * their consumers. The thread which wishes to process() the elements should call this method, as
-   * this will cause the consumers to invoke element processing. All receive() and send() calls must
-   * be made prior to calling drainAndBlock, in order to properly terminate.
+   * Drains the internal queue of this class, by waiting for all values to be passed to their
+   * consumers. The thread which wishes to process() the elements should call this method, as this
+   * will cause the consumers to invoke element processing. All receive() and send() calls must be
+   * made prior to calling drainAndBlock, in order to properly terminate.
    *
    * <p>All {@link InboundDataClient}s will be failed if processing throws an exception.
    *
    * <p>This method is NOT thread safe. This should only be invoked by a single thread, and is
    * intended for use with a newly constructed QueueingBeamFnDataClient in {@link
-   * ProcessBundleHandler#processBundle(InstructionRequest)}.
+   * ProcessBundleHandler#processBundle}.
    */
   public void drainAndBlock() throws Exception {
     while (true) {
@@ -117,7 +115,7 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
           }
         }
       } catch (Exception e) {
-        LOG.error("Client failed to dequeue and process WindowedValue", e);
+        LOG.error("Client failed to dequeue and process the value", e);
         for (InboundDataClient inboundDataClient : inboundDataClients.keySet()) {
           inboundDataClient.fail(e);
         }
@@ -127,14 +125,14 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
   }
 
   @Override
-  public <T> CloseableFnDataReceiver<WindowedValue<T>> send(
+  public <T> CloseableFnDataReceiver<T> send(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       LogicalEndpoint outputLocation,
-      Coder<WindowedValue<T>> coder) {
+      Coder<T> coder) {
     LOG.debug(
         "Creating output consumer for instruction {} and transform {}",
         outputLocation.getInstructionId(),
-        outputLocation.getPTransformId());
+        outputLocation.getTransformId());
     return this.mainClient.send(apiServiceDescriptor, outputLocation, coder);
   }
 
@@ -146,11 +144,11 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
    * {@link QueueingBeamFnDataClient#drainAndBlock} is responsible for processing values from the
    * queue.
    */
-  public class QueueingFnDataReceiver<T> implements FnDataReceiver<WindowedValue<T>> {
-    private final FnDataReceiver<WindowedValue<T>> consumer;
+  public class QueueingFnDataReceiver<T> implements FnDataReceiver<T> {
+    private final FnDataReceiver<T> consumer;
     public InboundDataClient inboundDataClient;
 
-    public QueueingFnDataReceiver(FnDataReceiver<WindowedValue<T>> consumer) {
+    public QueueingFnDataReceiver(FnDataReceiver<T> consumer) {
       this.consumer = consumer;
     }
 
@@ -159,7 +157,7 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
      * data arrives via the QueueingBeamFnDataClient's mainClient.
      */
     @Override
-    public void accept(WindowedValue<T> value) throws Exception {
+    public void accept(T value) throws Exception {
       try {
         ConsumerAndData offering = new ConsumerAndData(this.consumer, value);
         while (!queue.offer(offering, 200, TimeUnit.MILLISECONDS)) {
@@ -169,7 +167,7 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
           }
         }
       } catch (Exception e) {
-        LOG.error("Failed to insert WindowedValue into the queue", e);
+        LOG.error("Failed to insert the value into the queue", e);
         inboundDataClient.fail(e);
         throw e;
       }
@@ -177,10 +175,10 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
   }
 
   static class ConsumerAndData<T> {
-    public FnDataReceiver<WindowedValue<T>> consumer;
-    public WindowedValue<T> data;
+    public FnDataReceiver<T> consumer;
+    public T data;
 
-    public ConsumerAndData(FnDataReceiver<WindowedValue<T>> receiver, WindowedValue<T> data) {
+    public ConsumerAndData(FnDataReceiver<T> receiver, T data) {
       this.consumer = receiver;
       this.data = data;
     }

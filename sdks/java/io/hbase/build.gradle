@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature()
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.hbase')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -37,14 +37,13 @@ test {
 def hbase_version = "1.2.6"
 
 dependencies {
-  compile library.java.vendored_guava_20_0
+  compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:io:hadoop-common")
   compile library.java.slf4j_api
   compile "org.apache.hbase:hbase-shaded-client:$hbase_version"
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.commons_lang3
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
@@ -64,6 +63,6 @@ dependencies {
   }
   testCompile "org.apache.hbase:hbase-hadoop-compat:$hbase_version:tests"
   testCompile "org.apache.hbase:hbase-hadoop2-compat:$hbase_version:tests"
-  testRuntimeOnly project(":runners:direct-java")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
 

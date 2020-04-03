@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.worker;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.sdk.metrics.MetricName;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 /** This holds system metrics related constants used in Batch and Streaming. */
 public class DataflowSystemMetrics {
@@ -39,7 +39,8 @@ public class DataflowSystemMetrics {
     JAVA_HARNESS_USED_MEMORY("dataflow_java_harness_used_memory"),
     JAVA_HARNESS_MAX_MEMORY("dataflow_java_harness_max_memory"),
     JAVA_HARNESS_RESTARTS("dataflow_java_harness_restarts"),
-    WINDMILL_QUOTA_THROTTLING("dataflow_streaming_engine_throttled_msecs");
+    WINDMILL_QUOTA_THROTTLING("dataflow_streaming_engine_throttled_msecs"),
+    MEMORY_THRASHING("dataflow_streaming_engine_user_worker_thrashing");
 
     private final String name;
 

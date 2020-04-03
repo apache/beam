@@ -24,17 +24,17 @@ import CronJobBuilder
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def loadTestConfigurations = [
+def loadTestConfigurations = { datasetName -> [
         [
-                title        : 'GroupByKey Python Load test: reiterate 4 times 10kB values',
-                itClass      :  'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                jobProperties: [
+                title          : 'GroupByKey Python Load test: reiterate 4 times 10kB values',
+                test           :  'apache_beam.testing.load_tests.group_by_key_test',
+                runner         : CommonTestProperties.Runner.DATAFLOW,
+                pipelineOptions: [
                         project              : 'apache-beam-testing',
                         job_name             : 'load-tests-python-dataflow-batch-gbk-6-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
-                        metrics_dataset      : 'load_test',
+                        metrics_dataset      : datasetName,
                         metrics_table        : "python_dataflow_batch_gbk_6",
                         input_options        : '\'{"num_records": 20000000,' +
                                 '"key_size": 10,' +
@@ -43,21 +43,20 @@ def loadTestConfigurations = [
                                 '"hot_key_fraction": 1}\'',
                         fanout               : 1,
                         iterations           : 4,
-                        max_num_workers      : 5,
                         num_workers          : 5,
                         autoscaling_algorithm: "NONE"
                 ]
         ],
         [
-                title        : 'GroupByKey Python Load test: reiterate 4 times 2MB values',
-                itClass      :  'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
-                runner       : CommonTestProperties.Runner.DATAFLOW,
-                jobProperties: [
+                title          : 'GroupByKey Python Load test: reiterate 4 times 2MB values',
+                test           :  'apache_beam.testing.load_tests.group_by_key_test',
+                runner         : CommonTestProperties.Runner.DATAFLOW,
+                pipelineOptions: [
                         project              : 'apache-beam-testing',
                         job_name             : 'load-tests-python-dataflow-batch-gbk-7-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
-                        metrics_dataset      : 'load_test',
+                        metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_gbk_7',
                         input_options        : '\'{"num_records": 20000000,' +
                                 '"key_size": 10,' +
@@ -66,19 +65,19 @@ def loadTestConfigurations = [
                                 '"hot_key_fraction": 1}\'',
                         fanout               : 1,
                         iterations           : 4,
-                        max_num_workers      : 5,
                         num_workers          : 5,
                         autoscaling_algorithm: 'NONE'
                 ]
         ]
-]
+]}
 
 def batchLoadTestJob = { scope, triggeringContext ->
     scope.description('Runs Python GBK reiterate load tests on Dataflow runner in batch mode')
     commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
-    for (testConfiguration in loadTestConfigurations) {
-        loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.PYTHON, testConfiguration.jobProperties, testConfiguration.itClass, triggeringContext)
+    def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
+    for (testConfiguration in loadTestConfigurations(datasetName)) {
+        loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.PYTHON, testConfiguration.pipelineOptions, testConfiguration.test)
     }
 }
 

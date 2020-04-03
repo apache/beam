@@ -49,13 +49,12 @@ package metrics
 import (
 	"context"
 	"fmt"
-	"sort"
+	"hash/fnv"
 	"sync"
+	"sync/atomic"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
-	"github.com/golang/protobuf/ptypes"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
 )
 
 // Metric cells are named and scoped by ptransform, and bundle,
@@ -66,60 +65,93 @@ import (
 
 type ctxKey string
 
-const bundleKey ctxKey = "beam:bundle"
-const ptransformKey ctxKey = "beam:ptransform"
+const (
+	counterSetKey ctxKey = "beam:counterset"
+	storeKey      ctxKey = "beam:bundlestore"
+)
 
 // beamCtx is a caching context for IDs necessary to place metric updates.
-//  Allocating contexts and searching for PTransformIDs for every element
+// Allocating contexts and searching for PTransformIDs for every element
 // is expensive, so we avoid it if possible.
 type beamCtx struct {
 	context.Context
 	bundleID, ptransformID string
+	store                  *Store
+	cs                     *ptCounterSet
 }
 
-// Value lifts the beam contLift the keys value for faster lookups when not available.
+// Value implements the Context interface Value method for beamCtx.
+// The implementation lifts the stored values for metrics keys to the
+// top level beamCtx for faster lookups.
 func (ctx *beamCtx) Value(key interface{}) interface{} {
 	switch key {
-	case bundleKey:
-		if ctx.bundleID == "" {
-			if id := ctx.Context.Value(key); id != nil {
-				ctx.bundleID = id.(string)
+	case counterSetKey:
+		if ctx.cs == nil {
+			if cs := ctx.Context.Value(key); cs != nil {
+				ctx.cs = cs.(*ptCounterSet)
 			} else {
-				return nil
+				// It's not created previously
+				ctx.store.mu.Lock()
+				cs := &ptCounterSet{
+					pid:           ctx.ptransformID,
+					counters:      make(map[nameHash]*counter),
+					distributions: make(map[nameHash]*distribution),
+					gauges:        make(map[nameHash]*gauge),
+				}
+				ctx.store.css = append(ctx.store.css, cs)
+				ctx.cs = cs
+				ctx.store.mu.Unlock()
 			}
 		}
-		return ctx.bundleID
-	case ptransformKey:
-		if ctx.ptransformID == "" {
-			if id := ctx.Context.Value(key); id != nil {
-				ctx.ptransformID = id.(string)
-			} else {
-				return nil
+		return ctx.cs
+	case storeKey:
+		if ctx.store == nil {
+			if store := ctx.Context.Value(key); store != nil {
+				ctx.store = store.(*Store)
 			}
 		}
-		return ctx.ptransformID
+		return ctx.store
 	}
 	return ctx.Context.Value(key)
 }
 
-// SetBundleID sets the id of the current Bundle.
+func (ctx *beamCtx) String() string {
+	return fmt.Sprintf("beamCtx[%s;%s]", ctx.bundleID, ctx.ptransformID)
+}
+
+// SetBundleID sets the id of the current Bundle, and populates the store.
 func SetBundleID(ctx context.Context, id string) context.Context {
 	// Checking for *beamCtx is an optimization, so we don't dig deeply
 	// for ids if not necessary.
 	if bctx, ok := ctx.(*beamCtx); ok {
-		return &beamCtx{Context: bctx.Context, bundleID: id, ptransformID: bctx.ptransformID}
+		return &beamCtx{Context: bctx.Context, bundleID: id, store: newStore(), ptransformID: bctx.ptransformID}
 	}
-	return &beamCtx{Context: ctx, bundleID: id}
+	return &beamCtx{Context: ctx, bundleID: id, store: newStore()}
 }
 
 // SetPTransformID sets the id of the current PTransform.
+// Must only be called on a context returned by SetBundleID.
 func SetPTransformID(ctx context.Context, id string) context.Context {
 	// Checking for *beamCtx is an optimization, so we don't dig deeply
 	// for ids if not necessary.
 	if bctx, ok := ctx.(*beamCtx); ok {
-		return &beamCtx{Context: bctx.Context, bundleID: bctx.bundleID, ptransformID: id}
+		return &beamCtx{Context: bctx.Context, bundleID: bctx.bundleID, store: bctx.store, ptransformID: id}
 	}
-	return &beamCtx{Context: ctx, ptransformID: id}
+	// Avoid breaking if the bundle is unset in testing.
+	return &beamCtx{Context: ctx, bundleID: bundleIDUnset, store: newStore(), ptransformID: id}
+}
+
+// GetStore extracts the metrics Store for the given context for a bundle.
+//
+// Returns nil if the context doesn't contain a metric Store.
+func GetStore(ctx context.Context) *Store {
+	if bctx, ok := ctx.(*beamCtx); ok {
+		return bctx.store
+	}
+	if v := ctx.Value(storeKey); v != nil {
+		return v.(*Store)
+	}
+	return nil
 }
 
 const (
@@ -127,20 +159,38 @@ const (
 	ptransformIDUnset = "(ptransform id unset)"
 )
 
-func getContextKey(ctx context.Context, n name) key {
-	key := key{name: n, bundle: bundleIDUnset, ptransform: ptransformIDUnset}
-	if id := ctx.Value(bundleKey); id != nil {
-		key.bundle = id.(string)
+func getCounterSet(ctx context.Context) *ptCounterSet {
+	if bctx, ok := ctx.(*beamCtx); ok && bctx.cs != nil {
+		return bctx.cs
 	}
-	if id := ctx.Value(ptransformKey); id != nil {
-		key.ptransform = id.(string)
+	if set := ctx.Value(counterSetKey); set != nil {
+		return set.(*ptCounterSet)
 	}
-	return key
+	// This isn't a beam context, so we don't have a
+	// useful counterset to return.
+	return nil
 }
 
-// userMetric knows how to convert it's value to a Metrics_User proto.
-type userMetric interface {
-	toProto() *fnexecution_v1.Metrics_User
+type kind uint8
+
+const (
+	kindUnknown kind = iota
+	kindSumCounter
+	kindDistribution
+	kindGauge
+)
+
+func (t kind) String() string {
+	switch t {
+	case kindSumCounter:
+		return "Counter"
+	case kindDistribution:
+		return "Distribution"
+	case kindGauge:
+		return "Gauge"
+	default:
+		panic(fmt.Sprintf("Unknown metric type value: %v", uint8(t)))
+	}
 }
 
 // name is a pair of strings identifying a specific metric.
@@ -159,43 +209,48 @@ func newName(ns, n string) name {
 	return name{namespace: ns, name: n}
 }
 
-type key struct {
-	name               name
-	bundle, ptransform string
-}
-
+// We hash the name to a uint64 so we avoid using go's native string hashing for
+// every use of a metrics. uint64s have faster lookup than strings as a result.
+// Collisions are possible, but statistically unlikely as namespaces and names
+// are usually short enough to avoid this.
 var (
-	// mu protects access to store
-	mu sync.RWMutex
-	// store is a map of BundleIDs to PtransformIDs to userMetrics.
-	// it permits us to extract metric protos for runners per data Bundle, and
-	// per PTransform.
-	store = make(map[string]map[string]map[name]userMetric)
-
-	// We store the user path access to the cells in metric type segregated
-	// sync.Maps. Using sync.Maps lets metrics with disjoint keys have concurrent
-	// access to the cells, and using separate sync.Map per metric type
-	// simplifies code understanding, since each only contains a single type of
-	// cell.
-
-	countersMu      sync.RWMutex
-	counters        = make(map[key]*counter)
-	distributionsMu sync.RWMutex
-	distributions   = make(map[key]*distribution)
-	gaugesMu        sync.RWMutex
-	gauges          = make(map[key]*gauge)
+	hasherMu sync.Mutex
+	hasher   = fnv.New64a()
 )
 
-// TODO(lostluck): 2018/03/05 Use a common internal beam now() instead, once that exists.
-var now = time.Now
+func hashName(ns, n string) nameHash {
+	hasherMu.Lock()
+	hasher.Reset()
+	var buf [64]byte
+	b := buf[:]
+	hashString(ns, b)
+	hashString(n, b)
+	h := hasher.Sum64()
+	hasherMu.Unlock()
+	return nameHash(h)
+}
+
+// hashString hashes a string with the package level hasher
+// and requires posession of the hasherMu lock. The byte
+// slice is assumed to be backed by a [64]byte.
+func hashString(s string, b []byte) {
+	l := len(s)
+	i := 0
+	for len(s)-i > 64 {
+		n := i + 64
+		copy(b, s[i:n])
+		ioutilx.WriteUnsafe(hasher, b)
+		i = n
+	}
+	n := l - i
+	copy(b, s[i:])
+	ioutilx.WriteUnsafe(hasher, b[:n])
+}
 
 // Counter is a simple counter for incrementing and decrementing a value.
 type Counter struct {
 	name name
-	// The following are a fast cache of the key and storage
-	mu sync.Mutex
-	k  key
-	c  *counter
+	hash nameHash
 }
 
 func (m *Counter) String() string {
@@ -204,38 +259,28 @@ func (m *Counter) String() string {
 
 // NewCounter returns the Counter with the given namespace and name.
 func NewCounter(ns, n string) *Counter {
-	mn := newName(ns, n)
 	return &Counter{
-		name: mn,
+		name: newName(ns, n),
+		hash: hashName(ns, n),
 	}
 }
 
 // Inc increments the counter within the given PTransform context by v.
 func (m *Counter) Inc(ctx context.Context, v int64) {
-	key := getContextKey(ctx, m.name)
-	cs := &counter{
-		value: v,
-	}
-	m.mu.Lock()
-	if m.k == key {
-		m.c.inc(v)
-		m.mu.Unlock()
+	cs := getCounterSet(ctx)
+	if cs == nil {
 		return
 	}
-	m.k = key
-	countersMu.Lock()
-	if c, loaded := counters[key]; loaded {
-		m.c = c
-		countersMu.Unlock()
-		m.mu.Unlock()
+	if c, ok := cs.counters[m.hash]; ok {
 		c.inc(v)
 		return
 	}
-	m.c = cs
-	counters[key] = cs
-	countersMu.Unlock()
-	m.mu.Unlock()
-	storeMetric(key, cs)
+	// We're the first to create this metric!
+	c := &counter{
+		value: v,
+	}
+	cs.counters[m.hash] = c
+	GetStore(ctx).storeMetric(cs.pid, m.name, c)
 }
 
 // Dec decrements the counter within the given PTransform context by v.
@@ -246,41 +291,28 @@ func (m *Counter) Dec(ctx context.Context, v int64) {
 // counter is a metric cell for counter values.
 type counter struct {
 	value int64
-	mu    sync.Mutex
 }
 
 func (m *counter) inc(v int64) {
-	m.mu.Lock()
-	m.value += v
-	m.mu.Unlock()
+	atomic.AddInt64(&m.value, v)
 }
 
 func (m *counter) String() string {
 	return fmt.Sprintf("value: %d", m.value)
 }
 
-// toProto returns a Metrics_User populated with the Data messages, but not the name. The
-// caller needs to populate with the metric's name.
-func (m *counter) toProto() *fnexecution_v1.Metrics_User {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return &fnexecution_v1.Metrics_User{
-		Data: &fnexecution_v1.Metrics_User_CounterData_{
-			CounterData: &fnexecution_v1.Metrics_User_CounterData{
-				Value: m.value,
-			},
-		},
-	}
+func (m *counter) kind() kind {
+	return kindSumCounter
+}
+
+func (m *counter) get() int64 {
+	return atomic.LoadInt64(&m.value)
 }
 
 // Distribution is a simple distribution of values.
 type Distribution struct {
 	name name
-
-	// The following are a fast cache of the key and storage
-	mu sync.Mutex
-	k  key
-	d  *distribution
+	hash nameHash
 }
 
 func (m *Distribution) String() string {
@@ -289,41 +321,31 @@ func (m *Distribution) String() string {
 
 // NewDistribution returns the Distribution with the given namespace and name.
 func NewDistribution(ns, n string) *Distribution {
-	mn := newName(ns, n)
 	return &Distribution{
-		name: mn,
+		name: newName(ns, n),
+		hash: hashName(ns, n),
 	}
 }
 
 // Update updates the distribution within the given PTransform context with v.
 func (m *Distribution) Update(ctx context.Context, v int64) {
-	key := getContextKey(ctx, m.name)
-	ds := &distribution{
+	cs := getCounterSet(ctx)
+	if cs == nil {
+		return
+	}
+	if d, ok := cs.distributions[m.hash]; ok {
+		d.update(v)
+		return
+	}
+	// We're the first to create this metric!
+	d := &distribution{
 		count: 1,
 		sum:   v,
 		min:   v,
 		max:   v,
 	}
-	m.mu.Lock()
-	if m.k == key {
-		m.d.update(v)
-		m.mu.Unlock()
-		return
-	}
-	m.k = key
-	distributionsMu.Lock()
-	if d, loaded := distributions[key]; loaded {
-		m.d = d
-		distributionsMu.Unlock()
-		m.mu.Unlock()
-		d.update(v)
-		return
-	}
-	m.d = ds
-	distributions[key] = ds
-	distributionsMu.Unlock()
-	m.mu.Unlock()
-	storeMetric(key, ds)
+	cs.distributions[m.hash] = d
+	GetStore(ctx).storeMetric(cs.pid, m.name, d)
 }
 
 // distribution is a metric cell for distribution values.
@@ -349,31 +371,20 @@ func (m *distribution) String() string {
 	return fmt.Sprintf("count: %d sum: %d min: %d max: %d", m.count, m.sum, m.min, m.max)
 }
 
-// toProto returns a Metrics_User populated with the Data messages, but not the name. The
-// caller needs to populate with the metric's name.
-func (m *distribution) toProto() *fnexecution_v1.Metrics_User {
+func (m *distribution) kind() kind {
+	return kindDistribution
+}
+
+func (m *distribution) get() (count, sum, min, max int64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return &fnexecution_v1.Metrics_User{
-		Data: &fnexecution_v1.Metrics_User_DistributionData_{
-			DistributionData: &fnexecution_v1.Metrics_User_DistributionData{
-				Count: m.count,
-				Sum:   m.sum,
-				Min:   m.min,
-				Max:   m.max,
-			},
-		},
-	}
+	return m.count, m.sum, m.min, m.max
 }
 
 // Gauge is a time, value pair metric.
 type Gauge struct {
 	name name
-
-	// The following are a fast cache of the key and storage
-	mu sync.Mutex
-	k  key
-	g  *gauge
+	hash nameHash
 }
 
 func (m *Gauge) String() string {
@@ -382,57 +393,32 @@ func (m *Gauge) String() string {
 
 // NewGauge returns the Gauge with the given namespace and name.
 func NewGauge(ns, n string) *Gauge {
-	mn := newName(ns, n)
 	return &Gauge{
-		name: mn,
+		name: newName(ns, n),
+		hash: hashName(ns, n),
 	}
 }
+
+// TODO(lostluck): 2018/03/05 Use a common internal beam now() instead, once that exists.
+var now = time.Now
 
 // Set sets the gauge to the given value, and associates it with the current time on the clock.
 func (m *Gauge) Set(ctx context.Context, v int64) {
-	key := getContextKey(ctx, m.name)
-	gs := &gauge{
-		t: now(),
-		v: v,
-	}
-	m.mu.Lock()
-	if m.k == key {
-		m.g.set(v)
-		m.mu.Unlock()
+	cs := getCounterSet(ctx)
+	if cs == nil {
 		return
 	}
-	m.k = key
-	gaugesMu.Lock()
-	if g, loaded := gauges[key]; loaded {
-		m.g = g
-		gaugesMu.Unlock()
-		m.mu.Unlock()
+	if g, ok := cs.gauges[m.hash]; ok {
 		g.set(v)
 		return
 	}
-	m.g = gs
-	gauges[key] = gs
-	gaugesMu.Unlock()
-	m.mu.Unlock()
-	storeMetric(key, gs)
-}
-
-// storeMetric stores a metric away on its first use so it may be retrieved later on.
-// In the event of a name collision, storeMetric can panic, so it's prudent to release
-// locks if they are no longer required.
-func storeMetric(key key, m userMetric) {
-	mu.Lock()
-	defer mu.Unlock()
-	if _, ok := store[key.bundle]; !ok {
-		store[key.bundle] = make(map[string]map[name]userMetric)
+	// We're the first to create this metric!
+	g := &gauge{
+		t: now(),
+		v: v,
 	}
-	if _, ok := store[key.bundle][key.ptransform]; !ok {
-		store[key.bundle][key.ptransform] = make(map[name]userMetric)
-	}
-	if _, ok := store[key.bundle][key.ptransform][key.name]; ok {
-		panic(fmt.Sprintf("metric name %s being reused for a second metric in a single PTransform", key.name))
-	}
-	store[key.bundle][key.ptransform][key.name] = m
+	cs.gauges[m.hash] = g
+	GetStore(ctx).storeMetric(cs.pid, m.name, g)
 }
 
 // gauge is a metric cell for gauge values.
@@ -449,142 +435,16 @@ func (m *gauge) set(v int64) {
 	m.mu.Unlock()
 }
 
-func (m *gauge) toProto() *fnexecution_v1.Metrics_User {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	ts, err := ptypes.TimestampProto(m.t)
-	if err != nil {
-		panic(err)
-	}
-	return &fnexecution_v1.Metrics_User{
-		Data: &fnexecution_v1.Metrics_User_GaugeData_{
-			GaugeData: &fnexecution_v1.Metrics_User_GaugeData{
-				Value:     m.v,
-				Timestamp: ts,
-			},
-		},
-	}
+func (m *gauge) kind() kind {
+	return kindGauge
 }
 
 func (m *gauge) String() string {
-	return fmt.Sprintf("time: %s value: %d", m.t, m.v)
+	return fmt.Sprintf("%v time: %s value: %d", m.kind(), m.t, m.v)
 }
 
-// ToProto exports all collected metrics for the given BundleID and PTransform ID pair.
-func ToProto(b, pt string) []*fnexecution_v1.Metrics_User {
-	mu.RLock()
-	defer mu.RUnlock()
-	ps := store[b]
-	s := ps[pt]
-	var ret []*fnexecution_v1.Metrics_User
-	for n, m := range s {
-		p := m.toProto()
-		p.MetricName = &fnexecution_v1.Metrics_User_MetricName{
-			Name:      n.name,
-			Namespace: n.namespace,
-		}
-		ret = append(ret, p)
-	}
-	return ret
-}
-
-// DumpToLog is a debugging function that outputs all metrics available locally to beam.Log.
-func DumpToLog(ctx context.Context) {
-	dumpTo(func(format string, args ...interface{}) {
-		log.Errorf(ctx, format, args...)
-	})
-}
-
-// DumpToOut is a debugging function that outputs all metrics available locally to std out.
-func DumpToOut() {
-	dumpTo(func(format string, args ...interface{}) {
-		fmt.Printf(format+"\n", args...)
-	})
-}
-
-func dumpTo(p func(format string, args ...interface{})) {
-	mu.RLock()
-	defer mu.RUnlock()
-	countersMu.RLock()
-	defer countersMu.RUnlock()
-	distributionsMu.RLock()
-	defer distributionsMu.RUnlock()
-	gaugesMu.RLock()
-	defer gaugesMu.RUnlock()
-	var bs []string
-	for b := range store {
-		bs = append(bs, b)
-	}
-	sort.Strings(bs)
-	for _, b := range bs {
-		var pts []string
-		for pt := range store[b] {
-			pts = append(pts, pt)
-		}
-		sort.Strings(pts)
-		for _, pt := range pts {
-			var ns []name
-			for n := range store[b][pt] {
-				ns = append(ns, n)
-			}
-			sort.Slice(ns, func(i, j int) bool {
-				if ns[i].namespace < ns[j].namespace {
-					return true
-				}
-				if ns[i].namespace == ns[j].namespace && ns[i].name < ns[j].name {
-					return true
-				}
-				return false
-			})
-			p("Bundle: %q - PTransformID: %q", b, pt)
-			for _, n := range ns {
-				key := key{name: n, bundle: b, ptransform: pt}
-				if m, ok := counters[key]; ok {
-					p("\t%s - %s", key.name, m)
-				}
-				if m, ok := distributions[key]; ok {
-					p("\t%s - %s", key.name, m)
-				}
-				if m, ok := gauges[key]; ok {
-					p("\t%s - %s", key.name, m)
-				}
-			}
-		}
-	}
-}
-
-// Clear resets all storage associated with metrics for tests.
-// Calling this in pipeline code leads to inaccurate metrics.
-func Clear() {
-	mu.Lock()
-	store = make(map[string]map[string]map[name]userMetric)
-	counters = make(map[key]*counter)
-	distributions = make(map[key]*distribution)
-	gauges = make(map[key]*gauge)
-	mu.Unlock()
-}
-
-// ClearBundleData removes stored references associated with a given bundle,
-// so it can be garbage collected.
-func ClearBundleData(b string) {
-	// No concurrency races since mu guards all access to store,
-	// and the metric cell sync.Maps are goroutine safe.
-	mu.Lock()
-	pts := store[b]
-	countersMu.Lock()
-	distributionsMu.Lock()
-	gaugesMu.Lock()
-	for pt, m := range pts {
-		for n := range m {
-			key := key{name: n, bundle: b, ptransform: pt}
-			delete(counters, key)
-			delete(distributions, key)
-			delete(gauges, key)
-		}
-	}
-	countersMu.Unlock()
-	distributionsMu.Unlock()
-	gaugesMu.Unlock()
-	delete(store, b)
-	mu.Unlock()
+func (m *gauge) get() (int64, time.Time) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.v, m.t
 }

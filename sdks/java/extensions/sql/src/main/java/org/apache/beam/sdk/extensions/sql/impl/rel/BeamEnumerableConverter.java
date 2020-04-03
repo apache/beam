@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
+import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -28,6 +28,7 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
@@ -54,24 +55,24 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
-import org.apache.calcite.adapter.enumerable.EnumerableRel;
-import org.apache.calcite.adapter.enumerable.EnumerableRelImplementor;
-import org.apache.calcite.adapter.enumerable.PhysType;
-import org.apache.calcite.adapter.enumerable.PhysTypeImpl;
-import org.apache.calcite.linq4j.Enumerable;
-import org.apache.calcite.linq4j.Linq4j;
-import org.apache.calcite.linq4j.tree.BlockBuilder;
-import org.apache.calcite.linq4j.tree.Expression;
-import org.apache.calcite.linq4j.tree.Expressions;
-import org.apache.calcite.plan.ConventionTraitDef;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.convert.ConverterImpl;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.EnumerableRel;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.EnumerableRelImplementor;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.PhysType;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.enumerable.PhysTypeImpl;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.Enumerable;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.Linq4j;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.BlockBuilder;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Expression;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Expressions;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.ConventionTraitDef;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCost;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.convert.ConverterImpl;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.joda.time.Duration;
 import org.joda.time.ReadableInstant;
 import org.slf4j.Logger;
@@ -286,7 +287,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     Object[] convertedColumns = new Object[schema.getFields().size()];
     int i = 0;
     for (Schema.Field field : schema.getFields()) {
-      convertedColumns[i] = fieldToAvatica(field.getType(), row.getValue(i));
+      convertedColumns[i] = fieldToAvatica(field.getType(), row.getBaseValue(i, Object.class));
       ++i;
     }
     return convertedColumns;
@@ -307,7 +308,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
         } else if (logicalId.equals(CharType.IDENTIFIER)) {
           return beamValue;
         } else {
-          throw new IllegalArgumentException("Unknown DateTime type " + logicalId);
+          throw new UnsupportedOperationException("Unknown DateTime type " + logicalId);
         }
       case DATETIME:
         return ((ReadableInstant) beamValue).getMillis();
@@ -327,6 +328,10 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
             .stream()
                 .map(elem -> fieldToAvatica(type.getCollectionElementType(), elem))
                 .collect(Collectors.toList());
+      case ITERABLE:
+        return StreamSupport.stream(((Iterable<?>) beamValue).spliterator(), false)
+            .map(elem -> fieldToAvatica(type.getCollectionElementType(), elem))
+            .collect(Collectors.toList());
       case MAP:
         return ((Map<?, ?>) beamValue)
             .entrySet().stream()
@@ -378,17 +383,18 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
   private static boolean isLimitQuery(BeamRelNode node) {
     return (node instanceof BeamSortRel && ((BeamSortRel) node).isLimitOnly())
-        || (node instanceof BeamCalcRel && ((BeamCalcRel) node).isInputSortRelAndLimitOnly());
+        || (node instanceof AbstractBeamCalcRel
+            && ((AbstractBeamCalcRel) node).isInputSortRelAndLimitOnly());
   }
 
   private static int getLimitCount(BeamRelNode node) {
     if (node instanceof BeamSortRel) {
       return ((BeamSortRel) node).getCount();
-    } else if (node instanceof BeamCalcRel) {
-      return ((BeamCalcRel) node).getLimitCountOfSortRel();
+    } else if (node instanceof AbstractBeamCalcRel) {
+      return ((AbstractBeamCalcRel) node).getLimitCountOfSortRel();
     }
 
-    throw new RuntimeException(
+    throw new IllegalArgumentException(
         "Cannot get limit count from RelNode tree with root " + node.getRelTypeName());
   }
 

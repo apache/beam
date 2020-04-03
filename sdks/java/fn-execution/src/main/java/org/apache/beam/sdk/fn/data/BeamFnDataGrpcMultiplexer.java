@@ -28,11 +28,11 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Data;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p13p1.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -127,8 +127,7 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
     public void onNext(BeamFnApi.Elements value) {
       for (BeamFnApi.Elements.Data data : value.getDataList()) {
         try {
-          LogicalEndpoint key =
-              LogicalEndpoint.of(data.getInstructionReference(), data.getPtransformId());
+          LogicalEndpoint key = LogicalEndpoint.of(data.getInstructionId(), data.getTransformId());
           CompletableFuture<Consumer<BeamFnApi.Elements.Data>> consumer = receiverFuture(key);
           if (!consumer.isDone()) {
             LOG.debug(
@@ -147,15 +146,15 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
         } catch (ExecutionException | InterruptedException e) {
           LOG.error(
               "Client interrupted during handling of data for instruction {} and transform {}",
-              data.getInstructionReference(),
-              data.getPtransformId(),
+              data.getInstructionId(),
+              data.getTransformId(),
               e);
           outboundObserver.onError(e);
         } catch (RuntimeException e) {
           LOG.error(
               "Client failed to handle data for instruction {} and transform {}",
-              data.getInstructionReference(),
-              data.getPtransformId(),
+              data.getInstructionId(),
+              data.getTransformId(),
               e);
           outboundObserver.onError(e);
         }

@@ -50,7 +50,7 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -133,23 +133,53 @@ public class WindowDoFnOperatorTest {
     IntervalWindow window = new IntervalWindow(new Instant(0), Duration.millis(100));
     IntervalWindow window2 = new IntervalWindow(new Instant(100), Duration.millis(100));
     testHarness.processWatermark(0L);
+
+    // Use two different keys to check for correct watermark hold calculation
     testHarness.processElement(
         Item.builder().key(1L).timestamp(1L).value(100L).window(window).build().toStreamRecord());
     testHarness.processElement(
         Item.builder()
-            .key(1L)
+            .key(2L)
             .timestamp(150L)
             .value(150L)
             .window(window2)
             .build()
             .toStreamRecord());
 
-    assertThat(Iterables.size(timerInternals.pendingTimersById.keys()), is(2));
+    testHarness.processWatermark(1);
+
+    // Note that the following is 1 because the state is key-partitioned
+    assertThat(Iterables.size(timerInternals.pendingTimersById.keys()), is(1));
+
+    assertThat(testHarness.numKeyedStateEntries(), is(6));
+    assertThat(windowDoFnOperator.currentOutputWatermark, is(1L));
+    assertThat(timerInternals.getMinOutputTimestampMs(), is(Long.MAX_VALUE));
 
     // close window
+    testHarness.processWatermark(100L);
+
+    // Note that the following is zero because we only the first key is active
+    assertThat(Iterables.size(timerInternals.pendingTimersById.keys()), is(0));
+
+    assertThat(testHarness.numKeyedStateEntries(), is(3));
+    assertThat(windowDoFnOperator.currentOutputWatermark, is(100L));
+    assertThat(timerInternals.getMinOutputTimestampMs(), is(Long.MAX_VALUE));
+
     testHarness.processWatermark(200L);
 
-    assertThat(Iterables.size(timerInternals.pendingTimersById.keys()), is(0));
+    // All the state has been cleaned up
+    assertThat(testHarness.numKeyedStateEntries(), is(0));
+
+    assertThat(
+        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        containsInAnyOrder(
+            WindowedValue.of(
+                KV.of(1L, 100L), new Instant(99), window, PaneInfo.createPane(true, true, ON_TIME)),
+            WindowedValue.of(
+                KV.of(2L, 150L),
+                new Instant(199),
+                window2,
+                PaneInfo.createPane(true, true, ON_TIME))));
 
     // cleanup
     testHarness.close();

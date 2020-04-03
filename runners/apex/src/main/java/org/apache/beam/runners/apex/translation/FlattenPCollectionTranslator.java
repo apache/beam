@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.apex.translation;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Collections;
 import java.util.List;
@@ -31,7 +31,7 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
 /** {@link Flatten.PCollections} translation to Apex operator. */
 class FlattenPCollectionTranslator<T> implements TransformTranslator<Flatten.PCollections<T>> {

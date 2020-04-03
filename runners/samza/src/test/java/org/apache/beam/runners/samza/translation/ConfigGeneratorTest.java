@@ -37,8 +37,8 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.samza.config.Config;
 import org.apache.samza.config.JobCoordinatorConfig;
 import org.apache.samza.config.ZkConfig;
@@ -73,7 +73,7 @@ public class ConfigGeneratorTest {
     assertEquals(
         RocksDbKeyValueStorageEngineFactory.class.getName(),
         config.get("stores.beamStore.factory"));
-    assertEquals("byteSerde", config.get("stores.beamStore.key.serde"));
+    assertEquals("byteArraySerde", config.get("stores.beamStore.key.serde"));
     assertEquals("byteSerde", config.get("stores.beamStore.msg.serde"));
     assertNull(config.get("stores.beamStore.changelog"));
 
@@ -203,7 +203,7 @@ public class ConfigGeneratorTest {
     assertEquals(
         RocksDbKeyValueStorageEngineFactory.class.getName(),
         config.get("stores.testState.factory"));
-    assertEquals("byteSerde", config.get("stores.testState.key.serde"));
+    assertEquals("byteArraySerde", config.get("stores.testState.key.serde"));
     assertEquals("byteSerde", config.get("stores.testState.msg.serde"));
     assertNull(config.get("stores.testState.changelog"));
 

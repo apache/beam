@@ -22,8 +22,9 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ArrayBlockingQueue;
 import javax.annotation.concurrent.NotThreadSafe;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder.Context;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
  * Provides an efficient encoding for {@link Iterable}s containing small values by buffering up to
@@ -67,6 +68,7 @@ import org.apache.beam.vendor.guava.v20_0.com.google.common.annotations.VisibleF
  * <p>The counts are encoded as variable length longs. See {@link VarInt#encode(long, OutputStream)}
  * for more details. The end of the iterable is detected by reading a count of 0.
  */
+@Internal
 @NotThreadSafe
 public class BufferedElementCountingOutputStream extends OutputStream {
   private static final int MAX_POOLED = 12;

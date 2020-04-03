@@ -17,10 +17,11 @@
  */
 package org.apache.beam.runners.spark;
 
-import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
-import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStageForRemoteClusterExecution;
+import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStage;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -60,7 +61,7 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.metrics.MetricsSystem;
@@ -125,9 +126,10 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     SparkPipelineOptions sparkOptions =
         PipelineOptionsValidator.validate(SparkPipelineOptions.class, options);
 
-    if (sparkOptions.getFilesToStage() == null) {
+    if (sparkOptions.getFilesToStage() == null
+        && !SparkPipelineOptions.isLocalSparkMaster(sparkOptions)) {
       sparkOptions.setFilesToStage(
-          detectClassPathResourcesToStage(SparkRunner.class.getClassLoader()));
+          detectClassPathResourcesToStage(SparkRunner.class.getClassLoader(), options));
       LOG.info(
           "PipelineOptions.filesToStage was not specified. "
               + "Defaulting to files from the classpath: will stage {} files. "
@@ -165,7 +167,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     pipeline.replaceAll(SparkTransformOverrides.getDefaultOverrides(mOptions.isStreaming()));
 
-    prepareFilesToStageForRemoteClusterExecution(mOptions);
+    prepareFilesToStage(mOptions);
 
     if (mOptions.isStreaming()) {
       CheckpointDir checkpointDir = new CheckpointDir(mOptions.getCheckpointDir());
@@ -334,8 +336,12 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       // we populate cache candidates by updating the map with inputs of each node.
       // The goal is to detect the PCollections accessed more than one time, and so enable cache
       // on the underlying RDDs or DStreams.
+      Map<TupleTag<?>, PValue> inputs = new HashMap<>(node.getInputs());
+      for (TupleTag<?> tupleTag : node.getTransform().getAdditionalInputs().keySet()) {
+        inputs.remove(tupleTag);
+      }
 
-      for (PValue value : node.getInputs().values()) {
+      for (PValue value : inputs.values()) {
         if (value instanceof PCollection) {
           long count = 1L;
           if (ctxt.getCacheCandidates().get(value) != null) {
