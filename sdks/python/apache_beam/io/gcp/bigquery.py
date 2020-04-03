@@ -647,9 +647,9 @@ class _CustomBigQuerySource(BoundedSource):
         table_ref = bigquery_tools.parse_table_reference(
             self.table_reference.get(), self.dataset, self.project)
       elif isinstance(self.table_reference, vp.ValueProvider):
-        # Size estimation is best effort. We return 0 as we have no
-        # access to the table that we're querying.
-        return 0
+        # Size estimation is best effort. We return None as we have
+        # no access to the table that we're querying.
+        return None
       table = bq.get_table(
           table_ref.projectId, table_ref.datasetId, table_ref.tableId)
       return int(table.numBytes)
@@ -665,9 +665,9 @@ class _CustomBigQuerySource(BoundedSource):
       size = int(job.statistics.totalBytesProcessed)
       return size
     else:
-      # Size estimation is best effort. We return 0 as we have no
-      # access to the query that we're running.
-      return 0
+      # Size estimation is best effort. We return None as we have
+      # no access to the query that we're running.
+      return None
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.split_result is None:
