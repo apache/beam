@@ -42,7 +42,9 @@ public class HealthcareIOError<T> {
     return stackTrace;
   }
 
-  public Instant getObservedTime() { return observedTime; }
+  public Instant getObservedTime() {
+    return observedTime;
+  }
 
   public T getDataResource() {
     return dataResource;
