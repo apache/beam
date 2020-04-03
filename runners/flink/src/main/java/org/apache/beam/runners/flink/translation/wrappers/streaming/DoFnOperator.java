@@ -435,6 +435,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
                   "stable-input-buffer",
                   windowedInputCoder,
                   windowingStrategy.getWindowFn().windowCoder(),
+                  keyCoder,
                   getOperatorStateBackend(),
                   getKeyedStateBackend());
     }

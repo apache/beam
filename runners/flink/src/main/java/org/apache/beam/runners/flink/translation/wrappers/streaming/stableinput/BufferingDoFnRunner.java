@@ -51,6 +51,7 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       String stateName,
       org.apache.beam.sdk.coders.Coder windowedInputCoder,
       org.apache.beam.sdk.coders.Coder windowCoder,
+      org.apache.beam.sdk.coders.Coder keyCoder,
       OperatorStateBackend operatorStateBackend,
       @Nullable KeyedStateBackend<Object> keyedStateBackend)
       throws Exception {
@@ -59,6 +60,7 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
         stateName,
         windowedInputCoder,
         windowCoder,
+        keyCoder,
         operatorStateBackend,
         keyedStateBackend);
   }
@@ -80,6 +82,7 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       String stateName,
       org.apache.beam.sdk.coders.Coder inputCoder,
       org.apache.beam.sdk.coders.Coder windowCoder,
+      org.apache.beam.sdk.coders.Coder keyCoder,
       OperatorStateBackend operatorStateBackend,
       @Nullable KeyedStateBackend keyedStateBackend)
       throws Exception {
@@ -93,7 +96,8 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
           ListStateDescriptor<BufferedElement> stateDescriptor =
               new ListStateDescriptor<>(
                   stateName + stateId,
-                  new CoderTypeSerializer<>(new BufferedElements.Coder(inputCoder, windowCoder)));
+                  new CoderTypeSerializer<>(
+                      new BufferedElements.Coder(inputCoder, windowCoder, keyCoder)));
           if (keyedStateBackend != null) {
             return KeyedBufferingElementsHandler.create(keyedStateBackend, stateDescriptor);
           } else {
@@ -125,8 +129,8 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       Instant outputTimestamp,
       TimeDomain timeDomain) {
     currentBufferingElementsHandler.buffer(
-        new BufferedElements.Timer(
-            timerId, timerFamilyId, window, timestamp, outputTimestamp, timeDomain));
+        new BufferedElements.Timer<>(
+            timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain));
   }
 
   @Override

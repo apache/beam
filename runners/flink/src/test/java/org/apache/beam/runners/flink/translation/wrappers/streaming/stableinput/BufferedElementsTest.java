@@ -23,11 +23,14 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -44,8 +47,10 @@ public class BufferedElementsTest {
     org.apache.beam.sdk.coders.Coder windowCoder = GlobalWindow.Coder.INSTANCE;
     WindowedValue.WindowedValueCoder windowedValueCoder =
         WindowedValue.FullWindowedValueCoder.of(elementCoder, windowCoder);
+    org.apache.beam.sdk.coders.Coder keyCoder = KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of());
 
-    BufferedElements.Coder coder = new BufferedElements.Coder(windowedValueCoder, windowCoder);
+    BufferedElements.Coder coder =
+        new BufferedElements.Coder(windowedValueCoder, windowCoder, keyCoder);
 
     BufferedElement element =
         new BufferedElements.Element(
@@ -54,6 +59,7 @@ public class BufferedElementsTest {
         new BufferedElements.Timer(
             "timerId",
             "timerId",
+            KV.of("one", 1),
             GlobalWindow.INSTANCE,
             new Instant(1),
             new Instant(1),
