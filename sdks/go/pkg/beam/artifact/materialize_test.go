@@ -158,7 +158,7 @@ func stage(ctx context.Context, scl pb.LegacyArtifactStagingServiceClient, t *te
 func TestNewRetrieveWithManyFiles(t *testing.T) {
 	expected := map[string]string{"a.txt": "a", "b.txt": "bbb", "c.txt": "cccccccc"}
 
-	client := fakeRetrievalService{
+	client := &fakeRetrievalService{
 		artifacts: expected,
 	}
 
@@ -177,7 +177,7 @@ func TestNewRetrieveWithManyFiles(t *testing.T) {
 func TestNewRetrieveWithResolution(t *testing.T) {
 	expected := map[string]string{"a.txt": "a", "b.txt": "bbb", "c.txt": "cccccccc"}
 
-	client := fakeRetrievalService{
+	client := &fakeRetrievalService{
 		artifacts: expected,
 	}
 
@@ -221,7 +221,7 @@ type fakeRetrievalService struct {
 	artifacts map[string]string // name -> content
 }
 
-func (fake fakeRetrievalService) resolvedArtifacts() []*pipeline_v1.ArtifactInformation {
+func (fake *fakeRetrievalService) resolvedArtifacts() []*pipeline_v1.ArtifactInformation {
 	var artifacts []*pipeline_v1.ArtifactInformation
 	for name, contents := range fake.artifacts {
 		payload, _ := proto.Marshal(&pipeline_v1.ArtifactStagingToRolePayload{
@@ -236,7 +236,7 @@ func (fake fakeRetrievalService) resolvedArtifacts() []*pipeline_v1.ArtifactInfo
 	return artifacts
 }
 
-func (fake fakeRetrievalService) unresolvedArtifacts() []*pipeline_v1.ArtifactInformation {
+func (fake *fakeRetrievalService) unresolvedArtifacts() []*pipeline_v1.ArtifactInformation {
 	return []*pipeline_v1.ArtifactInformation{
 		&pipeline_v1.ArtifactInformation{
 			TypeUrn: "unresolved",
@@ -244,7 +244,7 @@ func (fake fakeRetrievalService) unresolvedArtifacts() []*pipeline_v1.ArtifactIn
 	}
 }
 
-func (fake fakeRetrievalService) ResolveArtifact(ctx context.Context, request *pb.ResolveArtifactRequest, opts ...grpc.CallOption) (*pb.ResolveArtifactResponse, error) {
+func (fake *fakeRetrievalService) ResolveArtifact(ctx context.Context, request *pb.ResolveArtifactRequest, opts ...grpc.CallOption) (*pb.ResolveArtifactResponse, error) {
 	response := pb.ResolveArtifactResponse{}
 	for _, dep := range request.Artifacts {
 		if dep.TypeUrn == "unresolved" {
@@ -256,48 +256,47 @@ func (fake fakeRetrievalService) ResolveArtifact(ctx context.Context, request *p
 	return &response, nil
 }
 
-func (fake fakeRetrievalService) GetArtifact(ctx context.Context, request *pb.GetArtifactRequest, opts ...grpc.CallOption) (pb.ArtifactRetrievalService_GetArtifactClient, error) {
-	var index int
+func (fake *fakeRetrievalService) GetArtifact(ctx context.Context, request *pb.GetArtifactRequest, opts ...grpc.CallOption) (pb.ArtifactRetrievalService_GetArtifactClient, error) {
 	if request.Artifact.TypeUrn == "resolved" {
-		return fakeGetArtifactResponse{data: request.Artifact.TypePayload, index: &index}, nil
+		return &fakeGetArtifactResponseStream{data: request.Artifact.TypePayload}, nil
 	}
 	return nil, errors.Errorf("Unsupported artifact %v", request.Artifact)
 }
 
-func (fake fakeGetArtifactResponse) Recv() (*pb.GetArtifactResponse, error) {
-	if *fake.index < len(fake.data) {
-		*fake.index += 1
-		return &pb.GetArtifactResponse{Data: fake.data[*fake.index-1 : *fake.index]}, nil
-	} 
+type fakeGetArtifactResponseStream struct {
+	data  []byte
+	index int
+}
+
+func (fake *fakeGetArtifactResponseStream) Recv() (*pb.GetArtifactResponse, error) {
+	if fake.index < len(fake.data) {
+		fake.index += 1
+		return &pb.GetArtifactResponse{Data: fake.data[fake.index-1 : fake.index]}, nil
+	}
 	return nil, io.EOF
 }
 
-type fakeGetArtifactResponse struct {
-	data  []byte
-	index *int
-}
-
-func (fake fakeGetArtifactResponse) RecvMsg(interface{}) error {
+func (fake *fakeGetArtifactResponseStream) RecvMsg(interface{}) error {
 	return nil
 }
 
-func (fake fakeGetArtifactResponse) SendMsg(interface{}) error {
+func (fake *fakeGetArtifactResponseStream) SendMsg(interface{}) error {
 	return nil
 }
 
-func (fake fakeGetArtifactResponse) Header() (metadata.MD, error) {
+func (fake *fakeGetArtifactResponseStream) Header() (metadata.MD, error) {
 	return nil, nil
 }
 
-func (fake fakeGetArtifactResponse) Trailer() metadata.MD {
+func (fake *fakeGetArtifactResponseStream) Trailer() metadata.MD {
 	return nil
 }
 
-func (fake fakeGetArtifactResponse) Context() context.Context {
+func (fake *fakeGetArtifactResponseStream) Context() context.Context {
 	return nil
 }
 
-func (fake fakeGetArtifactResponse) CloseSend() error {
+func (fake *fakeGetArtifactResponseStream) CloseSend() error {
 	return nil
 }
 
