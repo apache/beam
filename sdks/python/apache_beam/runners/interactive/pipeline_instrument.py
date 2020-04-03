@@ -73,11 +73,11 @@ class CacheKey:
 
   @staticmethod
   def from_str(r):
-    split = r.split('|')
+    split = r.split('-')
     return CacheKey(split[0], split[1], split[2], split[3])
 
   def __repr__(self):
-    return '|'.join(
+    return '-'.join(
         [self.var, self.version, self.producer_version, self.pipeline_id])
 
 
