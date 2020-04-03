@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.google.api.client.util.Base64;
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
+import com.google.api.services.healthcare.v1beta1.model.Message;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;

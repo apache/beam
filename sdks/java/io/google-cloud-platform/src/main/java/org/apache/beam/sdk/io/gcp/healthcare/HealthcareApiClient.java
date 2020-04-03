@@ -64,6 +64,7 @@ public interface HealthcareApiClient {
   Stream<HL7v2Message> getHL7v2MessageStream(String hl7v2Store) throws IOException;
 
 
+  public Operation pollOperation(Operation operation, Long sleepMs) throws InterruptedException, IOException;
   /**
    * Gets hl 7 v 2 message id page iterator.
    *

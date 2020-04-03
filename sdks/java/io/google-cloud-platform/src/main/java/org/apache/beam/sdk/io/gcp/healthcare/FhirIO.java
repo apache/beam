@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
+import com.google.api.services.healthcare.v1beta1.model.Operation;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -91,7 +92,7 @@ import org.slf4j.LoggerFactory;
  *     integrity and the resources are not written transactionally (e.g. a historicaly backfill on a
  *     new FHIR store) This requires each resource to contain a client provided ID.
  * @see <a
- *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores/import></a>
+href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores/import></a>
  *     A {@link PCollection} of {@link HttpBody} can be ingested into an Fhir store using {@link
  *     FhirIO.Write#fhirStoresImport(String, String, String, ContentStructure)} This will return a
  *     {@link FhirIO.Write.Result} on which you can call {@link
@@ -546,8 +547,9 @@ public class FhirIO {
       public void addToBatch(ProcessContext context) throws IOException {
         HttpBody httpBody = context.element();
         try {
-          this.mapper.readTree(httpBody.getData());
-          String ndJson = httpBody.toString() + "\n";
+          // This will error if not valid JSON an convert Pretty JSON to raw JSON.
+          Object data = this.mapper.readValue(httpBody.getData(), Object.class);
+          String ndJson = this.mapper.writeValueAsString(data) + "\n";
           this.ndJsonChannel.write(ByteBuffer.wrap(ndJson.getBytes(StandardCharsets.UTF_8)));
         } catch (JsonProcessingException e) {
           String resource =
@@ -562,16 +564,17 @@ public class FhirIO {
       }
 
       @FinishBundle
-      public void importBatch(FinishBundleContext context) throws IOException {
+      public void importBatch(FinishBundleContext context) throws IOException, InterruptedException {
         // Write the file with all elements in this bundle to GCS.
         this.ndJsonChannel.close();
         try {
           // Blocking fhirStores.import request.
           assert contentStructure != null;
-          client.importFhirResource(fhirStore, resourceId.getFilename(), contentStructure.name());
+          Operation operation = client.importFhirResource(fhirStore, resourceId.toString(),contentStructure.name());
+          client.pollOperation(operation, 500L);
           // Clean up temp file on GCS.
           FileSystems.delete(Collections.singleton(resourceId));
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
           LOG.warn(
               String.format(
                   "Failed to import %s with error: %s. Moving to deadletter path %s",
@@ -604,6 +607,7 @@ public class FhirIO {
 
       private Counter failedBundles = Metrics.counter(ExecuteBundlesFn.class, "failed-bundles");
       private transient HealthcareApiClient client;
+      private final ObjectMapper mapper = new ObjectMapper();
       /** The Fhir store. */
       private final String fhirStore;
 
@@ -635,6 +639,8 @@ public class FhirIO {
       public void executeBundles(ProcessContext context) {
         HttpBody body = context.element();
         try {
+          // Validate that data was set to valid JSON.
+          mapper.readTree(body.getData());
           client.executeFhirBundle(fhirStore, body);
         } catch (IOException e) {
           failedBundles.inc();

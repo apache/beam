@@ -60,8 +60,8 @@ import org.slf4j.LoggerFactory;
  * <p>Message Fetching
  *
  * <p>Message Fetching with {@link HL7v2IO.Read} supports use cases where you have a ${@link
- * PCollection<String>} of message IDS. This is appropriate for reading the HL7v2 notifications from
- * a Pub/Sub subscription with {@link PubsubIO#readStrings()} or in cases where you have a manually
+ * PCollection} of message IDS. This is appropriate for reading the HL7v2 notifications from a
+ * Pub/Sub subscription with {@link PubsubIO#readStrings()} or in cases where you have a manually
  * prepared list of messages that you need to process (e.g. in a text file read with {@link
  * org.apache.beam.sdk.io.TextIO}) .
  *
@@ -246,8 +246,8 @@ public class HL7v2IO {
      *   <li>{@link HL7v2IO.Read#OUT} - Contains all {@link PCollection} records successfully read
      *       from the HL7v2 store.
      *   <li>{@link HL7v2IO.Read#DEAD_LETTER} - Contains all {@link PCollection} of {@link
-     *       HealthcareIOError<String>} message IDs which failed to be fetched from the HL7v2 store,
-     *       with error message and stacktrace.
+     *       HealthcareIOError} message IDs which failed to be fetched from the HL7v2 store, with
+     *       error message and stacktrace.
      * </ul>
      */
     public static class FetchHL7v2Message extends PTransform<PCollection<String>, Result> {

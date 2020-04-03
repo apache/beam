@@ -267,6 +267,23 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   @Override
+  public Operation pollOperation(Operation operation, Long sleepMs) throws InterruptedException, IOException {
+    while (operation.getDone() == null || !operation.getDone()) {
+      // Update the status of the operation with another request.
+      Thread.sleep(sleepMs); // Pause between requests.
+      operation =
+          client
+              .projects()
+              .locations()
+              .datasets()
+              .operations()
+              .get(operation.getName())
+              .execute();
+    }
+    return operation;
+  }
+
+  @Override
   public HttpBody executeFhirBundle(String fhirStore, HttpBody bundle) throws IOException {
     return client
         .projects()
@@ -300,11 +317,11 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     @Override
     public void initialize(HttpRequest request) throws IOException {
       super.initialize(request);
+      HttpHeaders requestHeaders = request.getHeaders();
+      requestHeaders.setUserAgent("apache-beam-hl7v2-io");
       if (!credentials.hasRequestMetadata()) {
         return;
       }
-      HttpHeaders requestHeaders = request.getHeaders();
-      requestHeaders.setUserAgent("apache-beam-hl7v2-io");
       URI uri = null;
       if (request.getUrl() != null) {
         uri = request.getUrl().toURI();
@@ -323,8 +340,6 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
 
   private void initClient() throws IOException {
     // Create a HttpRequestInitializer, which will provide a baseline configuration to all requests.
-    // HttpRequestInitializer requestInitializer = new RetryHttpRequestInitializer();
-    // GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
     HttpRequestInitializer requestInitializer =
         new AuthenticatedRetryInitializer(
             GoogleCredentials.getApplicationDefault()
@@ -444,9 +459,9 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
           ListMessagesResponse response = makeListRequest(client, hl7v2Store, filter, pageToken);
           this.isFirstRequest = false;
           this.pageToken = response.getNextPageToken();
-          List<Message> msgs = response.getHl7V2Messages();
+          return response.getHl7V2Messages().stream().map(HL7v2Message::fromModel).collect(
+              Collectors.toList());
 
-          return msgs.stream().map(HL7v2Message::fromModel).collect(Collectors.toList());
         } catch (IOException e) {
           this.pageToken = null;
           throw new NoSuchElementException(

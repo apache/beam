@@ -20,13 +20,17 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.PRETTY_BUNDLES;
 import static org.junit.Assert.assertEquals;
 
+import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import java.io.IOException;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Import.ContentStructure;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -45,16 +49,11 @@ public class FhirIOWriteIT {
     }
     PipelineOptionsFactory.register(FhirIOTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(FhirIOTestOptions.class);
-    options.setGcsTempPath("gs://jferriero-dev/FhirIOWriteIT/temp");
-    options.setGcsDeadLetterPath("gs://jferriero-dev/FhirIOWriteIT/deadletter");
+    options.setGcsTempPath("gs://jferriero-dev/FhirIOWriteIT/temp/");
+    options.setGcsDeadLetterPath("gs://jferriero-dev/FhirIOWriteIT/deadletter/");
     options.setFhirStore(
         "projects/jferriero-dev/locations/us-central1/datasets/raw-dataset/fhirStores/raw-fhir-store");
   }
-
-  // @After
-  // public void tearDown() throws Exception {
-  //   deleteAllFhirResources(client, options.getFhirStore());
-  // }
 
   @Test
   public void testFhirIO_ExecuteBundle() throws IOException {
@@ -63,12 +62,16 @@ public class FhirIOWriteIT {
         pipeline
             .apply(Create.of(PRETTY_BUNDLES).withCoder(new HttpBodyCoder()))
             .apply(FhirIO.Write.executeBundles(options.getFhirStore()));
+    writeResult.getFailedInsertsWithErr()
+        .apply(MapElements.into(TypeDescriptors.strings()).via(
+            (HealthcareIOError<HttpBody> err) -> String.format(
+                "Data: %s \n"
+                    + "Error: %s", err.getDataResource().getData(), err.getErrorMessage())))
+        .apply(TextIO.write().to("gs://jferriero-dev/FhirIOWriteDebugging/errors"));
 
     PAssert.that(writeResult.getFailedInsertsWithErr()).empty();
 
     pipeline.run().waitUntilFinish();
-    long numWrittenMessages = client.getHL7v2MessageStream(options.getFhirStore()).count();
-    assertEquals(PRETTY_BUNDLES.size(), numWrittenMessages);
   }
 
   @Test
