@@ -260,18 +260,16 @@ func (fake fakeRetrievalService) GetArtifact(ctx context.Context, request *pb.Ge
 	var index int
 	if request.Artifact.TypeUrn == "resolved" {
 		return fakeGetArtifactResponse{data: request.Artifact.TypePayload, index: &index}, nil
-	} else {
-		return nil, errors.Errorf("Unsupported artifact %v", request.Artifact)
 	}
+	return nil, errors.Errorf("Unsupported artifact %v", request.Artifact)
 }
 
 func (fake fakeGetArtifactResponse) Recv() (*pb.GetArtifactResponse, error) {
 	if *fake.index < len(fake.data) {
 		*fake.index += 1
 		return &pb.GetArtifactResponse{Data: fake.data[*fake.index-1 : *fake.index]}, nil
-	} else {
-		return nil, io.EOF
-	}
+	} 
+	return nil, io.EOF
 }
 
 type fakeGetArtifactResponse struct {

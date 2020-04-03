@@ -148,11 +148,7 @@ func (a artifact) retrieve(ctx context.Context, dest string) error {
 		fd.Close()
 		return errors.Wrapf(err, "failed to flush chunks for %v", filename)
 	}
-	if err := fd.Close(); err != nil {
-		return err
-	}
-
-	return nil
+	return fd.Close()
 }
 
 func writeChunks(stream pb.ArtifactRetrievalService_GetArtifactClient, w io.Writer) error {
