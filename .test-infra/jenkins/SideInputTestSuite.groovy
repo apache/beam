@@ -31,7 +31,7 @@ class SideInputTestSuite {
                 }
                 specificParameters([
                     side_input_type: 'iter',
-                    side_input_size: 2000,
+                    side_input_size: 1000,
                 ])
             }
         },
@@ -45,7 +45,7 @@ class SideInputTestSuite {
                 }
                 specificParameters([
                     side_input_type: 'iter',
-                    side_input_size: 2000,
+                    side_input_size: 1000,
                     window_count: 1000,
                 ])
             }
@@ -76,7 +76,7 @@ class SideInputTestSuite {
                 parallelism 16
                 specificParameters([
                     side_input_type: 'list',
-                    side_input_size: 20000,
+                    side_input_size: 10000,
                 ])
             }
         },
@@ -90,7 +90,7 @@ class SideInputTestSuite {
                 }
                 specificParameters([
                     side_input_type: 'list',
-                    side_input_size: 20000,
+                    side_input_size: 10000,
                 ])
             }
         },
@@ -147,7 +147,7 @@ class SideInputTestSuite {
                 }
                 specificParameters([
                     side_input_type: 'iter',
-                    side_input_size: 2000,
+                    side_input_size: 1000,
                     access_percentage: 1,
                 ])
             }
