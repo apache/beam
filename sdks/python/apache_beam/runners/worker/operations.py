@@ -704,7 +704,7 @@ class DoOperation(Operation):
     key, timer_data = windowed_timer.value
     timer_spec = self.timer_specs[tag]
     self.dofn_runner.process_user_timer(
-        timer_spec, key, windowed_timer.windows[0], timer_data['timestamp'])
+        timer_spec, key, windowed_timer.windows[0], timer_data.fire_timestamp)
 
   def finish(self):
     # type: () -> None
