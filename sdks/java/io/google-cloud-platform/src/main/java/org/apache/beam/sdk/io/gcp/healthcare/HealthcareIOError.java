@@ -18,17 +18,20 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.joda.time.Instant;
 
 /** Class for capturing errors on IO operations on Google Cloud Healthcare APIs resources. */
 public class HealthcareIOError<T> {
   private T dataResource;
   private String errorMessage;
   private String stackTrace;
+  private Instant observedTime;
 
   HealthcareIOError(T dataResource, String errorMessage, String stackTrace) {
     this.dataResource = dataResource;
     this.errorMessage = errorMessage;
     this.stackTrace = stackTrace;
+    this.observedTime = Instant.now();
   }
 
   public String getErrorMessage() {
@@ -38,6 +41,8 @@ public class HealthcareIOError<T> {
   public String getStackTrace() {
     return stackTrace;
   }
+
+  public Instant getObservedTime() { return observedTime; }
 
   public T getDataResource() {
     return dataResource;
