@@ -29,6 +29,9 @@ import tempfile
 import threading
 import unittest
 
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
+
 from apache_beam.utils import subprocess_server
 
 
@@ -56,9 +59,7 @@ class JavaJarServerTest(unittest.TestCase):
             'sdks:java:fake:fatJar', appendix='A', version='VERSION'))
 
   def test_gradle_jar_dev(self):
-    # TODO(Py3): Use assertRaisesRegex instead.
-    # pylint: disable=deprecated-method
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         Exception,
         re.escape(os.path.join('sdks',
                                'java',
@@ -69,7 +70,7 @@ class JavaJarServerTest(unittest.TestCase):
         ' not found.'):
       subprocess_server.JavaJarServer.path_to_beam_jar(
           'sdks:java:fake:fatJar', version='VERSION.dev')
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         Exception,
         re.escape(os.path.join('sdks',
                                'java',
