@@ -1298,7 +1298,8 @@ class BeamModulePlugin implements Plugin<Project> {
         // has different dependencies than our project.
         if (config.getName() != "errorprone" && !inDependencyUpdates) {
           config.resolutionStrategy {
-            // Filtering versionless coordinates that depend on BOM
+            // Filtering versionless coordinates that depend on BOM. Beam project needs to set the
+            // versions for only handful libraries when building the project (BEAM-9542).
             def librariesWithVersion = project.library.java.values().findAll { it.split(':').size() > 2 }
             force librariesWithVersion
           }
