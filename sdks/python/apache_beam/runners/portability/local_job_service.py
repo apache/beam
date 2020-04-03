@@ -46,6 +46,7 @@ from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import abstract_job_service
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability.fn_api_runner import fn_runner
+from apache_beam.runners.portability.fn_api_runner import worker_handlers
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 if TYPE_CHECKING:
@@ -134,7 +135,7 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     port = self._server.add_insecure_port(
         '%s:%d' % (self.get_bind_address(), port))
     beam_job_api_pb2_grpc.add_JobServiceServicer_to_server(self, self._server)
-    beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
+    beam_artifact_api_pb2_grpc.add_LegacyArtifactStagingServiceServicer_to_server(
         self._artifact_service, self._server)
     hostname = self.get_service_address()
     self._artifact_staging_endpoint = endpoints_pb2.ApiServiceDescriptor(
@@ -160,8 +161,7 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     # Filter out system metrics
     user_monitoring_info_list = [
         x for x in monitoring_info_list
-        if monitoring_infos._is_user_monitoring_info(x) or
-        monitoring_infos._is_user_distribution_monitoring_info(x)
+        if monitoring_infos.is_user_monitoring_info(x)
     ]
 
     return beam_job_api_pb2.GetJobMetricsResponse(
@@ -202,7 +202,7 @@ class SubprocessSdkWorker(object):
     if self._worker_id:
       env_dict['WORKER_ID'] = self._worker_id
 
-    with fn_runner.SUBPROCESS_LOCK:
+    with worker_handlers.SUBPROCESS_LOCK:
       p = subprocess.Popen(self._worker_command_line, shell=True, env=env_dict)
     try:
       p.wait()

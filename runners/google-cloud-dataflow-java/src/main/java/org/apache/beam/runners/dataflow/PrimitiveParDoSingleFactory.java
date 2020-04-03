@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.ParDoTranslation.translateTimerFamilySpec;
-import static org.apache.beam.runners.core.construction.ParDoTranslation.translateTimerSpec;
 import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getStateSpecOrThrow;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerFamilySpecOrThrow;
@@ -227,13 +226,14 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
             }
 
             @Override
-            public Map<String, RunnerApi.TimerSpec> translateTimerSpecs(
+            public Map<String, RunnerApi.TimerFamilySpec> translateTimerSpecs(
                 SdkComponents newComponents) {
-              Map<String, RunnerApi.TimerSpec> timerSpecs = new HashMap<>();
+              Map<String, RunnerApi.TimerFamilySpec> timerSpecs = new HashMap<>();
               for (Map.Entry<String, DoFnSignature.TimerDeclaration> timer :
                   signature.timerDeclarations().entrySet()) {
-                RunnerApi.TimerSpec spec =
-                    translateTimerSpec(getTimerSpecOrThrow(timer.getValue(), doFn), newComponents);
+                RunnerApi.TimerFamilySpec spec =
+                    translateTimerFamilySpec(
+                        getTimerSpecOrThrow(timer.getValue(), doFn), newComponents);
                 timerSpecs.put(timer.getKey(), spec);
               }
               return timerSpecs;
@@ -251,6 +251,23 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
                 timerFamilySpecs.put(timerFamily.getKey(), spec);
               }
               return timerFamilySpecs;
+            }
+
+            @Override
+            public boolean isStateful() {
+              return !signature.stateDeclarations().isEmpty()
+                  || !signature.timerDeclarations().isEmpty()
+                  || !signature.timerFamilyDeclarations().isEmpty();
+            }
+
+            @Override
+            public boolean isSplittable() {
+              return signature.processElement().isSplittable();
+            }
+
+            @Override
+            public boolean isRequiresStableInput() {
+              return signature.processElement().requiresStableInput();
             }
 
             @Override

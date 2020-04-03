@@ -84,6 +84,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -700,7 +701,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
     builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "Window.Into()/Window.Assign.out");
-    builder.setInt64Value(2);
+    builder.setInt64SumValue(2);
     expected.add(builder.build());
 
     builder = new SimpleMonitoringInfoBuilder();
@@ -708,12 +709,12 @@ public class FnApiDoFnRunnerTest implements Serializable {
     builder.setLabel(
         MonitoringInfoConstants.Labels.PCOLLECTION,
         "pTransformId/ParMultiDo(TestSideInputIsAccessibleForDownstreamCallers).output");
-    builder.setInt64Value(2);
+    builder.setInt64SumValue(2);
     expected.add(builder.build());
 
     builder = new SimpleMonitoringInfoBuilder();
     builder
-        .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+        .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
         .setLabel(
             MonitoringInfoConstants.Labels.NAMESPACE,
             TestSideInputIsAccessibleForDownstreamCallersDoFn.class.getName())
@@ -721,13 +722,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
             MonitoringInfoConstants.Labels.NAME,
             TestSideInputIsAccessibleForDownstreamCallersDoFn.USER_COUNTER_NAME);
     builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, TEST_TRANSFORM_ID);
-    builder.setInt64Value(2);
+    builder.setInt64SumValue(2);
     expected.add(builder.build());
 
     closeable.close();
     List<MonitoringInfo> result = new ArrayList<MonitoringInfo>();
     for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
-      result.add(SimpleMonitoringInfoBuilder.copyAndClearTimestamp(mi));
+      result.add(mi);
     }
     assertThat(result, containsInAnyOrder(expected.toArray()));
   }
@@ -802,11 +803,14 @@ public class FnApiDoFnRunnerTest implements Serializable {
     RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
     String inputPCollectionId = sdkComponents.registerPCollection(valuePCollection);
     String outputPCollectionId = sdkComponents.registerPCollection(outputPCollection);
-    String eventTimerInputPCollectionId = "pTransformId/ParMultiDo(TestTimerful).event";
-    String eventTimerOutputPCollectionId = "pTransformId/ParMultiDo(TestTimerful).event.output";
-    String processingTimerInputPCollectionId = "pTransformId/ParMultiDo(TestTimerful).processing";
+    String eventTimerInputPCollectionId =
+        "pTransformId/ParMultiDo(TestTimerful)." + TimerDeclaration.PREFIX + "event";
+    String eventTimerOutputPCollectionId =
+        "pTransformId/ParMultiDo(TestTimerful)." + TimerDeclaration.PREFIX + "event.output";
+    String processingTimerInputPCollectionId =
+        "pTransformId/ParMultiDo(TestTimerful)." + TimerDeclaration.PREFIX + "processing";
     String processingTimerOutputPCollectionId =
-        "pTransformId/ParMultiDo(TestTimerful).processing.output";
+        "pTransformId/ParMultiDo(TestTimerful)." + TimerDeclaration.PREFIX + "processing.output";
 
     RunnerApi.PTransform pTransform =
         pProto
@@ -816,8 +820,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
             .toBuilder()
             // We need to re-write the "output" PCollections that a runner would have inserted
             // on the way to a output sink.
-            .putOutputs("event", eventTimerOutputPCollectionId)
-            .putOutputs("processing", processingTimerOutputPCollectionId)
+            .putOutputs(TimerDeclaration.PREFIX + "event", eventTimerOutputPCollectionId)
+            .putOutputs(TimerDeclaration.PREFIX + "processing", processingTimerOutputPCollectionId)
             .build();
 
     FakeBeamFnStateClient fakeClient =

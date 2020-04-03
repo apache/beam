@@ -169,7 +169,7 @@ public class SchemaOptionsTest {
 
   @Test
   public void testRowOption() {
-    Schema.Options options = Schema.Options.setRowOption(OPTION_NAME, TEST_ROW).build();
+    Schema.Options options = Schema.Options.setOption(OPTION_NAME, TEST_ROW).build();
     assertEquals(TEST_ROW, options.getValue(OPTION_NAME));
     assertEquals(FieldType.row(TEST_ROW.getSchema()), options.getType(OPTION_NAME));
   }
@@ -239,7 +239,7 @@ public class SchemaOptionsTest {
         .setOption("field_option_double", FieldType.DOUBLE, 12.0)
         .setOption("field_option_map", FieldType.map(FieldType.INT32, FieldType.STRING), TEST_MAP)
         .setOption("field_option_array", FieldType.array(FieldType.STRING), TEST_LIST)
-        .setRowOption("field_option_row", TEST_ROW)
+        .setOption("field_option_row", TEST_ROW)
         .setOption("field_option_value", FieldType.STRING, "other");
   }
 

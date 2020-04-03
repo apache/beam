@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Counter;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.Closeable;
@@ -446,7 +447,7 @@ public class RegisterAndProcessBundleOperation extends Operation {
         String pcollection =
             mi.getLabelsOrDefault(MonitoringInfoConstants.Labels.PCOLLECTION, null);
         if (pcollection != null && pcollection.equals(grpcReadTransformOutputPCollectionName)) {
-          return mi.getMetric().getCounterData().getInt64Value();
+          return decodeInt64Counter(mi.getPayload());
         }
       }
     }

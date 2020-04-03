@@ -64,13 +64,11 @@ func ShallowCloneParDoPayload(p *pb.ParDoPayload) *pb.ParDoPayload {
 
 	ret := &pb.ParDoPayload{
 		DoFn:               p.DoFn,
-		Splittable:         p.Splittable,
 		RestrictionCoderId: p.RestrictionCoderId,
 	}
-	ret.Parameters, _ = reflectx.ShallowClone(p.Parameters).([]*pb.Parameter)
 	ret.SideInputs, _ = reflectx.ShallowClone(p.SideInputs).(map[string]*pb.SideInput)
 	ret.StateSpecs, _ = reflectx.ShallowClone(p.StateSpecs).(map[string]*pb.StateSpec)
-	ret.TimerSpecs, _ = reflectx.ShallowClone(p.TimerSpecs).(map[string]*pb.TimerSpec)
+	ret.TimerFamilySpecs, _ = reflectx.ShallowClone(p.TimerFamilySpecs).(map[string]*pb.TimerFamilySpec)
 	return ret
 }
 

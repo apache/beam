@@ -532,7 +532,7 @@ public class DoFnSignatures {
     HashMap<String, DoFnSignature.OnTimerMethod> onTimerMethodMap =
         Maps.newHashMapWithExpectedSize(onTimerMethods.size());
     for (Method onTimerMethod : onTimerMethods) {
-      String id = onTimerMethod.getAnnotation(DoFn.OnTimer.class).value();
+      String id = TimerDeclaration.PREFIX + onTimerMethod.getAnnotation(DoFn.OnTimer.class).value();
       errors.checkArgument(
           fnContext.getTimerDeclarations().containsKey(id),
           "Callback %s is for undeclared timer %s",
@@ -560,7 +560,9 @@ public class DoFnSignatures {
         Maps.newHashMapWithExpectedSize(onTimerFamilyMethods.size());
 
     for (Method onTimerFamilyMethod : onTimerFamilyMethods) {
-      String id = onTimerFamilyMethod.getAnnotation(DoFn.OnTimerFamily.class).value();
+      String id =
+          TimerFamilyDeclaration.PREFIX
+              + onTimerFamilyMethod.getAnnotation(DoFn.OnTimerFamily.class).value();
       errors.checkArgument(
           fnContext.getTimerFamilyDeclarations().containsKey(id),
           "Callback %s is for undeclared timerFamily %s",
@@ -1471,14 +1473,14 @@ public class DoFnSignatures {
 
   @Nullable
   private static String getTimerId(List<Annotation> annotations) {
-    DoFn.TimerId stateId = findFirstOfType(annotations, DoFn.TimerId.class);
-    return stateId != null ? stateId.value() : null;
+    DoFn.TimerId timerId = findFirstOfType(annotations, DoFn.TimerId.class);
+    return timerId != null ? TimerDeclaration.PREFIX + timerId.value() : null;
   }
 
   @Nullable
   private static String getTimerFamilyId(List<Annotation> annotations) {
     DoFn.TimerFamily timerFamilyId = findFirstOfType(annotations, DoFn.TimerFamily.class);
-    return timerFamilyId != null ? timerFamilyId.value() : null;
+    return timerFamilyId != null ? TimerFamilyDeclaration.PREFIX + timerFamilyId.value() : null;
   }
 
   @Nullable
@@ -1761,7 +1763,8 @@ public class DoFnSignatures {
     for (Field field : declaredFieldsWithAnnotation(DoFn.TimerFamily.class, fnClazz, DoFn.class)) {
       // TimerSpec fields may generally be private, but will be accessed via the signature
       field.setAccessible(true);
-      String id = field.getAnnotation(DoFn.TimerFamily.class).value();
+      String id =
+          TimerFamilyDeclaration.PREFIX + field.getAnnotation(DoFn.TimerFamily.class).value();
       validateTimerFamilyField(errors, declarations, id, field);
       declarations.put(id, TimerFamilyDeclaration.create(id, field));
     }
@@ -1775,7 +1778,9 @@ public class DoFnSignatures {
     for (Field field : declaredFieldsWithAnnotation(DoFn.TimerId.class, fnClazz, DoFn.class)) {
       // TimerSpec fields may generally be private, but will be accessed via the signature
       field.setAccessible(true);
-      String id = field.getAnnotation(DoFn.TimerId.class).value();
+      // Add fixed prefix to avoid key collision with TimerFamily.
+      String id =
+          DoFnSignature.TimerDeclaration.PREFIX + field.getAnnotation(DoFn.TimerId.class).value();
       validateTimerField(errors, declarations, id, field);
       declarations.put(id, DoFnSignature.TimerDeclaration.create(id, field));
     }

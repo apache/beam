@@ -204,7 +204,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		data.Close()
 		state.Close()
 
-		mets, mons := monitoring(plan)
+		mets, mons, pylds := monitoring(plan)
 		// Move the plan back to the candidate state
 		c.mu.Lock()
 		// Mark the instruction as failed.
@@ -223,6 +223,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_ProcessBundle{
 				ProcessBundle: &fnpb.ProcessBundleResponse{
+					MonitoringData: pylds,
 					// TODO(lostluck): Delete legacy monitoring Metrics once they can be safely dropped.
 					Metrics:         mets,
 					MonitoringInfos: mons,
@@ -245,12 +246,13 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			return fail(ctx, instID, "failed to return progress: instruction %v not active", ref)
 		}
 
-		mets, mons := monitoring(plan)
+		mets, mons, pylds := monitoring(plan)
 
 		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_ProcessBundleProgress{
 				ProcessBundleProgress: &fnpb.ProcessBundleProgressResponse{
+					MonitoringData: pylds,
 					// TODO(lostluck): Delete legacy monitoring Metrics once they can be safely dropped.
 					Metrics:         mets,
 					MonitoringInfos: mons,
@@ -295,6 +297,16 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 							FirstResidualElement: split,
 						},
 					},
+				},
+			},
+		}
+	case req.GetProcessBundleProgressMetadata() != nil:
+		msg := req.GetProcessBundleProgressMetadata()
+		return &fnpb.InstructionResponse{
+			InstructionId: string(instID),
+			Response: &fnpb.InstructionResponse_ProcessBundleProgressMetadata{
+				ProcessBundleProgressMetadata: &fnpb.ProcessBundleProgressMetadataResponse{
+					MonitoringInfo: shortIdsToInfos(msg.GetMonitoringInfoId()),
 				},
 			},
 		}

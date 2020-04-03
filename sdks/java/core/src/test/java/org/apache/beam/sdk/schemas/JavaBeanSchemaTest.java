@@ -461,7 +461,8 @@ public class JavaBeanSchemaTest {
     SchemaTestUtils.assertSchemaEquivalent(ITERABLE_BEAM_SCHEMA, schema);
 
     List<String> list = Lists.newArrayList("one", "two");
-    Row iterableRow = Row.withSchema(ITERABLE_BEAM_SCHEMA).addIterable(list).build();
+    Row iterableRow =
+        Row.withSchema(ITERABLE_BEAM_SCHEMA).attachValues(ImmutableList.of((Object) list));
     IterableBean converted = registry.getFromRowFunction(IterableBean.class).apply(iterableRow);
     assertEquals(list, Lists.newArrayList(converted.getStrings()));
 

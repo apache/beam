@@ -373,10 +373,14 @@ class SetupTest(unittest.TestCase):
         'us-east1-b',
         '--worker_region',
         'us-east1',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
     ])
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
-    self.assertTrue(errors)
+    self.assertEqual(len(errors), 1)
+    self.assertIn('zone', errors[0])
+    self.assertIn('worker_region', errors[0])
 
   def test_zone_and_worker_zone_mutually_exclusive(self):
     runner = MockRunners.DataflowRunner()
@@ -385,10 +389,14 @@ class SetupTest(unittest.TestCase):
         'us-east1-b',
         '--worker_zone',
         'us-east1-c',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
     ])
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
-    self.assertTrue(errors)
+    self.assertEqual(len(errors), 1)
+    self.assertIn('zone', errors[0])
+    self.assertIn('worker_zone', errors[0])
 
   def test_experiment_region_and_worker_region_mutually_exclusive(self):
     runner = MockRunners.DataflowRunner()
@@ -397,10 +405,14 @@ class SetupTest(unittest.TestCase):
         'worker_region=us-west1',
         '--worker_region',
         'us-east1',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
     ])
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
-    self.assertTrue(errors)
+    self.assertEqual(len(errors), 1)
+    self.assertIn('experiment', errors[0])
+    self.assertIn('worker_region', errors[0])
 
   def test_experiment_region_and_worker_zone_mutually_exclusive(self):
     runner = MockRunners.DataflowRunner()
@@ -409,10 +421,15 @@ class SetupTest(unittest.TestCase):
         'worker_region=us-west1',
         '--worker_zone',
         'us-east1-b',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
     ])
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
-    self.assertTrue(errors)
+    self.assertEqual(len(errors), 1)
+    self.assertIn('experiment', errors[0])
+    self.assertIn('worker_region', errors[0])
+    self.assertIn('worker_zone', errors[0])
 
   def test_worker_region_and_worker_zone_mutually_exclusive(self):
     runner = MockRunners.DataflowRunner()
@@ -421,10 +438,14 @@ class SetupTest(unittest.TestCase):
         'us-east1',
         '--worker_zone',
         'us-east1-b',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
     ])
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
-    self.assertTrue(errors)
+    self.assertEqual(len(errors), 1)
+    self.assertIn('worker_region', errors[0])
+    self.assertIn('worker_zone', errors[0])
 
   def test_test_matcher(self):
     def get_validator(matcher):

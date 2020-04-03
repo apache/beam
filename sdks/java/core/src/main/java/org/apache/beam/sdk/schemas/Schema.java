@@ -336,7 +336,7 @@ public class Schema implements Serializable {
     SAME,
     WEAKEN,
     IGNORE
-  };
+  }
 
   /** Returns true if two Schemas have the same fields, but possibly in different orders. */
   public boolean equivalent(Schema other) {
@@ -389,7 +389,7 @@ public class Schema implements Serializable {
     builder.append("Options:");
     builder.append(options);
     return builder.toString();
-  };
+  }
 
   @Override
   public int hashCode() {
@@ -1119,7 +1119,7 @@ public class Schema implements Serializable {
         this(new HashMap<>());
       }
 
-      public Builder setRowOption(String optionName, Row value) {
+      public Builder setOption(String optionName, Row value) {
         setOption(optionName, FieldType.row(value.getSchema()), value);
         return this;
       }
@@ -1171,7 +1171,6 @@ public class Schema implements Serializable {
 
     /** Get the value of an option. If the option is not found null is returned. */
     @SuppressWarnings("TypeParameterUnusedInFormals")
-    @Nullable
     public <T> T getValue(String optionName) {
       Option option = options.get(optionName);
       if (option != null) {
@@ -1182,13 +1181,11 @@ public class Schema implements Serializable {
     }
 
     /** Get the value of an option. If the option is not found null is returned. */
-    @Nullable
     public <T> T getValue(String optionName, Class<T> valueClass) {
       return getValue(optionName);
     }
 
     /** Get the value of an option. If the option is not found the default value is returned. */
-    @Nullable
     public <T> T getValueOrDefault(String optionName, T defaultValue) {
       Option option = options.get(optionName);
       if (option != null) {
@@ -1198,7 +1195,6 @@ public class Schema implements Serializable {
     }
 
     /** Get the type of an option. */
-    @Nullable
     public FieldType getType(String optionName) {
       Option option = options.get(optionName);
       if (option != null) {
@@ -1212,8 +1208,8 @@ public class Schema implements Serializable {
       return Options.builder().setOption(optionName, fieldType, value);
     }
 
-    public static Options.Builder setRowOption(String optionName, Row value) {
-      return Options.builder().setRowOption(optionName, value);
+    public static Options.Builder setOption(String optionName, Row value) {
+      return Options.builder().setOption(optionName, value);
     }
   }
 

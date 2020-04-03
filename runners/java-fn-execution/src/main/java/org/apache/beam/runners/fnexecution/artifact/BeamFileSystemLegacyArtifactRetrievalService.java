@@ -32,13 +32,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An {@link ArtifactRetrievalService} that uses {@link FileSystems} as its backing storage and uses
- * the artifact layout and retrieval token format produced by {@link
- * BeamFileSystemArtifactStagingService}.
+ * An {@link LegacyArtifactRetrievalService} that uses {@link FileSystems} as its backing storage
+ * and uses the artifact layout and retrieval token format produced by {@link
+ * BeamFileSystemLegacyArtifactStagingService}.
  */
-public class BeamFileSystemArtifactRetrievalService extends AbstractArtifactRetrievalService {
+public class BeamFileSystemLegacyArtifactRetrievalService
+    extends AbstractLegacyArtifactRetrievalService {
   private static final Logger LOG =
-      LoggerFactory.getLogger(BeamFileSystemArtifactRetrievalService.class);
+      LoggerFactory.getLogger(BeamFileSystemLegacyArtifactRetrievalService.class);
 
   private static final Cache<String, ArtifactApi.ProxyManifest> MANIFEST_CACHE =
       CacheBuilder.newBuilder()
@@ -46,12 +47,12 @@ public class BeamFileSystemArtifactRetrievalService extends AbstractArtifactRetr
           .maximumSize(100 /* arbitrary */)
           .build();
 
-  public BeamFileSystemArtifactRetrievalService() {
+  public BeamFileSystemLegacyArtifactRetrievalService() {
     super(MANIFEST_CACHE);
   }
 
-  public static BeamFileSystemArtifactRetrievalService create() {
-    return new BeamFileSystemArtifactRetrievalService();
+  public static BeamFileSystemLegacyArtifactRetrievalService create() {
+    return new BeamFileSystemLegacyArtifactRetrievalService();
   }
 
   @Override

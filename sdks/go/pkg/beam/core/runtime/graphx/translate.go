@@ -38,6 +38,7 @@ const (
 	URNParDo         = "beam:transform:pardo:v1"
 	URNFlatten       = "beam:transform:flatten:v1"
 	URNGBK           = "beam:transform:group_by_key:v1"
+	URNReshuffle     = "beam:transform:reshuffle:v1"
 	URNCombinePerKey = "beam:transform:combine_per_key:v1"
 	URNWindow        = "beam:transform:window:v1"
 
@@ -58,6 +59,8 @@ const (
 	URNDoFn     = "beam:go:transform:dofn:v1"
 
 	URNIterableSideInputKey = "beam:go:transform:iterablesideinputkey:v1"
+	URNReshuffleInput       = "beam:go:transform:reshuffleinput:v1"
+	URNReshuffleOutput      = "beam:go:transform:reshuffleoutput:v1"
 
 	URNLegacyProgressReporting = "beam:protocol:progress_reporting:v0"
 	URNMultiCore               = "beam:protocol:multi_core_bundle_processing:v1"
@@ -67,6 +70,8 @@ func goCapabilities() []string {
 	capabilities := []string{
 		URNLegacyProgressReporting,
 		URNMultiCore,
+		// TOOD(BEAM-9614): Make this versioned.
+		"beam:version:sdk_base:go",
 	}
 	return append(capabilities, knownStandardCoders()...)
 }
@@ -212,8 +217,11 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 		return []string{id}
 	}
 
-	if edge.Edge.Op == graph.CoGBK && len(edge.Edge.Input) > 1 {
+	switch {
+	case edge.Edge.Op == graph.CoGBK && len(edge.Edge.Input) > 1:
 		return []string{m.expandCoGBK(edge)}
+	case edge.Edge.Op == graph.Reshuffle:
+		return []string{m.expandReshuffle(edge)}
 	}
 
 	inputs := make(map[string]string)
@@ -471,6 +479,161 @@ func (m *marshaller) addNode(n *graph.Node) string {
 	}
 	// TODO(herohde) 11/15/2017: expose UniqueName to user.
 	return m.makeNode(id, m.coders.Add(n.Coder), n)
+}
+
+// expandReshuffle translates resharding to a composite reshuffle
+// transform.
+//
+// With proper runner support, the SDK doesn't need to do anything.
+// However, we still need to provide a backup plan in terms of other
+// PTransforms in the event the runner doesn't have a native implementation.
+//
+// In particular, the "backup plan" needs to:
+//
+//  * Encode the windowed element, preserving timestamps.
+//  * Add random keys to the encoded windowed element []bytes
+//  * GroupByKey (in the global window).
+//  * Explode the resulting elements list.
+//  * Decode the windowed element []bytes.
+//
+// While a simple reshard can be written in user terms, (timestamps and windows
+// are accessible to user functions) there are some framework internal
+// optimizations that can be done if the framework is aware of the reshard, though
+// ideally this is handled on the runner side.
+//
+// User code is able to write reshards, but it's easier to access
+// the window coders framework side, which is critical for the reshard
+// to function with unbounded inputs.
+func (m *marshaller) expandReshuffle(edge NamedEdge) string {
+	id := edgeID(edge.Edge)
+	var kvCoderID, gbkCoderID string
+	{
+		kv := makeUnionCoder()
+		kvCoderID = m.coders.Add(kv)
+		gbkCoderID = m.coders.Add(coder.NewCoGBK(kv.Components))
+	}
+
+	var subtransforms []string
+
+	in := edge.Edge.Input[0]
+
+	origInput := m.addNode(in.From)
+	// We need to preserve the old windowing/triggering here
+	// for re-instatement after the GBK.
+	preservedWSId := m.pcollections[origInput].GetWindowingStrategyId()
+
+	// Get the windowing strategy from before:
+	postReify := fmt.Sprintf("%v_%v_reifyts", nodeID(in.From), id)
+	m.makeNode(postReify, kvCoderID, in.From)
+
+	// We need to replace postReify's windowing strategy with one appropriate
+	// for reshuffles.
+	{
+		wfn := window.NewGlobalWindows()
+		m.pcollections[postReify].WindowingStrategyId =
+			m.internWindowingStrategy(&pb.WindowingStrategy{
+				// Not segregated by time...
+				WindowFn: makeWindowFn(wfn),
+				// ...output after every element is received...
+				Trigger: &pb.Trigger{
+					Trigger: &pb.Trigger_Always_{
+						Always: &pb.Trigger_Always{},
+					},
+				},
+				// ...and after outputing, discard the output elements...
+				AccumulationMode: pb.AccumulationMode_DISCARDING,
+				// ...and since every pane should have 1 element,
+				// try to preserve the timestamp.
+				OutputTime: pb.OutputTime_EARLIEST_IN_PANE,
+				// Defaults copied from marshalWindowingStrategy.
+				// TODO(BEAM-3304): migrate to user side operations once trigger support is in.
+				EnvironmentId:   m.addDefaultEnv(),
+				MergeStatus:     pb.MergeStatus_NON_MERGING,
+				WindowCoderId:   m.coders.AddWindowCoder(makeWindowCoder(wfn)),
+				ClosingBehavior: pb.ClosingBehavior_EMIT_IF_NONEMPTY,
+				AllowedLateness: 0,
+				OnTimeBehavior:  pb.OnTimeBehavior_FIRE_ALWAYS,
+			})
+	}
+
+	// Inputs (i)
+
+	inputID := fmt.Sprintf("%v_reifyts", id)
+	payload := &pb.ParDoPayload{
+		DoFn: &pb.FunctionSpec{
+			Urn: URNReshuffleInput,
+			Payload: []byte(protox.MustEncodeBase64(&v1.TransformPayload{
+				Urn: URNReshuffleInput,
+			})),
+		},
+	}
+	input := &pb.PTransform{
+		UniqueName: inputID,
+		Spec: &pb.FunctionSpec{
+			Urn:     URNParDo,
+			Payload: protox.MustEncode(payload),
+		},
+		Inputs:        map[string]string{"i0": nodeID(in.From)},
+		Outputs:       map[string]string{"i0": postReify},
+		EnvironmentId: m.addDefaultEnv(),
+	}
+	m.transforms[inputID] = input
+	subtransforms = append(subtransforms, inputID)
+
+	outNode := edge.Edge.Output[0].To
+
+	// GBK
+
+	gbkOut := fmt.Sprintf("%v_out", nodeID(outNode))
+	m.makeNode(gbkOut, gbkCoderID, outNode)
+
+	gbkID := fmt.Sprintf("%v_gbk", id)
+	gbk := &pb.PTransform{
+		UniqueName: gbkID,
+		Spec:       &pb.FunctionSpec{Urn: URNGBK},
+		Inputs:     map[string]string{"i0": postReify},
+		Outputs:    map[string]string{"i0": gbkOut},
+	}
+	m.transforms[gbkID] = gbk
+	subtransforms = append(subtransforms, gbkID)
+
+	// Expand
+
+	outPCol := m.addNode(outNode)
+	m.pcollections[outPCol].WindowingStrategyId = preservedWSId
+
+	outputID := fmt.Sprintf("%v_unreify", id)
+	outputPayload := &pb.ParDoPayload{
+		DoFn: &pb.FunctionSpec{
+			Urn: URNReshuffleOutput,
+			Payload: []byte(protox.MustEncodeBase64(&v1.TransformPayload{
+				Urn: URNReshuffleOutput,
+			})),
+		},
+	}
+	output := &pb.PTransform{
+		UniqueName: outputID,
+		Spec: &pb.FunctionSpec{
+			Urn:     URNParDo,
+			Payload: protox.MustEncode(outputPayload),
+		},
+		Inputs:        map[string]string{"i0": gbkOut},
+		Outputs:       map[string]string{"i0": nodeID(outNode)},
+		EnvironmentId: m.addDefaultEnv(),
+	}
+	m.transforms[id] = output
+	subtransforms = append(subtransforms, id)
+
+	// Add composite for visualization, or runner optimization
+	reshuffleID := fmt.Sprintf("%v_reshuffle", id)
+	m.transforms[reshuffleID] = &pb.PTransform{
+		UniqueName:    edge.Name,
+		Subtransforms: subtransforms,
+		Spec: &pb.FunctionSpec{
+			Urn: URNReshuffle,
+		},
+	}
+	return reshuffleID
 }
 
 func (m *marshaller) makeNode(id, cid string, n *graph.Node) string {

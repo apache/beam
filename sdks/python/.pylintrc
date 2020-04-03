@@ -181,6 +181,7 @@ ignore-long-lines=(?x)
   (^\s*(import|from)\s
    |^\s*(\#\ )?<?(https?|ftp):\/\/[^\s\/$.?#].[^\s]*>?$
    |^.*\#\ type\:
+   |^.*LegacyArtifact
    )
 
 [VARIABLES]

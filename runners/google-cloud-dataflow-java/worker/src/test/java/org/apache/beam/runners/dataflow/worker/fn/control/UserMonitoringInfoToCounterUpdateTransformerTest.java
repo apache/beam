@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Counter;
 import static org.apache.beam.runners.dataflow.worker.testing.GenericJsonAssert.assertEqualsAsJson;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -30,6 +31,8 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
@@ -65,7 +68,10 @@ public class UserMonitoringInfoToCounterUpdateTransformerTest {
   public void testTransformThrowsIfMonitoringInfoWithWrongUrnPrefixReceived() {
     Map<String, DataflowStepContext> stepContextMapping = new HashMap<>();
     MonitoringInfo monitoringInfo =
-        MonitoringInfo.newBuilder().setUrn("beam:metric:element_count:v1").build();
+        MonitoringInfo.newBuilder()
+            .setUrn(Urns.ELEMENT_COUNT)
+            .setType(TypeUrns.SUM_INT64_TYPE)
+            .build();
     UserMonitoringInfoToCounterUpdateTransformer testObject =
         new UserMonitoringInfoToCounterUpdateTransformer(mockSpecValidator, stepContextMapping);
     when(mockSpecValidator.validate(any())).thenReturn(Optional.empty());
@@ -79,7 +85,8 @@ public class UserMonitoringInfoToCounterUpdateTransformerTest {
     Map<String, DataflowStepContext> stepContextMapping = new HashMap<>();
     MonitoringInfo monitoringInfo =
         MonitoringInfo.newBuilder()
-            .setUrn("beam:metric:user")
+            .setUrn(Urns.USER_SUM_INT64)
+            .setType(TypeUrns.SUM_INT64_TYPE)
             .putLabels(MonitoringInfoConstants.Labels.NAME, "anyName")
             .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, "anyNamespace")
             .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyValue")
@@ -91,7 +98,8 @@ public class UserMonitoringInfoToCounterUpdateTransformerTest {
   }
 
   @Test
-  public void testTransformReturnsValidCounterUpdateWhenValidUserMonitoringInfoReceived() {
+  public void testTransformReturnsValidCounterUpdateWhenValidUserMonitoringInfoReceived()
+      throws Exception {
     Map<String, DataflowStepContext> stepContextMapping = new HashMap<>();
     NameContext nc =
         NameContext.create("anyStageName", "anyOriginalName", "anySystemName", "anyUserName");
@@ -101,10 +109,12 @@ public class UserMonitoringInfoToCounterUpdateTransformerTest {
 
     MonitoringInfo monitoringInfo =
         MonitoringInfo.newBuilder()
-            .setUrn("beam:metric:user")
+            .setUrn(Urns.USER_SUM_INT64)
+            .setType(TypeUrns.SUM_INT64_TYPE)
             .putLabels(MonitoringInfoConstants.Labels.NAME, "anyName")
             .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, "anyNamespace")
             .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyValue")
+            .setPayload(encodeInt64Counter(1L))
             .build();
     UserMonitoringInfoToCounterUpdateTransformer testObject =
         new UserMonitoringInfoToCounterUpdateTransformer(mockSpecValidator, stepContextMapping);
@@ -114,7 +124,7 @@ public class UserMonitoringInfoToCounterUpdateTransformerTest {
     assertNotNull(result);
 
     assertEqualsAsJson(
-        "{cumulative:true, integer:{highBits:0, lowBits:0}, "
+        "{cumulative:true, integer:{highBits:0, lowBits:1}, "
             + "structuredNameAndMetadata:{metadata:{kind:'SUM'}, "
             + "name:{name:'anyName', origin:'USER', originNamespace:'anyNamespace', "
             + "originalStepName:'anyOriginalName'}}}",

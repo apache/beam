@@ -17,6 +17,7 @@ package exec
 
 import (
 	"fmt"
+	"math/rand"
 	"strconv"
 	"strings"
 
@@ -42,6 +43,7 @@ const (
 	urnPerKeyCombinePre     = "beam:transform:combine_per_key_precombine:v1"
 	urnPerKeyCombineMerge   = "beam:transform:combine_per_key_merge_accumulators:v1"
 	urnPerKeyCombineExtract = "beam:transform:combine_per_key_extract_outputs:v1"
+	urnPerKeyCombineConvert = "beam:transform:combine_per_key_convert_to_accumulators:v1"
 )
 
 // UnmarshalPlan converts a model bundle descriptor into an execution Plan.
@@ -331,7 +333,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 	var u Node
 	switch urn {
-	case graphx.URNParDo, graphx.URNJavaDoFn, urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract:
+	case graphx.URNParDo, graphx.URNJavaDoFn, urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract, urnPerKeyCombineConvert:
 		var data string
 		switch urn {
 		case graphx.URNParDo:
@@ -340,7 +342,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				return nil, errors.Wrapf(err, "invalid ParDo payload for %v", transform)
 			}
 			data = string(pardo.GetDoFn().GetPayload())
-		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract:
+		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract, urnPerKeyCombineConvert:
 			var cmb pb.CombinePayload
 			if err := proto.Unmarshal(payload, &cmb); err != nil {
 				return nil, errors.Wrapf(err, "invalid CombinePayload payload for %v", transform)
@@ -370,23 +372,14 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 			switch op {
 			case graph.ParDo:
-				input := unmarshalKeyedValues(transform.GetInputs())
-				ec, _, err := b.makeCoderForPCollection(input[0])
-				if err != nil {
-					return nil, err
-				}
-				mainIn := graph.MainSingle
-				if coder.IsKV(ec) {
-					mainIn = graph.MainKv
-				}
-
 				n := &ParDo{UID: b.idgen.New(), Inbound: in, Out: out}
-				n.Fn, err = graph.AsDoFn(fn, mainIn)
+				n.Fn, err = graph.AsDoFn(fn, graph.MainUnknown)
 				if err != nil {
 					return nil, err
 				}
 				n.PID = transform.GetUniqueName()
 
+				input := unmarshalKeyedValues(transform.GetInputs())
 				for i := 1; i < len(input); i++ {
 					// TODO(herohde) 8/8/2018: handle different windows, view_fn and window_mapping_fn.
 					// For now, assume we don't need any information in the pardo payload.
@@ -434,6 +427,8 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					u = &MergeAccumulators{Combine: cn}
 				case urnPerKeyCombineExtract:
 					u = &ExtractOutput{Combine: cn}
+				case urnPerKeyCombineConvert:
+					u = &ConvertToAccumulators{Combine: cn}
 				default: // For unlifted combines
 					u = cn
 				}
@@ -472,6 +467,26 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				decoders = append(decoders, MakeElementDecoder(dc))
 			}
 			u = &Expand{UID: b.idgen.New(), ValueDecoders: decoders, Out: out[0]}
+
+		case graphx.URNReshuffleInput:
+			c, w, err := b.makeCoderForPCollection(from)
+			if err != nil {
+				return nil, err
+			}
+			u = &ReshuffleInput{UID: b.idgen.New(), Seed: rand.Int63(), Coder: coder.NewW(c, w), Out: out[0]}
+
+		case graphx.URNReshuffleOutput:
+			var pid string
+			// There's only one output PCollection, and iterating through the map
+			// is the only way to extract it.
+			for _, id := range transform.GetOutputs() {
+				pid = id
+			}
+			c, w, err := b.makeCoderForPCollection(pid)
+			if err != nil {
+				return nil, err
+			}
+			u = &ReshuffleOutput{UID: b.idgen.New(), Coder: coder.NewW(c, w), Out: out[0]}
 
 		default:
 			return nil, errors.Errorf("unexpected payload: %v", tp)

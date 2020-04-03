@@ -32,7 +32,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.TimerFamilySpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoLike;
 import org.apache.beam.runners.core.construction.ReadTranslation.BoundedReadPayloadTranslator;
@@ -403,7 +402,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
                 }
 
                 @Override
-                public Map<String, TimerSpec> translateTimerSpecs(SdkComponents components) {
+                public Map<String, TimerFamilySpec> translateTimerSpecs(SdkComponents components) {
                   // SDFs don't have timers.
                   return ImmutableMap.of();
                 }
@@ -416,8 +415,25 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
                 }
 
                 @Override
+                public boolean isStateful() {
+                  return !signature.stateDeclarations().isEmpty()
+                      || !signature.timerDeclarations().isEmpty()
+                      || !signature.timerFamilyDeclarations().isEmpty();
+                }
+
+                @Override
+                public boolean isSplittable() {
+                  return true;
+                }
+
+                @Override
+                public boolean isRequiresStableInput() {
+                  return signature.processElement().requiresStableInput();
+                }
+
+                @Override
                 public boolean isRequiresTimeSortedInput() {
-                  return false;
+                  return signature.processElement().requiresTimeSortedInput();
                 }
 
                 @Override

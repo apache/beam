@@ -70,8 +70,8 @@ from apache_beam.utils import proto_utils
 # Environment version information. It is passed to the service during a
 # a job submission and is used by the service to establish what features
 # are expected by the workers.
-_LEGACY_ENVIRONMENT_MAJOR_VERSION = '7'
-_FNAPI_ENVIRONMENT_MAJOR_VERSION = '7'
+_LEGACY_ENVIRONMENT_MAJOR_VERSION = '8'
+_FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
 

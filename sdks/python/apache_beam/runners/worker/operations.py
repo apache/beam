@@ -28,7 +28,6 @@ import collections
 import logging
 import sys
 import threading
-import time
 from builtins import filter
 from builtins import object
 from builtins import zip
@@ -46,10 +45,10 @@ from typing import Tuple
 from typing import Union
 
 from apache_beam import coders
-from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.metrics import monitoring_infos
+from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import metrics_pb2
@@ -384,13 +383,10 @@ class Operation(object):
 
       (unused_mean, sum, count, min, max) = (
           self.receivers[0].opcounter.mean_byte_counter.value())
-      metric = metrics_pb2.Metric(
-          distribution_data=metrics_pb2.DistributionData(
-              int_distribution_data=metrics_pb2.IntDistributionData(
-                  count=count, sum=sum, min=min, max=max)))
+
       sampled_byte_count = monitoring_infos.int64_distribution(
           monitoring_infos.SAMPLED_BYTE_SIZE_URN,
-          metric,
+          DistributionData(sum, count, min, max),
           ptransform=transform_id,
           tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
       )
@@ -610,25 +606,20 @@ class DoOperation(Operation):
         if not isinstance(si, operation_specs.WorkerSideInputSource):
           raise NotImplementedError('Unknown side input type: %r' % si)
         sources.append(si.source)
-        # The tracking of time spend reading and bytes read from side inputs is
-        # behind an experiment flag to test its performance impact.
-        si_counter = opcounters.SideInputReadCounter(
-            self.counter_factory,
-            self.state_sampler,
-            declaring_step=self.name_context.step_name,
-            # Inputs are 1-indexed, so we add 1 to i in the side input id
-            input_index=i + 1)
+      si_counter = opcounters.SideInputReadCounter(
+          self.counter_factory,
+          self.state_sampler,
+          declaring_step=self.name_context.step_name,
+          # Inputs are 1-indexed, so we add 1 to i in the side input id
+          input_index=i + 1)
+      element_counter = opcounters.OperationCounters(
+          self.counter_factory,
+          self.name_context.step_name,
+          view_options['coder'],
+          i,
+          suffix='side-input')
       iterator_fn = sideinputs.get_iterator_fn_for_sources(
-          sources, read_counter=si_counter)
-
-      # Backwards compatibility for pre BEAM-733 SDKs.
-      if isinstance(view_options, tuple):
-        if view_class == pvalue.AsSingleton:
-          has_default, default = view_options
-          view_options = {'default': default} if has_default else {}
-        else:
-          view_options = {}
-
+          sources, read_counter=si_counter, element_counter=element_counter)
       yield apache_sideinputs.SideInputMap(
           view_class, view_options, sideinputs.EmulatedIterable(iterator_fn))
 
@@ -759,13 +750,9 @@ class DoOperation(Operation):
         infos[monitoring_infos.to_key(mi)] = mi
         (unused_mean, sum, count, min, max) = (
             receiver.opcounter.mean_byte_counter.value())
-        metric = metrics_pb2.Metric(
-            distribution_data=metrics_pb2.DistributionData(
-                int_distribution_data=metrics_pb2.IntDistributionData(
-                    count=count, sum=sum, min=min, max=max)))
         sampled_byte_count = monitoring_infos.int64_distribution(
             monitoring_infos.SAMPLED_BYTE_SIZE_URN,
-            metric,
+            DistributionData(sum, count, min, max),
             ptransform=transform_id,
             tag=str(tag))
         infos[monitoring_infos.to_key(sampled_byte_count)] = sampled_byte_count
@@ -834,6 +821,12 @@ class SdfProcessSizedElements(DoOperation):
 
   def monitoring_infos(self, transform_id):
     # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+
+    def encode_progress(value):
+      # type: (float) -> bytes
+      coder = coders.IterableCoder(coders.FloatCoder())
+      return coder.encode([value])
+
     with self.lock:
       infos = super(SdfProcessSizedElements,
                     self).monitoring_infos(transform_id)
@@ -849,16 +842,14 @@ class SdfProcessSizedElements(DoOperation):
         assert remaining is not None
         completed_mi = metrics_pb2.MonitoringInfo(
             urn=monitoring_infos.WORK_COMPLETED_URN,
-            type=monitoring_infos.LATEST_DOUBLES_TYPE,
+            type=monitoring_infos.PROGRESS_TYPE,
             labels=monitoring_infos.create_labels(ptransform=transform_id),
-            payload=coders.FloatCoder().get_impl().encode_nested(completed),
-            timestamp=monitoring_infos.to_timestamp_proto(time.time()))
+            payload=encode_progress(completed))
         remaining_mi = metrics_pb2.MonitoringInfo(
             urn=monitoring_infos.WORK_REMAINING_URN,
-            type=monitoring_infos.LATEST_DOUBLES_TYPE,
+            type=monitoring_infos.PROGRESS_TYPE,
             labels=monitoring_infos.create_labels(ptransform=transform_id),
-            payload=coders.FloatCoder().get_impl().encode_nested(remaining),
-            timestamp=monitoring_infos.to_timestamp_proto(time.time()))
+            payload=encode_progress(remaining))
         infos[monitoring_infos.to_key(completed_mi)] = completed_mi
         infos[monitoring_infos.to_key(remaining_mi)] = remaining_mi
     return infos

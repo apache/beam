@@ -57,6 +57,13 @@ class SparkRunner(portable_runner.PortableRunner):
           spark_options.spark_rest_url, options)
     return job_server.StopOnExitJobServer(SparkJarJobServer(options))
 
+  def create_job_service_handle(self, job_service, options):
+    return portable_runner.JobServiceHandle(
+        job_service,
+        options,
+        retain_unknown_options=options.view_as(
+            pipeline_options.SparkRunnerOptions).spark_submit_uber_jar)
+
 
 class SparkJarJobServer(job_server.JavaJarJobServer):
   def __init__(self, options):
