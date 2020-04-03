@@ -123,9 +123,6 @@ public class DockerEnvironmentFactoryTest {
       DockerEnvironmentFactory factory =
           DockerEnvironmentFactory.forServicesWithDocker(
               docker,
-              controlServiceServer,
-              loggingServiceServer,
-              retrievalServiceServer,
               provisioningServiceServer,
               throwsException ? exceptionClientSource : normalClientSource,
               ID_GENERATOR,
@@ -198,9 +195,6 @@ public class DockerEnvironmentFactoryTest {
     private DockerEnvironmentFactory getFactory(ControlClientPool.Source clientSource) {
       return DockerEnvironmentFactory.forServicesWithDocker(
           docker,
-          controlServiceServer,
-          loggingServiceServer,
-          retrievalServiceServer,
           provisioningServiceServer,
           clientSource,
           ID_GENERATOR,
