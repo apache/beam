@@ -22,6 +22,7 @@
 from __future__ import absolute_import
 
 import os
+import re
 import shutil
 import socketserver
 import tempfile
@@ -59,14 +60,24 @@ class JavaJarServerTest(unittest.TestCase):
     # pylint: disable=deprecated-method
     with self.assertRaisesRegexp(
         Exception,
-        'sdks/java/fake/build/libs/beam-sdks-java-fake-VERSION-SNAPSHOT.jar '
-        'not found.'):
+        re.escape(os.path.join('sdks',
+                               'java',
+                               'fake',
+                               'build',
+                               'libs',
+                               'beam-sdks-java-fake-VERSION-SNAPSHOT.jar')) +
+        ' not found.'):
       subprocess_server.JavaJarServer.path_to_beam_jar(
           'sdks:java:fake:fatJar', version='VERSION.dev')
     with self.assertRaisesRegexp(
         Exception,
-        'sdks/java/fake/build/libs/beam-sdks-java-fake-A-VERSION-SNAPSHOT.jar '
-        'not found.'):
+        re.escape(os.path.join('sdks',
+                               'java',
+                               'fake',
+                               'build',
+                               'libs',
+                               'beam-sdks-java-fake-A-VERSION-SNAPSHOT.jar')) +
+        ' not found.'):
       subprocess_server.JavaJarServer.path_to_beam_jar(
           'sdks:java:fake:fatJar', appendix='A', version='VERSION.dev')
 
