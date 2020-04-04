@@ -37,7 +37,6 @@ from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.coders import typecoders
-from apache_beam.coders.coders import CoderElementType
 from apache_beam.coders.coders import ExternalCoder
 from apache_beam.internal import pickler
 from apache_beam.internal import util
@@ -447,8 +446,7 @@ class RunnerAPIPTransformHolder(PTransform):
         restriction_coder_proto = self._context.coders.get_proto_from_id(
             par_do_payload.restriction_coder_id)
 
-        return ExternalCoder(
-            CoderElementType(restriction_coder_proto, self._context))
+        return ExternalCoder(restriction_coder_proto)
 
 
 class WatermarkEstimatorProvider(object):

@@ -359,7 +359,13 @@ class Coder(object):
 
     Prefer registering a urn with its parameter type and constructor.
     """
-    try:
+    if (context.allow_proto_holders and
+        coder_proto.spec.urn not in cls._known_urns):
+      # We hold this in proto form since there's no coder available in Python
+      # SDK.
+      # This is potentially a coder that is only available in an external SDK.
+      return ExternalCoder(coder_proto)
+    else:
       parameter_type, constructor = cls._known_urns[coder_proto.spec.urn]
       return constructor(
           proto_utils.parse_Bytes(coder_proto.spec.payload, parameter_type), [
@@ -367,13 +373,6 @@ class Coder(object):
               for c in coder_proto.component_coder_ids
           ],
           context)
-    except Exception:
-      if (context.allow_proto_holders and
-          coder_proto.spec.urn not in cls._known_urns):
-        # ignore this typing scenario for now, since it can't be easily tracked
-        return ExternalCoder(
-            CoderElementType(coder_proto, context))  # type: ignore
-      raise
 
   def to_runner_api_parameter(self, context):
     # type: (Optional[PipelineContext]) -> Tuple[str, Any, Sequence[Coder]]
@@ -1390,10 +1389,9 @@ class StateBackedIterableCoder(FastCoder):
 
 
 class CoderElementType(typehints.TypeConstraint):
-  """An element type that just holds a coder proto."""
-  def __init__(self, coder_proto, context):
-    self.coder_proto = coder_proto
-    self.context = context
+  """An element type that just holds a coder."""
+  def __init__(self, coder):
+    self.coder = coder
 
 
 class ExternalCoder(Coder):
@@ -1404,16 +1402,15 @@ class ExternalCoder(Coder):
   be available in Python SDK transform graph when expanding a cross-language
   transform.
   """
-  def __init__(self, element_type_holder):
-    self.element_type_holder = element_type_holder
+  def __init__(self, coder_proto):
+    self._coder_proto = coder_proto
 
   def as_cloud_object(self, coders_context=None):
     if not coders_context:
       raise Exception(
           'coders_context must be specified to correctly encode external coders'
       )
-    coder_id = coders_context.get_by_proto(
-        self.element_type_holder.coder_proto, deduplicate=True)
+    coder_id = coders_context.get_by_proto(self._coder_proto, deduplicate=True)
 
     # 'kind:external' is just a placeholder kind. Dataflow will get the actual
     # coder from pipeline proto using the pipeline_proto_coder_id property.
@@ -1422,7 +1419,7 @@ class ExternalCoder(Coder):
   @staticmethod
   def from_type_hint(typehint, unused_registry):
     if isinstance(typehint, CoderElementType):
-      return ExternalCoder(typehint)
+      return typehint.coder
     else:
       raise ValueError((
           'Expected an instance of CoderElementType'
@@ -1430,9 +1427,9 @@ class ExternalCoder(Coder):
 
   def to_runner_api_parameter(self, context):
     return (
-        self.element_type_holder.coder_proto.spec.urn,
-        self.element_type_holder.coder_proto.spec.payload,
-        self.element_type_holder.coder_proto.component_coder_ids)
+        self._coder_proto.spec.urn,
+        self._coder_proto.spec.payload,
+        self._coder_proto.component_coder_ids)
 
   def to_type_hint(self):
-    return self.element_type_holder
+    return CoderElementType(self)

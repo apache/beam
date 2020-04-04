@@ -337,7 +337,8 @@ def convert_to_typing_type(typ):
 
   from apache_beam.coders.coders import CoderElementType
   if isinstance(typ, CoderElementType):
-    # This represents an external SDK type. No special handling is needed here.
+    # This represents an element that holds a coder.
+    # No special handling is needed here.
     return typ
 
   if isinstance(typ, typehints.TypeVariable):

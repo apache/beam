@@ -1071,8 +1071,7 @@ class AppliedPTransform(object):
         if isinstance(input, pvalue.PCollection)
     }
     side_inputs = {(SIDE_INPUT_PREFIX + '%s') % ix: si.pvalue
-                   for ix,
-                   si in enumerate(self.side_inputs)}
+                   for (ix, si) in enumerate(self.side_inputs)}
     return dict(main_inputs, **side_inputs)
 
   def named_outputs(self):
@@ -1112,6 +1111,8 @@ class AppliedPTransform(object):
       environment_id = context.default_environment_id()
 
     def _maybe_preserve_tag(new_tag, pc, input_tags_to_preserve):
+      # TODO(BEAM-1833): remove this after we update Python SDK and
+      # DataflowRunner to construct pipelines using runner API.
       return input_tags_to_preserve[
           pc] if pc in input_tags_to_preserve else new_tag
 
@@ -1145,11 +1146,12 @@ class AppliedPTransform(object):
     if common_urns.primitives.PAR_DO.urn == proto.spec.urn:
       # Preserving side input tags.
       from apache_beam.portability.api import beam_runner_api_pb2
-      payload = (
+      pardo_payload = (
           proto_utils.parse_Bytes(
               proto.spec.payload, beam_runner_api_pb2.ParDoPayload))
-      side_input_tags = list(payload.side_inputs.keys())
+      side_input_tags = list(pardo_payload.side_inputs.keys())
     else:
+      pardo_payload = None
       side_input_tags = []
 
     main_inputs = [
@@ -1165,6 +1167,7 @@ class AppliedPTransform(object):
     uses_python_sideinput_tags = (
         is_python_side_input(side_input_tags[0]) if side_input_tags else False)
 
+    transform = ptransform.PTransform.from_runner_api(proto, context)
     if uses_python_sideinput_tags:
       # Ordering is important here.
       # TODO(BEAM-9635): use key, value pairs instead of depending on tags with
@@ -1176,20 +1179,37 @@ class AppliedPTransform(object):
       ]
       side_inputs = [si for _, si in sorted(indexed_side_inputs)]
     else:
-      side_inputs = [
-          context.pcollections.get_by_id(id) for tag,
-          id in proto.inputs.items() if tag in side_input_tags
-      ]
+      # These must be set in the same order for subsequent zip to work.
+      side_inputs = []
+      transform_side_inputs = []
 
-    transform = ptransform.PTransform.from_runner_api(proto, context)
+      for tag, id in proto.inputs.items():
+        if tag in side_input_tags:
+          pc = context.pcollections.get_by_id(id)
+          side_inputs.append(pc)
+          assert pardo_payload  # This must be a ParDo with side inputs.
+          side_input_from_pardo = pardo_payload.side_inputs[tag]
+
+          # TODO(BEAM-1833): use 'pvalue.SideInputData.from_runner_api' here
+          # when that is updated to better represent runner API.
+          if (common_urns.side_inputs.MULTIMAP.urn ==
+              side_input_from_pardo.access_pattern.urn):
+            transform_side_inputs.append(pvalue.AsMultiMap(pc))
+          elif (common_urns.side_inputs.ITERABLE.urn ==
+                side_input_from_pardo.access_pattern.urn):
+            transform_side_inputs.append(pvalue.AsIter(pc))
+          else:
+            raise ValueError(
+                'Unsupported side input access pattern %r' %
+                side_input_from_pardo.access_pattern.urn)
+      if transform:
+        transform.side_inputs = transform_side_inputs
+
     if isinstance(transform, RunnerAPIPTransformHolder):
-      # For external transforms that are ParDos, we have to set side-inputs
-      # manually and preserve input tags.
-      transform.side_inputs = [pvalue.AsMultiMap(pc) for pc in side_inputs]
+      # For external transforms that are ParDos, we have to preserve input tags.
       input_tags_to_preserve = {
           context.pcollections.get_by_id(id): tag
-          for tag,
-          id in proto.inputs.items()
+          for (tag, id) in proto.inputs.items()
       }
     else:
       input_tags_to_preserve = {}

@@ -277,9 +277,7 @@ class DataflowRunner(PipelineRunner):
               pcoll.element_type, transform_node.full_label)
           key_type, value_type = pcoll.element_type.tuple_types
           if transform_node.outputs:
-            key = (
-                None if None in transform_node.outputs.keys() else
-                DataflowRunner._only_element(transform_node.outputs.keys()))
+            key = DataflowRunner._only_element(transform_node.outputs.keys())
             transform_node.outputs[key].element_type = typehints.KV[
                 key_type, typehints.Iterable[value_type]]
 
@@ -607,7 +605,7 @@ class DataflowRunner(PipelineRunner):
   def _get_encoded_output_coder(
       self, transform_node, window_value=True, output_tag=None):
     """Returns the cloud encoding of the coder for the output of a transform."""
-    external_transform = isinstance(
+    is_external_transform = isinstance(
         transform_node.transform, RunnerAPIPTransformHolder)
 
     if output_tag in transform_node.outputs:
@@ -616,7 +614,7 @@ class DataflowRunner(PipelineRunner):
       output_tag = DataflowRunner._only_element(transform_node.outputs.keys())
       # TODO(robertwb): Handle type hints for multi-output transforms.
       element_type = transform_node.outputs[output_tag].element_type
-    elif external_transform:
+    elif is_external_transform:
       raise ValueError(
           'For external transforms, output_tag must be specified '
           'since we cannot fallback to a Python only coder.')
@@ -876,7 +874,7 @@ class DataflowRunner(PipelineRunner):
     input_tag = transform_node.inputs[0].tag
     input_step = self._cache.get_pvalue(transform_node.inputs[0])
 
-    external_transform = isinstance(transform, RunnerAPIPTransformHolder)
+    is_external_transform = isinstance(transform, RunnerAPIPTransformHolder)
 
     # Attach side inputs.
     si_dict = {}
@@ -895,7 +893,7 @@ class DataflowRunner(PipelineRunner):
                   all_input_labels[side_pval.pvalue])
       old_label = (SIDE_INPUT_PREFIX + '%d') % ix
 
-      if not external_transform:
+      if not is_external_transform:
         label_renames[old_label] = si_label
 
       assert old_label in named_inputs
@@ -998,7 +996,7 @@ class DataflowRunner(PipelineRunner):
     # external transforms, we leave tags unmodified.
     #
     # Python SDK uses 'None' as the tag of the main output.
-    main_output_tag = (all_output_tags[0] if external_transform else 'None')
+    main_output_tag = (all_output_tags[0] if is_external_transform else 'None')
 
     step.encoding = self._get_encoded_output_coder(
         transform_node, output_tag=main_output_tag)
