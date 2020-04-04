@@ -33,6 +33,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -138,8 +139,8 @@ public class HCatalogIO {
   /** Read data from Hive. */
   public static Read read() {
     return new AutoValue_HCatalogIO_Read.Builder()
-        .setDatabase(DEFAULT_DATABASE)
-        .setPartitionCols(new ArrayList<>())
+        .setDatabase(ValueProvider.StaticValueProvider.of(DEFAULT_DATABASE))
+        .setPartitionCols(ValueProvider.StaticValueProvider.of(new ArrayList<>()))
         .build();
   }
 
@@ -151,16 +152,16 @@ public class HCatalogIO {
   public abstract static class Read extends PTransform<PBegin, PCollection<HCatRecord>> {
 
     @Nullable
-    abstract Map<String, String> getConfigProperties();
+    abstract ValueProvider<Map<String, String>> getConfigProperties();
 
     @Nullable
-    abstract String getDatabase();
+    abstract ValueProvider<String> getDatabase();
 
     @Nullable
-    abstract String getTable();
+    abstract ValueProvider<String> getTable();
 
     @Nullable
-    abstract String getFilter();
+    abstract ValueProvider<String> getFilter();
 
     @Nullable
     abstract ReaderContext getContext();
@@ -172,7 +173,7 @@ public class HCatalogIO {
     abstract Duration getPollingInterval();
 
     @Nullable
-    abstract List<String> getPartitionCols();
+    abstract ValueProvider<List<String>> getPartitionCols();
 
     @Nullable
     abstract TerminationCondition<Read, ?> getTerminationCondition();
@@ -181,13 +182,13 @@ public class HCatalogIO {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setConfigProperties(Map<String, String> configProperties);
+      abstract Builder setConfigProperties(ValueProvider<Map<String, String>> configProperties);
 
-      abstract Builder setDatabase(String database);
+      abstract Builder setDatabase(ValueProvider<String> database);
 
-      abstract Builder setTable(String table);
+      abstract Builder setTable(ValueProvider<String> table);
 
-      abstract Builder setFilter(String filter);
+      abstract Builder setFilter(ValueProvider<String> filter);
 
       abstract Builder setSplitId(Integer splitId);
 
@@ -195,7 +196,7 @@ public class HCatalogIO {
 
       abstract Builder setPollingInterval(Duration pollingInterval);
 
-      abstract Builder setPartitionCols(List<String> partitionCols);
+      abstract Builder setPartitionCols(ValueProvider<List<String>> partitionCols);
 
       abstract Builder setTerminationCondition(TerminationCondition<Read, ?> terminationCondition);
 
@@ -204,21 +205,41 @@ public class HCatalogIO {
 
     /** Sets the configuration properties like metastore URI. */
     public Read withConfigProperties(Map<String, String> configProperties) {
-      return toBuilder().setConfigProperties(new HashMap<>(configProperties)).build();
+      return withConfigProperties(ValueProvider.StaticValueProvider.of(configProperties));
+    }
+
+    /** Sets the configuration properties like metastore URI. */
+    public Read withConfigProperties(ValueProvider<Map<String, String>> configProperties) {
+      return toBuilder()
+          .setConfigProperties(
+              ValueProvider.StaticValueProvider.of(new HashMap<>(configProperties.get())))
+          .build();
     }
 
     /** Sets the database name. This is optional, assumes 'default' database if none specified */
     public Read withDatabase(String database) {
+      return withDatabase(ValueProvider.StaticValueProvider.of(database));
+    }
+
+    public Read withDatabase(ValueProvider<String> database) {
       return toBuilder().setDatabase(database).build();
     }
 
     /** Sets the table name to read from. */
     public Read withTable(String table) {
+      return withTable(ValueProvider.StaticValueProvider.of(table));
+    }
+
+    public Read withTable(ValueProvider<String> table) {
       return toBuilder().setTable(table).build();
     }
 
     /** Sets the filter details. This is optional, assumes none if not specified */
     public Read withFilter(String filter) {
+      return withFilter(ValueProvider.StaticValueProvider.of(filter));
+    }
+
+    public Read withFilter(ValueProvider<String> filter) {
       return toBuilder().setFilter(filter).build();
     }
 
@@ -233,6 +254,10 @@ public class HCatalogIO {
 
     /** Set the names of the columns that are partitions. */
     public Read withPartitionCols(List<String> partitionCols) {
+      return withPartitionCols(ValueProvider.StaticValueProvider.of(partitionCols));
+    }
+
+    public Read withPartitionCols(ValueProvider<List<String>> partitionCols) {
       return toBuilder().setPartitionCols(partitionCols).build();
     }
 
@@ -267,7 +292,7 @@ public class HCatalogIO {
         return input
             .apply("ConvertToReadRequest", Create.of(this))
             .apply("WatchForNewPartitions", growthFn)
-            .apply("PartitionReader", ParDo.of(new PartitionReaderFn(getConfigProperties())));
+            .apply("PartitionReader", ParDo.of(new PartitionReaderFn(getConfigProperties().get())));
       } else {
         // Treat as Bounded
         checkArgument(
@@ -322,7 +347,7 @@ public class HCatalogIO {
       try {
         HiveConf hiveConf = HCatalogUtils.createHiveConf(spec);
         client = HCatalogUtils.createMetaStoreClient(hiveConf);
-        Table table = HCatUtil.getTable(client, spec.getDatabase(), spec.getTable());
+        Table table = HCatUtil.getTable(client, spec.getDatabase().get(), spec.getTable().get());
         return StatsUtils.getFileSizeForTable(hiveConf, table);
       } finally {
         // IMetaStoreClient is not AutoCloseable, closing it manually
@@ -366,12 +391,12 @@ public class HCatalogIO {
     private ReaderContext getReaderContext(long desiredSplitCount) throws HCatException {
       ReadEntity entity =
           new ReadEntity.Builder()
-              .withDatabase(spec.getDatabase())
+              .withDatabase(spec.getDatabase().get())
               .withTable(spec.getTable())
               .withFilter(spec.getFilter())
               .build();
       // pass the 'desired' split count as an hint to the API
-      Map<String, String> configProps = new HashMap<>(spec.getConfigProperties());
+      Map<String, String> configProps = new HashMap<>(spec.getConfigProperties().get());
       configProps.put(
           HCatConstants.HCAT_DESIRED_PARTITION_NUM_SPLITS, String.valueOf(desiredSplitCount));
       return DataTransferFactory.getHCatReader(entity, configProps).prepareRead();
