@@ -244,8 +244,8 @@ func (fake *fakeRetrievalService) unresolvedArtifacts() []*pipeline_v1.ArtifactI
 	}
 }
 
-func (fake *fakeRetrievalService) ResolveArtifact(ctx context.Context, request *pb.ResolveArtifactRequest, opts ...grpc.CallOption) (*pb.ResolveArtifactResponse, error) {
-	response := pb.ResolveArtifactResponse{}
+func (fake *fakeRetrievalService) ResolveArtifacts(ctx context.Context, request *pb.ResolveArtifactsRequest, opts ...grpc.CallOption) (*pb.ResolveArtifactsResponse, error) {
+	response := pb.ResolveArtifactsResponse{}
 	for _, dep := range request.Artifacts {
 		if dep.TypeUrn == "unresolved" {
 			response.Replacements = append(response.Replacements, fake.resolvedArtifacts()...)
