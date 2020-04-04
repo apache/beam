@@ -291,9 +291,9 @@ class ArtifactServiceTest(unittest.TestCase):
         file_manager.file_reader, chunk_size=10)
     dep_a = self.file_artifact('path/to/a')
     self.assertEqual(
-        retrieval_service.ResolveArtifact(
-            beam_artifact_api_pb2.ResolveArtifactRequest(artifacts=[dep_a])),
-        beam_artifact_api_pb2.ResolveArtifactResponse(replacements=[dep_a]))
+        retrieval_service.ResolveArtifacts(
+            beam_artifact_api_pb2.ResolveArtifactsRequest(artifacts=[dep_a])),
+        beam_artifact_api_pb2.ResolveArtifactsResponse(replacements=[dep_a]))
 
     self.assertEqual(
         list(
@@ -342,14 +342,14 @@ class ArtifactServiceTest(unittest.TestCase):
     dep_big = self.embedded_artifact(data=b'big ' * 100, name='big.txt')
 
     class TestArtifacts(object):
-      def ResolveArtifact(self, request):
+      def ResolveArtifacts(self, request):
         replacements = []
         for artifact in request.artifacts:
           if artifact.type_urn == 'unresolved':
             replacements += [resolved_a, resolved_b]
           else:
             replacements.append(artifact)
-        return beam_artifact_api_pb2.ResolveArtifactResponse(
+        return beam_artifact_api_pb2.ResolveArtifactsResponse(
             replacements=replacements)
 
       def GetArtifact(self, request):
