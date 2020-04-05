@@ -70,7 +70,7 @@ func newMaterialize(ctx context.Context, endpoint string, dependencies []*pipeli
 }
 
 func newMaterializeWithClient(ctx context.Context, client pb.ArtifactRetrievalServiceClient, dependencies []*pipeline_v1.ArtifactInformation, dest string) ([]*pb.ArtifactMetadata, error) {
-	resolution, err := client.ResolveArtifact(ctx, &pb.ResolveArtifactRequest{Artifacts: dependencies})
+	resolution, err := client.ResolveArtifacts(ctx, &pb.ResolveArtifactsRequest{Artifacts: dependencies})
 	if err != nil {
 		return nil, err
 	}
