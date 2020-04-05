@@ -29,4 +29,10 @@ public interface BeamSqlPipelineOptions extends PipelineOptions {
   String getPlannerName();
 
   void setPlannerName(String className);
+
+  @Description("Enables extra verification of row values for debugging.")
+  @Default.Boolean(false)
+  Boolean getVerifyRowValues();
+
+  void setVerifyRowValues(Boolean verifyRowValues);
 }
