@@ -45,7 +45,6 @@ Everything in this module is experimental.
 from __future__ import absolute_import
 
 import apache_beam as beam
-from apache_beam.io import iobase
 from apache_beam.metrics import Metrics
 from apache_beam.transforms import util
 from apache_beam.transforms.display import DisplayDataItem
@@ -106,10 +105,8 @@ class _BigtableReadFn(beam.DoFn):
         .instance(self._options['instance_id'])\
         .table(self._options['table_id'])
 
-  def process(self, source_bundle):
-    _start_key = source_bundle.start_position
-    _end_key = source_bundle.stop_position
-    for row in self._table.read_rows(_start_key, _end_key):
+  def process(self, key_pair):
+    for row in self._table.read_rows(key_pair[0], key_pair[1]):
       self._counter.inc()
       yield row
 
@@ -158,16 +155,19 @@ class ReadFromBigtable(beam.PTransform):
       .table(table_id=self._options['table_id'])
 
     keys = list(table.sample_row_keys())
+    if len(keys) < 1:
+      raise ValueError('The list of Table.sample_row_keys is empty. A Bigtable'
+                       ' table must have at least one valid sample row key.')
 
+    # Creating sample row key to define starting read position of '0th' chunk
     SampleRowKey = namedtuple("SampleRowKey", "row_key offset_bytes")
     keys.insert(0, SampleRowKey(b'', 0))
 
     def chunks():
       for i in range(1, len(keys)):
-        key_1 = keys[i - 1].row_key
-        key_2 = keys[i].row_key
-        size = keys[i].offset_bytes - keys[i - 1].offset_bytes
-        yield iobase.SourceBundle(size, None, key_1, key_2)
+        start_key = keys[i - 1].row_key
+        end_key = keys[i].row_key
+        yield [start_key, end_key]
 
     return (pbegin
             | 'Bundles' >> beam.Create(iter(chunks()))
