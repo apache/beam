@@ -23,12 +23,15 @@ import java.io.OutputStream;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.joda.time.Instant;
 
 public class HealthcareIOErrorCoder<T> extends CustomCoder<HealthcareIOError<T>> {
   private final Coder<T> originalCoder;
   private static final NullableCoder<String> STRING_CODER = NullableCoder.of(StringUtf8Coder.of());
+  private static final NullableCoder<Instant> INSTANT_CODER = NullableCoder.of(InstantCoder.of());
 
   HealthcareIOErrorCoder(Coder<T> originalCoder) {
     this.originalCoder = NullableCoder.of(originalCoder);
@@ -42,6 +45,7 @@ public class HealthcareIOErrorCoder<T> extends CustomCoder<HealthcareIOError<T>>
 
     STRING_CODER.encode(value.getErrorMessage(), outStream);
     STRING_CODER.encode(value.getStackTrace(), outStream);
+    INSTANT_CODER.encode(value.getObservedTime(), outStream);
   }
 
   @Override
@@ -49,6 +53,7 @@ public class HealthcareIOErrorCoder<T> extends CustomCoder<HealthcareIOError<T>>
     T dataResource = originalCoder.decode(inStream);
     String errorMessage = STRING_CODER.decode(inStream);
     String stackTrace = STRING_CODER.decode(inStream);
-    return new HealthcareIOError<>(dataResource, errorMessage, stackTrace);
+    Instant observedTime = INSTANT_CODER.decode(inStream);
+    return new HealthcareIOError<>(dataResource, errorMessage, stackTrace, observedTime);
   }
 }

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.joda.time.Instant;
 
@@ -27,11 +28,16 @@ public class HealthcareIOError<T> {
   private String stackTrace;
   private Instant observedTime;
 
-  HealthcareIOError(T dataResource, String errorMessage, String stackTrace) {
+  HealthcareIOError(
+      T dataResource, String errorMessage, String stackTrace, @Nullable Instant observedTime) {
     this.dataResource = dataResource;
     this.errorMessage = errorMessage;
     this.stackTrace = stackTrace;
-    this.observedTime = Instant.now();
+    if (observedTime != null) {
+      this.observedTime = observedTime;
+    } else {
+      this.observedTime = Instant.now();
+    }
   }
 
   public String getErrorMessage() {
@@ -53,6 +59,6 @@ public class HealthcareIOError<T> {
   static <T> HealthcareIOError<T> of(T dataResource, Exception error) {
     String msg = error.getMessage();
     String stackTrace = Throwables.getStackTraceAsString(error);
-    return new HealthcareIOError<>(dataResource, msg, stackTrace);
+    return new HealthcareIOError<>(dataResource, msg, stackTrace, null);
   }
 }
