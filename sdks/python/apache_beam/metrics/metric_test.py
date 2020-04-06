@@ -178,7 +178,7 @@ class MetricsTest(unittest.TestCase):
             MetricResult(
                 MetricKey('ApplyPardo', MetricName(namespace, 'element_dist')),
                 DistributionResult(DistributionData(10, 4, 1, 4)),
-                DistributionResult(DistributionData(10, 4, 1, 4)))))
+                None, True)))
 
   def test_create_counter_distribution(self):
     sampler = statesampler.StateSampler('', counters.CounterFactory())
