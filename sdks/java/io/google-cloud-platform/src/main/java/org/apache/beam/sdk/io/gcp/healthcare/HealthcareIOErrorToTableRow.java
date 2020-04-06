@@ -17,11 +17,15 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptor;
+import com.google.api.services.bigquery.model.TableSchema;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 
@@ -29,25 +33,59 @@ import org.joda.time.format.ISODateTimeFormat;
  * Convenience transform to write dead-letter {@link HealthcareIOError}s to BigQuery {@link
  * TableRow}s.
  *
- * @param <T> the type parameter
+ * <p>This can be used with {@link BigQueryIO.Write#withSchema(TableSchema)} by defining a dead
+ * letter table schema
+ *
+ * <pre>{@code
+ * ...
+ * PCollection<HealthcareIOError<String>> errors = ...;
+ *
+ * TableSchema deadLetterSchema = new TableSchema();
+ * deadLetterSchema.setFields(HealthcareIOErrorToTableRow.TABLE_FIELD_SCHEMAS);
+ * TimePartitioning deadLetterPartitioning = new TimeParitioning();
+ * deaLetterPartitioning.setField(HealthcareIOErrorToTableRow.TIMESTAMP_FIELD_NAME);
+ *
+ * errors.apply(
+ *    BigQueryIO.write()
+ *      .to(options.getDeadLetterTable())
+ *      .withFormatFunction(new HealthcareIOErrorToTableRow<String>())
+ *      .withSchema(deadLetterSchema)
+ *      .withTimePartitioning(deadLetterPartitioning)
+ * );
+ * }***
+ * </pre>
+ *
+ * @param <T> the type parameter for the {@link HealthcareIOError}
  */
 public class HealthcareIOErrorToTableRow<T>
-    extends PTransform<PCollection<HealthcareIOError<T>>, PCollection<TableRow>> {
+    implements SerializableFunction<HealthcareIOError<T>, TableRow> {
 
   private static final DateTimeFormatter DATETIME_FORMATTER = ISODateTimeFormat.dateTime();
+  public static final String TIMESTAMP_FIELD_NAME = "observed_time";
+
+  public static final List<TableFieldSchema> TABLE_FIELD_SCHEMAS =
+      Stream.of(
+              Pair.of("data_element", "STRING"),
+              Pair.of(TIMESTAMP_FIELD_NAME, "TIMESTAMP"),
+              Pair.of("message", "STRING"),
+              Pair.of("stacktrace", "STRING"))
+          .map(
+              (Pair<String, String> field) -> {
+                TableFieldSchema tfs = new TableFieldSchema();
+                tfs.setName(field.getKey());
+                tfs.setMode("NULLABLE");
+                tfs.setType(field.getValue());
+                return tfs;
+              })
+          .collect(Collectors.toList());
 
   @Override
-  public PCollection<TableRow> expand(PCollection<HealthcareIOError<T>> input) {
-    return input.apply(
-        MapElements.into(TypeDescriptor.of(TableRow.class))
-            .via(
-                (HealthcareIOError<T> err) -> {
-                  TableRow out = new TableRow();
-                  out.set("data_element", err.getDataResource().toString());
-                  out.set("observed_time", err.getObservedTime().toString(DATETIME_FORMATTER));
-                  out.set("message", err.getErrorMessage());
-                  out.set("stacktrace", err.getStackTrace());
-                  return out;
-                }));
+  public TableRow apply(HealthcareIOError<T> err) {
+    TableRow out = new TableRow();
+    out.set("data_element", err.getDataResource().toString());
+    out.set(TIMESTAMP_FIELD_NAME, err.getObservedTime().toString(DATETIME_FORMATTER));
+    out.set("message", err.getErrorMessage());
+    out.set("stacktrace", err.getStackTrace());
+    return out;
   }
 }
