@@ -289,12 +289,13 @@ public class Environments {
               throw new RuntimeException("Error parsing deferred artifact payload.", e);
             }
             if (key.equals(deferredArtifactPayload.getKey())) {
-              return lazyArtifacts.stream().map(Supplier::get).collect(Collectors.toList());
+              return Optional.of(
+                  lazyArtifacts.stream().map(Supplier::get).collect(Collectors.toList()));
             } else {
-              return ImmutableList.of();
+              return Optional.empty();
             }
           } else {
-            return ImmutableList.of();
+            return Optional.empty();
           }
         });
 

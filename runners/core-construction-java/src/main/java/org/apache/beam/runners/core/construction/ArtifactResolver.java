@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.construction;
 
 import java.util.List;
+import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 
 /**
@@ -45,6 +46,6 @@ public interface ArtifactResolver {
    * ArtifactResolver#resolveArtifacts(RunnerApi.Pipeline)} is called.
    */
   interface ResolutionFn {
-    List<RunnerApi.ArtifactInformation> resolve(RunnerApi.ArtifactInformation info);
+    Optional<List<RunnerApi.ArtifactInformation>> resolve(RunnerApi.ArtifactInformation info);
   }
 }

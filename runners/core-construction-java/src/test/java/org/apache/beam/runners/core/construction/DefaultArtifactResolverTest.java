@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
@@ -80,27 +81,27 @@ public class DefaultArtifactResolverTest {
   private ArtifactResolver.ResolutionFn dummyMavenFooResolver =
       info -> {
         if (info.equals(fooMavenArtifact)) {
-          return ImmutableList.of(fooFileArtifact);
+          return Optional.of(ImmutableList.of(fooFileArtifact));
         } else {
-          return ImmutableList.of();
+          return Optional.empty();
         }
       };
 
   private ArtifactResolver.ResolutionFn dummyAmbientFooBarResolver =
       info -> {
         if (info.equals(ambientArtifact)) {
-          return ImmutableList.of(fooFileArtifact, barFileArtifact);
+          return Optional.of(ImmutableList.of(fooFileArtifact, barFileArtifact));
         } else {
-          return ImmutableList.of();
+          return Optional.empty();
         }
       };
 
   private ArtifactResolver.ResolutionFn dummyAmbientBarFooResolver =
       info -> {
         if (info.equals(ambientArtifact)) {
-          return ImmutableList.of(fooFileArtifact, barFileArtifact);
+          return Optional.of(ImmutableList.of(fooFileArtifact, barFileArtifact));
         } else {
-          return ImmutableList.of();
+          return Optional.empty();
         }
       };
 

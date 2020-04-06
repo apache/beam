@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.construction;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -39,18 +40,18 @@ public class DefaultArtifactResolver implements ArtifactResolver {
       Lists.newArrayList(
           (info) -> {
             if (BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE).equals(info.getTypeUrn())) {
-              return ImmutableList.of(info);
+              return Optional.of(ImmutableList.of(info));
             } else {
-              return ImmutableList.of();
+              return Optional.empty();
             }
           });
 
   private Function<RunnerApi.ArtifactInformation, Stream<RunnerApi.ArtifactInformation>> resolver =
       (info) -> {
         for (ResolutionFn fn : Lists.reverse(fns)) {
-          List<RunnerApi.ArtifactInformation> resolved = fn.resolve(info);
-          if (!resolved.isEmpty()) {
-            return resolved.stream();
+          Optional<List<RunnerApi.ArtifactInformation>> resolved = fn.resolve(info);
+          if (resolved.isPresent()) {
+            return resolved.get().stream();
           }
         }
         throw new RuntimeException(String.format("Cannot resolve artifact information: %s", info));
