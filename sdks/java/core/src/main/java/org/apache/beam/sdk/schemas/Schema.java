@@ -591,8 +591,13 @@ public class Schema implements Serializable {
     @Nullable
     public abstract Schema getRowSchema();
 
-    /** Returns optional extra metadata. */
+    /**
+     * Returns optional extra metadata.
+     *
+     * @deprecated use schema options instead.
+     */
     @SuppressWarnings("mutable")
+    @Deprecated
     abstract Map<String, ByteArrayWrapper> getMetadata();
 
     public abstract FieldType.Builder toBuilder();
@@ -631,6 +636,8 @@ public class Schema implements Serializable {
 
       abstract Builder setRowSchema(@Nullable Schema rowSchema);
 
+      /** @deprecated use schema options instead. */
+      @Deprecated
       abstract Builder setMetadata(Map<String, ByteArrayWrapper> metadata);
 
       abstract FieldType build();
@@ -718,7 +725,12 @@ public class Schema implements Serializable {
       return FieldType.forTypeName(TypeName.LOGICAL_TYPE).setLogicalType(logicalType).build();
     }
 
-    /** Set the metadata map for the type, overriding any existing metadata.. */
+    /**
+     * Set the metadata map for the type, overriding any existing metadata.
+     *
+     * @deprecated use schema options instead.
+     */
+    @Deprecated
     public FieldType withMetadata(Map<String, byte[]> metadata) {
       Map<String, ByteArrayWrapper> wrapped =
           metadata.entrySet().stream()
@@ -727,7 +739,12 @@ public class Schema implements Serializable {
       return toBuilder().setMetadata(wrapped).build();
     }
 
-    /** Returns a copy of the descriptor with metadata set for the given key. */
+    /**
+     * Returns a copy of the descriptor with metadata set for the given key.
+     *
+     * @deprecated use schema options instead.
+     */
+    @Deprecated
     public FieldType withMetadata(String key, byte[] metadata) {
       Map<String, ByteArrayWrapper> newMetadata =
           ImmutableMap.<String, ByteArrayWrapper>builder()
@@ -737,22 +754,33 @@ public class Schema implements Serializable {
       return toBuilder().setMetadata(newMetadata).build();
     }
 
-    /** Returns a copy of the descriptor with metadata set for the given key. */
+    /**
+     * Returns a copy of the descriptor with metadata set for the given key.
+     *
+     * @deprecated use schema options instead.
+     */
+    @Deprecated
     public FieldType withMetadata(String key, String metadata) {
       return withMetadata(key, metadata.getBytes(StandardCharsets.UTF_8));
     }
 
+    /** @deprecated use schema options instead. */
+    @Deprecated
     public Map<String, byte[]> getAllMetadata() {
       return getMetadata().entrySet().stream()
           .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().array));
     }
 
+    /** @deprecated use schema options instead. */
+    @Deprecated
     @Nullable
     public byte[] getMetadata(String key) {
       ByteArrayWrapper metadata = getMetadata().get(key);
       return (metadata != null) ? metadata.array : null;
     }
 
+    /** @deprecated use schema options instead. */
+    @Deprecated
     public String getMetadataString(String key) {
       ByteArrayWrapper metadata = getMetadata().get(key);
       if (metadata != null) {
