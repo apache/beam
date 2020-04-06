@@ -26,7 +26,6 @@ import static org.junit.Assert.assertFalse;
 
 import java.util.Collections;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.gcp.healthcare.HL7v2IO.ListHL7v2Messages;
 import org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.ListHL7v2MessageIDs;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -72,7 +71,7 @@ public class HL7v2IOReadIT {
     HL7v2IO.Read.Result result =
         pipeline
             .apply(new ListHL7v2MessageIDs(Collections.singletonList(options.getHL7v2Store())))
-            .apply(HL7v2IO.readAll());
+            .apply(HL7v2IO.getAll());
     PCollection<Long> numReadMessages =
         result.getMessages().setCoder(new HL7v2MessageCoder()).apply(Count.globally());
     PAssert.thatSingleton(numReadMessages).isEqualTo((long) MESSAGES.size());
@@ -96,8 +95,7 @@ public class HL7v2IOReadIT {
   public void testHL7v2IO_ListHL7v2Messages() throws Exception {
     // Should read all messages.
     Pipeline pipeline = Pipeline.create(options);
-    PCollection<HL7v2Message> result =
-        pipeline.apply(new ListHL7v2Messages(Collections.singletonList(options.getHL7v2Store())));
+    PCollection<HL7v2Message> result = pipeline.apply(HL7v2IO.read(options.getHL7v2Store()));
     PCollection<Long> numReadMessages =
         result.setCoder(new HL7v2MessageCoder()).apply(Count.globally());
     PAssert.thatSingleton(numReadMessages).isEqualTo((long) MESSAGES.size());
@@ -122,8 +120,7 @@ public class HL7v2IOReadIT {
     // Should read all messages.
     Pipeline pipeline = Pipeline.create(options);
     PCollection<HL7v2Message> result =
-        pipeline.apply(
-            new ListHL7v2Messages(Collections.singletonList(options.getHL7v2Store()), adtFilter));
+        pipeline.apply(HL7v2IO.readWithFilter(options.getHL7v2Store(), adtFilter));
     PCollection<Long> numReadMessages =
         result.setCoder(new HL7v2MessageCoder()).apply(Count.globally());
     PAssert.thatSingleton(numReadMessages).isEqualTo(NUM_ADT);
@@ -150,7 +147,7 @@ public class HL7v2IOReadIT {
             .apply(
                 new ListHL7v2MessageIDs(
                     Collections.singletonList(options.getHL7v2Store()), adtFilter))
-            .apply(HL7v2IO.readAll());
+            .apply(HL7v2IO.getAll());
     PCollection<Long> numReadMessages =
         result.getMessages().setCoder(new HL7v2MessageCoder()).apply(Count.globally());
     PAssert.thatSingleton(numReadMessages).isEqualTo(NUM_ADT);
