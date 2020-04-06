@@ -89,10 +89,8 @@ minor version is `1.8`.
 
 We try to track the latest version of Apache Flink at the time of the Beam release.
 A Flink version is supported by Beam for the time it is supported by the Flink community.
-The Flink community typially supports the last two minor versions. When support for a Flink
-version is dropped, it may be deprecated and removed also from Beam, with the exception of
-Beam LTS releases. LTS releases continue to receive bug fixes for long as the LTS support
-period.
+The Flink community supports the last two minor versions. When support for a Flink
+version is dropped, it may be deprecated and removed also from Beam.
 
 To find out which version of Flink is compatible with Beam please see the table below:
 
