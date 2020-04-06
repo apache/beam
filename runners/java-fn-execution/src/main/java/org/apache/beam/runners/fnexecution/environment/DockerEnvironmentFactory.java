@@ -57,28 +57,15 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
 
   static DockerEnvironmentFactory forServicesWithDocker(
       DockerCommand docker,
-      GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
-      GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
       IdGenerator idGenerator,
       PipelineOptions pipelineOptions) {
     return new DockerEnvironmentFactory(
-        docker,
-        controlServiceServer,
-        loggingServiceServer,
-        retrievalServiceServer,
-        provisioningServiceServer,
-        idGenerator,
-        clientSource,
-        pipelineOptions);
+        docker, provisioningServiceServer, idGenerator, clientSource, pipelineOptions);
   }
 
   private final DockerCommand docker;
-  private final GrpcFnServer<FnApiControlClientPoolService> controlServiceServer;
-  private final GrpcFnServer<GrpcLoggingService> loggingServiceServer;
-  private final GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer;
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
   private final IdGenerator idGenerator;
   private final ControlClientPool.Source clientSource;
@@ -86,17 +73,11 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
 
   private DockerEnvironmentFactory(
       DockerCommand docker,
-      GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
-      GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       IdGenerator idGenerator,
       ControlClientPool.Source clientSource,
       PipelineOptions pipelineOptions) {
     this.docker = docker;
-    this.controlServiceServer = controlServiceServer;
-    this.loggingServiceServer = loggingServiceServer;
-    this.retrievalServiceServer = retrievalServiceServer;
     this.provisioningServiceServer = provisioningServiceServer;
     this.idGenerator = idGenerator;
     this.clientSource = clientSource;
@@ -268,9 +249,6 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
         IdGenerator idGenerator) {
       return DockerEnvironmentFactory.forServicesWithDocker(
           DockerCommand.getDefault(),
-          controlServiceServer,
-          loggingServiceServer,
-          retrievalServiceServer,
           provisioningServiceServer,
           clientPool.getSource(),
           idGenerator,
