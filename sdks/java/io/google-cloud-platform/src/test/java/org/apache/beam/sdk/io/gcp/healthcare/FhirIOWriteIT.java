@@ -62,6 +62,7 @@ public class FhirIOWriteIT {
         pipeline
             .apply(Create.of(PRETTY_BUNDLES).withCoder(new HttpBodyCoder()))
             .apply(FhirIO.Write.executeBundles(options.getFhirStore()));
+
     writeResult.getFailedInsertsWithErr()
         .apply(MapElements.into(TypeDescriptors.strings()).via(
             (HealthcareIOError<HttpBody> err) -> String.format(
@@ -88,6 +89,15 @@ public class FhirIOWriteIT {
                     options.getGcsTempPath(),
                     options.getGcsDeadLetterPath(),
                     ContentStructure.BUNDLE));
+
+    result.getFailedInsertsWithErr()
+        .apply(MapElements.into(TypeDescriptors.strings()).via(
+            (HealthcareIOError<HttpBody> err) -> String.format(
+                "Data: %s \n"
+                    + "Error: %s \n"
+                    + "Stacktrace: %s", err.getDataResource().getData(), err.getErrorMessage(),
+                err.getStackTrace())))
+        .apply(TextIO.write().to("gs://jferriero-dev/FhirIOWriteDebugging/errors"));
 
     PAssert.that(result.getFailedInsertsWithErr()).empty();
 

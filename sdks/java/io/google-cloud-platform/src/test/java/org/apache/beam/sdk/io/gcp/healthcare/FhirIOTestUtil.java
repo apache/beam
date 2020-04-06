@@ -27,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -62,18 +63,6 @@ class FhirIOTestUtil {
   // https://synthetichealth.github.io/synthea/ if necessary chose not to avoid the dependency.
 
   static final List<HttpBody> PRETTY_BUNDLES = readPrettyBundles().collect(Collectors.toList());
-
-  /** Clear all resources from the FHIR store. */
-  static void deleteAllFhirResources(HealthcareApiClient client, String hl7v2Store)
-      throws IOException {
-    for (String msgId :
-        client
-            .getHL7v2MessageStream(hl7v2Store)
-            .map(HL7v2Message::getName)
-            .collect(Collectors.toList())) {
-      client.deleteHL7v2Message(msgId);
-    }
-  }
 
   /** Populate the test resources into the FHIR store. */
   static void executeFhirBundles(HealthcareApiClient client, String fhirStore) throws IOException {
