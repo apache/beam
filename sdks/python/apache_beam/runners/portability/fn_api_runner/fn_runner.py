@@ -521,10 +521,12 @@ class FnApiRunner(runner.PipelineRunner):
       stage (translations.Stage): A description of the stage to execute.
     """
     worker_handler_list = bundle_context_manager.worker_handlers
-
+    worker_handler_manager = runner_execution_context.worker_handler_manager
     _LOGGER.info('Running %s', bundle_context_manager.stage.name)
     data_input, data_side_input, data_output = self._extract_endpoints(
         bundle_context_manager, runner_execution_context)
+    worker_handler_manager.register_process_bundle_descriptor(
+        bundle_context_manager.process_bundle_descriptor)
 
     # Store the required side inputs into state so it is accessible for the
     # worker when it runs this bundle.

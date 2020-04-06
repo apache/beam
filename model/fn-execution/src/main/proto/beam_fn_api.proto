@@ -81,6 +81,16 @@ service BeamFnControl {
       returns (
           // A stream of instructions requested of the SDK to be performed.
           stream InstructionRequest) {}
+
+  // Used to get the full process bundle descriptors for bundles one
+  // is asked to process.
+  rpc GetProcessBundleDescriptor(GetProcessBundleDescriptorRequest) returns (
+      ProcessBundleDescriptor) {}
+}
+
+// Requests the ProcessBundleDescriptor with the given id.
+message GetProcessBundleDescriptorRequest {
+  string process_bundle_descriptor_id = 1;
 }
 
 // A request sent by a runner which the SDK is asked to fulfill.

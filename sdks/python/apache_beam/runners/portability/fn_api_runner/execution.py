@@ -340,7 +340,8 @@ class BundleContextManager(object):
     return self._process_bundle_descriptor
 
   def _build_process_bundle_descriptor(self):
-    res = beam_fn_api_pb2.ProcessBundleDescriptor(
+    # Cannot be invoked until *after* _extract_endpoints is called.
+    return beam_fn_api_pb2.ProcessBundleDescriptor(
         id=self.bundle_uid,
         transforms={
             transform.unique_name: transform
@@ -355,7 +356,6 @@ class BundleContextManager(object):
         environments=dict(
             self.execution_context.pipeline_components.environments.items()),
         state_api_service_descriptor=self.state_api_service_descriptor())
-    return res
 
   def get_input_coder_impl(self, transform_id):
     # type: (str) -> CoderImpl
