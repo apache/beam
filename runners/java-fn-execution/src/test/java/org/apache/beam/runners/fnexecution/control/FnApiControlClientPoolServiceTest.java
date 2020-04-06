@@ -49,7 +49,7 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link FnApiControlClientPoolService}. */
 @RunWith(JUnit4.class)
-public class FnApiControlClientPoolServiceTest<x> {
+public class FnApiControlClientPoolServiceTest {
 
   private final ControlClientPool pool = MapControlClientPool.create();
   private final FnApiControlClientPoolService controlService =
