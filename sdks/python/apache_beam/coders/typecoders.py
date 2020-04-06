@@ -78,6 +78,8 @@ from typing import Type
 from past.builtins import unicode
 
 from apache_beam.coders import coders
+from apache_beam.coders.coders import CoderElementType
+from apache_beam.coders.coders import ExternalCoder
 from apache_beam.typehints import typehints
 
 __all__ = ['registry']
@@ -98,6 +100,7 @@ class CoderRegistry(object):
     self._register_coder_internal(bool, coders.BooleanCoder)
     self._register_coder_internal(unicode, coders.StrUtf8Coder)
     self._register_coder_internal(typehints.TupleConstraint, coders.TupleCoder)
+    self._register_coder_internal(CoderElementType, ExternalCoder)
     # Default fallback coders applied in that order until the first matching
     # coder found.
     default_fallback_coders = [coders.ProtoCoder, coders.FastPrimitivesCoder]
