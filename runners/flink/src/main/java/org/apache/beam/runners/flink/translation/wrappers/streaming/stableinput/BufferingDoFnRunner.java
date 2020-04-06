@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -51,7 +52,7 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       String stateName,
       org.apache.beam.sdk.coders.Coder windowedInputCoder,
       org.apache.beam.sdk.coders.Coder windowCoder,
-      org.apache.beam.sdk.coders.Coder keyCoder,
+      StepContext stepContext,
       OperatorStateBackend operatorStateBackend,
       @Nullable KeyedStateBackend<Object> keyedStateBackend)
       throws Exception {
@@ -60,7 +61,7 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
         stateName,
         windowedInputCoder,
         windowCoder,
-        keyCoder,
+        stepContext,
         operatorStateBackend,
         keyedStateBackend);
   }
@@ -82,7 +83,7 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       String stateName,
       org.apache.beam.sdk.coders.Coder inputCoder,
       org.apache.beam.sdk.coders.Coder windowCoder,
-      org.apache.beam.sdk.coders.Coder keyCoder,
+      StepContext stepContext,
       OperatorStateBackend operatorStateBackend,
       @Nullable KeyedStateBackend keyedStateBackend)
       throws Exception {
@@ -97,7 +98,8 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
               new ListStateDescriptor<>(
                   stateName + stateId,
                   new CoderTypeSerializer<>(
-                      new BufferedElements.Coder(inputCoder, windowCoder, keyCoder)));
+                      new BufferedElements.Coder(
+                          inputCoder, windowCoder, stepContext.stateInternals().getKey())));
           if (keyedStateBackend != null) {
             return KeyedBufferingElementsHandler.create(keyedStateBackend, stateDescriptor);
           } else {

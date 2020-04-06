@@ -127,15 +127,15 @@ class BufferedElements {
 
     private final org.apache.beam.sdk.coders.Coder<WindowedValue> elementCoder;
     private final org.apache.beam.sdk.coders.Coder<BoundedWindow> windowCoder;
-    private final org.apache.beam.sdk.coders.Coder<Object> keyCoder;
+    private final Object key;
 
     public Coder(
         org.apache.beam.sdk.coders.Coder<WindowedValue> elementCoder,
         org.apache.beam.sdk.coders.Coder<BoundedWindow> windowCoder,
-        org.apache.beam.sdk.coders.Coder<Object> keyCoder) {
+        Object key) {
       this.elementCoder = elementCoder;
       this.windowCoder = windowCoder;
-      this.keyCoder = keyCoder;
+      this.key = key;
     }
 
     @Override
@@ -148,7 +148,6 @@ class BufferedElements {
         Timer timer = (Timer) value;
         STRING_CODER.encode(timer.timerId, outStream);
         STRING_CODER.encode(timer.timerFamilyId, outStream);
-        keyCoder.encode(timer.key, outStream);
         windowCoder.encode(timer.window, outStream);
         INSTANT_CODER.encode(timer.timestamp, outStream);
         INSTANT_CODER.encode(timer.outputTimestamp, outStream);
@@ -165,10 +164,10 @@ class BufferedElements {
         case ELEMENT_MAGIC_BYTE:
           return new Element(elementCoder.decode(inStream));
         case TIMER_MAGIC_BYTE:
-          return new Timer(
+          return new Timer<>(
               STRING_CODER.decode(inStream),
               STRING_CODER.decode(inStream),
-              keyCoder.decode(inStream),
+              key,
               windowCoder.decode(inStream),
               INSTANT_CODER.decode(inStream),
               INSTANT_CODER.decode(inStream),
