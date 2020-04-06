@@ -26,6 +26,7 @@ import logging
 import os
 import tempfile
 import time
+import urllib
 import zipfile
 
 import requests
@@ -61,9 +62,20 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
     pass
 
   def executable_jar(self):
-    url = (
-        self._executable_jar or job_server.JavaJarJobServer.path_to_beam_jar(
-            'runners:flink:%s:job-server:shadowJar' % self.flink_version()))
+    if self._executable_jar:
+      if not os.path.exists(self._executable_jar):
+        parsed = urllib.parse.urlparse(self._executable_jar)
+        if not parsed.scheme:
+          raise ValueError(
+              'Unable to parse jar URL "%s". If using a full URL, make sure '
+              'the scheme is specified. If using a local file path, make sure '
+              'the file exists; you may have to first build the job server '
+              'using `./gradlew runners:flink:%s:job-server:shadowJar`.' %
+              (self._executable_jar, self._flink_version))
+      url = self._executable_jar
+    else:
+      url = job_server.JavaJarJobServer.path_to_beam_jar(
+          'runners:flink:%s:job-server:shadowJar' % self.flink_version())
     return job_server.JavaJarJobServer.local_jar(url)
 
   def flink_version(self):
