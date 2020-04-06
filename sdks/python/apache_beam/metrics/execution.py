@@ -95,8 +95,9 @@ class MetricResult(object):
       of metric type result (e.g. int, DistributionResult, GaugeResult).
     attempted: The logical updates of the metric. This attribute's type is that
       of metric type result (e.g. int, DistributionResult, GaugeResult).
+    committed_only: If true, no need to compare the attempted metric.
   """
-  def __init__(self, key, committed, attempted):
+  def __init__(self, key, committed, attempted, committed_only=False):
     """Initializes ``MetricResult``.
     Args:
       key: A ``MetricKey`` object.
@@ -106,11 +107,13 @@ class MetricResult(object):
     self.key = key
     self.committed = committed
     self.attempted = attempted
+    self.committed_only = committed_only
 
   def __eq__(self, other):
     return (
         self.key == other.key and self.committed == other.committed and
-        self.attempted == other.attempted)
+        (self.committed_only or other.committed_only or
+         self.attempted == other.attempted))
 
   def __ne__(self, other):
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
