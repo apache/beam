@@ -364,11 +364,10 @@ public class RegisterAndProcessBundleOperation extends Operation {
   /**
    * Returns the compound metrics recorded, by issuing a request to the SDK harness.
    *
-   * <p>This includes key progress indicators in {@link BeamFnApi.Metrics.PTransform.Measured} as
-   * well as user-defined metrics in {@link BeamFnApi.Metrics.User}.
+   * <p>This includes key progress indicators as well as user-defined metrics.
    *
-   * <p>Use {@link #getInputElementsConsumed(BeamFnApi.Metrics)} on the future value to extract the
-   * elements consumed from the upstream read operation.
+   * <p>Use {@link #getInputElementsConsumed} on the future value to extract the elements consumed
+   * from the upstream read operation.
    *
    * <p>May be called at any time, including before start() and after finish().
    */
@@ -391,12 +390,6 @@ public class RegisterAndProcessBundleOperation extends Operation {
     return instructionRequestHandler
         .handle(processBundleRequest)
         .thenApply(InstructionResponse::getProcessBundleProgress);
-  }
-
-  /** Returns the final metrics returned by the SDK harness when it completes the bundle. */
-  public CompletionStage<BeamFnApi.Metrics> getFinalMetrics() {
-    return getProcessBundleResponse(processBundleResponse)
-        .thenApply(response -> response.getMetrics());
   }
 
   public CompletionStage<List<MonitoringInfo>> getFinalMonitoringInfos() {
@@ -453,16 +446,6 @@ public class RegisterAndProcessBundleOperation extends Operation {
     }
 
     return 0;
-  }
-
-  /** Returns the number of input elements consumed by the gRPC read, if known, otherwise 0. */
-  double getInputElementsConsumed(BeamFnApi.Metrics metrics) {
-    return metrics
-        .getPtransformsOrDefault(
-            grpcReadTransformId, BeamFnApi.Metrics.PTransform.getDefaultInstance())
-        .getProcessedElements()
-        .getMeasured()
-        .getOutputElementCountsOrDefault(grpcReadTransformOutputName, 0);
   }
 
   private CompletionStage<BeamFnApi.StateResponse.Builder> delegateByStateKeyType(

@@ -83,8 +83,8 @@ public class SingularProcessBundleProgressTrackerTest {
             CompletableFuture.completedFuture(
                 BeamFnApi.ProcessBundleProgressResponse.getDefaultInstance()));
 
-    when(process.getInputElementsConsumed(any(BeamFnApi.Metrics.class)))
-        .thenReturn(1.0, 4.0, 10.0)
+    when(process.getInputElementsConsumed(any(Iterable.class)))
+        .thenReturn(1L, 4L, 10L)
         .thenThrow(new RuntimeException());
 
     // Initially no progress is known.
