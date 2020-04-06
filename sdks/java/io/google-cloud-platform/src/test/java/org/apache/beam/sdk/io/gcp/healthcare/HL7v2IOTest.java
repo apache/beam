@@ -41,7 +41,7 @@ public class HL7v2IOTest {
   public void test_HL7v2IO_failedReads() {
     List<String> badMessageIDs = Arrays.asList("foo", "bar");
     HL7v2IO.Read.Result readResult =
-        pipeline.apply(Create.of(badMessageIDs)).apply(HL7v2IO.readAll());
+        pipeline.apply(Create.of(badMessageIDs)).apply(HL7v2IO.getAll());
 
     PCollection<HealthcareIOError<String>> failed = readResult.getFailedReads();
 

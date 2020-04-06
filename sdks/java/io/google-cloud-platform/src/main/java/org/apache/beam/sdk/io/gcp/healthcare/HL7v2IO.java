@@ -22,6 +22,7 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
@@ -29,6 +30,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -104,7 +107,7 @@ import org.slf4j.LoggerFactory;
  *   .apply(
  *     "Read HL7v2 notifications",
  *     PubSubIO.readStrings().fromTopic(options.getNotificationSubscription()))
- *   .apply(HL7v2IO.readAll());
+ *   .apply(HL7v2IO.getAll());
  *
  * // Write errors to your favorite dead letter  queue (e.g. Pub/Sub, GCS, BigQuery)
  * readResult.getFailedReads().apply("WriteToDeadLetterQueue", ...);
@@ -140,12 +143,92 @@ import org.slf4j.LoggerFactory;
  */
 public class HL7v2IO {
 
+  /** Write HL7v2 Messages to a store. */
   private static Write.Builder write(String hl7v2Store) {
     return new AutoValue_HL7v2IO_Write.Builder().setHL7v2Store(hl7v2Store);
   }
 
-  public static Read readAll() {
+  /** Write HL7v2 Messages to a store. */
+  private static Write.Builder write(ValueProvider<String> hl7v2Store) {
+    return new AutoValue_HL7v2IO_Write.Builder().setHL7v2Store(hl7v2Store.get());
+  }
+
+  /**
+   * Retrieve all HL7v2 Messages from a PCollection of message IDs (such as from PubSub notification
+   * subscription).
+   */
+  public static Read getAll() {
     return new Read();
+  }
+
+  /** Read all HL7v2 Messages from multiple stores. */
+  public static ListHL7v2Messages readAll(List<String> hl7v2Stores) {
+    return new ListHL7v2Messages(StaticValueProvider.of(hl7v2Stores), StaticValueProvider.of(null));
+  }
+
+  /** Read all HL7v2 Messages from multiple stores. */
+  public static ListHL7v2Messages readAll(ValueProvider<List<String>> hl7v2Stores) {
+    return new ListHL7v2Messages(hl7v2Stores, StaticValueProvider.of(null));
+  }
+
+  /** Read all HL7v2 Messages from a single store. */
+  public static ListHL7v2Messages read(String hl7v2Store) {
+    return new ListHL7v2Messages(
+        StaticValueProvider.of(Collections.singletonList(hl7v2Store)),
+        StaticValueProvider.of(null));
+  }
+
+  /** Read all HL7v2 Messages from a single store. */
+  public static ListHL7v2Messages read(ValueProvider<String> hl7v2Store) {
+    return new ListHL7v2Messages(
+        StaticValueProvider.of(Collections.singletonList(hl7v2Store.get())),
+        StaticValueProvider.of(null));
+  }
+
+  /**
+   * Read all HL7v2 Messages from a single store matching a filter.
+   *
+   * @see <a
+   *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters></a>
+   */
+  public static ListHL7v2Messages readWithFilter(String hl7v2Store, String filter) {
+    return new ListHL7v2Messages(
+        StaticValueProvider.of(Collections.singletonList(hl7v2Store)),
+        StaticValueProvider.of(filter));
+  }
+
+  /**
+   * Read all HL7v2 Messages from a single store matching a filter.
+   *
+   * @see <a
+   *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters></a>
+   */
+  public static ListHL7v2Messages readWithFilter(
+      ValueProvider<String> hl7v2Store, ValueProvider<String> filter) {
+    return new ListHL7v2Messages(
+        StaticValueProvider.of(Collections.singletonList(hl7v2Store.get())), filter);
+  }
+
+  /**
+   * Read all HL7v2 Messages from a multiple stores matching a filter.
+   *
+   * @see <a
+   *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters></a>
+   */
+  public static ListHL7v2Messages readAllWithFilter(List<String> hl7v2Stores, String filter) {
+    return new ListHL7v2Messages(
+        StaticValueProvider.of(hl7v2Stores), StaticValueProvider.of(filter));
+  }
+
+  /**
+   * Read all HL7v2 Messages from a multiple stores matching a filter.
+   *
+   * @see <a
+   *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters></a>
+   */
+  public static ListHL7v2Messages readAllWithFilter(
+      ValueProvider<List<String>> hl7v2Stores, ValueProvider<String> filter) {
+    return new ListHL7v2Messages(hl7v2Stores, filter);
   }
 
   /**
@@ -159,7 +242,6 @@ public class HL7v2IO {
     return write(hl7v2Store).setWriteMethod(Write.WriteMethod.INGEST).build();
   }
 
-  // TODO add hyper links to this doc string.
   /**
    * The type Read that reads HL7v2 message contents given a PCollection of message IDs strings.
    *
@@ -327,7 +409,7 @@ public class HL7v2IO {
     }
   }
 
-  /** List HL7v2 messages. */
+  /** List HL7v2 messages in HL7v2 Stores with optional filter. */
   public static class ListHL7v2Messages extends PTransform<PBegin, PCollection<HL7v2Message>> {
     private final List<String> hl7v2Stores;
     private final String filter;
@@ -338,13 +420,13 @@ public class HL7v2IO {
      * @param hl7v2Stores the HL7v2 stores
      * @param filter the filter
      */
-    ListHL7v2Messages(List<String> hl7v2Stores, String filter) {
-      this.hl7v2Stores = hl7v2Stores;
-      this.filter = filter;
+    ListHL7v2Messages(ValueProvider<List<String>> hl7v2Stores, ValueProvider<String> filter) {
+      this.hl7v2Stores = hl7v2Stores.get();
+      this.filter = filter.get();
     }
 
-    ListHL7v2Messages(List<String> hl7v2Stores) {
-      this.hl7v2Stores = hl7v2Stores;
+    ListHL7v2Messages(ValueProvider<List<String>> hl7v2Stores) {
+      this.hl7v2Stores = hl7v2Stores.get();
       this.filter = null;
     }
 
