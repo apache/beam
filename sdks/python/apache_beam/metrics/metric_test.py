@@ -159,6 +159,7 @@ class MetricsTest(unittest.TestCase):
     res = pipeline.run()
     res.wait_until_finish()
 
+    # Verify user counter.
     metric_results = (
         res.metrics().query(
             MetricsFilter().with_name('metrics_user_counter_element')))
@@ -168,7 +169,7 @@ class MetricsTest(unittest.TestCase):
         outputs_counter.key.metric.name, 'metrics_user_counter_element')
     self.assertEqual(outputs_counter.committed, 4)
 
-    # Verify distribution counter.
+    # Verify user distribution counter.
     metric_results = res.metrics().query()
     namespace = 'apache_beam.metrics.metric_test.SomeDoFn'
     hc.assert_that(
