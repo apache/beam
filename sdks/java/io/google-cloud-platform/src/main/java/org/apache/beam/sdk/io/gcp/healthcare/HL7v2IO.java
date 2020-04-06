@@ -233,7 +233,8 @@ public class HL7v2IO {
     }
 
     /**
-     * DoFn to fetch a message from an Google Cloud Healthcare HL7v2 store based on msgID
+     * {@link PTransform} to fetch a message from an Google Cloud Healthcare HL7v2 store based on
+     * msgID.
      *
      * <p>This DoFn consumes a {@link PCollection} of notifications {@link String}s from the HL7v2
      * store, and fetches the actual {@link HL7v2Message} object based on the id in the notification
