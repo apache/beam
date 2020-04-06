@@ -22,12 +22,15 @@ from __future__ import absolute_import
 import unittest
 from builtins import object
 
+import hamcrest as hc
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam import metrics
 from apache_beam.metrics.cells import DistributionData
+from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.execution import MetricKey
+from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metric import MetricResults
@@ -144,6 +147,8 @@ class MetricsTest(unittest.TestCase):
 
       def process(self, element):
         self.user_counter_elements.inc()
+        distro = Metrics.distribution(self.__class__, 'element_dist')
+        distro.update(element)
         yield element
 
     pipeline = TestPipeline()
@@ -153,6 +158,7 @@ class MetricsTest(unittest.TestCase):
 
     res = pipeline.run()
     res.wait_until_finish()
+
     metric_results = (
         res.metrics().query(
             MetricsFilter().with_name('metrics_user_counter_element')))
@@ -161,6 +167,17 @@ class MetricsTest(unittest.TestCase):
     self.assertEqual(
         outputs_counter.key.metric.name, 'metrics_user_counter_element')
     self.assertEqual(outputs_counter.committed, 4)
+
+    # Verify distribution counter.
+    metric_results = res.metrics().query()
+    namespace = 'apache_beam.metrics.metric_test.SomeDoFn'
+    hc.assert_that(
+        metric_results['distributions'],
+        hc.contains_inanyorder(
+            MetricResult(
+                MetricKey('ApplyPardo', MetricName(namespace, 'element_dist')),
+                DistributionResult(DistributionData(10, 4, 1, 4)),
+                DistributionResult(DistributionData(10, 4, 1, 4)))))
 
   def test_create_counter_distribution(self):
     sampler = statesampler.StateSampler('', counters.CounterFactory())
