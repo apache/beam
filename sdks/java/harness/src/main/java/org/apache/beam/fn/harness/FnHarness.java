@@ -19,6 +19,7 @@ package org.apache.beam.fn.harness;
 
 import java.util.EnumMap;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
@@ -33,6 +34,7 @@ import org.apache.beam.fn.harness.stream.HarnessStreamObserverFactories;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse.Builder;
+import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
@@ -46,7 +48,11 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -183,6 +189,9 @@ public class FnHarness {
               ThrowingFunction<InstructionRequest, Builder>>
           handlers = new EnumMap<>(BeamFnApi.InstructionRequest.RequestCase.class);
 
+      BeamFnControlGrpc.BeamFnControlStub controlStub =
+          BeamFnControlGrpc.newStub(channelFactory.forDescriptor(controlApiServiceDescriptor));
+
       RegisterHandler fnApiRegistry = new RegisterHandler();
       BeamFnDataGrpcClient beamFnDataMultiplexer =
           new BeamFnDataGrpcClient(options, channelFactory::forDescriptor, outboundObserverFactory);
@@ -194,10 +203,31 @@ public class FnHarness {
       FinalizeBundleHandler finalizeBundleHandler =
           new FinalizeBundleHandler(options.as(GcsOptions.class).getExecutorService());
 
+      LoadingCache<String, BeamFnApi.ProcessBundleDescriptor> bundleProcessors =
+          CacheBuilder.newBuilder()
+              .build(
+                  new CacheLoader<String, BeamFnApi.ProcessBundleDescriptor>() {
+                    @Override
+                    public BeamFnApi.ProcessBundleDescriptor load(String id) {
+                      try {
+                        RecordingStreamObserver<BeamFnApi.ProcessBundleDescriptor> observer =
+                            new RecordingStreamObserver<>();
+                        controlStub.getProcessBundleDescriptor(
+                            BeamFnApi.GetProcessBundleDescriptorRequest.newBuilder()
+                                .setProcessBundleDescriptorId(id)
+                                .build(),
+                            observer);
+                        return observer.get();
+                      } catch (Throwable th) {
+                        return (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.getById(id);
+                      }
+                    }
+                  });
+
       ProcessBundleHandler processBundleHandler =
           new ProcessBundleHandler(
               options,
-              fnApiRegistry::getById,
+              bundleProcessors::getUnchecked,
               beamFnDataMultiplexer,
               beamFnStateGrpcClientCache,
               finalizeBundleHandler);
@@ -224,6 +254,43 @@ public class FnHarness {
     } finally {
       System.out.println("Shutting SDK harness down.");
       executorService.shutdown();
+    }
+  }
+
+  /**
+   * Helper class for using a streaming GRPC stub as a blocking GRPC stub.
+   *
+   * @param <T> response message type
+   */
+  private static class RecordingStreamObserver<T> implements StreamObserver<T> {
+    private CountDownLatch latch = new CountDownLatch(1);
+    private T response;
+    private Throwable error;
+
+    @Override
+    public void onNext(T response) {
+      assert response == null;
+      this.response = response;
+    }
+
+    @Override
+    public void onError(Throwable throwable) {
+      error = throwable;
+      latch.countDown();
+    }
+
+    @Override
+    public void onCompleted() {
+      latch.countDown();
+    }
+
+    public T get() throws Throwable {
+      latch.await();
+      if (error != null) {
+        throw error;
+      } else {
+        return response;
+      }
     }
   }
 }
