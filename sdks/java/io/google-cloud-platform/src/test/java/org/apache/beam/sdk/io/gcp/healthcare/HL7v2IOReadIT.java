@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET;
+import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.MESSAGES;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.NUM_ADT;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.deleteAllHL7v2Messages;
@@ -29,8 +29,8 @@ import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.Collections;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.ListHL7v2MessageIDs;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -45,9 +45,9 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class HL7v2IOReadIT {
-  private HL7v2IOTestOptions options;
   private transient HealthcareApiClient client;
   // TODO(jaketf) replace with real project id.
+  private static String healthcareDataset;
   private static final String HL7V2_STORE_NAME =
       "hl7v2_store_"
           + System.currentTimeMillis()
@@ -57,16 +57,16 @@ public class HL7v2IOReadIT {
 
   @BeforeClass
   public static void createHL7v2tore() throws IOException {
-
+    String project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+    healthcareDataset = String.format(HEALTHCARE_DATASET_TEMPLATE, project);
     HealthcareApiClient client = new HttpHealthcareApiClient();
-
-    client.createHL7v2Store(HEALTHCARE_DATASET, HL7V2_STORE_NAME);
+    client.createHL7v2Store(healthcareDataset, HL7V2_STORE_NAME);
   }
 
   @AfterClass
   public static void deleteHL7v2tore() throws IOException {
     HealthcareApiClient client = new HttpHealthcareApiClient();
-    client.deleteHL7v2Store(HEALTHCARE_DATASET + "/hl7V2Stores/" + HL7V2_STORE_NAME);
+    client.deleteHL7v2Store(healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME);
   }
 
   @Before
@@ -74,11 +74,8 @@ public class HL7v2IOReadIT {
     if (client == null) {
       this.client = new HttpHealthcareApiClient();
     }
-    PipelineOptionsFactory.register(HL7v2IOTestOptions.class);
-    options = TestPipeline.testingPipelineOptions().as(HL7v2IOTestOptions.class);
-    options.setHL7v2Store(HEALTHCARE_DATASET + "/hl7V2Stores/" + HL7V2_STORE_NAME);
     // Create HL7 messages and write them to HL7v2 Store.
-    writeHL7v2Messages(this.client, options.getHL7v2Store());
+    writeHL7v2Messages(this.client, healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME);
   }
 
   @After
@@ -86,16 +83,19 @@ public class HL7v2IOReadIT {
     if (client == null) {
       this.client = new HttpHealthcareApiClient();
     }
-    deleteAllHL7v2Messages(this.client, options.getHL7v2Store());
+    deleteAllHL7v2Messages(this.client, healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME);
   }
 
   @Test
   public void testHL7v2IORead() throws Exception {
     // Should read all messages.
-    Pipeline pipeline = Pipeline.create(options);
+    Pipeline pipeline = Pipeline.create();
     HL7v2IO.Read.Result result =
         pipeline
-            .apply(new ListHL7v2MessageIDs(Collections.singletonList(options.getHL7v2Store())))
+            .apply(
+                new ListHL7v2MessageIDs(
+                    Collections.singletonList(
+                        healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME)))
             .apply(HL7v2IO.getAll());
     PCollection<Long> numReadMessages =
         result.getMessages().setCoder(new HL7v2MessageCoder()).apply(Count.globally());
@@ -119,8 +119,9 @@ public class HL7v2IOReadIT {
   @Test
   public void testHL7v2IO_ListHL7v2Messages() throws Exception {
     // Should read all messages.
-    Pipeline pipeline = Pipeline.create(options);
-    PCollection<HL7v2Message> result = pipeline.apply(HL7v2IO.read(options.getHL7v2Store()));
+    Pipeline pipeline = Pipeline.create();
+    PCollection<HL7v2Message> result =
+        pipeline.apply(HL7v2IO.read(healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME));
     PCollection<Long> numReadMessages =
         result.setCoder(new HL7v2MessageCoder()).apply(Count.globally());
     PAssert.thatSingleton(numReadMessages).isEqualTo((long) MESSAGES.size());
@@ -143,9 +144,11 @@ public class HL7v2IOReadIT {
   public void testHL7v2IO_ListHL7v2Messages_filtered() throws Exception {
     final String adtFilter = "messageType = \"ADT\"";
     // Should read all messages.
-    Pipeline pipeline = Pipeline.create(options);
+    Pipeline pipeline = Pipeline.create();
     PCollection<HL7v2Message> result =
-        pipeline.apply(HL7v2IO.readWithFilter(options.getHL7v2Store(), adtFilter));
+        pipeline.apply(
+            HL7v2IO.readWithFilter(
+                healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME, adtFilter));
     PCollection<Long> numReadMessages =
         result.setCoder(new HL7v2MessageCoder()).apply(Count.globally());
     PAssert.thatSingleton(numReadMessages).isEqualTo(NUM_ADT);
@@ -166,12 +169,14 @@ public class HL7v2IOReadIT {
   public void testHL7v2IORead_filtered() throws Exception {
     final String adtFilter = "messageType = \"ADT\"";
     // Should read only messages matching the filter.
-    Pipeline pipeline = Pipeline.create(options);
+    Pipeline pipeline = Pipeline.create();
     HL7v2IO.Read.Result result =
         pipeline
             .apply(
                 new ListHL7v2MessageIDs(
-                    Collections.singletonList(options.getHL7v2Store()), adtFilter))
+                    Collections.singletonList(
+                        healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME),
+                    adtFilter))
             .apply(HL7v2IO.getAll());
     PCollection<Long> numReadMessages =
         result.getMessages().setCoder(new HL7v2MessageCoder()).apply(Count.globally());
