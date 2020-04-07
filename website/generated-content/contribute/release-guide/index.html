@@ -640,7 +640,7 @@ authorization info cannot be found from ~/.docker/config.json file.</p>
 </code></pre></div></div>
 <p>After successful login, authorization info will be stored at ~/.docker/config.json file. For example,</p>
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>"https://index.docker.io/v1/": {
-   "auth": "aGFubmFoamlhbmc6cmtkdGpmZ2hrMTIxMw=="
+   "auth": "xxxxxx"
 }
 </code></pre></div></div>
 <p>Release managers should have push permission; please ask for help at dev@.</p>
@@ -1236,13 +1236,6 @@ done
 </code></pre></div></div>
 
 <ul>
-  <li>Build Go images and push to DockerHub.</li>
-</ul>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:go:container:dockerPush -Pdocker-tag=${RELEASE}_rc{RC_NUM}
-</code></pre></div></div>
-
-<ul>
   <li>Build Flink job server images and push to DockerHub.</li>
 </ul>
 
@@ -1265,7 +1258,6 @@ done
    docker rmi -f apache/beam_${ver}_sdk:${RELEASE}_rc{RC_NUM}
 done
 docker rmi -f apache/beam_java_sdk:${RELEASE}_rc{RC_NUM}
-docker rmi -f apache/beam_go_sdk:${RELEASE}_rc{RC_NUM}
 for ver in "${FLINK_VER[@]}"; do
    docker rmi -f "apache/beam_flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
 done
@@ -1874,7 +1866,7 @@ delete the <code class="highlighter-rouge">.asc</code>, <code class="highlighter
 </code></pre></div>    </div>
     <p>Verify that:</p>
   </li>
-  <li>Images are published at <a href="https://hub.docker.com/u/apachebeam">DockerHub</a> with tags {RELEASE} and <em>latest</em>.</li>
+  <li>Images are published at <a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;type=image">DockerHub</a> with tags {RELEASE} and <em>latest</em>.</li>
   <li>Images with <em>latest</em> tag are pointing to current release by confirming
     <ol>
       <li>Digest of the image with <em>latest</em> tag is the same as the one with {RELEASE} tag.</li>
