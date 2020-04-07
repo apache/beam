@@ -28,6 +28,8 @@ from __future__ import division
 import base64
 import json
 import logging
+import os
+import subprocess
 import sys
 import threading
 import time
@@ -69,6 +71,7 @@ from apache_beam.transforms.core import RunnerAPIPTransformHolder
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.typehints import typehints
+from apache_beam.utils import processes
 from apache_beam.utils import proto_utils
 from apache_beam.utils.interactive_utils import is_in_notebook
 from apache_beam.utils.plugin import BeamPlugin
@@ -1416,6 +1419,36 @@ class DataflowRunner(PipelineRunner):
   def json_string_to_byte_array(encoded_string):
     """Implements org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray."""
     return unquote_to_bytes(encoded_string)
+
+  def get_default_gcp_region(self):
+    """Get a default value for Google Cloud region according to
+    https://cloud.google.com/compute/docs/gcloud-compute/#default-properties.
+    If no default can be found, returns None.
+    """
+    environment_region = os.environ.get('CLOUDSDK_COMPUTE_REGION')
+    if environment_region:
+      _LOGGER.info(
+          'Using default GCP region %s from $CLOUDSDK_COMPUTE_REGION',
+          environment_region)
+      return environment_region
+    try:
+      cmd = ['gcloud', 'config', 'get-value', 'compute/region']
+      # Use subprocess.DEVNULL in Python 3.3+.
+      if hasattr(subprocess, 'DEVNULL'):
+        DEVNULL = subprocess.DEVNULL
+      else:
+        DEVNULL = open(os.devnull, 'ab')
+      raw_output = processes.check_output(cmd, stderr=DEVNULL)
+      formatted_output = raw_output.decode('utf-8').strip()
+      if formatted_output:
+        _LOGGER.info(
+            'Using default GCP region %s from `%s`',
+            formatted_output,
+            ' '.join(cmd))
+        return formatted_output
+    except RuntimeError:
+      pass
+    return None
 
 
 class _DataflowSideInput(beam.pvalue.AsSideInput):
