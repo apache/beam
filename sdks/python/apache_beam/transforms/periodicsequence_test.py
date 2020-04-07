@@ -41,7 +41,7 @@ from apache_beam.transforms.periodicsequence import PeriodicSequence
 class PeriodicSequenceTest(unittest.TestCase):
   # Enable nose tests running in parallel
 
-  def test_heartbeat_outputs_valid_sequence(self):
+  def test_periodicsequence_outputs_valid_sequence(self):
     start_offset = 1
     it = time.time() + start_offset
     duration = 3
@@ -77,7 +77,7 @@ class PeriodicSequenceTest(unittest.TestCase):
            for x in range(0, int(duration / interval), 1)]
       assert_that(actual, equal_to(k))
 
-  def test_heartbeat_outputs_valid_sequence_in_past(self):
+  def test_periodicsequence_outputs_valid_sequence_in_past(self):
     start_offset = -10000
     it = time.time() + start_offset
     duration = 5

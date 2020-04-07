@@ -54,10 +54,10 @@ You can read side input pcollection periodically into distinct windows.
 Later, when you apply side input to your main input, windows will be matched automatically 1:1.
 This way, you can guarantee side input consistency on the duration of the single window.
 
-To do this, you can utilize Heartbeat PTransform that will generate infinite sequence of elements
-with some real-time period:
+To do this, you can utilize PeriodicSequence PTransform that will generate infinite sequence
+of elements with some real-time period:
 
-1. Use the HeartbeatImpulse transform to genearate windowed periodic sequence.
+1. Use the PeriodicImpulse transform to genearate windowed periodic sequence.
 
     a. MAX_TIMESTAMP can be replaced with some closer boundary if you want to stop generating elements at some point.
 
