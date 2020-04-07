@@ -318,7 +318,6 @@ class FnApiRunner(runner.PipelineRunner):
     """
     worker_handler_manager = WorkerHandlerManager(
         stage_context.components.environments, self._provision_info)
-    metrics_by_stage = {}
     monitoring_infos_by_stage = {}
 
     runner_execution_context = execution.FnApiRunnerExecutionContext(
@@ -336,13 +335,11 @@ class FnApiRunner(runner.PipelineRunner):
               runner_execution_context,
               bundle_context_manager,
           )
-          metrics_by_stage[stage.name] = stage_results.process_bundle.metrics
           monitoring_infos_by_stage[stage.name] = (
               stage_results.process_bundle.monitoring_infos)
     finally:
       worker_handler_manager.close_all()
-    return RunnerResult(
-        runner.PipelineState.DONE, monitoring_infos_by_stage, metrics_by_stage)
+    return RunnerResult(runner.PipelineState.DONE, monitoring_infos_by_stage)
 
   def _store_side_inputs_in_state(self,
                                   runner_execution_context,  # type: execution.FnApiRunnerExecutionContext
@@ -1122,10 +1119,9 @@ class FnApiMetrics(metric.MetricResults):
 
 
 class RunnerResult(runner.PipelineResult):
-  def __init__(self, state, monitoring_infos_by_stage, metrics_by_stage):
+  def __init__(self, state, monitoring_infos_by_stage):
     super(RunnerResult, self).__init__(state)
     self._monitoring_infos_by_stage = monitoring_infos_by_stage
-    self._metrics_by_stage = metrics_by_stage
     self._metrics = None
     self._monitoring_metrics = None
 
