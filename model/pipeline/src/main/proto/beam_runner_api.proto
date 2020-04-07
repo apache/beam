@@ -1150,23 +1150,27 @@ message StandardArtifacts {
   enum Types {
     // A URN for locally-accessible artifact files.
     // payload: ArtifactFilePayload
-    FILE     = 0 [(beam_urn) = "beam:artifact:type:file:v1"];
+    FILE      = 0 [(beam_urn) = "beam:artifact:type:file:v1"];
 
     // A URN for artifacts described by URLs.
     // payload: ArtifactUrlPayload
-    URL      = 1 [(beam_urn) = "beam:artifact:type:url:v1"];
+    URL       = 1 [(beam_urn) = "beam:artifact:type:url:v1"];
 
     // A URN for artifacts embedded in ArtifactInformation proto.
     // payload: EmbeddedFilePayload.
-    EMBEDDED = 2 [(beam_urn) = "beam:artifact:type:embedded:v1"];
+    EMBEDDED  = 2 [(beam_urn) = "beam:artifact:type:embedded:v1"];
 
     // A URN for Python artifacts hosted on PYPI.
     // payload: PypiPayload
-    PYPI     = 3 [(beam_urn) = "beam:artifact:type:pypi:v1"];
+    PYPI      = 3 [(beam_urn) = "beam:artifact:type:pypi:v1"];
 
     // A URN for Java artifacts hosted on a Maven repository.
     // payload: MavenPayload
-    MAVEN    = 4 [(beam_urn) = "beam:artifact:type:maven:v1"];
+    MAVEN     = 4 [(beam_urn) = "beam:artifact:type:maven:v1"];
+
+    // A URN for deferred artifacts.
+    // payload: DeferredArtifactPayload
+    DEFERRED = 5 [(beam_urn) = "beam:artifact:type:deferred:v1"];
   }
   enum Roles {
     // A URN for staging-to role.
@@ -1176,7 +1180,7 @@ message StandardArtifacts {
 }
 
 message ArtifactFilePayload {
-  // a string for an artifact path e.g. "/tmp/foo.jar"
+  // a string for an artifact file path e.g. "/tmp/foo.jar"
   string path = 1;
 
   // The hex-encoded sha256 checksum of the artifact.
@@ -1208,6 +1212,15 @@ message MavenPayload {
 
   // (Optional) Repository URL. If not specified, Maven central is used by default.
   string repository_url = 2;
+}
+
+message DeferredArtifactPayload {
+  // A unique string identifier assigned by the creator of this payload. The creator may use this key to confirm
+  // whether they can parse the data.
+  string key = 1;
+
+  // Data for deferred artifacts. Interpretation of bytes is delegated to the creator of this payload.
+  bytes data = 2;
 }
 
 message ArtifactStagingToRolePayload {
