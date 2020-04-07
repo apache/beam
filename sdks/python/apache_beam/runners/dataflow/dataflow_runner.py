@@ -780,7 +780,9 @@ class DataflowRunner(PipelineRunner):
 
     # TODO(BEAM-6928): Remove this function for release 2.14.0.
     experiments = options.view_as(DebugOptions).experiments or []
-    if (not isinstance(transform, beam.io.WriteToBigQuery) or
+    from apache_beam.runners.dataflow.internal import apiclient
+    use_fnapi = apiclient._use_fnapi(options)
+    if (not isinstance(transform, beam.io.WriteToBigQuery) or use_fnapi or
         'use_beam_bq_sink' in experiments):
       return self.apply_PTransform(transform, pcoll, options)
     if transform.schema == beam.io.gcp.bigquery.SCHEMA_AUTODETECT:
