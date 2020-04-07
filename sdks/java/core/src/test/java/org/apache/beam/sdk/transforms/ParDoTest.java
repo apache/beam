@@ -4879,9 +4879,12 @@ public class ParDoTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class OnWindowExpirationTests extends SharedTestBase implements Serializable {
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesTimersInParDo.class})
     public void testOnWindowExpirationSimple() {
       final String stateId = "foo";
+      final String timerId = "bar";
+      IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
+      IntervalWindow secondWindow = new IntervalWindow(new Instant(10), new Instant(20));
 
       DoFn<KV<String, Integer>, Integer> fn =
           new DoFn<KV<String, Integer>, Integer>() {
@@ -4890,27 +4893,49 @@ public class ParDoTest implements Serializable {
             private final StateSpec<ValueState<Integer>> intState =
                 StateSpecs.value(VarIntCoder.of());
 
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
             @ProcessElement
-            public void processElement(
+            public void processElement(@TimerId(timerId) Timer timer) {
+              timer.set(new Instant(3));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(
+                @Timestamp Instant timestamp,
                 @AlwaysFetched @StateId(stateId) ValueState<Integer> state,
                 OutputReceiver<Integer> r) {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
-              r.output(currentValue);
               state.write(currentValue + 1);
+              r.output(currentValue);
             }
 
             @OnWindowExpiration
-            public void onWindowExpiration(@StateId(stateId) ValueState<Integer> state) {
-              System.out.println(state.toString());
+            public void onWindowExpiration(
+                @AlwaysFetched @StateId(stateId) ValueState<Integer> state) {
+              Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
+              assertEquals(1, (int) currentValue);
             }
           };
 
       PCollection<Integer> output =
           pipeline
-              .apply(Create.of(KV.of("hello", 42), KV.of("hello", 97), KV.of("hello", 84)))
+              .apply(
+                  Create.timestamped(
+                      // first window
+                      TimestampedValue.of(KV.of("hello", 7), new Instant(1)),
+
+                      // second window
+                      TimestampedValue.of(KV.of("hello", 35), new Instant(13))))
+              .apply(Window.into(FixedWindows.of(Duration.millis(10))))
               .apply(ParDo.of(fn));
 
-      PAssert.that(output).containsInAnyOrder(0, 1, 2);
+      PAssert.that(output)
+          .inWindow(firstWindow)
+          .containsInAnyOrder(0)
+          .inWindow(secondWindow)
+          .containsInAnyOrder(0);
       pipeline.run();
     }
   }

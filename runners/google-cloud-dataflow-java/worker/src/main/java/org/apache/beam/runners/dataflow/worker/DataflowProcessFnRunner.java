@@ -124,6 +124,11 @@ class DataflowProcessFnRunner<InputT, OutputT, RestrictionT>
   }
 
   @Override
+  public void onWindowExpiration(BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+    simpleRunner.onWindowExpiration(window, timestamp, timeDomain);
+  }
+
+  @Override
   public DoFn<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> getFn() {
     return simpleRunner.getFn();
   }

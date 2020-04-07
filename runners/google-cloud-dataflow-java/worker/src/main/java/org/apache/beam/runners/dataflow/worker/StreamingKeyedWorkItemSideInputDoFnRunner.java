@@ -149,6 +149,11 @@ public class StreamingKeyedWorkItemSideInputDoFnRunner<K, InputT, OutputT, W ext
     sideInputFetcher.persist();
   }
 
+  @Override
+  public void onWindowExpiration(BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+    simpleDoFnRunner.onWindowExpiration(window, timestamp, timeDomain);
+  }
+
   ValueState<K> keyValue() {
     return stepContext.stateInternals().state(StateNamespaces.global(), keyAddr);
   }

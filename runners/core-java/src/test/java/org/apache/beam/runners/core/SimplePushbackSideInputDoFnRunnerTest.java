@@ -365,6 +365,10 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     public void finishBundle() {
       finished = true;
     }
+
+    @Override
+    public void onWindowExpiration(
+        BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {}
   }
 
   private SimplePushbackSideInputDoFnRunner<KV<String, Integer>, Integer> createRunner(

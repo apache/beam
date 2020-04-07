@@ -131,6 +131,9 @@ public class GroupAlsoByWindowFnRunner<InputT, OutputT> implements DoFnRunner<In
   public void finishBundle() {}
 
   @Override
+  public void onWindowExpiration(BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {}
+
+  @Override
   public DoFn<InputT, OutputT> getFn() {
     throw new UnsupportedOperationException(
         String.format("%s does not support getFn()", getClass().getCanonicalName()));
