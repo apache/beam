@@ -21,14 +21,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -117,7 +114,7 @@ public class Environments {
     }
     return defaultEnvironment
         .toBuilder()
-        .addAllDependencies(getArtifacts(options))
+        .addAllDependencies(getDeferredArtifacts(options))
         .addAllCapabilities(getJavaCapabilities())
         .build();
   }
@@ -213,15 +210,9 @@ public class Environments {
     }
   }
 
-  public static Collection<ArtifactInformation> getArtifacts(PipelineOptions options) {
-    Set<String> pathsToStage = Sets.newHashSet();
-    List<String> stagingFiles = options.as(PortablePipelineOptions.class).getFilesToStage();
-    if (stagingFiles != null) {
-      pathsToStage.addAll(stagingFiles);
-    }
-
-    ImmutableList.Builder<Supplier<ArtifactInformation>> lazyArtifactsBuilder =
-        ImmutableList.builder();
+  private static List<ArtifactInformation> getArtifacts(List<String> stagingFiles) {
+    Set<String> pathsToStage = Sets.newHashSet(stagingFiles);
+    ImmutableList.Builder<ArtifactInformation> artifactsBuilder = ImmutableList.builder();
     for (String path : pathsToStage) {
       File file = new File(path);
       // Spurious items get added to the classpath. Filter by just those that exist.
@@ -234,49 +225,52 @@ public class Environments {
                 .setStagedName(createStagingFileName(file))
                 .build()
                 .toByteString());
-        lazyArtifactsBuilder.add(
-            file.isDirectory()
-                ? () -> {
-                  File zippedFile;
-                  HashCode hashCode;
-                  try {
-                    zippedFile = zipDirectory(file);
-                    hashCode = Files.asByteSource(zippedFile).hash(Hashing.sha256());
-                  } catch (IOException e) {
-                    throw new RuntimeException(e);
-                  }
-                  return artifactBuilder
-                      .setTypePayload(
-                          RunnerApi.ArtifactFilePayload.newBuilder()
-                              .setPath(zippedFile.getPath())
-                              .setSha256(hashCode.toString())
-                              .build()
-                              .toByteString())
-                      .build();
-                }
-                : () -> {
-                  HashCode hashCode;
-                  try {
-                    hashCode = Files.asByteSource(file).hash(Hashing.sha256());
-                  } catch (IOException e) {
-                    throw new RuntimeException(e);
-                  }
-                  return artifactBuilder
-                      .setTypePayload(
-                          RunnerApi.ArtifactFilePayload.newBuilder()
-                              .setPath(file.getPath())
-                              .setSha256(hashCode.toString())
-                              .build()
-                              .toByteString())
-                      .build();
-                });
+        if (file.isDirectory()) {
+          File zippedFile;
+          HashCode hashCode;
+          try {
+            zippedFile = zipDirectory(file);
+            hashCode = Files.asByteSource(zippedFile).hash(Hashing.sha256());
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+          artifactsBuilder.add(
+              artifactBuilder
+                  .setTypePayload(
+                      RunnerApi.ArtifactFilePayload.newBuilder()
+                          .setPath(zippedFile.getPath())
+                          .setSha256(hashCode.toString())
+                          .build()
+                          .toByteString())
+                  .build());
+        } else {
+          HashCode hashCode;
+          try {
+            hashCode = Files.asByteSource(file).hash(Hashing.sha256());
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+          artifactsBuilder.add(
+              artifactBuilder
+                  .setTypePayload(
+                      RunnerApi.ArtifactFilePayload.newBuilder()
+                          .setPath(file.getPath())
+                          .setSha256(hashCode.toString())
+                          .build()
+                          .toByteString())
+                  .build());
+        }
       }
     }
+    return artifactsBuilder.build();
+  }
 
-    List<Supplier<ArtifactInformation>> lazyArtifacts = lazyArtifactsBuilder.build();
-    if (lazyArtifacts.isEmpty()) {
+  public static List<ArtifactInformation> getDeferredArtifacts(PipelineOptions options) {
+    List<String> stagingFiles = options.as(PortablePipelineOptions.class).getFilesToStage();
+    if (stagingFiles == null || stagingFiles.isEmpty()) {
       return ImmutableList.of();
     }
+
     String key = UUID.randomUUID().toString();
     DefaultArtifactResolver.INSTANCE.register(
         (info) -> {
@@ -289,8 +283,7 @@ public class Environments {
               throw new RuntimeException("Error parsing deferred artifact payload.", e);
             }
             if (key.equals(deferredArtifactPayload.getKey())) {
-              return Optional.of(
-                  lazyArtifacts.stream().map(Supplier::get).collect(Collectors.toList()));
+              return Optional.of(getArtifacts(stagingFiles));
             } else {
               return Optional.empty();
             }
