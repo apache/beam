@@ -240,8 +240,7 @@ public class FnHarness {
           BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE_SPLIT,
           processBundleHandler::split);
       BeamFnControlClient control =
-          new BeamFnControlClient(
-              id, controlApiServiceDescriptor, channelFactory, outboundObserverFactory, handlers);
+          new BeamFnControlClient(id, controlStub, outboundObserverFactory, handlers);
 
       JvmInitializers.runBeforeProcessing(options);
 
