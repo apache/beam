@@ -697,11 +697,8 @@ class _CustomBigQuerySource(BoundedSource):
     if not self.backwards_compatible:
       return create_avro_source(path, 0, True, use_fastavro=True)
     else:
-      return TextSource(path,
-                        0,
-                        CompressionTypes.UNCOMPRESSED,
-                        True,
-                        self.coder(schema))
+      return TextSource(
+          path, 0, CompressionTypes.UNCOMPRESSED, True, self.coder(schema))
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.split_result is None:
