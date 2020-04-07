@@ -227,24 +227,30 @@ func (f *DoFn) IsSplittable() bool {
 	return ok
 }
 
+// SplittableDoFn represents a DoFn implementing SDF methods.
 type SplittableDoFn DoFn
 
+// CreateInitialRestrictionFn returns the "CreateInitialRestriction" function, if present.
 func (f *SplittableDoFn) CreateInitialRestrictionFn() *funcx.Fn {
 	return f.methods[createInitialRestrictionName]
 }
 
+// SplitRestrictionFn returns the "SplitRestriction" function, if present.
 func (f *SplittableDoFn) SplitRestrictionFn() *funcx.Fn {
 	return f.methods[splitRestrictionName]
 }
 
+// RestrictionSizeFn returns the "RestrictionSize" function, if present.
 func (f *SplittableDoFn) RestrictionSizeFn() *funcx.Fn {
 	return f.methods[restrictionSizeName]
 }
 
+// CreateTrackerFn returns the "CreateTracker" function, if present.
 func (f *SplittableDoFn) CreateTrackerFn() *funcx.Fn {
 	return f.methods[createTrackerName]
 }
 
+// Name returns the name of the function or struct.
 func (f *SplittableDoFn) Name() string {
 	return (*Fn)(f).Name()
 }
@@ -662,15 +668,14 @@ func validateIsSdf(fn *Fn) (bool, error) {
 			return false, errors.SetTopLevelMsgf(err, "Method %v has an sdf.RTracker parameter at index %v, "+
 				"but is not part of a splittable DoFn. sdf.RTracker is invalid in %v in non-splittable DoFns.",
 				processElementName, pos, processElementName)
-		} else {
-			pos, _, ok = processFn.Inputs()
-			err := errors.Errorf("method %v missing sdf.RTracker, expected one at index %v",
-				processElementName, pos)
-			return false, errors.SetTopLevelMsgf(err, "Method %v is missing an sdf.RTracker "+
-				"parameter despite being part of a splittable DoFn. %v in splittable DoFns requires an "+
-				"sdf.RTracker parameter before main inputs (in this case, at index %v).",
-				processElementName, processElementName, pos)
 		}
+		pos, _, _ = processFn.Inputs()
+		err := errors.Errorf("method %v missing sdf.RTracker, expected one at index %v",
+			processElementName, pos)
+		return false, errors.SetTopLevelMsgf(err, "Method %v is missing an sdf.RTracker "+
+			"parameter despite being part of a splittable DoFn. %v in splittable DoFns requires an "+
+			"sdf.RTracker parameter before main inputs (in this case, at index %v).",
+			processElementName, processElementName, pos)
 	}
 	return isSdf, nil
 }
