@@ -145,4 +145,8 @@ public interface HealthcareApiClient {
    * @throws IOException the io exception
    */
   HttpBody readFHIRResource(String fhirStore, String resource) throws IOException;
+
+  Hl7V2Store createHL7v2Store(String dataset, String name) throws IOException;
+
+  Empty deleteHL7v2Store(String store) throws IOException;
 }

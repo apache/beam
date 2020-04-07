@@ -17,18 +17,23 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.MESSAGES;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.deleteAllHL7v2Messages;
 import static org.junit.Assert.assertEquals;
 
+import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
 import java.io.IOException;
+import java.security.SecureRandom;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -39,6 +44,24 @@ public class HL7v2IOWriteIT {
   private HL7v2IOTestOptions options;
   private transient HealthcareApiClient client;
 
+  private static final String HL7V2_STORE_NAME =
+      "hl7v2_store_write_it_" + System.currentTimeMillis() + "_" + (new SecureRandom().nextInt(32));
+
+  @BeforeClass
+  public static void createHL7v2tore() throws IOException {
+
+    HealthcareApiClient client = new HttpHealthcareApiClient();
+
+    client.createHL7v2Store(HEALTHCARE_DATASET, HL7V2_STORE_NAME);
+  }
+
+  @AfterClass
+  public static void deleteHL7v2tore() throws IOException {
+    HealthcareApiClient client = new HttpHealthcareApiClient();
+    Hl7V2Store store = new Hl7V2Store();
+    client.deleteHL7v2Store(HEALTHCARE_DATASET + "/hl7V2Stores/" + HL7V2_STORE_NAME);
+  }
+
   @Before
   public void setup() throws Exception {
     if (client == null) {
@@ -46,8 +69,7 @@ public class HL7v2IOWriteIT {
     }
     PipelineOptionsFactory.register(HL7v2IOTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(HL7v2IOTestOptions.class);
-    options.setHL7v2Store(
-        "projects/jferriero-dev/locations/us-central1/datasets/raw-dataset/hl7V2Stores/jake-hl7");
+    options.setHL7v2Store(HEALTHCARE_DATASET + "/hl7V2Stores/" + HL7V2_STORE_NAME);
   }
 
   @After

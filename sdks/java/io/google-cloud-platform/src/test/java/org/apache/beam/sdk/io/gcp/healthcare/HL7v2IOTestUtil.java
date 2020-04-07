@@ -31,6 +31,10 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 
 class HL7v2IOTestUtil {
+  // TODO(jaketf): replace with apache beam IT GCP Project ID
+  /** Google Cloud Healthcare Dataset in Apache Beam integration test project. */
+  public static final String HEALTHCARE_DATASET =
+      "projects/jferriero-dev/locations/us-central1/datasets/apache-beam-integration-testing";
 
   // Could generate more messages at scale using a tool like
   // https://synthetichealth.github.io/synthea/ if necessary chose not to avoid the dependency.
