@@ -3465,10 +3465,99 @@ public class ParDoTest implements Serializable {
                 ProcessContext context, BoundedWindow window, @TimerId(timerId) Timer timer) {
               try {
                 timer.set(window.maxTimestamp().plus(1L));
+                fail("Should have failed due to out-of-bounds timer.");
+              } catch (RuntimeException e) {
+                String message = e.getMessage();
+                List<String> expectedSubstrings = Arrays.asList("event-time timer", "expiration");
+                expectedSubstrings.forEach(
+                    str ->
+                        Preconditions.checkState(
+                            message.contains(str),
+                            "Pipeline didn't fail with the expected strings: %s",
+                            expectedSubstrings));
+              }
+            }
+
+            @OnTimer(timerId)
+            public void onTimer() {}
+          };
+
+      pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
+    public void testOutOfBoundsEventTimeTimerHold() throws Exception {
+      final String timerId = "foo";
+
+      DoFn<KV<String, Integer>, Integer> fn =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext context, BoundedWindow window, @TimerId(timerId) Timer timer) {
+              try {
+                timer
+                    .withOutputTimestamp(window.maxTimestamp().plus(1L))
+                    .set(window.maxTimestamp());
+                fail("Should have failed due to out-of-bounds timer.");
+              } catch (RuntimeException e) {
+                String message = e.getMessage();
+                List<String> expectedSubstrings =
+                    Arrays.asList("event-time timer", "output timestamp");
+                expectedSubstrings.forEach(
+                    str ->
+                        Preconditions.checkState(
+                            message.contains(str),
+                            "Pipeline didn't fail with the expected strings: %s",
+                            expectedSubstrings));
+              }
+            }
+
+            @OnTimer(timerId)
+            public void onTimer() {}
+          };
+
+      pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
+    public void testOutOfBoundsProcessingTimeTimerHold() throws Exception {
+      final String timerId = "foo";
+
+      DoFn<KV<String, Integer>, Integer> fn =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext context, BoundedWindow window, @TimerId(timerId) Timer timer) {
+              try {
+                timer
+                    .withOutputTimestamp(window.maxTimestamp().plus(1L))
+                    .offset(Duration.standardSeconds(1))
+                    .setRelative();
                 fail("Should have failed due to processing time with absolute timer.");
               } catch (RuntimeException e) {
                 String message = e.getMessage();
-                List<String> expectedSubstrings = Arrays.asList("event time timer", "expiration");
+                List<String> expectedSubstrings =
+                    Arrays.asList("processing-time timer", "output timestamp");
                 expectedSubstrings.forEach(
                     str ->
                         Preconditions.checkState(
