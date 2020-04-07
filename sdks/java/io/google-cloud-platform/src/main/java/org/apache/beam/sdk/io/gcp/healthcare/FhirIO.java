@@ -92,7 +92,7 @@ import org.slf4j.LoggerFactory;
  *     integrity and the resources are not written transactionally (e.g. a historicaly backfill on a
  *     new FHIR store) This requires each resource to contain a client provided ID.
  * @see <a
-href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores/import></a>
+ *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores/import></a>
  *     A {@link PCollection} of {@link HttpBody} can be ingested into an Fhir store using {@link
  *     FhirIO.Write#fhirStoresImport(String, String, String, ContentStructure)} This will return a
  *     {@link FhirIO.Write.Result} on which you can call {@link
@@ -419,15 +419,13 @@ public class FhirIO {
         case IMPORT:
           String tempPath = getImportGcsTempPath().orElseThrow(IllegalArgumentException::new);
           String deadPath = getImportGcsDeadLetterPath().orElseThrow(IllegalArgumentException::new);
-          ContentStructure contentStructure = getContentStructure().orElseThrow(IllegalArgumentException::new);
+          ContentStructure contentStructure =
+              getContentStructure().orElseThrow(IllegalArgumentException::new);
 
-          failedBundles = input.apply(
-              new Import(
-                  getFhirStore(),
-                  tempPath,
-                  deadPath,
-                  contentStructure))
-              .setCoder(new HealthcareIOErrorCoder<>(new HttpBodyCoder()));
+          failedBundles =
+              input
+                  .apply(new Import(getFhirStore(), tempPath, deadPath, contentStructure))
+                  .setCoder(new HealthcareIOErrorCoder<>(new HttpBodyCoder()));
           // fall through
         case EXECUTE_BUNDLE:
         default:
@@ -487,13 +485,9 @@ public class FhirIO {
        * a single resource.
        */
       RESOURCE,
-      /**
-       *The entire file is one JSON bundle. The JSON can span multiple lines.
-       */
+      /** The entire file is one JSON bundle. The JSON can span multiple lines. */
       BUNDLE_PRETTY,
-      /**
-       * The entire file is one JSON resource. The JSON can span multiple lines.
-       */
+      /** The entire file is one JSON resource. The JSON can span multiple lines. */
       RESOURCE_PRETTY
     }
 
@@ -564,13 +558,15 @@ public class FhirIO {
       }
 
       @FinishBundle
-      public void importBatch(FinishBundleContext context) throws IOException, InterruptedException {
+      public void importBatch(FinishBundleContext context)
+          throws IOException, InterruptedException {
         // Write the file with all elements in this bundle to GCS.
         this.ndJsonChannel.close();
         try {
           // Blocking fhirStores.import request.
           assert contentStructure != null;
-          Operation operation = client.importFhirResource(fhirStore, resourceId.toString(),contentStructure.name());
+          Operation operation =
+              client.importFhirResource(fhirStore, resourceId.toString(), contentStructure.name());
           client.pollOperation(operation, 500L);
           // Clean up temp file on GCS.
           FileSystems.delete(Collections.singleton(resourceId));

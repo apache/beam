@@ -18,19 +18,14 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.PRETTY_BUNDLES;
-import static org.junit.Assert.assertEquals;
 
-import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import java.io.IOException;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Import.ContentStructure;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -63,15 +58,6 @@ public class FhirIOWriteIT {
             .apply(Create.of(PRETTY_BUNDLES).withCoder(new HttpBodyCoder()))
             .apply(FhirIO.Write.executeBundles(options.getFhirStore()));
 
-    writeResult.getFailedInsertsWithErr()
-        .apply(MapElements.into(TypeDescriptors.strings()).via(
-            (HealthcareIOError<HttpBody> err) -> String.format(
-                "Data: %s \n"
-                    + "Error: %s \n"
-                    + "Stacktrace: %s", err.getDataResource().getData(), err.getErrorMessage(),
-                err.getStackTrace())))
-        .apply(TextIO.write().to("gs://jferriero-dev/FhirIOWriteDebugging/errors"));
-
     PAssert.that(writeResult.getFailedInsertsWithErr()).empty();
 
     pipeline.run().waitUntilFinish();
@@ -89,15 +75,6 @@ public class FhirIOWriteIT {
                     options.getGcsTempPath(),
                     options.getGcsDeadLetterPath(),
                     ContentStructure.BUNDLE));
-
-    result.getFailedInsertsWithErr()
-        .apply(MapElements.into(TypeDescriptors.strings()).via(
-            (HealthcareIOError<HttpBody> err) -> String.format(
-                "Data: %s \n"
-                    + "Error: %s \n"
-                    + "Stacktrace: %s", err.getDataResource().getData(), err.getErrorMessage(),
-                err.getStackTrace())))
-        .apply(TextIO.write().to("gs://jferriero-dev/FhirIOWriteDebugging/errors"));
 
     PAssert.that(result.getFailedInsertsWithErr()).empty();
 

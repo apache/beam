@@ -30,11 +30,13 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 public class HttpBodyCoder extends AtomicCoder<HttpBody> {
 
-  public static HttpBodyCoder of() {return INSTANCE;}
+  public static HttpBodyCoder of() {
+    return INSTANCE;
+  }
+
   private static final Coder<String> STRING_CODER = StringUtf8Coder.of();
   private static final ObjectMapper MAPPER =
       new ObjectMapper().disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
-
 
   public HttpBodyCoder() {}
 

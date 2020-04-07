@@ -17,17 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import com.google.api.client.util.Base64;
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
-import com.google.api.services.healthcare.v1beta1.model.Message;
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -43,12 +39,14 @@ class FhirIOTestUtil {
     assert fhirJsons != null;
     return Arrays.stream(fhirJsons)
         .map(File::toPath)
-        .map((Path path ) -> {
-          try {return Files.readAllBytes(path); }
-          catch (IOException e){
-            throw new RuntimeException(e);
-          }
-        })
+        .map(
+            (Path path) -> {
+              try {
+                return Files.readAllBytes(path);
+              } catch (IOException e) {
+                throw new RuntimeException(e);
+              }
+            })
         .map(String::new)
         .map(
             (String data) -> {
