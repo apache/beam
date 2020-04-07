@@ -990,13 +990,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
         checkArgument(
             !outputTimestamp.isAfter(target),
-            "Attempted to set an event time timer with an output timestamp of %s that is"
+            "Attempted to set an event-time timer with an output timestamp of %s that is"
                 + " after the timer firing timestamp %s",
             outputTimestamp,
             target);
         checkArgument(
             !target.isAfter(windowExpiry),
-            "Attempted to set an event time timer with a firing timestamp of %s that is"
+            "Attempted to set an event-time timer with a firing timestamp of %s that is"
                 + " after the expiration of window %s",
             target,
             windowExpiry);
