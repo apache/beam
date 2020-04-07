@@ -18,18 +18,27 @@
 package org.apache.beam.runners.fnexecution.artifact;
 
 import com.google.auto.value.AutoValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -144,12 +153,102 @@ public class ArtifactStagingService
     };
   }
 
-  private static enum State {
+  private enum State {
     START,
     RESOLVE,
     GET,
+    GETCHUNK,
     DONE,
     ERROR,
+  }
+
+  /**
+   * Like the standard Semaphore, but allows an aquire to go over the limit if there is any room.
+   *
+   * <p>Also allows setting an error, to avoid issues with un-released aquires after error.
+   */
+  private static class OverflowingSemaphore {
+    private int totalPermits;
+    private int usedPermits;
+    private Exception exception;
+
+    public OverflowingSemaphore(int totalPermits) {
+      this.totalPermits = totalPermits;
+      this.usedPermits = 0;
+    }
+
+    synchronized void aquire(int permits) throws Exception {
+      while (usedPermits >= totalPermits) {
+        if (exception != null) {
+          throw exception;
+        }
+        this.wait();
+      }
+      usedPermits += permits;
+    }
+
+    synchronized void release(int permits) {
+      usedPermits -= permits;
+      this.notifyAll();
+    }
+
+    synchronized void setException(Exception exception) {
+      this.exception = exception;
+      this.notifyAll();
+    }
+  }
+
+  /** A task that pulls bytes off a queue and actually writes them to a staging location. */
+  private class StoreArtifact implements Callable<RunnerApi.ArtifactInformation> {
+
+    private String stagingToken;
+    private String name;
+    private RunnerApi.ArtifactInformation originalArtifact;
+    private BlockingQueue<ByteString> bytesQueue;
+    private OverflowingSemaphore totalPendingBytes;
+
+    public StoreArtifact(
+        String stagingToken,
+        String name,
+        RunnerApi.ArtifactInformation originalArtifact,
+        BlockingQueue<ByteString> bytesQueue,
+        OverflowingSemaphore totalPendingBytes) {
+      this.stagingToken = stagingToken;
+      this.name = name;
+      this.originalArtifact = originalArtifact;
+      this.bytesQueue = bytesQueue;
+      this.totalPendingBytes = totalPendingBytes;
+    }
+
+    @Override
+    public RunnerApi.ArtifactInformation call() throws IOException {
+      try {
+        ArtifactDestination dest = destinationProvider.getDestination(stagingToken, name);
+        LOG.debug("Storing artifact for {}.{} at {}", stagingToken, name, dest);
+        ByteString chunk = bytesQueue.take();
+        while (chunk.size() > 0) {
+          totalPendingBytes.release(chunk.size());
+          dest.getOutputStream().write(chunk.toByteArray());
+          chunk = bytesQueue.take();
+        }
+        dest.getOutputStream().close();
+        return originalArtifact
+            .toBuilder()
+            .setTypeUrn(dest.getTypeUrn())
+            .setTypePayload(dest.getTypePayload())
+            .build();
+      } catch (IOException | InterruptedException exn) {
+        // As this thread will no longer be draining the queue, we don't want to get stuck writing
+        // to it.
+        totalPendingBytes.setException(exn);
+        LOG.error("Exception staging artifacts", exn);
+        if (exn instanceof IOException) {
+          throw (IOException) exn;
+        } else {
+          throw new RuntimeException(exn);
+        }
+      }
+    }
   }
 
   @Override
@@ -158,39 +257,53 @@ public class ArtifactStagingService
 
     return new StreamObserver<ArtifactApi.ArtifactResponseWrapper>() {
 
-      State state = State.START;
+      /** The maximum number of parallel threads to use to stage. */
+      public static final int THREAD_POOL_SIZE = 10;
+
+      /** The maximum number of bytes to buffer across all writes before throttling. */
+      public static final int MAX_PENDING_BYTES = 100 << 20; // 100 MB
+
       String stagingToken;
       Map<String, List<RunnerApi.ArtifactInformation>> toResolve;
-      Map<String, List<RunnerApi.ArtifactInformation>> staged;
+      Map<String, List<Future<RunnerApi.ArtifactInformation>>> stagedFutures;
+      ExecutorService stagingExecutor;
+      OverflowingSemaphore totalPendingBytes;
+
+      State state = State.START;
       Queue<String> pendingResolves;
       String currentEnvironment;
       int nameIndex;
       Queue<RunnerApi.ArtifactInformation> pendingGets;
-      OutputStream currentOutputStream;
+      BlockingQueue<ByteString> currentOutput;
 
       @Override
+      @SuppressFBWarnings(value = "SF_SWITCH_FALLTHROUGH", justification = "fallthrough intended")
       public synchronized void onNext(ArtifactApi.ArtifactResponseWrapper responseWrapper) {
         switch (state) {
           case START:
             stagingToken = responseWrapper.getStagingToken();
             LOG.info("Staging artifacts for {}.", stagingToken);
             toResolve = toStage.get(stagingToken);
-            staged = new ConcurrentHashMap<>();
+            stagedFutures = new ConcurrentHashMap<>();
             pendingResolves = new ArrayDeque<>();
             pendingResolves.addAll(toResolve.keySet());
+            stagingExecutor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+            totalPendingBytes = new OverflowingSemaphore(MAX_PENDING_BYTES);
             resolveNextEnvironment(responseObserver);
             break;
 
           case RESOLVE:
             {
               currentEnvironment = pendingResolves.remove();
-              staged.put(currentEnvironment, new ArrayList<>());
+              stagedFutures.put(currentEnvironment, new ArrayList<>());
               pendingGets = new ArrayDeque<>();
               for (RunnerApi.ArtifactInformation artifact :
                   responseWrapper.getResolveArtifactResponse().getReplacementsList()) {
                 Optional<RunnerApi.ArtifactInformation> fetched = getLocal(artifact);
                 if (fetched.isPresent()) {
-                  staged.get(currentEnvironment).add(fetched.get());
+                  stagedFutures
+                      .get(currentEnvironment)
+                      .add(new FutureTask<RunnerApi.ArtifactInformation>(() -> fetched.get()));
                 } else {
                   pendingGets.add(artifact);
                   responseObserver.onNext(
@@ -214,48 +327,47 @@ public class ArtifactStagingService
             }
 
           case GET:
-            if (currentOutputStream == null) {
-              RunnerApi.ArtifactInformation currentArtifact = pendingGets.remove();
-              String name = createFilename(nameIndex++, currentEnvironment, currentArtifact);
-              try {
-                ArtifactDestination dest = destinationProvider.getDestination(stagingToken, name);
-                LOG.debug(
-                    "Storing artifacts for {}.{} at {}",
-                    stagingToken,
-                    pendingResolves.peek(),
-                    name);
-                staged
-                    .get(currentEnvironment)
-                    .add(
-                        RunnerApi.ArtifactInformation.newBuilder()
-                            .setTypeUrn(dest.getTypeUrn())
-                            .setTypePayload(dest.getTypePayload())
-                            .setRoleUrn(currentArtifact.getRoleUrn())
-                            .setRolePayload(currentArtifact.getRolePayload())
-                            .build());
-                currentOutputStream = dest.getOutputStream();
-              } catch (Exception exn) {
-                responseObserver.onError(exn);
-              }
-            }
+            RunnerApi.ArtifactInformation currentArtifact = pendingGets.remove();
+            String name = createFilename(nameIndex++, currentEnvironment, currentArtifact);
             try {
-              currentOutputStream.write(
-                  responseWrapper.getGetArtifactResponse().getData().toByteArray());
-            } catch (IOException exn) {
+              LOG.debug("Storing artifacts for {} as {}", stagingToken, name);
+              currentOutput = new ArrayBlockingQueue<ByteString>(100);
+              stagedFutures
+                  .get(currentEnvironment)
+                  .add(
+                      stagingExecutor.submit(
+                          new StoreArtifact(
+                              stagingToken,
+                              name,
+                              currentArtifact,
+                              currentOutput,
+                              totalPendingBytes)));
+            } catch (Exception exn) {
+              LOG.error("Error submitting.", exn);
               responseObserver.onError(exn);
             }
-            if (responseWrapper.getIsLast()) {
-              try {
-                currentOutputStream.close();
-              } catch (IOException exn) {
-                onError(exn);
+            state = State.GETCHUNK;
+            // fall through
+
+          case GETCHUNK:
+            try {
+              ByteString chunk = responseWrapper.getGetArtifactResponse().getData();
+              if (chunk.size() > 0) {
+                totalPendingBytes.aquire(chunk.size());
+                currentOutput.put(chunk);
               }
-              currentOutputStream = null;
-              if (pendingGets.isEmpty()) {
-                resolveNextEnvironment(responseObserver);
-              } else {
-                LOG.debug("Waiting for {}", pendingGets.peek());
+              if (responseWrapper.getIsLast()) {
+                currentOutput.put(ByteString.EMPTY); // The EOF value.
+                if (pendingGets.isEmpty()) {
+                  resolveNextEnvironment(responseObserver);
+                } else {
+                  state = State.GET;
+                  LOG.debug("Waiting for {}", pendingGets.peek());
+                }
               }
+            } catch (Exception exn) {
+              LOG.error("Error submitting.", exn);
+              onError(exn);
             }
             break;
 
@@ -269,10 +381,7 @@ public class ArtifactStagingService
       private void resolveNextEnvironment(
           StreamObserver<ArtifactApi.ArtifactRequestWrapper> responseObserver) {
         if (pendingResolves.isEmpty()) {
-          ArtifactStagingService.this.staged.put(stagingToken, staged);
-          state = State.DONE;
-          LOG.info("Artifacts fully staged for {}.", stagingToken);
-          responseObserver.onCompleted();
+          finishStaging(responseObserver);
         } else {
           state = State.RESOLVE;
           LOG.info("Resolving artifacts for {}.{}.", stagingToken, pendingResolves.peek());
@@ -282,6 +391,32 @@ public class ArtifactStagingService
                       ArtifactApi.ResolveArtifactsRequest.newBuilder()
                           .addAllArtifacts(toResolve.get(pendingResolves.peek())))
                   .build());
+        }
+      }
+
+      private void finishStaging(
+          StreamObserver<ArtifactApi.ArtifactRequestWrapper> responseObserver) {
+        LOG.debug("Finishing staging for {}.", stagingToken);
+        Map<String, List<RunnerApi.ArtifactInformation>> staged = new HashMap<>();
+        try {
+          for (Map.Entry<String, List<Future<RunnerApi.ArtifactInformation>>> entry :
+              stagedFutures.entrySet()) {
+            List<RunnerApi.ArtifactInformation> envStaged = new ArrayList<>();
+            for (Future<RunnerApi.ArtifactInformation> future : entry.getValue()) {
+              envStaged.add(future.get());
+            }
+            staged.put(entry.getKey(), envStaged);
+          }
+          ArtifactStagingService.this.staged.put(stagingToken, staged);
+          stagingExecutor.shutdown();
+          state = State.DONE;
+          LOG.info("Artifacts fully staged for {}.", stagingToken);
+          responseObserver.onCompleted();
+        } catch (Exception exn) {
+          LOG.error("Error staging artifacts", exn);
+          responseObserver.onError(exn);
+          state = State.ERROR;
+          return;
         }
       }
 
@@ -332,6 +467,7 @@ public class ArtifactStagingService
 
       @Override
       public void onError(Throwable throwable) {
+        stagingExecutor.shutdownNow();
         LOG.error("Error staging artifacts", throwable);
         state = State.ERROR;
       }
