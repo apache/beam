@@ -356,12 +356,13 @@ class BatchLoads<DestinationT, ElementT>
     tempTables
         // Now that the load job has happened, we want the rename to happen immediately.
         .apply(
+            "Window Into Global Windows",
             Window.<KV<TableDestination, String>>into(new GlobalWindows())
                 .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1))))
-        .apply(WithKeys.of((Void) null))
+        .apply("Add Void Key", WithKeys.of((Void) null))
         .setCoder(KvCoder.of(VoidCoder.of(), tempTables.getCoder()))
-        .apply(GroupByKey.create())
-        .apply(Values.create())
+        .apply("GroupByKey", GroupByKey.create())
+        .apply("Extract Values", Values.create())
         .apply(
             "WriteRenameTriggered",
             ParDo.of(
@@ -464,7 +465,7 @@ class BatchLoads<DestinationT, ElementT>
   // Generate the temporary-file prefix.
   private PCollectionView<String> createTempFilePrefixView(
       Pipeline p, final PCollectionView<String> jobIdView) {
-    return p.apply(Create.of(""))
+    return p.apply("Create dummy value", Create.of(""))
         .apply(
             "GetTempFilePrefix",
             ParDo.of(
