@@ -17,23 +17,27 @@
  */
 package org.apache.beam.examples.snippets;
 
-import java.io.IOException;
-import java.io.Serializable;
+import java.io.*;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.*;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -143,4 +147,47 @@ public class SnippetsTest implements Serializable {
 
     p.run();
   }
+
+
+  @Test
+  @Category({
+      NeedsRunner.class,
+      UsesImpulse.class,
+      UsesStatefulParDo.class,
+      UsesTestStreamWithProcessingTime.class
+  })
+  public void testSlowlyUpdatingSideInputsWindowed() {
+    Instant startAt = Instant.now().minus(Duration.standardMinutes(3));
+    Duration duration = Duration.standardSeconds(10);
+    Instant stopAt = startAt.plus(duration);
+    Duration interval1 = Duration.standardSeconds(1);
+    Duration interval2 = Duration.standardSeconds(1);
+
+    File f = null;
+    try {
+      f = File.createTempFile("testSlowlyUpdatingSIWindowed", "txt");
+      try(BufferedWriter fw = Files.newWriter(f, Charset.forName("UTF-8"))) {
+        fw.append("testdata");
+      }
+    } catch (IOException e) {
+      Assert.fail("failed to create temp file: " + e.toString());
+      throw new RuntimeException("Should never reach here");
+    }
+
+    PCollection<Long> result = Snippets.PeriodicallyUpdatingSideInputs
+        .main(p, startAt, stopAt, interval1, interval2, f.getPath());
+
+    ArrayList<Long> expectedResults = new ArrayList<Long>();
+    expectedResults.add(0L);
+    for (Long i = startAt.getMillis(); i < stopAt.getMillis();
+         i = i + interval2.getMillis()) {
+      expectedResults.add(1L);
+    }
+
+    PAssert.that(result).containsInAnyOrder(expectedResults);
+
+    p.run().waitUntilFinish();
+    f.deleteOnExit();
+  }
+
 }

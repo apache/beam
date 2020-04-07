@@ -22,6 +22,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -51,13 +53,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.transforms.Watch;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
@@ -783,6 +779,77 @@ public class Snippets {
               DynamicSessions.withDefaultGapDuration(Duration.standardSeconds(10))));
       // [END CustomSessionWindow6]
 
+    }
+  }
+
+  public static class PeriodicallyUpdatingSideInputs {
+
+
+    public static PCollection<Long> main(Pipeline p, Instant startAt,
+                                         Instant stopAt, Duration interval1,
+                                         Duration interval2,
+                                         String fileToRead) {
+      // [START PeriodicallyUpdatingSideInputs]
+      PCollectionView<List<Long>> sideInput =
+          p
+              .apply("SIImpulse",
+                  PeriodicImpulse.create()
+                      .startAt(startAt)
+                      .stopAt(stopAt)
+                      .withInterval(interval1)
+                      .applyWindowing())
+              .apply(
+                  "FileToRead",
+                  ParDo.of(
+                      new DoFn<Instant, String>() {
+                        @ProcessElement
+                        public void process(@Element Instant notUsed,
+                                            OutputReceiver<String> o) {
+                          o.output(fileToRead);
+                        }
+                      }))
+              .apply(FileIO.matchAll())
+              .apply(FileIO.readMatches())
+              .apply(TextIO.readFiles())
+              .apply(ParDo.of(
+                  new DoFn<String, String>() {
+                    @ProcessElement
+                    public void process(@Element String src,
+                                        OutputReceiver<String> o) {
+                      System.out.println(src);
+                      o.output(src);
+
+                    }
+                  })
+              )
+                  .apply(Combine.globally(Count.<String>combineFn()).withoutDefaults())
+              .apply(View.asList());
+
+      PCollection<Instant> mainInput =
+          p
+              .apply("MIImpulse",
+                  PeriodicImpulse.create()
+                      .startAt(startAt.minus(Duration.standardSeconds(1)))
+                      .stopAt(stopAt.minus(Duration.standardSeconds(1)))
+                      .withInterval(interval2)
+                      .applyWindowing());
+
+      // Consume side input. GenerateSequence generates test data.
+      // Use a real source (like PubSubIO or KafkaIO) in production.
+      PCollection<Long> result =
+          mainInput
+              .apply(
+                  "generateOutput",
+                  ParDo.of(
+                      new DoFn<Instant, Long>() {
+                        @ProcessElement
+                        public void process(ProcessContext c) {
+                          c.output((long)c.sideInput(sideInput).size());
+                        }
+                      })
+                      .withSideInputs(sideInput));
+      // [END PeriodicallyUpdatingSideInputs]
+      return result;
     }
   }
 }
