@@ -72,12 +72,12 @@ public abstract class AnnotateImages<T>
     if (batchSize > MAX_BATCH_SIZE) {
       throw new IllegalArgumentException(
           String.format(
-              "Max batch size exceeded.\n" + "Batch size needs to be equal or smaller than %d",
+              "Max batch size exceeded.%n" + "Batch size needs to be equal or smaller than %d",
               MAX_BATCH_SIZE));
     } else if (batchSize < MIN_BATCH_SIZE) {
       throw new IllegalArgumentException(
           String.format(
-              "Min batch size not reached.\n" + "Batch size needs to be larger than %d",
+              "Min batch size not reached.%n" + "Batch size needs to be larger than %d",
               MIN_BATCH_SIZE));
     }
   }
@@ -119,7 +119,7 @@ public abstract class AnnotateImages<T>
   public static class PerformImageAnnotation
       extends DoFn<List<AnnotateImageRequest>, List<AnnotateImageResponse>> {
 
-    private ImageAnnotatorClient imageAnnotatorClient;
+    private transient ImageAnnotatorClient imageAnnotatorClient;
 
     public PerformImageAnnotation() {}
 
