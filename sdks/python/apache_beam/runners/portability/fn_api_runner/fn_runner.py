@@ -318,7 +318,6 @@ class FnApiRunner(runner.PipelineRunner):
     """
     worker_handler_manager = WorkerHandlerManager(
         stage_context.components.environments, self._provision_info)
-    metrics_by_stage = {}
     monitoring_infos_by_stage = {}
 
     runner_execution_context = execution.FnApiRunnerExecutionContext(
@@ -336,13 +335,11 @@ class FnApiRunner(runner.PipelineRunner):
               runner_execution_context,
               bundle_context_manager,
           )
-          metrics_by_stage[stage.name] = stage_results.process_bundle.metrics
           monitoring_infos_by_stage[stage.name] = (
               stage_results.process_bundle.monitoring_infos)
     finally:
       worker_handler_manager.close_all()
-    return RunnerResult(
-        runner.PipelineState.DONE, monitoring_infos_by_stage, metrics_by_stage)
+    return RunnerResult(runner.PipelineState.DONE, monitoring_infos_by_stage)
 
   def _store_side_inputs_in_state(self,
                                   runner_execution_context,  # type: execution.FnApiRunnerExecutionContext
@@ -521,10 +518,12 @@ class FnApiRunner(runner.PipelineRunner):
       stage (translations.Stage): A description of the stage to execute.
     """
     worker_handler_list = bundle_context_manager.worker_handlers
-
+    worker_handler_manager = runner_execution_context.worker_handler_manager
     _LOGGER.info('Running %s', bundle_context_manager.stage.name)
     data_input, data_side_input, data_output = self._extract_endpoints(
         bundle_context_manager, runner_execution_context)
+    worker_handler_manager.register_process_bundle_descriptor(
+        bundle_context_manager.process_bundle_descriptor)
 
     # Store the required side inputs into state so it is accessible for the
     # worker when it runs this bundle.
@@ -1120,10 +1119,9 @@ class FnApiMetrics(metric.MetricResults):
 
 
 class RunnerResult(runner.PipelineResult):
-  def __init__(self, state, monitoring_infos_by_stage, metrics_by_stage):
+  def __init__(self, state, monitoring_infos_by_stage):
     super(RunnerResult, self).__init__(state)
     self._monitoring_infos_by_stage = monitoring_infos_by_stage
-    self._metrics_by_stage = metrics_by_stage
     self._metrics = None
     self._monitoring_metrics = None
 

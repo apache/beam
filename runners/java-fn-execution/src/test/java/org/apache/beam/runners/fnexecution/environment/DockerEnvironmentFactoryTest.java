@@ -17,16 +17,20 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.any;
+import static org.hamcrest.Matchers.not;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.Environments;
@@ -49,6 +53,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -123,9 +128,6 @@ public class DockerEnvironmentFactoryTest {
       DockerEnvironmentFactory factory =
           DockerEnvironmentFactory.forServicesWithDocker(
               docker,
-              controlServiceServer,
-              loggingServiceServer,
-              retrievalServiceServer,
               provisioningServiceServer,
               throwsException ? exceptionClientSource : normalClientSource,
               ID_GENERATOR,
@@ -135,6 +137,13 @@ public class DockerEnvironmentFactoryTest {
       }
 
       RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT);
+
+      ArgumentCaptor<List<String>> dockerArgsCaptor = ArgumentCaptor.forClass(List.class);
+      verify(docker).runImage(any(), dockerArgsCaptor.capture(), anyList());
+
+      // Ensure we do not remove the container prematurely which would also remove the logs
+      assertThat(dockerArgsCaptor.getValue(), not(hasItem("--rm")));
+
       handle.close();
 
       verify(docker).killContainer(CONTAINER_ID);
@@ -198,9 +207,6 @@ public class DockerEnvironmentFactoryTest {
     private DockerEnvironmentFactory getFactory(ControlClientPool.Source clientSource) {
       return DockerEnvironmentFactory.forServicesWithDocker(
           docker,
-          controlServiceServer,
-          loggingServiceServer,
-          retrievalServiceServer,
           provisioningServiceServer,
           clientSource,
           ID_GENERATOR,

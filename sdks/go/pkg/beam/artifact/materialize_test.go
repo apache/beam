@@ -19,14 +19,19 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
+	"github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
+	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 // TestRetrieve tests that we can successfully retrieve fresh files.
@@ -68,7 +73,7 @@ func TestMultiRetrieve(t *testing.T) {
 	defer os.RemoveAll(dst)
 
 	client := pb.NewLegacyArtifactRetrievalServiceClient(cc)
-	if err := MultiRetrieve(ctx, client, 10, artifacts, rt, dst); err != nil {
+	if err := LegacyMultiRetrieve(ctx, client, 10, artifacts, rt, dst); err != nil {
 		t.Errorf("failed to retrieve: %v", err)
 	}
 
@@ -146,6 +151,153 @@ func stage(ctx context.Context, scl pb.LegacyArtifactStagingServiceClient, t *te
 		t.Fatalf("close failed: %v", err)
 	}
 	return md
+}
+
+// Test for new artifact retrieval.
+
+func TestNewRetrieveWithManyFiles(t *testing.T) {
+	expected := map[string]string{"a.txt": "a", "b.txt": "bbb", "c.txt": "cccccccc"}
+
+	client := &fakeRetrievalService{
+		artifacts: expected,
+	}
+
+	dest := makeTempDir(t)
+	defer os.RemoveAll(dest)
+	ctx := grpcx.WriteWorkerID(context.Background(), "worker")
+
+	mds, err := newMaterializeWithClient(ctx, client, client.resolvedArtifacts(), dest)
+	if err != nil {
+		t.Fatalf("materialize failed: %v", err)
+	}
+
+	checkStagedFiles(mds, dest, expected, t)
+}
+
+func TestNewRetrieveWithResolution(t *testing.T) {
+	expected := map[string]string{"a.txt": "a", "b.txt": "bbb", "c.txt": "cccccccc"}
+
+	client := &fakeRetrievalService{
+		artifacts: expected,
+	}
+
+	dest := makeTempDir(t)
+	defer os.RemoveAll(dest)
+	ctx := grpcx.WriteWorkerID(context.Background(), "worker")
+
+	mds, err := newMaterializeWithClient(ctx, client, client.unresolvedArtifacts(), dest)
+	if err != nil {
+		t.Fatalf("materialize failed: %v", err)
+	}
+
+	checkStagedFiles(mds, dest, expected, t)
+}
+
+func checkStagedFiles(mds []*pb.ArtifactMetadata, dest string, expected map[string]string, t *testing.T) {
+	if len(mds) != len(expected) {
+		t.Errorf("wrong number of artifacts staged %v vs %v", len(mds), len(expected))
+	}
+	for _, md := range mds {
+		filename := filepath.Join(dest, filepath.FromSlash(md.Name))
+		fd, err := os.Open(filename)
+		if err != nil {
+			t.Errorf("error opening file %v", err)
+		}
+		defer fd.Close()
+
+		data := make([]byte, 1<<20)
+		n, err := fd.Read(data)
+		if err != nil {
+			t.Errorf("error reading file %v", err)
+		}
+
+		if string(data[:n]) != expected[md.Name] {
+			t.Errorf("missmatched contents for %v: '%s' vs '%s'", md.Name, string(data[:n]), expected[md.Name])
+		}
+	}
+}
+
+type fakeRetrievalService struct {
+	artifacts map[string]string // name -> content
+}
+
+func (fake *fakeRetrievalService) resolvedArtifacts() []*pipeline_v1.ArtifactInformation {
+	var artifacts []*pipeline_v1.ArtifactInformation
+	for name, contents := range fake.artifacts {
+		payload, _ := proto.Marshal(&pipeline_v1.ArtifactStagingToRolePayload{
+			StagedName: name})
+		artifacts = append(artifacts, &pipeline_v1.ArtifactInformation{
+			TypeUrn:     "resolved",
+			TypePayload: []byte(contents),
+			RoleUrn:     URNStagingTo,
+			RolePayload: payload,
+		})
+	}
+	return artifacts
+}
+
+func (fake *fakeRetrievalService) unresolvedArtifacts() []*pipeline_v1.ArtifactInformation {
+	return []*pipeline_v1.ArtifactInformation{
+		&pipeline_v1.ArtifactInformation{
+			TypeUrn: "unresolved",
+		},
+	}
+}
+
+func (fake *fakeRetrievalService) ResolveArtifacts(ctx context.Context, request *pb.ResolveArtifactsRequest, opts ...grpc.CallOption) (*pb.ResolveArtifactsResponse, error) {
+	response := pb.ResolveArtifactsResponse{}
+	for _, dep := range request.Artifacts {
+		if dep.TypeUrn == "unresolved" {
+			response.Replacements = append(response.Replacements, fake.resolvedArtifacts()...)
+		} else {
+			response.Replacements = append(response.Replacements, dep)
+		}
+	}
+	return &response, nil
+}
+
+func (fake *fakeRetrievalService) GetArtifact(ctx context.Context, request *pb.GetArtifactRequest, opts ...grpc.CallOption) (pb.ArtifactRetrievalService_GetArtifactClient, error) {
+	if request.Artifact.TypeUrn == "resolved" {
+		return &fakeGetArtifactResponseStream{data: request.Artifact.TypePayload}, nil
+	}
+	return nil, errors.Errorf("Unsupported artifact %v", request.Artifact)
+}
+
+type fakeGetArtifactResponseStream struct {
+	data  []byte
+	index int
+}
+
+func (fake *fakeGetArtifactResponseStream) Recv() (*pb.GetArtifactResponse, error) {
+	if fake.index < len(fake.data) {
+		fake.index += 1
+		return &pb.GetArtifactResponse{Data: fake.data[fake.index-1 : fake.index]}, nil
+	}
+	return nil, io.EOF
+}
+
+func (fake *fakeGetArtifactResponseStream) RecvMsg(interface{}) error {
+	return nil
+}
+
+func (fake *fakeGetArtifactResponseStream) SendMsg(interface{}) error {
+	return nil
+}
+
+func (fake *fakeGetArtifactResponseStream) Header() (metadata.MD, error) {
+	return nil, nil
+}
+
+func (fake *fakeGetArtifactResponseStream) Trailer() metadata.MD {
+	return nil
+}
+
+func (fake *fakeGetArtifactResponseStream) Context() context.Context {
+	return nil
+}
+
+func (fake *fakeGetArtifactResponseStream) CloseSend() error {
+	return nil
 }
 
 func verifySHA256(t *testing.T, filename, hash string) {

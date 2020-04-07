@@ -158,7 +158,11 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
 
   _DONE_MARKER = DoneMarker()
 
-  def __init__(self):
+  def __init__(
+      self,
+      worker_manager,  # type: WorkerHandlerManager
+  ):
+    self._worker_manager = worker_manager
     self._lock = threading.Lock()
     self._uid_counter = 0
     self._state = self.UNSTARTED_STATE
@@ -212,6 +216,9 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
         'Runner: Requests multiplexing info: %s',
         [(str(req), worker)
          for req, worker in self._req_worker_mapping.items()])
+
+  def GetProcessBundleDescriptor(self, id, context=None):
+    return self._worker_manager.get_process_bundle_descriptor(id)
 
 
 class WorkerHandler(object):
@@ -315,7 +322,7 @@ class EmbeddedWorkerHandler(WorkerHandler):
                unused_payload,  # type: None
                state,  # type: sdk_worker.StateHandler
                provision_info,  # type: Optional[ExtendedProvisionInfo]
-               unused_grpc_server  # type: GrpcServer
+               worker_manager,  # type: WorkerHandlerManager
               ):
     # type: (...) -> None
     super(EmbeddedWorkerHandler, self).__init__(
@@ -327,7 +334,8 @@ class EmbeddedWorkerHandler(WorkerHandler):
         SingletonStateHandlerFactory(
             sdk_worker.CachingStateHandler(state_cache, state)),
         data_plane.InMemoryDataChannelFactory(
-            self.data_plane_handler.inverse()), {})
+            self.data_plane_handler.inverse()),
+        worker_manager._process_bundle_descriptors)
     self.worker = sdk_worker.SdkWorker(
         self.bundle_processor_cache,
         state_cache_metrics_fn=state_cache.get_monitoring_infos)
@@ -445,7 +453,7 @@ class GrpcServer(object):
         UnboundedThreadPoolExecutor(), options=no_max_message_sizes)
     self.state_port = self.state_server.add_insecure_port('[::]:0')
 
-    self.control_handler = BeamFnControlServicer()
+    self.control_handler = BeamFnControlServicer(worker_manager)
     beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server(
         self.control_handler, self.control_server)
 
@@ -763,6 +771,15 @@ class WorkerHandlerManager(object):
     self._workers_by_id = {}  # type: Dict[str, WorkerHandler]
     self.state_servicer = StateServicer()
     self._grpc_server = None  # type: Optional[GrpcServer]
+    self._process_bundle_descriptors = {}
+
+  def register_process_bundle_descriptor(self, process_bundle_descriptor):
+    self._process_bundle_descriptors[
+        process_bundle_descriptor.id] = process_bundle_descriptor
+
+  def get_process_bundle_descriptor(self, request):
+    return self._process_bundle_descriptors[
+        request.process_bundle_descriptor_id]
 
   def get_worker_handlers(
       self,
@@ -778,12 +795,13 @@ class WorkerHandlerManager(object):
     # assume all environments except EMBEDDED_PYTHON use gRPC.
     if environment.urn == python_urns.EMBEDDED_PYTHON:
       # special case for EmbeddedWorkerHandler: there's no need for a gRPC
-      # server, but to pass the type check on WorkerHandler.create() we
-      # make like we have a GrpcServer instance.
-      self._grpc_server = cast(GrpcServer, None)
+      # server, but we need to pass self instead.  Cast to make the type check
+      # on WorkerHandler.create() think we have a GrpcServer instance.
+      grpc_server = cast(GrpcServer, self)
     elif self._grpc_server is None:
       self._grpc_server = GrpcServer(
           self.state_servicer, self._job_provision_info, self)
+      grpc_server = self._grpc_server
 
     worker_handler_list = self._cached_handlers[environment_id]
     if len(worker_handler_list) < num_workers:
@@ -792,7 +810,7 @@ class WorkerHandlerManager(object):
             environment,
             self.state_servicer,
             self._job_provision_info,
-            self._grpc_server)
+            grpc_server)
         _LOGGER.info(
             "Created Worker handler %s for environment %s",
             worker_handler,

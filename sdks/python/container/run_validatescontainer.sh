@@ -130,6 +130,7 @@ python setup.py nosetests \
   --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \
+    --region=$REGION \
     --worker_harness_container_image=$CONTAINER:$TAG \
     --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
     --temp_location=$GCS_LOCATION/temp-validatesrunner-test \

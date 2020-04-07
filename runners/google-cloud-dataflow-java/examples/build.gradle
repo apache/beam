@@ -37,6 +37,7 @@ dependencies {
 }
 
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
 def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 def dockerImageName = project(':runners:google-cloud-dataflow-java').ext.dockerImageName
 // If -PuseExecutableStage is set, the use_executable_stage_bundle_execution wil be enabled.
@@ -53,6 +54,7 @@ def commonConfig = { dataflowWorkerJar, workerHarnessContainerImage = '', additi
    
        def preCommitBeamTestPipelineOptions = [
                "--project=${gcpProject}",
+               "--region=${gcpRegion}",
                "--tempRoot=${gcsTempRoot}",
                "--runner=TestDataflowRunner",
                "--dataflowWorkerJar=${dataflowWorkerJar}",

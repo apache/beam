@@ -46,6 +46,7 @@ task runDataCatalogExample(type: JavaExec) {
   def queryString = project.findProperty('queryString') ?: ''
   def outputFilePrefix = project.findProperty('outputFilePrefix') ?: ''
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+  def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
   def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 
   args = [
@@ -53,6 +54,7 @@ task runDataCatalogExample(type: JavaExec) {
     "--queryString=${queryString}",
     "--outputFilePrefix=${outputFilePrefix}",
     "--project=${gcpProject}",
+    "--region=${gcpRegion}",
     "--tempLocation=${gcsTempRoot}",
   ]
 }

@@ -76,9 +76,9 @@ func (n *ParDo) Up(ctx context.Context) error {
 	n.inv = newInvoker(n.Fn.ProcessElementFn())
 
 	// We can't cache the context during Setup since it runs only once per bundle.
-	// Subsequent bundles might run this same node, and the context here would be 
+	// Subsequent bundles might run this same node, and the context here would be
 	// incorrectly refering to the older bundleId.
-	setupCtx :=  metrics.SetPTransformID(ctx, n.PID)
+	setupCtx := metrics.SetPTransformID(ctx, n.PID)
 	if _, err := InvokeWithoutEventTime(setupCtx, n.Fn.SetupFn(), nil); err != nil {
 		return n.fail(err)
 	}

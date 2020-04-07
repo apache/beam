@@ -331,8 +331,8 @@ class ArtifactRetrievalService(
     self._file_reader = file_reader
     self._chunk_size = chunk_size or self._DEFAULT_CHUNK_SIZE
 
-  def ResolveArtifact(self, request, context=None):
-    return beam_artifact_api_pb2.ResolveArtifactResponse(
+  def ResolveArtifacts(self, request, context=None):
+    return beam_artifact_api_pb2.ResolveArtifactsResponse(
         replacements=request.artifacts)
 
   def GetArtifact(self, request, context=None):
@@ -397,7 +397,7 @@ class ArtifactStagingService(
     requests = _QueueIter()
 
     class ForwardingRetrievalService(object):
-      def ResolveArtifacts(self, request):
+      def ResolveArtifactss(self, request):
         requests.put(
             beam_artifact_api_pb2.ArtifactRequestWrapper(
                 resolve_artifact=request))
@@ -436,8 +436,8 @@ class ArtifactStagingService(
 def resolve_as_files(retrieval_service, file_writer, dependencies):
   """Translates a set of dependencies into file-based dependencies."""
   # Resolve until nothing changes.  This ensures that they can be fetched.
-  resolution = retrieval_service.ResolveArtifacts(
-      beam_artifact_api_pb2.ResolveArtifactRequest(
+  resolution = retrieval_service.ResolveArtifactss(
+      beam_artifact_api_pb2.ResolveArtifactsRequest(
           artifacts=dependencies,
           # Anything fetchable will do.
           # TODO(robertwb): Take advantage of shared filesystems, urls.
@@ -492,7 +492,7 @@ def offer_artifacts(
         responses.put(
             beam_artifact_api_pb2.ArtifactResponseWrapper(
                 resolve_artifact_response=artifact_retrieval_service.
-                ResolveArtifact(request.resolve_artifact)))
+                ResolveArtifacts(request.resolve_artifact)))
       elif request.HasField('get_artifact'):
         for chunk in artifact_retrieval_service.GetArtifact(
             request.get_artifact):

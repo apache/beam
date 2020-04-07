@@ -23,6 +23,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 from __future__ import absolute_import
 
+import logging
 import re
 from builtins import object
 
@@ -36,6 +37,8 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class PipelineOptionsValidator(object):
@@ -201,6 +204,12 @@ class PipelineOptionsValidator(object):
               self._validate_error(
                   self.ERR_INVALID_TRANSFORM_NAME_MAPPING, key, value))
           break
+    if view.region is None:
+      default_region = self.runner.get_default_gcp_region()
+      if default_region is None:
+        errors.extend(self._validate_error(self.ERR_MISSING_OPTION, 'region'))
+      else:
+        view.region = default_region
     return errors
 
   def validate_worker_region_zone(self, view):

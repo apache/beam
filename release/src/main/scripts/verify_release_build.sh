@@ -70,6 +70,7 @@ JOB_TRIGGER_PHRASES=(
   "Run Portable_Python PreCommit"
   "Run PythonLint PreCommit"
   "Run Python PreCommit"
+  "Run Python DockerBuild PreCommit"
 )
 
 
