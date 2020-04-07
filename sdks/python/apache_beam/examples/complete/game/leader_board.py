@@ -72,6 +72,7 @@ python leader_board.py \
 # DataflowRunner
 python leader_board.py \
     --project $PROJECT_ID \
+    --region $REGION_ID \
     --topic projects/$PROJECT_ID/topics/$PUBSUB_TOPIC \
     --dataset $BIGQUERY_DATASET \
     --runner DataflowRunner \

@@ -23,6 +23,7 @@ Usage:
   python setup.py nosetests --test-pipeline-options=" \
       --runner=TestDataflowRunner \
       --project=... \
+      --region=... \
       --staging_location=gs://... \
       --temp_location=gs://... \
       --output=gs://... \
