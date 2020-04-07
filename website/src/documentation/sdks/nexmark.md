@@ -205,6 +205,7 @@ Available suites are:
     --manageResources=false --monitorJobs=true \
     --enforceEncodability=false --enforceImmutability=false
     --project=<your project> \
+    --region=<your region> \
     --zone=<your zone> \
     --workerMachineType=n1-highmem-8 \
     --stagingLocation=gs://<a gs path for staging> \
@@ -627,6 +628,7 @@ Launch:
             --manageResources=false
             --monitorJobs=true
             --project=${PROJECT}
+            --region=${REGION}
             --zone=${ZONE}
             --workerMachineType=n1-highmem-8
             --stagingLocation=${STAGING_LOCATION}

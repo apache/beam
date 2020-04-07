@@ -107,6 +107,7 @@ dependencies {
 }
 
 def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
 def dataflowValidatesTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests'
 def dataflowPostCommitTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
 def dataflowPostCommitTempRootKms = project.findProperty('dataflowTempRootKms') ?: 'gs://temp-storage-for-end-to-end-tests-cmek'
@@ -162,6 +163,7 @@ task validatesRunnerLegacyWorkerTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
           "--tempRoot=${dataflowValidatesTempRoot}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
@@ -231,6 +233,7 @@ task validatesRunnerFnApiWorkerTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
           "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
   )
 
@@ -261,6 +264,7 @@ task validatesRunnerFnApiWorkerExecutableStageTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
           "--tempRoot=${dataflowPostCommitTempRoot}",
           "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
           "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
@@ -298,6 +302,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
           "--tempRoot=${dataflowPostCommitTempRoot}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
@@ -321,6 +326,7 @@ task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
           "--tempRoot=${dataflowPostCommitTempRootKms}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
@@ -345,6 +351,7 @@ task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
           "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
   )
 
@@ -377,6 +384,7 @@ task examplesJavaLegacyWorkerIntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
           "--tempRoot=${dataflowPostCommitTempRoot}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
@@ -403,6 +411,7 @@ task examplesJavaFnApiWorkerIntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
           "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
   )
 
@@ -430,6 +439,7 @@ task coreSDKJavaLegacyWorkerIntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
           "--tempRoot=${dataflowPostCommitTempRoot}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
@@ -452,6 +462,7 @@ task coreSDKJavaFnApiWorkerIntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
           "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
   )
 
