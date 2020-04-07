@@ -19,7 +19,6 @@ package org.apache.beam.fn.harness;
 
 import java.util.EnumMap;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
@@ -48,7 +47,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.TextFormat;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
@@ -189,8 +188,10 @@ public class FnHarness {
               ThrowingFunction<InstructionRequest, Builder>>
           handlers = new EnumMap<>(BeamFnApi.InstructionRequest.RequestCase.class);
 
-      BeamFnControlGrpc.BeamFnControlStub controlStub =
-          BeamFnControlGrpc.newStub(channelFactory.forDescriptor(controlApiServiceDescriptor));
+      ManagedChannel channel = channelFactory.forDescriptor(controlApiServiceDescriptor);
+      BeamFnControlGrpc.BeamFnControlStub controlStub = BeamFnControlGrpc.newStub(channel);
+      BeamFnControlGrpc.BeamFnControlBlockingStub blockingControlStub =
+          BeamFnControlGrpc.newBlockingStub(channel);
 
       RegisterHandler fnApiRegistry = new RegisterHandler();
       BeamFnDataGrpcClient beamFnDataMultiplexer =
@@ -210,14 +211,10 @@ public class FnHarness {
                     @Override
                     public BeamFnApi.ProcessBundleDescriptor load(String id) {
                       try {
-                        RecordingStreamObserver<BeamFnApi.ProcessBundleDescriptor> observer =
-                            new RecordingStreamObserver<>();
-                        controlStub.getProcessBundleDescriptor(
+                        return blockingControlStub.getProcessBundleDescriptor(
                             BeamFnApi.GetProcessBundleDescriptorRequest.newBuilder()
                                 .setProcessBundleDescriptorId(id)
-                                .build(),
-                            observer);
-                        return observer.get();
+                                .build());
                       } catch (Throwable th) {
                         return (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.getById(id);
                       }
@@ -254,43 +251,6 @@ public class FnHarness {
     } finally {
       System.out.println("Shutting SDK harness down.");
       executorService.shutdown();
-    }
-  }
-
-  /**
-   * Helper class for using a streaming GRPC stub as a blocking GRPC stub.
-   *
-   * @param <T> response message type
-   */
-  private static class RecordingStreamObserver<T> implements StreamObserver<T> {
-    private CountDownLatch latch = new CountDownLatch(1);
-    private T response;
-    private Throwable error;
-
-    @Override
-    public void onNext(T response) {
-      assert response == null;
-      this.response = response;
-    }
-
-    @Override
-    public void onError(Throwable throwable) {
-      error = throwable;
-      latch.countDown();
-    }
-
-    @Override
-    public void onCompleted() {
-      latch.countDown();
-    }
-
-    public T get() throws Throwable {
-      latch.await();
-      if (error != null) {
-        throw error;
-      } else {
-        return response;
-      }
     }
   }
 }
