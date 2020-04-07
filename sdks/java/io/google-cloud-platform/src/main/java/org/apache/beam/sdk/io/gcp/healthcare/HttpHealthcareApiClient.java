@@ -101,6 +101,24 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   @Override
+  public Hl7V2Store createHL7v2Store(String dataset, String name) throws IOException {
+    Hl7V2Store store = new Hl7V2Store();
+    return client
+        .projects()
+        .locations()
+        .datasets()
+        .hl7V2Stores()
+        .create(dataset, store)
+        .setHl7V2StoreId(name)
+        .execute();
+  }
+
+  @Override
+  public Empty deleteHL7v2Store(String name) throws IOException {
+    return client.projects().locations().datasets().hl7V2Stores().delete(name).execute();
+  }
+
+  @Override
   public ListMessagesResponse makeHL7v2ListRequest(
       String hl7v2Store, @Nullable String filter, @Nullable String pageToken) throws IOException {
 

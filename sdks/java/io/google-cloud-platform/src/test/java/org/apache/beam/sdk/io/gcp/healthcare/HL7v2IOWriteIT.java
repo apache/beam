@@ -17,18 +17,23 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.MESSAGES;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.deleteAllHL7v2Messages;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
+import java.security.SecureRandom;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -36,37 +41,53 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class HL7v2IOWriteIT {
 
-  private HL7v2IOTestOptions options;
   private transient HealthcareApiClient client;
+  private static String healthcareDataset;
+  private static final String HL7V2_STORE_NAME =
+      "hl7v2_store_write_it_" + System.currentTimeMillis() + "_" + (new SecureRandom().nextInt(32));
+
+  @BeforeClass
+  public static void createHL7v2tore() throws IOException {
+    String project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+    healthcareDataset = String.format(HEALTHCARE_DATASET_TEMPLATE, project);
+    HealthcareApiClient client = new HttpHealthcareApiClient();
+    client.createHL7v2Store(healthcareDataset, HL7V2_STORE_NAME);
+  }
+
+  @AfterClass
+  public static void deleteHL7v2tore() throws IOException {
+    HealthcareApiClient client = new HttpHealthcareApiClient();
+    client.deleteHL7v2Store(healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME);
+  }
 
   @Before
   public void setup() throws Exception {
     if (client == null) {
       client = new HttpHealthcareApiClient();
     }
-    PipelineOptionsFactory.register(HL7v2IOTestOptions.class);
-    options = TestPipeline.testingPipelineOptions().as(HL7v2IOTestOptions.class);
-    options.setHL7v2Store(
-        "projects/jferriero-dev/locations/us-central1/datasets/raw-dataset/hl7V2Stores/jake-hl7");
+    PipelineOptions options = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
   }
 
   @After
   public void tearDown() throws Exception {
-    deleteAllHL7v2Messages(client, options.getHL7v2Store());
+    deleteAllHL7v2Messages(client, healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME);
   }
 
   @Test
   public void testHL7v2IOWrite() throws IOException {
-    Pipeline pipeline = Pipeline.create(options);
+    Pipeline pipeline = Pipeline.create();
     HL7v2IO.Write.Result result =
         pipeline
             .apply(Create.of(MESSAGES).withCoder(new HL7v2MessageCoder()))
-            .apply(HL7v2IO.ingestMessages(options.getHL7v2Store()));
+            .apply(HL7v2IO.ingestMessages(healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME));
 
     PAssert.that(result.getFailedInsertsWithErr()).empty();
 
     pipeline.run().waitUntilFinish();
-    long numWrittenMessages = client.getHL7v2MessageStream(options.getHL7v2Store()).count();
+    long numWrittenMessages =
+        client
+            .getHL7v2MessageStream(healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME)
+            .count();
     assertEquals(MESSAGES.size(), numWrittenMessages);
   }
 }
