@@ -252,12 +252,14 @@ from apache_beam import pvalue
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.avroio import _create_avro_source as create_avro_source
+from apache_beam.io.filesystems import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.iobase import BoundedSource
 from apache_beam.io.iobase import RangeTracker
 from apache_beam.io.iobase import SourceBundle
+from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -608,7 +610,8 @@ class _CustomBigQuerySource(BoundedSource):
       use_standard_sql=False,
       flatten_results=True,
       kms_key=None,
-      bigquery_job_labels=None):
+      bigquery_job_labels=None,
+      backwards_compatible_data_format=None):
     if table is not None and query is not None:
       raise ValueError(
           'Both a BigQuery table and a query were specified.'
@@ -690,6 +693,16 @@ class _CustomBigQuerySource(BoundedSource):
       project = self.project
     return project
 
+  def _create_source(self, path, schema):
+    if not self.backwards_compatible:
+      return create_avro_source(path, 0, True, use_fastavro=True)
+    else:
+      return TextSource(path,
+                        0,
+                        CompressionTypes.UNCOMPRESSED,
+                        True,
+                        self.coder(schema))
+
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.split_result is None:
       bq = bigquery_tools.BigQueryWrapper()
@@ -698,9 +711,9 @@ class _CustomBigQuerySource(BoundedSource):
         self._setup_temporary_dataset(bq)
         self.table_reference = self._execute_query(bq)
 
-      unused_schema, metadata_list = self._export_files(bq)
+      schema, metadata_list = self._export_files(bq)
       self.split_result = [
-          create_avro_source(metadata.path, 0, True, use_fastavro=True)
+          self._create_source(metadata.path, schema)
           for metadata in metadata_list
       ]
 
@@ -1668,7 +1681,11 @@ class ReadFromBigQuery(PTransform):
       to BigQuery export and query jobs created by this transform. See:
       https://cloud.google.com/bigquery/docs/reference/rest/v2/\
               Job#JobConfiguration
-  """
+    backwards_compatible_data_format (bool): By default, this transform reads
+      data in native Python types that come from Avro-exports of BigQuery. By
+      setting this flag to True, the transform will return JSON-types, like
+      the older BigQuerySource.
+   """
   def __init__(self, gcs_location=None, validate=False, *args, **kwargs):
     if gcs_location:
       if not isinstance(gcs_location, (str, unicode, ValueProvider)):
