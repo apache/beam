@@ -510,7 +510,6 @@ class SdkWorker(object):
               instruction_id=instruction_id,
               process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
                   residual_roots=delayed_applications,
-                  metrics=bundle_processor.metrics(),
                   monitoring_infos=monitoring_infos,
                   monitoring_data={
                       SHORT_ID_CACHE.getShortId(info): info.payload
