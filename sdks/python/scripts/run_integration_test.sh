@@ -240,8 +240,6 @@ if [[ -z $PIPELINE_OPTS ]]; then
   # Add --runner_v2 if provided
   if [[ "$RUNNER_V2" = true ]]; then
     opts+=("--experiments=use_runner_v2")
-    # Cleanup jira BEAM-9391
-    opts+=("--experiments=runner_harness_container_image=gcr.io/cloud-dataflow/v1beta3/unified-harness:20200227-rc01")
     if [[ "$STREAMING" = true ]]; then
       # Dataflow Runner V2 only supports streaming engine.
       opts+=("--enable_streaming_engine")
