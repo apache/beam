@@ -32,6 +32,7 @@ from hamcrest.core.base_matcher import BaseMatcher
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
 
 
@@ -452,6 +453,19 @@ class SetupTest(unittest.TestCase):
     self.assertEqual(len(errors), 1)
     self.assertIn('worker_region', errors[0])
     self.assertIn('worker_zone', errors[0])
+
+  def test_zone_alias_worker_zone(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions([
+        '--zone=us-east1-b',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 0)
+    self.assertIsNone(options.view_as(WorkerOptions).zone)
+    self.assertEqual(options.view_as(WorkerOptions).worker_zone, 'us-east1-b')
 
   def test_test_matcher(self):
     def get_validator(matcher):

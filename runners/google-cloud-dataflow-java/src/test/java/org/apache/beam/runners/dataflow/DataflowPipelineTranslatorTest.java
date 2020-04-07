@@ -342,24 +342,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   @Test
-  public void testZoneConfig() throws IOException {
-    final String testZone = "test-zone-1";
-
-    DataflowPipelineOptions options = buildPipelineOptions();
-    options.setZone(testZone);
-
-    Pipeline p = buildPipeline(options);
-    p.traverseTopologically(new RecordingPipelineVisitor());
-    Job job =
-        DataflowPipelineTranslator.fromOptions(options)
-            .translate(p, DataflowRunner.fromOptions(options), Collections.emptyList())
-            .getJob();
-
-    assertEquals(1, job.getEnvironment().getWorkerPools().size());
-    assertEquals(testZone, job.getEnvironment().getWorkerPools().get(0).getZone());
-  }
-
-  @Test
   public void testWorkerMachineTypeConfig() throws IOException {
     final String testMachineType = "test-machine-type";
 
