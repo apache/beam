@@ -31,7 +31,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	ppb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/errorx"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/proto"
@@ -49,7 +49,7 @@ const (
 // present.
 // TODO(BEAM-9577): Return a mapping of filename to dependency, rather than []*pb.ArtifactMetadata.
 // TODO(BEAM-9577): Leverage richness of roles rather than magic names to understand artifacts.
-func Materialize(ctx context.Context, endpoint string, dependencies []*pipeline_v1.ArtifactInformation, rt string, dest string) ([]*pb.ArtifactMetadata, error) {
+func Materialize(ctx context.Context, endpoint string, dependencies []*ppb.ArtifactInformation, rt string, dest string) ([]*pb.ArtifactMetadata, error) {
 	if len(dependencies) > 0 {
 		return newMaterialize(ctx, endpoint, dependencies, dest)
 	} else if rt == "" || rt == NoArtifactsStaged {
@@ -59,7 +59,7 @@ func Materialize(ctx context.Context, endpoint string, dependencies []*pipeline_
 	}
 }
 
-func newMaterialize(ctx context.Context, endpoint string, dependencies []*pipeline_v1.ArtifactInformation, dest string) ([]*pb.ArtifactMetadata, error) {
+func newMaterialize(ctx context.Context, endpoint string, dependencies []*ppb.ArtifactInformation, dest string) ([]*pb.ArtifactMetadata, error) {
 	cc, err := grpcx.Dial(ctx, endpoint, 2*time.Minute)
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func newMaterialize(ctx context.Context, endpoint string, dependencies []*pipeli
 	return newMaterializeWithClient(ctx, pb.NewArtifactRetrievalServiceClient(cc), dependencies, dest)
 }
 
-func newMaterializeWithClient(ctx context.Context, client pb.ArtifactRetrievalServiceClient, dependencies []*pipeline_v1.ArtifactInformation, dest string) ([]*pb.ArtifactMetadata, error) {
+func newMaterializeWithClient(ctx context.Context, client pb.ArtifactRetrievalServiceClient, dependencies []*ppb.ArtifactInformation, dest string) ([]*pb.ArtifactMetadata, error) {
 	resolution, err := client.ResolveArtifacts(ctx, &pb.ResolveArtifactsRequest{Artifacts: dependencies})
 	if err != nil {
 		return nil, err
@@ -95,11 +95,11 @@ func newMaterializeWithClient(ctx context.Context, client pb.ArtifactRetrievalSe
 	return md, MultiRetrieve(ctx, 10, list, dest)
 }
 
-func extractStagingToPath(artifact *pipeline_v1.ArtifactInformation) (string, error) {
+func extractStagingToPath(artifact *ppb.ArtifactInformation) (string, error) {
 	if artifact.RoleUrn != URNStagingTo {
 		return "", errors.Errorf("Unsupported artifact role %s", artifact.RoleUrn)
 	}
-	role := pipeline_v1.ArtifactStagingToRolePayload{}
+	role := ppb.ArtifactStagingToRolePayload{}
 	if err := proto.Unmarshal(artifact.RolePayload, &role); err != nil {
 		return "", err
 	}
@@ -108,7 +108,7 @@ func extractStagingToPath(artifact *pipeline_v1.ArtifactInformation) (string, er
 
 type artifact struct {
 	client pb.ArtifactRetrievalServiceClient
-	dep    *pipeline_v1.ArtifactInformation
+	dep    *ppb.ArtifactInformation
 }
 
 func (a artifact) retrieve(ctx context.Context, dest string) error {
@@ -248,7 +248,7 @@ type retrievable interface {
 	retrieve(ctx context.Context, dest string) error
 }
 
-// For testing.
+// LegacyMultiRetrieve is exported for testing.
 func LegacyMultiRetrieve(ctx context.Context, client pb.LegacyArtifactRetrievalServiceClient, cpus int, list []*pb.ArtifactMetadata, rt string, dest string) error {
 	var rlist []retrievable
 	for _, md := range list {
