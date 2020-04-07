@@ -27,7 +27,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	ppb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
@@ -221,12 +221,12 @@ type fakeRetrievalService struct {
 	artifacts map[string]string // name -> content
 }
 
-func (fake *fakeRetrievalService) resolvedArtifacts() []*pipeline_v1.ArtifactInformation {
-	var artifacts []*pipeline_v1.ArtifactInformation
+func (fake *fakeRetrievalService) resolvedArtifacts() []*ppb.ArtifactInformation {
+	var artifacts []*ppb.ArtifactInformation
 	for name, contents := range fake.artifacts {
-		payload, _ := proto.Marshal(&pipeline_v1.ArtifactStagingToRolePayload{
+		payload, _ := proto.Marshal(&ppb.ArtifactStagingToRolePayload{
 			StagedName: name})
-		artifacts = append(artifacts, &pipeline_v1.ArtifactInformation{
+		artifacts = append(artifacts, &ppb.ArtifactInformation{
 			TypeUrn:     "resolved",
 			TypePayload: []byte(contents),
 			RoleUrn:     URNStagingTo,
@@ -236,9 +236,9 @@ func (fake *fakeRetrievalService) resolvedArtifacts() []*pipeline_v1.ArtifactInf
 	return artifacts
 }
 
-func (fake *fakeRetrievalService) unresolvedArtifacts() []*pipeline_v1.ArtifactInformation {
-	return []*pipeline_v1.ArtifactInformation{
-		&pipeline_v1.ArtifactInformation{
+func (fake *fakeRetrievalService) unresolvedArtifacts() []*ppb.ArtifactInformation {
+	return []*ppb.ArtifactInformation{
+		&ppb.ArtifactInformation{
 			TypeUrn: "unresolved",
 		},
 	}
@@ -270,7 +270,7 @@ type fakeGetArtifactResponseStream struct {
 
 func (fake *fakeGetArtifactResponseStream) Recv() (*pb.GetArtifactResponse, error) {
 	if fake.index < len(fake.data) {
-		fake.index += 1
+		fake.index++
 		return &pb.GetArtifactResponse{Data: fake.data[fake.index-1 : fake.index]}, nil
 	}
 	return nil, io.EOF
@@ -293,7 +293,7 @@ func (fake *fakeGetArtifactResponseStream) Trailer() metadata.MD {
 }
 
 func (fake *fakeGetArtifactResponseStream) Context() context.Context {
-	return nil
+	return context.Background()
 }
 
 func (fake *fakeGetArtifactResponseStream) CloseSend() error {
