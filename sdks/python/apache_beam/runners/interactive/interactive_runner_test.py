@@ -164,7 +164,7 @@ class InteractiveRunnerTest(unittest.TestCase):
 
     # Add the TestStream so that it can be cached.
     ib.options.capturable_sources.add(TestStream)
-    ib.options.capture_duration = timedelta(seconds=1)
+    ib.options.capture_duration = timedelta(seconds=5)
 
     p = beam.Pipeline(
         runner=interactive_runner.InteractiveRunner(),
