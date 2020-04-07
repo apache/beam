@@ -566,6 +566,19 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     result = runner.get_default_gcp_region()
     self.assertIsNone(result)
 
+  def test_combine_values_translation(self):
+    runner = DataflowRunner()
+
+    with beam.Pipeline(runner=runner,
+                       options=PipelineOptions(self.default_properties)) as p:
+      (  # pylint: disable=expression-not-assigned
+          p
+          | beam.Create([('a', [1, 2]), ('b', [3, 4])])
+          | beam.CombineValues(lambda v, _: sum(v)))
+
+    job_dict = json.loads(str(runner.job))
+    self.assertEqual(job_dict[u'steps'][1][u'kind'], u'CombineValues')
+
 
 class CustomMergingWindowFn(window.WindowFn):
   def assign(self, assign_context):
