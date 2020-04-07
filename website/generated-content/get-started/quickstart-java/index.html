@@ -373,6 +373,7 @@ You can monitor the running job by visiting the Flink dashboard at http://&lt;fl
 
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=DataflowRunner --project=&lt;your-gcp-project&gt; \
+                  --region=&lt;your-gcp-region&gt; \
                   --gcpTempLocation=gs://&lt;your-gcs-bucket&gt;/tmp \
                   --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://&lt;your-gcs-bucket&gt;/counts" \
      -Pdataflow-runner
@@ -420,6 +421,7 @@ You can monitor the running job by visiting the Flink dashboard at http://&lt;fl
 
 PS&gt; mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
  -D exec.args="--runner=DataflowRunner --project=&lt;your-gcp-project&gt; `
+               --region=&lt;your-gcp-region&gt; \
                --gcpTempLocation=gs://&lt;your-gcs-bucket&gt;/tmp `
                --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://&lt;your-gcs-bucket&gt;/counts" `
  -P dataflow-runner

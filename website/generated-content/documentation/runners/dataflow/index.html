@@ -329,6 +329,7 @@ Pub/Sub, or Cloud Datastore) if you use them in your pipeline code.</li>
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">java</span> <span class="o">-</span><span class="n">jar</span> <span class="n">target</span><span class="o">/</span><span class="n">beam</span><span class="o">-</span><span class="n">examples</span><span class="o">-</span><span class="n">bundled</span><span class="o">-</span><span class="mf">1.0</span><span class="o">.</span><span class="mi">0</span><span class="o">.</span><span class="na">jar</span> <span class="err">\</span>
   <span class="o">--</span><span class="n">runner</span><span class="o">=</span><span class="n">DataflowRunner</span> <span class="err">\</span>
   <span class="o">--</span><span class="n">project</span><span class="o">=&lt;</span><span class="n">YOUR_GCP_PROJECT_ID</span><span class="o">&gt;</span> <span class="err">\</span>
+  <span class="o">--</span><span class="n">region</span><span class="o">=&lt;</span><span class="n">GCP_REGION</span><span class="o">&gt;</span> <span class="err">\</span>
   <span class="o">--</span><span class="n">tempLocation</span><span class="o">=</span><span class="nl">gs:</span><span class="c1">//&lt;YOUR_GCS_BUCKET&gt;/temp/</span>
 </code></pre></div></div>
 
@@ -354,6 +355,12 @@ Pub/Sub, or Cloud Datastore) if you use them in your pipeline code.</li>
   <td><code>project</code></td>
   <td>The project ID for your Google Cloud Project.</td>
   <td>If not set, defaults to the default project in the current environment. The default project is set via <code>gcloud</code>.</td>
+</tr>
+
+<tr>
+  <td><code>region</code></td>
+  <td>The Google Compute Engine region to create the job.</td>
+  <td>If not set, defaults to the default region in the current environment. The default region is set via <code>gcloud</code>.</td>
 </tr>
 
 <tr>

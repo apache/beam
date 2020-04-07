@@ -593,6 +593,7 @@ python -m apache_beam.examples.wordcount \
 --output=/path/to/write/counts \
 --runner=DataflowRunner \
 --project={gcp_project_id} \
+--region={gce_region_id} \
 --temp_location={gcs_location} \ \
 --experiment=beam_fn_api \
 --sdk_location=[…]/beam/sdks/python/container/py{version}/build/target/apache-beam.tar.gz \

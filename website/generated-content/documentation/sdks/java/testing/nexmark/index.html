@@ -567,6 +567,7 @@ or may be published to Pub/Sub or Kafka.</p>
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--manageResources=false --monitorJobs=true \
 --enforceEncodability=false --enforceImmutability=false
 --project=&lt;your project&gt; \
+--region=&lt;your region&gt; \
 --zone=&lt;your zone&gt; \
 --workerMachineType=n1-highmem-8 \
 --stagingLocation=gs://&lt;a gs path for staging&gt; \
@@ -1006,6 +1007,7 @@ PUBSUB_TOPCI=&lt;existing pubsub topic&gt;
         --manageResources=false
         --monitorJobs=true
         --project=${PROJECT}
+        --region=${REGION}
         --zone=${ZONE}
         --workerMachineType=n1-highmem-8
         --stagingLocation=${STAGING_LOCATION}

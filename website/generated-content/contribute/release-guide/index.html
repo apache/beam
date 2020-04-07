@@ -1764,6 +1764,7 @@ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.in
       <li>Run Leaderboard with Dataflow Runner
         <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python -m apache_beam.examples.complete.game.leader_board \ 
 --project=${YOUR_PROJECT} \ 
+--region=${GCE_REGION} \
 --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \ 
 --dataset ${USER}_test \ 
 --runner DataflowRunner \ 
@@ -1796,6 +1797,7 @@ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.in
       <li>Run GameStats with Dataflow Runner
         <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python -m apache_beam.examples.complete.game.game_stats \ 
 --project=${YOUR_PROJECT} \ 
+--region=${GCE_REGION} \
 --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \ 
 --dataset ${USER}_test \ 
 --runner DataflowRunner \ 
