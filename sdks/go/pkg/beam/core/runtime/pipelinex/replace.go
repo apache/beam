@@ -174,7 +174,7 @@ func ensureUniqueNames(xforms map[string]*pb.PTransform) map[string]*pb.PTransfo
 
 	// Sort the transforms to make to make renaming deterministic.
 	var ordering []string
-	for id, _ := range xforms {
+	for id := range xforms {
 		ordering = append(ordering, id)
 	}
 	sort.Strings(ordering)
