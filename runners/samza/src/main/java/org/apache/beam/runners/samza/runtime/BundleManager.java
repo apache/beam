@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -47,6 +48,9 @@ import org.joda.time.Instant;
  * the ParDoFn 1. In case of synchronous ParDo, outputs of the element is resolved immediately after
  * the processElement returns. 2. In case of asynchronous ParDo, outputs of the element is resolved
  * when all the future emitted by the processElement is resolved.
+ *
+ * <p>This class is not thread safe and the current implementation relies on the assumption that
+ * messages are dispatched to BundleManager in a single threaded mode.
  *
  * @param <OutT> output type of the {@link DoFnOp}
  */
@@ -75,6 +79,7 @@ public class BundleManager<OutT> {
   // A container for futures belonging to the current active bundle
   private transient List<CompletionStage<Collection<WindowedValue<OutT>>>>
       currentBundleResultFutures;
+  private transient CompletionStage<Void> watermarkFuture;
 
   public BundleManager(
       BundleProgressListener<OutT> bundleProgressListener,
@@ -100,6 +105,7 @@ public class BundleManager<OutT> {
     this.currentBundleElementCount = new AtomicLong(0L);
     this.isBundleStarted = new AtomicBoolean(false);
     this.pendingBundleCount = new AtomicLong(0L);
+    this.watermarkFuture = CompletableFuture.completedFuture(null);
   }
 
   /*
@@ -145,11 +151,17 @@ public class BundleManager<OutT> {
     } else {
       // if there is a bundle in progress, hold back the watermark until end of the bundle
       this.bundleWatermarkHold = watermark;
+      // for batch mode, the max watermark should force the bundle to close
       if (watermark.isEqual(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-        // TODO: block on all futures and then fire finish bundle
-        // for batch mode, the max watermark should force the bundle to close
         tryFinishBundle(emitter);
-        // wait on all futures
+        /*
+         * Due to lack of async watermark function, we will need to block here before propagating the watermark
+         * downstream. tryFinishBundle() may or may not emit watermark depending on if there is an active bundle in
+         * progress or not. Hence, we always emit the watermark below since it only updates the OpAdapter and is
+         * idempotent.
+         */
+        watermarkFuture.toCompletableFuture().join();
+        emitter.emitWatermark(watermark);
       }
     }
   }
@@ -184,14 +196,21 @@ public class BundleManager<OutT> {
                   outputFuture,
                   (ignored, res) -> {
                     bundleProgressListener.onBundleFinished(emitter);
-
-                    if (watermarkHold != null) {
-                      bundleProgressListener.onWatermark(watermarkHold, emitter);
-                    }
-
                     pendingBundleCount.decrementAndGet();
                     return res;
                   });
+
+      // We chain the current watermark emission with previous watermark and the output futures
+      // since bundles can
+      // finish out of order but we still want the watermark to be emitted in order.
+      if (watermarkHold != null) {
+        watermarkFuture =
+            outputFuture.thenAcceptBoth(
+                watermarkFuture,
+                (ignored, res) -> {
+                  bundleProgressListener.onWatermark(watermarkHold, emitter);
+                });
+      }
       currentBundleResultFutures.clear();
     } else if (isBundleStarted.get()) {
       currentBundleResultFutures.add(outputFuture);
@@ -217,14 +236,32 @@ public class BundleManager<OutT> {
   }
 
   @VisibleForTesting
+  void setPendingBundleCount(long value) {
+    pendingBundleCount.set(value);
+  }
+
+  @VisibleForTesting
   boolean isBundleStarted() {
     return isBundleStarted.get();
   }
 
+  @VisibleForTesting
+  void setBundleWatermarkHold(Instant watermark) {
+    this.bundleWatermarkHold = watermark;
+  }
+
+  /**
+   * We close the current bundle in progress if one of the following criteria is met 1. The bundle
+   * count &ge; maxBundleSize 2. Time elapsed since the bundle started is &ge; maxBundleTimeMs 3.
+   * Watermark hold equals to TIMESTAMP_MAX_VALUE which usually is the case for bounded jobs
+   *
+   * @return true - if one of the criteria above is satisfied; false - otherwise
+   */
   private boolean shouldFinishBundle() {
     return isBundleStarted.get()
         && (currentBundleElementCount.get() >= maxBundleSize
-            || System.currentTimeMillis() - bundleStartTime.get() >= maxBundleTimeMs);
+            || System.currentTimeMillis() - bundleStartTime.get() >= maxBundleTimeMs
+            || BoundedWindow.TIMESTAMP_MAX_VALUE.equals(bundleWatermarkHold));
   }
 
   /**

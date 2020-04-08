@@ -32,6 +32,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.samza.operators.Scheduler;
 import org.joda.time.Instant;
@@ -127,6 +128,29 @@ public final class BundleManagerTest {
     assertFalse("tryFinishBundle() did not close the bundle", bundleManager.isBundleStarted());
   }
 
+  @Test
+  public void testTryFinishBundleClosesBundleOnMaxWatermark() {
+    OpEmitter<String> mockEmitter = mock(OpEmitter.class);
+    when(mockFutureCollector.finish())
+        .thenReturn(
+            CompletableFuture.completedFuture(Collections.singleton(mock(WindowedValue.class))));
+    bundleManager.setBundleWatermarkHold(BoundedWindow.TIMESTAMP_MAX_VALUE);
+
+    bundleManager.tryStartBundle();
+    bundleManager.tryStartBundle();
+    bundleManager.tryFinishBundle(mockEmitter);
+
+    verify(mockEmitter, times(1)).emitFuture(anyObject());
+    verify(bundleProgressListener, times(1)).onBundleFinished(mockEmitter);
+    assertEquals(
+        "Expected the number of element in the current bundle to be 0",
+        0L,
+        bundleManager.getCurrentBundleElementCount());
+    assertEquals(
+        "Expected the pending bundle count to be 0", 0L, bundleManager.getPendingBundleCount());
+    assertFalse("tryFinishBundle() did not close the bundle", bundleManager.isBundleStarted());
+  }
+
   /*
    * Set up the bundle manager with defaults and ensure the bundle manager doesn't close the current active bundle.
    */
@@ -206,6 +230,32 @@ public final class BundleManagerTest {
 
     testWatermarkHoldWhenPendingBundleInProgress(mockEmitter, captor, watermark);
     testWatermarkHoldPropagatesAfterFutureResolution(mockEmitter, captor, latch, watermark);
+  }
+
+  @Test
+  public void testMaxWatermarkPropagationForPendingBundle() {
+    Instant watermark = BoundedWindow.TIMESTAMP_MAX_VALUE;
+    OpEmitter<String> mockEmitter = mock(OpEmitter.class);
+    bundleManager.setPendingBundleCount(1);
+    bundleManager.processWatermark(watermark, mockEmitter);
+    verify(mockEmitter, times(1)).emitWatermark(watermark);
+  }
+
+  @Test
+  public void testMaxWatermarkWithBundleInProgress() {
+    Instant watermark = BoundedWindow.TIMESTAMP_MAX_VALUE;
+    OpEmitter<String> mockEmitter = mock(OpEmitter.class);
+
+    when(mockFutureCollector.finish())
+        .thenReturn(
+            CompletableFuture.completedFuture(Collections.singleton(mock(WindowedValue.class))));
+
+    bundleManager.tryStartBundle();
+    bundleManager.tryStartBundle();
+
+    // should force close bundle
+    bundleManager.processWatermark(watermark, mockEmitter);
+    verify(mockEmitter, times(1)).emitWatermark(watermark);
   }
 
   @Test
