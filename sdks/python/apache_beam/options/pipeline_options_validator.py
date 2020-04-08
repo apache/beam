@@ -230,6 +230,11 @@ class PipelineOptionsValidator(object):
       errors.extend(
           self._validate_error(
               'worker_region and worker_zone are mutually exclusive.'))
+    if view.zone:
+      _LOGGER.warning(
+          'Option --zone is deprecated. Please use --worker_zone instead.')
+      view.worker_zone = view.zone
+      view.zone = None
     return errors
 
   def validate_optional_argument_positive(self, view, arg_name):
