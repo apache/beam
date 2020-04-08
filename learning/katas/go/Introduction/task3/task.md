@@ -17,10 +17,20 @@
     under the License.
 -->
 
-# Beam Katas
-Beam Katas are interactive Beam coding exercises (i.e. [code katas](http://codekata.com/))
-that can help you to learn Apache Beam concepts and programming model hands-on.
-Built based on [JetBrains Educational Products](https://www.jetbrains.com/education/), Beam Katas 
-objective is to provide a series of structured hands-on learning experiences for learners 
-to understand about Apache Beam and its SDKs by solving exercises with gradually increasing 
-complexity. Beam Katas are available for Java, Python, and Go (In Development) SDKs.
+# Testing in Apache Beam
+
+Now that you have a simple pipeline up and running, let's talk about testing in Apache Beam using the Golang SDK.
+
+**Kata:** Your third kata is to develop tests for your pipeline.
+
+<div class="hint">
+  <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/testing/passert#Equals">passert.Equals</a>
+  from the package passert verifies the given collection has the same values as the given values, under coder equality.
+  The values can be provided as a single PCollection.
+</div>
+
+<div class="hint">
+  <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/testing/ptest#Run">ptest.Run</a>
+  from the package ptest runs a pipeline for testing.  The semantics of the pipeline is expected to be verified
+  through passert.
+</div>
