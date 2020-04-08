@@ -107,7 +107,8 @@ rat {
     "learning/katas/*/IO/**/*.txt",
 
     // Mockito extensions
-    "sdks/java/io/amazon-web-services2/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker"
+    "sdks/java/io/amazon-web-services2/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
+    "sdks/java/extensions/ml/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker"
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
