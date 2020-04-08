@@ -134,21 +134,6 @@ public class FhirIOR4WriteIT {
             .apply(Create.of(R4_PRETTY_BUNDLES).withCoder(new HttpBodyCoder()))
             .apply(FhirIO.Write.executeBundles(options.getFhirStore()));
 
-    // TODO(jaketf): DELETEME
-    writeResult
-        .getFailedInsertsWithErr()
-        .apply(
-            MapElements.into(TypeDescriptors.strings())
-                .via(
-                    (HealthcareIOError<HttpBody> err) -> {
-                      return String.format(
-                          "Data: %s \n" + "Error: %s \n" + "Stacktrace: %s",
-                          err.getDataResource().getData(),
-                          err.getErrorMessage(),
-                          err.getStackTrace());
-                    }))
-        .apply(TextIO.write().to(options.getGcsDeadLetterPath()));
-
     PAssert.that(writeResult.getFailedInsertsWithErr()).empty();
 
     pipeline.run().waitUntilFinish();
