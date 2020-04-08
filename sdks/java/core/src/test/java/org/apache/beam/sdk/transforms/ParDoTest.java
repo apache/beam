@@ -3513,7 +3513,10 @@ public class ParDoTest implements Serializable {
                 fail("Should have failed due to out-of-bounds timer.");
               } catch (RuntimeException e) {
                 String message = e.getMessage();
-                List<String> expectedSubstrings = Arrays.asList("event-time timer", "expiration");
+
+                // Make sure these words are contained in error messages for
+                // both SimpleDoFnRunner and FnApiDoFnRunner (portability)
+                List<String> expectedSubstrings = Arrays.asList("timer", "expiration");
                 expectedSubstrings.forEach(
                     str ->
                         Preconditions.checkState(
@@ -3557,7 +3560,9 @@ public class ParDoTest implements Serializable {
               } catch (RuntimeException e) {
                 String message = e.getMessage();
                 List<String> expectedSubstrings =
-                    Arrays.asList("event-time timer", "output timestamp");
+                    // Make sure these words are contained in error messages for
+                    // both SimpleDoFnRunner and FnApiDoFnRunner (portability)
+                    Arrays.asList("timer", "output timestamp");
                 expectedSubstrings.forEach(
                     str ->
                         Preconditions.checkState(
@@ -3602,7 +3607,9 @@ public class ParDoTest implements Serializable {
               } catch (RuntimeException e) {
                 String message = e.getMessage();
                 List<String> expectedSubstrings =
-                    Arrays.asList("processing-time timer", "output timestamp");
+                    // Make sure these words are contained in error messages for
+                    // both SimpleDoFnRunner and FnApiDoFnRunner (portability)
+                    Arrays.asList("timer", "output timestamp");
                 expectedSubstrings.forEach(
                     str ->
                         Preconditions.checkState(
