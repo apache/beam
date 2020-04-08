@@ -46,10 +46,8 @@ typing-extensions==3.7.4.1
 
 # GCP extra features
 google-apitools==0.5.28
-googledatastore==7.0.2;python_version<"3.0"
 google-cloud-pubsub==1.0.2
 google-cloud-bigquery==1.24.0
-proto-google-cloud-datastore-v1==0.90.4;python_version<"3.0"
 google-cloud-bigtable==1.0.0
 google-cloud-core==1.1.0
 google-cloud-datastore==1.7.4
