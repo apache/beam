@@ -204,7 +204,7 @@ public class FnHarness {
       FinalizeBundleHandler finalizeBundleHandler =
           new FinalizeBundleHandler(options.as(GcsOptions.class).getExecutorService());
 
-      LoadingCache<String, BeamFnApi.ProcessBundleDescriptor> bundleProcessors =
+      LoadingCache<String, BeamFnApi.ProcessBundleDescriptor> processBundleDescriptors =
           CacheBuilder.newBuilder()
               .build(
                   new CacheLoader<String, BeamFnApi.ProcessBundleDescriptor>() {
@@ -224,7 +224,7 @@ public class FnHarness {
       ProcessBundleHandler processBundleHandler =
           new ProcessBundleHandler(
               options,
-              bundleProcessors::getUnchecked,
+              processBundleDescriptors::getUnchecked,
               beamFnDataMultiplexer,
               beamFnStateGrpcClientCache,
               finalizeBundleHandler);
