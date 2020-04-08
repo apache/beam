@@ -47,7 +47,7 @@ const (
 // present and uncorrupted. It interprets each artifact name as a relative
 // path under the dest directory. It does not retrieve valid artifacts already
 // present.
-// TODO(BEAM-9577): Return a mapping of filename to dependency, rather than []*pb.ArtifactMetadata.
+// TODO(BEAM-9577): Return a mapping of filename to dependency, rather than []*jobpb.ArtifactMetadata.
 // TODO(BEAM-9577): Leverage richness of roles rather than magic names to understand artifacts.
 func Materialize(ctx context.Context, endpoint string, dependencies []*pipepb.ArtifactInformation, rt string, dest string) ([]*jobpb.ArtifactMetadata, error) {
 	if len(dependencies) > 0 {
@@ -262,9 +262,9 @@ func LegacyMultiRetrieve(ctx context.Context, client jobpb.LegacyArtifactRetriev
 }
 
 type legacyArtifact struct {
-	client pb.LegacyArtifactRetrievalServiceClient
+	client jobpb.LegacyArtifactRetrievalServiceClient
 	rt     string
-	md     *pb.ArtifactMetadata
+	md     *jobpb.ArtifactMetadata
 }
 
 func (a legacyArtifact) retrieve(ctx context.Context, dest string) error {
