@@ -529,7 +529,7 @@ limitations under the License.
 <h3 id="writing-new-dockerfiles">Writing new Dockerfiles on top of the original</h3>
 
 <ol>
-  <li>Pull a <a href="https://hub.docker.com/u/apachebeam">prebuilt SDK container image</a> for your <a href="https://docs.docker.com/docker-hub/repos/#searching-for-repositories">target</a> language and version. The following example pulls the latest Python SDK:
+  <li>Pull a <a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;type=image">prebuilt SDK container image</a> for your <a href="https://docs.docker.com/docker-hub/repos/#searching-for-repositories">target</a> language and version. The following example pulls the latest Python SDK:
     <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker pull apache/beam_python3.7_sdk
 </code></pre></div>    </div>
   </li>
@@ -584,24 +584,6 @@ python -m apache_beam.examples.wordcount \
 --environment_config=path/to/container/image
 </code></pre></div></div>
 
-<p>To test a customized image on the Google Cloud Dataflow runner, use
-<code class="highlighter-rouge">DataflowRunner</code> with the <code class="highlighter-rouge">beam_fn_api</code> experiment and set
-<code class="highlighter-rouge">worker_harness_container_image</code> to the custom container:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python -m apache_beam.examples.wordcount \ 
---input=path/to/inputfile \
---output=/path/to/write/counts \
---runner=DataflowRunner \
---project={gcp_project_id} \
---region={gce_region_id} \
---temp_location={gcs_location} \ \
---experiment=beam_fn_api \
---sdk_location=[…]/beam/sdks/python/container/py{version}/build/target/apache-beam.tar.gz \
---worker_harness_container_image=path/to/container/image
-
-# The sdk_location option accepts four Python version variables: 2, 35, 36, and 37
-</code></pre></div></div>
-
 <h2 id="building-container-images">Building container images</h2>
 
 <p>To build Beam SDK container images:</p>
@@ -625,46 +607,43 @@ python -m apache_beam.examples.wordcount \
 
 <p>To examine the containers that you built, run <code class="highlighter-rouge">docker images</code> from anywhere in the command line. If you successfully built all of the container images, the command prints a table like the following:</p>
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>REPOSITORY                          TAG                 IMAGE ID            CREATED           SIZE
-apache/beam_java_sdk                 latest              16ca619d489e        2 weeks ago        550MB
-apache/beam_python2.7_sdk            latest              b6fb40539c29        2 weeks ago       1.78GB
-apache/beam_python3.5_sdk            latest              bae309000d09        2 weeks ago       1.85GB
-apache/beam_python3.6_sdk            latest              42faad307d1a        2 weeks ago       1.86GB
-apache/beam_python3.7_sdk            latest              18267df54139        2 weeks ago       1.86GB
-apache/beam_go_sdk                   latest              30cf602e9763        2 weeks ago        124MB
+apache/beam_java_sdk               latest              16ca619d489e        2 weeks ago        550MB
+apache/beam_python2.7_sdk          latest              b6fb40539c29        2 weeks ago       1.78GB
+apache/beam_python3.5_sdk          latest              bae309000d09        2 weeks ago       1.85GB
+apache/beam_python3.6_sdk          latest              42faad307d1a        2 weeks ago       1.86GB
+apache/beam_python3.7_sdk          latest              18267df54139        2 weeks ago       1.86GB
+apache/beam_go_sdk                 latest              30cf602e9763        2 weeks ago        124MB
 </code></pre></div></div>
 
 <h3 id="overriding-default-docker-targets">Overriding default Docker targets</h3>
 
-<p>The default <a href="https://docs.docker.com/engine/reference/commandline/tag/">tag</a> is <code class="highlighter-rouge">latest</code> and the default repositories are in the Docker Hub <code class="highlighter-rouge">apachebeam</code> namespace. The <code class="highlighter-rouge">docker</code> command-line tool implicitly <a href="#pushing-container-images">pushes container images</a> to this location.</p>
+<p>The default <a href="https://docs.docker.com/engine/reference/commandline/tag/">tag</a> is sdk_version defined at <a href="https://github.com/apache/beam/blob/master/gradle.properties">gradle.properties</a> and the default repositories are in the Docker Hub <code class="highlighter-rouge">apache</code> namespace. 
+The <code class="highlighter-rouge">docker</code> command-line tool implicitly <a href="#pushing-container-images">pushes container images</a> to this location.</p>
 
 <p>To tag a local image, set the <code class="highlighter-rouge">docker-tag</code> option when building the container. The following command tags a Python SDK image with a date.</p>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:python:container:py2:docker -Pdocker-tag=2019-10-04
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:python:container:py36:docker -Pdocker-tag=2019-10-04
 </code></pre></div></div>
 
-<p>To change the repository, set the <code class="highlighter-rouge">docker-repository-root</code> option to a new location. The following command sets the <code class="highlighter-rouge">docker-repository-root</code> to a Bintray repository named <code class="highlighter-rouge">apache</code>.</p>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:python:container:py2:docker -Pdocker-repository-root=$USER-docker-apache.bintray.io/beam/python
+<p>To change the repository, set the <code class="highlighter-rouge">docker-repository-root</code> option to a new location. The following command sets the <code class="highlighter-rouge">docker-repository-root</code> 
+to a repository named <code class="highlighter-rouge">example-repo</code> on Docker Hub.</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:python:container:py36:docker -Pdocker-repository-root=example-repo
 </code></pre></div></div>
 
 <h2 id="pushing-container-images">Pushing container images</h2>
 
 <p>After <a href="#building-container-images">building a container image</a>, you can store it in a remote Docker repository.</p>
 
-<p>The following steps push a Python SDK image to the <a href="#overriding-default-docker-targets"><code class="highlighter-rouge">docker-root-repository</code> value</a>.</p>
+<p>The following steps push a Python3.6 SDK image to the <a href="#overriding-default-docker-targets"><code class="highlighter-rouge">docker-root-repository</code> value</a>. 
+Please log in to the destination repository as needed.</p>
 
-<ol>
-  <li>Sign in to your Docker registry:
-    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker login
-</code></pre></div>    </div>
-  </li>
-  <li>Navigate to the local copy of your container image and upload it to the remote repository:
-    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker push apache/beam_python2.7_sdk
-</code></pre></div>    </div>
-  </li>
-</ol>
-
-<p>To download the image again, run <code class="highlighter-rouge">docker pull</code>:</p>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker pull apache/beam_python2.7_sdk
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Upload it to the remote repository:
 </code></pre></div></div>
+<p>docker push example-repo/beam_python3.6_sdk</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+To download the image again, run `docker pull`:
+</code></pre></div></div>
+<p>docker pull example-repo/beam_python3.6_sdk
+```</p>
 
 <blockquote>
   <p><strong>Note</strong>: After pushing a container image, the remote image ID and digest match the local image ID and digest.</p>
