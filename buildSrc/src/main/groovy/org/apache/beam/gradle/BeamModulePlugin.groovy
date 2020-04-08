@@ -1305,8 +1305,8 @@ class BeamModulePlugin implements Plugin<Project> {
           def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
           allOptionsList.addAll([
             '--workerHarnessContainerImage=',
-            '--dataflowWorkerJar=${dataflowWorkerJar}',
-            '--region=${dataflowRegion}'
+            "--dataflowWorkerJar=${dataflowWorkerJar}",
+            "--region=${dataflowRegion}"
           ])
 
           pipelineOptionsString = JsonOutput.toJson(allOptionsList)
