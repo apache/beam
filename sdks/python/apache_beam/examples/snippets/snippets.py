@@ -40,8 +40,6 @@ from builtins import object
 from builtins import range
 from decimal import Decimal
 
-from past.builtins import unicode
-
 import apache_beam as beam
 from apache_beam.io import iobase
 from apache_beam.io.range_trackers import OffsetRangeTracker
@@ -1038,22 +1036,21 @@ def model_datastoreio():
   """Using a Read and Write transform to read/write to Cloud Datastore."""
 
   import uuid
-  from google.cloud.proto.datastore.v1 import entity_pb2
-  from google.cloud.proto.datastore.v1 import query_pb2
-  import googledatastore
   import apache_beam as beam
   from apache_beam.options.pipeline_options import PipelineOptions
-  from apache_beam.io.gcp.datastore.v1.datastoreio import ReadFromDatastore
-  from apache_beam.io.gcp.datastore.v1.datastoreio import WriteToDatastore
+  from apache_beam.io.gcp.datastore.v1new.datastoreio import ReadFromDatastore
+  from apache_beam.io.gcp.datastore.v1new.datastoreio import WriteToDatastore
+  from apache_beam.io.gcp.datastore.v1new.types import Entity
+  from apache_beam.io.gcp.datastore.v1new.types import Key
+  from apache_beam.io.gcp.datastore.v1new.types import Query
 
   project = 'my_project'
   kind = 'my_kind'
-  query = query_pb2.Query()
-  query.kind.add().name = kind
+  query = Query(kind, project)
 
   # [START model_datastoreio_read]
   p = beam.Pipeline(options=PipelineOptions())
-  entities = p | 'Read From Datastore' >> ReadFromDatastore(project, query)
+  entities = p | 'Read From Datastore' >> ReadFromDatastore(query)
   # [END model_datastoreio_read]
 
   # [START model_datastoreio_write]
@@ -1062,9 +1059,9 @@ def model_datastoreio():
       ['Mozart', 'Chopin', 'Beethoven', 'Vivaldi'])
 
   def to_entity(content):
-    entity = entity_pb2.Entity()
-    googledatastore.helper.add_key_path(entity.key, kind, str(uuid.uuid4()))
-    googledatastore.helper.add_properties(entity, {'content': unicode(content)})
+    key = Key([kind, str(uuid.uuid4())])
+    entity = Entity(key)
+    entity.set_properties({'content': content})
     return entity
 
   entities = musicians | 'To Entity' >> beam.Map(to_entity)
